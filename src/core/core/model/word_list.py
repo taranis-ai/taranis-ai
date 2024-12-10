@@ -136,6 +136,17 @@ class WordList(BaseModel):
         data["usage"] = self.get_usage_list()
         data.pop("entries", None)
         return data
+    @classmethod
+    def from_dict(cls, data: dict) -> "WordList":
+        if 'entries' in data:
+            data['entries'] = WordListEntry.load_multiple(data['entries'])
+        return cls(
+            name=data.get('name', ''),
+            description=data.get('description'),
+            usage=data.get('usage', 0),
+            link=data.get('link', ''),
+            entries=data.get('entries', [])
+        )
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -157,25 +168,27 @@ class WordList(BaseModel):
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
     @classmethod
-    def update(cls, word_list_id: int, data, user: User | None = None) -> tuple[dict, int]:
+    def update(cls, word_list_id: int, data: dict, user: User | None = None) -> tuple[dict, int]:
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
 
         if user and not word_list.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to WordList"}, 403
-
-        if name := data.get("name"):
-            word_list.name = name
-        if description := data.get("description"):
-            word_list.description = description
-        if link := data.get("link"):
-            word_list.link = link
-        if usage := data.get("usage"):
-            word_list.update_usage(usage)
+            
+        if "name" in data:
+            word_list.name = data["name"]
+        if "description" in data:
+            word_list.description = data["description"]
+        if "link" in data:
+            word_list.link = data["link"]
+        if "usage" in data:
+            word_list.update_usage(data["usage"])
+        if "entries" in data:
+            word_list.entries = WordListEntry.load_multiple(data["entries"])
 
         db.session.commit()
-        return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
+        return {"message": "Word list updated", "id": word_list.id}, 200
 
     @classmethod
     def parse_csv(cls, content) -> list:
