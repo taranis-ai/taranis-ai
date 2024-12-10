@@ -69,6 +69,9 @@ class CoreApi:
     def get_osint_source(self, source_id: str) -> dict | None:
         return self.api_get(f"/worker/osint-sources/{source_id}")
 
+    def get_connector_config(self, connector_id: str) -> dict | None:
+        return self.api_get(f"/worker/connectors/{connector_id}")
+
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
@@ -135,6 +138,7 @@ class CoreApi:
             return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
         except Exception:
             return None
+
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)

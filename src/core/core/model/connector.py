@@ -37,6 +37,11 @@ class Connector(BaseModel):
 
         self.parameters = Worker.parse_parameters(type, parameters)
 
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        return data
+
     @classmethod
     def add(cls, data):
         connector = cls.from_dict(data)
@@ -54,7 +59,7 @@ class Connector(BaseModel):
         pass
 
     @classmethod
-    def update(cls, connector_id: str, data: dict) -> "Connector|None":
+    def update(cls, connector_id: str, data: dict) -> "Connector | None":
         connector = cls.get(connector_id)
         if not connector:
             return None
@@ -87,5 +92,5 @@ class Connector(BaseModel):
 
 
 class ConnectorParameterValue(BaseModel):
-    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("connector.id", ondelete="CASCADE"), primary_key=True)
+    connector_id: Mapped[str] = db.Column(db.String, db.ForeignKey("connector.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)

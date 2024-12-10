@@ -217,6 +217,24 @@ class BotActions(MethodView):
         return response, code
 
 
+class Connectors(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self, connector_id):
+        if not request.json:
+            return {"error": "Invalid JSON payload"}, 400
+
+        story_id = request.json.get("story_id")
+        if not story_id:
+            return {"error": "No story_id provided"}, 400
+
+        try:
+            result = queue_manager.queue_manager.send_to_connector(connector_id=connector_id, story_id=story_id)
+            return result, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+
 def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
@@ -232,6 +250,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+    assess_bp.add_url_rule("/story-to/connector/<string:connector_id>/send", view_func=Connectors.as_view("send_to_connector"))
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)
