@@ -37,28 +37,45 @@
   </v-card>
 </template>
 <script>
+import { useAssessStore } from '@/stores/AssessStore'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { ref, onMounted } from 'vue'
 export default {
   name: 'PopupShareToConnector',
-
+  props: {
+    itemIds: {
+      type: Array,
+      default: () => []
+    },
+    dialog: Boolean
+  },
   emits: ['close'],
   setup(props, { emit }) {
     const configStore = useConfigStore()
+    const assessStore = useAssessStore()
     const connectors = ref([])
     const connectorSelection = ref(null)
+
     const share = () => {
-      console.log('Selected connector ID:', connectorSelection.value)
-      emit('close')
+      if (connectorSelection.value && props.itemIds.length > 0) {
+        assessStore.shareStoryToConnector(
+          connectorSelection.value,
+          props.itemIds
+        )
+        emit('close')
+      }
     }
+
     const close = () => {
       emit('close')
     }
+
     onMounted(() => {
       configStore.loadConnectors().then(() => {
         connectors.value = configStore.connectors.items
       })
     })
+
     return {
       connectorSelection,
       connectors,
