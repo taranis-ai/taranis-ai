@@ -126,8 +126,8 @@ class QueueManager:
 
     def send_to_connector(self, connector_id: str, story_id: str):
         if self.send_task("connector_task", args=[connector_id, story_id], queue="connectors"):
-            logger.info(f"Connector task {connector_id} scheduled")
-            return {"message": f"Connector task {connector_id} scheduled"}, 200
+            logger.info(f"Connector with id: {connector_id} scheduled")
+            return {"message": f"Connector with id: {connector_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
     def gather_word_list(self, word_list_id: int):
