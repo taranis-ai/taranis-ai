@@ -16,8 +16,8 @@ class MispConnector:
         self.url: str
         self.api_key: str
 
-    def send(self, connector_id: str):
-        logger.info(f"Sending story to MISP {connector_id}")
+    def send(self, connector_id: str, stories: list):
+        logger.info(f"Sending story to MISP connecector {connector_id}")
 
     def receive(self, connector_id: str):
-        logger.info(f"Receiving story from MISP {connector_id}")
+        logger.info(f"Receiving story from MISP connector {connector_id}")

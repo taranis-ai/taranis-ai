@@ -29,19 +29,23 @@ class ConnectorTask(Task):
             return self.connectors.get(connector_type)
         return None
 
-    def get_story(self, story_id: str) -> list:
-        story = self.core_api.get_stories({"story_id": story_id})
+    def get_story_by_id(self, story_ids: list[str]) -> list:
+        search_queries = [{"story_id": story_id} for story_id in story_ids]
+        stories = []
+        for query in search_queries:
+            if story := self.core_api.get_stories(query):
+                stories.extend(story)
+        if not stories:
+            logger.error(f"Stories {query} not found")
+            raise RuntimeError(f"Story with id {query} not found")
+        return stories
 
-        if not story:
-            logger.error(f"Story with id {story_id} not found")
-            raise RuntimeError(f"Story with id {story} not found")
-        return story
-
-    def run(self, connector_id: str, story_id: str | None):
+    def run(self, connector_id: str, story_id: list | None):
         if connector := self.get_connector(connector_id):
             if story_id:
                 logger.info(f"Sending story {story_id} to connector {connector_id}")
-                return connector.send(connector_id)
+                stories = self.get_story_by_id(story_id)
+                return connector.send(connector_id, stories)
 
             return connector.receive(connector_id)
         logger.info(f"Connector with id: {connector_id} was not found")

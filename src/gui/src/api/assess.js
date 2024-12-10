@@ -97,8 +97,8 @@ export function triggerBot(bot_id, story_id) {
   })
 }
 
-export function shareToConnector(connector_id, story_id) {
+export function shareToConnector(connector_id, story_ids) {
   return apiService.post(`/assess/story/${connector_id}/share`, {
-    story_id: story_id
+    story_ids: story_ids
   })
 }
