@@ -130,7 +130,7 @@ export default {
       description: '',
       link: '',
       usage: [],
-      entries: []
+      entries: [] 
     })
     const config_form = ref(null)
     const loading = ref(false)
@@ -166,33 +166,45 @@ export default {
         return
       }
 
-      console.info(`Submitting wordlist: ${wordlist.value.name}`)
+      const payload = {
+        name: wordlist.value.name,
+        description: wordlist.value.description,
+        link: wordlist.value.link,
+        usage: wordlist.value.usage,
+        entries: wordlist.value.entries.map((entry) => ({
+          value: entry.value,
+          category: entry.category || 'Uncategorized',
+          description: entry.description || ''
+        }))
+      }
+
+      console.info(`Submitting wordlist: ${payload.name}`)
 
       if (props.wordlistId > 0) {
-        await updateItem(wordlist.value)
+        await updateItem(payload)
       } else {
-        await createItem(wordlist.value)
+        await createItem(payload)
       }
     }
 
-    async function createItem(item) {
+    async function createItem(payload) {
       try {
-        const response = await createWordList(item)
+        const response = await createWordList(payload)
         notifySuccess(response.data.message)
         emit('submit')
       } catch (error) {
-        notifyFailure(`Failed to create ${item.name}`)
+        notifyFailure(`Failed to create ${payload.name}`)
       }
     }
 
-    async function updateItem(item) {
+    async function updateItem(payload) {
       try {
-        const response = await updateWordList(item)
+        const response = await updateWordList(payload)
         notifySuccess(response.data.message)
-        emit('submit', wordlist.value)
+        emit('submit', payload)
       } catch (error) {
         console.error(error)
-        notifyFailure(`Failed to update ${item.name}`)
+        notifyFailure(`Failed to update ${payload.name}`)
       }
     }
 
@@ -221,7 +233,15 @@ export default {
       loading.value = true
       try {
         const response = await getDetailedWordList(word_list_id)
-        wordlist.value = response.data
+
+        wordlist.value = {
+          ...response.data,
+          entries: response.data.entries.map((entry) => ({
+            value: entry.value,
+            category: entry.category || 'Uncategorized',
+            description: entry.description || ''
+          }))
+        }
       } catch (error) {
         notifyFailure(error)
       } finally {
@@ -230,14 +250,18 @@ export default {
     }
 
     onMounted(() => {
-      loadWordList(props.wordlistId)
+      if (props.wordlistId > 0) {
+        loadWordList(props.wordlistId)
+      }
       config_form.value.scrollIntoView({ behavior: 'smooth' })
     })
 
     watch(
       () => props.wordlistId,
-      (w) => {
-        loadWordList(w)
+      (newWordlistId) => {
+        if (newWordlistId > 0) {
+          loadWordList(newWordlistId)
+        }
       }
     )
 

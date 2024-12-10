@@ -136,6 +136,17 @@ class WordList(BaseModel):
         data["usage"] = self.get_usage_list()
         data.pop("entries", None)
         return data
+    @classmethod
+    def from_dict(cls, data: dict) -> "WordList":
+        if 'entries' in data:
+            data['entries'] = WordListEntry.load_multiple(data['entries'])
+        return cls(
+            name=data.get('name', ''),
+            description=data.get('description', None),
+            usage=data.get('usage', 0),
+            link=data.get('link', ''),
+            entries=data.get('entries', [])
+        )
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -157,7 +168,8 @@ class WordList(BaseModel):
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
     @classmethod
-    def update(cls, word_list_id: int, data, user: User | None = None) -> tuple[dict, int]:
+    def update(cls, word_list_id: int, data: dict, user: User | None = None) -> tuple[dict, int]:
+
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
@@ -165,17 +177,15 @@ class WordList(BaseModel):
         if user and not word_list.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to WordList"}, 403
 
-        if name := data.get("name"):
-            word_list.name = name
-        if description := data.get("description"):
-            word_list.description = description
-        if link := data.get("link"):
-            word_list.link = link
-        if usage := data.get("usage"):
-            word_list.update_usage(usage)
+        updated_word_list = cls.from_dict(data)
+        word_list.name = updated_word_list.name
+        word_list.description = updated_word_list.description
+        word_list.link = updated_word_list.link
+        word_list.usage = updated_word_list.usage
+        word_list.entries = updated_word_list.entries
 
         db.session.commit()
-        return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
+        return {"message": "Word list updated", "id": word_list.id}, 200
 
     @classmethod
     def parse_csv(cls, content) -> list:
@@ -307,3 +317,16 @@ class WordListEntry(BaseModel):
 
     def to_entry_dict(self) -> dict[str, Any]:
         return {"value": self.value, "category": self.category}
+    
+    @classmethod
+    def load_multiple(cls, entries_data: list[dict]) -> list["WordListEntry"]:
+        if not entries_data:
+            return []
+        return [
+            cls(
+                value=entry.get('value'),
+                category=entry.get('category', 'Uncategorized'),
+                description=entry.get('description', '')
+            )
+            for entry in entries_data
+        ]
