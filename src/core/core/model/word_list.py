@@ -142,7 +142,7 @@ class WordList(BaseModel):
             data['entries'] = WordListEntry.load_multiple(data['entries'])
         return cls(
             name=data.get('name', ''),
-            description=data.get('description', None),
+            description=data.get('description'),
             usage=data.get('usage', 0),
             link=data.get('link', ''),
             entries=data.get('entries', [])
@@ -169,20 +169,23 @@ class WordList(BaseModel):
 
     @classmethod
     def update(cls, word_list_id: int, data: dict, user: User | None = None) -> tuple[dict, int]:
-
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
 
         if user and not word_list.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to WordList"}, 403
-
-        updated_word_list = cls.from_dict(data)
-        word_list.name = updated_word_list.name
-        word_list.description = updated_word_list.description
-        word_list.link = updated_word_list.link
-        word_list.usage = updated_word_list.usage
-        word_list.entries = updated_word_list.entries
+            
+        if "name" in data:
+            word_list.name = data["name"]
+        if "description" in data:
+            word_list.description = data["description"]
+        if "link" in data:
+            word_list.link = data["link"]
+        if "usage" in data:
+            word_list.update_usage(data["usage"])
+        if "entries" in data:
+            word_list.entries = WordListEntry.load_multiple(data["entries"])
 
         db.session.commit()
         return {"message": "Word list updated", "id": word_list.id}, 200
@@ -317,16 +320,3 @@ class WordListEntry(BaseModel):
 
     def to_entry_dict(self) -> dict[str, Any]:
         return {"value": self.value, "category": self.category}
-    
-    @classmethod
-    def load_multiple(cls, entries_data: list[dict]) -> list["WordListEntry"]:
-        if not entries_data:
-            return []
-        return [
-            cls(
-                value=entry.get('value'),
-                category=entry.get('category', 'Uncategorized'),
-                description=entry.get('description', '')
-            )
-            for entry in entries_data
-        ]

@@ -193,6 +193,9 @@ export default {
         notifySuccess(response.data.message)
         emit('submit')
       } catch (error) {
+        const errorMessage = error.response?.data?.message
+        ? error.response.data.message
+        : `Failed to create ${payload.name}`
         notifyFailure(`Failed to create ${payload.name}`)
       }
     }
@@ -203,6 +206,9 @@ export default {
         notifySuccess(response.data.message)
         emit('submit', payload)
       } catch (error) {
+        const errorMessage = error.response?.data?.message
+        ? error.response.data.message
+        : `Failed to create ${payload.name}`
         console.error(error)
         notifyFailure(`Failed to update ${payload.name}`)
       }
