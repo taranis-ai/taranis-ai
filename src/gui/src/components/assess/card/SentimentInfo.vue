@@ -7,11 +7,7 @@
       {{ sentiment_category }}
       <v-tooltip activator="parent" location="bottom">
         <template v-slot:activator="{ props }">
-          <v-icon
-            v-bind="props"
-            size="x-small"
-            :icon="sentimentEmoji"
-          />
+          <v-icon v-bind="props" size="x-small" :icon="sentimentEmoji" />
         </template>
         <span>{{ sentimentTooltip }}</span>
       </v-tooltip>
