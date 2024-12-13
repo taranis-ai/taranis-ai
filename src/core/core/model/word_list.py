@@ -193,7 +193,7 @@ class WordList(BaseModel):
             word_list.entries = WordListEntry.load_multiple(data["entries"])
 
         db.session.commit()
-        return {"message": "Word list updated", "id": word_list.id}, 200
+        return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
 
     @classmethod
     def parse_csv(cls, content) -> list:
