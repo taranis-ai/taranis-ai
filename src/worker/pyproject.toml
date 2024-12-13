@@ -37,18 +37,12 @@ dependencies = [
 
     # Presenters
     "weasyprint",
+    "jinja2",
 
     # Bots
-    "scipy==1.12.0",
-    "matplotlib==3.8.4",
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
-    "flair",
-    "transformers",
-    "nltk",
-    "taranis-story-clustering==0.8.1",
-    "taranis-sentiment-analysis==1.2.0"
 ]
 dynamic = ["version"]
 

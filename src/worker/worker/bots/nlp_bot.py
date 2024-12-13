@@ -1,5 +1,6 @@
 from .base_bot import BaseBot
-from flair.data import Sentence
+from worker.config import Config
+from worker.bot_api import BotApi
 
 
 class NLPBot(BaseBot):
@@ -7,6 +8,7 @@ class NLPBot(BaseBot):
         super().__init__()
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
+        self.bot_api = BotApi(Config.NLP_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
@@ -26,7 +28,7 @@ class NLPBot(BaseBot):
         update_result = {}
         tag_count = 0
 
-        for i, story in enumerate(stories):
+        for story in stories:
             story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
             current_keywords = self.extract_ner(story_content, all_keywords)
             all_keywords |= current_keywords
@@ -40,16 +42,9 @@ class NLPBot(BaseBot):
         return len(update_result)
 
     def extract_ner(self, text: str, all_keywords) -> dict:
-        sentence = Sentence(text, use_tokenizer=False)
-        self.model.predict(sentence)  # type: ignore
-        current_keywords = {}
-        for ent in sentence.get_labels():
-            tag = ent.data_point.text
-            if len(tag) > 2 and ent.score > 0.97:
-                tag_type = all_keywords[tag] if tag in all_keywords else ent.value
-                current_keywords[tag] = tag_type
-
-        return current_keywords
+        if keywords := self.bot_api.api_post("/ner", {"text": text, "all_keywords": all_keywords}):
+            return keywords
+        return {}
 
     # def not_in_stopwords(self, keyword: str) -> bool:
     #    return keyword not in stopwords.words(self.language)
