@@ -128,7 +128,7 @@ class TestWordListConfigApi(BaseTest):
         }
         word_list_id = cleanup_word_lists["id"]
         response = self.assert_put_ok(client, uri=f"word-lists/{word_list_id}", json_data=word_list_data, auth_header=auth_header)
-        assert response.json["id"] == f"{word_list_id}"
+        assert response.json["id"] == word_list_id
 
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)

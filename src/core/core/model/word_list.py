@@ -37,7 +37,7 @@ class WordList(BaseModel):
             self.description = description
         self.update_usage(usage)
         self.link = link
-        self.entries = WordListEntry.load_multiple(entries) if entries else []
+        self.entries = entries or []
 
     @classmethod
     def find_by_name(cls, name: str) -> "WordList|None":
@@ -136,17 +136,22 @@ class WordList(BaseModel):
         data["usage"] = self.get_usage_list()
         data.pop("entries", None)
         return data
+    
     @classmethod
     def from_dict(cls, data: dict) -> "WordList":
         if 'entries' in data:
             data['entries'] = WordListEntry.load_multiple(data['entries'])
-        return cls(
+
+        word_list = cls(
+            id=data.get('id'), 
             name=data.get('name', ''),
             description=data.get('description'),
             usage=data.get('usage', 0),
             link=data.get('link', ''),
             entries=data.get('entries', [])
         )
+
+        return word_list
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
