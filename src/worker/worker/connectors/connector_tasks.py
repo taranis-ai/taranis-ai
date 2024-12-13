@@ -19,15 +19,15 @@ class ConnectorTask(Task):
             "misp_connector": MispConnector(),
         }
 
-    def get_connector(self, connector_id: str) -> MispConnector | None:
+    def get_connector(self, connector_id: str) -> tuple[MispConnector | None, dict | None]:
         connector_config = self.core_api.get_connector_config(connector_id)
-
         if not connector_config:
-            logger.error(f"Connector with id {connector_id} not found")
             raise RuntimeError(f"Connector with id {connector_id} not found")
-        if connector_type := connector_config.get("type"):
-            return self.connectors.get(connector_type)
-        return None
+
+        connector_type = connector_config.get("type")
+        if connector_type is None:
+            raise RuntimeError(f"Connector type for id {connector_id} not found")
+        return self.connectors.get(connector_type), connector_config
 
     def get_story_by_id(self, story_ids: list[str]) -> list:
         search_queries = [{"story_id": story_id} for story_id in story_ids]
@@ -41,11 +41,12 @@ class ConnectorTask(Task):
         return stories
 
     def run(self, connector_id: str, story_id: list | None):
-        if connector := self.get_connector(connector_id):
+        connector, connector_config = self.get_connector(connector_id)
+        if connector:
             if story_id:
                 logger.info(f"Sending story {story_id} to connector {connector_id}")
                 stories = self.get_story_by_id(story_id)
-                return connector.send(connector_id, stories)
+                return connector.send(connector_config, stories)
 
             return connector.receive(connector_id)
         logger.info(f"Connector with id: {connector_id} was not found")
