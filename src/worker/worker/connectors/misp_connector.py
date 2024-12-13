@@ -69,9 +69,9 @@ class MispConnector:
             event_json_list.append(misp_event)
         return event_json_list
 
-    def create_misp_event(self, misp, misp_event):
+    def create_misp_event(self, misp, misp_event: dict):
         event = MISPEvent()
-        event.load(misp_event)
+        event.from_dict(**misp_event)
         return misp.add_event(event)
 
     def misp_sender(self, stories: list):
