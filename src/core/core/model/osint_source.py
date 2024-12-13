@@ -19,6 +19,7 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 if TYPE_CHECKING:
     from core.model.user import User
+    from core.model.news_item import NewsItem
 
 
 class OSINTSource(BaseModel):
@@ -39,6 +40,7 @@ class OSINTSource(BaseModel):
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
+    news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -335,6 +337,17 @@ class OSINTSource(BaseModel):
 
         return {"items": []}, 200
 
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        # Clear the association table entries
+        db.session.execute(db.delete(OSINTSourceGroupOSINTSource).where(OSINTSourceGroupOSINTSource.osint_source_id.in_(db.select(cls.id))))
+
+        # Delete all rows from the OSINTSource table
+        db.session.execute(db.delete(cls))
+        db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
+        return {"message": f"All {cls.__name__} deleted"}, 200
+
 
 class OSINTSourceParameterValue(BaseModel):
     osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
@@ -491,5 +504,5 @@ class OSINTSourceGroupOSINTSource(BaseModel):
 
 
 class OSINTSourceGroupWordList(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)

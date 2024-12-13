@@ -41,7 +41,7 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
-    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete-orphan")
+    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
         self,
@@ -364,9 +364,6 @@ class Story(BaseModel):
     def get_by_filter_json(cls, filter_args, user):
         stories, count = cls.get_by_filter(filter_args=filter_args, user=user)
 
-        if not stories:
-            return {"items": []}, 200
-
         if count:
             return {"items": stories, "counts": count}, 200
 
@@ -573,9 +570,11 @@ class Story(BaseModel):
     def delete_by_id(cls, story_id, user):
         story = cls.get(story_id)
         if not story:
+            logger.debug(f"Story with id: {story_id} not found")
             return {"error": f"Story with id: {story_id} not found"}, 404
 
         if cls.is_assigned_to_report([story_id]):
+            logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 500
 
         for news_item in story.news_items:
@@ -590,7 +589,7 @@ class Story(BaseModel):
 
         db.session.commit()
 
-        return {"message": "success"}, 200
+        return {"message": f"Successfully deleted story: {story_id}"}, 200
 
     def delete(self, user):
         return self.delete_by_id(self.id, user)
@@ -834,7 +833,7 @@ class StorySearchIndex(BaseModel):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     data: Mapped[str] = db.Column(db.String)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), index=True)
 
     def __init__(self, story_id, data=None):
         self.story_id = story_id
@@ -926,8 +925,10 @@ class StoryNewsItemAttribute(BaseModel):
 
 
 class ReportItemStory(BaseModel):
+    __tablename__ = "report_item_story"
+
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):
