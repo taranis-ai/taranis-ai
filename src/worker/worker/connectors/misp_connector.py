@@ -20,7 +20,7 @@ class MispConnector:
         self.api_key: str = ""
         self.misp_verifycert: bool = False
 
-    def parse_parameters(self, parameters: dict):
+    def parse_parameters(self, parameters: dict) -> None:
         logger.debug(f"{parameters=}")
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
@@ -31,54 +31,51 @@ class MispConnector:
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
 
-    def send(self, connector_config: dict, stories: list):
+    def send(self, connector_config: dict, stories: list) -> None:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
         self.misp_sender(stories)
 
         logger.info(f"Sending story to MISP connecector {connector_config.get('id')}")
 
-    def create_misp_data(self, stories: list) -> list[dict]:
-        event_json_list = []
+    def create_misp_data(self, stories: list) -> list:
+        event_list = []
+        misp_event = MISPEvent()
         for story in stories:
-            logger.debug(f"{story=}")
-            misp_event = {
-                "info": story.get("title"),
-                "tags": story.get("tags", []),
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "published": False,
-                "analysis": "0",
-                "threat_level_id": "1",
-                "Attribute": [],
-            }
+            misp_event.info = story.get("title")
+            misp_event.tags = story.get("tags", [])
+            misp_event.date = datetime.now()
+            misp_event.published = False
+            misp_event.analysis = 0
+            misp_event.threat_level_id = 1
 
             for news_item in story.get("news_items", []):
-                attribute = {
-                    "category": "External analysis",
-                    "type": "text",
-                    "value": news_item.get("title"),
-                    "to_ids": False,
-                    "timestamp": int(datetime.now().timestamp()),
-                    "comment": f"News Title: {news_item['title']}",
-                    "distribution": "0",
-                    "disable_correlation": True,
-                    "sharing_group_id": "1",
-                    "uuid": news_item["hash"],
-                }
-                misp_event["Attribute"].append(attribute)
-            event_json_list.append(misp_event)
-        return event_json_list
+                attribute_value = news_item.get("title") + "attribute"
+                misp_event.add_attribute(
+                    # category="External analysis",
+                    type="text",
+                    value=attribute_value,
+                    # to_ids=False,
+                    # comment=f"News Title: {news_item['title']}",
+                    # distribution=0,
+                    # disable_correlation=True,
+                    # sharing_group_id=1,
+                    # uuid=news_item["hash"]
+                )
+                event_list.append(misp_event)
+        return event_list
 
-    def create_misp_event(self, misp, misp_event: dict):
-        event = MISPEvent()
-        event.from_dict(**misp_event)
-        return misp.add_event(event)
+    def send_event_to_misp(self, misp: ExpandedPyMISP, event: MISPEvent) -> None:
+        event_json = event.to_json()
+        logger.debug(f"Sending event to MISP: {event_json}")
+        created_event = misp.add_event(event)
+        logger.info(f"Event created in MISP with UUID: {created_event['Event']['uuid']}")
 
-    def misp_sender(self, stories: list):
-        misp_events_data = self.create_misp_data(stories)
+    def misp_sender(self, stories: list) -> None:
+        misp_events = self.create_misp_data(stories)
         misp = ExpandedPyMISP(self.url, self.api_key, self.misp_verifycert)
-        for misp_event in misp_events_data:
-            self.create_misp_event(misp, misp_event)
+        for event in misp_events:
+            self.send_event_to_misp(misp, event)
         logger.info("Sending story to MISP")
 
     def receive(self, connector_id: str):
@@ -86,6 +83,9 @@ class MispConnector:
 
 
 def main():
+    # misp = ExpandedPyMISP('https://localhost', 'f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc', False)
+    # types_description = misp.describe_types
+    # logger.debug(f"{types_description=}")
     connector = MispConnector()
     connector_config = connector_config = {
         "description": "",
@@ -97,7 +97,7 @@ def main():
         "name": "https",
         "parameters": {
             "ADDITIONAL_HEADERS": "",
-            "API_KEY": "0QncrYi7FfCleEWzfGPOcmSTBpcBwK7gf2w8cLb3",
+            "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
             "PROXY_SERVER": "",
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",
