@@ -1,8 +1,11 @@
-from datetime import datetime
-
+import hashlib
+import datetime
 from pymisp import ExpandedPyMISP, MISPEvent
+
+from worker.connectors.definitions.misp_objects import TaranisObject
 from worker.core_api import CoreApi
 from worker.log import logger
+from worker.types import NewsItem
 
 
 class MispConnector:
@@ -34,36 +37,32 @@ class MispConnector:
     def send(self, connector_config: dict, stories: list) -> None:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
-        self.misp_sender(stories)
+        for story in stories:
+            self.misp_sender(story)
 
         logger.info(f"Sending story to MISP connecector {connector_config.get('id')}")
 
-    def create_misp_data(self, stories: list) -> list:
-        event_list = []
-        misp_event = MISPEvent()
-        for story in stories:
-            misp_event.info = story.get("title")
-            misp_event.tags = story.get("tags", [])
-            misp_event.date = datetime.now()
-            misp_event.published = False
-            misp_event.analysis = 0
-            misp_event.threat_level_id = 1
+    def add_objects(self, news_items: dict, event: MISPEvent) -> None:
+        for news_item in news_items:
+            object_data = {
+                "author": news_item.get("author"),
+                "content": news_item.get("content"),
+                "link": news_item.get("link"),
+                "published": news_item.get("published"),
+                "title": news_item.get("title"),
+            }
+            taranis_obj = TaranisObject(parameters=object_data, misp_objects_path_custom="worker/connectors/definitions/objects")
+            event.add_object(taranis_obj)
 
-            for news_item in story.get("news_items", []):
-                attribute_value = news_item.get("title") + "attribute"
-                misp_event.add_attribute(
-                    # category="External analysis",
-                    type="text",
-                    value=attribute_value,
-                    # to_ids=False,
-                    # comment=f"News Title: {news_item['title']}",
-                    # distribution=0,
-                    # disable_correlation=True,
-                    # sharing_group_id=1,
-                    # uuid=news_item["hash"]
-                )
-                event_list.append(misp_event)
-        return event_list
+    def create_misp_event(self, story: dict) -> MISPEvent:
+        event = MISPEvent()
+        event.info = "Description of the event"
+        event.distribution = 1
+        event.threat_level_id = 4
+        event.analysis = 0
+        if news_items := story.pop("news_items", None):
+            self.add_objects(news_items, event)
+        return event
 
     def send_event_to_misp(self, misp: ExpandedPyMISP, event: MISPEvent) -> None:
         event_json = event.to_json()
@@ -71,23 +70,55 @@ class MispConnector:
         created_event = misp.add_event(event)
         logger.info(f"Event created in MISP with UUID: {created_event['Event']['uuid']}")
 
-    def misp_sender(self, stories: list) -> None:
-        misp_events = self.create_misp_data(stories)
+    def misp_sender(self, story: dict) -> None:
+        event = self.create_misp_event(story)
         misp = ExpandedPyMISP(self.url, self.api_key, self.misp_verifycert)
-        for event in misp_events:
-            self.send_event_to_misp(misp, event)
+        self.send_event_to_misp(misp, event)
         logger.info("Sending story to MISP")
 
-    def receive(self, connector_id: str):
-        logger.info(f"Receiving story from MISP connector {connector_id}")
+    def create_news_item(self, source, event: dict) -> NewsItem:
+        logger.debug("Creating news item from MISP event ")
+        logger.debug(f"{event=}")
+        author = event.get("author", "")
+        title = event.get("title", "")
+        link = event.get("link", "")
+        for_hash: str = author + title + link
+        return NewsItem(
+            osint_source_id=source["id"],
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            author=author,
+            title=title,
+            content=event.get("content", ""),
+            web_url=link,
+            published_date=datetime.datetime.now(),
+            language=source.get("language", ""),
+        )
+
+    def receive(self, connector_config: dict) -> None:
+        misp_url = connector_config.get("parameters", {}).get("URL", "")
+        misp_key = connector_config.get("parameters", {}).get("API_KEY", "")
+        misp_verifycert = False
+        misp = ExpandedPyMISP(misp_url, misp_key, misp_verifycert)
+
+        result = misp.search(controller="objects", object_name="news_item", pythonify=True)
+        event_ids = set()
+        for obj in result:
+            event_ids.add(obj.event_id)
+            print(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")
+
+        events = [misp.get_event(event_id) for event_id in event_ids]
+        stories = [self.create_news_item(connector_config, event) for event in events]
+        from worker.collectors.base_collector import BaseCollector
+
+        BaseCollector.publish_stories(stories, connector_config)
 
 
-def main():
+def sending():
     # misp = ExpandedPyMISP('https://localhost', 'f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc', False)
     # types_description = misp.describe_types
     # logger.debug(f"{types_description=}")
     connector = MispConnector()
-    connector_config = connector_config = {
+    connector_config = {
         "description": "",
         "icon": None,
         "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
@@ -145,5 +176,30 @@ def main():
     connector.send(connector_config, stories)
 
 
+def receiving():
+    connector = MispConnector()
+    connector_config = {
+        "description": "",
+        "icon": None,
+        "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
+        "last_attempted": None,
+        "last_collected": None,
+        "last_error_message": None,
+        "name": "https",
+        "parameters": {
+            "ADDITIONAL_HEADERS": "",
+            "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
+            "PROXY_SERVER": "",
+            "REFRESH_INTERVAL": "",
+            "URL": "https://localhost",
+            "USER_AGENT": "",
+        },
+        "state": -1,
+        "type": "misp_connector",
+    }
+    connector.receive(connector_config)
+
+
 if __name__ == "__main__":
-    main()
+    # sending()
+    receiving()

@@ -1,0 +1,35 @@
+{
+    "attributes": {
+        "title": {
+            "description": "Title of the Taranis news item",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "link": {
+            "description": "URL address to the Taranis news item source.",
+            "misp-attribute": "link",
+            "ui-priority": 0
+        },
+        "content": {
+            "description": "Content of the Taranis news item",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        },
+        "published": {
+            "description": "Publish date of the Taranis news item ",
+            "misp-attribute": "datetime",
+            "ui-priority": 0
+        },
+        "author":{
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        }
+        },
+        "description": "An object describing a news item from Taranis AI",
+        "meta-category": "misc",
+        "name": "taranis",
+        "uuid": "e4b7e5e3-2c4c-4edf-b9a3-2c2a32844e61",
+        "version": 1
+}
