@@ -113,3 +113,15 @@ class BaseCollector:
         news_items_dicts = [item.to_dict() for item in news_items]
         self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)
+
+    def publish_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
+        """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
+
+        for story_dict in story_lists:
+            news_items = self.process_news_items(story_dict.get("news_items", []), source)
+            logger.info(f"Publishing {len(news_items)} news items to core api")
+            news_items_list = [item.to_dict() for item in news_items]
+            story_dict.update({"news_items": news_items_list})
+            response = self.core_api.add_or_update_story_on_attr(story_dict, story_attribute_key)
+            logger.debug(f"{response}")
+            self.core_api.update_osintsource_status(source["id"], None)

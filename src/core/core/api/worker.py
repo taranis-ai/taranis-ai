@@ -124,6 +124,11 @@ class Stories(MethodView):
             return story, 200
         return {"error": "No stories found"}, 404
 
+    @api_key_required
+    def post(self):
+        _, response_data, status_code = Story.add_or_update_on_attr(request.json, story_attribute_key=request.args.get("story_attribute_key"))
+        return response_data, status_code
+
 
 class Tags(MethodView):
     @api_key_required
