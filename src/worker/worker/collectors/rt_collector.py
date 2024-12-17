@@ -3,6 +3,7 @@ import datetime
 import hashlib
 from urllib.parse import urlparse, urljoin
 import requests
+import json
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
@@ -19,6 +20,8 @@ class RTCollector(BaseWebCollector):
         self.api_url = ""
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
+        self.search_query = "*"
+        self.fields_to_include = ""
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -36,6 +39,9 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
 
+    def parse_fields_to_include(self, fields_to_include):
+        self.fields_to_include = [field.strip() for field in fields_to_include.split(",")]
+
     def setup_collector(self, source):
         self.set_base_url(source.get("parameters").get("BASE_URL", None))
         self.set_api_url()
@@ -44,14 +50,18 @@ class RTCollector(BaseWebCollector):
 
         self.set_headers(source.get("parameters").get("RT_TOKEN", None))
 
+        if search_query := source.get("parameters").get("SEARCH_QUERY", None):
+            self.search_query = search_query
+        if fields_to_include := source.get("parameters").get("FIELDS_TO_INCLUDE", None):
+            self.parse_fields_to_include(fields_to_include)
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
             self.update_headers(additional_headers)
 
     def preview_collector(self, source: dict) -> list[dict]:
         self.setup_collector(source)
 
-        if tickets := self.rt_collector(source):
-            return self.preview(tickets, source)
+        if story_list := self.rt_collector(source):
+            return self.preview([item for news_item_list in story_list for item in news_item_list], source)
 
         return []
 
@@ -60,52 +70,24 @@ class RTCollector(BaseWebCollector):
 
         try:
             if tickets := self.rt_collector(source):
-                return self.publish(tickets, source)
+                story_dicts = [RTCollector.to_story_dict(news_items_list) for news_items_list in tickets]
+                return self.publish_stories(story_dicts, source, "rt_id")
         except Exception as e:
-            raise RuntimeError(f"RT Collector not available {self.base_url}") from e
+            raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
+
+    @staticmethod
+    def to_story_dict(news_items_list: list[NewsItem]) -> dict:
+        # Get title and attributes from the first news item (meta item)
+        story_title = news_items_list[0].title
+        story_attributes = news_items_list[0].attributes
+        return {
+            "title": story_title,
+            "attributes": story_attributes,
+            "news_items": news_items_list,
+        }
 
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket.get("id") for ticket in tickets.get("items", [])]
-
-    def get_ticket_transaction(self, ticket_id: int) -> int:
-        response = requests.get(f"{self.api_url}ticket/{ticket_id}/history", headers=self.headers)
-        if not response or not response.ok:
-            logger.error(f"Ticket transaction for {ticket_id} returned with {response.status_code}")
-            raise ValueError("No ticket history returned")
-        return response.json().get("items")[0].get("_url").rsplit("/", 1)[1]
-
-    def check_attach_for_text(self, attachment_items) -> list:
-        attachment_ids = [attachment.get("_url").rsplit("/", 1)[1] for attachment in attachment_items]
-        valid_text_attachments = []
-        for id in attachment_ids:
-            attachment = requests.get(f"{self.api_url}attachment/{id}", headers=self.headers)
-            if not attachment or not attachment.ok:
-                logger.error(f"Attachment of id: {id} returned with {attachment.status_code}")
-                raise ValueError("No attachment returned")
-            content_type = attachment.json().get("ContentType", "")
-            if content_type.startswith("multipart") or content_type.startswith("text"):
-                valid_text_attachments.append(id)
-
-        return valid_text_attachments
-
-    def get_content_attachment_data(self, transaction: int) -> tuple[list, str, str]:
-        ticket_transaction = requests.get(f"{self.api_url}transaction/{transaction}", headers=self.headers)
-        if not ticket_transaction or not ticket_transaction.ok:
-            logger.error(f"Ticket transaction returned with {ticket_transaction.status_code}")
-            raise ValueError("No transaction returned")
-        # Limiting to only two relevant attachments.
-        if len(ticket_transaction.json().get("_hyperlinks")) > 2:
-            attachment_items = [
-                item for item in ticket_transaction.json().get("_hyperlinks")[:3] if item.get("ref", "").startswith("attachment")
-            ]
-        else:
-            attachment_items = [item for item in ticket_transaction.json().get("_hyperlinks") if item.get("ref", "").startswith("attachment")]
-
-        return (
-            self.check_attach_for_text(attachment_items),
-            ticket_transaction.json().get("Created"),
-            ticket_transaction.json().get("Creator").get("id"),
-        )
 
     def decode64(self, ticket_content) -> str:
         if isinstance(ticket_content, str):
@@ -114,53 +96,129 @@ class RTCollector(BaseWebCollector):
         logger.error("Unable to decode the ticket content")
         raise ValueError("ticket_content is not a string")
 
-    def get_ticket_subject(self, attachment) -> str:
-        return attachment.get("Subject")
+    def get_unique_content_from_hyperlinks(self, hyperlinks_full) -> list[dict]:
+        """Clean up `_hyperlinks` from `CustomFields`"""
+        return [hyperlink for hyperlink in hyperlinks_full if hyperlink.get("type") != "customfield"]
 
-    def get_ticket_content(self, attachment) -> str:
-        ticket_content = attachment.get("Content")
-        return self.decode64(ticket_content)
-
-    def get_ticket_data(self, ticket_id: int, source) -> NewsItem:
-        ticket_transaction = self.get_ticket_transaction(ticket_id)
-        ticket_attachment_id, ticket_published, ticket_author = self.get_content_attachment_data(ticket_transaction)
-
-        attachment = requests.get(f"{self.api_url}attachment/{ticket_attachment_id[0]}", headers=self.headers)
-        if not attachment or not attachment.ok:
-            logger.error(f"Ticket of id: {ticket_id} returned with {attachment.status_code}")
-            raise ValueError("No ticket attachment returned")
-        ticket_subject = self.get_ticket_subject(attachment.json())
-
-        # Tickets don't form uniform transactions.
-        # This covers a case, where in the first attachment is the subject, and in the second attach is the content.
-        if len(ticket_attachment_id) > 1:
-            attachment = requests.get(f"{self.api_url}attachment/{ticket_attachment_id[1]}", headers=self.headers)
-            if not attachment or not attachment.ok:
-                logger.error(f"Ticket of id: {ticket_id} returned with {attachment.status_code}")
-                raise ValueError("No ticket attachment returned")
-
-        ticket_content = self.get_ticket_content(attachment.json())
-        for_hash: str = str(ticket_id) + ticket_content
-
+    def create_base_news_item(
+        self,
+        ticket_id: int,
+        source: dict,
+        hash_input: str,
+        title: str,
+        content: str,
+        published_date: str,
+        author: str,
+        review: str = "",
+        attributes: list[dict] | None = None,
+    ) -> NewsItem:
+        if not attributes:
+            attributes = [{"key": "rt_id", "value": f"{ticket_id}/{published_date}"}]
+        else:
+            attributes.append({"key": "rt_id", "value": f"{ticket_id}/{published_date}"})
         return NewsItem(
-            osint_source_id=source.get("id"),
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
-            title=ticket_subject,
-            content=ticket_content,
+            osint_source_id=source.get("id", ""),
+            hash=hashlib.sha256(hash_input.encode()).hexdigest(),
+            title=title,
+            content=content,
             web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
-            published_date=datetime.datetime.fromisoformat(ticket_published),
-            author=ticket_author,
+            published_date=datetime.datetime.fromisoformat(published_date),
+            author=author,
             collected_date=datetime.datetime.now(),
             language=source.get("language", ""),
+            review=review,
+            attributes=attributes or [],
+        )
+
+    def get_meta_news_item(self, ticket_id: int, source: dict) -> NewsItem:
+        ticket = self.get_ticket(ticket_id)
+
+        ticket_custom_fields: list[dict] = ticket.pop("CustomFields")
+        ticket_hyperlinks: list = ticket.pop("_hyperlinks")
+        title: str = ticket.get("Subject", "No title found")
+        metadata: str = self.json_to_string(ticket)
+
+        hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
+        ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
+
+        for_hash: str = str(ticket_id) + ticket.get("Created", "")
+        attributes = [
+            {"key": attr.get("name", ""), "value": attr.get("values", [])[0]}
+            for attr in ticket_custom_fields
+            if attr.get("values") and (not self.fields_to_include or attr.get("name", "") in self.fields_to_include)
+        ]
+
+        return self.create_base_news_item(
+            ticket_id=ticket_id,
+            source=source,
+            hash_input=for_hash,
+            title=title,
+            content=str(ticket_id) + str(ticket_fields) + metadata,
+            published_date=ticket.get("Created", ""),
+            author=ticket.get("Owner", {}).get("id", ""),
+            review="metadata",
+            attributes=attributes,
+        )
+
+    def get_attachment_news_item(self, ticket_id: int, attachment: dict, source: dict) -> NewsItem:
+        for_hash: str = str(ticket_id) + attachment.get("Content", "")
+        decoded_content: str = self.decode64(attachment.get("Content", ""))
+
+        return self.create_base_news_item(
+            ticket_id=ticket_id,
+            source=source,
+            hash_input=for_hash,
+            title="attachment",
+            content=decoded_content,
+            published_date=attachment.get("Created", ""),
+            author=attachment.get("Creator", {}).get("id", ""),
             review=source.get("review", ""),
             attributes=[],
         )
 
-    def get_tickets(self, ticket_ids: list, source) -> list:
-        return [self.get_ticket_data(ticket_id, source) for ticket_id in ticket_ids]
+    def get_attachment_values(self, attachment_url: str) -> dict:
+        response = requests.get(attachment_url, headers=self.headers)
+        if not response or not response.ok:
+            logger.error(f"Attachment of url: {attachment_url} returned with {response.status_code}")
+            raise ValueError("No attachment content returned")
+        return response.json()
 
-    def rt_collector(self, source):
-        response = requests.get(f"{self.api_url}tickets?query=*", headers=self.headers)
+    def get_ticket_attachments(self, ticket_id: int) -> list:
+        """An Attachment represents a NewsItem"""
+        if response := requests.get(
+            f"{self.api_url}ticket/{ticket_id}/attachments",
+            headers=self.headers,
+        ):
+            ticket_attachments: list[dict] = response.json().get("items", [])
+            attachments_content: list[dict] = []
+            attachments_content.extend(self.get_attachment_values(attachment.get("_url", "")) for attachment in ticket_attachments)
+        return attachments_content or []
+
+    def json_to_string(self, json_data) -> str:
+        if isinstance(json_data, str):
+            json_data = json.loads(json_data)
+        result = [f"{key}: {json.dumps(value)}" for key, value in json_data.items()]
+        return "\n".join(result)
+
+    def get_ticket(self, ticket_id: int) -> dict:
+        response = requests.get(f"{self.api_url}ticket/{ticket_id}", headers=self.headers)
+        return response.json()
+
+    def get_story_news_items(self, ticket_id: int, source) -> list[NewsItem]:
+        story_news_items = [self.get_meta_news_item(ticket_id, source)]
+        if ticket_attachments := self.get_ticket_attachments(ticket_id):
+            for attachment in ticket_attachments:
+                if attachment.get("Content", ""):
+                    story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
+
+        return story_news_items
+
+    def get_news_item_lists(self, ticket_ids: list, source) -> list[list[NewsItem]]:
+        """A Ticket represents a Story"""
+        return [self.get_story_news_items(ticket_id, source) for ticket_id in ticket_ids]
+
+    def rt_collector(self, source) -> list[list[NewsItem]]:
+        response = requests.get(f"{self.api_url}tickets?query={self.search_query}", headers=self.headers)
         if not response or not response.ok:
             logger.error(f"Website {source.get('id')} returned no content with response: {response}")
             raise ValueError("Website returned no content, check your RT_TOKEN")
@@ -170,9 +228,32 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No tickets available")
 
         try:
-            tickets = self.get_tickets(tickets_ids_list, source)
+            tickets: list[list[NewsItem]] = self.get_news_item_lists(tickets_ids_list, source)
         except RuntimeError as e:
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
             raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {str(e)}") from e
 
         return tickets
+
+
+if __name__ == "__main__":
+    rt_collector = RTCollector()
+    rt_collector.collect(
+        {
+            "description": "",
+            "id": "752cae6a-9d48-463e-a91e-1365f6d96eb4",
+            "last_attempted": None,
+            "last_collected": None,
+            "last_error_message": None,
+            "name": "rt collector",
+            "parameters": {
+                "BASE_URL": "http://rt.lab",
+                "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb",
+                # "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
+                # "FIELDS_TO_INCLUDE": "Sektor, Meldungstyp,Herkunft des Vorfalls,  Zeitpunkt des Vorfalls (vermutlich), helllo, telefonnummer",
+            },
+            "state": -1,
+            "type": "rt_collector",
+            "word_lists": [],
+        }
+    )
