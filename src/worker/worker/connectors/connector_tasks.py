@@ -46,8 +46,8 @@ class ConnectorTask(Task):
             if story_id:
                 logger.info(f"Sending story {story_id} to connector {connector_id}")
                 stories = self.get_story_by_id(story_id)
-                return connector.send(connector_config, stories)
+                return connector.execute(connector_config, stories)
 
-            return connector.receive(connector_id)
+            return connector.execute(connector_config=connector_config, stories=[])
         logger.info(f"Connector with id: {connector_id} was not found")
         return None
