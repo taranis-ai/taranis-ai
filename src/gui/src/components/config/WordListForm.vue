@@ -130,7 +130,7 @@ export default {
       description: '',
       link: '',
       usage: [],
-      entries: [] 
+      entries: []
     })
     const config_form = ref(null)
     const loading = ref(false)
