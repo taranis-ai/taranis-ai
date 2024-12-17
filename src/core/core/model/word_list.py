@@ -180,15 +180,14 @@ class WordList(BaseModel):
 
         if user and not word_list.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to WordList"}, 403
-            
-        if "name" in data:
-            word_list.name = data.get("name","")
-        if "description" in data:
-            word_list.description = data.get("description","")
-        if "link" in data:
-            word_list.link = data.get("link","")
-        if "usage" in data:
-            word_list.update_usage(data.get("usage", 0))
+        if name := data.get("name"):
+            word_list.name = name
+        if description := data.get("description"):
+            word_list.description = description
+        if link := data.get("link"):
+            word_list.link = link
+        if usage := data.get("usage"):
+            word_list.update_usage(usage)
 
         db.session.commit()
         return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
