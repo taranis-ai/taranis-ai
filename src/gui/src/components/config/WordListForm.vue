@@ -166,7 +166,7 @@ export default {
         return
       }
 
-      const payload = {
+      const wordlistData = {
         name: wordlist.value.name,
         description: wordlist.value.description,
         link: wordlist.value.link,
@@ -178,39 +178,39 @@ export default {
         }))
       }
 
-      console.info(`Submitting wordlist: ${payload.name}`)
+      console.info(`Submitting wordlist: ${wordlistData.name}`)
 
       if (props.wordlistId > 0) {
-        await updateItem(payload)
+        await updateItem(wordlistData)
       } else {
-        await createItem(payload)
+        await createItem(wordlistData)
       }
     }
 
-    async function createItem(payload) {
+    async function createItem(wordlistData) {
       try {
-        const response = await createWordList(payload)
+        const response = await createWordList(wordlistData)
         notifySuccess(response.data.message)
         emit('submit')
       } catch (error) {
         const errorMessage = error.response?.data?.message
-        ? error.response.data.message
-        : `Failed to create ${payload.name}`
-        notifyFailure(`Failed to create ${payload.name}`)
+          ? error.response.data.message
+          : `Failed to create ${wordlistData.name}`
+        notifyFailure(`Failed to create ${wordlistData.name}`)
       }
     }
 
-    async function updateItem(payload) {
+    async function updateItem(wordlistData) {
       try {
-        const response = await updateWordList(payload)
+        const response = await updateWordList(wordlistData)
         notifySuccess(response.data.message)
-        emit('submit', payload)
+        emit('submit', wordlistData)
       } catch (error) {
         const errorMessage = error.response?.data?.message
-        ? error.response.data.message
-        : `Failed to create ${payload.name}`
+          ? error.response.data.message
+          : `Failed to create ${wordlistData.name}`
         console.error(error)
-        notifyFailure(`Failed to update ${payload.name}`)
+        notifyFailure(`Failed to update ${wordlistData.name}`)
       }
     }
 

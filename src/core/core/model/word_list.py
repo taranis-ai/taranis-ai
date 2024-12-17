@@ -182,15 +182,13 @@ class WordList(BaseModel):
             return {"error": "User does not have write access to WordList"}, 403
             
         if "name" in data:
-            word_list.name = data["name"]
+            word_list.name = data.get("name","")
         if "description" in data:
-            word_list.description = data["description"]
+            word_list.description = data.get("description","")
         if "link" in data:
-            word_list.link = data["link"]
+            word_list.link = data.get("link","")
         if "usage" in data:
-            word_list.update_usage(data["usage"])
-        if "entries" in data:
-            word_list.entries = WordListEntry.load_multiple(data["entries"])
+            word_list.update_usage(data.get("usage", 0))
 
         db.session.commit()
         return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
