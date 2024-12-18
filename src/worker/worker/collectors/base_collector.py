@@ -124,4 +124,4 @@ class BaseCollector:
             story_dict.update({"news_items": news_items_list})
             response = self.core_api.add_or_update_story_on_attr(story_dict, story_attribute_key)
             logger.debug(f"{response}")
-            # self.core_api.update_osintsource_status(source["id"], None)
+            self.core_api.update_osintsource_status(source["id"], None)

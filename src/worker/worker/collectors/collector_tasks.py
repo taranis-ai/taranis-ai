@@ -14,6 +14,7 @@ class Collector:
             "rss_collector": worker.collectors.RSSCollector(),
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
             "rt_collector": worker.collectors.RTCollector(),
+            "misp_collector": worker.collectors.MISPCollector(),
         }
 
     def get_source(self, osint_source_id: str) -> tuple[dict[str, str] | None, str | None]:

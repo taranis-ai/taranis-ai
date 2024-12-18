@@ -1,16 +1,13 @@
-import hashlib
-import datetime
-from pymisp import PyMISP, MISPEvent, MISPObject, exceptions
+from pymisp import PyMISP, MISPEvent, exceptions
 
-from worker.collectors.base_collector import BaseCollector
 from worker.connectors.definitions.misp_objects import TaranisObject
+from worker.core_api import CoreApi
 from worker.log import logger
-from worker.types import NewsItem
 
 
-class MispConnector(BaseCollector):
+class MISPConnector:
     def __init__(self):
-        super().__init__()
+        self.core_api = CoreApi()
         self.type = "MISP_CONNECTOR"
         self.name = "MISP Connector"
         self.description = "Connector for MISP"
@@ -39,12 +36,6 @@ class MispConnector(BaseCollector):
             raise ValueError("Missing required parameters")
 
     def execute(self, connector_config: dict, stories: list) -> None:
-        if stories:
-            self.send(connector_config, stories)
-        else:
-            self.receive(connector_config)
-
-    def send(self, connector_config: dict, stories: list) -> None:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
         for story in stories:
@@ -58,6 +49,15 @@ class MispConnector(BaseCollector):
                 "link": news_item.get("link"),
                 "published": news_item.get("published"),
                 "title": news_item.get("title"),
+                "collected": news_item.get("collected"),
+                "hash": news_item.get("hash"),
+                "id": news_item.get("id"),
+                "language": news_item.get("language"),
+                "osint_source_id": news_item.get("osint_source_id"),
+                "review": news_item.get("review"),
+                "source": news_item.get("source"),
+                "story_id": news_item.get("story_id"),
+                "updated": news_item.get("updated"),
             }
             taranis_obj = TaranisObject(parameters=object_data, misp_objects_path_custom="worker/connectors/definitions/objects")
             event.add_object(taranis_obj)
@@ -92,87 +92,12 @@ class MispConnector(BaseCollector):
         event = self.create_misp_event(story)
         self.send_event_to_misp(event)
 
-    ##############################################################################################################
-
-    def receive(self, connector_config: dict) -> None:
-        misp_url = connector_config.get("parameters", {}).get("URL", "")
-        misp_key = connector_config.get("parameters", {}).get("API_KEY", "")
-        misp_verifycert = False
-        misp = PyMISP(misp_url, misp_key, misp_verifycert)
-
-        result: list[MISPObject] = misp.search(controller="objects", object_name="news_item", pythonify=True)  # type: ignore
-        logger.debug(f"{result=}")
-        event_ids = set()
-        for obj in result:
-            event_ids.add(obj.event_id)  # type: ignore
-            print(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
-
-        events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
-        logger.debug(f"{events=}")
-        story_dicts = [self.to_story_dict(self.get_story_news_items(event, connector_config)) for event in events]
-
-        self.publish_stories(story_dicts, connector_config)
-
-    def create_news_item(self, event: dict, connector_id: dict) -> NewsItem:
-        logger.debug("Creating news item from MISP event ")
-        author = ""
-        title = ""
-        published: datetime.datetime | None = None
-        content = ""
-        link = ""
-        news_items_properties = event.pop("Attribute", [])
-        for item in news_items_properties:
-            match item.get("object_relation", ""):
-                case "title":
-                    title = item.get("value", "")
-                case "published":
-                    published_str = item.get("value", "")
-                    published = (
-                        datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
-                    )
-                case "content":
-                    content = item.get("value", "")
-                case "author":
-                    author = item.get("value", "")
-                case "link":
-                    link = item.get("value", "")
-        for_hash: str = author + title + link
-        return NewsItem(
-            osint_source_id=connector_id["id"],
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
-            author=author,
-            title=title,
-            content=content,
-            web_url=link,
-            published_date=published,
-        )
-
-    @staticmethod
-    def to_story_dict(news_items_list: list[NewsItem]) -> dict:
-        # Get title and attributes from the first news item (meta item)
-        story_title = news_items_list[0].title
-        story_attributes = news_items_list[0].attributes
-        return {
-            "title": story_title,
-            "attributes": story_attributes,
-            "news_items": news_items_list,
-        }
-
-    def get_story_news_items(self, event: dict, connector_config: dict) -> list[NewsItem]:
-        story_news_items = []
-        if news_items := event.get("Event", {}).get("Object", {}):
-            for news_item in news_items:
-                logger.debug(f"{news_item=}")
-                story_news_items.append(self.create_news_item(news_item, connector_config))
-
-        return story_news_items
-
 
 def sending():
     # misp = ExpandedPyMISP('https://localhost', 'f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc', False)
     # types_description = misp.describe_types
     # logger.debug(f"{types_description=}")
-    connector = MispConnector()
+    connector = MISPConnector()
     connector_config = {
         "description": "",
         "icon": None,
@@ -228,33 +153,8 @@ def sending():
             "updated": "2024-12-10T15:37:46.641183+01:00",
         }
     ]
-    connector.send(connector_config, stories)
-
-
-def receiving():
-    connector = MispConnector()
-    connector_config = {
-        "description": "",
-        "icon": None,
-        "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        "last_attempted": None,
-        "last_collected": None,
-        "last_error_message": None,
-        "name": "https",
-        "parameters": {
-            "ADDITIONAL_HEADERS": "",
-            "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
-            "PROXY_SERVER": "",
-            "REFRESH_INTERVAL": "",
-            "URL": "https://localhost",
-            "USER_AGENT": "",
-        },
-        "state": -1,
-        "type": "misp_connector",
-    }
-    connector.receive(connector_config)
+    connector.execute(connector_config, stories)
 
 
 if __name__ == "__main__":
-    # sending()
-    receiving()
+    sending()

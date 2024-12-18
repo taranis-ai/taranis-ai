@@ -1,4 +1,4 @@
-from worker.connectors.misp_connector import MispConnector
+from worker.connectors.misp_connector import MISPConnector
 
 
-__all__ = ["MispConnector"]
+__all__ = ["MISPConnector"]

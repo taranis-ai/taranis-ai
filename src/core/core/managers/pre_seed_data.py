@@ -247,6 +247,22 @@ workers = [
             {"parameter": "SHARING_GROUP"},
         ],
     },
+    {
+        "type": "MISP_COLLECTOR",
+        "name": "MISP Collector",
+        "description": "Colletor for MISP",
+        "parameters": [
+            {"parameter": "URL", "rules": "required"},
+            {"parameter": "API_KEY"},
+            {"parameter": "SSL_CHECK", "type": "switch"},
+            {"parameter": "REQUEST_TIMEOUT", "type": "number"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
+            {"parameter": "REFRESH_INTERVAL"},
+            {"parameter": "SHARING_GROUP"},
+        ],
+    },
 ]
 
 

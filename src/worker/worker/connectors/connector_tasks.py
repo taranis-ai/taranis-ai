@@ -1,6 +1,6 @@
 from celery import Task
 
-from worker.connectors import MispConnector
+from worker.connectors import MISPConnector
 from worker.log import logger
 from worker.core_api import CoreApi
 
@@ -16,10 +16,10 @@ class ConnectorTask(Task):
     def __init__(self):
         self.core_api = CoreApi()
         self.connectors = {
-            "misp_connector": MispConnector(),
+            "misp_connector": MISPConnector(),
         }
 
-    def get_connector(self, connector_id: str) -> tuple[MispConnector | None, dict | None]:
+    def get_connector(self, connector_id: str) -> tuple[MISPConnector | None, dict | None]:
         connector_config = self.core_api.get_connector_config(connector_id)
         if not connector_config:
             raise RuntimeError(f"Connector with id {connector_id} not found")
@@ -40,14 +40,15 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Story with id {query} not found")
         return stories
 
-    def run(self, connector_id: str, story_id: list | None):
+    def run(self, connector_id: str, story_id: list):
         connector, connector_config = self.get_connector(connector_id)
         if connector:
-            if story_id:
-                logger.info(f"Sending story {story_id} to connector {connector_id}")
-                stories = self.get_story_by_id(story_id)
+            logger.info(f"Sending story {story_id} to connector {connector_id}")
+            stories = self.get_story_by_id(story_id)
+            if connector_config is not None:
                 return connector.execute(connector_config, stories)
+            else:
+                raise RuntimeError(f"Connector config for id {connector_id} is None")
 
-            return connector.execute(connector_config=connector_config, stories=[])
         logger.info(f"Connector with id: {connector_id} was not found")
         return None
