@@ -115,8 +115,14 @@ class MispConnector(BaseCollector):
 
     def create_news_item(self, event: dict, connector_id: dict) -> NewsItem:
         logger.debug("Creating news item from MISP event ")
-        for item in event:
-            match item.get("Attribute", {}).get("object_relation", ""):
+        author = ""
+        title = ""
+        published = ""
+        content = ""
+        link = ""
+        news_items_properties = event.pop("Attribute", [])
+        for item in news_items_properties:
+            match item.get("object_relation", ""):
                 case "title":
                     title = item.get("Attribute", {}).get("value", "")
                 case "published":
@@ -127,7 +133,7 @@ class MispConnector(BaseCollector):
                     author = item.get("Attribute", {}).get("value", "")
                 case "link":
                     link = item.get("Attribute", {}).get("value", "")
-        for_hash: str = (author or "") + (title or "") + (link or "")
+        for_hash: str = author + title + link
         return NewsItem(
             osint_source_id=connector_id["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
@@ -153,6 +159,7 @@ class MispConnector(BaseCollector):
         story_news_items = []
         if news_items := event.get("Event", {}).get("Object", {}):
             for news_item in news_items:
+                logger.debug(f"{news_item=}")
                 story_news_items.append(self.create_news_item(news_item, connector_config))
 
         return story_news_items
