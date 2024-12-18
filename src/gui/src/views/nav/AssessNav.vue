@@ -82,23 +82,25 @@
           <date-chips v-model="filter_range" />
         </v-col>
 
-        <v-col cols="12" class="pt-1">
+        <v-col cols="12" class="pt-2">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="First Day"
-            tooltip-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
+            date-label="First Day"
+            time-label="Start Time"
+            tooltip-text-date="The Story's creation date, typically matching the oldest News Item's 'published date'"
+            tooltip-text-time="Start Time"
             :timeto="storyFilter.timeto"
-            :default-date="nextEndOfShift"
           />
         </v-col>
 
-        <v-col cols="12" class="pt-1">
+        <v-col cols="12" class="pt-2 pb-2">
           <date-filter
             v-model="storyFilter.timeto"
-            placeholder="Last Day"
-            tooltip-text="The Story's update date, usually reflecting the latest addition or change"
+            date-label="Last Day"
+            time-label="End Time"
+            tooltip-text-date="The Story's update date, usually reflecting the latest addition or change"
+            tooltip-text-time="End Time"
             :timefrom="storyFilter.timefrom"
-            :default-date="new Date()"
           />
         </v-col>
         <v-col cols="12" class="pt-1">

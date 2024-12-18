@@ -1,95 +1,163 @@
 <template>
   <div>
-    <VueDatePicker
-      v-model="selected"
-      :name="'dateFilter-' + placeholder"
-      :placeholder="placeholder"
-      :min-date="timefrom"
-      :max-date="timeto"
-      format="yyyy-MM-dd HH:mm:ss"
-      time-picker-inline
-      auto-apply
+    <v-date-input
+      v-model="selectedDate"
+      variant="outlined"
+      density="compact"
+      first-day-of-week="1"
+      :placeholder="dateLabel"
+      :name="'dateFilter-' + dateLabel"
+      :min="timefrom"
+      :max="timeto"
       clearable
-      space-confirm
-      @open="openMenu()"
+      hide-details
+      @update:modelValue="onDateChange"
+      @click:clear="clearDate"
     />
-    <v-tooltip activator="parent" :text="tooltipText" />
+    <v-tooltip activator="parent" :text="tooltipTextDate" />
+  </div>
+
+  <div class="pt-1">
+    <v-menu
+      v-model="timeMenu"
+      :close-on-content-click="false"
+      transition="scale-transition"
+      offset-y
+    >
+      <template #activator="{ props }">
+        <v-text-field
+          v-model="timeInput"
+          density="compact"
+          :disabled="!selectedDate"
+          :placeholder="timeLabel"
+          prepend-icon="mdi-clock-time-four-outline"
+          variant="outlined"
+          v-bind="props"
+          readonly
+          clearable
+          hide-details
+          @click:clear="clearTime"
+        />
+      </template>
+      <v-time-picker
+        v-if="timeMenu && selectedDate"
+        v-model:hour="selectedHour"
+        v-model:minute="selectedMinute"
+        @click:close="timeMenu = false"
+        @update:hour="onTimeChange"
+        @update:minute="onTimeChange"
+        format="24hr"
+      />
+    </v-menu>
+    <v-tooltip activator="parent" :text="tooltipTextTime" />
   </div>
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue'
-import { useUserStore } from '@/stores/UserStore'
+import { ref, watch } from 'vue'
+import { VDateInput } from 'vuetify/labs/VDateInput'
+import { VTimePicker } from 'vuetify/labs/VTimePicker'
 
 export default {
   name: 'DateFilter',
+  components: {
+    VDateInput,
+    VTimePicker
+  },
   props: {
-    modelValue: {
-      type: String,
-      default: null
-    },
-    placeholder: {
-      type: String,
-      default: 'Enter date'
-    },
-    timeto: {
-      type: String,
-      default: null
-    },
-    timefrom: {
-      type: String,
-      default: null
-    },
-    defaultDate: {
-      type: Date,
-      required: false,
-      default: null
-    },
-    tooltipText: {
-      type: String,
-      required: false,
-      default: null
-    }
+    modelValue: String,
+    dateLabel: { type: String, default: 'Enter date' },
+    timeLabel: { type: String, default: 'Enter time' },
+    timeto: String,
+    timefrom: String,
+    tooltipTextDate: { type: String, default: 'Date' },
+    tooltipTextTime: { type: String, default: 'Time' }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const selected = ref(props.modelValue)
-    const userStore = useUserStore()
+    const selectedDate = ref(null)
+    const selectedHour = ref(null)
+    const selectedMinute = ref(null)
+    const timeInput = ref('')
+    const timeMenu = ref(false)
 
-    const locale = computed(() => {
-      return userStore.language
-    })
-
-    function updateSelected(val) {
-      if (val === null) {
-        selected.value = null
+    const parseModelValue = () => {
+      if (props.modelValue) {
+        const initialDate = new Date(props.modelValue)
+        if (!isNaN(initialDate)) {
+          selectedDate.value = new Date(initialDate.toDateString())
+          selectedHour.value = initialDate.getHours()
+          selectedMinute.value = initialDate.getMinutes()
+          timeInput.value = `${String(initialDate.getHours()).padStart(2, '0')}:${String(initialDate.getMinutes()).padStart(2, '0')}`
+        }
       } else {
-        selected.value = val.toISOString()
+        selectedDate.value = null
+        selectedHour.value = null
+        selectedMinute.value = null
+        timeInput.value = ''
       }
-      emit('update:modelValue', selected.value)
     }
 
-    function openMenu() {
-      console.debug(props.defaultDate)
-      if (selected.value === null && props.defaultDate !== null) {
-        selected.value = props.defaultDate
-      }
-    }
+    parseModelValue()
 
     watch(
       () => props.modelValue,
-      (val) => {
-        selected.value = val
+      () => {
+        parseModelValue()
       }
     )
 
+    const onDateChange = (newDate) => {
+      selectedDate.value = newDate
+      updateModelValue()
+    }
+
+    const onTimeChange = () => {
+      updateTimeInput()
+      updateModelValue()
+    }
+
+    const updateModelValue = () => {
+      if (selectedDate.value) {
+        const datetime = new Date(selectedDate.value)
+        datetime.setHours(selectedHour.value || 0)
+        datetime.setMinutes(selectedMinute.value || 0)
+        emit('update:modelValue', datetime.toISOString())
+      } else {
+        emit('update:modelValue', null)
+      }
+    }
+
+    const updateTimeInput = () => {
+      if (selectedHour.value !== null && selectedMinute.value !== null) {
+        timeInput.value = `${String(selectedHour.value).padStart(2, '0')}:${String(selectedMinute.value).padStart(2, '0')}`
+      } else {
+        timeInput.value = ''
+      }
+    }
+
+    const clearDate = () => {
+      selectedDate.value = null
+      updateModelValue()
+    }
+
+    const clearTime = () => {
+      selectedHour.value = null
+      selectedMinute.value = null
+      timeInput.value = ''
+      updateModelValue()
+    }
+
     return {
-      openMenu,
-      locale,
-      selected: computed({
-        get: () => (selected.value ? new Date(selected.value) : null),
-        set: updateSelected
-      })
+      timeMenu,
+      selectedDate,
+      selectedHour,
+      selectedMinute,
+      timeInput,
+      onDateChange,
+      onTimeChange,
+      clearDate,
+      clearTime
     }
   }
 }
