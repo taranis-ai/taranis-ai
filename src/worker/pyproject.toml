@@ -29,13 +29,15 @@ dependencies = [
     "playwright",
 
     # Publisher
-    "pymisp",
     "paramiko",
     "python-gnupg",
     "tweepy",
 
     # Presenters
     "weasyprint",
+
+    # Connectors
+    "pymisp",
 
     # Bots
     "scipy==1.12.0",

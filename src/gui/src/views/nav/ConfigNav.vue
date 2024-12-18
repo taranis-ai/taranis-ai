@@ -77,7 +77,13 @@ export default {
         icon: 'mdi-robot-outline',
         title: 'nav_menu.bots',
         route: '/config/bots',
-        permission: 'CONFIG_BOT_ACCESS',
+        permission: 'CONFIG_BOT_ACCESS'
+      },
+      {
+        icon: 'mdi-transit-connection-horizontal',
+        title: 'nav_menu.connectors',
+        route: '/config/connectors',
+        permission: 'CONFIG_CONNECTOR_ACCESS',
         divider: true
       },
       {
