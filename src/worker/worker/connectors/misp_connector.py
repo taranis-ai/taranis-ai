@@ -1,4 +1,5 @@
 import hashlib
+import datetime
 from pymisp import PyMISP, MISPEvent, MISPObject, exceptions
 
 from worker.collectors.base_collector import BaseCollector
@@ -108,8 +109,7 @@ class MispConnector(BaseCollector):
 
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
-        stories = [self.get_story_news_items(event, connector_config) for event in events]
-        story_dicts = [self.to_story_dict(story) for story in stories]
+        story_dicts = [self.to_story_dict(self.get_story_news_items(event, connector_config)) for event in events]
 
         self.publish_stories(story_dicts, connector_config)
 
@@ -117,22 +117,25 @@ class MispConnector(BaseCollector):
         logger.debug("Creating news item from MISP event ")
         author = ""
         title = ""
-        published = ""
+        published: datetime.datetime | None = None
         content = ""
         link = ""
         news_items_properties = event.pop("Attribute", [])
         for item in news_items_properties:
             match item.get("object_relation", ""):
                 case "title":
-                    title = item.get("Attribute", {}).get("value", "")
+                    title = item.get("value", "")
                 case "published":
-                    published = item.get("Attribute", {}).get("value", "")
+                    published_str = item.get("value", "")
+                    published = (
+                        datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
+                    )
                 case "content":
-                    content = item.get("Attribute", {}).get("value", "")
+                    content = item.get("value", "")
                 case "author":
-                    author = item.get("Attribute", {}).get("value", "")
+                    author = item.get("value", "")
                 case "link":
-                    link = item.get("Attribute", {}).get("value", "")
+                    link = item.get("value", "")
         for_hash: str = author + title + link
         return NewsItem(
             osint_source_id=connector_id["id"],
