@@ -375,3 +375,15 @@ export function getAllConnectors(filter_data) {
 export function createConnector(connector) {
   return apiService.post('/config/connectors', connector)
 }
+
+export function updateConnector(connector) {
+  return apiService.put(`/config/connectors/${connector.id}`, connector)
+}
+
+export function pullFromAllConnectors() {
+  return apiService.post('/config/connectors/pull')
+}
+
+export function pullFromConnector(connector_id) {
+  return apiService.post(`/config/connectors/${connector_id}/pull`)
+}

@@ -376,15 +376,15 @@ class Connectors(MethodView):
         return {"error": "Connector could not be created"}, 400
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def put(self, source_id: str):
+    def put(self, connector_id: str):
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
-            if source := connector.Connector.update(source_id, update_data):
-                return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+            if source := connector.Connector.update(connector_id, update_data):
+                return {"message": f"OSINT Source {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
-        return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+        return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, source_id: str):
@@ -401,6 +401,18 @@ class Connectors(MethodView):
     def patch(self, source_id: str):
         state = request.args.get("state", default="enabled", type=str)
         return osint_source.OSINTSource.toggle_state(source_id, state)
+
+
+class ConnectorsPull(MethodView):
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def post(self, connector_id):
+        """Trigger collection of stories from the external system."""
+        try:
+            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
+
+            return {"message": "Stories successfully collected.", "data": collected_stories}, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
 
 
 class OSINTSources(MethodView):
@@ -690,5 +702,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
     config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))
 
     app.register_blueprint(config_bp)

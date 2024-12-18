@@ -235,16 +235,6 @@ class Connectors(MethodView):
         except Exception as e:
             return {"error": str(e)}, 500
 
-    @auth_required("ASSESS_READ")
-    def get(self, connector_id):
-        """Trigger collection of stories from the external system."""
-        try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
-
-            return {"message": "Stories successfully collected.", "data": collected_stories}, 200
-        except Exception as e:
-            return {"error": str(e)}, 500
-
 
 def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")

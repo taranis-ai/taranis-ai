@@ -1,5 +1,4 @@
 import hashlib
-import datetime
 from pymisp import PyMISP, MISPEvent, MISPObject, exceptions
 
 from worker.collectors.base_collector import BaseCollector
@@ -109,27 +108,34 @@ class MispConnector(BaseCollector):
 
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
-        stories = [self.create_news_item(connector_config, event) for event in events]
-        story_dicts = [self.to_story_dict([story]) for story in stories]
+        stories = [self.get_story_news_items(event, connector_config) for event in events]
+        story_dicts = [self.to_story_dict(story) for story in stories]
 
         self.publish_stories(story_dicts, connector_config)
 
-    def create_news_item(self, source, event: dict) -> NewsItem:
+    def create_news_item(self, event: dict, connector_id: dict) -> NewsItem:
         logger.debug("Creating news item from MISP event ")
-        logger.debug(f"{event=}")
-        author = event.get("author", "")
-        title = event.get("Object", {}).get("Attribute", {}).get("title", "")
-        link = event.get("link", "")
-        for_hash: str = author + title + link
+        for item in event:
+            match item.get("Attribute", {}).get("object_relation", ""):
+                case "title":
+                    title = item.get("Attribute", {}).get("value", "")
+                case "published":
+                    published = item.get("Attribute", {}).get("value", "")
+                case "content":
+                    content = item.get("Attribute", {}).get("value", "")
+                case "author":
+                    author = item.get("Attribute", {}).get("value", "")
+                case "link":
+                    link = item.get("Attribute", {}).get("value", "")
+        for_hash: str = (author or "") + (title or "") + (link or "")
         return NewsItem(
-            osint_source_id=source["id"],
+            osint_source_id=connector_id["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
-            content=event.get("content", ""),
+            content=content,
             web_url=link,
-            published_date=datetime.datetime.now(),
-            language=source.get("language", ""),
+            published_date=published,
         )
 
     @staticmethod
@@ -142,6 +148,14 @@ class MispConnector(BaseCollector):
             "attributes": story_attributes,
             "news_items": news_items_list,
         }
+
+    def get_story_news_items(self, event: dict, connector_config: dict) -> list[NewsItem]:
+        story_news_items = []
+        if news_items := event.get("Event", {}).get("Object", {}):
+            for news_item in news_items:
+                story_news_items.append(self.create_news_item(news_item, connector_config))
+
+        return story_news_items
 
 
 def sending():
@@ -232,5 +246,5 @@ def receiving():
 
 
 if __name__ == "__main__":
-    sending()
-    # receiving()
+    # sending()
+    receiving()

@@ -13,7 +13,7 @@
             'icon',
             'state',
             'name',
-            'parameters.FEED_URL',
+            'parameters.URL',
             'actions'
           ]"
           :add-button="true"
@@ -24,18 +24,18 @@
           @selection-change="selectionChange"
         >
           <template #titlebar>
-            <ImportExport
+            <!-- <ImportExport
               @import="importData"
               @export="showExportPopup = true"
-            />
+            /> -->
             <v-btn
               dark
               color="blue-grey"
               class="ml-4"
               prepend-icon="mdi-run"
-              @click="collectAllSources"
+              @click="pullFromAllConnectors"
             >
-              Collect Sources
+              Pull from Connectors
             </v-btn>
           </template>
           <template #actionColumn="source">
@@ -59,7 +59,7 @@
                   @click.stop="previewSource(source.item)"
                 />
               </template>
-              <span>Preview Source</span>
+              <span>Preview Connector</span>
             </v-tooltip>
             <v-tooltip left>
               <template #activator="{ props }">
@@ -80,19 +80,13 @@
           <template #nodata>
             <v-empty-state
               icon="mdi-magnify"
-              title="No OSINTSources Found"
+              title="No Connectors Found"
               class="my-5"
             >
               <v-btn
                 text="refresh"
                 prepend-icon="mdi-refresh"
                 @click.stop="updateData"
-              />
-              <v-btn
-                v-if="sourceTotalCount === 0"
-                text="load default sources"
-                prepend-icon="mdi-database"
-                @click.stop="loadDefaultSources()"
               />
             </v-empty-state>
           </template>
@@ -131,16 +125,14 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupExportSource from '@/components/popups/PopupExportSource.vue'
 import {
   deleteOSINTSource,
-  createOSINTSource,
-  updateOSINTSource,
-  importOSINTSources,
-  collectOSINTSSource,
+  updateConnector,
+  // importOSINTSources,
+  pullFromConnector,
   previewOSINTSSource,
-  collectAllOSINTSSources,
+  pullFromAllConnectors,
   createConnector
 } from '@/api/config'
 
-import { getDefaultSoures } from '@/api/static'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
@@ -326,7 +318,7 @@ export default {
 
     async function updateItem(item) {
       try {
-        const result = await updateOSINTSource(item)
+        const result = await updateConnector(item)
         notifySuccess(result.data.message)
         updateData()
       } catch (error) {
@@ -334,34 +326,22 @@ export default {
       }
     }
 
-    async function loadDefaultSources() {
-      try {
-        const response = await getDefaultSoures()
-        const file = await response.data
-        const formData = new FormData()
-        formData.append('file', file, 'default_sources.json')
-        await importData(formData)
-      } catch (error) {
-        notifyFailure('Failed to import default sources')
-      }
-    }
-
-    async function importData(data) {
-      try {
-        await importOSINTSources(data)
-        notifySuccess(`Successfully imported ${data.get('file').name}`)
-        setTimeout(updateData, 1000)
-      } catch (error) {
-        notifyFailure('Failed to import sources')
-      }
-    }
+    // async function importData(data) {
+    //   try {
+    //     await importOSINTSources(data)
+    //     notifySuccess(`Successfully imported ${data.get('file').name}`)
+    //     setTimeout(updateData, 1000)
+    //   } catch (error) {
+    //     notifyFailure('Failed to import sources')
+    //   }
+    // }
 
     function selectionChange(new_selection) {
       selected.value = new_selection
     }
 
-    function collectAllSources() {
-      collectAllOSINTSSources()
+    function pullFromAllConnectors() {
+      pullFromAllConnectors()
         .then(() => {
           notifySuccess('Successfully collected all sources')
         })
@@ -370,31 +350,31 @@ export default {
         })
     }
 
-    function collectSource(source) {
-      collectOSINTSSource(source.id)
+    function collectSource(connector) {
+      pullFromConnector(connector.id)
         .then(() => {
-          notifySuccess(`Successfully collected ${source.name}`)
+          notifySuccess(`Successfully collected ${connector.name}`)
         })
         .catch(() => {
-          notifyFailure(`Failed to collect ${source.name}`)
+          notifyFailure(`Failed to collect ${connector.name}`)
         })
     }
 
-    function previewSource(source) {
-      previewOSINTSSource(source.id)
+    function previewSource(connector) {
+      previewOSINTSSource(connector.id)
         .then(() => {
           router.push({
             name: 'osint_sources_preview',
-            params: { source_id: source.id }
+            params: { source_id: connector.id }
           })
         })
         .catch(() => {
-          notifyFailure(`Failed to preview ${source.name}`)
+          notifyFailure(`Failed to preview ${connector.name}`)
         })
     }
 
-    async function toggleState(source) {
-      await configStore.toggleOSINTSSourceState(source)
+    async function toggleState(connector) {
+      await configStore.toggleOSINTSSourceState(connector)
     }
 
     return {
@@ -416,12 +396,11 @@ export default {
       deleteItem,
       createItem,
       updateItem,
-      importData,
+      // importData,
       collectSource,
       previewSource,
       forceDeleteItem,
-      collectAllSources,
-      loadDefaultSources,
+      pullFromAllConnectors,
       toggleState,
       selectionChange
     }
