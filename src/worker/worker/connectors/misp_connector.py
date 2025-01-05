@@ -20,7 +20,8 @@ class MISPConnector:
         self.api_key: str = ""
         self.ssl: bool = False
         self.request_timeout: int
-        self.sharing_group: str = ""
+        self.sharing_group_id: str = ""
+        self.distribution: str = "1"
 
     def parse_parameters(self, parameters: dict) -> None:
         logger.debug(f"{parameters=}")
@@ -30,8 +31,10 @@ class MISPConnector:
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES", "")
         self.headers = parameters.get("HEARERS", "")
-        self.sharing_group = parameters.get("SHARING_GROUP", "")
-
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
+        self.distribution = parameters.get("DISTRIBUTION", "")
+        if not self.distribution and self.sharing_group_id:
+            self.distribution = "4"
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
 
@@ -64,15 +67,16 @@ class MISPConnector:
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         event = MISPEvent()
-        event.info = "Description of the event"
-        event.distribution = 1
+        event.info = story.get("title", "")
+        event.distribution = int(self.distribution)
         event.threat_level_id = 4
         event.analysis = 0
+        event.sharing_group_id = int(self.sharing_group_id)
         if news_items := story.pop("news_items", None):
             self.add_objects(news_items, event)
         return event
 
-    def send_event_to_misp(self, event: MISPEvent) -> None:
+    def send_event_to_misp(self, event: MISPEvent) -> str | None:
         try:
             misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
 
@@ -82,7 +86,7 @@ class MISPConnector:
 
             created_event: MISPEvent = misp.add_event(event, pythonify=True)  # type: ignore
             logger.info(f"Event created in MISP with UUID: {created_event.uuid}")
-
+            return created_event.uuid
         except exceptions.PyMISPError as e:
             logger.error(f"PyMISP exception occurred, but can be misleading (e.g., if received an HTTP/301 response): {e}")
         except Exception as e:
@@ -90,7 +94,8 @@ class MISPConnector:
 
     def misp_sender(self, story: dict) -> None:
         event = self.create_misp_event(story)
-        self.send_event_to_misp(event)
+        if event_uuid := self.send_event_to_misp(event):
+            self.core_api.update_story_attributes(story.get("id", ""), {"misp_event_uuid": event_uuid})
 
 
 def sending():
@@ -113,6 +118,8 @@ def sending():
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",
             "USER_AGENT": "",
+            "SHARING_GROUP_ID": "1",
+            "DISTRIBUTION": "",
         },
         "state": -1,
         "type": "misp_connector",

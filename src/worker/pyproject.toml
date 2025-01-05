@@ -37,7 +37,7 @@ dependencies = [
     "weasyprint",
 
     # Connectors
-    "pymisp",
+    "pymisp==2.5.2",
 
     # Bots
     "scipy==1.12.0",

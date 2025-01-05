@@ -22,7 +22,7 @@ class MISPCollector(BaseCollector):
         self.api_key: str = ""
         self.ssl: bool = False
         self.request_timeout: int
-        self.sharing_group: str = ""
+        self.sharing_group_id: str = ""
 
     def parse_parameters(self, parameters: dict) -> None:
         logger.debug(f"{parameters=}")
@@ -32,7 +32,7 @@ class MISPCollector(BaseCollector):
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES", "")
         self.headers = parameters.get("HEARERS", "")
-        self.sharing_group = parameters.get("SHARING_GROUP", "")
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
 
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
@@ -42,16 +42,23 @@ class MISPCollector(BaseCollector):
 
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
 
-        result: list[MISPObject] = misp.search(controller="objects", object_name="news_item", pythonify=True)  # type: ignore
-        logger.debug(f"{result=}")
+        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
+        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
+        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="news_item", pythonify=True)  # type: ignore
+
+        logger.debug(f"{taranis_objects=}")
         event_ids = set()
-        for obj in result:
+        for obj in taranis_objects:
             event_ids.add(obj.event_id)  # type: ignore
             print(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
 
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
-        story_dicts = [self.to_story_dict(self.get_story_news_items(event, source)) for event in events]
+        story_dicts = [
+            self.to_story_dict(self.get_story_news_items(event, source))
+            for event in events
+            if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
+        ]
 
         self.publish_stories(story_dicts, source)
 
@@ -110,7 +117,7 @@ class MISPCollector(BaseCollector):
         return story_news_items
 
 
-def receiving():
+if __name__ == "__main__":
     collector = MISPCollector()
     source = {
         "description": "",
@@ -127,6 +134,7 @@ def receiving():
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",
             "USER_AGENT": "",
+            # "SHARING_GROUP_ID": "1",
         },
         "state": -1,
         "type": "misp_connector",

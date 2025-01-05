@@ -33,13 +33,13 @@
             "ui-priority": 0
         },
         "hash": {
-            "description": "Hash of the news item (e.g., SHA-256 of content)",
+            "description": "Hash of the news item",
             "misp-attribute": "sha256",
             "ui-priority": 0
         },
         "id": {
             "description": "Unique identifier of the Taranis item",
-            "misp-attribute": "uuid",
+            "misp-attribute": "text",
             "ui-priority": 0
         },
         "language": {
@@ -49,7 +49,7 @@
         },
         "osint_source_id": {
             "description": "OSINT source unique identifier",
-            "misp-attribute": "uuid",
+            "misp-attribute": "text",
             "ui-priority": 0
         },
         "review": {
@@ -64,7 +64,7 @@
         },
         "story_id": {
             "description": "Unique identifier for the story",
-            "misp-attribute": "uuid",
+            "misp-attribute": "text",
             "ui-priority": 0
         },
         "updated": {

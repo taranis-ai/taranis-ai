@@ -244,7 +244,8 @@ workers = [
             {"parameter": "PROXY_SERVER"},
             {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
             {"parameter": "REFRESH_INTERVAL"},
-            {"parameter": "SHARING_GROUP"},
+            {"parameter": "SHARING_GROUP_ID"},
+            {"parameter": "DISTRIBUTION"},
         ],
     },
     {
@@ -260,7 +261,7 @@ workers = [
             {"parameter": "PROXY_SERVER"},
             {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
             {"parameter": "REFRESH_INTERVAL"},
-            {"parameter": "SHARING_GROUP"},
+            {"parameter": "SHARING_GROUP_ID"},
         ],
     },
 ]
