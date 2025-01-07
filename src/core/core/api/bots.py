@@ -127,7 +127,11 @@ def initialize(app: Flask):
         view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes"),
     )
     bots_bp.add_url_rule(
-        "/stories/<string:story_id>/attributes",
+        "/story/<string:story_id>",
+        view_func=UpdateStory.as_view("update_story"),
+    )
+    bots_bp.add_url_rule(
+        "/story/<string:story_id>/attributes",
         view_func=StoryAttributes.as_view("story_attributes"),
     )
     bots_bp.add_url_rule(
@@ -142,9 +146,4 @@ def initialize(app: Flask):
         "/stories/ungroup",
         view_func=BotUnGroupAction.as_view("ungroup_stories_bot"),
     )
-    bots_bp.add_url_rule(
-        "/story/<string:story_id>",
-        view_func=UpdateStory.as_view("update_story"),
-    )
-
     app.register_blueprint(bots_bp)
