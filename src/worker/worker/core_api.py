@@ -217,6 +217,12 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
+    def update_story(self, story_id, data) -> dict | None:
+        try:
+            return self.api_put(url=f"/bots/story/{story_id}", json_data=data)
+        except Exception:
+            return None
+
     def add_or_update_story_on_attr(self, stories, story_attribute_key: str | None = None):
         try:
             return requests.post(

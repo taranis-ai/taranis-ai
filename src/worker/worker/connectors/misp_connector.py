@@ -42,66 +42,116 @@ class MISPConnector:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
         for story in stories:
-            self.misp_sender(story)
+            existing_event_essentials = self.get_existing_event_essentials(story)
+            self.misp_sender(story, existing_event_essentials=existing_event_essentials)
+
+    def get_existing_event_essentials(self, story: dict) -> dict | None:
+        story_attributes = story.get("attributes", [])
+        misp_event_id = next(
+            (int(attribute.get("value")) for attribute in story_attributes if attribute.get("key") == "misp_event_id"),
+            None,
+        )
+        misp_event_uuid = next(
+            (attribute.get("value") for attribute in story_attributes if attribute.get("key") == "misp_event_uuid"),
+            None,
+        )
+        if misp_event_id is None or misp_event_uuid is None:
+            return None
+        return {"misp_event_id": misp_event_id, "misp_event_uuid": misp_event_uuid}
+
+    @staticmethod
+    def get_news_item_object_dict() -> dict:
+        """Useful for unit testing of the template keys"""
+        return {
+            "author": "",
+            "content": "",
+            "link": "",
+            "published": "",
+            "title": "",
+            "collected": "",
+            "hash": "",
+            "id": "",
+            "language": "",
+            "osint_source_id": "",
+            "review": "",
+            "source": "",
+            "story_id": "",
+            "updated": "",
+        }
 
     def add_objects(self, news_items: dict, event: MISPEvent) -> None:
+        object_data = MISPConnector.get_news_item_object_dict()
         for news_item in news_items:
-            object_data = {
-                "author": news_item.get("author"),
-                "content": news_item.get("content"),
-                "link": news_item.get("link"),
-                "published": news_item.get("published"),
-                "title": news_item.get("title"),
-                "collected": news_item.get("collected"),
-                "hash": news_item.get("hash"),
-                "id": news_item.get("id"),
-                "language": news_item.get("language"),
-                "osint_source_id": news_item.get("osint_source_id"),
-                "review": news_item.get("review"),
-                "source": news_item.get("source"),
-                "story_id": news_item.get("story_id"),
-                "updated": news_item.get("updated"),
-            }
+            object_data["author"] = news_item.get("author")
+            object_data["content"] = news_item.get("content")
+            object_data["link"] = news_item.get("link")
+            object_data["published"] = news_item.get("published")
+            object_data["title"] = news_item.get("title")
+            object_data["collected"] = news_item.get("collected")
+            object_data["hash"] = news_item.get("hash")
+            object_data["id"] = news_item.get("id")
+            object_data["language"] = news_item.get("language")
+            object_data["osint_source_id"] = news_item.get("osint_source_id")
+            object_data["review"] = news_item.get("review")
+            object_data["source"] = news_item.get("source")
+            object_data["story_id"] = news_item.get("story_id")
+            object_data["updated"] = news_item.get("updated")
             taranis_obj = TaranisObject(parameters=object_data, misp_objects_path_custom="worker/connectors/definitions/objects")
             event.add_object(taranis_obj)
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         event = MISPEvent()
         event.info = story.get("title", "")
-        event.distribution = int(self.distribution)
         event.threat_level_id = 4
         event.analysis = 0
-        event.sharing_group_id = int(self.sharing_group_id)
-        if news_items := story.pop("news_items", None):
-            self.add_objects(news_items, event)
+        if self.sharing_group_id:
+            event.sharing_group_id = int(self.sharing_group_id)
+        if self.distribution:
+            event.distribution = int(self.distribution)
         return event
 
-    def send_event_to_misp(self, event: MISPEvent) -> str | None:
+    def add_event_attributes(self, story: dict, event: MISPEvent) -> None:
+        if news_items := story.pop("news_items", None):
+            self.add_objects(news_items, event)
+
+    def send_event_to_misp(self, event: MISPEvent, existing_event_essentials: dict | None, story: dict) -> int | None:
         try:
             misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
 
             # debugging
             event_json = event.to_json()
             logger.debug(f"Sending event to MISP: {event_json}")
+            if existing_event_essentials is not None:
+                if misp_event_uuid := existing_event_essentials.get("misp_event_uuid"):
+                    event.uuid = misp_event_uuid
+                    # TODO: I can't neglect the dict, in case of a failure, the method retuns a dict anyway, try catch is not helping
+                    updated_event: MISPEvent = misp.update_event(
+                        event, event_id=existing_event_essentials.get("misp_event_id"), pythonify=True
+                    )  # type: ignore
+                    return updated_event.id
+                logger.error(f"MISP event update is not possible without all event essintials - ID and UUID {existing_event_essentials=}")
+                return None
 
+            self.add_event_attributes(story, event)
+            # TODO I likely can't neglect the dict, in case of a failure, the method retunrs a dict anyway
             created_event: MISPEvent = misp.add_event(event, pythonify=True)  # type: ignore
-            logger.info(f"Event created in MISP with UUID: {created_event.uuid}")
-            return created_event.uuid
+            logger.info(f"Event created in MISP with ID: {created_event.id}")
+            return created_event.id
         except exceptions.PyMISPError as e:
             logger.error(f"PyMISP exception occurred, but can be misleading (e.g., if received an HTTP/301 response): {e}")
         except Exception as e:
             logger.error(f"Unexpected error occurred: {e}")
 
-    def misp_sender(self, story: dict) -> None:
+    def misp_sender(self, story: dict, existing_event_essentials: dict | None = None) -> None:
         event = self.create_misp_event(story)
-        if event_uuid := self.send_event_to_misp(event):
-            self.core_api.update_story_attributes(story.get("id", ""), {"misp_event_uuid": event_uuid})
+        if event_id := self.send_event_to_misp(event, existing_event_essentials, story):
+            self.core_api.api_put(
+                f"/bots/story/{story.get("id", "")}",
+                {"attributes": [{"key": "misp_event_id", "value": f"{event_id}"}, {"key": "misp_event_uuid", "value": f"{event.uuid}"}]},
+            )
 
 
 def sending():
-    # misp = ExpandedPyMISP('https://localhost', 'f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc', False)
-    # types_description = misp.describe_types
-    # logger.debug(f"{types_description=}")
     connector = MISPConnector()
     connector_config = {
         "description": "",

@@ -5,7 +5,7 @@ from worker.log import logger
 
 class TaranisObject(MISPObject):
     def __init__(self, parameters: dict, strict: bool = True, **kwargs):
-        super().__init__(name="news_item", strict=strict, **kwargs)
+        super().__init__(name="taranis-news-item", strict=strict, **kwargs)
         self._parameters = parameters
         self.generate_attributes()
 

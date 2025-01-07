@@ -241,6 +241,7 @@ def initialize(app: Flask):
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
+    assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
@@ -251,7 +252,6 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
-    assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)
