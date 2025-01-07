@@ -9,16 +9,6 @@ git clone git@github.com:taranis-ai/taranis-ai.git
 cd taranis-ai
 ```
 
-Install pre dependencies:
-
-* git
-* tmux
-* nodejs >= 20
-* build-essentials
-* [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
-
-If using docker make sure to allow running it as [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
-if using podman make sure to also install `podman-compose` and `podman-docker`
 
 Copy env.dev to worker and core
 
@@ -32,6 +22,17 @@ dev/start_dev.sh
 ```
 
 ## Hard Mode
+
+Install pre dependencies:
+
+* git
+* tmux
+* nodejs >= 20
+* build-essential
+* [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
+
+If using docker make sure to allow running it as [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
+if using podman make sure to also install `podman-compose` and `podman-docker`
 
 Starting from the git root:
 
