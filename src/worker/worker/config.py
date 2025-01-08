@@ -21,7 +21,13 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers"]] = ["Bots", "Collectors", "Presenters", "Publishers"]
+    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors"]] = [
+        "Bots",
+        "Collectors",
+        "Presenters",
+        "Publishers",
+        "Connectors",
+    ]
     QUEUE_BROKER_SCHEME: Literal["amqp", "amqps"] = "amqp"
     QUEUE_BROKER_HOST: str = "localhost"
     QUEUE_BROKER_PORT: int = 5672
