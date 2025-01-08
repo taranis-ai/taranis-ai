@@ -110,7 +110,7 @@ def auth_header(access_token):
 
 @pytest.fixture
 def api_header():
-    return {"Authorization": "Bearer test_key", "Content-type": "application/json"}
+    return {"Authorization": f"Bearer {os.getenv("API_KEY")}", "Content-type": "application/json"}
 
 
 @pytest.fixture(scope="session")
