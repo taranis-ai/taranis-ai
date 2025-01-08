@@ -37,7 +37,7 @@ class WordList(BaseModel):
             self.description = description
         self.update_usage(usage)
         self.link = link
-        self.entries = WordListEntry.load_multiple(entries) if entries else []
+        self.entries = entries or []
 
     @classmethod
     def find_by_name(cls, name: str) -> "WordList|None":
@@ -136,6 +136,22 @@ class WordList(BaseModel):
         data["usage"] = self.get_usage_list()
         data.pop("entries", None)
         return data
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "WordList":
+        if 'entries' in data:
+            data['entries'] = WordListEntry.load_multiple(data['entries'])
+
+        word_list = cls(
+            id=data.get('id'), 
+            name=data.get('name', ''),
+            description=data.get('description'),
+            usage=data.get('usage', 0),
+            link=data.get('link', ''),
+            entries=data.get('entries', [])
+        )
+
+        return word_list
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -157,14 +173,13 @@ class WordList(BaseModel):
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
     @classmethod
-    def update(cls, word_list_id: int, data, user: User | None = None) -> tuple[dict, int]:
+    def update(cls, word_list_id: int, data: dict, user: User | None = None) -> tuple[dict, int]:
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
 
         if user and not word_list.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to WordList"}, 403
-
         if name := data.get("name"):
             word_list.name = name
         if description := data.get("description"):
