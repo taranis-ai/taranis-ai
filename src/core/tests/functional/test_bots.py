@@ -15,6 +15,18 @@ class TestBotsApi(BaseTest):
         assert response.status_code == 200
         assert story_id == stories[0], "Response ID should match request ID"
 
+    def test_attribute_update(self, client, stories, api_header):
+        """
+        This test queries the story update authenticated.
+        It expects a valid data and a valid status-code
+        """
+        response = client.patch(
+            f"{self.base_uri}/story/{stories[0]}/attributes", json={"key": "tech", "value": "in_progress"}, headers=api_header
+        )
+        print(response.get_json())
+        assert response.status_code == 200
+
+    def check_updated_story(self, client, stories, cleanup_story_update_data, auth_header):
         # Check if the update was successful
         response = client.get(f"api/assess/story/{stories[0]}", headers=auth_header)
 

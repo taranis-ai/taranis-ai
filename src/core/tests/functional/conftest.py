@@ -151,7 +151,7 @@ def cleanup_story_update_data():
         "comments": "This is an updated comment",
         "tags": ["tag1", "tag2", "tag3"],
         "summary": "This is an updated summary of the story",
-        "attributes": [{"key": "priority", "value": "high"}, {"key": "tech", "value": "in_progress"}],
+        "attributes": [{"key": "priority", "value": "high"}],
         "links": [
             "https://example.com/1",
             "http://example.com/2",
