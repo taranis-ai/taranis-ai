@@ -42,22 +42,15 @@ class MISPConnector:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
         for story in stories:
-            existing_event_essentials = self.get_existing_event_essentials(story)
-            self.misp_sender(story, existing_event_essentials=existing_event_essentials)
+            misp_event_uuid = self.get_event_uuid_from_story(story)
+            self.misp_sender(story, misp_event_uuid)
 
-    def get_existing_event_essentials(self, story: dict) -> dict | None:
+    def get_event_uuid_from_story(self, story: dict) -> str | None:
         story_attributes = story.get("attributes", [])
-        misp_event_id = next(
-            (int(attribute.get("value")) for attribute in story_attributes if attribute.get("key") == "misp_event_id"),
-            None,
-        )
-        misp_event_uuid = next(
+        return next(
             (attribute.get("value") for attribute in story_attributes if attribute.get("key") == "misp_event_uuid"),
             None,
         )
-        if misp_event_id is None or misp_event_uuid is None:
-            return None
-        return {"misp_event_id": misp_event_id, "misp_event_uuid": misp_event_uuid}
 
     @staticmethod
     def get_news_item_object_dict() -> dict:
@@ -108,46 +101,63 @@ class MISPConnector:
             event.sharing_group_id = int(self.sharing_group_id)
         if self.distribution:
             event.distribution = int(self.distribution)
+
+        self.add_event_attributes(story, event)
         return event
 
-    def add_event_attributes(self, story: dict, event: MISPEvent) -> None:
+    def get_event_id_by_uuid(self, misp, event_uuid: str) -> int | None:
+        if results := misp.search(controller="events", uuid=event_uuid, pythonify=True):
+            logger.debug(f"Event to update exists: {results}")
+            return results[0].id
+        else:
+            logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
+            return None
+
+    def add_event_attributes(self, story: dict, event: MISPEvent):
         if news_items := story.pop("news_items", None):
             self.add_objects(news_items, event)
 
-    def send_event_to_misp(self, event: MISPEvent, existing_event_essentials: dict | None, story: dict) -> int | None:
+    def add_misp_event(self, misp: PyMISP, event) -> MISPEvent | None:
+        created_event: MISPEvent | dict = misp.add_event(event, pythonify=True)
+        return None if isinstance(created_event, dict) else created_event
+
+    def update_misp_event(self, misp, event: MISPEvent, misp_event_uuid) -> MISPEvent | None:
+        if event_id := self.get_event_id_by_uuid(misp, misp_event_uuid):
+            event.uuid = misp_event_uuid
+            updated_event: MISPEvent | dict = misp.update_event(event, event_id=event_id, pythonify=True)
+            return None if isinstance(updated_event, dict) else updated_event
+        return None
+
+    def send_event_to_misp(self, event: MISPEvent, misp_event_uuid: str | None = None) -> str | None:
         try:
             misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
 
             # debugging
             event_json = event.to_json()
-            logger.debug(f"Sending event to MISP: {event_json}")
-            if existing_event_essentials is not None:
-                if misp_event_uuid := existing_event_essentials.get("misp_event_uuid"):
-                    event.uuid = misp_event_uuid
-                    # TODO: I can't neglect the dict, in case of a failure, the method retuns a dict anyway, try catch is not helping
-                    updated_event: MISPEvent = misp.update_event(
-                        event, event_id=existing_event_essentials.get("misp_event_id"), pythonify=True
-                    )  # type: ignore
-                    return updated_event.id
-                logger.error(f"MISP event update is not possible without all event essintials - ID and UUID {existing_event_essentials=}")
-                return None
 
-            self.add_event_attributes(story, event)
-            # TODO I likely can't neglect the dict, in case of a failure, the method retunrs a dict anyway
-            created_event: MISPEvent = misp.add_event(event, pythonify=True)  # type: ignore
-            logger.info(f"Event created in MISP with ID: {created_event.id}")
-            return created_event.id
+            logger.debug(f"Sending event to MISP: {event_json}")
+            if misp_event_uuid:
+                if result := self.update_misp_event(misp, event, misp_event_uuid):
+                    logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
+                    return result.uuid
+                logger.error("Failed to update event in MISP")
+
+            if created_event := self.add_misp_event(misp, event):
+                logger.info(f"Event was created in MISP with UUID: {created_event.uuid}")
+                return created_event.uuid
+            logger.error("Failed to create event in MISP")
+            return None
         except exceptions.PyMISPError as e:
             logger.error(f"PyMISP exception occurred, but can be misleading (e.g., if received an HTTP/301 response): {e}")
         except Exception as e:
             logger.error(f"Unexpected error occurred: {e}")
 
-    def misp_sender(self, story: dict, existing_event_essentials: dict | None = None) -> None:
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> None:
         event = self.create_misp_event(story)
-        if event_id := self.send_event_to_misp(event, existing_event_essentials, story):
-            self.core_api.api_put(
-                f"/bots/story/{story.get("id", "")}",
-                {"attributes": [{"key": "misp_event_id", "value": f"{event_id}"}, {"key": "misp_event_uuid", "value": f"{event.uuid}"}]},
+        if event_uuid := self.send_event_to_misp(event, misp_event_uuid):
+            self.core_api.api_patch(
+                f"/bots/story/{story.get("id", "")}/attributes",
+                {"key": "misp_event_uuid", "value": f"{event_uuid}"},
             )
 
 
