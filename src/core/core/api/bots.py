@@ -88,6 +88,7 @@ class StoryAttributes(MethodView):
                 current_story.patch_attributes(input_data)
             else:
                 return {"error": "No data provided"}, 400
+            return {"message": f"Story {story_id} updated"}, 200
         return {"error": f"Story {story_id} not found"}, 404
 
 
