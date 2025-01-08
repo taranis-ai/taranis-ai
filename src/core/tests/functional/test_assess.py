@@ -42,7 +42,7 @@ class TestAssessNewsItems(BaseTest):
         assert response.get_json()["id"] == cleanup_news_item["id"]
 
     def test_delete_NewsItem(self, client, cleanup_news_item, auth_header):
-        response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item["id"]}", auth_header)
+        response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
         assert response.get_json()["id"] == cleanup_news_item["id"]
         assert response.get_json()["message"] == "News Item deleted"
 
