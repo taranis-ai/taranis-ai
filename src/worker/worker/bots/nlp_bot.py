@@ -1,6 +1,7 @@
 from .base_bot import BaseBot
 from worker.config import Config
 from worker.bot_api import BotApi
+from worker.log import logger
 
 
 class NLPBot(BaseBot):
@@ -13,36 +14,31 @@ class NLPBot(BaseBot):
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
             parameters = {}
-        stories = self.get_stories(parameters)
-        if not stories:
-            return {"message": "No new stories found"}
+        if stories := self.get_stories(parameters):
+            return self.process_stories(stories)
 
-        all_keywords = self.collect_keywords(stories)
-        tag_count = self.process_stories(stories, all_keywords)
-        return {"message": f"Extracted {tag_count} tags"}
+        return {"message": "No new stories found"}
 
     def collect_keywords(self, stories: list) -> dict:
         return {k: v for story in stories for k, v in story["tags"].items()}
 
-    def process_stories(self, stories: list, all_keywords: dict) -> int:
+    def process_stories(self, stories: list) -> dict:
         update_result = {}
-        tag_count = 0
 
         for story in stories:
             story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
-            current_keywords = self.extract_ner(story_content, all_keywords)
-            all_keywords |= current_keywords
+            current_keywords = self.extract_ner(story_content)
             update_result[story["id"]] = current_keywords
 
-        tag_count += self.update_tags(update_result)
-        return tag_count
+        return self.update_tags(update_result)
 
-    def update_tags(self, update_result: dict) -> int:
+    def update_tags(self, update_result: dict) -> dict:
+        logger.debug(f"Extracted {len(update_result)} tags")
         self.core_api.update_tags(update_result, self.type)
-        return len(update_result)
+        return update_result
 
-    def extract_ner(self, text: str, all_keywords) -> dict:
-        if keywords := self.bot_api.api_post("/ner", {"text": text, "all_keywords": all_keywords}):
+    def extract_ner(self, text: str) -> dict:
+        if keywords := self.bot_api.api_post("/ner", {"text": text}):
             return keywords
         return {}
 
