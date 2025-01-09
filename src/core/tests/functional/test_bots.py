@@ -29,6 +29,8 @@ class TestBotsApi(BaseTest):
         """Check if the update was successful"""
         response = client.get(f"api/assess/story/{stories[0]}", headers=auth_header)
 
+        print(response.get_json())
+
         assert response.status_code == 200
         assert response.get_json().get("important") == cleanup_story_update_data["important"]
         assert response.get_json().get("read") == cleanup_story_update_data["read"]
@@ -43,5 +45,5 @@ class TestBotsApi(BaseTest):
         assert len(response.get_json().get("links")) == len(cleanup_story_update_data["links"])
         assert all(link in cleanup_story_update_data["links"] for link in response.get_json().get("links"))
 
-        assert response.get_json().get("attributes")[0] == cleanup_story_update_data["attributes"][0]
         assert response.get_json().get("attributes")[1] == {"key": "tech", "value": "in_progress"}
+        assert response.get_json().get("attributes")[0] == cleanup_story_update_data["attributes"][0]
