@@ -21,9 +21,8 @@ class TestBotsApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = client.patch(
-            f"{self.base_uri}/story/{stories[0]}/attributes", json={"key": "tech", "value": "in_progress"}, headers=api_header
+            f"{self.base_uri}/story/{stories[0]}/attributes", json=[{"key": "tech", "value": "in_progress"}], headers=api_header
         )
-        print(response.get_json())
         assert response.status_code == 200
 
     def check_updated_story(self, client, stories, cleanup_story_update_data, auth_header):

@@ -557,8 +557,9 @@ class Story(BaseModel):
             self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
 
     def patch_attributes(self, attributes: dict):
-        for key, value in attributes.items():
-            self.set_atrribute_by_key(key=key, value=value)
+        for attribute in attributes:
+            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            db.session.commit()
 
     def set_atrribute_by_key(self, key, value):
         if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):

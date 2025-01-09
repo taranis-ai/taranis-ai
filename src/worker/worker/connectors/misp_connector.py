@@ -54,7 +54,7 @@ class MISPConnector:
 
     @staticmethod
     def get_news_item_object_dict() -> dict:
-        """Useful for unit testing of the template keys"""
+        """Useful for unit testing or ensuring consistent keys."""
         return {
             "author": "",
             "content": "",
@@ -72,27 +72,21 @@ class MISPConnector:
             "updated": "",
         }
 
-    def add_objects(self, news_items: dict, event: MISPEvent) -> None:
-        object_data = MISPConnector.get_news_item_object_dict()
+    def add_objects(self, news_items: list[dict], event: MISPEvent) -> None:
+        """
+        For each news item in 'news_items', create a TaranisObject and add it to the event.
+        """
         for news_item in news_items:
-            object_data["author"] = news_item.get("author")
-            object_data["content"] = news_item.get("content")
-            object_data["link"] = news_item.get("link")
-            object_data["published"] = news_item.get("published")
-            object_data["title"] = news_item.get("title")
-            object_data["collected"] = news_item.get("collected")
-            object_data["hash"] = news_item.get("hash")
-            object_data["id"] = news_item.get("id")
-            object_data["language"] = news_item.get("language")
-            object_data["osint_source_id"] = news_item.get("osint_source_id")
-            object_data["review"] = news_item.get("review")
-            object_data["source"] = news_item.get("source")
-            object_data["story_id"] = news_item.get("story_id")
-            object_data["updated"] = news_item.get("updated")
+            object_data = self.get_news_item_object_dict()
+            object_data.update(news_item)
+
             taranis_obj = TaranisObject(parameters=object_data, misp_objects_path_custom="worker/connectors/definitions/objects")
             event.add_object(taranis_obj)
 
     def create_misp_event(self, story: dict) -> MISPEvent:
+        """
+        Create a MISPEvent from the 'story' dictionary.
+        """
         event = MISPEvent()
         event.info = story.get("title", "")
         event.threat_level_id = 4
@@ -105,59 +99,139 @@ class MISPConnector:
         self.add_event_attributes(story, event)
         return event
 
-    def get_event_id_by_uuid(self, misp, event_uuid: str) -> int | None:
+    def get_event_by_uuid(self, misp: PyMISP, story: dict, event_uuid: str) -> MISPEvent | None:
+        """
+        Retrieve the MISP event by UUID.
+        """
         if results := misp.search(controller="events", uuid=event_uuid, pythonify=True):
             logger.debug(f"Event to update exists: {results}")
-            return results[0].id
+            return results[0]
         else:
             logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
             return None
 
-    def add_event_attributes(self, story: dict, event: MISPEvent):
+    def add_event_attributes(self, story: dict, event: MISPEvent) -> None:
+        """
+        Move 'news_items' out of the story dict, if present, and add them as objects to the event.
+        """
         if news_items := story.pop("news_items", None):
             self.add_objects(news_items, event)
 
-    def add_misp_event(self, misp: PyMISP, event) -> MISPEvent | None:
+    def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
+        """
+        Create a brand-new event in MISP from the story.
+        """
+        event = self.create_misp_event(story)
         created_event: MISPEvent | dict = misp.add_event(event, pythonify=True)
         return None if isinstance(created_event, dict) else created_event
 
-    def update_misp_event(self, misp, event: MISPEvent, misp_event_uuid) -> MISPEvent | None:
-        if event_id := self.get_event_id_by_uuid(misp, misp_event_uuid):
-            event.uuid = misp_event_uuid
-            updated_event: MISPEvent | dict = misp.update_event(event, event_id=event_id, pythonify=True)
-            return None if isinstance(updated_event, dict) else updated_event
+    def remove_missing_objects_from_misp(self, misp: PyMISP, event: MISPEvent, story: dict) -> None:
+        """
+        Compare existing MISP objects (with object_relation == 'id') to the IDs in story['news_items'].
+        Delete from MISP any object whose ID is no longer in the story.
+        """
+        current_ids_in_story = {news_item["id"] for news_item in story.get("news_items", []) if "id" in news_item}
+        objects_to_remove = []
+        for misp_object in event.objects:
+            obj_id_value = next(
+                (attr.value for attr in misp_object.attributes if attr.object_relation == "id"),
+                None,
+            )
+            if obj_id_value and obj_id_value not in current_ids_in_story:
+                objects_to_remove.append(misp_object.id)
+
+        for obj_id in objects_to_remove:
+            misp.delete_object(obj_id)
+            logger.info(f"Deleted Taranis news object with MISP object ID={obj_id} because its 'id' was removed from the story.")
+
+    def get_event_object_ids(self, event: MISPEvent) -> set:
+        ids_in_misp = set()
+        for misp_object in event.objects:
+            for attr in misp_object.attributes:
+                if attr.object_relation == "id":
+                    ids_in_misp.add(attr.value)
+        return ids_in_misp
+
+    def prepocess_story(self, story: dict, ids_in_misp: set) -> dict | None:
+        """
+        Drop news items from 'story' that already exist in the MISP event
+        (to avoid adding duplicates).
+        """
+        if "news_items" in story:
+            original_count = len(story["news_items"])
+            story["news_items"] = [ni for ni in story["news_items"] if ni.get("id") not in ids_in_misp]
+            removed_count = original_count - len(story["news_items"])
+            logger.debug(f"Removed {removed_count} news items from 'story' because they exist in MISP.")
+            return story
         return None
 
-    def send_event_to_misp(self, event: MISPEvent, misp_event_uuid: str | None = None) -> str | None:
+    def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | None:
+        """
+        1. Fetch the existing event by UUID.
+        2. Remove from MISP any objects that are no longer in the story.
+        3. Remove from the story any items already in MISP (duplicate prevention).
+        4. Create a new MISPEvent from the updated story, with only the new items.
+        5. Update the existing event on MISP.
+        """
+        if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
+            self.remove_missing_objects_from_misp(misp, event, story)
+
+            ids_in_misp = self.get_event_object_ids(event)
+            if story_prepared := self.prepocess_story(story, ids_in_misp):
+                event_to_add = self.create_misp_event(story_prepared)
+                event_to_add.uuid = misp_event_uuid
+
+                event_id = event.id
+                updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=event_id, pythonify=True)
+                if isinstance(updated_event, dict):
+                    logger.error("Failed to update event in MISP, returned a dict instead of MISPEvent.")
+                    return None
+                else:
+                    logger.info(f"Event with UUID {updated_event.uuid} was successfully updated.")
+                    return updated_event
+        return None
+
+    def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> str | None:
+        """
+        Either update an existing event (if 'misp_event_uuid' is provided)
+        or create a new event if no UUID is provided.
+        """
         try:
-            misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
+            misp = PyMISP(
+                url=self.url,
+                key=self.api_key,
+                ssl=self.ssl,
+                proxies=self.proxies,
+                http_headers=self.headers,
+            )
 
-            # debugging
-            event_json = event.to_json()
-
-            logger.debug(f"Sending event to MISP: {event_json}")
             if misp_event_uuid:
-                if result := self.update_misp_event(misp, event, misp_event_uuid):
+                if result := self.update_misp_event(misp, story, misp_event_uuid):
                     logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
                     return result.uuid
                 logger.error("Failed to update event in MISP")
 
-            if created_event := self.add_misp_event(misp, event):
+            if created_event := self.add_misp_event(misp, story):
                 logger.info(f"Event was created in MISP with UUID: {created_event.uuid}")
                 return created_event.uuid
+
             logger.error("Failed to create event in MISP")
             return None
+
         except exceptions.PyMISPError as e:
             logger.error(f"PyMISP exception occurred, but can be misleading (e.g., if received an HTTP/301 response): {e}")
         except Exception as e:
             logger.error(f"Unexpected error occurred: {e}")
+        return None
 
     def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> None:
-        event = self.create_misp_event(story)
-        if event_uuid := self.send_event_to_misp(event, misp_event_uuid):
+        """
+        Sends or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
+        """
+        if event_uuid := self.send_event_to_misp(story, misp_event_uuid):
             self.core_api.api_patch(
-                f"/bots/story/{story.get("id", "")}/attributes",
-                {"key": "misp_event_uuid", "value": f"{event_uuid}"},
+                f"/bots/story/{story.get('id', '')}/attributes",
+                [{"key": "misp_event_uuid", "value": f"{event_uuid}"}],
             )
 
 
