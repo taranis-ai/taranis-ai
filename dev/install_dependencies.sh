@@ -25,7 +25,8 @@ install_basic_utils() {
         build-essential \
         software-properties-common \
         libpq-dev \
-        clang
+        clang \
+        nginx
 }
 
 install_astral() {
@@ -51,6 +52,13 @@ setup_nodejs() {
     sudo apt-get install -y nodejs
 }
 
+# setup local.taranis.ai
+setup_nginx() {
+    sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+    sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+    sudo nginx -t && sudo systemctl restart nginx
+}
+
 
 main() {
     [[ -f ./dev/.installed ]] && exit 0
@@ -60,6 +68,7 @@ main() {
     install_astral
     install_docker
     setup_nodejs
+    setup_nginx
     touch ./dev/.installed
 }
 

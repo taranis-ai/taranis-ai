@@ -111,6 +111,14 @@ npm install
 pnpm run dev
 ```
 
+# optionally start scheduler
+
+```
+cd ../taranis-scheduler # the directory, where your taranis-scheduler repository is present
+start_dev.sh
+```
+
+
 ## Technology stack
 
 ### Backend
