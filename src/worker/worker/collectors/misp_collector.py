@@ -55,7 +55,7 @@ class MISPCollector(BaseCollector):
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
         story_dicts = [
-            self.to_story_dict(self.get_story_news_items(event, source))
+            self.to_story_dict(self.get_story_news_items(event, source), event.get("Event", {}).get("uuid"))
             for event in events
             if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
         ]
@@ -97,10 +97,11 @@ class MISPCollector(BaseCollector):
         )
 
     @staticmethod
-    def to_story_dict(news_items_list: list[NewsItem]) -> dict:
+    def to_story_dict(news_items_list: list[NewsItem], event_uuid: str) -> dict:
         # Get title and attributes from the first news item (meta item)
         story_title = news_items_list[0].title
         story_attributes = news_items_list[0].attributes
+        story_attributes.append({"key": "misp_event_uuid", "value": f"{event_uuid}"})
         return {
             "title": story_title,
             "attributes": story_attributes,

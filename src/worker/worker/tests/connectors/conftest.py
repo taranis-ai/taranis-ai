@@ -27,7 +27,14 @@ def file_loader(filename, base_path: str | None = None):
 
 
 @pytest.fixture
-def misp_template():
+def news_item_template():
     template_base_path = "worker/connectors/definitions/objects/taranis-news-item"
+    template_content = file_loader("definition.json", base_path=template_base_path)
+    return json.loads(template_content)
+
+
+@pytest.fixture
+def story_template():
+    template_base_path = "worker/connectors/definitions/objects/taranis-story"
     template_content = file_loader("definition.json", base_path=template_base_path)
     return json.loads(template_content)

@@ -1,6 +1,6 @@
-from pymisp import PyMISP, MISPEvent, exceptions
+from pymisp import MISPObject, PyMISP, MISPEvent, MISPShadowAttribute, exceptions
 
-from worker.connectors.definitions.misp_objects import TaranisObject
+from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.core_api import CoreApi
 from worker.log import logger
 
@@ -72,7 +72,28 @@ class MISPConnector:
             "updated": "",
         }
 
-    def add_objects(self, news_items: list[dict], event: MISPEvent) -> None:
+    @staticmethod
+    def get_story_object_dict() -> dict:
+        """Useful for unit testing or ensuring consistent keys."""
+        return {
+            "attributes": [],
+            "comments": "",
+            "created": "",
+            "description": "",
+            "dislikes": 0,
+            "id": "",
+            "important": False,
+            "likes": 0,
+            "links": [],
+            "read": False,
+            "relevance": 0,
+            "summary": "",
+            "tags": {},
+            "title": "",
+            "updated": "",
+        }
+
+    def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
         """
         For each news item in 'news_items', create a TaranisObject and add it to the event.
         """
@@ -80,8 +101,39 @@ class MISPConnector:
             object_data = self.get_news_item_object_dict()
             object_data.update(news_item)
 
-            taranis_obj = TaranisObject(parameters=object_data, misp_objects_path_custom="worker/connectors/definitions/objects")
-            event.add_object(taranis_obj)
+            news_item_object = BaseMispObject(
+                parameters=object_data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
+            )
+            event.add_object(news_item_object)
+
+    def add_story_object(self, story: dict, event: MISPEvent) -> None:
+        """
+        Create a TaranisObject for the story itself, add attributes from the story,
+        and attach it to the event with all attributes correctly stored under the 'attributes' key.
+        """
+        object_data = self.get_story_object_dict()
+        object_data.update(story)
+        object_data["attributes"] = []
+
+        story_object = BaseMispObject(
+            parameters=object_data,
+            template="taranis-story",
+            misp_objects_path_custom="worker/connectors/definitions/objects",
+        )
+
+        attributes = story.get("attributes", [])
+        for attr in attributes:
+            key = attr.get("key", "")
+            value = attr.get("value")
+            attribute_value = "{'key': " + str(key) + ", 'value': " + str(value) + "}"
+            if value:
+                logger.debug(f"Adding attribute to story object: attributes={attribute_value}")
+                story_object.add_attribute(object_relation="attributes", value=attribute_value)
+            else:
+                logger.warning(f"Skipping attribute with missing key or value: {attr}")
+
+        event.add_object(story_object)
+        # logger.info(f"Story object added to event {event.id} with template 'taranis-story'.")
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         """
@@ -100,27 +152,19 @@ class MISPConnector:
         return event
 
     def get_event_by_uuid(self, misp: PyMISP, story: dict, event_uuid: str) -> MISPEvent | None:
-        """
-        Retrieve the MISP event by UUID.
-        """
         if results := misp.search(controller="events", uuid=event_uuid, pythonify=True):
             logger.debug(f"Event to update exists: {results}")
-            return results[0]
+            return results[0]  # type: ignore
         else:
             logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
             return None
 
     def add_event_attributes(self, story: dict, event: MISPEvent) -> None:
-        """
-        Move 'news_items' out of the story dict, if present, and add them as objects to the event.
-        """
         if news_items := story.pop("news_items", None):
-            self.add_objects(news_items, event)
+            self.add_news_item_objects(news_items, event)
+        self.add_story_object(story, event)
 
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
-        """
-        Create a brand-new event in MISP from the story.
-        """
         event = self.create_misp_event(story)
         created_event: MISPEvent | dict = misp.add_event(event, pythonify=True)
         return None if isinstance(created_event, dict) else created_event
@@ -152,6 +196,13 @@ class MISPConnector:
                     ids_in_misp.add(attr.value)
         return ids_in_misp
 
+    def get_taranis_story_object(self, event: MISPEvent) -> MISPObject | None:
+        for obj in event.objects:
+            logger.debug(f"{obj=}")
+            if obj.name == "taranis-story":
+                return obj
+        return None
+
     def prepocess_story(self, story: dict, ids_in_misp: set) -> dict | None:
         """
         Drop news items from 'story' that already exist in the MISP event
@@ -166,30 +217,79 @@ class MISPConnector:
         return None
 
     def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | None:
-        """
-        1. Fetch the existing event by UUID.
-        2. Remove from MISP any objects that are no longer in the story.
-        3. Remove from the story any items already in MISP (duplicate prevention).
-        4. Create a new MISPEvent from the updated story, with only the new items.
-        5. Update the existing event on MISP.
-        """
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
             self.remove_missing_objects_from_misp(misp, event, story)
 
             ids_in_misp = self.get_event_object_ids(event)
             if story_prepared := self.prepocess_story(story, ids_in_misp):
-                event_to_add = self.create_misp_event(story_prepared)
-                event_to_add.uuid = misp_event_uuid
-
-                event_id = event.id
-                updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=event_id, pythonify=True)
-                if isinstance(updated_event, dict):
-                    logger.error("Failed to update event in MISP, returned a dict instead of MISPEvent.")
-                    return None
-                else:
-                    logger.info(f"Event with UUID {updated_event.uuid} was successfully updated.")
-                    return updated_event
+                return self._update_event_with_story(story_prepared, misp_event_uuid, event, misp)
         return None
+
+    def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> None:
+        # Get the Taranis story object from the existing event
+        existing_object = self.get_taranis_story_object(existing_event)
+        new_object = self.get_taranis_story_object(event_to_add)
+
+        if not existing_object or not new_object:
+            logger.warning("No Taranis story object found in one of the events.")
+            return
+
+        # Map existing attributes for quick lookup
+        existing_attributes = {attr.object_relation: attr for attr in existing_object.attributes}
+
+        for new_attr in new_object.attributes:
+            logger.debug(f"Processing new attribute: {new_attr.to_dict()}")
+
+            # Check if the attribute exists in the existing object
+            existing_attr = existing_attributes.get(new_attr.object_relation)
+
+            # If the attribute doesn't exist or its value is different, create a proposal
+            # TODO
+            if not existing_attr or existing_attr.value != new_attr.value:
+                proposal = MISPShadowAttribute()
+                proposal.event_id = existing_event.id  # Numeric ID of the existing event
+                proposal.object_id = existing_object.id  # Numeric ID of the existing object
+                proposal.object_relation = new_attr.object_relation  # Key of the attribute
+                proposal.value = "hey"  # new_attr.value  # Value from event_to_add
+                # proposal.to_ids = getattr(new_attr, "to_ids", False)  # Use the same to_ids setting
+                # proposal.category = getattr(new_attr, "category", "Other")  # Use the same category
+                # proposal.type = getattr(new_attr, "type", "text")  # Use the same type
+                # proposal.comment = (
+                #     f"Proposing update for {new_attr.object_relation}. "
+                #     f"Current value: {existing_attr.value if existing_attr else 'None'}, "
+                #     f"New value: {new_attr.value}"
+                # )
+
+                try:
+                    response = existing_event.add_proposal(proposal, strict=True)
+                    logger.debug("I was hereXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxxx")
+                    logger.debug(f"{response.to_dict()=}")
+                    if isinstance(response, dict) and "errors" in response:
+                        logger.error(f"Failed to add proposal for {new_attr.object_relation}: {response['errors']}")
+                    else:
+                        logger.info(f"Proposal successfully added for {new_attr.object_relation}.")
+                except Exception as e:
+                    logger.error(f"Error while adding proposal for {new_attr.object_relation}: {e}")
+
+    def _update_event_with_story(self, story_prepared, misp_event_uuid, existing_event, misp: PyMISP):
+        event_to_add = self.create_misp_event(story_prepared)
+        event_to_add.uuid = misp_event_uuid
+
+        updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=existing_event.id, pythonify=True)
+        if isinstance(updated_event, dict):
+            if "errors" in updated_event:
+                error_tuple = updated_event["errors"]
+                http_code, error_data = error_tuple[0], error_tuple[1]
+
+                logger.error(f"MISP returned an error. HTTP code: {http_code}. " f"Details: {error_data}")
+                if http_code == 403:
+                    logger.error("MISP returned a permission error, you should create a proposal.")
+                    self.add_proposal(existing_event, event_to_add, misp)
+                return None
+
+            logger.error(f"Returned a dict instead of a MISPEvent: {updated_event}")
+            return None
+        return updated_event
 
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> str | None:
         """
@@ -209,7 +309,7 @@ class MISPConnector:
                 if result := self.update_misp_event(misp, story, misp_event_uuid):
                     logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
                     return result.uuid
-                logger.error("Failed to update event in MISP")
+                return None
 
             if created_event := self.add_misp_event(misp, story):
                 logger.info(f"Event was created in MISP with UUID: {created_event.uuid}")
@@ -247,7 +347,8 @@ def sending():
         "name": "https",
         "parameters": {
             "ADDITIONAL_HEADERS": "",
-            "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
+            # "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc", # org original
+            "API_KEY": "58S2a80sLd89pNAfWRPIVpmnLUsjRjsn1JuspqNZ",  # org another one
             "PROXY_SERVER": "",
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",

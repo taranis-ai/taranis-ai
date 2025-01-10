@@ -3,9 +3,9 @@ from pymisp import InvalidMISPObject, MISPObject
 from worker.log import logger
 
 
-class TaranisObject(MISPObject):
-    def __init__(self, parameters: dict, strict: bool = True, **kwargs):
-        super().__init__(name="taranis-news-item", strict=strict, **kwargs)
+class BaseMispObject(MISPObject):
+    def __init__(self, parameters: dict, template: str, strict: bool = True, **kwargs):
+        super().__init__(name=template, strict=strict, **kwargs)
         self._parameters = parameters
         self.generate_attributes()
 
@@ -18,6 +18,7 @@ class TaranisObject(MISPObject):
             logger.debug(f"{object_relation=}")
             value = self._parameters.pop(object_relation)
             if not value:
+                logger.debug(f"Skipping object_relation={object_relation} as value is empty or None")
                 continue
             if isinstance(value, dict):
                 self.add_attribute(object_relation, **value)
