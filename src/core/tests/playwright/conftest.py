@@ -861,3 +861,30 @@ def news_items_list(app, fake_source):
             "published": "2024-05-03T08:30:00+01:00",
         },
     ]
+
+@pytest.fixture(scope="session")
+def create_html_render(app):
+
+    # fixture returns a callable, so that we can choose the time to execute it
+    def get_product_to_render():
+        
+        with app.app_context():
+            from core.model.product import Product
+            from core.model.task import Task
+            from core.managers.db_manager import db
+
+            # get id of first product in product table
+            product = Product.get_first(db.select(Product))
+
+            try:
+                product_id = product.id
+            except AttributeError:
+                product_id = "test"
+
+            # test html for product rendering
+            test_html = "<div>Test</div>"
+            result_data = {"mime_type": "text/html", "data": test_html}
+            task_data = {"id": product_id, "result": result_data, "status": "success"}
+            Task.add_or_update(task_data)
+
+    return get_product_to_render
