@@ -54,9 +54,11 @@ setup_nodejs() {
 
 # setup local.taranis.ai
 setup_nginx() {
-    sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
-    sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
-    sudo nginx -t && sudo systemctl restart nginx
+    if [ ! -f "/etc/nginx/sites-available/local.taranis.ai" ]; then
+      sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+      sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+      sudo nginx -t && sudo systemctl restart nginx
+    fi
 }
 
 

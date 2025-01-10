@@ -111,10 +111,10 @@ npm install
 pnpm run dev
 ```
 
-# optionally start scheduler
+## Optionally start scheduler (another repository) in tmux
 
-```
-cd ../taranis-scheduler # the directory, where your taranis-scheduler repository is present
+```bash
+cd ../taranis-scheduler # your taranis-scheduler directory
 start_dev.sh
 ```
 
