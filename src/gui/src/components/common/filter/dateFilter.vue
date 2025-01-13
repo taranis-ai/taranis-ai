@@ -11,7 +11,6 @@
       auto-apply
       clearable
       space-confirm
-      @open="openMenu()"
     />
     <v-tooltip activator="parent" :text="tooltipText" />
   </div>
@@ -69,13 +68,6 @@ export default {
       emit('update:modelValue', selected.value)
     }
 
-    function openMenu() {
-      console.debug(props.defaultDate)
-      if (selected.value === null && props.defaultDate !== null) {
-        selected.value = props.defaultDate
-      }
-    }
-
     watch(
       () => props.modelValue,
       (val) => {
@@ -84,7 +76,6 @@ export default {
     )
 
     return {
-      openMenu,
       locale,
       selected: computed({
         get: () => (selected.value ? new Date(selected.value) : null),
