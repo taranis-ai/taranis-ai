@@ -132,9 +132,10 @@ class CoreApi:
     def update_story_summary(self, story_id, summary: str) -> dict | None:
         try:
             data = {"summary": summary}
-            return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
+            return self.api_put(url=f"/bots/story/{story_id}", json_data=data)
         except Exception:
             return None
+
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
