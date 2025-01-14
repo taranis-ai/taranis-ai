@@ -1,0 +1,72 @@
+[project]
+name = "taranis-frontend"
+description = "Taranis AI Frontend"
+readme = "README.md"
+license = { file = "LICENSE.md" }
+maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
+
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Flask",
+    "Topic :: Security",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "Flask",
+    "flask-htmx",
+    "flask-cors",
+    "click",
+    "pydantic-settings",
+    "python-dotenv",
+    "granian",
+    "requests",
+    "setuptools",
+]
+dynamic = ["version"]
+
+[tool.setuptools]
+packages = ["admin"]
+
+[build-system]
+requires = [
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest", "pytest-flask", "build", "wheel", "setuptools_scm", "requests-mock"]
+
+[project.urls]
+"Source Code" = "https://github.com/taranis-ai/taranis-ai"
+
+[tool.ruff]
+line-length = 142
+target-version = "py312"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
+[tool.coverage.run]
+branch = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""
+
+[tool.mypy]
+explicit_package_bases = true
+namespace-packages = true
+exclude = [
+    '__main__.py',
+    'tests/'
+]

@@ -1,0 +1,42 @@
+# built and cached files
+.venv/
+.envrc
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+celerybeat-schedule
+.hypothesis
+tailwindcss
+.env
+
+# temporary files of editors
+.DS_Store
+.*.sw?
+.~
+*.*~
+*.bak
+
+# sensitive data not to be commited
+.env.local
+docker/.env
+.env.*.local
+src/.env
+*.pem
+*.key
+*.log
+
+# settings of editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/.python-version
