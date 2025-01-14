@@ -98,13 +98,14 @@ class Product(BaseModel):
             "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
         }
 
-    def update_render(self, render_result):
+    def update_render(self, render_result: bytes):
         try:
             self.last_rendered = datetime.now()
             self.render_result = b64encode(render_result).decode("ascii")
             db.session.commit()
             return True
         except Exception:
+            logger.exception()
             db.session.rollback()
             return False
 
