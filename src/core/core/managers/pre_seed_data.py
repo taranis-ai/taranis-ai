@@ -54,6 +54,9 @@ workers = [
         "name": "RT Collector",
         "parameters": [
             {"parameter": "BASE_URL", "rules": "required"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "RT_TOKEN", "rules": "required"},
             {"parameter": "SEARCH_QUERY"},
             {"parameter": "FIELDS_TO_INCLUDE"},

@@ -389,6 +389,7 @@ class Story(BaseModel):
             )
             if existing_story := StoryNewsItemAttribute.find_story_by_attribute(key=story_attribute_key, value=attribute_value):
                 return cls.update_story(existing_story, data)
+        logger.debug(f"{data=}")
         return cls.add(data)
 
     @classmethod
