@@ -946,7 +946,6 @@ def create_html_render(app):
     def get_product_to_render():
         with app.app_context():
             from core.model.product import Product
-            from core.model.task import Task
             from core.managers.db_manager import db
 
             # get id of first product in product table
@@ -958,9 +957,8 @@ def create_html_render(app):
                 product_id = "test"
 
             # test html for product rendering
-            test_html = "<div>Test</div>"
-            result_data = {"mime_type": "text/html", "data": test_html}
-            task_data = {"id": product_id, "result": result_data, "status": "success"}
-            Task.add_or_update(task_data)
+            test_html = "Thanks to Cybersecurity experts, the world of IT is now safe."
+
+            Product.update_render_for_id(product_id, test_html.encode("utf-8"))
 
     return get_product_to_render
