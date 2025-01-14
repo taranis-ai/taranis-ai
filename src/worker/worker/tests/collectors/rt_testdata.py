@@ -1,9 +1,18 @@
 from worker.config import Config
 
-rt_collector_source_data = {"id": 1, "parameters": {"BASE_URL": "http://rt.taranis.ai/", "RT_TOKEN": "1-11-11111111111111111111111111111111"}}
+rt_collector_source_data = {
+    "id": 1,
+    "parameters": {
+        "BASE_URL": "http://rt.taranis.ai/",
+        "RT_TOKEN": "1-11-11111111111111111111111111111111",
+        "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
+        "FIELDS_TO_INCLUDE": "One, Two, Three, Four",
+    },
+}
 
+favicon_url = "http://rt.taranis.ai/static/images/favicon.png"
 rt_base_url = "http://rt.taranis.ai/REST/2.0/"
-rt_ticket_search_url = f"{rt_base_url}tickets?query=*"
+rt_ticket_search_url = f"{rt_base_url}tickets?query=Started%20%3E%20'2018-04-04'%20AND%20Status%20!=%20'resolved'"
 rt_ticket_search_result = {
     "total": 1,
     "count": 1,

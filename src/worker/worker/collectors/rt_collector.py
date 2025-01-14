@@ -229,26 +229,3 @@ class RTCollector(BaseWebCollector):
             raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {str(e)}") from e
 
         return story_dicts
-
-
-if __name__ == "__main__":
-    rt_collector = RTCollector()
-    rt_collector.collect(
-        {
-            "description": "",
-            "id": "752cae6a-9d48-463e-a91e-1365f6d96eb4",
-            "last_attempted": None,
-            "last_collected": None,
-            "last_error_message": None,
-            "name": "rt collector",
-            "parameters": {
-                "BASE_URL": "http://rt.lab",
-                "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb",
-                # "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
-                # "FIELDS_TO_INCLUDE": "Sektor, Meldungstyp,Herkunft des Vorfalls,  Zeitpunkt des Vorfalls (vermutlich), helllo, telefonnummer",
-            },
-            "state": -1,
-            "type": "rt_collector",
-            "word_lists": [],
-        }
-    )
