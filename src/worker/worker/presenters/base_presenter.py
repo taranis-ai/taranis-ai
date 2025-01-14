@@ -16,6 +16,6 @@ class BasePresenter:
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        output_text = tmpl.render(data=product).encode("utf-8")
+        output_text = tmpl.render(data=product)
 
         return {"mime_type": product["mime_type"], "data": output_text}
