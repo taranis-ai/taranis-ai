@@ -27,7 +27,6 @@ class Task(MethodView):
         task_id = data.get("task_id")
         result = data.get("result")
         status = data.get("status")
-
         if not result or not status or "error" in result:
             logger.error(f"{task_id=} - {result=} - {status=}")
 
@@ -42,7 +41,9 @@ class Task(MethodView):
         elif task_id.startswith("cleanup_token_blacklist"):
             TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
         elif task_id.startswith("presenter_task"):
-            Product.update_render_for_id(result.get("product_id"), result.get("render_result", "").encode("utf-8"))
+            # the value of "render_result" in result is a dict of form {"mime_type": str, "data": bytes}
+            rendered_product = result.get("render_result", {}).get("data", "")
+            Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
         else:
             task_data = {"id": task_id, "result": result, "status": status}
             TaskModel.add_or_update(task_data)
