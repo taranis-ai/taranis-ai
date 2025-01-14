@@ -11,7 +11,7 @@ class BasePresenter:
     def print_exception(self, error):
         logger.exception(f"[{self.name}] {error}")
 
-    def generate(self, product, template) -> dict[str, bytes | str]:
+    def generate(self, product, template) -> dict[str, str]:
         env = jinja2.Environment(autoescape=False)
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
