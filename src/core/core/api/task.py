@@ -42,8 +42,7 @@ class Task(MethodView):
         elif task_id.startswith("cleanup_token_blacklist"):
             TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
         elif task_id.startswith("presenter_task"):
-            task_data = {"id": result.get("product_id"), "result": result.get("message"), "status": status}
-            Product.update_render_for_id(task_data["id"], task_data["result"].encode("utf-8"))
+            Product.update_render_for_id(result.get("product_id"), result.get("render_result", "").encode("utf-8"))
         else:
             task_data = {"id": task_id, "result": result, "status": status}
             TaskModel.add_or_update(task_data)
