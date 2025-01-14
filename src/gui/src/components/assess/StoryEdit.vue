@@ -5,7 +5,7 @@
       <span class="alert-text">
         <strong>
           This is a story from RT, you should not be editing it in this web
-          insterface, but in RT itself.:</strong
+          insterface, but in RT itself.</strong
         >
       </span>
     </div>
