@@ -10,13 +10,17 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
+    JWT_IDENTITY_CLAIM: str = "sub"
+    JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
-    TARANIS_CORE_URL: str = ""
-    TARANIS_CORE_HOST: str = "core:8080"
+    TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
+    TARANIS_CORE_HOST: str = ""
     TARANIS_BASE_PATH: str = "/"
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60

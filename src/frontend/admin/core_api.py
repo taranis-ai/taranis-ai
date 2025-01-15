@@ -60,5 +60,4 @@ class CoreApi:
 
     def get_dashboard(self, query_params=None):
         return {"data": "dashboard data from core"}
-        #return self.api_get("/config/schedule", params=query_params)
 
