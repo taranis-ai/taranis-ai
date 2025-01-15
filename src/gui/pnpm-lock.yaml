@@ -15,52 +15,20 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       '@intlify/unplugin-vue-i18n':
-<<<<<<< Updated upstream
-        specifier: ^6.0.3
-        version: 6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.17.0(jiti@2.4.2))(rollup@4.30.1)(typescript@5.7.2)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^5.3.1
-        version: 5.3.1(@vue/compiler-dom@3.5.12)(eslint@9.14.0(jiti@2.4.0))(rollup@4.25.0)(typescript@5.6.3)(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^6.0.3
         version: 6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.18.0(jiti@2.4.2))(rollup@4.30.1)(typescript@5.7.3)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       '@mdi/font':
         specifier: ^7.4.47
         version: 7.4.47
       '@sentry/vue':
-<<<<<<< Updated upstream
-        specifier: ^8.48.0
-        version: 8.48.0(pinia@2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^8.37.1
-        version: 8.37.1(pinia@2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))
-=======
-        specifier: ^8.48.0
-        version: 8.48.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
+        specifier: ^8.50.0
+        version: 8.50.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       '@vuepic/vue-datepicker':
-<<<<<<< Updated upstream
-        specifier: ^11.0.0
-        version: 11.0.0(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^10.0.0
-        version: 10.0.0(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^11.0.1
         version: 11.0.1(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       '@vueuse/core':
-<<<<<<< Updated upstream
-        specifier: ^12.3.0
-        version: 12.3.0(typescript@5.7.2)
-||||||| Stash base
-        specifier: ^11.2.0
-        version: 11.2.0(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^12.4.0
         version: 12.4.0(typescript@5.7.3)
->>>>>>> Stashed changes
       axios:
         specifier: ^1.7.9
         version: 1.7.9
@@ -77,191 +45,69 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       pinia:
-<<<<<<< Updated upstream
-        specifier: ^2.3.0
-        version: 2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^2.2.6
-        version: 2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^2.3.0
         version: 2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       pinia-plugin-persistedstate:
-<<<<<<< Updated upstream
-        specifier: ^4.2.0
-        version: 4.2.0(pinia@2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2)))(rollup@4.30.1)
-||||||| Stash base
-        specifier: ^4.1.3
-        version: 4.1.3(pinia@2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3)))(rollup@4.25.0)
-=======
         specifier: ^4.2.0
         version: 4.2.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(rollup@4.30.1)
->>>>>>> Stashed changes
       sse.js:
         specifier: ^2.5.0
         version: 2.5.0
       uuid:
-<<<<<<< Updated upstream
-        specifier: ^11.0.4
-        version: 11.0.4
-||||||| Stash base
-        specifier: ^11.0.3
-        version: 11.0.3
-=======
         specifier: ^11.0.5
         version: 11.0.5
->>>>>>> Stashed changes
       vue:
-<<<<<<< Updated upstream
-        specifier: ^3.5.13
-        version: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-        specifier: ^3.5.12
-        version: 3.5.12(typescript@5.6.3)
-=======
         specifier: ^3.5.13
         version: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
       vue-chartjs:
         specifier: ^5.3.2
-<<<<<<< Updated upstream
-        version: 5.3.2(chart.js@4.4.7)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        version: 5.3.2(chart.js@4.4.6)(vue@3.5.12(typescript@5.6.3))
-=======
         version: 5.3.2(chart.js@4.4.7)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vue-codemirror6:
-<<<<<<< Updated upstream
-        specifier: ^1.3.9
-        version: 1.3.9(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^1.3.7
-        version: 1.3.7(@lezer/common@1.2.3)(@vue/compiler-dom@3.5.12)(eslint@9.14.0(jiti@2.4.0))(rollup@4.25.0)(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^1.3.10
         version: 1.3.10(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vue-dompurify-html:
-<<<<<<< Updated upstream
-        specifier: ^5.2.0
-        version: 5.2.0(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^5.1.0
-        version: 5.1.0(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^5.2.0
         version: 5.2.0(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vue-i18n:
-<<<<<<< Updated upstream
-        specifier: ^11.0.1
-        version: 11.0.1(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^10.0.4
-        version: 10.0.4(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^11.0.1
         version: 11.0.1(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vue-router:
-<<<<<<< Updated upstream
-        specifier: ^4.5.0
-        version: 4.5.0(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^4.4.5
-        version: 4.4.5(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^4.5.0
         version: 4.5.0(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vue-use-hotkeys:
         specifier: ^0.4.0
-<<<<<<< Updated upstream
-        version: 0.4.0(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        version: 0.4.0(vue@3.5.12(typescript@5.6.3))
-=======
         version: 0.4.0(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       vuetify:
-<<<<<<< Updated upstream
-        specifier: ^3.7.6
-        version: 3.7.6(typescript@5.7.2)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^3.7.4
-        version: 3.7.4(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3))
-=======
         specifier: ^3.7.6
         version: 3.7.6(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
       zipson:
         specifier: ^0.2.12
         version: 0.2.12
     devDependencies:
       '@vitejs/plugin-vue':
-<<<<<<< Updated upstream
         specifier: ^5.2.1
-        version: 5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-        specifier: ^5.1.5
-        version: 5.1.5(vite@5.4.11(sass@1.80.6))(vue@3.5.12(typescript@5.6.3))
-=======
-        specifier: ^5.2.1
-        version: 5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
+        version: 5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))
       eslint:
-<<<<<<< Updated upstream
-        specifier: ^9.17.0
-        version: 9.17.0(jiti@2.4.2)
-||||||| Stash base
-        specifier: ^9.14.0
-        version: 9.14.0(jiti@2.4.0)
-=======
         specifier: ^9.18.0
         version: 9.18.0(jiti@2.4.2)
->>>>>>> Stashed changes
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
       sass:
-        specifier: ^1.83.1
-        version: 1.83.1
+        specifier: ^1.83.4
+        version: 1.83.4
       typescript:
-<<<<<<< Updated upstream
-        specifier: ^5.7.2
-        version: 5.7.2
-||||||| Stash base
-        specifier: ^5.6.3
-        version: 5.6.3
-=======
         specifier: ^5.7.3
         version: 5.7.3
->>>>>>> Stashed changes
       vite:
         specifier: ^6.0.7
-        version: 6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0)
+        version: 6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0)
       vite-plugin-vuetify:
         specifier: ^2.0.4
-<<<<<<< Updated upstream
-        version: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.2))(vuetify@3.7.6)
-||||||| Stash base
-        version: 2.0.4(vite@5.4.11(sass@1.80.6))(vue@3.5.12(typescript@5.6.3))(vuetify@3.7.4)
-=======
-        version: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)
->>>>>>> Stashed changes
+        version: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)
       vue-tsc:
-<<<<<<< Updated upstream
-        specifier: ^2.2.0
-        version: 2.2.0(typescript@5.7.2)
-||||||| Stash base
-        specifier: ^2.1.10
-        version: 2.1.10(typescript@5.6.3)
-=======
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.3)
->>>>>>> Stashed changes
 
 packages:
 
@@ -273,32 +119,16 @@ packages:
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
     engines: {node: '>=6.9.0'}
 
-<<<<<<< Updated upstream
-  '@babel/compat-data@7.26.3':
-    resolution: {integrity: sha512-nHIxvKPniQXpmQLb0vhY3VaFb3S0YrTAwpOWJZh1wn3oJPjJk9Asva204PsBdmAE8vpzfHudT8DB0scYvy9q0g==}
-||||||| Stash base
-  '@babel/compat-data@7.26.2':
-    resolution: {integrity: sha512-Z0WgzSEa+aUcdiJuCIqgujCshpMWgUpgOxXotrYPSA53hA3qopNaqcJpyr0hVb1FeWdnqFA35/fUtXgBK8srQg==}
-=======
   '@babel/compat-data@7.26.5':
     resolution: {integrity: sha512-XvcZi1KWf88RVbF9wn8MN6tYFloU5qX8KjuF3E1PVBmJ9eypXfs4GRiJwLuTZL0iSnJUKn1BFPa5BPZZJyFzPg==}
->>>>>>> Stashed changes
     engines: {node: '>=6.9.0'}
 
   '@babel/core@7.26.0':
     resolution: {integrity: sha512-i1SLeK+DzNnQ3LL/CswPCa/E5u4lh1k6IAEphON8F+cXt0t9euTshDru0q7/IqMa1PMPz5RnHuHscF8/ZJsStg==}
     engines: {node: '>=6.9.0'}
 
-<<<<<<< Updated upstream
-  '@babel/generator@7.26.3':
-    resolution: {integrity: sha512-6FF/urZvD0sTeO7k6/B15pMLC4CHUv1426lzr3N01aHJTl046uCAh9LXW/fzeXXjPNCJ6iABW5XaWOsIZB93aQ==}
-||||||| Stash base
-  '@babel/generator@7.26.2':
-    resolution: {integrity: sha512-zevQbhbau95nkoxSq3f/DC/SC+EEOUZd3DYqfSkMhY2/wfSeaHV1Ew4vk8e+x8lja31IbyuUa2uQ3JONqKbysw==}
-=======
   '@babel/generator@7.26.5':
     resolution: {integrity: sha512-2caSP6fN9I7HOe6nqhtft7V4g7/V/gfDsC3Ag4W7kEzzvRGKqiv0pu0HogPiZ3KaVSoNDhUws6IJjDjpfmYIXw==}
->>>>>>> Stashed changes
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-compilation-targets@7.26.5':
@@ -331,57 +161,25 @@ packages:
     resolution: {integrity: sha512-tbhNuIxNcVb21pInl3ZSjksLCvgdZy9KwJ8brv993QtIVKJBBkYXz4q4ZbAv31GdnC+R90np23L5FbEBlthAEw==}
     engines: {node: '>=6.9.0'}
 
-<<<<<<< Updated upstream
-  '@babel/parser@7.26.3':
-    resolution: {integrity: sha512-WJ/CvmY8Mea8iDXo6a7RK2wbmJITT5fN3BEkRuFlxVyNx8jOKIIhmC4fSkTcPcf8JyavbBwIe6OpiCOBXt/IcA==}
-||||||| Stash base
-  '@babel/parser@7.26.2':
-    resolution: {integrity: sha512-DWMCZH9WA4Maitz2q21SRKHo9QXZxkDsbNZoVD62gusNtNBBqDg9i7uOhASfTfIGNzW+O+r7+jAlM8dwphcJKQ==}
-=======
   '@babel/parser@7.26.5':
     resolution: {integrity: sha512-SRJ4jYmXRqV1/Xc+TIVG84WjHBXKlxO9sHQnA2Pf12QQEAp1LOh6kDzNHXcUnbH1QI0FDoPPVOt+vyUDucxpaw==}
->>>>>>> Stashed changes
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-<<<<<<< Updated upstream
-  '@babel/standalone@7.26.4':
-    resolution: {integrity: sha512-SF+g7S2mhTT1b7CHyfNjDkPU1corxg4LPYsyP0x5KuCl+EbtBQHRLqr9N3q7e7+x7NQ5LYxQf8mJ2PmzebLr0A==}
-||||||| Stash base
-  '@babel/standalone@7.26.2':
-    resolution: {integrity: sha512-i2VbegsRfwa9yq3xmfDX3tG2yh9K0cCqwpSyVG2nPxifh0EOnucAZUeO/g4lW2Zfg03aPJNtPfxQbDHzXc7H+w==}
-=======
-  '@babel/standalone@7.26.5':
-    resolution: {integrity: sha512-vXbSrFq1WauHvOg/XWcjkF6r7wDSHbN3+3Aro6LYjfODpGw8dCyqqbUMRX5LXlgzVAUrTSN6JkepFiHhLKHV5Q==}
->>>>>>> Stashed changes
+  '@babel/standalone@7.26.6':
+    resolution: {integrity: sha512-h1mkoNFYCqDkS+vTLGzsQYvp1v1qbuugk4lOtb/oyjArZ+EtreAaxcSYg3rSIzWZRQOjx4iqGe7A8NRYIMSTTw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.25.9':
     resolution: {integrity: sha512-9DGttpmPvIxBb/2uwpVo3dqJ+O6RooAFOS+lB+xDqoE2PVCE8nfoHMdZLpfCQRLwvohzXISPZcgxt80xLfsuwg==}
     engines: {node: '>=6.9.0'}
 
-<<<<<<< Updated upstream
-  '@babel/traverse@7.26.4':
-    resolution: {integrity: sha512-fH+b7Y4p3yqvApJALCPJcwb0/XaOSgtK4pzV6WVjPR5GLFQBRI7pfoX2V2iM48NXvX07NUxxm1Vw98YjqTcU5w==}
-||||||| Stash base
-  '@babel/traverse@7.25.9':
-    resolution: {integrity: sha512-ZCuvfwOwlz/bawvAuvcj8rrithP2/N55Tzz342AkTvq4qaWbGfmCk/tKhNaV2cthijKrPAA8SRJV5WWe7IBMJw==}
-=======
   '@babel/traverse@7.26.5':
     resolution: {integrity: sha512-rkOSPOw+AXbgtwUga3U4u8RpoK9FEFWBNAlTpcnkLFjL5CT+oyHNuUUC/xx6XefEJ16r38r8Bc/lfp6rYuHeJQ==}
->>>>>>> Stashed changes
     engines: {node: '>=6.9.0'}
 
-<<<<<<< Updated upstream
-  '@babel/types@7.26.3':
-    resolution: {integrity: sha512-vN5p+1kl59GVKMvTHt55NzzmYVxprfJD+ql7U9NFIfKCBkYE55LYtS+WtPlaYOyzydrKI8Nezd+aZextrd+FMA==}
-||||||| Stash base
-  '@babel/types@7.26.0':
-    resolution: {integrity: sha512-Z/yiTPj+lDVnF7lWeKCIJzaIkI0vYO87dMpZ4bg4TDrFe4XXLFWL1TbXU27gBP3QccxV9mZICCrnjnYlJjXHOA==}
-=======
   '@babel/types@7.26.5':
     resolution: {integrity: sha512-L6mZmwFDK6Cjh1nRCLXpa6no13ZIioJDz7mdkzHv399pThrTa/k0nUlNaenOeh2kWu/iaOQYElEpKPUswUa9Vg==}
->>>>>>> Stashed changes
     engines: {node: '>=6.9.0'}
 
   '@codemirror/autocomplete@6.18.4':
@@ -411,27 +209,11 @@ packages:
   '@codemirror/search@6.5.8':
     resolution: {integrity: sha512-PoWtZvo7c1XFeZWmmyaOp2G0XVbOnm+fJzvghqGAktBW3cufwJUWvSCcNG0ppXiBEM05mZu6RhMtXPv2hpllig==}
 
-<<<<<<< Updated upstream
-  '@codemirror/state@6.5.0':
-    resolution: {integrity: sha512-MwBHVK60IiIHDcoMet78lxt6iw5gJOGSbNbOIVBHWVXIH4/Nq1+GQgLLGgI1KlnN86WDXsPudVaqYHKBIx7Eyw==}
-||||||| Stash base
-  '@codemirror/state@6.4.1':
-    resolution: {integrity: sha512-QkEyUiLhsJoZkbumGZlswmAhA7CBU02Wrz7zvH4SrcifbsqwlXShVXg65f3v/ts57W3dqyamEriMhij1Z3Zz4A==}
-=======
   '@codemirror/state@6.5.1':
     resolution: {integrity: sha512-3rA9lcwciEB47ZevqvD8qgbzhM9qMb8vCcQCNmDfVRPQG4JT9mSb0Jg8H7YjKGGQcFnLN323fj9jdnG59Kx6bg==}
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@codemirror/view@6.36.1':
-    resolution: {integrity: sha512-miD1nyT4m4uopZaDdO2uXU/LLHliKNYL9kB1C1wJHrunHLm/rpkb5QVSokqgw9hFqEZakrdlb/VGWX8aYZTslQ==}
-||||||| Stash base
-  '@codemirror/view@6.34.2':
-    resolution: {integrity: sha512-d6n0WFvL970A9Z+l9N2dO+Hk9ev4hDYQzIx+B9tCyBP0W5wPEszi1rhuyFesNSkLZzXbQE5FPH7F/z/TMJfoPA==}
-=======
   '@codemirror/view@6.36.2':
     resolution: {integrity: sha512-DZ6ONbs8qdJK0fdN7AB82CgI6tYXf4HWk1wSVa0+9bhVznCuuvhQtX8bFBoy3dv8rZSQqUd8GvhVAcielcidrA==}
->>>>>>> Stashed changes
 
   '@esbuild/aix-ppc64@0.24.2':
     resolution: {integrity: sha512-thpVCb/rhxE/BnMLQ7GReQLLN8q9qbHmI55F4489/ByVg2aQaQ6kbcLb6FHkocZzQhxc4gx0sCk0tJkKBFzDhA==}
@@ -597,48 +379,24 @@ packages:
     resolution: {integrity: sha512-fo6Mtm5mWyKjA/Chy1BYTdn5mGJoDNjC7C64ug20ADsRDGrA85bN3uK3MaKbeRkRuuIEAR5N33Jr1pbm411/PA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-<<<<<<< Updated upstream
-  '@eslint/core@0.9.1':
-    resolution: {integrity: sha512-GuUdqkyyzQI5RMIWkHhvTWLCyLo1jNK3vzkSyaExH5kHPDHcuL2VOpHjmMY+y3+NC69qAKToBqldTBgYeLSr9Q==}
-||||||| Stash base
-  '@eslint/core@0.7.0':
-    resolution: {integrity: sha512-xp5Jirz5DyPYlPiKat8jaq0EmYvDXKKpzTbxXMpT9eqlRJkRKIz9AGMdlvYjih+im+QlhWrpvVjl8IPC/lHlUw==}
-=======
   '@eslint/core@0.10.0':
     resolution: {integrity: sha512-gFHJ+xBOo4G3WRlR1e/3G8A6/KZAH6zcE/hkLRCZTi/B9avAG365QhFA8uOGzTMqgTghpn7/fSnscW++dpMSAw==}
->>>>>>> Stashed changes
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/eslintrc@3.2.0':
     resolution: {integrity: sha512-grOjVNN8P3hjJn/eIETF1wwd12DdnwFDoyceUJLYYdkpbwq3nLi+4fqrTAONx7XDALqlL220wC/RHSC/QTI/0w==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-<<<<<<< Updated upstream
-  '@eslint/js@9.17.0':
-    resolution: {integrity: sha512-Sxc4hqcs1kTu0iID3kcZDW3JHq2a77HO9P8CP6YEA/FpH3Ll8UXE2r/86Rz9YJLKme39S9vU5OWNjC6Xl0Cr3w==}
-||||||| Stash base
-  '@eslint/js@9.14.0':
-    resolution: {integrity: sha512-pFoEtFWCPyDOl+C6Ift+wC7Ro89otjigCf5vcuWqWgqNSQbRrpjSvdeE6ofLz4dHmyxD5f7gIdGT4+p36L6Twg==}
-=======
   '@eslint/js@9.18.0':
     resolution: {integrity: sha512-fK6L7rxcq6/z+AaQMtiFTkvbHkBLNlwyRxHpKawP0x3u9+NC6MQTnFW+AdpwC6gfHTW0051cokQgtTN2FqlxQA==}
->>>>>>> Stashed changes
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/object-schema@2.1.5':
     resolution: {integrity: sha512-o0bhxnL89h5Bae5T318nFoFzGy+YE5i/gGkoPAgkmTVdRKTiv3p8JHevPiPaMwoloKfEiiaHlawCqaZMqRm+XQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-<<<<<<< Updated upstream
-  '@eslint/plugin-kit@0.2.4':
-    resolution: {integrity: sha512-zSkKow6H5Kdm0ZUQUB2kV5JIXqoG0+uH5YADhaEHswm664N9Db8dXSi0nMJpacpMf+MyyglF1vnZohpEg5yUtg==}
-||||||| Stash base
-  '@eslint/plugin-kit@0.2.2':
-    resolution: {integrity: sha512-CXtq5nR4Su+2I47WPOlWud98Y5Lv8Kyxp2ukhgFx/eW6Blm18VXJO5WuQylPugRo8nbluoi6GvvxBLqHcvqUUw==}
-=======
   '@eslint/plugin-kit@0.2.5':
     resolution: {integrity: sha512-lB05FkqEdUg2AA0xEbUz0SnkXT1LcCTa438W4IWTUh4hdOnVbQyOJ81OrDXsJk/LSiJHubgGEFoR5EHq1NsH1A==}
->>>>>>> Stashed changes
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@humanfs/core@0.19.1':
@@ -784,12 +542,12 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@nuxt/kit@3.15.1':
-    resolution: {integrity: sha512-7cVWjzfz3L6CsZrg6ppDZa7zGrZxCSfZjEQDIvVFn4mFKtJlK9k2izf5EewL6luzWwIQojkZAC3iq/1wtgI0Xw==}
-    engines: {node: '>=18.20.5'}
+  '@nuxt/kit@3.15.2':
+    resolution: {integrity: sha512-nxiPJVz2fICcyBKlN5pL1IgZVejyArulREsS5HvAk07hijlYuZ5toRM8soLt51VQNpFd/PedL+Z1AlYu/bQCYQ==}
+    engines: {node: '>=18.0.0'}
 
-  '@nuxt/schema@3.15.1':
-    resolution: {integrity: sha512-n5kOHt8uUyUM9z4Wu/8tIZkBYh3KTCGvyruG6oD9bfeT4OaS21+X3M7XsTXFMe+eYBZA70IFFlWn1JJZIPsKeA==}
+  '@nuxt/schema@3.15.2':
+    resolution: {integrity: sha512-cTHGbLTbrQ83B+7Mh0ggc5MzIp74o8KciA0boCiBJyK5uImH9QQNK6VgfwRWcTD5sj3WNKiIB1luOMom3LHgVw==}
     engines: {node: ^14.18.0 || >=16.10.0}
 
   '@parcel/watcher-android-arm64@2.5.0':
@@ -978,32 +736,32 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sentry-internal/browser-utils@8.48.0':
-    resolution: {integrity: sha512-pLtu0Fa1Ou0v3M1OEO1MB1EONJVmXEGtoTwFRCO1RPQI2ulmkG6BikINClFG5IBpoYKZ33WkEXuM6U5xh+pdZg==}
+  '@sentry-internal/browser-utils@8.50.0':
+    resolution: {integrity: sha512-hZm6ngWTEzZhaMHpLIKB4wWp0Od1MdCZdvR5FRdIThUMLa1P8rXeolovTRfOE81NE755EiwJHzj4O7rq3EjA+A==}
     engines: {node: '>=14.18'}
 
-  '@sentry-internal/feedback@8.48.0':
-    resolution: {integrity: sha512-6PwcJNHVPg0EfZxmN+XxVOClfQpv7MBAweV8t9i5l7VFr8sM/7wPNSeU/cG7iK19Ug9ZEkBpzMOe3G4GXJ5bpw==}
+  '@sentry-internal/feedback@8.50.0':
+    resolution: {integrity: sha512-79WlvSJYCXL/D0PBC8AIT4JbyS44AE3h6lP05IESXMqzTZl3KeSqCx317rwJw1KaxzeFd/JQwkFq95jaKAcLhg==}
     engines: {node: '>=14.18'}
 
-  '@sentry-internal/replay-canvas@8.48.0':
-    resolution: {integrity: sha512-LdivLfBXXB9us1aAc6XaL7/L2Ob4vi3C/fEOXElehg3qHjX6q6pewiv5wBvVXGX1NfZTRvu+X11k6TZoxKsezw==}
+  '@sentry-internal/replay-canvas@8.50.0':
+    resolution: {integrity: sha512-Hv1bBaPpe62xFPLpuaUxVBUHd/Ed9bnGndeqN4hueeEGDT9T6NyVokgm35O5xE9/op6Yodm/3NfUkEg8oE++Aw==}
     engines: {node: '>=14.18'}
 
-  '@sentry-internal/replay@8.48.0':
-    resolution: {integrity: sha512-csILVupc5RkrsTrncuUTGmlB56FQSFjXPYWG8I8yBTGlXEJ+o8oTuF6+55R4vbw3EIzBveXWi4kEBbnQlXW/eg==}
+  '@sentry-internal/replay@8.50.0':
+    resolution: {integrity: sha512-mhRPujzO6n+mb6ZR+wQNkSpjqIqDriR0hZEvdzHQdyXu9zVdCHUJ3sINkzpT1XwiypQVCEfxB6Oh9y/NmcQfGg==}
     engines: {node: '>=14.18'}
 
-  '@sentry/browser@8.48.0':
-    resolution: {integrity: sha512-fuuVULB5/1vI8NoIwXwR3xwhJJqk+y4RdSdajExGF7nnUDBpwUJyXsmYJnOkBO+oLeEs58xaCpotCKiPUNnE3g==}
+  '@sentry/browser@8.50.0':
+    resolution: {integrity: sha512-aGJSpuKiHVKkLvd1VklJSZ2oCsl4wcKUVxKIa8dhJC8KjDY0vREQCywrlWuS5KYP0xFy4k28pg6PPR3HKkUlNw==}
     engines: {node: '>=14.18'}
 
-  '@sentry/core@8.48.0':
-    resolution: {integrity: sha512-VGwYgTfLpvJ5LRO5A+qWo1gpo6SfqaGXL9TOzVgBucAdpzbrYHpZ87sEarDVq/4275uk1b0S293/mfsskFczyw==}
+  '@sentry/core@8.50.0':
+    resolution: {integrity: sha512-q71m8Ha9YGwqn4Gd7sWvcFTRgbHXxEfU4QeIFtwMBpwHfq2Q+9koiF8DOoOHqIEOsnlvZWRQgGggIOdHzajnVw==}
     engines: {node: '>=14.18'}
 
-  '@sentry/vue@8.48.0':
-    resolution: {integrity: sha512-hqm9X7hz1vMQQB1HBYezrDBQihZk6e/MxWIG1wMJoClcBnD1Sh7y+D36UwaQlR4Gr/Ftiz+Bb0DxuAYHoUS4ow==}
+  '@sentry/vue@8.50.0':
+    resolution: {integrity: sha512-fm8ZD3PFOcoaqDw1xdlclh3p/z3K46aoPKYBiTDNnVSsyE2oG7cXuBqhSSrPjEgh+tIp03oYpj5z+SRlvMty4w==}
     engines: {node: '>=14.18'}
     peerDependencies:
       pinia: 2.x
@@ -1028,22 +786,22 @@ packages:
   '@types/web-bluetooth@0.0.20':
     resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
 
-  '@typescript-eslint/scope-manager@8.19.1':
-    resolution: {integrity: sha512-60L9KIuN/xgmsINzonOcMDSB8p82h95hoBfSBtXuO4jlR1R9L1xSkmVZKgCPVfavDlXihh4ARNjXhh1gGnLC7Q==}
+  '@typescript-eslint/scope-manager@8.20.0':
+    resolution: {integrity: sha512-J7+VkpeGzhOt3FeG1+SzhiMj9NzGD/M6KoGn9f4dbz3YzK9hvbhVTmLj/HiTp9DazIzJ8B4XcM80LrR9Dm1rJw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/types@8.19.1':
-    resolution: {integrity: sha512-JBVHMLj7B1K1v1051ZaMMgLW4Q/jre5qGK0Ew6UgXz1Rqh+/xPzV1aW581OM00X6iOfyr1be+QyW8LOUf19BbA==}
+  '@typescript-eslint/types@8.20.0':
+    resolution: {integrity: sha512-cqaMiY72CkP+2xZRrFt3ExRBu0WmVitN/rYPZErA80mHjHx/Svgp8yfbzkJmDoQ/whcytOPO9/IZXnOc+wigRA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/typescript-estree@8.19.1':
-    resolution: {integrity: sha512-jk/TZwSMJlxlNnqhy0Eod1PNEvCkpY6MXOXE/WLlblZ6ibb32i2We4uByoKPv1d0OD2xebDv4hbs3fm11SMw8Q==}
+  '@typescript-eslint/typescript-estree@8.20.0':
+    resolution: {integrity: sha512-Y7ncuy78bJqHI35NwzWol8E0X7XkRVS4K4P4TCyzWkOJih5NDvtoRDW4Ba9YJJoB2igm9yXDdYI/+fkiiAxPzA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <5.8.0'
 
-  '@typescript-eslint/visitor-keys@8.19.1':
-    resolution: {integrity: sha512-fzmjU8CHK853V/avYZAvuVut3ZTfwN5YtMaoi+X9Y9MA9keaWNHC3zEQ9zvyX/7Hj+5JkNyK1l7TOR2hevHB6Q==}
+  '@typescript-eslint/visitor-keys@8.20.0':
+    resolution: {integrity: sha512-v/BpkeeYAsPkKCkR8BDwcno0llhzWVqPOamQrAEMdpZav2Y9OVjd9dwJyBLJWwf335B5DmlifECIkZRJCaGaHA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@vitejs/plugin-vue@5.2.1':
@@ -1105,16 +863,8 @@ packages:
   '@vue/shared@3.5.13':
     resolution: {integrity: sha512-/hnE/qP5ZoGpol0a5mDi45bOd7t3tjYJBjsgCsivow7D48cJeV5l05RD82lPqi7gRiphZM37rnhW1l6ZoCNNnQ==}
 
-<<<<<<< Updated upstream
-  '@vuepic/vue-datepicker@11.0.0':
-    resolution: {integrity: sha512-BPy6gplYA3su2n1LB5PPF5YEeV/Qd2e4IjdyGtxSVlhKfUvjgEGZiG3O1va4GQtMtmt1S2uAH7sFkKxnqpBaKA==}
-||||||| Stash base
-  '@vuepic/vue-datepicker@10.0.0':
-    resolution: {integrity: sha512-ujlk3ahftVQpyCJ8hq7TmOOHrf/XFJI1ZcAh/FRB5Ci62Vq5HmHf6xux5KVi5SPUFRTJY78m+uDhYy1M+8RZ9w==}
-=======
   '@vuepic/vue-datepicker@11.0.1':
     resolution: {integrity: sha512-xtGbgZAftBiU1H8pwM54vOCutLzEHsHiolRuDn+memTjqpfzT0x1Ml1tykJ53PLvdkCTyb6sB+1muv5Gsd4nQA==}
->>>>>>> Stashed changes
     engines: {node: '>=18.12.0'}
     peerDependencies:
       vue: '>=3.3.0'
@@ -1125,38 +875,14 @@ packages:
       vue: ^3.0.0
       vuetify: ^3.0.0
 
-<<<<<<< Updated upstream
-  '@vueuse/core@12.3.0':
-    resolution: {integrity: sha512-cnV8QDKZrsyKC7tWjPbeEUz2cD9sa9faxF2YkR8QqNwfofgbOhmfIgvSYmkp+ttSvfOw4E6hLcQx15mRPr0yBA==}
-||||||| Stash base
-  '@vueuse/core@11.2.0':
-    resolution: {integrity: sha512-JIUwRcOqOWzcdu1dGlfW04kaJhW3EXnnjJJfLTtddJanymTL7lF1C0+dVVZ/siLfc73mWn+cGP1PE1PKPruRSA==}
-=======
   '@vueuse/core@12.4.0':
     resolution: {integrity: sha512-XnjQYcJwCsyXyIafyA6SvyN/OBtfPnjvJmbxNxQjCcyWD198urwm5TYvIUUyAxEAN0K7HJggOgT15cOlWFyLeA==}
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@vueuse/metadata@12.3.0':
-    resolution: {integrity: sha512-M/iQHHjMffOv2npsw2ihlUx1CTiBwPEgb7DzByLq7zpg1+Ke8r7s9p5ybUWc5OIeGewtpY4Xy0R2cKqFqM8hFg==}
-||||||| Stash base
-  '@vueuse/metadata@11.2.0':
-    resolution: {integrity: sha512-L0ZmtRmNx+ZW95DmrgD6vn484gSpVeRbgpWevFKXwqqQxW9hnSi2Ppuh2BzMjnbv4aJRiIw8tQatXT9uOB23dQ==}
-=======
   '@vueuse/metadata@12.4.0':
     resolution: {integrity: sha512-AhPuHs/qtYrKHUlEoNO6zCXufu8OgbR8S/n2oMw1OQuBQJ3+HOLQ+EpvXs+feOlZMa0p8QVvDWNlmcJJY8rW2g==}
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@vueuse/shared@12.3.0':
-    resolution: {integrity: sha512-X3YD35GUeW0d5Gajcwv9jdLAJTV2Jdb/Ll6Ii2JIYcKLYZqv5wxyLeKtiQkqWmHg3v0J0ZWjDUMVOw2E7RCXfA==}
-||||||| Stash base
-  '@vueuse/shared@11.2.0':
-    resolution: {integrity: sha512-VxFjie0EanOudYSgMErxXfq6fo8vhr5ICI+BuE3I9FnX7ePllEsVrRQ7O6Q1TLgApeLuPKcHQxAXpP+KnlrJsg==}
-=======
   '@vueuse/shared@12.4.0':
     resolution: {integrity: sha512-9yLgbHVIF12OSCojnjTIoZL1+UA10+O4E1aD6Hpfo/DKVm5o3SZIwz6CupqGy3+IcKI8d6Jnl26EQj/YucnW0Q==}
->>>>>>> Stashed changes
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -1171,16 +897,8 @@ packages:
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
 
-<<<<<<< Updated upstream
-  alien-signals@0.4.13:
-    resolution: {integrity: sha512-ZT1lNVbc5LgGLk3hPaJChB8o8n0rF15R1ny/wrsR/XZbBaJnxvtOoLsHw+OXuQPtVzQTkATgR6gACqwG3nyiVQ==}
-||||||| Stash base
-  alien-signals@0.2.1:
-    resolution: {integrity: sha512-FlEQrDJe9r2RI4cDlnK2zYqJezvx1uJaWEuwxsnlFqnPwvJbgitNBRumWrLDv8lA+7cCikpMxfJD2TTHiaTklA==}
-=======
   alien-signals@0.4.14:
     resolution: {integrity: sha512-itUAVzhczTmP2U5yX67xVpsbbOiquusbWVyA9N+sy6+r6YVbFkahXvNCeEPWEOMhwDYwbVbGHFkVL03N9I5g+Q==}
->>>>>>> Stashed changes
 
   ansi-styles@4.3.0:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
@@ -1208,16 +926,8 @@ packages:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
 
-<<<<<<< Updated upstream
-  browserslist@4.24.3:
-    resolution: {integrity: sha512-1CPmv8iobE2fyRMV97dAcMVegvvWKxmq94hkLiAkUGwKVTyDLw33K+ZxiFrREKmmps4rIw6grcCFCnTMSZ/YiA==}
-||||||| Stash base
-  browserslist@4.24.2:
-    resolution: {integrity: sha512-ZIc+Q62revdMcqC6aChtW4jz3My3klmCO1fEmINZY/8J3EpBg5/A/D0AKmBveUh6pgoeycoMkVMko84tuYS+Gg==}
-=======
   browserslist@4.24.4:
     resolution: {integrity: sha512-KDi1Ny1gSePi1vm0q4oxSF8b4DR44GF4BbmS2YdhPLOEqd8pDviZOGH/GsmRwoWJ2+5Lr085X7naowMwKHDG1A==}
->>>>>>> Stashed changes
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -1233,16 +943,8 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
-<<<<<<< Updated upstream
-  caniuse-lite@1.0.30001690:
-    resolution: {integrity: sha512-5ExiE3qQN6oF8Clf8ifIDcMRCRE/dMGcETG/XGMD8/XiXm6HXQgQTh1yZYLXXpSOsEUlJm1Xr7kGULZTuGtP/w==}
-||||||| Stash base
-  caniuse-lite@1.0.30001680:
-    resolution: {integrity: sha512-rPQy70G6AGUMnbwS1z6Xg+RkHYPAi18ihs47GH0jcxIG7wArmPgY3XbS2sRdBbxJljp3thdT8BIqv9ccCypiPA==}
-=======
   caniuse-lite@1.0.30001692:
     resolution: {integrity: sha512-A95VKan0kdtrsnMubMKxEKUKImOPSuCpYgxSQBo036P5YYgVIcOYJEgt/txJWqObiRQeISNCfef9nvlQ0vbV7A==}
->>>>>>> Stashed changes
 
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -1283,8 +985,8 @@ packages:
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
 
-  consola@3.3.3:
-    resolution: {integrity: sha512-Qil5KwghMzlqd51UXM0b6fyaGHtOC22scxrwrz4A2882LyUMwQjnvaedN1HAeXzphspQ6CpHkzMAWxBTUruDLg==}
+  consola@3.4.0:
+    resolution: {integrity: sha512-EiPU8G6dQG0GFHNR8ljnZFki/8a+cQwEQ+7wpxdChl02Q8HXlwEZWD5lqAF8vC2sEC3Tehr8hy7vErz88LHyUA==}
     engines: {node: ^14.18.0 || >=16.10.0}
 
   convert-source-map@2.0.0:
@@ -1343,16 +1045,8 @@ packages:
     resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
     engines: {node: '>=12'}
 
-<<<<<<< Updated upstream
-  electron-to-chromium@1.5.79:
-    resolution: {integrity: sha512-nYOxJNxQ9Om4EC88BE4pPoNI8xwSFf8pU/BAeOl4Hh/b/i6V4biTAzwV7pXi3ARKeoYO5JZKMIXTryXSVer5RA==}
-||||||| Stash base
-  electron-to-chromium@1.5.55:
-    resolution: {integrity: sha512-6maZ2ASDOTBtjt9FhqYPRnbvKU5tjG0IN9SztUOWYw2AzNDNpKJYLJmlK0/En4Hs/aiWnB+JZ+gW19PIGszgKg==}
-=======
-  electron-to-chromium@1.5.80:
-    resolution: {integrity: sha512-LTrKpW0AqIuHwmlVNV+cjFYTnXtM9K37OGhpe0ZI10ScPSxqVSryZHIY3WnCS5NSYbBODRTZyhRMS2h5FAEqAw==}
->>>>>>> Stashed changes
+  electron-to-chromium@1.5.82:
+    resolution: {integrity: sha512-Zq16uk1hfQhyGx5GpwPAYDwddJuSGhtRhgOA2mCxANYaDT79nAeGnaXogMGng4KqLaJUVnOnuL0+TDop9nLOiA==}
 
   entities@4.5.0:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
@@ -1392,16 +1086,8 @@ packages:
     resolution: {integrity: sha512-UyLnSehNt62FFhSwjZlHmeokpRK59rcz29j+F1/aDgbkbRTk7wIc9XzdoasMUbRNKDM0qQt/+BJ4BrpFeABemw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-<<<<<<< Updated upstream
-  eslint@9.17.0:
-    resolution: {integrity: sha512-evtlNcpJg+cZLcnVKwsai8fExnqjGPicK7gnUtlNuzu+Fv9bI0aLpND5T44VLQtoMEnI57LoXO9XAkIXwohKrA==}
-||||||| Stash base
-  eslint@9.14.0:
-    resolution: {integrity: sha512-c2FHsVBr87lnUtjP4Yhvk4yEhKrQavGafRA/Se1ouse8PfbfC/Qh9Mxa00yWsZRlqeUB9raXip0aiiUZkgnr9g==}
-=======
   eslint@9.18.0:
     resolution: {integrity: sha512-+waTfRWQlSbpt3KWE+CjrPPYnbq9kfZIYUqapc0uBXyjTp8aYXZDsUH16m39Ryq3NjAVP4tjuF7KaukeqoCoaA==}
->>>>>>> Stashed changes
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     hasBin: true
     peerDependencies:
@@ -1557,8 +1243,8 @@ packages:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
 
-  ignore@7.0.0:
-    resolution: {integrity: sha512-lcX8PNQygAa22u/0BysEY8VhaFRzlOkvdlKczDPnJvrkJD1EuqzEky5VYYKM2iySIuaVIDv9N190DfSreSLw2A==}
+  ignore@7.0.3:
+    resolution: {integrity: sha512-bAH5jbK/F3T3Jls4I0SO1hmPR0dKU0a7+SY6n1yzRtG54FLO8d6w/nxLFX2Nb7dBu6cCWXPaAME6cYqFUMmuCA==}
     engines: {node: '>= 4'}
 
   immutable@5.0.3:
@@ -1645,8 +1331,8 @@ packages:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
-  local-pkg@0.5.1:
-    resolution: {integrity: sha512-9rrA30MRRP3gBD3HTGnC6cDFpaE1kVDWxWgqWJUN0RvDNAo+Nz/9GxB+nHOH0ifbVFy0hSA1V6vFDvnx54lTEQ==}
+  local-pkg@1.0.0:
+    resolution: {integrity: sha512-bbgPw/wmroJsil/GgL4qjDzs5YLTBMQ99weRsok1XCDccQeehbHA/I1oRvk2NPtr7KGZgT/Y5tPRnAtMqeG2Kg==}
     engines: {node: '>=14'}
 
   locate-path@6.0.0:
@@ -1712,20 +1398,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-<<<<<<< Updated upstream
-  mlly@1.7.3:
-    resolution: {integrity: sha512-xUsx5n/mN0uQf4V548PKQ+YShA4/IW0KI1dZhrNrPCLG+xizETbHTkOa1f8/xut9JRPp8kQuMnz0oqwkTiLo/A==}
-||||||| Stash base
-  mlly@1.7.2:
-    resolution: {integrity: sha512-tN3dvVHYVz4DhSXinXIk7u9syPYaJvio118uomkovAtWBT+RdbP6Lfh/5Lvo519YMmwBafwlh20IPTXIStscpA==}
-
-  mri@1.2.0:
-    resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
-    engines: {node: '>=4'}
-=======
   mlly@1.7.4:
     resolution: {integrity: sha512-qmdSIPC4bDJXgZTCR7XosJiNKySV7O215tsPtDN9iEO/7q/76b/ijtgRu/+epFXSJhijtTCCGp3DWS549P3xKw==}
->>>>>>> Stashed changes
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -1808,16 +1482,9 @@ packages:
   pathe@1.1.2:
     resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
 
-<<<<<<< Updated upstream
-  pathe@2.0.0:
-    resolution: {integrity: sha512-G7n4uhtk9qJt2hlD+UFfsIGY854wpF+zs2bUbQ3CQEUTcn7v25LRsrmurOxTo4bJgjE4qkyshd9ldsEuY9M6xg==}
-
-||||||| Stash base
-=======
   pathe@2.0.1:
     resolution: {integrity: sha512-6jpjMpOth5S9ITVu5clZ7NOgHNsv5vRQdheL9ztp2vZmM6fRbLvyua1tiBIL4lk8SAe3ARzeXEly6siXCjDHDw==}
 
->>>>>>> Stashed changes
   perfect-debounce@1.0.0:
     resolution: {integrity: sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==}
 
@@ -1852,11 +1519,11 @@ packages:
       typescript:
         optional: true
 
-  pkg-types@1.3.0:
-    resolution: {integrity: sha512-kS7yWjVFCkIw9hqdJBoMxDdzEngmkr5FXeWZZfQ6GoYacjVnsW6l2CcYW/0ThD0vF4LPJgVYnrg4d0uuhwYQbg==}
+  pkg-types@1.3.1:
+    resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
-  postcss@8.4.49:
-    resolution: {integrity: sha512-OCVPnIObs4N29kxTjzLfUryOkvZEq+pf8jTF0lg8E7uETuWHA+v7j3c/xJmiqpX450191LlmZfUKkXxkTry7nA==}
+  postcss@8.5.1:
+    resolution: {integrity: sha512-6oz2beyjc5VMn/KV1pPw8fliQkhBXrVn1Z3TVyqZxU8kZpzEKhBdmCFqI6ZbmGtamQvQGuU1sgPTk8ZrXDD7jQ==}
     engines: {node: ^10 || ^12 || >=14}
 
   prelude-ls@1.2.1:
@@ -1901,8 +1568,8 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
-  sass@1.83.1:
-    resolution: {integrity: sha512-EVJbDaEs4Rr3F0glJzFSOvtg2/oy2V/YrGFPqPY24UqcLDWcI9ZY5sN+qyO3c/QCZwzgfirvhXvINiJCE/OLcA==}
+  sass@1.83.4:
+    resolution: {integrity: sha512-B1bozCeNQiOgDcLd33e2Cs2U60wZwjUUXzh900ZyQF5qUasvMdDZYbQ566LJu7cqR+sAHlAfO6RMkaID5s6qpA==}
     engines: {node: '>=14.0.0'}
     hasBin: true
 
@@ -1984,16 +1651,8 @@ packages:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
 
-<<<<<<< Updated upstream
-  typescript@5.7.2:
-    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
-||||||| Stash base
-  typescript@5.6.3:
-    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
-=======
   typescript@5.7.3:
     resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
->>>>>>> Stashed changes
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -2007,8 +1666,8 @@ packages:
     resolution: {integrity: sha512-lRfVq8fE8gz6QMBuDM6a+LO3IAzTi05H6gCVaUpir2E1Rwpo4ZUog45KpNXKC/Mn3Yb9UDuHumeFTo9iV/D9FQ==}
     engines: {node: '>=18'}
 
-  unimport@3.14.5:
-    resolution: {integrity: sha512-tn890SwFFZxqaJSKQPPd+yygfKSATbM8BZWW1aCR2TJBTs1SDrmLamBueaFtYsGjHtQaRgqEbQflOjN2iW12gA==}
+  unimport@3.14.6:
+    resolution: {integrity: sha512-CYvbDaTT04Rh8bmD8jz3WPmHYZRG/NnvYVzwD6V1YAlvvKROlAeNDUBhkBGzNav2RKaeuXvlWYaa1V4Lfi/O0g==}
 
   unplugin@1.16.1:
     resolution: {integrity: sha512-4/u/j4FrCKdi17jaxuJA0jClGxB1AvU2hw/IuayPc4ay1XGaJs/rbb4v5WKwAjNifjmXK9PIFyuPiaK8azyR9w==}
@@ -2035,16 +1694,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-<<<<<<< Updated upstream
-  uuid@11.0.4:
-    resolution: {integrity: sha512-IzL6VtTTYcAhA/oghbFJ1Dkmqev+FpQWnCBaKq/gUluLxliWvO8DPFWfIviRmYbtaavtSQe4WBL++rFjdcGWEg==}
-||||||| Stash base
-  uuid@11.0.3:
-    resolution: {integrity: sha512-d0z310fCWv5dJwnX1Y/MncBAqGMKEzlBb1AOf7z9K8ALnd0utBX/msg/fA0+sbyN1ihbMsLhrBlnl1ak7Wa0rg==}
-=======
   uuid@11.0.5:
     resolution: {integrity: sha512-508e6IcKLrhxKdBbcA2b4KQZlLVp2+J5UwQ6F7Drckkc5N9ZJwFa4TgWtsww9UG8fGHbm6gbV19TdM5pQ4GaIA==}
->>>>>>> Stashed changes
     hasBin: true
 
   vite-plugin-vuetify@2.0.4:
@@ -2104,19 +1755,9 @@ packages:
       chart.js: ^4.1.1
       vue: ^3.0.0-0 || ^2.7.0
 
-<<<<<<< Updated upstream
-  vue-codemirror6@1.3.9:
-    resolution: {integrity: sha512-dNPGV+Lutc/Q3FMxhVH37neNzADPLyTHE2WOz4/7Dibbqvo/CHvx3s1zegxlfLkNVd0rNraTEM8C+Tkq0T5lZw==}
-    engines: {pnpm: '>=9.15.0'}
-||||||| Stash base
-  vue-codemirror6@1.3.7:
-    resolution: {integrity: sha512-DG2LA5Ps2K8Ot1jlDeaRy28AhI9TKtcbRasT3WMooLxaWfHQcSKtbeANFqRSdECQjXiDVVYNTUte4Y7mR4XtEg==}
-    engines: {pnpm: '>=9.12.3'}
-=======
   vue-codemirror6@1.3.10:
     resolution: {integrity: sha512-0pWOJArQZ+59JYD7mJL5i1/kVIKwaBqBdJa6bODmVh9rMes+ZZ7GifOZNKydrBU0jTkFX0IYMfqBOgyDt7T/aw==}
     engines: {pnpm: '>=9.15.0'}
->>>>>>> Stashed changes
     peerDependencies:
       vue: ^2.7.14 || ^3.4
 
@@ -2236,48 +1877,20 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
-<<<<<<< Updated upstream
-  '@babel/compat-data@7.26.3': {}
-||||||| Stash base
-  '@babel/compat-data@7.26.2': {}
-=======
   '@babel/compat-data@7.26.5': {}
->>>>>>> Stashed changes
 
   '@babel/core@7.26.0':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@babel/code-frame': 7.26.2
-<<<<<<< Updated upstream
-      '@babel/generator': 7.26.3
-      '@babel/helper-compilation-targets': 7.25.9
-||||||| Stash base
-      '@babel/generator': 7.26.2
-      '@babel/helper-compilation-targets': 7.25.9
-=======
       '@babel/generator': 7.26.5
       '@babel/helper-compilation-targets': 7.26.5
->>>>>>> Stashed changes
       '@babel/helper-module-transforms': 7.26.0(@babel/core@7.26.0)
       '@babel/helpers': 7.26.0
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-||||||| Stash base
-      '@babel/parser': 7.26.2
-=======
       '@babel/parser': 7.26.5
->>>>>>> Stashed changes
       '@babel/template': 7.25.9
-<<<<<<< Updated upstream
-      '@babel/traverse': 7.26.4
-      '@babel/types': 7.26.3
-||||||| Stash base
-      '@babel/traverse': 7.25.9
-      '@babel/types': 7.26.0
-=======
       '@babel/traverse': 7.26.5
       '@babel/types': 7.26.5
->>>>>>> Stashed changes
       convert-source-map: 2.0.0
       debug: 4.4.0
       gensync: 1.0.0-beta.2
@@ -2286,62 +1899,26 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-<<<<<<< Updated upstream
-  '@babel/generator@7.26.3':
-||||||| Stash base
-  '@babel/generator@7.26.2':
-=======
   '@babel/generator@7.26.5':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-      '@babel/types': 7.26.3
-      '@jridgewell/gen-mapping': 0.3.8
-||||||| Stash base
-      '@babel/parser': 7.26.2
-      '@babel/types': 7.26.0
-      '@jridgewell/gen-mapping': 0.3.5
-=======
       '@babel/parser': 7.26.5
       '@babel/types': 7.26.5
       '@jridgewell/gen-mapping': 0.3.8
->>>>>>> Stashed changes
       '@jridgewell/trace-mapping': 0.3.25
       jsesc: 3.1.0
 
   '@babel/helper-compilation-targets@7.26.5':
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/compat-data': 7.26.3
-||||||| Stash base
-      '@babel/compat-data': 7.26.2
-=======
       '@babel/compat-data': 7.26.5
->>>>>>> Stashed changes
       '@babel/helper-validator-option': 7.25.9
-<<<<<<< Updated upstream
-      browserslist: 4.24.3
-||||||| Stash base
-      browserslist: 4.24.2
-=======
       browserslist: 4.24.4
->>>>>>> Stashed changes
       lru-cache: 5.1.1
       semver: 6.3.1
 
   '@babel/helper-module-imports@7.25.9':
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/traverse': 7.26.4
-      '@babel/types': 7.26.3
-||||||| Stash base
-      '@babel/traverse': 7.25.9
-      '@babel/types': 7.26.0
-=======
       '@babel/traverse': 7.26.5
       '@babel/types': 7.26.5
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - supports-color
 
@@ -2350,13 +1927,7 @@ snapshots:
       '@babel/core': 7.26.0
       '@babel/helper-module-imports': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
-<<<<<<< Updated upstream
-      '@babel/traverse': 7.26.4
-||||||| Stash base
-      '@babel/traverse': 7.25.9
-=======
       '@babel/traverse': 7.26.5
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - supports-color
 
@@ -2369,146 +1940,56 @@ snapshots:
   '@babel/helpers@7.26.0':
     dependencies:
       '@babel/template': 7.25.9
-<<<<<<< Updated upstream
-      '@babel/types': 7.26.3
-||||||| Stash base
-      '@babel/types': 7.26.0
-=======
       '@babel/types': 7.26.5
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@babel/parser@7.26.3':
-||||||| Stash base
-  '@babel/parser@7.26.2':
-=======
   '@babel/parser@7.26.5':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/types': 7.26.3
-||||||| Stash base
-      '@babel/types': 7.26.0
-=======
       '@babel/types': 7.26.5
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@babel/standalone@7.26.4': {}
-||||||| Stash base
-  '@babel/standalone@7.26.2': {}
-=======
-  '@babel/standalone@7.26.5': {}
->>>>>>> Stashed changes
+  '@babel/standalone@7.26.6': {}
 
   '@babel/template@7.25.9':
     dependencies:
       '@babel/code-frame': 7.26.2
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-      '@babel/types': 7.26.3
-||||||| Stash base
-      '@babel/parser': 7.26.2
-      '@babel/types': 7.26.0
-=======
       '@babel/parser': 7.26.5
       '@babel/types': 7.26.5
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@babel/traverse@7.26.4':
-||||||| Stash base
-  '@babel/traverse@7.25.9':
-=======
   '@babel/traverse@7.26.5':
->>>>>>> Stashed changes
     dependencies:
       '@babel/code-frame': 7.26.2
-<<<<<<< Updated upstream
-      '@babel/generator': 7.26.3
-      '@babel/parser': 7.26.3
-||||||| Stash base
-      '@babel/generator': 7.26.2
-      '@babel/parser': 7.26.2
-=======
       '@babel/generator': 7.26.5
       '@babel/parser': 7.26.5
->>>>>>> Stashed changes
       '@babel/template': 7.25.9
-<<<<<<< Updated upstream
-      '@babel/types': 7.26.3
-      debug: 4.4.0
-||||||| Stash base
-      '@babel/types': 7.26.0
-      debug: 4.3.7
-=======
       '@babel/types': 7.26.5
       debug: 4.4.0
->>>>>>> Stashed changes
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
 
-<<<<<<< Updated upstream
-  '@babel/types@7.26.3':
-||||||| Stash base
-  '@babel/types@7.26.0':
-=======
   '@babel/types@7.26.5':
->>>>>>> Stashed changes
     dependencies:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
 
   '@codemirror/autocomplete@6.18.4':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/language': 6.10.8
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/language': 6.10.3
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
 
   '@codemirror/commands@6.8.0':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/language': 6.10.8
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/language': 6.10.3
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
 
   '@codemirror/lang-css@6.3.1':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/autocomplete': 6.18.4
-      '@codemirror/language': 6.10.8
-      '@codemirror/state': 6.5.0
-||||||| Stash base
-      '@codemirror/autocomplete': 6.18.2(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.2)(@lezer/common@1.2.3)
-      '@codemirror/language': 6.10.3
-      '@codemirror/state': 6.4.1
-=======
       '@codemirror/autocomplete': 6.18.4
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.1
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
       '@lezer/css': 1.1.9
 
@@ -2517,44 +1998,20 @@ snapshots:
       '@codemirror/autocomplete': 6.18.4
       '@codemirror/lang-css': 6.3.1
       '@codemirror/lang-javascript': 6.2.2
-<<<<<<< Updated upstream
-      '@codemirror/language': 6.10.8
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/language': 6.10.3
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
       '@lezer/css': 1.1.9
       '@lezer/html': 1.3.10
 
   '@codemirror/lang-javascript@6.2.2':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/autocomplete': 6.18.4
-      '@codemirror/language': 6.10.8
-      '@codemirror/lint': 6.8.4
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/autocomplete': 6.18.2(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.2)(@lezer/common@1.2.3)
-      '@codemirror/language': 6.10.3
-      '@codemirror/lint': 6.8.2
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/autocomplete': 6.18.4
       '@codemirror/language': 6.10.8
       '@codemirror/lint': 6.8.4
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
       '@lezer/javascript': 1.4.21
 
@@ -2565,16 +2022,8 @@ snapshots:
 
   '@codemirror/language@6.10.8':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
@@ -2582,57 +2031,23 @@ snapshots:
 
   '@codemirror/lint@6.8.4':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       crelt: 1.0.6
 
   '@codemirror/search@6.5.8':
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-=======
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
       crelt: 1.0.6
 
-<<<<<<< Updated upstream
-  '@codemirror/state@6.5.0':
-||||||| Stash base
-  '@codemirror/state@6.4.1': {}
-
-  '@codemirror/view@6.34.2':
-=======
   '@codemirror/state@6.5.1':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@marijn/find-cluster-break': 1.0.2
-
-  '@codemirror/view@6.36.1':
-    dependencies:
-      '@codemirror/state': 6.5.0
-||||||| Stash base
-      '@codemirror/state': 6.4.1
-=======
       '@marijn/find-cluster-break': 1.0.2
 
   '@codemirror/view@6.36.2':
     dependencies:
       '@codemirror/state': 6.5.1
->>>>>>> Stashed changes
       style-mod: 4.1.2
       w3c-keyname: 2.2.8
 
@@ -2705,17 +2120,6 @@ snapshots:
   '@esbuild/win32-arm64@0.24.2':
     optional: true
 
-<<<<<<< Updated upstream
-  '@esbuild/win32-ia32@0.24.2':
-    optional: true
-
-  '@esbuild/win32-x64@0.24.2':
-    optional: true
-
-  '@eslint-community/eslint-utils@4.4.1(eslint@9.17.0(jiti@2.4.2))':
-||||||| Stash base
-  '@eslint-community/eslint-utils@4.4.1(eslint@9.14.0(jiti@2.4.0))':
-=======
   '@esbuild/win32-ia32@0.24.2':
     optional: true
 
@@ -2723,15 +2127,8 @@ snapshots:
     optional: true
 
   '@eslint-community/eslint-utils@4.4.1(eslint@9.18.0(jiti@2.4.2))':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      eslint: 9.17.0(jiti@2.4.2)
-||||||| Stash base
-      eslint: 9.14.0(jiti@2.4.0)
-=======
       eslint: 9.18.0(jiti@2.4.2)
->>>>>>> Stashed changes
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.1': {}
@@ -2744,17 +2141,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-<<<<<<< Updated upstream
-  '@eslint/core@0.9.1':
-    dependencies:
-      '@types/json-schema': 7.0.15
-||||||| Stash base
-  '@eslint/core@0.7.0': {}
-=======
   '@eslint/core@0.10.0':
     dependencies:
       '@types/json-schema': 7.0.15
->>>>>>> Stashed changes
 
   '@eslint/eslintrc@3.2.0':
     dependencies:
@@ -2770,23 +2159,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-<<<<<<< Updated upstream
-  '@eslint/js@9.17.0': {}
-||||||| Stash base
-  '@eslint/js@9.14.0': {}
-=======
   '@eslint/js@9.18.0': {}
->>>>>>> Stashed changes
 
   '@eslint/object-schema@2.1.5': {}
 
-<<<<<<< Updated upstream
-  '@eslint/plugin-kit@0.2.4':
-||||||| Stash base
-  '@eslint/plugin-kit@0.2.2':
-=======
   '@eslint/plugin-kit@0.2.5':
->>>>>>> Stashed changes
     dependencies:
       '@eslint/core': 0.10.0
       levn: 0.4.1
@@ -2804,13 +2181,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.1': {}
 
-<<<<<<< Updated upstream
-  '@intlify/bundle-utils@10.0.0(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))':
-||||||| Stash base
-  '@intlify/bundle-utils@9.0.0(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))':
-=======
   '@intlify/bundle-utils@10.0.0(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))':
->>>>>>> Stashed changes
     dependencies:
       '@intlify/message-compiler': 11.0.0-rc.1
       '@intlify/shared': 11.0.0-rc.1
@@ -2818,23 +2189,11 @@ snapshots:
       escodegen: 2.1.0
       estree-walker: 2.0.2
       jsonc-eslint-parser: 2.4.0
-<<<<<<< Updated upstream
-      mlly: 1.7.3
-||||||| Stash base
-      mlly: 1.7.2
-=======
       mlly: 1.7.4
->>>>>>> Stashed changes
       source-map-js: 1.2.1
       yaml-eslint-parser: 1.2.3
     optionalDependencies:
-<<<<<<< Updated upstream
-      vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vue-i18n: 10.0.4(vue@3.5.12(typescript@5.6.3))
-=======
       vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
 
   '@intlify/core-base@11.0.1':
     dependencies:
@@ -2855,70 +2214,26 @@ snapshots:
 
   '@intlify/shared@11.0.1': {}
 
-<<<<<<< Updated upstream
-  '@intlify/unplugin-vue-i18n@6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.17.0(jiti@2.4.2))(rollup@4.30.1)(typescript@5.7.2)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@intlify/unplugin-vue-i18n@5.3.1(@vue/compiler-dom@3.5.12)(eslint@9.14.0(jiti@2.4.0))(rollup@4.25.0)(typescript@5.6.3)(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))':
-=======
   '@intlify/unplugin-vue-i18n@6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.18.0(jiti@2.4.2))(rollup@4.30.1)(typescript@5.7.3)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@eslint-community/eslint-utils': 4.4.1(eslint@9.17.0(jiti@2.4.2))
-      '@intlify/bundle-utils': 10.0.0(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))
-||||||| Stash base
-      '@eslint-community/eslint-utils': 4.4.1(eslint@9.14.0(jiti@2.4.0))
-      '@intlify/bundle-utils': 9.0.0(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))
-=======
       '@eslint-community/eslint-utils': 4.4.1(eslint@9.18.0(jiti@2.4.2))
       '@intlify/bundle-utils': 10.0.0(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))
->>>>>>> Stashed changes
       '@intlify/shared': 11.0.1
-<<<<<<< Updated upstream
-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))
-      '@rollup/pluginutils': 5.1.4(rollup@4.30.1)
-      '@typescript-eslint/scope-manager': 8.19.1
-      '@typescript-eslint/typescript-estree': 8.19.1(typescript@5.7.2)
-      debug: 4.4.0
-      fast-glob: 3.3.3
-||||||| Stash base
-      '@intlify/vue-i18n-extensions': 7.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.12)(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))
-      '@rollup/pluginutils': 5.1.3(rollup@4.25.0)
-      '@typescript-eslint/scope-manager': 8.13.0
-      '@typescript-eslint/typescript-estree': 8.13.0(typescript@5.6.3)
-      debug: 4.3.7
-      fast-glob: 3.3.2
-=======
       '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       '@rollup/pluginutils': 5.1.4(rollup@4.30.1)
-      '@typescript-eslint/scope-manager': 8.19.1
-      '@typescript-eslint/typescript-estree': 8.19.1(typescript@5.7.3)
+      '@typescript-eslint/scope-manager': 8.20.0
+      '@typescript-eslint/typescript-estree': 8.20.0(typescript@5.7.3)
       debug: 4.4.0
       fast-glob: 3.3.3
->>>>>>> Stashed changes
       js-yaml: 4.1.0
       json5: 2.2.3
       pathe: 1.1.2
       picocolors: 1.1.1
       source-map-js: 1.2.1
-<<<<<<< Updated upstream
-      unplugin: 1.16.1
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      unplugin: 1.15.0
-      vue: 3.5.12(typescript@5.6.3)
-=======
       unplugin: 1.16.1
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
     optionalDependencies:
-<<<<<<< Updated upstream
-      vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vue-i18n: 10.0.4(vue@3.5.12(typescript@5.6.3))
-=======
       vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - '@vue/compiler-dom'
       - eslint
@@ -2926,36 +2241,14 @@ snapshots:
       - supports-color
       - typescript
 
-<<<<<<< Updated upstream
-  '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@intlify/vue-i18n-extensions@7.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.12)(vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))':
-=======
   '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.0.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-||||||| Stash base
-      '@babel/parser': 7.26.2
-=======
       '@babel/parser': 7.26.5
->>>>>>> Stashed changes
     optionalDependencies:
       '@intlify/shared': 11.0.1
-<<<<<<< Updated upstream
-      '@vue/compiler-dom': 3.5.13
-      vue: 3.5.13(typescript@5.7.2)
-      vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      '@vue/compiler-dom': 3.5.12
-      vue: 3.5.12(typescript@5.6.3)
-      vue-i18n: 10.0.4(vue@3.5.12(typescript@5.6.3))
-=======
       '@vue/compiler-dom': 3.5.13
       vue: 3.5.13(typescript@5.7.3)
       vue-i18n: 11.0.1(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
 
   '@jridgewell/gen-mapping@0.3.8':
     dependencies:
@@ -3026,60 +2319,39 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.18.0
 
-  '@nuxt/kit@3.15.1(rollup@4.30.1)':
+  '@nuxt/kit@3.15.2(rollup@4.30.1)':
     dependencies:
-      '@nuxt/schema': 3.15.1
+      '@nuxt/schema': 3.15.2
       c12: 2.0.1
-      consola: 3.3.3
+      consola: 3.4.0
       defu: 6.1.4
       destr: 2.0.3
       globby: 14.0.2
-      ignore: 7.0.0
+      ignore: 7.0.3
       jiti: 2.4.2
       klona: 2.0.6
-<<<<<<< Updated upstream
-      knitwork: 1.2.0
-      mlly: 1.7.3
-      ohash: 1.1.4
-      pathe: 2.0.0
-      pkg-types: 1.3.0
-||||||| Stash base
-      knitwork: 1.1.0
-      mlly: 1.7.2
-      pathe: 1.1.2
-      pkg-types: 1.2.1
-=======
       knitwork: 1.2.0
       mlly: 1.7.4
       ohash: 1.1.4
       pathe: 2.0.1
-      pkg-types: 1.3.0
->>>>>>> Stashed changes
+      pkg-types: 1.3.1
       scule: 1.3.0
       semver: 7.6.3
+      std-env: 3.8.0
       ufo: 1.5.4
       unctx: 2.4.1
-      unimport: 3.14.5(rollup@4.30.1)
+      unimport: 3.14.6(rollup@4.30.1)
       untyped: 1.5.2
     transitivePeerDependencies:
       - magicast
       - rollup
       - supports-color
 
-  '@nuxt/schema@3.15.1':
+  '@nuxt/schema@3.15.2':
     dependencies:
-      consola: 3.3.3
+      consola: 3.4.0
       defu: 6.1.4
-<<<<<<< Updated upstream
-      pathe: 2.0.0
-||||||| Stash base
-      hookable: 5.5.3
-      pathe: 1.1.2
-      pkg-types: 1.2.1
-      scule: 1.3.0
-=======
       pathe: 2.0.1
->>>>>>> Stashed changes
       std-env: 3.8.0
 
   '@parcel/watcher-android-arm64@2.5.0':
@@ -3208,78 +2480,41 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.30.1':
     optional: true
 
-  '@sentry-internal/browser-utils@8.48.0':
+  '@sentry-internal/browser-utils@8.50.0':
     dependencies:
-      '@sentry/core': 8.48.0
+      '@sentry/core': 8.50.0
 
-  '@sentry-internal/feedback@8.48.0':
+  '@sentry-internal/feedback@8.50.0':
     dependencies:
-      '@sentry/core': 8.48.0
+      '@sentry/core': 8.50.0
 
-  '@sentry-internal/replay-canvas@8.48.0':
+  '@sentry-internal/replay-canvas@8.50.0':
     dependencies:
-      '@sentry-internal/replay': 8.48.0
-      '@sentry/core': 8.48.0
+      '@sentry-internal/replay': 8.50.0
+      '@sentry/core': 8.50.0
 
-  '@sentry-internal/replay@8.48.0':
+  '@sentry-internal/replay@8.50.0':
     dependencies:
-      '@sentry-internal/browser-utils': 8.48.0
-      '@sentry/core': 8.48.0
+      '@sentry-internal/browser-utils': 8.50.0
+      '@sentry/core': 8.50.0
 
-  '@sentry/browser@8.48.0':
+  '@sentry/browser@8.50.0':
     dependencies:
-      '@sentry-internal/browser-utils': 8.48.0
-      '@sentry-internal/feedback': 8.48.0
-      '@sentry-internal/replay': 8.48.0
-      '@sentry-internal/replay-canvas': 8.48.0
-      '@sentry/core': 8.48.0
+      '@sentry-internal/browser-utils': 8.50.0
+      '@sentry-internal/feedback': 8.50.0
+      '@sentry-internal/replay': 8.50.0
+      '@sentry-internal/replay-canvas': 8.50.0
+      '@sentry/core': 8.50.0
 
-<<<<<<< Updated upstream
-  '@sentry/core@8.48.0': {}
+  '@sentry/core@8.50.0': {}
 
-  '@sentry/vue@8.48.0(pinia@2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@sentry/core@8.37.1':
-=======
-  '@sentry/core@8.48.0': {}
-
-  '@sentry/vue@8.48.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
+  '@sentry/vue@8.50.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
     dependencies:
-<<<<<<< Updated upstream
-      '@sentry/browser': 8.48.0
-      '@sentry/core': 8.48.0
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      '@sentry/types': 8.37.1
-      '@sentry/utils': 8.37.1
-
-  '@sentry/types@8.37.1': {}
-
-  '@sentry/utils@8.37.1':
-    dependencies:
-      '@sentry/types': 8.37.1
-
-  '@sentry/vue@8.37.1(pinia@2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3)))(vue@3.5.12(typescript@5.6.3))':
-    dependencies:
-      '@sentry/browser': 8.37.1
-      '@sentry/core': 8.37.1
-      '@sentry/types': 8.37.1
-      '@sentry/utils': 8.37.1
-      vue: 3.5.12(typescript@5.6.3)
-=======
-      '@sentry/browser': 8.48.0
-      '@sentry/core': 8.48.0
+      '@sentry/browser': 8.50.0
+      '@sentry/core': 8.50.0
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
     optionalDependencies:
-<<<<<<< Updated upstream
-      pinia: 2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      pinia: 2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3))
-=======
       pinia: 2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
 
   '@sindresorhus/merge-streams@2.3.0': {}
 
@@ -3292,65 +2527,36 @@ snapshots:
 
   '@types/web-bluetooth@0.0.20': {}
 
-  '@typescript-eslint/scope-manager@8.19.1':
+  '@typescript-eslint/scope-manager@8.20.0':
     dependencies:
-      '@typescript-eslint/types': 8.19.1
-      '@typescript-eslint/visitor-keys': 8.19.1
+      '@typescript-eslint/types': 8.20.0
+      '@typescript-eslint/visitor-keys': 8.20.0
 
-  '@typescript-eslint/types@8.19.1': {}
+  '@typescript-eslint/types@8.20.0': {}
 
-<<<<<<< Updated upstream
-  '@typescript-eslint/typescript-estree@8.19.1(typescript@5.7.2)':
-||||||| Stash base
-  '@typescript-eslint/typescript-estree@8.13.0(typescript@5.6.3)':
-=======
-  '@typescript-eslint/typescript-estree@8.19.1(typescript@5.7.3)':
->>>>>>> Stashed changes
+  '@typescript-eslint/typescript-estree@8.20.0(typescript@5.7.3)':
     dependencies:
-      '@typescript-eslint/types': 8.19.1
-      '@typescript-eslint/visitor-keys': 8.19.1
+      '@typescript-eslint/types': 8.20.0
+      '@typescript-eslint/visitor-keys': 8.20.0
       debug: 4.4.0
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.6.3
-<<<<<<< Updated upstream
-      ts-api-utils: 2.0.0(typescript@5.7.2)
-      typescript: 5.7.2
-||||||| Stash base
-      ts-api-utils: 1.4.0(typescript@5.6.3)
-    optionalDependencies:
-      typescript: 5.6.3
-=======
       ts-api-utils: 2.0.0(typescript@5.7.3)
       typescript: 5.7.3
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/visitor-keys@8.19.1':
+  '@typescript-eslint/visitor-keys@8.20.0':
     dependencies:
-      '@typescript-eslint/types': 8.19.1
+      '@typescript-eslint/types': 8.20.0
       eslint-visitor-keys: 4.2.0
 
-<<<<<<< Updated upstream
-  '@vitejs/plugin-vue@5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@vitejs/plugin-vue@5.1.5(vite@5.4.11(sass@1.80.6))(vue@3.5.12(typescript@5.6.3))':
-=======
-  '@vitejs/plugin-vue@5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
+  '@vitejs/plugin-vue@5.2.1(vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))':
     dependencies:
-<<<<<<< Updated upstream
-      vite: 6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0)
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vite: 5.4.11(sass@1.80.6)
-      vue: 3.5.12(typescript@5.6.3)
-=======
-      vite: 6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0)
+      vite: 6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0)
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
   '@volar/language-core@2.4.11':
     dependencies:
@@ -3366,16 +2572,8 @@ snapshots:
 
   '@vue/compiler-core@3.5.13':
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-      '@vue/shared': 3.5.13
-||||||| Stash base
-      '@babel/parser': 7.26.2
-      '@vue/shared': 3.5.12
-=======
       '@babel/parser': 7.26.5
       '@vue/shared': 3.5.13
->>>>>>> Stashed changes
       entities: 4.5.0
       estree-walker: 2.0.2
       source-map-js: 1.2.1
@@ -3387,28 +2585,14 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.13':
     dependencies:
-<<<<<<< Updated upstream
-      '@babel/parser': 7.26.3
-      '@vue/compiler-core': 3.5.13
-      '@vue/compiler-dom': 3.5.13
-      '@vue/compiler-ssr': 3.5.13
-      '@vue/shared': 3.5.13
-||||||| Stash base
-      '@babel/parser': 7.26.2
-      '@vue/compiler-core': 3.5.12
-      '@vue/compiler-dom': 3.5.12
-      '@vue/compiler-ssr': 3.5.12
-      '@vue/shared': 3.5.12
-=======
       '@babel/parser': 7.26.5
       '@vue/compiler-core': 3.5.13
       '@vue/compiler-dom': 3.5.13
       '@vue/compiler-ssr': 3.5.13
       '@vue/shared': 3.5.13
->>>>>>> Stashed changes
       estree-walker: 2.0.2
       magic-string: 0.30.17
-      postcss: 8.4.49
+      postcss: 8.5.1
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.13':
@@ -3423,38 +2607,18 @@ snapshots:
 
   '@vue/devtools-api@6.6.4': {}
 
-<<<<<<< Updated upstream
-  '@vue/language-core@2.2.0(typescript@5.7.2)':
-||||||| Stash base
-  '@vue/language-core@2.1.10(typescript@5.6.3)':
-=======
   '@vue/language-core@2.2.0(typescript@5.7.3)':
->>>>>>> Stashed changes
     dependencies:
       '@volar/language-core': 2.4.11
       '@vue/compiler-dom': 3.5.13
       '@vue/compiler-vue2': 2.7.16
-<<<<<<< Updated upstream
-      '@vue/shared': 3.5.13
-      alien-signals: 0.4.13
-||||||| Stash base
-      '@vue/shared': 3.5.12
-      alien-signals: 0.2.1
-=======
       '@vue/shared': 3.5.13
       alien-signals: 0.4.14
->>>>>>> Stashed changes
       minimatch: 9.0.5
       muggle-string: 0.4.1
       path-browserify: 1.0.1
     optionalDependencies:
-<<<<<<< Updated upstream
-      typescript: 5.7.2
-||||||| Stash base
-      typescript: 5.6.3
-=======
       typescript: 5.7.3
->>>>>>> Stashed changes
 
   '@vue/reactivity@3.5.13':
     dependencies:
@@ -3472,115 +2636,39 @@ snapshots:
       '@vue/shared': 3.5.13
       csstype: 3.1.3
 
-<<<<<<< Updated upstream
-  '@vue/server-renderer@3.5.13(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@vue/server-renderer@3.5.12(vue@3.5.12(typescript@5.6.3))':
-=======
   '@vue/server-renderer@3.5.13(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@vue/compiler-ssr': 3.5.13
-      '@vue/shared': 3.5.13
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      '@vue/compiler-ssr': 3.5.12
-      '@vue/shared': 3.5.12
-      vue: 3.5.12(typescript@5.6.3)
-=======
       '@vue/compiler-ssr': 3.5.13
       '@vue/shared': 3.5.13
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
   '@vue/shared@3.5.13': {}
 
-<<<<<<< Updated upstream
-  '@vuepic/vue-datepicker@11.0.0(vue@3.5.13(typescript@5.7.2))':
-||||||| Stash base
-  '@vuepic/vue-datepicker@10.0.0(vue@3.5.12(typescript@5.6.3))':
-=======
   '@vuepic/vue-datepicker@11.0.1(vue@3.5.13(typescript@5.7.3))':
->>>>>>> Stashed changes
     dependencies:
       date-fns: 4.1.0
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@vuetify/loader-shared@2.0.3(vue@3.5.13(typescript@5.7.2))(vuetify@3.7.6)':
-||||||| Stash base
-  '@vuetify/loader-shared@2.0.3(vue@3.5.12(typescript@5.6.3))(vuetify@3.7.4)':
-=======
   '@vuetify/loader-shared@2.0.3(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)':
->>>>>>> Stashed changes
     dependencies:
       upath: 2.0.1
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-      vuetify: 3.7.6(typescript@5.7.2)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-      vuetify: 3.7.4(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3))
-=======
       vue: 3.5.13(typescript@5.7.3)
       vuetify: 3.7.6(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@vueuse/core@12.3.0(typescript@5.7.2)':
-||||||| Stash base
-  '@vueuse/core@11.2.0(vue@3.5.12(typescript@5.6.3))':
-=======
   '@vueuse/core@12.4.0(typescript@5.7.3)':
->>>>>>> Stashed changes
     dependencies:
       '@types/web-bluetooth': 0.0.20
-<<<<<<< Updated upstream
-      '@vueuse/metadata': 12.3.0
-      '@vueuse/shared': 12.3.0(typescript@5.7.2)
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      '@vueuse/metadata': 11.2.0
-      '@vueuse/shared': 11.2.0(vue@3.5.12(typescript@5.6.3))
-      vue-demi: 0.14.10(vue@3.5.12(typescript@5.6.3))
-=======
       '@vueuse/metadata': 12.4.0
       '@vueuse/shared': 12.4.0(typescript@5.7.3)
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - typescript
 
-<<<<<<< Updated upstream
-  '@vueuse/metadata@12.3.0': {}
-||||||| Stash base
-  '@vueuse/metadata@11.2.0': {}
-=======
   '@vueuse/metadata@12.4.0': {}
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  '@vueuse/shared@12.3.0(typescript@5.7.2)':
-||||||| Stash base
-  '@vueuse/shared@11.2.0(vue@3.5.12(typescript@5.6.3))':
-=======
   '@vueuse/shared@12.4.0(typescript@5.7.3)':
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue-demi: 0.14.10(vue@3.5.12(typescript@5.6.3))
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - typescript
 
@@ -3597,13 +2685,7 @@ snapshots:
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
 
-<<<<<<< Updated upstream
-  alien-signals@0.4.13: {}
-||||||| Stash base
-  alien-signals@0.2.1: {}
-=======
   alien-signals@0.4.14: {}
->>>>>>> Stashed changes
 
   ansi-styles@4.3.0:
     dependencies:
@@ -3636,30 +2718,12 @@ snapshots:
     dependencies:
       fill-range: 7.1.1
 
-<<<<<<< Updated upstream
-  browserslist@4.24.3:
-||||||| Stash base
-  browserslist@4.24.2:
-=======
   browserslist@4.24.4:
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      caniuse-lite: 1.0.30001690
-      electron-to-chromium: 1.5.79
-      node-releases: 2.0.19
-      update-browserslist-db: 1.1.1(browserslist@4.24.3)
-||||||| Stash base
-      caniuse-lite: 1.0.30001680
-      electron-to-chromium: 1.5.55
-      node-releases: 2.0.18
-      update-browserslist-db: 1.1.1(browserslist@4.24.2)
-=======
       caniuse-lite: 1.0.30001692
-      electron-to-chromium: 1.5.80
+      electron-to-chromium: 1.5.82
       node-releases: 2.0.19
       update-browserslist-db: 1.1.2(browserslist@4.24.4)
->>>>>>> Stashed changes
 
   c12@2.0.1:
     dependencies:
@@ -3668,31 +2732,17 @@ snapshots:
       defu: 6.1.4
       dotenv: 16.4.7
       giget: 1.2.3
-<<<<<<< Updated upstream
-      jiti: 2.4.2
-      mlly: 1.7.3
-||||||| Stash base
-      jiti: 2.4.0
-      mlly: 1.7.2
-=======
       jiti: 2.4.2
       mlly: 1.7.4
->>>>>>> Stashed changes
       ohash: 1.1.4
       pathe: 1.1.2
       perfect-debounce: 1.0.0
-      pkg-types: 1.3.0
+      pkg-types: 1.3.1
       rc9: 2.1.2
 
   callsites@3.1.0: {}
 
-<<<<<<< Updated upstream
-  caniuse-lite@1.0.30001690: {}
-||||||| Stash base
-  caniuse-lite@1.0.30001680: {}
-=======
   caniuse-lite@1.0.30001692: {}
->>>>>>> Stashed changes
 
   chalk@4.1.2:
     dependencies:
@@ -3711,29 +2761,10 @@ snapshots:
 
   citty@0.1.6:
     dependencies:
-      consola: 3.3.3
+      consola: 3.4.0
 
   codemirror@6.0.1:
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/autocomplete': 6.18.4
-      '@codemirror/commands': 6.7.1
-      '@codemirror/language': 6.10.8
-      '@codemirror/lint': 6.8.4
-      '@codemirror/search': 6.5.8
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-||||||| Stash base
-      '@codemirror/autocomplete': 6.18.2(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.2)(@lezer/common@1.2.3)
-      '@codemirror/commands': 6.7.1
-      '@codemirror/language': 6.10.3
-      '@codemirror/lint': 6.8.2
-      '@codemirror/search': 6.5.7
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-    transitivePeerDependencies:
-      - '@lezer/common'
-=======
       '@codemirror/autocomplete': 6.18.4
       '@codemirror/commands': 6.8.0
       '@codemirror/language': 6.10.8
@@ -3741,7 +2772,6 @@ snapshots:
       '@codemirror/search': 6.5.8
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
->>>>>>> Stashed changes
 
   color-convert@2.0.1:
     dependencies:
@@ -3757,7 +2787,7 @@ snapshots:
 
   confbox@0.1.8: {}
 
-  consola@3.3.3: {}
+  consola@3.4.0: {}
 
   convert-source-map@2.0.0: {}
 
@@ -3798,13 +2828,7 @@ snapshots:
 
   dotenv@16.4.7: {}
 
-<<<<<<< Updated upstream
-  electron-to-chromium@1.5.79: {}
-||||||| Stash base
-  electron-to-chromium@1.5.55: {}
-=======
-  electron-to-chromium@1.5.80: {}
->>>>>>> Stashed changes
+  electron-to-chromium@1.5.82: {}
 
   entities@4.5.0: {}
 
@@ -3859,41 +2883,15 @@ snapshots:
 
   eslint-visitor-keys@4.2.0: {}
 
-<<<<<<< Updated upstream
-  eslint@9.17.0(jiti@2.4.2):
-||||||| Stash base
-  eslint@9.14.0(jiti@2.4.0):
-=======
   eslint@9.18.0(jiti@2.4.2):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@eslint-community/eslint-utils': 4.4.1(eslint@9.17.0(jiti@2.4.2))
-||||||| Stash base
-      '@eslint-community/eslint-utils': 4.4.1(eslint@9.14.0(jiti@2.4.0))
-=======
       '@eslint-community/eslint-utils': 4.4.1(eslint@9.18.0(jiti@2.4.2))
->>>>>>> Stashed changes
       '@eslint-community/regexpp': 4.12.1
-<<<<<<< Updated upstream
-      '@eslint/config-array': 0.19.1
-      '@eslint/core': 0.9.1
-      '@eslint/eslintrc': 3.2.0
-      '@eslint/js': 9.17.0
-      '@eslint/plugin-kit': 0.2.4
-||||||| Stash base
-      '@eslint/config-array': 0.18.0
-      '@eslint/core': 0.7.0
-      '@eslint/eslintrc': 3.1.0
-      '@eslint/js': 9.14.0
-      '@eslint/plugin-kit': 0.2.2
-=======
       '@eslint/config-array': 0.19.1
       '@eslint/core': 0.10.0
       '@eslint/eslintrc': 3.2.0
       '@eslint/js': 9.18.0
       '@eslint/plugin-kit': 0.2.5
->>>>>>> Stashed changes
       '@humanfs/node': 0.16.6
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.1
@@ -4030,7 +3028,7 @@ snapshots:
   giget@1.2.3:
     dependencies:
       citty: 0.1.6
-      consola: 3.3.3
+      consola: 3.4.0
       defu: 6.1.4
       node-fetch-native: 1.6.4
       nypm: 0.3.12
@@ -4069,7 +3067,7 @@ snapshots:
 
   ignore@5.3.2: {}
 
-  ignore@7.0.0: {}
+  ignore@7.0.3: {}
 
   immutable@5.0.3: {}
 
@@ -4134,18 +3132,10 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  local-pkg@0.5.1:
+  local-pkg@1.0.0:
     dependencies:
-<<<<<<< Updated upstream
-      mlly: 1.7.3
-      pkg-types: 1.3.0
-||||||| Stash base
-      mlly: 1.7.2
-      pkg-types: 1.2.1
-=======
       mlly: 1.7.4
-      pkg-types: 1.3.0
->>>>>>> Stashed changes
+      pkg-types: 1.3.1
 
   locate-path@6.0.0:
     dependencies:
@@ -4201,25 +3191,11 @@ snapshots:
 
   mkdirp@1.0.4: {}
 
-<<<<<<< Updated upstream
-  mlly@1.7.3:
-||||||| Stash base
-  mlly@1.7.2:
-=======
   mlly@1.7.4:
->>>>>>> Stashed changes
     dependencies:
       acorn: 8.14.0
-<<<<<<< Updated upstream
-      pathe: 1.1.2
-      pkg-types: 1.3.0
-||||||| Stash base
-      pathe: 1.1.2
-      pkg-types: 1.2.1
-=======
       pathe: 2.0.1
-      pkg-types: 1.3.0
->>>>>>> Stashed changes
+      pkg-types: 1.3.1
       ufo: 1.5.4
 
   ms@2.1.3: {}
@@ -4244,10 +3220,10 @@ snapshots:
   nypm@0.3.12:
     dependencies:
       citty: 0.1.6
-      consola: 3.3.3
+      consola: 3.4.0
       execa: 8.0.1
       pathe: 1.1.2
-      pkg-types: 1.3.0
+      pkg-types: 1.3.1
       ufo: 1.5.4
 
   object-hash@3.0.0: {}
@@ -4291,14 +3267,8 @@ snapshots:
 
   pathe@1.1.2: {}
 
-<<<<<<< Updated upstream
-  pathe@2.0.0: {}
-
-||||||| Stash base
-=======
   pathe@2.0.1: {}
 
->>>>>>> Stashed changes
   perfect-debounce@1.0.0: {}
 
   picocolors@1.1.1: {}
@@ -4307,76 +3277,36 @@ snapshots:
 
   picomatch@4.0.2: {}
 
-<<<<<<< Updated upstream
-  pinia-plugin-persistedstate@4.2.0(pinia@2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2)))(rollup@4.30.1):
-||||||| Stash base
-  pinia-plugin-persistedstate@4.1.3(pinia@2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3)))(rollup@4.25.0):
-=======
   pinia-plugin-persistedstate@4.2.0(pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(rollup@4.30.1):
->>>>>>> Stashed changes
     dependencies:
-      '@nuxt/kit': 3.15.1(rollup@4.30.1)
+      '@nuxt/kit': 3.15.2(rollup@4.30.1)
       deep-pick-omit: 1.2.1
       defu: 6.1.4
       destr: 2.0.3
     optionalDependencies:
-<<<<<<< Updated upstream
-      pinia: 2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      pinia: 2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3))
-=======
       pinia: 2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - magicast
       - rollup
       - supports-color
 
-<<<<<<< Updated upstream
-  pinia@2.3.0(typescript@5.7.2)(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  pinia@2.2.6(typescript@5.6.3)(vue@3.5.12(typescript@5.6.3)):
-=======
   pinia@2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
       '@vue/devtools-api': 6.6.4
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-      vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-      vue-demi: 0.14.10(vue@3.5.12(typescript@5.6.3))
-=======
       vue: 3.5.13(typescript@5.7.3)
       vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
     optionalDependencies:
-<<<<<<< Updated upstream
-      typescript: 5.7.2
-    transitivePeerDependencies:
-      - '@vue/composition-api'
-||||||| Stash base
-      typescript: 5.6.3
-=======
       typescript: 5.7.3
     transitivePeerDependencies:
       - '@vue/composition-api'
->>>>>>> Stashed changes
 
-  pkg-types@1.3.0:
+  pkg-types@1.3.1:
     dependencies:
       confbox: 0.1.8
-<<<<<<< Updated upstream
-      mlly: 1.7.3
-||||||| Stash base
-      mlly: 1.7.2
-=======
       mlly: 1.7.4
->>>>>>> Stashed changes
-      pathe: 1.1.2
+      pathe: 2.0.1
 
-  postcss@8.4.49:
+  postcss@8.5.1:
     dependencies:
       nanoid: 3.3.8
       picocolors: 1.1.1
@@ -4432,7 +3362,7 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  sass@1.83.1:
+  sass@1.83.4:
     dependencies:
       chokidar: 4.0.3
       immutable: 5.0.3
@@ -4492,33 +3422,15 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
-<<<<<<< Updated upstream
-  ts-api-utils@2.0.0(typescript@5.7.2):
-||||||| Stash base
-  ts-api-utils@1.4.0(typescript@5.6.3):
-=======
   ts-api-utils@2.0.0(typescript@5.7.3):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      typescript: 5.7.2
-||||||| Stash base
-      typescript: 5.6.3
-=======
       typescript: 5.7.3
->>>>>>> Stashed changes
 
   type-check@0.4.0:
     dependencies:
       prelude-ls: 1.2.1
 
-<<<<<<< Updated upstream
-  typescript@5.7.2: {}
-||||||| Stash base
-  typescript@5.6.3: {}
-=======
   typescript@5.7.3: {}
->>>>>>> Stashed changes
 
   ufo@1.5.4: {}
 
@@ -4531,31 +3443,19 @@ snapshots:
 
   unicorn-magic@0.1.0: {}
 
-  unimport@3.14.5(rollup@4.30.1):
+  unimport@3.14.6(rollup@4.30.1):
     dependencies:
       '@rollup/pluginutils': 5.1.4(rollup@4.30.1)
       acorn: 8.14.0
       escape-string-regexp: 5.0.0
       estree-walker: 3.0.3
-<<<<<<< Updated upstream
       fast-glob: 3.3.3
-      local-pkg: 0.5.1
-      magic-string: 0.30.17
-      mlly: 1.7.3
-||||||| Stash base
-      fast-glob: 3.3.2
-      local-pkg: 0.5.0
-      magic-string: 0.30.12
-      mlly: 1.7.2
-=======
-      fast-glob: 3.3.3
-      local-pkg: 0.5.1
+      local-pkg: 1.0.0
       magic-string: 0.30.17
       mlly: 1.7.4
->>>>>>> Stashed changes
-      pathe: 1.1.2
+      pathe: 2.0.1
       picomatch: 4.0.2
-      pkg-types: 1.3.0
+      pkg-types: 1.3.1
       scule: 1.3.0
       strip-literal: 2.1.1
       unplugin: 1.16.1
@@ -4575,18 +3475,9 @@ snapshots:
   untyped@1.5.2:
     dependencies:
       '@babel/core': 7.26.0
-<<<<<<< Updated upstream
-      '@babel/standalone': 7.26.4
-      '@babel/types': 7.26.3
-      citty: 0.1.6
-||||||| Stash base
-      '@babel/standalone': 7.26.2
-      '@babel/types': 7.26.0
-=======
-      '@babel/standalone': 7.26.5
+      '@babel/standalone': 7.26.6
       '@babel/types': 7.26.5
       citty: 0.1.6
->>>>>>> Stashed changes
       defu: 6.1.4
       jiti: 2.4.2
       knitwork: 1.2.0
@@ -4596,21 +3487,9 @@ snapshots:
 
   upath@2.0.1: {}
 
-<<<<<<< Updated upstream
-  update-browserslist-db@1.1.1(browserslist@4.24.3):
-||||||| Stash base
-  update-browserslist-db@1.1.1(browserslist@4.24.2):
-=======
   update-browserslist-db@1.1.2(browserslist@4.24.4):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      browserslist: 4.24.3
-||||||| Stash base
-      browserslist: 4.24.2
-=======
       browserslist: 4.24.4
->>>>>>> Stashed changes
       escalade: 3.2.0
       picocolors: 1.1.1
 
@@ -4618,304 +3497,100 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-<<<<<<< Updated upstream
-  uuid@11.0.4: {}
-||||||| Stash base
-  uuid@11.0.3: {}
-=======
   uuid@11.0.5: {}
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vite-plugin-vuetify@2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.2))(vuetify@3.7.6):
-||||||| Stash base
-  vite-plugin-vuetify@2.0.4(vite@5.4.11(sass@1.80.6))(vue@3.5.12(typescript@5.6.3))(vuetify@3.7.4):
-=======
-  vite-plugin-vuetify@2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6):
->>>>>>> Stashed changes
+  vite-plugin-vuetify@2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6):
     dependencies:
-<<<<<<< Updated upstream
-      '@vuetify/loader-shared': 2.0.3(vue@3.5.13(typescript@5.7.2))(vuetify@3.7.6)
-      debug: 4.4.0
-||||||| Stash base
-      '@vuetify/loader-shared': 2.0.3(vue@3.5.12(typescript@5.6.3))(vuetify@3.7.4)
-      debug: 4.3.7
-=======
       '@vuetify/loader-shared': 2.0.3(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)
       debug: 4.4.0
->>>>>>> Stashed changes
       upath: 2.0.1
-<<<<<<< Updated upstream
-      vite: 6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0)
-      vue: 3.5.13(typescript@5.7.2)
-      vuetify: 3.7.6(typescript@5.7.2)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vite: 5.4.11(sass@1.80.6)
-      vue: 3.5.12(typescript@5.6.3)
-      vuetify: 3.7.4(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3))
-=======
-      vite: 6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0)
+      vite: 6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0)
       vue: 3.5.13(typescript@5.7.3)
       vuetify: 3.7.6(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - supports-color
 
-  vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0):
+  vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0):
     dependencies:
       esbuild: 0.24.2
-      postcss: 8.4.49
+      postcss: 8.5.1
       rollup: 4.30.1
     optionalDependencies:
       fsevents: 2.3.3
       jiti: 2.4.2
-      sass: 1.83.1
+      sass: 1.83.4
       yaml: 2.7.0
 
   vscode-uri@3.0.8: {}
 
-<<<<<<< Updated upstream
-  vue-chartjs@5.3.2(chart.js@4.4.7)(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-chartjs@5.3.2(chart.js@4.4.6)(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-chartjs@5.3.2(chart.js@4.4.7)(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      chart.js: 4.4.7
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      chart.js: 4.4.6
-      vue: 3.5.12(typescript@5.6.3)
-=======
       chart.js: 4.4.7
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-codemirror6@1.3.9(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-codemirror6@1.3.7(@lezer/common@1.2.3)(@vue/compiler-dom@3.5.12)(eslint@9.14.0(jiti@2.4.0))(rollup@4.25.0)(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-codemirror6@1.3.10(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@codemirror/commands': 6.7.1
-      '@codemirror/language': 6.10.8
-      '@codemirror/lint': 6.8.4
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.1
-      codemirror: 6.0.1
-||||||| Stash base
-      '@codemirror/commands': 6.7.1
-      '@codemirror/language': 6.10.3
-      '@codemirror/lint': 6.8.2
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.2
-      codemirror: 6.0.1(@lezer/common@1.2.3)
-=======
       '@codemirror/commands': 6.8.0
       '@codemirror/language': 6.10.8
       '@codemirror/lint': 6.8.4
       '@codemirror/state': 6.5.1
       '@codemirror/view': 6.36.2
       codemirror: 6.0.1
->>>>>>> Stashed changes
       style-mod: 4.1.2
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-      vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-      vue-codemirror6: '@taranis-ai/taranis-ui@file:(@lezer/common@1.2.3)(@vue/compiler-dom@3.5.12)(eslint@9.14.0(jiti@2.4.0))(rollup@4.25.0)(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)'
-      vue-demi: 0.14.10(vue@3.5.12(typescript@5.6.3))
-=======
       vue: 3.5.13(typescript@5.7.3)
       vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
     transitivePeerDependencies:
       - '@vue/composition-api'
 
-<<<<<<< Updated upstream
-  vue-demi@0.14.10(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-demi@0.14.10(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-demi@0.14.10(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-dompurify-html@5.2.0(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-dompurify-html@5.1.0(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-dompurify-html@5.2.0(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      dompurify: 3.2.3
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      dompurify: 3.2.0
-      vue: 3.5.12(typescript@5.6.3)
-=======
       dompurify: 3.2.3
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-i18n@10.0.4(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-i18n@11.0.1(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
       '@intlify/core-base': 11.0.1
       '@intlify/shared': 11.0.1
       '@vue/devtools-api': 6.6.4
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-router@4.5.0(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-router@4.4.5(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-router@4.5.0(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
       '@vue/devtools-api': 6.6.4
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-tsc@2.2.0(typescript@5.7.2):
-||||||| Stash base
-  vue-tsc@2.1.10(typescript@5.6.3):
-=======
   vue-tsc@2.2.0(typescript@5.7.3):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@volar/typescript': 2.4.11
-      '@vue/language-core': 2.2.0(typescript@5.7.2)
-      typescript: 5.7.2
-||||||| Stash base
-      '@volar/typescript': 2.4.10
-      '@vue/language-core': 2.1.10(typescript@5.6.3)
-      semver: 7.6.3
-      typescript: 5.6.3
-=======
       '@volar/typescript': 2.4.11
       '@vue/language-core': 2.2.0(typescript@5.7.3)
       typescript: 5.7.3
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue-use-hotkeys@0.4.0(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vue-use-hotkeys@0.4.0(vue@3.5.12(typescript@5.6.3)):
-=======
   vue-use-hotkeys@0.4.0(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      hotkeys-js: 3.13.9
-      vue: 3.5.13(typescript@5.7.2)
-      vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.2))
-||||||| Stash base
-      hotkeys-js: 3.13.7
-      vue: 3.5.12(typescript@5.6.3)
-      vue-demi: 0.14.10(vue@3.5.12(typescript@5.6.3))
-=======
       hotkeys-js: 3.13.9
       vue: 3.5.13(typescript@5.7.3)
       vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.3))
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vue@3.5.13(typescript@5.7.2):
-||||||| Stash base
-  vue@3.5.12(typescript@5.6.3):
-=======
   vue@3.5.13(typescript@5.7.3):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      '@vue/compiler-dom': 3.5.13
-      '@vue/compiler-sfc': 3.5.13
-      '@vue/runtime-dom': 3.5.13
-      '@vue/server-renderer': 3.5.13(vue@3.5.13(typescript@5.7.2))
-      '@vue/shared': 3.5.13
-||||||| Stash base
-      '@vue/compiler-dom': 3.5.12
-      '@vue/compiler-sfc': 3.5.12
-      '@vue/runtime-dom': 3.5.12
-      '@vue/server-renderer': 3.5.12(vue@3.5.12(typescript@5.6.3))
-      '@vue/shared': 3.5.12
-=======
       '@vue/compiler-dom': 3.5.13
       '@vue/compiler-sfc': 3.5.13
       '@vue/runtime-dom': 3.5.13
       '@vue/server-renderer': 3.5.13(vue@3.5.13(typescript@5.7.3))
       '@vue/shared': 3.5.13
->>>>>>> Stashed changes
     optionalDependencies:
-<<<<<<< Updated upstream
-      typescript: 5.7.2
-||||||| Stash base
-      typescript: 5.6.3
-=======
       typescript: 5.7.3
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-  vuetify@3.7.6(typescript@5.7.2)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.2)):
-||||||| Stash base
-  vuetify@3.7.4(typescript@5.6.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.12(typescript@5.6.3)):
-=======
   vuetify@3.7.6(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3)):
->>>>>>> Stashed changes
     dependencies:
-<<<<<<< Updated upstream
-      vue: 3.5.13(typescript@5.7.2)
-||||||| Stash base
-      vue: 3.5.12(typescript@5.6.3)
-=======
       vue: 3.5.13(typescript@5.7.3)
->>>>>>> Stashed changes
     optionalDependencies:
-<<<<<<< Updated upstream
-      typescript: 5.7.2
-      vite-plugin-vuetify: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.2))(vuetify@3.7.6)
-||||||| Stash base
-      typescript: 5.6.3
-      vite-plugin-vuetify: 2.0.4(vite@5.4.11(sass@1.80.6))(vue@3.5.12(typescript@5.6.3))(vuetify@3.7.4)
-=======
       typescript: 5.7.3
-      vite-plugin-vuetify: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.1)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)
->>>>>>> Stashed changes
+      vite-plugin-vuetify: 2.0.4(vite@6.0.7(jiti@2.4.2)(sass@1.83.4)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))(vuetify@3.7.6)
 
   w3c-keyname@2.2.8: {}
 

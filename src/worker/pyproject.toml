@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "requests",
+    "requests[socks]",
 
     # Collector
     "beautifulsoup4",

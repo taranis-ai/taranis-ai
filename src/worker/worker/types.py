@@ -22,7 +22,7 @@ class NewsItem:
         web_url: str = "",
         source: str = "",
         published_date: datetime | None = None,
-        collected_date: datetime = datetime.now(),
+        collected_date: datetime | None = None,
         attributes: list | None = None,
     ):
         self.osint_source_id = osint_source_id
@@ -34,10 +34,12 @@ class NewsItem:
         self.content = content
         self.web_url = web_url
         self.source = source
+        if not collected_date:
+            collected_date = datetime.now()
+        self.collected_date = collected_date
         if not published_date:
             published_date = collected_date
         self.published_date = published_date
-        self.collected_date = collected_date
         self.attributes = attributes or []
 
     def to_dict(self):
