@@ -7,8 +7,7 @@ services:
       - core
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-gui:${TARANIS_TAG:-latest}"
     environment:
       NGINX_WORKERS: "4"
@@ -31,8 +30,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
     # ports:
     #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
@@ -76,8 +74,7 @@ services:
     # - 6543:5432
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     environment:
       POSTGRES_DB: "${DB_DATABASE:-taranis}"
       POSTGRES_USER: "${DB_USER:-taranis}"
@@ -101,12 +98,12 @@ services:
   scheduler:
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     # ports:
     #   - "8000:8000"
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
     environment:
+      FLASK_APP: "${SCHEDULER_APP:-scheduler}"
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}scheduler"
       DEBUG: "${DEBUG:-False}"
@@ -122,8 +119,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
@@ -152,8 +148,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
@@ -177,6 +172,9 @@ services:
 
   rabbitmq:
     image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
+    deploy:
+      restart_policy:
+        condition: always
     user: rabbitmq
     # ports:
     #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
@@ -200,6 +198,9 @@ services:
 
   sse:
     image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
+    deploy:
+      restart_policy:
+        condition: always
     # ports:
     #  - "${TARANIS_SSE_PORT:-8088}:8088"
     environment:
