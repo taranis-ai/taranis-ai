@@ -90,8 +90,4 @@ class PresenterTask(Task):
         if not rendered_product:
             self.raise_error("Presenter returned no content", product_id)
 
-        self.core_api.upload_rendered_product(
-            product_id,
-            rendered_product,
-        )
-        return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully"}
+        return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": rendered_product}
