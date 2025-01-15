@@ -1,8 +1,6 @@
-import os
-import json
 from pydantic_settings import BaseSettings
 from typing import Literal, Any
-from pydantic import model_validator, ValidationError, ValidationInfo, field_validator
+from pydantic import model_validator, ValidationInfo, field_validator
 from kombu import Queue
 
 
@@ -13,6 +11,7 @@ class Settings(BaseSettings):
         extra = "ignore"
 
     API_KEY: str = "supersecret"
+    BOT_API_KEY: str | None = None
     TARANIS_CORE_URL: str = ""
     TARANIS_BASE_PATH: str = "/"
     TARANIS_CORE_HOST: str = "core:8080"
@@ -30,41 +29,10 @@ class Settings(BaseSettings):
     QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
-    NLP_LANGUAGES: list[str] = ["en", "de"]
-    LANGUAGE_MODEL_MAPPING: dict[str, dict[str, str]] = {}
-    DEFAULT_NLP_LANGUAGE: str = "en"
-
-    @model_validator(mode="after")
-    def check_language_model_mapping(self):
-        supported_languages_path = os.path.join(os.path.dirname(__file__), "supported_languages.json")
-        with open(supported_languages_path, "r") as file:
-            nlp_model_config = json.load(file)
-
-        for lang in self.NLP_LANGUAGES:
-            if lang not in nlp_model_config.keys():
-                raise ValidationError(f"Language {lang} is not supported. Supported languages are {nlp_model_config.keys()}")
-
-        if self.DEFAULT_NLP_LANGUAGE not in nlp_model_config.keys():
-            raise ValidationError(
-                f"Default NLP Language {self.DEFAULT_NLP_LANGUAGE} is not supported. Supported languages are {nlp_model_config.keys()}"
-            )
-        # Populate LANGUAGE_MODEL_MAPPING based on supported languages and fill missing keys
-        updated_language_model_mapping = {}
-        default_models = nlp_model_config[self.DEFAULT_NLP_LANGUAGE]
-
-        supported_models = ["SUMMARY_BOT", "NLP_BOT", "STORY_BOT"]
-
-        for lang, models in nlp_model_config.items():
-            if lang not in self.NLP_LANGUAGES:
-                continue
-            for supported_model in supported_models:
-                if supported_model not in models:
-                    models[supported_model] = default_models[supported_model]
-
-            updated_language_model_mapping[lang] = models
-
-        self.LANGUAGE_MODEL_MAPPING = updated_language_model_mapping
-        return self
+    SUMMARY_API_ENDPOINT: str = "http://summary_bot:8000"
+    NLP_API_ENDPOINT: str = "http://nlp_bot:8000"
+    STORY_API_ENDPOINT: str = "http://story_bot:8000"
+    SENTIMENT_ANALYSIS_API_ENDPOINT: str = "http://sentiment_analysis_bot:8000"
 
     @model_validator(mode="after")
     def set_celery(self):

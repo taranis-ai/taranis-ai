@@ -213,7 +213,6 @@ services:
         max-file: "10"
 
 
-
 volumes:
   database_data:
   core_data:

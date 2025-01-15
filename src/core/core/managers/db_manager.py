@@ -31,6 +31,8 @@ def initialize(app, initial_setup: bool = True):
             migrate(app, initial_setup)
             pre_seed_update(db.engine)
 
+    # logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):

@@ -80,7 +80,8 @@ markers = [
 ]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
-    "ignore::DeprecationWarning"
+    "ignore::DeprecationWarning",
+    "ignore::hypothesis.errors.HypothesisDeprecationWarning"
 ]
 
 [tool.coverage.run]

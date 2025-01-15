@@ -1,5 +1,6 @@
 from requests import Response
 from datetime import datetime
+import langcodes
 
 
 class Product:
@@ -28,7 +29,7 @@ class NewsItem:
         self.hash = hash
         self.author = author
         self.title = title
-        self.language = language
+        self.language = self.normalize_language_code(language) if language else None
         self.review = review
         self.content = content
         self.web_url = web_url
@@ -57,3 +58,10 @@ class NewsItem:
         if self.review:
             data["review"] = self.review
         return data
+
+    def normalize_language_code(self, input_code: str) -> str | None:
+        try:
+            lang = langcodes.find(input_code)
+            return lang.language
+        except LookupError:
+            return None
