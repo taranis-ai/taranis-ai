@@ -38,6 +38,8 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+fallback_version = "0.0.0"
+root = "../.."
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest", "pytest-flask", "build", "wheel", "setuptools_scm", "requests-mock"]
