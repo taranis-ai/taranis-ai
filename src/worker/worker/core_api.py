@@ -220,6 +220,7 @@ class CoreApi:
         try:
             return self.api_post(url="/tasks/", json_data=data)
         except Exception:
+            logger.exception("Cannot store task result")
             return None
 
     def get_task(self, task_id) -> requests.Response:

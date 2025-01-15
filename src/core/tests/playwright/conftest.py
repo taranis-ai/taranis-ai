@@ -145,13 +145,25 @@ def random_timestamp_last_5_days() -> str:
     return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
 
 
+def random_timestamp_last_shift() -> str:
+    ### Add a random timestamp between now and yesterday 18:00
+    now = datetime.now()
+    start_time = now - timedelta(days=1)
+    start_time = start_time.replace(hour=18, minute=0, second=0, microsecond=0)
+    return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
+
+
 @pytest.fixture(scope="session")
 def stories(app, news_items_list):
     from core.model.story import Story
     from core.model.user import User
 
     def _renew_story_timestamps():
-        for item in news_items_list:
+        for item in news_items_list[:-5]:
+            new_time = random_timestamp_last_shift()
+            item.update({"published": new_time})
+            item.update({"collected": new_time})
+        for item in news_items_list[-5:]:
             new_time = random_timestamp_last_5_days()
             item.update({"published": new_time})
             item.update({"collected": new_time})
@@ -860,4 +872,93 @@ def news_items_list(app, fake_source):
             "osint_source_id": fake_source,
             "published": "2024-05-03T08:30:00+01:00",
         },
+        {
+            "id": "5f730743-5eec-42b1-95b6-0ececbe1d2bb",
+            "content": "Security researchers have identified a new ransomware variant that specifically targets cloud storage services.",
+            "source": "https://www.cybersecurityinsights.com/RSSNewsfeed.xml",
+            "title": "New Ransomware Targets Cloud Environments",
+            "author": "James Corwin",
+            "collected": "2000-12-07T00:59:12",
+            "hash": "abce201fc86f06adad8a6a83c0492d9f616246d19c8659b8f2c55466dd98db84",
+            "review": "",
+            "link": "https://www.cybersecurityinsights.com/new-cloud-ransomware-2000.html",
+            "osint_source_id": fake_source,
+            "published": "2000-07-09T17:23:53",
+        },
+        {
+            "id": "48f1e64f-f69f-4057-809a-48f706746fac",
+            "content": "A critical zero-day vulnerability has been discovered in a widely-used web server, potentially exposing millions of websites.",
+            "source": "https://www.infosecurityalerts.com/RSSNewsfeed.xml",
+            "title": "Zero-Day Exploit Found in Popular Web Server",
+            "author": "Alice Johnson",
+            "collected": "2000-05-28T19:41:16",
+            "hash": "42cf38bfa93f10105907cc5e38122d751711867560216bda3c085ac94598524c",
+            "review": "",
+            "link": "https://www.infosecurityalerts.com/web-server-zero-day-2000.html",
+            "osint_source_id": fake_source,
+            "published": "2000-10-30T23:40:15",
+        },
+        {
+            "id": "78f04d84-2c69-4c79-9e9c-39bf0dabd652",
+            "content": "Reports indicate that a nation-state-backed hacking group attempted to compromise a major power grid system.",
+            "source": "https://www.criticalinfrastructuredefense.com/RSSNewsfeed.xml",
+            "title": "Nation-State Attack Targets Power Grid",
+            "author": "Robert Fields",
+            "collected": "2000-10-28T23:49:51",
+            "hash": "ee860310326d121df31939d4983109e4e3e09eaf043563f2f63162a5611d916a",
+            "review": "",
+            "link": "https://www.criticalinfrastructuredefense.com/power-grid-attack-2000.html",
+            "osint_source_id": fake_source,
+            "published": "2000-04-23T15:12:08",
+        },
+        {
+            "id": "11e1f348-d53b-4542-ae1d-2674be32184c",
+            "content": "Hackers have leaked sensitive financial records from multiple banking institutions in a major data breach.",
+            "source": "https://www.financialcybernews.com/RSSNewsfeed.xml",
+            "title": "Massive Data Breach Affects Financial Institutions",
+            "author": "Emma Thompson",
+            "collected": "2000-12-07T09:38:04",
+            "hash": "aa1e774c2472536492d1de70dad65e7d052df1e524051c5075dd6fb0ece09b7b",
+            "review": "",
+            "link": "https://www.financialcybernews.com/banking-data-breach-2000.html",
+            "osint_source_id": fake_source,
+            "published": "2000-04-27T01:51:09",
+        },
+        {
+            "id": "e300742f-124f-4e2f-ab3f-bb80b34b1d01",
+            "content": "Researchers have discovered malware embedded in popular open-source libraries used by thousands of applications.",
+            "source": "https://www.softwaresecuritywatch.com/RSSNewsfeed.xml",
+            "title": "Malware Hidden in Open-Source Libraries",
+            "author": "Michael Carter",
+            "collected": "2000-07-30T09:59:45",
+            "hash": "9e238034dfedd2fa790822818a13014fbd62c9b4b16c3e8ff7b54da29b68e7c4",
+            "review": "",
+            "link": "https://www.softwaresecuritywatch.com/open-source-malware-2000.html",
+            "osint_source_id": fake_source,
+            "published": "2000-03-14T08:58:59",
+        },
     ]
+
+
+@pytest.fixture(scope="session")
+def create_html_render(app):
+    # fixture returns a callable, so that we can choose the time to execute it
+    def get_product_to_render():
+        with app.app_context():
+            from core.model.product import Product
+            from core.managers.db_manager import db
+
+            # get id of first product in product table
+            product = Product.get_first(db.select(Product))
+
+            try:
+                product_id = product.id
+            except AttributeError:
+                product_id = "test"
+
+            # test html for product rendering
+            test_html = "Thanks to Cybersecurity experts, the world of IT is now safe."
+
+            Product.update_render_for_id(product_id, test_html.encode("utf-8"))
+
+    return get_product_to_render
