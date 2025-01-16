@@ -54,6 +54,7 @@ class Story(BaseModel):
         comments: str = "",
         links=None,
         attributes=None,
+        # tags=None,
         news_items=None,
         id=None,
     ):
@@ -69,6 +70,8 @@ class Story(BaseModel):
         self.links = links or []
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
+        # if tags:
+        #     self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created):
         if isinstance(created, datetime):
@@ -382,6 +385,7 @@ class Story(BaseModel):
     def add_or_update_on_attr(cls, data, story_attribute_key: str | None) -> "tuple[Story | None, dict, int]":
         """Method to add or update a story based on a specific Story attribute key present in the new Story"""
         if story_attribute_key:
+            logger.info("attribute key found, updating story")
             attributes: list = data.get("attributes")
             logger.debug(f"{attributes=}")
             attribute_value: str = next(
@@ -390,6 +394,7 @@ class Story(BaseModel):
             if existing_story := StoryNewsItemAttribute.find_story_by_attribute(key=story_attribute_key, value=attribute_value):
                 return cls.update_story(existing_story, data)
         logger.debug(f"{data=}")
+        logger.info("No story attribute key found. Adding new story")
         return cls.add(data)
 
     @classmethod
@@ -404,7 +409,7 @@ class Story(BaseModel):
             return story, {"message": "Story added successfully"}, 200
 
         except Exception as e:
-            logger.exception(f"Failed to process story: {e}")
+            logger.error(f"Failed to process story: {e}")
             db.session.rollback()
             return None, {"error": "An unexpected error occurred"}, 500
 

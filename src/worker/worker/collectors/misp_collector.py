@@ -1,3 +1,4 @@
+import ast
 import hashlib
 import datetime
 from pymisp import PyMISP, MISPObject
@@ -44,7 +45,7 @@ class MISPCollector(BaseCollector):
 
         # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
         # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="news_item", pythonify=True)  # type: ignore
+        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="taranis-news-item", pythonify=True)  # type: ignore
 
         logger.debug(f"{taranis_objects=}")
         event_ids = set()
@@ -55,12 +56,13 @@ class MISPCollector(BaseCollector):
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
         story_dicts = [
-            self.to_story_dict(self.get_story_news_items(event, source), event.get("Event", {}).get("uuid"))
+            self.get_story(event, source)
             for event in events
             if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
         ]
-
-        self.publish_or_update_stories(story_dicts, source)
+        story_dicts = [s for s in story_dicts if s is not None]
+        logger.debug(f"{story_dicts=}")
+        self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
 
     def create_news_item(self, event: dict, source: dict) -> NewsItem:
         logger.debug("Creating news item from MISP event ")
@@ -97,25 +99,86 @@ class MISPCollector(BaseCollector):
         )
 
     @staticmethod
-    def to_story_dict(news_items_list: list[NewsItem], event_uuid: str) -> dict:
-        # Get title and attributes from the first news item (meta item)
-        story_title = news_items_list[0].title
-        story_attributes = news_items_list[0].attributes
-        story_attributes.append({"key": "misp_event_uuid", "value": f"{event_uuid}"})
-        return {
-            "title": story_title,
-            "attributes": story_attributes,
-            "news_items": news_items_list,
+    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict | None:
+        for attribute in story_properties["attributes"]:
+            if "misp_event_uuid" in attribute.get("key"):
+                story_properties["news_items"] = news_items_list
+                return story_properties
+        logger.error(f"MISP event with the UUID:{event_uuid} does not contain the required taranis-story attribute 'misp_event_uuid'")
+        raise RuntimeError(f"MISP event with the UUID:{event_uuid} does not contain the required taranis-story attribute 'misp_event_uuid'")
+
+    def get_story_properties_from_story_object(self, event: dict) -> dict:
+        story_properties = {
+            "id": None,
+            "title": "",
+            "comments": "",
+            "description": "",
+            "summary": "",
+            # "likes": 0,
+            # "dislikes": 0,
+            # "relevance": 0,
+            "read": False,
+            "important": False,
+            "created": None,
+            # "updated": None,
+            "links": [],
+            # "tags": [],
+            "attributes": [],
         }
 
-    def get_story_news_items(self, event: dict, source: dict) -> list[NewsItem]:
-        story_news_items = []
-        if news_items := event.get("Event", {}).get("Object", {}):
-            for news_item in news_items:
-                logger.debug(f"{news_item=}")
-                story_news_items.append(self.create_news_item(news_item, source))
+        for item in event.get("Attribute", []):
+            match item.get("object_relation", ""):
+                case "id":  # setting the same story id is not necessary and could increase the risk of conflicts
+                    story_properties["id"] = item.get("value", None)
+                case "title":
+                    story_properties["title"] = item.get("value", "")
+                case "comments":
+                    story_properties["comments"] = item.get("value", "")
+                case "description":
+                    story_properties["description"] = item.get("value", "")
+                case "summary":
+                    story_properties["summary"] = item.get("value", "")
+                case "important":
+                    story_properties["important"] = item.get("value", False)
+                case "read":
+                    story_properties["read"] = item.get("value", False)
+                case "created":
+                    story_properties["created"] = item.get("value", None)
+                case "links":
+                    story_properties["links"].append(item.get("value", None))
+                # case "tags": TODO: implement tags
+                #     story_properties["tags"].append(item.get("value", ""))
+                case "attributes":
+                    value = item.get("value", "")
+                    # Handle malformed attribute strings
+                    logger.debug(f"{value=}")
+                    story_properties["attributes"].append(ast.literal_eval(value))
+                # case "relevance":
+                #     story_properties["relevance"] = item.get("value", 0)
+                # case "updated":
+                #     story_properties["updated"] = item.get("value", None)
+                # case "likes":
+                #     story_properties["likes"] = int(item.get("value", 0))
+                # case "dislikes":
+                #     story_properties["dislikes"] = int(item.get("value", 0))
+        return story_properties
 
-        return story_news_items
+    def get_story(self, event: dict, source: dict) -> dict | None:
+        story_news_items = []
+        story_properties = {}
+        if event_objects := event.get("Event", {}).get("Object", {}):
+            for object in event_objects:
+                logger.debug(f"{object=}")
+                if object.get("name") == "taranis-story":
+                    story_properties = self.get_story_properties_from_story_object(object)
+                else:
+                    story_news_items.append(self.create_news_item(object, source))
+
+        logger.debug(f"{story_properties=}")
+        if not story_properties:
+            logger.error(f"The Taranis event is malformed and does not contain the required properties: {story_properties=}")
+            raise RuntimeError("The Taranis event is malformed and does not contain the required properties")
+        return self.to_story_dict(story_properties, story_news_items, event.get("Event", {}).get("uuid"))
 
 
 if __name__ == "__main__":

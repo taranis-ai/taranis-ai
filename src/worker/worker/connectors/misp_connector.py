@@ -125,7 +125,7 @@ class MISPConnector:
         for attr in attributes:
             key = attr.get("key", "")
             value = attr.get("value")
-            attribute_value = "{'key': " + str(key) + ", 'value': " + str(value) + "}"
+            attribute_value = "{'key': '" + str(key) + "', 'value': '" + str(value) + "'}"
             if value:
                 logger.debug(f"Adding attribute to story object: attributes={attribute_value}")
                 story_object.add_attribute(object_relation="attributes", value=attribute_value)
