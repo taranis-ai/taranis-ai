@@ -281,5 +281,5 @@ class NewsItem(BaseModel):
 
 
 class NewsItemNewsItemAttribute(BaseModel):
-    news_item_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item.id"), primary_key=True)
+    news_item_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)
