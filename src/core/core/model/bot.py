@@ -8,7 +8,7 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.parameter_value import ParameterValue
+from core.model.parameter_value import ParameterValue, convert_interval
 from core.model.worker import BOT_TYPES, Worker
 from core.managers.schedule_manager import Scheduler
 
@@ -109,15 +109,15 @@ class Bot(BaseModel):
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def get_schedule(self) -> str | None:
+    def get_schedule(self) -> int | None:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        return refresh_interval or None
+        return convert_interval(refresh_interval)
 
-    def to_task_dict(self, interval: str):
+    def to_task_dict(self, interval: int):
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": int(interval), "max_instances": 1},
+            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
             "celery": {
                 "name": "bot_task",
                 "args": [self.id],

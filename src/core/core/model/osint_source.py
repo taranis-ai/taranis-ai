@@ -10,7 +10,7 @@ from sqlalchemy.sql import Select
 from core.managers.db_manager import db
 from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.parameter_value import ParameterValue
+from core.model.parameter_value import ParameterValue, convert_interval
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
 from core.managers.schedule_manager import Scheduler
@@ -121,15 +121,15 @@ class OSINTSource(BaseModel):
     def to_task_id(self) -> str:
         return f"{self.type}_{self.id}"
 
-    def get_schedule(self) -> str:
+    def get_schedule(self) -> int | None:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        return refresh_interval or "480"
+        return convert_interval(refresh_interval)
 
-    def to_task_dict(self):
+    def to_task_dict(self, interval: int):
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": int(self.get_schedule()), "max_instances": 1},
+            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
             "celery": {
                 "name": "collector_task",
                 "args": [self.id],
@@ -215,7 +215,14 @@ class OSINTSource(BaseModel):
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
-        entry = self.to_task_dict()
+
+        # use default interval (480 min = 8h) if not REFERESH_INTERVAL was set
+        interval = self.get_schedule()
+        if interval is None:
+            logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
+            interval = 480
+
+        entry = self.to_task_dict(interval)
         Scheduler.add_celery_task(entry)
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
