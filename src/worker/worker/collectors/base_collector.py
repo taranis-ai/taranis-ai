@@ -114,7 +114,7 @@ class BaseCollector:
         self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)
 
-    def publish_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
+    def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
 
         for story_dict in story_lists:

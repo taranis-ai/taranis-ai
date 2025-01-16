@@ -1,5 +1,14 @@
 <template>
   <v-container fluid>
+    <div v-if="hasRtId" class="alert">
+      <v-icon color="error">mdi-alert-circle</v-icon>
+      <span class="alert-text">
+        <strong>
+          This is a story from RT, you should not be editing it in this web
+          insterface, but in RT itself.</strong
+        >
+      </span>
+    </div>
     <v-card>
       <v-card-text>
         <v-form
@@ -51,7 +60,13 @@
           <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
-          <v-btn block class="mt-5" type="submit" color="success">
+          <v-btn
+            block
+            class="mt-5"
+            type="submit"
+            :color="hasRtId ? 'error' : 'success'"
+            :disabled="hasRtId"
+          >
             {{ $t('button.update') }}
           </v-btn>
         </v-form>
@@ -208,6 +223,11 @@ export default {
       })
     })
 
+    const hasRtId = computed(() => {
+      return (
+        story.value?.attributes?.some((attr) => attr.key === 'rt_id') || false
+      )
+    })
     async function submit() {
       const { valid } = await form.value.validate()
 
@@ -280,6 +300,7 @@ export default {
     return {
       panels,
       story,
+      hasRtId,
       form,
       rules,
       submit,

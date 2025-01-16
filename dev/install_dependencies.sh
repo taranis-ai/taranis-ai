@@ -10,33 +10,6 @@ check_sudo_access() {
     fi
 }
 
-check_if_installed() {
-    local packages=(
-        git
-        tmux
-        curl
-        ca-certificates
-        build-essential
-        software-properties-common
-        nodejs
-        docker-ce
-        docker-compose-plugin
-    )
-    local all_installed=true
-
-    for pkg in "${packages[@]}"; do
-        if ! dpkg -s "${pkg}" &>/dev/null; then
-            all_installed=false
-            break
-        fi
-    done
-
-    if $all_installed; then
-        echo "All packages are already installed. Exiting..."
-        exit 0
-    fi
-}
-
 # Update the package lists
 update_packages() {
     sudo apt-get update
@@ -52,11 +25,13 @@ install_basic_utils() {
         build-essential \
         software-properties-common \
         libpq-dev \
-        clang
+        clang \
+        nginx
 }
 
 install_astral() {
-    pip install ruff uv
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    curl -LsSf https://astral.sh/ruff/install.sh | sh
 }
 
 # Install and setup Docker
@@ -77,16 +52,25 @@ setup_nodejs() {
     sudo apt-get install -y nodejs
 }
 
+# setup local.taranis.ai
+setup_nginx() {
+    if [ ! -f "/etc/nginx/sites-available/local.taranis.ai" ]; then
+      sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+      sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+      sudo nginx -t && sudo systemctl restart nginx
+    fi
+}
+
 
 main() {
     [[ -f ./dev/.installed ]] && exit 0
     check_sudo_access
-    check_if_installed
     update_packages
     install_basic_utils
     install_astral
     install_docker
     setup_nodejs
+    setup_nginx
     touch ./dev/.installed
 }
 

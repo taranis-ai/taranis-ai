@@ -389,6 +389,7 @@ class Story(BaseModel):
             )
             if existing_story := StoryNewsItemAttribute.find_story_by_attribute(key=story_attribute_key, value=attribute_value):
                 return cls.update_story(existing_story, data)
+        logger.debug(f"{data=}")
         return cls.add(data)
 
     @classmethod
@@ -464,6 +465,7 @@ class Story(BaseModel):
             return None
         else:
             logger.error(f"Unexpected failure: {response.get('error')}")
+            return None
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -510,7 +512,7 @@ class Story(BaseModel):
         return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None):
+    def update(cls, story_id: str, data, user=None) -> tuple[dict, int]:
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -570,7 +572,7 @@ class Story(BaseModel):
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
-            vote = self.create_new_vote(vote, user_id, vote_data)
+            vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":
             vote = self.remove_like_vote(vote)
@@ -620,7 +622,7 @@ class Story(BaseModel):
         vote.dislike = False
         return vote
 
-    def create_new_vote(self, vote, user_id, vote_data):
+    def create_new_vote(self, user_id):
         vote = NewsItemVote(item_id=self.id, user_id=user_id)
         db.session.add(vote)
         return vote
@@ -634,7 +636,7 @@ class Story(BaseModel):
         if cls.is_assigned_to_report([story_id]):
             return {"error": f"Story with: {story_id} assigned to a report"}, 500
 
-        for news_item in story.news_items:
+        for news_item in story.news_items[:]:
             if news_item.allowed_with_acl(user, True):
                 story.news_items.remove(news_item)
                 news_item.delete_item()
