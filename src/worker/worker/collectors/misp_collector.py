@@ -60,7 +60,7 @@ class MISPCollector(BaseCollector):
             if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
         ]
 
-        self.publish_stories(story_dicts, source)
+        self.publish_or_update_stories(story_dicts, source)
 
     def create_news_item(self, event: dict, source: dict) -> NewsItem:
         logger.debug("Creating news item from MISP event ")
