@@ -36,24 +36,19 @@ class Bot(BaseModel):
         bot = cls.get(bot_id)
         if not bot:
             return None
+        if name := data.get("name"):
+            bot.name = name
 
-        try:
-            if name := data.get("name"):
-                bot.name = name
-
-            bot.description = data.get("description")
-            if parameters := data.get("parameters"):
-                update_parameter = ParameterValue.get_or_create_from_list(parameters)
-                bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
-            if index := data.get("index"):
-                if not Bot.index_exists(index):
-                    bot.index = index
-            db.session.commit()
-            bot.schedule_bot()
-            return bot
-        except Exception:
-            logger.exception("Update Bot Parameters Failed")
-            return None
+        bot.description = data.get("description")
+        if parameters := data.get("parameters"):
+            update_parameter = ParameterValue.get_or_create_from_list(parameters)
+            bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
+        if index := data.get("index"):
+            if not Bot.index_exists(index):
+                bot.index = index
+        db.session.commit()
+        bot.schedule_bot()
+        return bot
 
     @classmethod
     def get_highest_index(cls):
