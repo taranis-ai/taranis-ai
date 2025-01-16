@@ -6,7 +6,7 @@ from datetime import datetime
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    APPLICATION_ROOT: str = "/"
+    APPLICATION_ROOT: str = "/frontend"
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
