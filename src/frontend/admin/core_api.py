@@ -59,5 +59,6 @@ class CoreApi:
         return self.check_response(response, url)
 
     def get_dashboard(self, query_params=None):
-        return {"data": "dashboard data from core"}
+        return self.api_get("/dashboard", params=query_params)
+        # return {"data": "dashboard data from core"}
 
