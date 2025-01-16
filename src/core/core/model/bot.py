@@ -110,8 +110,16 @@ class Bot(BaseModel):
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
     def get_schedule(self) -> int | None:
-        refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        return convert_interval(refresh_interval)
+        refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+
+        # for bots, REFRESH_INTERVAL needs to be set
+        if refresh_interval_str == "":
+            raise ValueError("REFRESH_INTERVAL needs to be set for Bots")
+
+        refresh_interval = convert_interval(refresh_interval_str)
+        if refresh_interval is None:
+            raise ValueError(f"Invalid REFRESH_INTERVAL: {refresh_interval_str}")
+        return refresh_interval
 
     def to_task_dict(self, interval: int):
         return {
