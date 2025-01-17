@@ -33,6 +33,25 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
+    def send_get_request(self, url: str) -> requests.Response | None:
+        """Sends a GET request to url with self.headers using self.proxies.
+        Allows response with 200 OK or 304 Not Modified"""
+
+        try:
+            logger.debug(f"Sending GET request to {url}")
+            response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=60)
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error for URL {url}: {e}")
+            return None
+        except requests.exceptions.Timeout:
+            logger.error(f"Connection to {url} timed out.")
+            return None
+
+        # 200 OK and 304 Not Modified are both fine
+        if response.ok or not response.status_code == 304:
+            return None
+        return response
+
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
@@ -85,9 +104,12 @@ class BaseWebCollector(BaseCollector):
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
-        response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
-        if not response or not response.ok:
-            return "", None
+
+        # send GET request to web_url
+        response = self.send_get_request(web_url)
+        if response is None:
+            return "", None  # failure case
+
         published_date = self.get_last_modified(response)
         if text := response.text:
             return text, published_date
