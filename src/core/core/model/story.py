@@ -78,8 +78,9 @@ class Story(BaseModel):
         return datetime.now()
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
-        if isinstance(news_items[0], dict):
-            # return [NewsItem.upsert_from_dict(news_item) for news_item in news_items]
+        if not news_items:
+            return []
+        elif isinstance(news_items[0], dict):
             return NewsItem.load_multiple(news_items)
         elif isinstance(news_items[0], str):
             news_items = [NewsItem.get(item_id) for item_id in news_items]
