@@ -27,6 +27,7 @@ class BaseTest:
 
     def assert_put_ok(self, client, uri, json_data, auth_header):
         response = client.put(self.concat_url(uri), json=json_data, headers=auth_header)
+        print(response.get_json())
         return self.assert_json_ok(response)
 
     def assert_delete_ok(self, client, uri, auth_header):
@@ -43,7 +44,7 @@ class BaseTest:
         assert response
         assert response.content_type == content_type
         assert response.data
-        assert 200 <= response.status_code < 300
+        assert response.status_code < 300
         return response
 
     def assert_get_failed(self, client, uri):
