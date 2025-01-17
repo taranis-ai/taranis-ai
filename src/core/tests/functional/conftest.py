@@ -88,20 +88,19 @@ def cleanup_news_item(fake_source):
 @pytest.fixture(scope="session")
 def stories(app, news_items):
     with app.app_context():
-        from core.model.story import Story
-        from core.model.news_item_tag import NewsItemTag
+        from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.news_item import NewsItem
 
-        yield Story.add_news_items(news_items)[0].get("story_ids")
+        result = Story.add_news_items(news_items)
 
-        NewsItemTag.delete_all()
+        yield result[0].get("story_ids")
 
-        # TODO: These won't work due to a FOREIGN KEY constraint, this needs to be fixed
-        #       Right now, the database is deleted after each test run, so this is not a problem
-        # NewsItem.delete_all()
-        # Story.delete_all()
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def cleanup_report_item(app):
     with app.app_context():
         from core.model.report_item import ReportItem
@@ -125,7 +124,7 @@ def cleanup_report_item(app):
         ReportItem.delete_all()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def cleanup_product(app):
     with app.app_context():
         from core.model.product import Product

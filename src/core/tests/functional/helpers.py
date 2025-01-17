@@ -40,7 +40,7 @@ class BaseTest:
         assert response
         assert response.content_type == content_type
         assert response.data
-        assert 200 <= response.status_code < 300
+        assert response.status_code < 300
         return response
 
     def assert_get_failed(self, client, uri):

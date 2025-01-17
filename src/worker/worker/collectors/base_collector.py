@@ -117,11 +117,25 @@ class BaseCollector:
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
 
-        for story_dict in story_lists:
-            news_items = self.process_news_items(story_dict.get("news_items", []), source)
-            logger.info(f"Publishing {len(news_items)} news items to core api")
-            news_items_list = [item.to_dict() for item in news_items]
-            story_dict.update({"news_items": news_items_list})
-            response = self.core_api.add_or_update_story_on_attr(story_dict, story_attribute_key)
-            logger.debug(f"{response}")
-            self.core_api.update_osintsource_status(source["id"], None)
+        if not story_attribute_key:
+            news_items = [item for story_list in story_lists for item in story_list["news_items"]]
+            return self.publish(news_items, source)
+
+        stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
+
+        for story in stories_for_publishing:
+            self.core_api.add_or_update_story(story)
+
+    def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
+        # Get existing stories from core api and see if the in the field "attributes" there is a dict that contains the key "rt_id" and the value is the same as the value of the key "rt_id" in the new story
+
+        existing_stories = self.core_api.get_stories({"source": source["id"]})
+        if not existing_stories:
+            return new_stories
+
+        for story in new_stories:
+            for existing_story in existing_stories:
+                if story[story_attribute_key] == existing_story.get("attributes", {}).get(story_attribute_key):
+                    story["id"] = existing_story["id"]
+                    break
+        return new_stories
