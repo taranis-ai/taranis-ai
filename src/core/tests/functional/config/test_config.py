@@ -111,7 +111,6 @@ class TestWordListConfigApi(BaseTest):
         response = self.assert_get_ok(client, "export-word-lists", auth_header)
         exported_word_lists = response.json
         assert "data" in exported_word_lists
-        print(exported_word_lists["data"])
         test_word_list = next((word_list for word_list in exported_word_lists["data"] if word_list["name"] == "Test wordlist"), None)
         assert test_word_list
         assert test_word_list["description"] == "Test wordlist."

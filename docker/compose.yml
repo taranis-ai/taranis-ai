@@ -177,8 +177,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:latest:${TARANIS_BOT_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"
@@ -196,8 +195,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"
@@ -216,8 +214,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: on-failure
-        max_attempts: 3
+        condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"

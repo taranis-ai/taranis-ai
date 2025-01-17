@@ -29,8 +29,6 @@ class TestBotsApi(BaseTest):
         """Check if the update was successful"""
         response = client.get(f"api/assess/story/{stories[0]}", headers=auth_header)
 
-        print(response.get_json())
-
         assert response.status_code == 200
         assert response.get_json().get("important") == cleanup_story_update_data["important"]
         assert response.get_json().get("read") == cleanup_story_update_data["read"]

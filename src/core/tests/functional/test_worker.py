@@ -18,9 +18,8 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         result = response.get_json()
-        print(result)
         assert result.get("message") == "Story updated Successful"
-        assert response.get_json().get("id") == stories[0]
+        assert result.get("id") == stories[0]
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": stories[0]})
 

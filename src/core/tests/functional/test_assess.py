@@ -56,7 +56,6 @@ class TestAssessStories(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "stories", auth_header)
-        print(response.get_json())
         assert response.get_json()["counts"]["total_count"] == 2
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
