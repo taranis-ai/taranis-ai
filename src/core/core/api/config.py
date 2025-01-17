@@ -312,10 +312,15 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_UPDATE")
     def put(self, bot_id):
-        if updated_bot := bot.Bot.update(bot_id, request.json):
-            logger.debug(f"Successfully updated {updated_bot}")
-            return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
-        return {"error": f"Error updateing {bot_id}"}, 500
+        if not (update_data := request.json):
+            return {"error": "No update data passed"}, 400
+        try:
+            if updated_bot := bot.Bot.update(bot_id, update_data):
+                logger.debug(f"Successfully updated {updated_bot}")
+                return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
+        except ValueError as e:
+            return {"error": str(e)}, 500
+        return {"error": f"Bot with ID: {bot_id} not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):

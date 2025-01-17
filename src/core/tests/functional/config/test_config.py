@@ -260,6 +260,7 @@ class TestBotConfigApi(BaseTest):
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
             "description": "Boty McBotFace",
+            "parameters": {"REFRESH_INTERVAL": "480"},
         }
         bot_id = cleanup_bot["id"]
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
