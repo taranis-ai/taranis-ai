@@ -27,7 +27,6 @@ class BaseTest:
 
     def assert_put_ok(self, client, uri, json_data, auth_header):
         response = client.put(self.concat_url(uri), json=json_data, headers=auth_header)
-        print(response.get_json())
         return self.assert_json_ok(response)
 
     def assert_delete_ok(self, client, uri, auth_header):
