@@ -33,13 +33,19 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(self, url: str) -> requests.Response | None:
-        """Sends a GET request to url with self.headers using self.proxies.
+    def send_get_request(self, url: str, modified_since: str = "") -> requests.Response | None:
+        """Send a GET request to url with self.headers using self.proxies.
         Allows response with 200 OK or 304 Not Modified"""
 
+        # if modified_since string is given, add the If-Modified-Since header
+        if modified_since:
+            request_headers = dict(self.headers, **{"If-Modified-Since": modified_since})
+        else:
+            request_headers = self.headers
+
         try:
-            logger.debug(f"Sending GET request to {url}")
-            response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=60)
+            logger.info(f"Sending GET request to {url}")
+            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=60)
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Connection error for URL {url}: {e}")
             return None
@@ -49,6 +55,7 @@ class BaseWebCollector(BaseCollector):
 
         # 200 OK and 304 Not Modified are both fine
         if response.ok or not response.status_code == 304:
+            logger.error("Response other than 200 OK or 304 Not Modified")
             return None
         return response
 
