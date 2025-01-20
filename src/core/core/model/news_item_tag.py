@@ -15,7 +15,7 @@ class NewsItemTag(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
-    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id"))
+    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
     story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
     def __init__(self, name, tag_type):

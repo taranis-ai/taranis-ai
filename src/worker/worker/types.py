@@ -1,5 +1,6 @@
 from requests import Response
 from datetime import datetime
+import langcodes
 
 
 class Product:
@@ -21,22 +22,24 @@ class NewsItem:
         web_url: str = "",
         source: str = "",
         published_date: datetime | None = None,
-        collected_date: datetime = datetime.now(),
+        collected_date: datetime | None = None,
         attributes: list | None = None,
     ):
         self.osint_source_id = osint_source_id
         self.hash = hash
         self.author = author
         self.title = title
-        self.language = language
+        self.language = self.normalize_language_code(language) if language else None
         self.review = review
         self.content = content
         self.web_url = web_url
         self.source = source
+        if not collected_date:
+            collected_date = datetime.now()
+        self.collected_date = collected_date
         if not published_date:
             published_date = collected_date
         self.published_date = published_date
-        self.collected_date = collected_date
         self.attributes = attributes or []
 
     def to_dict(self):
@@ -57,3 +60,10 @@ class NewsItem:
         if self.review:
             data["review"] = self.review
         return data
+
+    def normalize_language_code(self, input_code: str) -> str | None:
+        try:
+            lang = langcodes.find(input_code)
+            return lang.language
+        except LookupError:
+            return None

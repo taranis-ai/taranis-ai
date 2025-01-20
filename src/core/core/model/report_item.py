@@ -37,7 +37,9 @@ class ReportItem(BaseModel):
     report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
-    stories: Mapped[list["Story"]] = relationship("Story", secondary="report_item_story")
+    stories: Mapped[list["Story"]] = relationship(
+        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False
+    )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
         "ReportItemAttribute",

@@ -35,7 +35,16 @@
       prepend-inner-icon="mdi-magnify"
       class="mx-3 omni-search"
     >
-      <v-tooltip activator="parent" text="[ctrl+k]" location="bottom" />
+      <template #append-inner>
+        <v-btn
+          text="ctrl+k"
+          density="compact"
+          size="small"
+          variant="outlined"
+          class="no-pointer"
+          color="#cccccc"
+        />
+      </template>
     </v-text-field>
 
     <template #append>
@@ -241,5 +250,8 @@ export default defineComponent({
 
 .omni-search:focus-within {
   max-width: 800px;
+}
+.no-pointer:hover {
+  cursor: default !important;
 }
 </style>

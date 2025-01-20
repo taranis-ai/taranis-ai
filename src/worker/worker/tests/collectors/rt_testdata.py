@@ -81,7 +81,4 @@ rt_ticket_attachments = {
     "count": 1,
     "total": 1,
 }
-worker_stories_url = f"{Config.TARANIS_CORE_URL}/worker/stories"
-worker_stories = {"id": 1, "title": "Test Ticket 1", "news_items": []}
-
-rt_collector_result = {}
+worker_stories_url = f"{Config.TARANIS_CORE_URL}/worker/stories?source=1"

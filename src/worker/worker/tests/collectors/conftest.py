@@ -85,5 +85,5 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
     requests_mock.get(rt_testdata.rt_ticket_attachments_url, json=rt_testdata.rt_ticket_attachments)
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
-    requests_mock.post(rt_testdata.worker_stories_url, json=rt_testdata.worker_stories)
+    requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})

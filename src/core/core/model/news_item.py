@@ -39,15 +39,10 @@ class NewsItem(BaseModel):
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
 
-    osint_source_id: Mapped[str] = db.Column(
-        db.String,
-        db.ForeignKey("osint_source.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource")
+    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True, index=True)
+    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", back_populates="news_items")
 
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
 
     def __init__(
         self,

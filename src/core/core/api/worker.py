@@ -113,7 +113,19 @@ class SourceIcon(MethodView):
 class Stories(MethodView):
     @api_key_required
     def get(self):
-        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit", "worker", "exclude_attr", "story_id"]
+        filter_keys = [
+            "search",
+            "source",
+            "in_report",
+            "timefrom",
+            "sort",
+            "range",
+            "limit",
+            "worker",
+            "exclude_attr",
+            "include_attr",
+            "story_id",
+        ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]
         for key in filter_list_keys:
@@ -125,8 +137,7 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
-        _, response_data, status_code = Story.add_or_update_on_attr(request.json, story_attribute_key=request.args.get("story_attribute_key"))
-        return response_data, status_code
+        return Story.add_or_update(request.json)
 
 
 class Tags(MethodView):

@@ -524,7 +524,7 @@ paths:
               $ref: '#/components/schemas/news_item'
       responses:
         '200':
-          description: the OSINT source ID of the created news item as SSEs
+          description: the Story IDs and NewsItem IDs of the created news item
           content:
             application/json:
               schema:
@@ -3286,7 +3286,6 @@ components:
         - title
         - source
         - content
-        - osint_source_id
 
     news_item_tag:
       type: object

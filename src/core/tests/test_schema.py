@@ -39,14 +39,14 @@ def check_not_401(response, case):
 
 @schema.parametrize(endpoint="^/api/analyze")
 @settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_analyze(case):
+def test_analyze_schema(case):
     response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/assess")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case):
+def test_assess_schema(case):
     response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
@@ -54,14 +54,14 @@ def test_assess(case):
 @schema.auth(UserAuth)
 @schema.parametrize(endpoint="^/api/dashboard")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_dashboard(case):
+def test_dashboard_schema(case):
     response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint=r"^/api/(?!auth|isalive)")
 @settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_analyze_no_auth(case, auth_header_no_permissions, caplog):
+def test_schema_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
         response = case.call_wsgi(headers=auth_header_no_permissions)
         case.validate_response(response, additional_checks=(check_not_401,))
