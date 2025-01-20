@@ -21,6 +21,7 @@ class RTCollector(BaseWebCollector):
         self.search_query = "*"
         self.fields_to_include = ""
         self.timeout = 60
+        self.last_attempted = None
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -77,9 +78,6 @@ class RTCollector(BaseWebCollector):
             "attributes": attributes,
             "news_items": news_items_list,
         }
-
-    def get_ids_from_tickets(self, tickets) -> list:
-        return [ticket.get("id") for ticket in tickets.get("items", [])]
 
     def decode64(self, ticket_content) -> str:
         if isinstance(ticket_content, str):
@@ -207,20 +205,26 @@ class RTCollector(BaseWebCollector):
         return None
 
     def rt_collector(self, source) -> list[dict]:
-        try:
-            response = requests.get(f"{self.api_url}tickets?query={self.search_query}", headers=self.headers, timeout=self.timeout)
-            if not response.ok:
-                logger.error(f"Website {source.get('id')} returned an error response: {response.status_code}")
-                raise RuntimeError(f"RT Collector {source.get('id')} returned error: {response.text}")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request to {self.api_url} failed: {e}")
-            raise RuntimeError(f"RT Collector encountered a connection error: {e}") from e
+        self.last_attempted = self.get_last_attempted(source)
+        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
 
-        if not (tickets_ids_list := self.get_ids_from_tickets(response.json())):
+        logger.info(f"Searching for tickets with query: {self.search_query}")
+        response = self.send_get_request(f"{self.api_url}tickets?query={self.search_query}", modified_since)
+
+        if response is None:
+            raise RuntimeError("Query failed")
+
+        if response.status_code == 304:
+            raise RuntimeError("Result of query not modified")
+
+        tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
+
+        if not tickets_ids_list:
             logger.error(f"No tickets found for {self.base_url}")
             raise RuntimeError("No tickets available")
 
-        self.update_rt_favicon(self.osint_source_id)
+        if not self.last_attempted:
+            self.update_rt_favicon(self.osint_source_id)
 
         try:
             story_dicts: list[dict] = self.get_stories(tickets_ids_list, source)
