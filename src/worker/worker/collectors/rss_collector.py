@@ -24,6 +24,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content: requests.Response
         self.last_modified = None
+        self.last_attempted = None
 
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -90,7 +91,9 @@ class RSSCollector(BaseWebCollector):
         if content_from_feed:
             content = str(feed_entry[content_location])
         if link:
-            web_content = self.extract_web_content(link, self.xpath)
+            # get the content of the RSS feed entry only if it was modified since the last attempt
+            modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
+            web_content = self.extract_web_content(link, self.xpath, modified_since)
             content = content if content_from_feed else str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
@@ -207,10 +210,10 @@ class RSSCollector(BaseWebCollector):
         return self.preview(self.news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
-        last_attempted = self.get_last_attempted(source)
+        self.last_attempted = self.get_last_attempted(source)
 
         # get the content of the RSS feed only if it was modified since the last attempt
-        modified_since = last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if last_attempted else ""
+        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
 
         # if collecting was manually triggered, ignore time of last modification
         if manual:
@@ -218,7 +221,7 @@ class RSSCollector(BaseWebCollector):
 
         feed = self.get_feed(modified_since)
 
-        if not last_attempted:
+        if not self.last_attempted:
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
 

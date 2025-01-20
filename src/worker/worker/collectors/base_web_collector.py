@@ -120,6 +120,12 @@ class BaseWebCollector(BaseCollector):
         published_date = self.get_last_modified(response)
         if text := response.text:
             return text, published_date
+
+        if response.status_code == 304:  # content was not modified
+            logger.info(f"Content of {web_url} was not modified since {modified_since}")
+        else:
+            logger.error(f"No content found for url: {web_url}")
+
         return "", published_date
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
@@ -172,7 +178,6 @@ class BaseWebCollector(BaseCollector):
             content = extract(web_content, url=web_url)
 
         if not content or not web_content:
-            logger.error(f"No content found for url: {web_url}")
             return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 
         author, title = self.extract_meta(web_content, web_url)
