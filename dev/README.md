@@ -111,6 +111,14 @@ npm install
 pnpm run dev
 ```
 
+## Optionally start scheduler (another repository) in tmux
+
+```bash
+cd ../taranis-scheduler # your taranis-scheduler directory
+start_dev.sh
+```
+
+
 ## Technology stack
 
 ### Backend

@@ -1,5 +1,14 @@
 <template>
   <v-container fluid>
+    <div v-if="hasRtId" class="alert">
+      <v-icon color="error">mdi-alert-circle</v-icon>
+      <span class="alert-text">
+        <strong>
+          This is a story from RT, you should not be editing it in this web
+          insterface, but in RT itself.</strong
+        >
+      </span>
+    </div>
     <v-card>
       <v-card-text>
         <v-form
@@ -51,7 +60,13 @@
           <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
-          <v-btn block class="mt-5" type="submit" color="success">
+          <v-btn
+            block
+            class="mt-5"
+            type="submit"
+            :color="hasRtId ? 'error' : 'success'"
+            :disabled="hasRtId"
+          >
             {{ $t('button.update') }}
           </v-btn>
         </v-form>
@@ -63,13 +78,19 @@
           prepend-icon="mdi-pulse"
           @click="triggerSentimentAnalysisBot"
           class="text-truncate"
-          style="width: 100%; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+          style="
+            width: 100%;
+            max-width: 240px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          "
         >
           AI Based Sentiment Analysis
         </v-btn>
       </v-col>
       <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
-        <div class="d-flex flex-wrap" style="gap: 8px;">
+        <div class="d-flex flex-wrap" style="gap: 8px">
           <v-chip
             v-for="(count, sentiment) in sentimentCounts"
             :key="sentiment"
@@ -77,7 +98,8 @@
             text-color="white"
             label
           >
-            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}: {{ count }}
+            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
+            {{ count }}
           </v-chip>
         </div>
       </v-col>
@@ -96,7 +118,8 @@
               params: { itemId: news_item.id }
             }"
             class="d-flex fill-height align-center text-decoration-none"
-          >{{ news_item.content }}</router-link>
+            >{{ news_item.content }}</router-link
+          >
         </template>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -132,7 +155,11 @@ export default {
     const form = ref(null)
     const router = useRouter()
     const story = ref(props.storyProp)
-    const panels = ref(story.value.news_items ? story.value.news_items.map((item) => item.id) : [])
+    const panels = ref(
+      story.value.news_items
+        ? story.value.news_items.map((item) => item.id)
+        : []
+    )
     const showallattributes = ref(false)
 
     const sentimentCounts = computed(() => {
@@ -146,7 +173,9 @@ export default {
         neutral: 0
       }
       story.value.news_items.forEach((newsItem) => {
-        const sentimentCategoryAttr = newsItem.attributes?.find((attr) => attr.key === 'sentiment_category')
+        const sentimentCategoryAttr = newsItem.attributes?.find(
+          (attr) => attr.key === 'sentiment_category'
+        )
 
         if (sentimentCategoryAttr) {
           const sentiment = sentimentCategoryAttr.value.toLowerCase()
@@ -156,7 +185,9 @@ export default {
         }
       })
 
-      return Object.fromEntries(Object.entries(counts).filter(([_, count]) => count > 0))
+      return Object.fromEntries(
+        Object.entries(counts).filter(([_, count]) => count > 0)
+      )
     })
 
     const getColor = (sentiment) => {
@@ -192,6 +223,11 @@ export default {
       })
     })
 
+    const hasRtId = computed(() => {
+      return (
+        story.value?.attributes?.some((attr) => attr.key === 'rt_id') || false
+      )
+    })
     async function submit() {
       const { valid } = await form.value.validate()
 
@@ -227,7 +263,7 @@ export default {
     async function fetchStoryData(storyId) {
       try {
         const response = await getStory(storyId)
-        console.log("Fetched story data:", response.data)
+        console.log('Fetched story data:', response.data)
         story.value = response.data
       } catch (e) {
         console.error('Failed to fetch story data:', e)
@@ -237,8 +273,11 @@ export default {
 
     async function triggerSentimentAnalysisBot() {
       try {
-        const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
-        notifySuccess(result.data.message)     
+        const result = await triggerBot(
+          'sentiment_analysis_bot',
+          props.storyProp.id
+        )
+        notifySuccess(result.data.message)
         await fetchStoryData(props.storyProp.id)
       } catch (e) {
         notifyFailure(e)
@@ -249,15 +288,19 @@ export default {
       fetchStoryData(props.storyProp.id)
     })
 
-    watch(() => story.value, (newStory) => {
-      if (newStory && newStory.news_items) {
-        panels.value = newStory.news_items.map((item) => item.id)
+    watch(
+      () => story.value,
+      (newStory) => {
+        if (newStory && newStory.news_items) {
+          panels.value = newStory.news_items.map((item) => item.id)
+        }
       }
-    })
+    )
 
     return {
       panels,
       story,
+      hasRtId,
       form,
       rules,
       submit,
