@@ -553,7 +553,7 @@ class Story(BaseModel):
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
-    def set_attributes(self, attributes):
+    def set_attributes(self, attributes: list[dict]):
         """
         Replace all existing attributes with the provided list of attributes.
 
@@ -565,7 +565,7 @@ class Story(BaseModel):
         for attribute in attributes:
             self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
 
-    def patch_attributes(self, attributes):
+    def patch_attributes(self, attributes: list[dict]):
         """
         Update existing attributes or add new ones without clearing current attributes.
 
