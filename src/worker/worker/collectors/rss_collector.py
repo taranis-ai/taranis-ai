@@ -211,6 +211,11 @@ class RSSCollector(BaseWebCollector):
 
         # get the content of the RSS feed only if it was modified since the last attempt
         modified_since = last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if last_attempted else ""
+
+        # if collecting was manually triggered, ignore time of last modification
+        if manual:
+            modified_since = ""
+
         feed = self.get_feed(modified_since)
 
         if not last_attempted:
