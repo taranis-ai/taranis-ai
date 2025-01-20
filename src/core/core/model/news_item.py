@@ -39,8 +39,13 @@ class NewsItem(BaseModel):
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
 
-    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), nullable=True, index=True)
-    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", cascade="all, delete")
+    osint_source_id: Mapped[str] = db.Column(
+        db.String,
+        db.ForeignKey("osint_source.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource")
 
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
 
@@ -281,5 +286,5 @@ class NewsItem(BaseModel):
 
 
 class NewsItemNewsItemAttribute(BaseModel):
-    news_item_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item.id"), primary_key=True)
+    news_item_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)

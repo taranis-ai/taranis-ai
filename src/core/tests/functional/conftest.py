@@ -26,7 +26,12 @@ def fake_source(app):
 
 
 @pytest.fixture(scope="session")
-def news_items(app, fake_source):
+def rt_id_attribute():
+    yield {"key": "rt_id", "value": "1/2021-01-01T01:01:01Z"}
+
+
+@pytest.fixture(scope="session")
+def news_items(fake_source):
     yield [
         {
             "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
@@ -142,16 +147,19 @@ def cleanup_product(app):
 
 
 @pytest.fixture(scope="session")
-def cleanup_story_update_data():
+def cleanup_story_update_data(rt_id_attribute):
     yield {
         "important": True,
         "read": True,
         "title": "Updated Test Story Title",
         "description": "This is an updated test description",
         "comments": "This is an updated comment",
-        "tags": ["tag1", "tag2", "tag3"],
+        "tags": [{"name": "tag1", "type": "test"}, {"name": "tag2", "type": "cool"}, "tag3"],
         "summary": "This is an updated summary of the story",
-        "attributes": [{"key": "priority", "value": "high"}],
+        "attributes": [
+            {"key": "priority", "value": "high"},
+            rt_id_attribute,
+        ],
         "links": [
             "https://example.com/1",
             "http://example.com/2",

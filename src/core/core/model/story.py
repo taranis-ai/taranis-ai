@@ -379,13 +379,59 @@ class Story(BaseModel):
         return stories
 
     @classmethod
-    def add(cls, data) -> "Story":
-        item = cls.from_dict(data)
-        db.session.add(item)
-        db.session.commit()
-        StorySearchIndex.prepare(item)
-        item.update_tlp()
-        return item
+    def add_or_update_on_attr(cls, data, story_attribute_key: str | None) -> "tuple[Story | None, dict, int]":
+        """Method to add or update a story based on a specific Story attribute key present in the new Story"""
+        if story_attribute_key:
+            attributes: list = data.get("attributes")
+            logger.debug(f"{attributes=}")
+            attribute_value: str = next(
+                (attribute.get("value", "") for attribute in attributes if attribute.get("key") == story_attribute_key), ""
+            )
+            if existing_story := StoryNewsItemAttribute.find_story_by_attribute(key=story_attribute_key, value=attribute_value):
+                return cls.update_story(existing_story, data)
+        logger.debug(f"{data=}")
+        return cls.add(data)
+
+    @classmethod
+    def add(cls, data) -> "tuple[Story | None, dict, int]":
+        try:
+            story = cls.from_dict(data)
+            db.session.add(story)
+            db.session.commit()
+            StorySearchIndex.prepare(story)
+            story.update_tlp()
+            logger.info(f"Story added successfully: {story.id}")
+            return story, {"message": "Story added successfully"}, 200
+
+        except Exception as e:
+            logger.exception(f"Failed to process story: {e}")
+            db.session.rollback()
+            return None, {"error": "An unexpected error occurred"}, 500
+
+    @classmethod
+    def update_story(cls, existing_story: "Story", data: dict) -> "tuple[None, dict, int]":
+        try:
+            new_stories = [existing_story.id]
+            for news_item in data.get("news_items", []):
+                if stories_to_group := Story.add_from_news_item(news_item):
+                    new_stories.append(stories_to_group.id)
+
+            result = cls.group_stories(new_stories)
+            if "message" in result[0]:
+                logger.info(result[0])
+            elif "error" in result:
+                logger.error(result[0])
+
+            result = cls.update(existing_story.id, data)
+            if "message" in result[0]:
+                logger.info(result[0])
+            elif "error" in result:
+                logger.error(result[0])
+
+            return None, {"message": f"No errors occured during Story ({existing_story.id}) update"}, 200
+        except Exception as e:
+            logger.exception(f"Failed to update story cluster: {e}")
+            return None, {"error": "An unexpected error occurred while updating story cluster"}, 500
 
     @classmethod
     def add_multiple(cls, json_data) -> Sequence["Story"]:
@@ -400,15 +446,26 @@ class Story(BaseModel):
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> "Story | None":
         if NewsItem.identical(news_item.get("hash")):
+            logger.info("Identical news item found. Skipping...")
             return None
-        return cls.add(
-            {
-                "title": news_item.get("title"),
-                "description": news_item.get("review", news_item.get("content")),
-                "created": news_item.get("published"),
-                "news_items": [news_item],
-            }
-        )
+
+        data = {
+            "title": news_item.get("title"),
+            "description": news_item.get("review", news_item.get("content")),
+            "created": news_item.get("published"),
+            "news_items": [news_item],
+        }
+
+        story, response, status = cls.add(data)
+
+        if status == 200:
+            return story
+        elif status in (409, 422):
+            logger.warning(f"Failed to add story: {response.get('error')}")
+            return None
+        else:
+            logger.error(f"Unexpected failure: {response.get('error')}")
+            return None
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -455,7 +512,7 @@ class Story(BaseModel):
         return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None):
+    def update(cls, story_id: str, data, user=None) -> tuple[dict, int]:
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -514,7 +571,7 @@ class Story(BaseModel):
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
-            vote = self.create_new_vote(vote, user_id, vote_data)
+            vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":
             vote = self.remove_like_vote(vote)
@@ -564,7 +621,7 @@ class Story(BaseModel):
         vote.dislike = False
         return vote
 
-    def create_new_vote(self, vote, user_id, vote_data):
+    def create_new_vote(self, user_id):
         vote = NewsItemVote(item_id=self.id, user_id=user_id)
         db.session.add(vote)
         return vote
@@ -578,7 +635,7 @@ class Story(BaseModel):
         if cls.is_assigned_to_report([story_id]):
             return {"error": f"Story with: {story_id} assigned to a report"}, 500
 
-        for news_item in story.news_items:
+        for news_item in story.news_items[:]:
             if news_item.allowed_with_acl(user, True):
                 story.news_items.remove(news_item)
                 news_item.delete_item()
@@ -923,6 +980,19 @@ class StoryNewsItemAttribute(BaseModel):
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
+
+    @staticmethod
+    def find_story_by_attribute(key: str, value: str) -> "Story | None":
+        from sqlalchemy import select
+
+        stmt = (
+            select(Story)
+            .join(StoryNewsItemAttribute, Story.id == StoryNewsItemAttribute.story_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
+            .where(NewsItemAttribute.key == key, NewsItemAttribute.value == value)
+        )
+
+        return db.session.execute(stmt).scalar_one_or_none()
 
 
 class ReportItemStory(BaseModel):
