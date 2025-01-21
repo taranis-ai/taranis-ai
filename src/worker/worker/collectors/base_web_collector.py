@@ -54,7 +54,7 @@ class BaseWebCollector(BaseCollector):
             logger.info(f"Sending GET request to {url}")
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             response.raise_for_status()
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.RequestException as e:
             logger.error(f"Failed to connect to {url}. Error: {e}")
             return None
 
