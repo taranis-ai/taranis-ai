@@ -208,6 +208,9 @@ export default {
     }
     const filteredStoryAttributes = computed({
       get() {
+        if (!story.value || !story.value.attributes) {
+          return []
+        }
         if (showallattributes.value) {
           return story.value.attributes
         }
