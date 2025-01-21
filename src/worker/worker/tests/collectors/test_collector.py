@@ -27,18 +27,14 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
     assert result is None
 
-def test_rss_collector_not_modified(rss_collector_mock, rss_collector):
+def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_not_modified
-
-    result = rss_collector.collect(rss_collector_source_data_not_modified)
-
-    assert result == "RSS not modified"
-
-def test_rss_collector_no_content(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_no_content
 
-    result = rss_collector.collect(rss_collector_source_data_no_content)
+    result = rss_collector.collect(rss_collector_source_data_not_modified)
+    assert result == "RSS not modified"
 
+    result = rss_collector.collect(rss_collector_source_data_no_content)
     assert result == "RSS returned no content"
 
 
