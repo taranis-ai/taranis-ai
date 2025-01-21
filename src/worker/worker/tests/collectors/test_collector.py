@@ -7,12 +7,16 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 
     import datetime
 
-    result = base_web_collector.send_get_request("https://test.org/comments",
+    result = base_web_collector.send_get_request("https://test.org/200")
+    assert result.text == "200 OK"
+    assert result.status_code == 200
+
+    result = base_web_collector.send_get_request("https://test.org/304",
                                                   datetime.datetime(2020, 3, 20, 12))
     assert result.text == ""
     assert result.status_code == 304
 
-    result = base_web_collector.send_get_request("https://test.org/archive")
+    result = base_web_collector.send_get_request("https://test.org/404")
     assert result is None
 
 

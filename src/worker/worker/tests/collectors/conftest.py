@@ -66,9 +66,9 @@ def collectors_mock(osint_source_update_mock, news_item_upload_mock):
 
 @pytest.fixture
 def base_web_collector_mock(requests_mock):
-    requests_mock.get("https://test.org", text="Hello World")
-    requests_mock.get("https://test.org/comments", text="", status_code=304)
-    requests_mock.get("https://test.org/archive", text="", status_code=404)
+    requests_mock.get("https://test.org/200", text="200 OK")
+    requests_mock.get("https://test.org/304", text="", status_code=304)
+    requests_mock.get("https://test.org/404", text="", status_code=404)
 
 
 @pytest.fixture
