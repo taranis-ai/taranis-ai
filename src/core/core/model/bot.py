@@ -8,7 +8,7 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.parameter_value import ParameterValue
+from core.model.parameter_value import ParameterValue, convert_interval
 from core.model.worker import BOT_TYPES, Worker
 from core.managers.schedule_manager import Scheduler
 
@@ -36,24 +36,19 @@ class Bot(BaseModel):
         bot = cls.get(bot_id)
         if not bot:
             return None
+        if name := data.get("name"):
+            bot.name = name
 
-        try:
-            if name := data.get("name"):
-                bot.name = name
-
-            bot.description = data.get("description")
-            if parameters := data.get("parameters"):
-                update_parameter = ParameterValue.get_or_create_from_list(parameters)
-                bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
-            if index := data.get("index"):
-                if not Bot.index_exists(index):
-                    bot.index = index
-            db.session.commit()
-            bot.schedule_bot()
-            return bot
-        except Exception:
-            logger.exception("Update Bot Parameters Failed")
-            return None
+        bot.description = data.get("description")
+        if parameters := data.get("parameters"):
+            update_parameter = ParameterValue.get_or_create_from_list(parameters)
+            bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
+        if index := data.get("index"):
+            if not Bot.index_exists(index):
+                bot.index = index
+        db.session.commit()
+        bot.schedule_bot()
+        return bot
 
     @classmethod
     def get_highest_index(cls):
@@ -109,15 +104,27 @@ class Bot(BaseModel):
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def get_schedule(self) -> str | None:
-        refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        return refresh_interval or None
+    def get_schedule(self) -> int | None:
+        refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+        run_after_collector = ParameterValue.find_value_by_parameter(self.parameters, "RUN_AFTER_COLLECTOR")
 
-    def to_task_dict(self, interval: str):
+        # for bots, REFRESH_INTERVAL needs to be given unless RUN_AFTER_COLLECTOR is set
+        if refresh_interval_str == "":
+            if run_after_collector == "false":
+                raise ValueError("Need to give REFRESH_INTERVAL for Bots if RUN_AFTER_COLLECTOR is not set")
+            else:
+                return None
+
+        refresh_interval = convert_interval(refresh_interval_str)
+        if refresh_interval is None:
+            raise ValueError(f"Invalid REFRESH_INTERVAL: {refresh_interval_str}")
+        return refresh_interval
+
+    def to_task_dict(self, interval: int):
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": int(interval), "max_instances": 1},
+            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
             "celery": {
                 "name": "bot_task",
                 "args": [self.id],
