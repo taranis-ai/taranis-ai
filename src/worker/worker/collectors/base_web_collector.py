@@ -6,7 +6,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from typing import Any
+from typing import Any, Optional
 import json
 
 from worker.log import logger
@@ -23,6 +23,7 @@ class BaseWebCollector(BaseCollector):
         self.description = "Base abstract type for all collectors that use web scraping"
 
         self.proxies = None
+        self.timeout = 60
         self.headers = {}
         self.osint_source_id: str
 
@@ -33,11 +34,16 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(self, url: str, modified_since: str = "") -> requests.Response | None:
+    def send_get_request(
+            self, url: str,
+            modified_since: Optional[datetime.datetime] = None
+            ) -> requests.Response | None:
         """Send a GET request to url with self.headers using self.proxies.
-        Allows response with 200 OK or 304 Not Modified"""
+           If modified_since is given, make request conditional with If-Modified-Since"""
 
-        # if modified_since string is given, add the If-Modified-Since header
+        # transform modified_since datetime object to str that is accepted by If-Modified-Since
+        modified_since = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT") if modified_since else ""
+
         if modified_since:
             request_headers = dict(self.headers, **{"If-Modified-Since": modified_since})
         else:
@@ -45,18 +51,12 @@ class BaseWebCollector(BaseCollector):
 
         try:
             logger.info(f"Sending GET request to {url}")
-            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=60)
+            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+            response.raise_for_status()
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Connection error for URL {url}: {e}")
-            return None
-        except requests.exceptions.Timeout:
-            logger.error(f"Connection to {url} timed out.")
+            logger.error(f"Failed to connect to {url}. Error: {e}")
             return None
 
-        # 200 OK and 304 Not Modified are both fine
-        if response.ok or not response.status_code == 304:
-            logger.error("Response other than 200 OK or 304 Not Modified")
-            return None
         return response
 
     def parse_source(self, source):

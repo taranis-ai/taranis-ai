@@ -154,8 +154,7 @@ class RTCollector(BaseWebCollector):
         )
 
     def get_attachment_values(self, attachment_url: str) -> dict:
-        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
-        response = self.send_get_request(attachment_url, modified_since)
+        response = self.send_get_request(attachment_url, self.last_attempted)
         if response is None:
             raise RuntimeError(f"Failed to get attachement value from url {attachment_url}")
         
@@ -170,10 +169,9 @@ class RTCollector(BaseWebCollector):
     def get_ticket_attachments(self, ticket_id: int) -> list:
         """An Attachment represents a NewsItem"""
         attachments_content: list[dict] = []
-        attachments_url = urljoin(self.api_url, f"ticket/{ticket_id}/attachments")
-        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
 
-        response = self.send_get_request(attachments_url, modified_since)
+        attachments_url = urljoin(self.api_url, f"ticket/{ticket_id}/attachments")
+        response = self.send_get_request(attachments_url, self.last_attempted)
 
         if response is None:
             raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
@@ -191,9 +189,7 @@ class RTCollector(BaseWebCollector):
 
     def get_ticket(self, ticket_id: int) -> dict:
         ticket_url = urljoin(self.api_url, f"ticket/{ticket_id}")
-
-        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
-        response = self.send_get_request(ticket_url, modified_since)
+        response = self.send_get_request(ticket_url, self.last_attempted)
 
         if response is None:
             raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
@@ -228,22 +224,23 @@ class RTCollector(BaseWebCollector):
 
     def rt_collector(self, source) -> list[dict]:
         self.last_attempted = self.get_last_attempted(source)
-        modified_since = self.last_attempted.strftime("%a, %d %b %Y %H:%M:%S GMT") if self.last_attempted else ""
 
         logger.info(f"Searching for tickets with query: {self.search_query}")
-        response = self.send_get_request(f"{self.api_url}tickets?query={self.search_query}", modified_since)
+        response = self.send_get_request(f"{self.api_url}tickets?query={self.search_query}", self.last_attempted)
 
         if response is None:
             raise RuntimeError("Query failed")
 
         if response.status_code == 304:
-            raise RuntimeError("Result of query not modified")
-
-        tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
+            raise RuntimeError(f"Result of query not modified since {self.last_attempted}")
+        
+        try:
+            tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
+        except requests.exceptions.JSONDecodeError:
+            raise RuntimeError("Could not decode result of query as JSON")
 
         if not tickets_ids_list:
-            logger.error(f"No tickets found for {self.base_url}")
-            raise RuntimeError("No tickets available")
+            raise RuntimeError(f"No tickets available for {self.api_url}")
 
         if not self.last_attempted:
             self.update_rt_favicon(self.osint_source_id)
