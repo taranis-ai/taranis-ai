@@ -192,8 +192,8 @@ class RSSCollector(BaseWebCollector):
         modified_since = self.last_attempted if not manual else None
         self.feed_content = self.send_get_request(self.feed_url, modified_since)
 
-        # request returned OK, but no content
-        if self.feed_content.ok and not self.feed_content.content:
+        # request returned 200 OK, but no content
+        if self.feed_content.status_code == 200 and not self.feed_content.content:
             logger.info(f"RSS-Feed {self.feed_url} returned no content")
             raise ValueError("RSS returned no content")
 
