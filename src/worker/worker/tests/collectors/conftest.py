@@ -3,6 +3,7 @@ import pytest
 
 import worker.collectors as collectors
 from worker.config import Config
+from worker.collectors.base_web_collector import BaseWebCollector
 
 
 def file_loader(filename):
@@ -14,6 +15,11 @@ def file_loader(filename):
             return f.read()
     except OSError as e:
         raise OSError(f"Error while reading file: {e}") from e
+
+@pytest.fixture
+def base_web_collector():
+    collector = BaseWebCollector()
+    yield collector
 
 
 @pytest.fixture
@@ -58,17 +64,25 @@ def web_collector_url_mock(requests_mock):
 def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
+@pytest.fixture
+def base_web_collector_mock(requests_mock):
+    requests_mock.get("https://test.org", text="Hello World")
+    requests_mock.get("https://test.org/comments", text="", status_code=304)
+    requests_mock.get("https://test.org/archive", text="", status_code=404)
+
 
 @pytest.fixture
 def rss_collector_mock(requests_mock, collectors_mock):
     from worker.tests.testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
+    from worker.tests.testdata import rss_collector_url_not_modified, rss_collector_url_no_content
 
     requests_mock.get(rss_collector_targets[0], json={})
     requests_mock.get(rss_collector_targets[1], json={})
     requests_mock.get(rss_collector_targets[2], json={})
     requests_mock.get(rss_collector_fav_icon_url, json={})
     requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
-
+    requests_mock.get(rss_collector_url_not_modified, text="", status_code=304)
+    requests_mock.get(rss_collector_url_no_content, text="", status_code=200)
 
 @pytest.fixture
 def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):

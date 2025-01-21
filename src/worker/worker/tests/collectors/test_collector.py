@@ -3,12 +3,39 @@ import pytest
 from worker.tests.testdata import news_items
 
 
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
+
+    import datetime
+
+    result = base_web_collector.send_get_request("https://test.org/comments",
+                                                  datetime.datetime(2020, 3, 20, 12))
+    assert result.text == ""
+    assert result.status_code == 304
+
+    result = base_web_collector.send_get_request("https://test.org/archive")
+    assert result is None
+
+
 def test_rss_collector(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data
 
     result = rss_collector.collect(rss_collector_source_data)
 
     assert result is None
+
+def test_rss_collector_not_modified(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data_not_modified
+
+    result = rss_collector.collect(rss_collector_source_data_not_modified)
+
+    assert result == "RSS not modified"
+
+def test_rss_collector_no_content(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data_no_content
+
+    result = rss_collector.collect(rss_collector_source_data_no_content)
+
+    assert result == "RSS returned no content"
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
