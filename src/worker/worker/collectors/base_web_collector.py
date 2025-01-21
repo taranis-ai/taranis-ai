@@ -24,6 +24,7 @@ class BaseWebCollector(BaseCollector):
 
         self.proxies = None
         self.timeout = 60
+        self.last_attempted = None
         self.headers = {}
         self.osint_source_id: str
 
@@ -108,12 +109,12 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(self, web_url: str, xpath: str = "", modified_since: str = "") -> tuple[str, datetime.datetime | None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
         # send GET request to web_url
-        response = self.send_get_request(web_url, modified_since)
+        response = self.send_get_request(web_url, self.last_attempted)
         if response is None:
             return "", None  # failure case
 
@@ -121,8 +122,9 @@ class BaseWebCollector(BaseCollector):
         if text := response.text:
             return text, published_date
 
-        if response.status_code == 304:  # content was not modified
-            logger.info(f"Content of {web_url} was not modified since {modified_since}")
+        if response.status_code == 304:
+            logger.info(f"Content of {web_url} was not modified since:"
+                        f"{self.last_attempted if self.last_attempted else ''}")
         else:
             logger.error(f"No content found for url: {web_url}")
 
@@ -169,8 +171,8 @@ class BaseWebCollector(BaseCollector):
             review=web_content["review"],
         )
 
-    def extract_web_content(self, web_url, xpath: str = "", modified_since: str = "") -> dict[str, Any]:
-        web_content, published_date = self.fetch_article_content(web_url, modified_since)
+    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
+        web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath:
             content = self.xpath_extraction(web_content, xpath)

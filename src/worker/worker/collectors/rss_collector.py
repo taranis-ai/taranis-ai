@@ -91,8 +91,7 @@ class RSSCollector(BaseWebCollector):
         if content_from_feed:
             content = str(feed_entry[content_location])
         if link:
-            # get the content of the RSS feed entry only if it was modified since the last attempt
-            web_content = self.extract_web_content(link, self.xpath, self.last_attempted)
+            web_content = self.extract_web_content(link, self.xpath)
             content = content if content_from_feed else str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
