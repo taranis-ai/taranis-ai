@@ -500,7 +500,7 @@ class Story(BaseModel):
             story.summary = summary
 
         if "attributes" in data:
-            story.update_attributes(data["attributes"])
+            story.set_attributes(data["attributes"])
 
         if "links" in data:
             story.links = data["links"]
@@ -509,12 +509,25 @@ class Story(BaseModel):
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
-    def update_attributes(self, attributes):
+    def set_attributes(self, attributes: list[dict]):
+        """
+        Replace all existing attributes with the provided list of attributes.
+
+        Args:
+            attributes (list[dict]): [{"key": "key1", "value": "value1"}].
+        """
+
         self.attributes = []
         for attribute in attributes:
             self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
 
-    def patch_attributes(self, attributes):
+    def patch_attributes(self, attributes: list[dict]):
+        """
+        Update existing attributes or add new ones without clearing current attributes.
+
+        Args:
+            attributes (list[dict]): [{"key": "key1", "value": "value1"}].
+        """
         for attribute in attributes:
             self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
         db.session.commit()

@@ -20,6 +20,23 @@ class PARAMETER_TYPES(StrEnum):
     TABLE = auto()
 
 
+def convert_interval(interval: str) -> int | None:
+    """Convert the REFRESH_INTERVAL string to int"""
+
+    # TODO add support for specific time (see: https://github.com/taranis-ai/taranis-ai/issues/401)
+
+    interval_map = {"hourly": 60, "daily": 1440, "weekly": 10080}
+
+    try:
+        # check if interval can be cast to int directly
+        interval_minutes = int(interval)
+    except ValueError:
+        # allow leading/trailing spaces, quotes and make case insensitive
+        interval_minutes = interval_map.get(interval.strip().replace("'", "").replace('"', "").lower(), None)
+
+    return interval_minutes
+
+
 class ParameterValue(BaseModel):
     __tablename__ = "parameter_value"
 
