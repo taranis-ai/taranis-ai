@@ -21,11 +21,6 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
 # Install browser to /root/.cache/ms-playwright
 RUN python -m playwright install chromium --with-deps
 
-COPY ./src/worker/model_download.py /model_download.py
-
-# Install NLP models to /root/.cache/huggingface
-RUN python /model_download.py
-
 COPY ./src/worker/. /app/
 
 RUN pip install --no-cache-dir -e /app/
@@ -42,15 +37,12 @@ RUN apt-get update && apt-get upgrade -y && \
 
 RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
 USER user
-COPY --from=builder /usr/lib/x86_64-linux-gnu/* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder --chown=user:user /app/ /app/
 COPY --from=builder --chown=user:user /root/.cache /app/.cache
 
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
-
-RUN python -c 'from worker.bots.bot_tasks import BotTask; BotTask()'
 
 ENTRYPOINT [ "celery" ]
 
