@@ -125,7 +125,7 @@ class BaseWebCollector(BaseCollector):
         # differentiate between no content returned due to not-modified or other reasons
         if response.status_code == 304:
             logger.info(f"Content of {web_url} was not modified since:"
-                        f"{self.last_attempted if self.last_attempted else ''}")
+                        f"{self.last_attempted or ''}")
         else:
             logger.error(f"No content found for url: {web_url}")
 
