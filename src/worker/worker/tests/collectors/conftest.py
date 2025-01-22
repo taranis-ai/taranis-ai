@@ -18,8 +18,7 @@ def file_loader(filename):
 
 @pytest.fixture
 def base_web_collector():
-    collector = BaseWebCollector()
-    yield collector
+    yield BaseWebCollector()
 
 
 @pytest.fixture
