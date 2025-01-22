@@ -115,6 +115,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
+            # news item should contain one attribute "test_key": "dangerous"
+            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input')).to_have_value("test_key")
+            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input')).to_have_value("dangerous")
+
             self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
             self.highlight_element(
                 page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
