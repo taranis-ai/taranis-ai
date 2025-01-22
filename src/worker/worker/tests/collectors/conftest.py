@@ -96,6 +96,8 @@ def rt_mock(requests_mock, collectors_mock):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
+    requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})
+    requests_mock.get(rt_testdata.rt_malformed_json_url, json=None)
     requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
     requests_mock.get(rt_testdata.rt_ticket_attachments_url, json=rt_testdata.rt_ticket_attachments)
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)

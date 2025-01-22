@@ -169,6 +169,28 @@ def test_rt_collector_collect(rt_mock, rt_collector):
     assert result is None
 
 
+def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
+    import worker.tests.collectors.rt_testdata as rt_testdata
+    
+    # query did not return tickets
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
+                f"No tickets available for {rt_testdata.rt_base_url}"
+    
+    with pytest.raises(RuntimeError) as exception:
+        _ = rt_collector.collect(rt_testdata.rt_collector_no_tickets_source_data)
+    assert str(exception.value) == error_msg
+
+def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
+    import worker.tests.collectors.rt_testdata as rt_testdata
+
+    # query response contains malformed json
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
+                f"Could not decode result of query as JSON"
+    
+    with pytest.raises(RuntimeError) as exception:
+        _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)
+    assert str(exception.value) == error_msg
+
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
     emptylist_results = rss_collector.filter_by_word_list(input_news_items, [])
