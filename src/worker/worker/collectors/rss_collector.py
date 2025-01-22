@@ -189,7 +189,7 @@ class RSSCollector(BaseWebCollector):
         """Send GET request to URL of RSS feed."""
 
         # if manual flag is set, ignore if the feed was not modified
-        modified_since = self.last_attempted if not manual else None
+        modified_since = None if manual else self.last_attempted
         self.feed_content = self.send_get_request(self.feed_url, modified_since)
 
         # request returned 200 OK, but no content
