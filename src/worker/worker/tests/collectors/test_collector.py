@@ -3,12 +3,39 @@ import pytest
 from worker.tests.testdata import news_items
 
 
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
+
+    import datetime
+
+    result = base_web_collector.send_get_request("https://test.org/200")
+    assert result.text == "200 OK"
+    assert result.status_code == 200
+
+    result = base_web_collector.send_get_request("https://test.org/304",
+                                                  datetime.datetime(2020, 3, 20, 12))
+    assert result.text == ""
+    assert result.status_code == 304
+
+    result = base_web_collector.send_get_request("https://test.org/404")
+    assert result is None
+
+
 def test_rss_collector(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data
 
     result = rss_collector.collect(rss_collector_source_data)
 
     assert result is None
+
+def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data_not_modified
+    from worker.tests.testdata import rss_collector_source_data_no_content
+
+    result = rss_collector.collect(rss_collector_source_data_not_modified)
+    assert result == "RSS not modified"
+
+    result = rss_collector.collect(rss_collector_source_data_no_content)
+    assert result == "RSS returned no content"
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
@@ -141,6 +168,28 @@ def test_rt_collector_collect(rt_mock, rt_collector):
 
     assert result is None
 
+
+def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
+    import worker.tests.collectors.rt_testdata as rt_testdata
+    
+    # query did not return tickets
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
+                f"No tickets available for {rt_testdata.rt_base_url}"
+    
+    with pytest.raises(RuntimeError) as exception:
+        _ = rt_collector.collect(rt_testdata.rt_collector_no_tickets_source_data)
+    assert str(exception.value) == error_msg
+
+def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
+    import worker.tests.collectors.rt_testdata as rt_testdata
+
+    # query response contains malformed json
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
+                f"Could not decode result of query as JSON"
+    
+    with pytest.raises(RuntimeError) as exception:
+        _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)
+    assert str(exception.value) == error_msg
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):

@@ -311,6 +311,12 @@ rss_collector_source_data_complex = {
     "type": "rss_collector",
     "word_lists": [],
 }
+rss_collector_url_not_modified = "https://rss.example.com/en/archive/feed/"
+rss_collector_source_data_not_modified = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url_not_modified}"}}
+
+rss_collector_url_no_content = "https://rss.example.com/en/wrong-feed"
+rss_collector_source_data_no_content = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url_no_content}"}}
+
 rss_collector_fav_icon_url = "https://rss.example.com/favicon.ico"
 rss_collector_targets = [
     "https://ai-policy.eu/blog/2024/1/ai-regulation-framework",

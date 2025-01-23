@@ -24,6 +24,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content: requests.Response
         self.last_modified = None
+        self.last_attempted = None
         self.language = None
 
         logger_trafilatura = logging.getLogger("trafilatura")
@@ -45,12 +46,6 @@ class RSSCollector(BaseWebCollector):
         except Exception as e:
             logger.exception(f"RSS collector failed with error: {str(e)}")
             return str(e)
-
-    def make_request(self, url: str) -> requests.Response:
-        response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
-        if not response.ok:
-            raise RuntimeError(f"Response not ok: {response.status_code}")
-        return response
 
     def content_from_feed(self, feed_entry, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -191,30 +186,40 @@ class RSSCollector(BaseWebCollector):
             result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))
         ]  # Flat list of URLs
 
-    def get_feed(self) -> feedparser.FeedParserDict:
-        self.feed_content = self.make_request(self.feed_url)
-        if not self.feed_content:
+    def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:
+        """Send GET request to URL of RSS feed."""
+
+        # if manual flag is set, ignore if the feed was not modified
+        modified_since = None if manual else self.last_attempted
+        self.feed_content = self.send_get_request(self.feed_url, modified_since)
+
+        # request returned 200 OK, but no content
+        if self.feed_content.status_code == 200 and not self.feed_content.content:
             logger.info(f"RSS-Feed {self.feed_url} returned no content")
             raise ValueError("RSS returned no content")
+
+        # content was not modified
+        if self.feed_content.status_code == 304:
+            logger.info(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
+            raise ValueError("RSS not modified")
+
         return feedparser.parse(self.feed_content.content)
 
     def preview_collector(self, source):
         self.parse_source(source)
-        feed = self.get_feed()
+        feed = self.get_feed(manual=True)
         self.news_items = self.gather_news_items(feed, source)
         return self.preview(self.news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
-        feed = self.get_feed()
+        self.last_attempted = self.get_last_attempted(source)
+        feed = self.get_feed(manual)
 
-        last_attempted = self.get_last_attempted(source)
-        if not last_attempted:
+        if not self.last_attempted:
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
-        last_modified = self.get_last_modified_feed(self.feed_content, feed)
-        self.last_modified = last_modified
-        self.detect_language_from_feed(feed)
-        if last_modified and last_attempted and last_modified < last_attempted and not manual:
-            logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
+        self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
+        if self.last_modified and self.last_attempted and self.last_modified < self.last_attempted and not manual:
+            logger.debug(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
