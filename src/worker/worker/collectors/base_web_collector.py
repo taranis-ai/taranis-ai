@@ -43,12 +43,10 @@ class BaseWebCollector(BaseCollector):
            If modified_since is given, make request conditional with If-Modified-Since"""
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
-        modified_since = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT") if modified_since else ""
+        request_headers = self.headers.copy()
 
         if modified_since:
-            request_headers = dict(self.headers, **{"If-Modified-Since": modified_since})
-        else:
-            request_headers = self.headers
+           request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         try:
             logger.debug(f"Sending GET request to {url}")
