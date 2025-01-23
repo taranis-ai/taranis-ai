@@ -21,7 +21,7 @@ class StoryBot(BaseBot):
             return {"message": "No new stories found"}
 
         logger.info(f"Clustering {len(data)} news items")
-        if cluster := self.bot_api.api_post("/cluster", {"stories": data}):
+        if cluster := self.bot_api.api_post("/", {"stories": data}):
             self.core_api.news_items_grouping_multiple(cluster["event_clusters"])
             return {"message": f"incremental Clustering done with: {len(data)} news items"}
 

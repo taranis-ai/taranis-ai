@@ -23,9 +23,9 @@ def tags_update_mock(requests_mock):
 
 @pytest.fixture
 def ner_bot_mock(requests_mock):
-    print(f"Mocking: {Config.NLP_API_ENDPOINT}/ner")
+    print(f"Mocking: {Config.NLP_API_ENDPOINT}/")
     yield requests_mock.post(
-        f"{Config.NLP_API_ENDPOINT}/ner",
+        f"{Config.NLP_API_ENDPOINT}/",
         json=[
             {"entity": "B-PER", "index": 3, "score": 0.9992660880088806, "word": "John"},
             {"entity": "B-LOC", "index": 7, "score": 0.9996646642684937, "word": "Amsterdam"},
