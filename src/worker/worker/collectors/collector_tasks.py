@@ -51,8 +51,6 @@ class Collector:
             return err
 
         if err := collector.collect(source, manual):
-            if err == "Last-Modified < Last-Attempted":
-                return "Skipping source"
             self.core_api.update_osintsource_status(osint_source_id, {"error": err})
             return err
 
