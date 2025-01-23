@@ -12,6 +12,22 @@ from worker.log import logger
 from worker.types import NewsItem
 
 
+class RSSCollectorError(Exception):
+    """Custom exception for RSSCollector errors."""
+
+    def __init__(self, message="Error parsing RSS feed"):
+        super().__init__(message)
+        logger.info(message)
+
+
+class RSSNoChangeError(RSSCollectorError):
+    """Custom exception for RSSCollector when the feed didn't change."""
+
+    def __init__(self, message="RSS feed not modified"):
+        super().__init__(message)
+        logger.debug(message)
+
+
 class RSSCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
@@ -43,6 +59,8 @@ class RSSCollector(BaseWebCollector):
         self.parse_source(source)
         try:
             return self.rss_collector(source, manual)
+        except RSSNoChangeError:
+            return "RSS feed not modified"
         except Exception as e:
             logger.exception(f"RSS collector failed with error: {str(e)}")
             return str(e)
@@ -191,17 +209,18 @@ class RSSCollector(BaseWebCollector):
 
         # if manual flag is set, ignore if the feed was not modified
         modified_since = None if manual else self.last_attempted
-        self.feed_content = self.send_get_request(self.feed_url, modified_since)
+        if feed_response := self.send_get_request(self.feed_url, modified_since):
+            self.feed_content = feed_response
+        else:
+            raise RSSCollectorError("RSS-Feed could not be fetched")
 
         # request returned 200 OK, but no content
         if self.feed_content.status_code == 200 and not self.feed_content.content:
-            logger.info(f"RSS-Feed {self.feed_url} returned no content")
-            raise ValueError("RSS returned no content")
+            raise RSSCollectorError(f"RSS-Feed {self.feed_url} returned no content")
 
         # content was not modified
         if self.feed_content.status_code == 304:
-            logger.info(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
-            raise ValueError("RSS not modified")
+            raise RSSNoChangeError(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
 
         return feedparser.parse(self.feed_content.content)
 
@@ -219,8 +238,7 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
         if self.last_modified and self.last_attempted and self.last_modified < self.last_attempted and not manual:
-            logger.debug(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
-            return "Last-Modified < Last-Attempted"
+            raise RSSNoChangeError(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
