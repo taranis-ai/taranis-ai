@@ -11,22 +11,20 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9_.-]/_/g')
 echo "Building containers for branch ${CURRENT_BRANCH} on ${GITHUB_REPOSITORY_OWNER} with git info ${GIT_INFO}"
 
 docker buildx build --file docker/Containerfile.core \
-  --build-arg GITHUB_REPOSITORY_OWNER="${GITHUB_REPOSITORY_OWNER}" \
-  --build-arg GIT_INFO="${GIT_INFO}" \
+  --build-arg git_info="${GIT_INFO}" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-core:latest" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-core:${CURRENT_BRANCH}" \
   --load .
 
 docker buildx build --file docker/Containerfile.worker \
-  --build-arg GITHUB_REPOSITORY_OWNER="${GITHUB_REPOSITORY_OWNER}" \
-  --build-arg GIT_INFO="${GIT_INFO}" \
+  --build-arg git_info="${GIT_INFO}" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-worker:latest" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-worker:${CURRENT_BRANCH}" \
   --load .
 
 docker buildx build --file docker/Containerfile.gui \
-  --build-arg GITHUB_REPOSITORY_OWNER="${GITHUB_REPOSITORY_OWNER}" \
-  --build-arg GIT_INFO="${GIT_INFO}" \
+  --build-arg git_info="${GIT_INFO}" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-gui:latest" \
   --tag "${GITHUB_REPOSITORY_OWNER}/taranis-gui:${CURRENT_BRANCH}" \
   --load .
+
