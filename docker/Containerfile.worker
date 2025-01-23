@@ -25,6 +25,8 @@ RUN uv venv && \
 
 FROM python:3.12-slim
 
+LABEL description="Taranis AI Python Celery Worker"
+
 WORKDIR /app
 
 RUN apt-get update && apt-get upgrade -y && \

@@ -173,7 +173,7 @@ services:
 
   summary_bot:
     depends_on:
-      rabbitmq:
+      workers:
         condition: service_healthy
     deploy:
       restart_policy:
@@ -191,7 +191,7 @@ services:
 
   nlp_bot:
     depends_on:
-      rabbitmq:
+      workers:
         condition: service_healthy
     deploy:
       restart_policy:
@@ -207,15 +207,14 @@ services:
         max-file: "10"
 
 
-
   clustering_bot:
     depends_on:
-      rabbitmq:
+      workers:
         condition: service_healthy
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
