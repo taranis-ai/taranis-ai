@@ -4,7 +4,7 @@ from urllib.parse import urlparse, urljoin
 import requests
 
 from worker.log import logger
-from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.types import NewsItem
 
 
@@ -157,14 +157,14 @@ class RTCollector(BaseWebCollector):
         response = self.send_get_request(attachment_url, self.last_attempted)
         if response is None:
             raise RuntimeError(f"Failed to get attachement value from url {attachment_url}")
-        
+
         if response.status_code == 304:
             return {}
-        
+
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:
-            raise RuntimeError(f"Failed to retrieve attachement value from {attachment_url} as JSON object") 
+            raise RuntimeError(f"Failed to retrieve attachement value from {attachment_url} as JSON object")
 
     def get_ticket_attachments(self, ticket_id: int) -> list:
         """An Attachment represents a NewsItem"""
@@ -175,7 +175,7 @@ class RTCollector(BaseWebCollector):
 
         if response is None:
             raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
-        
+
         if response.status_code == 304:
             return []
 
@@ -193,7 +193,7 @@ class RTCollector(BaseWebCollector):
 
         if response is None:
             raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
-        
+
         if response.status_code == 304:
             return {}
 
@@ -232,8 +232,8 @@ class RTCollector(BaseWebCollector):
             raise RuntimeError("Query failed")
 
         if response.status_code == 304:
-            raise RuntimeError(f"Result of query not modified since {self.last_attempted}")
-        
+            raise NoChangeError(f"Result of query not modified since {self.last_attempted}")
+
         try:
             tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
         except requests.exceptions.JSONDecodeError:

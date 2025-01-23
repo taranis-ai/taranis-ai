@@ -5,14 +5,14 @@ from worker.tests.testdata import news_items
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
     import datetime
+    from worker.collectors.base_web_collector import NoChangeError
 
     result = base_web_collector.send_get_request("https://test.org/200")
     assert result.text == "200 OK"
     assert result.status_code == 200
 
-    result = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
-    assert result.text == ""
-    assert result.status_code == 304
+    with pytest.raises(NoChangeError, match="Not modified"):
+        result = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
 
     result = base_web_collector.send_get_request("https://test.org/404")
     assert result is None
@@ -31,7 +31,7 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_no_content
 
     result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert result == "RSS feed not modified"
+    assert result == "Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
     assert result == f"RSS-Feed {rss_collector_source_data_no_content['parameters']['FEED_URL']} returned no content"

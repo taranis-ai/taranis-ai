@@ -6,7 +6,7 @@ import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 
-from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 from worker.types import NewsItem
@@ -18,14 +18,6 @@ class RSSCollectorError(Exception):
     def __init__(self, message="Error parsing RSS feed"):
         super().__init__(message)
         logger.info(message)
-
-
-class RSSNoChangeError(RSSCollectorError):
-    """Custom exception for RSSCollector when the feed didn't change."""
-
-    def __init__(self, message="RSS feed not modified"):
-        super().__init__(message)
-        logger.debug(message)
 
 
 class RSSCollector(BaseWebCollector):
@@ -59,8 +51,6 @@ class RSSCollector(BaseWebCollector):
         self.parse_source(source)
         try:
             return self.rss_collector(source, manual)
-        except RSSNoChangeError:
-            return "RSS feed not modified"
         except Exception as e:
             logger.exception(f"RSS collector failed with error: {str(e)}")
             return str(e)
@@ -220,7 +210,7 @@ class RSSCollector(BaseWebCollector):
 
         # content was not modified
         if self.feed_content.status_code == 304:
-            raise RSSNoChangeError(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
+            raise NoChangeError(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
 
         return feedparser.parse(self.feed_content.content)
 
@@ -238,7 +228,7 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
         if self.last_modified and self.last_attempted and self.last_modified < self.last_attempted and not manual:
-            raise RSSNoChangeError(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
+            raise NoChangeError(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
