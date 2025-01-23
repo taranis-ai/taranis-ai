@@ -51,7 +51,7 @@ class BaseWebCollector(BaseCollector):
             request_headers = self.headers
 
         try:
-            logger.info(f"Sending GET request to {url}")
+            logger.debug(f"Sending GET request to {url}")
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
