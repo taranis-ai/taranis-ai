@@ -24,6 +24,28 @@ rt_ticket_search_result = {
     "pages": 1,
 }
 
+rt_no_tickets_url = f"{rt_base_url}tickets?query=Started%20%3E%20'2018-04-04'%20AND%20Started%20%3C%20'2018-04-06'"
+rt_collector_no_tickets_source_data = {
+    "id": 1,
+    "parameters": {
+        "BASE_URL": f"{rt_base_url}",
+        "RT_TOKEN": "1-11-11111111111111111111111111111111",
+        "SEARCH_QUERY": "Started > '2018-04-04' AND Started < '2018-04-06'",
+        "FIELDS_TO_INCLUDE": "One, Two, Three, Four",
+    }
+}
+
+rt_malformed_json_url = f"{rt_base_url}tickets?query=Started%20%3E%20'2018-04-04'%20AND%20Started%20%3C%20''"
+rt_malformed_json_source_data = {
+    "id": 1,
+    "parameters": {
+        "BASE_URL": f"{rt_base_url}",
+        "RT_TOKEN": "1-11-11111111111111111111111111111111",
+        "SEARCH_QUERY": "Started > '2018-04-04' AND Started < ''",
+        "FIELDS_TO_INCLUDE": "",
+    }
+}
+
 rt_ticket_url = f"{rt_base_url}ticket/1"
 rt_ticket_1 = {
     "Type": "ticket",

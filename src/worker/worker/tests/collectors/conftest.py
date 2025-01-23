@@ -3,6 +3,7 @@ import pytest
 
 import worker.collectors as collectors
 from worker.config import Config
+from worker.collectors.base_web_collector import BaseWebCollector
 
 
 def file_loader(filename):
@@ -14,6 +15,10 @@ def file_loader(filename):
             return f.read()
     except OSError as e:
         raise OSError(f"Error while reading file: {e}") from e
+
+@pytest.fixture
+def base_web_collector():
+    yield BaseWebCollector()
 
 
 @pytest.fixture
@@ -58,17 +63,25 @@ def web_collector_url_mock(requests_mock):
 def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
+@pytest.fixture
+def base_web_collector_mock(requests_mock):
+    requests_mock.get("https://test.org/200", text="200 OK")
+    requests_mock.get("https://test.org/304", text="", status_code=304)
+    requests_mock.get("https://test.org/404", text="", status_code=404)
+
 
 @pytest.fixture
 def rss_collector_mock(requests_mock, collectors_mock):
     from worker.tests.testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
+    from worker.tests.testdata import rss_collector_url_not_modified, rss_collector_url_no_content
 
     requests_mock.get(rss_collector_targets[0], json={})
     requests_mock.get(rss_collector_targets[1], json={})
     requests_mock.get(rss_collector_targets[2], json={})
     requests_mock.get(rss_collector_fav_icon_url, json={})
     requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
-
+    requests_mock.get(rss_collector_url_not_modified, text="", status_code=304)
+    requests_mock.get(rss_collector_url_no_content, text="", status_code=200)
 
 @pytest.fixture
 def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):
@@ -82,6 +95,8 @@ def rt_mock(requests_mock, collectors_mock):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
+    requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})
+    requests_mock.get(rt_testdata.rt_malformed_json_url, json=None)
     requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
     requests_mock.get(rt_testdata.rt_ticket_attachments_url, json=rt_testdata.rt_ticket_attachments)
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
