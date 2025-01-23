@@ -57,7 +57,6 @@ class BaseWebCollector(BaseCollector):
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         try:
-            logger.debug(f"Sending GET request to {url} - with headers: {request_headers}")
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
