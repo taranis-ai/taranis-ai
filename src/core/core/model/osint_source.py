@@ -123,7 +123,7 @@ class OSINTSource(BaseModel):
     def to_task_id(self) -> str:
         return f"{self.type}_{self.id}"
 
-    def get_schedule(self) -> int | None:
+    def get_schedule(self) -> int:
         refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
         # use default interval (480 min = 8h) if no REFERESH_INTERVAL was set
@@ -227,9 +227,12 @@ class OSINTSource(BaseModel):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
 
-        interval = self.get_schedule()
-        entry = self.to_task_dict(interval)
-        Scheduler.add_celery_task(entry)
+        try:
+            interval = self.get_schedule()
+            entry = self.to_task_dict(interval)
+            Scheduler.add_celery_task(entry)
+        except ValueError as e:
+            return {"error": f"Could not schedule source {self.id}: {str(e)}"}, 400
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 

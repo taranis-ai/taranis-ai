@@ -106,14 +106,9 @@ class Bot(BaseModel):
 
     def get_schedule(self) -> int | None:
         refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        run_after_collector = ParameterValue.find_value_by_parameter(self.parameters, "RUN_AFTER_COLLECTOR")
 
-        # for bots, REFRESH_INTERVAL needs to be given unless RUN_AFTER_COLLECTOR is set
         if refresh_interval_str == "":
-            if run_after_collector == "false":
-                raise ValueError("Need to give REFRESH_INTERVAL for Bots if RUN_AFTER_COLLECTOR is not set")
-            else:
-                return None
+            return None
 
         refresh_interval = convert_interval(refresh_interval_str)
         if refresh_interval is None:

@@ -25,7 +25,7 @@ class BaseWebCollector(BaseCollector):
         self.proxies = None
         self.timeout = 60
         self.last_attempted = None
-        self.headers = {}
+        self.headers = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
@@ -35,18 +35,15 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(
-            self, url: str,
-            modified_since: Optional[datetime.datetime] = None
-            ) -> requests.Response | None:
+    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response | None:
         """Send a GET request to url with self.headers using self.proxies.
-           If modified_since is given, make request conditional with If-Modified-Since"""
+        If modified_since is given, make request conditional with If-Modified-Since"""
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
 
         if modified_since:
-           request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         try:
             logger.debug(f"Sending GET request to {url}")
@@ -122,8 +119,7 @@ class BaseWebCollector(BaseCollector):
 
         # differentiate between no content returned due to not-modified or other reasons
         if response.status_code == 304:
-            logger.info(f"Content of {web_url} was not modified since:"
-                        f"{self.last_attempted or ''}")
+            logger.info(f"Content of {web_url} was not modified since:{self.last_attempted or ''}")
         else:
             logger.error(f"No content found for url: {web_url}")
 
