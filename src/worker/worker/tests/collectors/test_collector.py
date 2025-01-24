@@ -1,5 +1,5 @@
 import pytest
-
+import requests
 from worker.tests.testdata import news_items
 
 
@@ -7,17 +7,28 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 
     import datetime
 
-    result = base_web_collector.send_get_request("https://test.org/200")
-    assert result.text == "200 OK"
-    assert result.status_code == 200
+    response, message = base_web_collector.send_get_request("https://test.org/200")
+    assert response.text == "200 OK"
+    assert response.status_code == 200
+    assert message is None
 
-    result = base_web_collector.send_get_request("https://test.org/304",
-                                                  datetime.datetime(2020, 3, 20, 12))
-    assert result.text == ""
-    assert result.status_code == 304
+    response, message = base_web_collector.send_get_request("https://test.org/no_content")
+    assert response.text == ""
+    assert response.status_code == 200
+    assert message == "Base Web Collector request to https://test.org/no_content got Response 200 OK, but returned no content"
 
-    result = base_web_collector.send_get_request("https://test.org/404")
-    assert result is None
+    response, message = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+    assert response.text == ""
+    assert response.status_code == 304
+    assert message == "https://test.org/304 was not modified since at least 2022-01-01 00:00:00"
+
+    with pytest.raises(requests.exceptions.HTTPError) as exception:
+        response, message = base_web_collector.send_get_request("https://test.org/429")
+    assert str(exception.value) == "Base Web Collector got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+
+    with pytest.raises(requests.exceptions.HTTPError) as exception:
+        response, message = base_web_collector.send_get_request("https://test.org/404")
+    assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
 
 def test_rss_collector(rss_collector_mock, rss_collector):
@@ -32,11 +43,10 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_no_content
 
     result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert result == "RSS not modified"
+    assert result == "https://rss.example.com/en/archive/feed/ was not modified since 2022-01-01 00:00:00"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == "RSS returned no content"
-
+    assert result == "RSS Collector request to https://rss.example.com/en/wrong-feed got Response 200 OK, but returned no content"
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data
