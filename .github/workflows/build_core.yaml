@@ -16,7 +16,7 @@ permissions:
 jobs:
   test:
     name: pytest
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -72,7 +72,7 @@ jobs:
 
   build_wheel:
     name: build wheel
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
 
   build_container:
     name: build container
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Set up Docker Buildx
