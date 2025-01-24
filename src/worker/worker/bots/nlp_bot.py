@@ -38,7 +38,7 @@ class NLPBot(BaseBot):
         return update_result
 
     def extract_ner(self, text: str) -> dict:
-        if keywords := self.bot_api.api_post("/ner", {"text": text}):
+        if keywords := self.bot_api.api_post("/", {"text": text}):
             return keywords
         return {}
 

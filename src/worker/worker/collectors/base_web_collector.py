@@ -15,6 +15,17 @@ from worker.collectors.base_collector import BaseCollector
 from worker.collectors.playwright_manager import PlaywrightManager
 
 
+class NoChangeError(Exception):
+    """Custom exception for when a source didn't change."""
+
+    def __init__(self, message="Not modified"):
+        super().__init__(message)
+        logger.debug(message)
+
+    def __str__(self):
+        return "Not modified"
+
+
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
@@ -46,8 +57,9 @@ class BaseWebCollector(BaseCollector):
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         try:
-            logger.debug(f"Sending GET request to {url}")
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+            if response.status_code == 304:
+                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to connect to {url}. Error: {e}")

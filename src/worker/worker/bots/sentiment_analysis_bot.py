@@ -35,7 +35,7 @@ class SentimentAnalysisBot(BaseBot):
             news_items = story.get("news_items", [])
             for news_item in news_items:
                 text_content = news_item.get("content", "")
-                if sentiment := self.bot_api.api_post("/analyze", {"text": text_content}):
+                if sentiment := self.bot_api.api_post("/", {"text": text_content}):
                     logger.debug(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
                     news_item_id = news_item["id"]
                     results[news_item_id] = {

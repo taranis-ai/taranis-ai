@@ -33,6 +33,6 @@ class SummaryBot(BaseBot):
         return {"message": f"Summarized {len(data)} stories"}
 
     def predict_summary(self, text_to_summarize: str) -> str:
-        if summary := self.bot_api.api_post("/summarize", {"text": text_to_summarize}):
+        if summary := self.bot_api.api_post("/", {"text": text_to_summarize}):
             return summary.get("summary", "")
         return ""
