@@ -6,7 +6,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 import json
 
 from worker.log import logger
@@ -38,9 +38,11 @@ class BaseWebCollector(BaseCollector):
     def send_get_request(
             self, url: str,
             modified_since: Optional[datetime.datetime] = None
-            ) -> requests.Response | None:
+            ) -> Tuple[requests.Response | None, str]:
         """Send a GET request to url with self.headers using self.proxies.
-           If modified_since is given, make request conditional with If-Modified-Since"""
+           If modified_since is given, make request conditional with If-Modified-Since.
+           Check for specific status codes and raise rest of errors 
+        """
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
@@ -48,15 +50,35 @@ class BaseWebCollector(BaseCollector):
         if modified_since:
            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-        try:
-            logger.debug(f"Sending GET request to {url}")
-            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to connect to {url}. Error: {e}")
-            return None
+        logger.debug(f"{self.name} sending GET request to {url}")
+        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
 
-        return response
+        message = None
+
+        # check for specific responses, in order to display specific error messages
+        # 200 OK, but without content
+        if response.status_code == 200 and not response.content:
+            message = f"{self.name} request to {url} got Response 200 OK, but returned no content"
+        
+        # 304 Not Modified
+        if response.status_code == 304:
+            if not (last_modified := self.get_last_modified(response)):
+                last_modified = f"at least {self.last_attempted}"
+            message = f"{url} was not modified since {last_modified}"
+        
+        # 429 too many requests
+        if response.status_code == 429:
+            message = f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+            raise requests.exceptions.HTTPError(message)
+
+        if message is not None:
+            logger.info(message)
+            return response, message
+    
+        response.raise_for_status()
+
+        return response, message
+
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
@@ -112,20 +134,17 @@ class BaseWebCollector(BaseCollector):
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
         # send GET request to web_url
-        response = self.send_get_request(web_url, self.last_attempted)
-        if response is None:
-            return "", None  # failure case
+        try:
+            response, _ = self.send_get_request(web_url, self.last_attempted)
+        except requests.exceptions.HTTPError as e:
+            return "", None
+
+        if not response.content:
+            return "", None
 
         published_date = self.get_last_modified(response)
         if text := response.text:
             return text, published_date
-
-        # differentiate between no content returned due to not-modified or other reasons
-        if response.status_code == 304:
-            logger.info(f"Content of {web_url} was not modified since:"
-                        f"{self.last_attempted or ''}")
-        else:
-            logger.error(f"No content found for url: {web_url}")
 
         return "", published_date
 
