@@ -190,17 +190,16 @@ class RSSCollector(BaseWebCollector):
 
         # if manual flag is set, ignore if the feed was not modified
         modified_since = None if manual else self.last_attempted
-        self.feed_content = self.send_get_request(self.feed_url, modified_since)
 
-        # request returned 200 OK, but no content
-        if self.feed_content.status_code == 200 and not self.feed_content.content:
-            logger.info(f"RSS-Feed {self.feed_url} returned no content")
-            raise ValueError("RSS returned no content")
-
-        # content was not modified
-        if self.feed_content.status_code == 304:
-            logger.info(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
-            raise ValueError("RSS not modified")
+        try:
+            self.feed_content, message = self.send_get_request(self.feed_url, modified_since)
+        except requests.exceptions.HTTPError as e:
+            # HTTP error encountered
+            raise RuntimeError(e)
+        
+        # specific cases like 200 without content, 304, ...
+        if message is not None:
+            raise RuntimeError(message)
 
         return feedparser.parse(self.feed_content.content)
 
