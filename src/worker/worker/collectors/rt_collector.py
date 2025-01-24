@@ -154,13 +154,14 @@ class RTCollector(BaseWebCollector):
         )
 
     def get_attachment_values(self, attachment_url: str) -> dict:
-        response = self.send_get_request(attachment_url, self.last_attempted)
-        if response is None:
-            raise RuntimeError(f"Failed to get attachement value from url {attachment_url}")
-        
-        if response.status_code == 304:
+        try:
+            response, message = self.send_get_request(attachment_url, self.last_attempted)
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(e)
+
+        if message is not None:  # failed to get attachement value
             return {}
-        
+
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:
@@ -171,12 +172,12 @@ class RTCollector(BaseWebCollector):
         attachments_content: list[dict] = []
 
         attachments_url = urljoin(self.api_url, f"ticket/{ticket_id}/attachments")
-        response = self.send_get_request(attachments_url, self.last_attempted)
+        try:
+            response, message = self.send_get_request(attachments_url, self.last_attempted)
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(e)
 
-        if response is None:
-            raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
-        
-        if response.status_code == 304:
+        if message is not None:  # failed to get ticket attachement
             return []
 
         try:
@@ -189,12 +190,12 @@ class RTCollector(BaseWebCollector):
 
     def get_ticket(self, ticket_id: int) -> dict:
         ticket_url = urljoin(self.api_url, f"ticket/{ticket_id}")
-        response = self.send_get_request(ticket_url, self.last_attempted)
+        try:
+            response, message = self.send_get_request(ticket_url, self.last_attempted)
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(e)
 
-        if response is None:
-            raise RuntimeError("RT Collector encountered an error, check your RT_TOKEN and the error details")
-        
-        if response.status_code == 304:
+        if message is not None:  # failed to get ticket
             return {}
 
         try:
@@ -226,13 +227,15 @@ class RTCollector(BaseWebCollector):
         self.last_attempted = self.get_last_attempted(source)
 
         logger.info(f"Searching for tickets with query: {self.search_query}")
-        response = self.send_get_request(f"{self.api_url}tickets?query={self.search_query}", self.last_attempted)
+        try:
+            response, message = self.send_get_request(
+                f"{self.api_url}tickets?query={self.search_query}", self.last_attempted
+            )
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(e)
 
-        if response is None:
-            raise RuntimeError("Query failed")
-
-        if response.status_code == 304:
-            raise RuntimeError(f"Result of query not modified since {self.last_attempted}")
+        if message is not None:
+            raise RuntimeError(message)
         
         try:
             tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
