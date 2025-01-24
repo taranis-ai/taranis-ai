@@ -1,0 +1,288 @@
+services:
+  gui:
+    # This is the entrypoint for all requests
+    ports:
+    - "${TARANIS_PORT:-8080}:80"
+    depends_on:
+      - core
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-gui:${TARANIS_TAG:-latest}"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
+      TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
+      TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
+      TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  core:
+    depends_on:
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
+    # ports:
+    #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
+    environment:
+      DB_URL: "${DB_URL:-database}"
+      DB_DATABASE: "${DB_DATABASE:-taranis}"
+      DB_USER: "${DB_USER:-taranis}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
+      TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
+
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+
+      GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+      TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
+
+      PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
+      PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    volumes:
+      - "core_data:/app/data"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  database:
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    # ports:
+    # - 6543:5432
+    deploy:
+      restart_policy:
+        condition: always
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-taranis}"
+      POSTGRES_USER: "${DB_USER:-taranis}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
+      interval: 10s
+      start_period: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - "database_data:/var/lib/postgresql/data"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  scheduler:
+    deploy:
+      restart_policy:
+        condition: always
+    # ports:
+    #   - "8000:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
+    environment:
+      FLASK_APP: "${SCHEDULER_APP:-scheduler}"
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}scheduler"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  collector:
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    environment:
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Collectors"]'
+      DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  workers:
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    environment:
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Presenters", "Publishers", "Bots"]'
+      DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  summary_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  nlp_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  clustering_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  rabbitmq:
+    image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
+    deploy:
+      restart_policy:
+        condition: always
+    user: rabbitmq
+    # ports:
+    #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
+    #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+    healthcheck:
+      test: "rabbitmqctl await_startup"
+      interval: 10s
+      start_period: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  sse:
+    image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
+    deploy:
+      restart_policy:
+        condition: always
+    # ports:
+    #  - "${TARANIS_SSE_PORT:-8088}:8088"
+    environment:
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      SSE_PATH: "${TARANIS_BASE_PATH:-/}sse"
+      API_KEY: "${API_KEY}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  tor:
+    image: "docker.io/dperson/torproxy:latest"
+    deploy:
+      restart_policy:
+        condition: always
+    environment:
+      # LOCATION: "AT"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+volumes:
+  database_data:
+  core_data:
+  rabbitmq_data:
