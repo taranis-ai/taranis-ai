@@ -91,9 +91,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: get ghcr owner repository
+      - name: set build env
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+          echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
       - name: Build and push worker image
         uses: docker/build-push-action@v5
         with:
@@ -102,5 +103,8 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:${{ github.ref_name }}
+          build-args: |
+            git_info=${{ env.GIT_INFO }}
+            BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
           cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest
           cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest,mode=max
