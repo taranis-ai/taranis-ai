@@ -136,7 +136,7 @@ class BaseWebCollector(BaseCollector):
         # send GET request to web_url
         try:
             response, _ = self.send_get_request(web_url, self.last_attempted)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             return "", None
 
         if not response.content:

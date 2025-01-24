@@ -156,7 +156,7 @@ class RTCollector(BaseWebCollector):
     def get_attachment_values(self, attachment_url: str) -> dict:
         try:
             response, message = self.send_get_request(attachment_url, self.last_attempted)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(e)
 
         if message is not None:  # failed to get attachement value
@@ -174,7 +174,7 @@ class RTCollector(BaseWebCollector):
         attachments_url = urljoin(self.api_url, f"ticket/{ticket_id}/attachments")
         try:
             response, message = self.send_get_request(attachments_url, self.last_attempted)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(e)
 
         if message is not None:  # failed to get ticket attachement
@@ -192,7 +192,7 @@ class RTCollector(BaseWebCollector):
         ticket_url = urljoin(self.api_url, f"ticket/{ticket_id}")
         try:
             response, message = self.send_get_request(ticket_url, self.last_attempted)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(e)
 
         if message is not None:  # failed to get ticket
@@ -231,7 +231,7 @@ class RTCollector(BaseWebCollector):
             response, message = self.send_get_request(
                 f"{self.api_url}tickets?query={self.search_query}", self.last_attempted
             )
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(e)
 
         if message is not None:

@@ -193,7 +193,7 @@ class RSSCollector(BaseWebCollector):
 
         try:
             self.feed_content, message = self.send_get_request(self.feed_url, modified_since)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             # HTTP error encountered
             raise RuntimeError(e)
         
