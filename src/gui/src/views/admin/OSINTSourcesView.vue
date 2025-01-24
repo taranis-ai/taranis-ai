@@ -89,7 +89,7 @@
                 @click.stop="updateData"
               />
               <v-btn
-                v-if="sourceTotalCount === 0"
+                v-if="sourceTotalCount < 1"
                 text="load default sources"
                 prepend-icon="mdi-database"
                 @click.stop="loadDefaultSources()"

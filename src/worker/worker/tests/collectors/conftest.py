@@ -16,6 +16,7 @@ def file_loader(filename):
     except OSError as e:
         raise OSError(f"Error while reading file: {e}") from e
 
+
 @pytest.fixture
 def base_web_collector():
     yield BaseWebCollector()
@@ -63,6 +64,7 @@ def web_collector_url_mock(requests_mock):
 def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
+
 @pytest.fixture
 def base_web_collector_mock(requests_mock):
     requests_mock.get("https://test.org/200", text="200 OK")
@@ -83,6 +85,7 @@ def rss_collector_mock(requests_mock, collectors_mock):
     requests_mock.get(rss_collector_url_not_modified, text="", status_code=304)
     requests_mock.get(rss_collector_url_no_content, text="", status_code=200)
 
+
 @pytest.fixture
 def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):
     from worker.tests.testdata import web_collector_fav_icon_url
@@ -100,5 +103,5 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
     requests_mock.get(rt_testdata.rt_ticket_attachments_url, json=rt_testdata.rt_ticket_attachments)
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
-    requests_mock.post(rt_testdata.worker_stories_url, json=rt_testdata.worker_stories)
+    requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})

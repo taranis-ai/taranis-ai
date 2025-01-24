@@ -32,7 +32,7 @@ rt_collector_no_tickets_source_data = {
         "RT_TOKEN": "1-11-11111111111111111111111111111111",
         "SEARCH_QUERY": "Started > '2018-04-04' AND Started < '2018-04-06'",
         "FIELDS_TO_INCLUDE": "One, Two, Three, Four",
-    }
+    },
 }
 
 rt_malformed_json_url = f"{rt_base_url}tickets?query=Started%20%3E%20'2018-04-04'%20AND%20Started%20%3C%20''"
@@ -43,7 +43,7 @@ rt_malformed_json_source_data = {
         "RT_TOKEN": "1-11-11111111111111111111111111111111",
         "SEARCH_QUERY": "Started > '2018-04-04' AND Started < ''",
         "FIELDS_TO_INCLUDE": "",
-    }
+    },
 }
 
 rt_ticket_url = f"{rt_base_url}ticket/1"
@@ -103,7 +103,4 @@ rt_ticket_attachments = {
     "count": 1,
     "total": 1,
 }
-worker_stories_url = f"{Config.TARANIS_CORE_URL}/worker/stories"
-worker_stories = {"id": 1, "title": "Test Ticket 1", "news_items": []}
-
-rt_collector_result = {}
+worker_stories_url = f"{Config.TARANIS_CORE_URL}/worker/stories?source=1"

@@ -19,6 +19,7 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 if TYPE_CHECKING:
     from core.model.user import User
+    from core.model.news_item import NewsItem
 
 
 class OSINTSource(BaseModel):
@@ -39,6 +40,7 @@ class OSINTSource(BaseModel):
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
+    news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -121,7 +123,7 @@ class OSINTSource(BaseModel):
     def to_task_id(self) -> str:
         return f"{self.type}_{self.id}"
 
-    def get_schedule(self) -> int | None:
+    def get_schedule(self) -> int:
         refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
         # use default interval (480 min = 8h) if no REFERESH_INTERVAL was set
@@ -225,9 +227,12 @@ class OSINTSource(BaseModel):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
 
-        interval = self.get_schedule()
-        entry = self.to_task_dict(interval)
-        Scheduler.add_celery_task(entry)
+        try:
+            interval = self.get_schedule()
+            entry = self.to_task_dict(interval)
+            Scheduler.add_celery_task(entry)
+        except ValueError as e:
+            return {"error": f"Could not schedule source {self.id}: {str(e)}"}, 400
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
@@ -345,6 +350,17 @@ class OSINTSource(BaseModel):
             return {"items": [item.to_assess_dict() for item in items]}, 200
 
         return {"items": []}, 200
+
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        # Clear the association table entries
+        db.session.execute(db.delete(OSINTSourceGroupOSINTSource).where(OSINTSourceGroupOSINTSource.osint_source_id.in_(db.select(cls.id))))
+
+        # Delete all rows from the OSINTSource table
+        db.session.execute(db.delete(cls))
+        db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
+        return {"message": f"All {cls.__name__} deleted"}, 200
 
 
 class OSINTSourceParameterValue(BaseModel):
@@ -502,5 +518,5 @@ class OSINTSourceGroupOSINTSource(BaseModel):
 
 
 class OSINTSourceGroupWordList(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)

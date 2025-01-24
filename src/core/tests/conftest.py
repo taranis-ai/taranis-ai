@@ -37,7 +37,7 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        os.remove(f"{parsed_uri.path}")
+        # os.remove(f"{parsed_uri.path}")
 
 
 @pytest.fixture(scope="session")

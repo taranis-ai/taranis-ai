@@ -16,11 +16,11 @@ permissions:
 jobs:
   test:
     name: pytest
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           prune-cache: false
@@ -72,12 +72,12 @@ jobs:
 
   build_wheel:
     name: build wheel
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           prune-cache: false
@@ -101,7 +101,7 @@ jobs:
 
   build_container:
     name: build container
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Set up Docker Buildx

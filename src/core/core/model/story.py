@@ -41,7 +41,7 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
-    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete-orphan")
+    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
         self,
@@ -78,8 +78,9 @@ class Story(BaseModel):
         return datetime.now()
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
-        if isinstance(news_items[0], dict):
-            # return [NewsItem.upsert_from_dict(news_item) for news_item in news_items]
+        if not news_items:
+            return []
+        elif isinstance(news_items[0], dict):
             return NewsItem.load_multiple(news_items)
         elif isinstance(news_items[0], str):
             news_items = [NewsItem.get(item_id) for item_id in news_items]
@@ -116,28 +117,6 @@ class Story(BaseModel):
                 for cluster in clusters
             ]
         return []
-
-    @classmethod
-    def _add_exclude_attr_filter(cls, query: Select, exclude_attr: str):
-        # Aliasing for clarity in subquery
-        subquery_attribute = aliased(NewsItemAttribute)
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
-
-        # Create a subquery to find stories with the undesired attribute
-        subquery = (
-            db.select(subquery_story_attribute.story_id)
-            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(subquery_attribute.key == exclude_attr)
-            .distinct()
-        )
-
-        # Use the subquery to filter out stories with the undesired attribute
-        query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
-            NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
-        )
-
-        # Apply the filter using NOT IN to exclude stories found in the subquery
-        return query.filter(Story.id.notin_(subquery))
 
     @classmethod
     def get_additional_counts(cls, filter_query):
@@ -194,8 +173,10 @@ class Story(BaseModel):
                 query = query.filter(StorySearchIndex.data.ilike(f"%{word}%"))
 
         if exclude_attr := filter_args.get("exclude_attr"):
-            query = cls._add_exclude_attr_filter(query, exclude_attr)
-            logger.debug(f"Filtering Stories by {exclude_attr}")
+            query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
+
+        if include_attr := filter_args.get("include_attr"):
+            query = cls._add_attribute_filter_to_query(query, include_attr, exclude=False)
 
         read = filter_args.get("read", "").lower()
         if read == "true":
@@ -282,6 +263,26 @@ class Story(BaseModel):
         return query
 
     @classmethod
+    def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
+        subquery_attribute = aliased(NewsItemAttribute)
+        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+
+        subquery = (
+            db.select(subquery_story_attribute.story_id)
+            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
+            .filter(subquery_attribute.key == filter_attribute)
+            .distinct()
+        )
+
+        query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
+            NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
+        )
+
+        if exclude:
+            return query.filter(Story.id.notin_(subquery))
+        return query.filter(Story.id.in_(subquery))
+
+    @classmethod
     def _add_paging_to_query(cls, filter_args: dict, query: Select) -> Select:
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
@@ -364,9 +365,6 @@ class Story(BaseModel):
     def get_by_filter_json(cls, filter_args, user):
         stories, count = cls.get_by_filter(filter_args=filter_args, user=user)
 
-        if not stories:
-            return {"items": []}, 200
-
         if count:
             return {"items": stories, "counts": count}, 200
 
@@ -379,21 +377,11 @@ class Story(BaseModel):
         return stories
 
     @classmethod
-    def add_or_update_on_attr(cls, data, story_attribute_key: str | None) -> "tuple[Story | None, dict, int]":
-        """Method to add or update a story based on a specific Story attribute key present in the new Story"""
-        if story_attribute_key:
-            attributes: list = data.get("attributes")
-            logger.debug(f"{attributes=}")
-            attribute_value: str = next(
-                (attribute.get("value", "") for attribute in attributes if attribute.get("key") == story_attribute_key), ""
-            )
-            if existing_story := StoryNewsItemAttribute.find_story_by_attribute(key=story_attribute_key, value=attribute_value):
-                return cls.update_story(existing_story, data)
-        logger.debug(f"{data=}")
-        return cls.add(data)
+    def add_or_update(cls, data) -> "tuple[dict, int]":
+        return cls.add(data) if "id" not in data else cls.update(data["id"], data)
 
     @classmethod
-    def add(cls, data) -> "tuple[Story | None, dict, int]":
+    def add(cls, data) -> "tuple[dict, int]":
         try:
             story = cls.from_dict(data)
             db.session.add(story)
@@ -401,37 +389,16 @@ class Story(BaseModel):
             StorySearchIndex.prepare(story)
             story.update_tlp()
             logger.info(f"Story added successfully: {story.id}")
-            return story, {"message": "Story added successfully"}, 200
+            return {
+                "message": "Story added successfully",
+                "story_id": story.id,
+                "news_item_ids": [news_item.id for news_item in story.news_items],
+            }, 200
 
-        except Exception as e:
-            logger.exception(f"Failed to process story: {e}")
+        except Exception:
+            logger.debug(f"Failed to add story: {data}")
             db.session.rollback()
-            return None, {"error": "An unexpected error occurred"}, 500
-
-    @classmethod
-    def update_story(cls, existing_story: "Story", data: dict) -> "tuple[None, dict, int]":
-        try:
-            new_stories = [existing_story.id]
-            for news_item in data.get("news_items", []):
-                if stories_to_group := Story.add_from_news_item(news_item):
-                    new_stories.append(stories_to_group.id)
-
-            result = cls.group_stories(new_stories)
-            if "message" in result[0]:
-                logger.info(result[0])
-            elif "error" in result:
-                logger.error(result[0])
-
-            result = cls.update(existing_story.id, data)
-            if "message" in result[0]:
-                logger.info(result[0])
-            elif "error" in result:
-                logger.error(result[0])
-
-            return None, {"message": f"No errors occured during Story ({existing_story.id}) update"}, 200
-        except Exception as e:
-            logger.exception(f"Failed to update story cluster: {e}")
-            return None, {"error": "An unexpected error occurred while updating story cluster"}, 500
+            return {"error": "Failed to add story"}, 400
 
     @classmethod
     def add_multiple(cls, json_data) -> Sequence["Story"]:
@@ -444,10 +411,10 @@ class Story(BaseModel):
         return items
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict) -> "Story | None":
+    def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
-            logger.info("Identical news item found. Skipping...")
-            return None
+            logger.warning("Identical news item found. Skipping...")
+            return {"error": "Identical news item found. Skipping..."}, 400
 
         data = {
             "title": news_item.get("title"),
@@ -456,22 +423,15 @@ class Story(BaseModel):
             "news_items": [news_item],
         }
 
-        story, response, status = cls.add(data)
-
-        if status == 200:
-            return story
-        elif status in (409, 422):
-            logger.warning(f"Failed to add story: {response.get('error')}")
-            return None
-        else:
-            logger.error(f"Unexpected failure: {response.get('error')}")
-            return None
+        return cls.add(data)
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
         title = news_item.get("title", "")
         link = news_item.get("link", "")
         content = news_item.get("content", "")
+        if not news_item.get("source"):
+            return {"error": "Source not provided"}
         if not title and not link and not content:
             return {"error": "At least one of the following parameters must be provided: title, link, content"}
         return None
@@ -481,15 +441,10 @@ class Story(BaseModel):
         if err := cls.check_news_item_data(news_item):
             return err, 400
         try:
-            if story := cls.add_from_news_item(news_item):
-                db.session.commit()
-            else:
-                return {"error": "NewsItem already exists"}, 400
+            return cls.add_from_news_item(news_item)
         except Exception as e:
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
-
-        return {"message": "success", "story_id": story.id, "news_item_id": story.news_items[0].id}, 200
 
     @classmethod
     def add_news_items(cls, news_items_list: list[dict]):
@@ -500,9 +455,11 @@ class Story(BaseModel):
                 if err := cls.check_news_item_data(news_item):
                     logger.warning(err)
                     continue
-                if story := cls.add_from_news_item(news_item):
-                    story_ids.append(story.id)
-                    news_item_ids += [news_item.id for news_item in story.news_items]
+                message, status = cls.add_from_news_item(news_item)
+                if status > 299:
+                    return message, status
+                story_ids.append(message["story_id"])
+                news_item_ids += message["news_item_ids"]
             db.session.commit()
         except Exception as e:
             logger.exception("Failed to add news items")
@@ -540,7 +497,6 @@ class Story(BaseModel):
             cls.update_tags(story_id, data["tags"])
 
         if summary := data.get("summary"):
-            logger.debug("Updating summary")
             story.summary = summary
 
         if "attributes" in data:
@@ -644,9 +600,11 @@ class Story(BaseModel):
     def delete_by_id(cls, story_id, user):
         story = cls.get(story_id)
         if not story:
+            logger.debug(f"Story with id: {story_id} not found")
             return {"error": f"Story with id: {story_id} not found"}, 404
 
         if cls.is_assigned_to_report([story_id]):
+            logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 500
 
         for news_item in story.news_items[:]:
@@ -661,7 +619,7 @@ class Story(BaseModel):
 
         db.session.commit()
 
-        return {"message": "success"}, 200
+        return {"message": f"Successfully deleted story: {story_id}"}, 200
 
     def delete(self, user):
         return self.delete_by_id(self.id, user)
@@ -905,7 +863,7 @@ class StorySearchIndex(BaseModel):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     data: Mapped[str] = db.Column(db.String)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), index=True)
 
     def __init__(self, story_id, data=None):
         self.story_id = story_id
@@ -995,23 +953,12 @@ class StoryNewsItemAttribute(BaseModel):
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
 
-    @staticmethod
-    def find_story_by_attribute(key: str, value: str) -> "Story | None":
-        from sqlalchemy import select
-
-        stmt = (
-            select(Story)
-            .join(StoryNewsItemAttribute, Story.id == StoryNewsItemAttribute.story_id)
-            .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
-            .where(NewsItemAttribute.key == key, NewsItemAttribute.value == value)
-        )
-
-        return db.session.execute(stmt).scalar_one_or_none()
-
 
 class ReportItemStory(BaseModel):
+    __tablename__ = "report_item_story"
+
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):

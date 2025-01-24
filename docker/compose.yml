@@ -127,7 +127,7 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-      WORKER_TYPES: '["Collectors", "Bots"]'
+      WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
@@ -142,7 +142,7 @@ services:
         max-file: "10"
 
 
-  publisher:
+  workers:
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -156,7 +156,7 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-      WORKER_TYPES: '["Presenters", "Publishers"]'
+      WORKER_TYPES: '["Presenters", "Publishers", "Bots"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
@@ -169,6 +169,61 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
+
+
+  summary_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  nlp_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  clustering_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_TAG:-latest}"
+    environment:
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
 
   rabbitmq:
     image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
@@ -212,7 +267,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
 
 volumes:
