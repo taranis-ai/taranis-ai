@@ -206,21 +206,25 @@ export default {
     const rules = {
       required: (v) => !!v || 'Required'
     }
-
-    const filteredStoryAttributes = computed(() => {
-      if (!story.value || !story.value.attributes) {
-        return []
+    const filteredStoryAttributes = computed({
+      get() {
+        if (!story.value || !story.value.attributes) {
+          return []
+        }
+        if (showallattributes.value) {
+          return story.value.attributes
+        }
+        return story.value.attributes.filter((attr) => {
+          return (
+            Object.prototype.hasOwnProperty.call(attr, 'key') &&
+            attr.key !== 'sentiment' &&
+            !attr.key.includes('_BOT_')
+          )
+        })
+      },
+      set(newAttributes) {
+        story.value.attributes = newAttributes
       }
-      if (showallattributes.value) {
-        return story.value.attributes
-      }
-      return story.value.attributes.filter((attr) => {
-        return (
-          Object.prototype.hasOwnProperty.call(attr, 'key') &&
-          attr.key !== 'sentiment' &&
-          !attr.key.includes('_BOT_')
-        )
-      })
     })
 
     const hasRtId = computed(() => {
