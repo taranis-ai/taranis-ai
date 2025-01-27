@@ -19,7 +19,7 @@ class Dashboard(MethodView):
         if result is None:
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("index.html")
+        return render_template("index.html", data=result)
 
 def init(app: Flask):
     HTMX(app)

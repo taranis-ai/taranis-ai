@@ -20,10 +20,12 @@ class Settings(BaseSettings):
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
-    TARANIS_CORE_HOST: str = ""
+    TARANIS_CORE_HOST: str = "http://local.taranis.ai"
     TARANIS_BASE_PATH: str = "/"
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    # BABEL_DEFAULT_LOCALE: str = "en"
+    # BABEL_DEFAULT_TIMEZONE: str = "UTC"
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
