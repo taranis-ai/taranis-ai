@@ -268,6 +268,19 @@ services:
         max-size: "200k"
         max-file: "10"
 
+  tor:
+    image: "docker.io/dperson/torproxy:latest"
+    deploy:
+      restart_policy:
+        condition: always
+    environment:
+      # LOCATION: "AT"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
 
 volumes:
   database_data:
