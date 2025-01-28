@@ -115,6 +115,14 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
+            # story should contain one attribute "test_key": "dangerous"
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+                "test_key"
+            )
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+                "dangerous"
+            )
+
             self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
             self.highlight_element(
                 page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
@@ -128,6 +136,41 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.locator("div").filter(has_text="updated").nth(2).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
+
+        def assert_edited_story():
+            self.highlight_element(page.locator('[class^="ml-auto mr-auto"] a')).click()
+
+            # title
+            expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
+
+            # summary
+            expect(
+                page.locator("div").filter(has_text=re.compile(r"^Summary91")).get_by_role("textbox").locator(":first-child")
+            ).to_have_text("This story informs about the current security state.")
+
+            # comment
+            expect(
+                page.locator("div").filter(has_text=re.compile(r"^Comment91")).get_by_role("textbox").locator(":first-child")
+            ).to_have_text("I like this story, it needs to be reviewed.")
+
+            # tags
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(1) > span > div")).to_have_text("APT75")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(2) > span > div")).to_have_text("APT74")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(3) > span > div")).to_have_text("APT76")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(4) > span > div")).to_have_text("APT77")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(5) > span > div")).to_have_text("APT78")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(6) > span > div")).to_have_text("APT79")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(7) > span > div")).to_have_text("APT80")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(8) > span > div")).to_have_text("APT81")
+
+            # attributes
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+                "test_key"
+            )
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+                "dangerous"
+            )
+            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
         def infinite_scroll_all_items():
             self.smooth_scroll(page.locator("div:nth-child(21)").first)
@@ -195,6 +238,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         hotkeys()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
+        assert_edited_story()
 
         assert_stories()
 
