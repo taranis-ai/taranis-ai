@@ -116,8 +116,12 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
             # story should contain one attribute "test_key": "dangerous"
-            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input')).to_have_value("test_key")
-            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input')).to_have_value("dangerous")
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+                "test_key"
+            )
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+                "dangerous"
+            )
 
             self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
             self.highlight_element(
@@ -135,20 +139,20 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def assert_edited_story():
             self.highlight_element(page.locator('[class^="ml-auto mr-auto"] a')).click()
-            
+
             # title
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
 
             # summary
-            expect(page.locator("div").filter(has_text=re.compile(r"^Summary91")).get_by_role("textbox").locator(":first-child")).to_have_text(
-                "This story informs about the current security state."
-            )
+            expect(
+                page.locator("div").filter(has_text=re.compile(r"^Summary91")).get_by_role("textbox").locator(":first-child")
+            ).to_have_text("This story informs about the current security state.")
 
             # comment
-            expect(page.locator("div").filter(has_text=re.compile(r"^Comment91")).get_by_role("textbox").locator(":first-child")).to_have_text(
-                "I like this story, it needs to be reviewed."
-            )
-            
+            expect(
+                page.locator("div").filter(has_text=re.compile(r"^Comment91")).get_by_role("textbox").locator(":first-child")
+            ).to_have_text("I like this story, it needs to be reviewed.")
+
             # tags
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(1) > span > div")).to_have_text("APT75")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(2) > span > div")).to_have_text("APT74")
@@ -159,10 +163,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(7) > span > div")).to_have_text("APT80")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(8) > span > div")).to_have_text("APT81")
 
-
             # attributes
-            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input')).to_have_value("test_key")
-            expect(page.locator('table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input')).to_have_value("dangerous")
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+                "test_key"
+            )
+            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+                "dangerous"
+            )
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
         def infinite_scroll_all_items():
