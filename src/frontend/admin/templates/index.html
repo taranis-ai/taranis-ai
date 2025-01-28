@@ -1,76 +1,67 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</head>
-<body class="bg-gray-100 p-8">
-    
-    <div class="container mx-auto w-full max-w-full">
-  
-        <div class="text-3xl font-bold mb-4">Admin Dashboard</h1></div>
-        
-        <div class="grid grid-flow-row-dense grid-cols-2 gap-4 pb-4">
-            <div class="bg-white border rounded-sm p-4 shadow-lg">
-                <a href="{{ config.TARANIS_CORE_HOST }}/assess" class="text-purple-500 underline text-xl">Assess</a>
-                <div class="divider"></div>
-                <span class="inline-flex">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                        <path fill-rule="evenodd" d="M1.5 9.832v1.793c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875V9.832a3 3 0 0 0-.722-1.952l-3.285-3.832A3 3 0 0 0 16.215 3h-8.43a3 3 0 0 0-2.278 1.048L2.222 7.88A3 3 0 0 0 1.5 9.832ZM7.785 4.5a1.5 1.5 0 0 0-1.139.524L3.881 8.25h3.165a3 3 0 0 1 2.496 1.336l.164.246a1.5 1.5 0 0 0 1.248.668h2.092a1.5 1.5 0 0 0 1.248-.668l.164-.246a3 3 0 0 1 2.496-1.336h3.165l-2.765-3.226a1.5 1.5 0 0 0-1.139-.524h-8.43Z" clip-rule="evenodd" />
-                        <path d="M2.813 15c-.725 0-1.313.588-1.313 1.313V18a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3v-1.688c0-.724-.588-1.312-1.313-1.312h-4.233a3 3 0 0 0-2.496 1.336l-.164.246a1.5 1.5 0 0 1-1.248.668h-2.092a1.5 1.5 0 0 1-1.248-.668l-.164-.246A3 3 0 0 0 7.046 15H2.812Z" />
-                    </svg>
-                    
-                    <span class="caption">
-                        There are <strong>{{ data.total_news_items }}</strong> total Assess items.
-                    </span>
-                </span>
-            </div>
-            <div class="bg-white border rounded-sm p-4 shadow-lg">
-                <a href="{{ config.TARANIS_CORE_HOST }}/publish" class="text-purple-500 underline text-xl">Publish</a>
-                <div class="divider"></div>
-                <span class="caption">
-                    There are <b>{{ data.total_products }}</b> products ready for publications.
-                </span>
-            </div>
-        </div>
+{% extends 'base.html' %}
 
-        <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-            <div class="bg-white border rounded-sm p-4 shadow-lg">
-                <a href="{{ config.TARANIS_CORE_HOST }}/analyze" class="text-purple-500 underline text-xl">Analyze</a>
-                <div class="divider"></div>
-                <span class="caption">
-                    There are <b>{{ data.report_items_completed }}</b> completed analyses.
-                </span>
-                <br/>
-                <span class="caption">
-                    There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
-                </span>
-            </div>
-            <div class="bg-white border rounded-sm p-4 shadow-lg">
-                <a href="{{ config.TARANIS_CORE_HOST }}/config/workers" class="text-purple-500 underline text-xl">Workers</a>
-                <div class="divider"></div>
-                <span class="caption">
-                    There are <b>{{ data.schedule_length }}</b> tasks scheduled.
-                </span>
-          
-                <span class="caption">
-                    Last successful run <b>{{ data.latest_collected }}</b>
-                </span>
-            </div>
-            <div class="bg-white border rounded-sm p-4 shadow-lg">
-                <span class="text-xl">Database</span>
-                <div class="divider"></div>
-                <span class="caption">
-                    There are <b>{{ data.total_database_items }}</b> live items.
-                </span><br/>
-                
-                <span class="caption">There are <b>0</b> archived items.</span>
-            </div>
-        </div>
+<!-- {% block header %}
+  <h1>{% block title %}Register{% endblock %}</h1>
+{% endblock %} -->
+
+{% block content %}
+<div class="text-3xl font-bold mb-4">Admin Dashboard</div>
+
+<div class="grid grid-flow-row-dense grid-cols-2 gap-4 pb-4">
+    <div class="bg-white border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/assess" class="text-purple-500 underline text-xl">Assess</a>
+        <div class="divider"></div>
+        <span class="inline-flex">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M1.5 9.832v1.793c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875V9.832a3 3 0 0 0-.722-1.952l-3.285-3.832A3 3 0 0 0 16.215 3h-8.43a3 3 0 0 0-2.278 1.048L2.222 7.88A3 3 0 0 0 1.5 9.832ZM7.785 4.5a1.5 1.5 0 0 0-1.139.524L3.881 8.25h3.165a3 3 0 0 1 2.496 1.336l.164.246a1.5 1.5 0 0 0 1.248.668h2.092a1.5 1.5 0 0 0 1.248-.668l.164-.246a3 3 0 0 1 2.496-1.336h3.165l-2.765-3.226a1.5 1.5 0 0 0-1.139-.524h-8.43Z" clip-rule="evenodd" />
+                <path d="M2.813 15c-.725 0-1.313.588-1.313 1.313V18a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3v-1.688c0-.724-.588-1.312-1.313-1.312h-4.233a3 3 0 0 0-2.496 1.336l-.164.246a1.5 1.5 0 0 1-1.248.668h-2.092a1.5 1.5 0 0 1-1.248-.668l-.164-.246A3 3 0 0 0 7.046 15H2.812Z" />
+            </svg>
+            
+            <span class="caption">
+                There are <strong>{{ data.total_news_items }}</strong> total Assess items.
+            </span>
+        </span>
     </div>
-</body>
-</html>
+    <div class="bg-white border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/publish" class="text-purple-500 underline text-xl">Publish</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.total_products }}</b> products ready for publications.
+        </span>
+    </div>
+</div>
+
+<div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
+    <div class="bg-white border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/analyze" class="text-purple-500 underline text-xl">Analyze</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.report_items_completed }}</b> completed analyses.
+        </span>
+        <br/>
+        <span class="caption">
+            There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
+        </span>
+    </div>
+    <div class="bg-white border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/config/workers" class="text-purple-500 underline text-xl">Workers</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.schedule_length }}</b> tasks scheduled.
+        </span>
+    
+        <span class="caption">
+            Last successful run <b>{{ data.latest_collected }}</b>
+        </span>
+    </div>
+    <div class="bg-white border rounded-sm p-4 shadow-lg">
+        <span class="text-xl">Database</span>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.total_database_items }}</b> live items.
+        </span><br/>
+        
+        <span class="caption">There are <b>0</b> archived items.</span>
+    </div>
+</div>
+{% endblock %}

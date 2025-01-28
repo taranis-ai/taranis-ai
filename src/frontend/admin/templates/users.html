@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- list all retrieved users -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="text-3xl font-bold mb-4">Users</div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Roles</th>
+                    <th>Permissions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.roles|length }}</td>
+                    <td>{{ user.permissions|length }}</td>
+                    <td>
+                        <a href="#/users/{{ user.id }}" class="btn btn-primary">Edit</a>
+                        <button class="btn btn-danger" ng-click="deleteUser(user.id)">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <button hx-get="/users/new" class="btn btn-primary" hx-swap="outerHTML">
+            New User
+        </button>
+    </div>
+</div>
+
+{% endblock %}

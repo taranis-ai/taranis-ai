@@ -60,5 +60,7 @@ class CoreApi:
 
     def get_dashboard(self, query_params=None):
         return self.api_get("/dashboard", params=query_params)
-        # return {"data": "dashboard data from core"}
+
+    def get_users(self, query_params=None):
+        return self.api_get("/config/users", params=query_params)
 
