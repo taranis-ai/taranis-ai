@@ -126,11 +126,11 @@ class MISPConnector:
             key = attr.get("key", "")
             value = attr.get("value")
             attribute_value = "{'key': '" + str(key) + "', 'value': '" + str(value) + "'}"
-            if value:
+            if value is not None:
                 logger.debug(f"Adding attribute to story object: attributes={attribute_value}")
                 story_object.add_attribute(object_relation="attributes", value=attribute_value)
             else:
-                logger.warning(f"Skipping attribute with missing key or value: {attr}")
+                logger.warning(f"Skipping attribute with missing value: {attr}")
 
         event.add_object(story_object)
         # logger.info(f"Story object added to event {event.id} with template 'taranis-story'.")
@@ -243,33 +243,51 @@ class MISPConnector:
             # Check if the attribute exists in the existing object
             existing_attr = existing_attributes.get(new_attr.object_relation)
 
-            # If the attribute doesn't exist or its value is different, create a proposal
-            # TODO
-            if not existing_attr or existing_attr.value != new_attr.value:
-                proposal = MISPShadowAttribute()
-                proposal.event_id = existing_event.id  # Numeric ID of the existing event
-                proposal.object_id = existing_object.id  # Numeric ID of the existing object
-                proposal.object_relation = new_attr.object_relation  # Key of the attribute
-                proposal.value = "hey"  # new_attr.value  # Value from event_to_add
-                # proposal.to_ids = getattr(new_attr, "to_ids", False)  # Use the same to_ids setting
-                # proposal.category = getattr(new_attr, "category", "Other")  # Use the same category
-                # proposal.type = getattr(new_attr, "type", "text")  # Use the same type
-                # proposal.comment = (
-                #     f"Proposing update for {new_attr.object_relation}. "
-                #     f"Current value: {existing_attr.value if existing_attr else 'None'}, "
-                #     f"New value: {new_attr.value}"
-                # )
+            if existing_attr and existing_attr.value == new_attr.value:
+                logger.info(f"No changes detected for {new_attr.object_relation}. Skipping proposal.")
+                continue
 
-                try:
-                    response = existing_event.add_proposal(proposal, strict=True)
-                    logger.debug("I was hereXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxxx")
-                    logger.debug(f"{response.to_dict()=}")
-                    if isinstance(response, dict) and "errors" in response:
-                        logger.error(f"Failed to add proposal for {new_attr.object_relation}: {response['errors']}")
-                    else:
-                        logger.info(f"Proposal successfully added for {new_attr.object_relation}.")
-                except Exception as e:
-                    logger.error(f"Error while adding proposal for {new_attr.object_relation}: {e}")
+            # Prepare the proposal
+            proposal = MISPShadowAttribute()
+            proposal.event_id = existing_event.id
+            proposal.object_id = existing_object.id
+            proposal.object_relation = new_attr.object_relation
+            proposal.value = new_attr.value  # Proposed new value
+            proposal.type = getattr(new_attr, "type", "text")
+            # proposal.category = getattr(new_attr, "category", "Other")
+            # proposal.to_ids = getattr(new_attr, "to_ids", False)
+            proposal.comment = (
+                f"Proposed change for {new_attr.object_relation}: "
+                f"Current value: {existing_attr.value if existing_attr else 'None'}, "
+                f"New value: {new_attr.value}"
+            )
+
+            try:
+                # Add the proposal to the event
+                logger.debug(f"Adding proposal for {new_attr.object_relation} with value: {new_attr.value}")
+                logger.debug(f"{proposal.to_dict()=}")
+                response = existing_event.add_proposal(proposal, strict=True)
+                logger.debug(f"{response.to_dict()=}")
+
+                # Validate response
+                if isinstance(response, dict) and "errors" in response:
+                    logger.error(f"Failed to add proposal for {new_attr.object_relation}: {response['errors']}")
+                else:
+                    logger.info(f"Proposal successfully added for {new_attr.object_relation}.")
+            except Exception as e:
+                logger.error(f"Error while adding proposal for {new_attr.object_relation}: {e}")
+
+    # def test_shadow_attributes(self) -> None:
+    #     self.mispevent = MISPEvent()
+    #     p = self.mispevent.add_proposal(type="filename", value="baz.jpg")
+    #     del p.uuid
+    #     a: MISPAttribute = self.mispevent.add_attribute("filename", "bar.exe")  # type: ignore[assignment]
+    #     del a.uuid
+    #     p = self.mispevent.attributes[0].add_proposal(type="filename", value="bar.pdf")
+    #     del p.uuid
+    #     with open("tests/mispevent_testfiles/proposals.json") as f:
+    #         ref_json = json.load(f)
+    #     self.assertEqual(self.mispevent.to_json(sort_keys=True, indent=2), json.dumps(ref_json, sort_keys=True, indent=2))
 
     def _update_event_with_story(self, story_prepared, misp_event_uuid, existing_event, misp: PyMISP):
         event_to_add = self.create_misp_event(story_prepared)
@@ -284,6 +302,13 @@ class MISPConnector:
                 logger.error(f"MISP returned an error. HTTP code: {http_code}. " f"Details: {error_data}")
                 if http_code == 403:
                     logger.error("MISP returned a permission error, you should create a proposal.")
+                    misp = PyMISP(
+                        url=self.url,
+                        key="f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
+                        ssl=self.ssl,
+                        proxies=self.proxies,
+                        http_headers=self.headers,
+                    )
                     self.add_proposal(existing_event, event_to_add, misp)
                 return None
 
@@ -348,6 +373,7 @@ def sending():
         "parameters": {
             "ADDITIONAL_HEADERS": "",
             # "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc", # org original
+            # org2@test.com:8tZ*QDdSE5jdJ*^a
             "API_KEY": "58S2a80sLd89pNAfWRPIVpmnLUsjRjsn1JuspqNZ",  # org another one
             "PROXY_SERVER": "",
             "REFRESH_INTERVAL": "",

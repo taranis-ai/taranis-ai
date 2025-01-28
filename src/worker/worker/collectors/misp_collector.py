@@ -1,5 +1,4 @@
 import ast
-import hashlib
 import datetime
 from pymisp import PyMISP, MISPObject
 
@@ -87,10 +86,15 @@ class MISPCollector(BaseCollector):
                     author = item.get("value", "")
                 case "link":
                     link = item.get("value", "")
-        for_hash: str = author + title + link
+                # TODO: Here we need to reuse the hash from the original news item,
+                # because only then it is possible to handle conflicts reasonably on the originators side.
+                # Obviusly, there is still a case when the various Taranis AI instances could ingest
+                # the same news item from same/different sources and create different hashes.
+                case "hash":
+                    hash = item.get("value", "")
         return NewsItem(
             osint_source_id=source["id"],
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            hash=hash,
             author=author,
             title=title,
             content=content,
@@ -100,12 +104,9 @@ class MISPCollector(BaseCollector):
 
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict | None:
-        for attribute in story_properties["attributes"]:
-            if "misp_event_uuid" in attribute.get("key"):
-                story_properties["news_items"] = news_items_list
-                return story_properties
-        logger.error(f"MISP event with the UUID:{event_uuid} does not contain the required taranis-story attribute 'misp_event_uuid'")
-        raise RuntimeError(f"MISP event with the UUID:{event_uuid} does not contain the required taranis-story attribute 'misp_event_uuid'")
+        story_properties["news_items"] = news_items_list
+        story_properties["attributes"].append({"key": "misp_event_uuid", "value": event_uuid})
+        return story_properties
 
     def get_story_properties_from_story_object(self, event: dict) -> dict:
         story_properties = {
