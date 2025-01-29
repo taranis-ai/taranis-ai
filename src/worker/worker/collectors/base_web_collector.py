@@ -6,7 +6,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 import json
 
 from worker.log import logger
@@ -62,11 +62,11 @@ class BaseWebCollector(BaseCollector):
         try:
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             if response.status_code == 200 and not response.content:
-                 raise ValueError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
+                 raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
             if response.status_code == 429:
-                 raise ValueError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+                 raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise e
