@@ -140,9 +140,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name="Word Lists").click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_wordlists.png")
-            page.get_by_role("button", name="New Item").click()
 
         def edit_wordlist():
+            page.pause()
+            page.get_by_role("button", name="load default lists").click()
+            page.get_by_role("button", name="New Item").click()
             page.get_by_role("cell", name="CVE Products").click()
             page.get_by_label("Collector Includelist").check()  # needed to be checked for upcoming tests
             page.get_by_label("Collector Excludelist").check()

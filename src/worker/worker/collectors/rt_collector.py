@@ -4,7 +4,7 @@ from urllib.parse import urlparse, urljoin
 import requests
 
 from worker.log import logger
-from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.types import NewsItem
 
 
@@ -155,17 +155,16 @@ class RTCollector(BaseWebCollector):
 
     def get_attachment_values(self, attachment_url: str) -> dict:
         try:
-            response, message = self.send_get_request(attachment_url, self.last_attempted)
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(e)
-
-        if message is not None:  # failed to get attachement value
+            response = self.send_get_request(attachment_url, self.last_attempted)
+        except Exception as e:
+            logger.error("Failed to get attachement value from {attachment_url}. Error: {e}")
             return {}
 
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:
-            raise RuntimeError(f"Failed to retrieve attachement value from {attachment_url} as JSON object") 
+            logger.error(f"Failed to get attachement value from {attachment_url} as JSON object")
+            return {}
 
     def get_ticket_attachments(self, ticket_id: int) -> list:
         """An Attachment represents a NewsItem"""
@@ -173,35 +172,33 @@ class RTCollector(BaseWebCollector):
 
         attachments_url = urljoin(self.api_url, f"ticket/{ticket_id}/attachments")
         try:
-            response, message = self.send_get_request(attachments_url, self.last_attempted)
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(e)
-
-        if message is not None:  # failed to get ticket attachement
+            response = self.send_get_request(attachments_url, self.last_attempted)
+        except Exception as e:
+            logger.error(f"Failed to get ticket attachements from {attachments_url}")
             return []
 
         try:
             ticket_attachments: list[dict] = response.json().get("items", [])
             attachments_content.extend(self.get_attachment_values(attachment.get("_url", "")) for attachment in ticket_attachments)
         except requests.exceptions.JSONDecodeError:
-            raise RuntimeError(f"Failed to retrieve attachement from {attachments_url} as JSON object")
+            logger.error(f"Failed to retrieve attachement from {attachments_url} as JSON object")
+            return []
 
         return attachments_content or []
 
     def get_ticket(self, ticket_id: int) -> dict:
         ticket_url = urljoin(self.api_url, f"ticket/{ticket_id}")
         try:
-            response, message = self.send_get_request(ticket_url, self.last_attempted)
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(e)
-
-        if message is not None:  # failed to get ticket
+            response = self.send_get_request(ticket_url, self.last_attempted)
+        except Exception as e:
+            logger.error(f"Failed to get ticket from {ticket_url}. Error: {e}")
             return {}
 
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:
-            raise RuntimeError(f"Failed to retrieve ticket from {ticket_url} as JSON object")
+            logger.error(f"Failed to retrieve ticket from {ticket_url} as JSON object")
+            return {}
 
     def get_story_dict(self, ticket_id: int, source) -> dict:
         story_news_items = []
@@ -227,16 +224,10 @@ class RTCollector(BaseWebCollector):
         self.last_attempted = self.get_last_attempted(source)
 
         logger.info(f"Searching for tickets with query: {self.search_query}")
-        try:
-            response, message = self.send_get_request(
-                f"{self.api_url}tickets?query={self.search_query}", self.last_attempted
-            )
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(e)
+        response = self.send_get_request(
+            f"{self.api_url}tickets?query={self.search_query}", self.last_attempted
+        )
 
-        if message is not None:
-            raise RuntimeError(message)
-        
         try:
             tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]
         except requests.exceptions.JSONDecodeError:

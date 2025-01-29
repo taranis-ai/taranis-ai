@@ -51,6 +51,8 @@ class Collector:
             return err
 
         if err := collector.collect(source, manual):
+            if err == "Not modified":
+                return "Not modified"
             self.core_api.update_osintsource_status(osint_source_id, {"error": err})
             return err
 

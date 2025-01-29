@@ -1,8 +1,10 @@
 FROM node:lts AS build-stage
 
+LABEL description="Taranis AI Vue.js Frontend"
+
 WORKDIR /app
 ARG git_info
-ENV GIT_INFO=$git_info
+ENV GIT_INFO=${git_info:-'{}'}
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 ENV VITE_TARANIS_CONFIG_JSON=/config.json

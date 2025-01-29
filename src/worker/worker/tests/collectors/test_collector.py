@@ -4,30 +4,27 @@ from worker.tests.testdata import news_items
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
-
     import datetime
+    from worker.collectors.base_web_collector import NoChangeError
 
-    response, message = base_web_collector.send_get_request("https://test.org/200")
+    response = base_web_collector.send_get_request("https://test.org/200")
     assert response.text == "200 OK"
     assert response.status_code == 200
-    assert message is None
 
-    response, message = base_web_collector.send_get_request("https://test.org/no_content")
-    assert response.text == ""
-    assert response.status_code == 200
-    assert message == "Base Web Collector request to https://test.org/no_content got Response 200 OK, but returned no content"
+    with pytest.raises(ValueError) as exception:
+        response = base_web_collector.send_get_request("https://test.org/no_content")
+    assert str(exception.value) == "Base Web Collector request to https://test.org/no_content got Response 200 OK, but returned no content"
 
-    response, message = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
-    assert response.text == ""
-    assert response.status_code == 304
-    assert message == "https://test.org/304 was not modified since at least 2022-01-01 00:00:00"
+    with pytest.raises(NoChangeError, match="Not modified") as exception:
+        response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+    assert str(exception.value) == "https://test.org/304 was not modified since at least 2022-01-01 00:00:00"
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
-        response, message = base_web_collector.send_get_request("https://test.org/429")
+        response = base_web_collector.send_get_request("https://test.org/429")
     assert str(exception.value) == "Base Web Collector got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
-        response, message = base_web_collector.send_get_request("https://test.org/404")
+        response = base_web_collector.send_get_request("https://test.org/404")
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
 
@@ -38,15 +35,17 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
     assert result is None
 
+
 def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_not_modified
     from worker.tests.testdata import rss_collector_source_data_no_content
 
     result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert result == "https://rss.example.com/en/archive/feed/ was not modified since 2022-01-01 00:00:00"
+    assert result == "Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == "RSS Collector request to https://rss.example.com/en/wrong-feed got Response 200 OK, but returned no content"
+    assert result == f"RSS-Feed {rss_collector_source_data_no_content['parameters']['FEED_URL']} returned no content"
+
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data
@@ -181,25 +180,25 @@ def test_rt_collector_collect(rt_mock, rt_collector):
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
-    
+
     # query did not return tickets
-    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
-                f"No tickets available for {rt_testdata.rt_base_url}"
-    
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: No tickets available for {rt_testdata.rt_base_url}"
+
     with pytest.raises(RuntimeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_collector_no_tickets_source_data)
     assert str(exception.value) == error_msg
+
 
 def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query response contains malformed json
-    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: "\
-                f"Could not decode result of query as JSON"
-    
+    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: Could not decode result of query as JSON"
+
     with pytest.raises(RuntimeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)
     assert str(exception.value) == error_msg
+
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):

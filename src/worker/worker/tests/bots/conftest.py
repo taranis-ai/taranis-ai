@@ -19,3 +19,16 @@ def story_get_mock(requests_mock, stories):
 @pytest.fixture
 def tags_update_mock(requests_mock):
     yield requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags", json={"message": "Sucessfully updated story"})
+
+
+@pytest.fixture
+def ner_bot_mock(requests_mock):
+    print(f"Mocking: {Config.NLP_API_ENDPOINT}/")
+    yield requests_mock.post(
+        f"{Config.NLP_API_ENDPOINT}/",
+        json=[
+            {"entity": "B-PER", "index": 3, "score": 0.9992660880088806, "word": "John"},
+            {"entity": "B-LOC", "index": 7, "score": 0.9996646642684937, "word": "Amsterdam"},
+            {"entity": "B-LOC", "index": 7, "score": 0.9996286630630492, "word": "Paris"},
+        ],
+    )

@@ -15,6 +15,17 @@ from worker.collectors.base_collector import BaseCollector
 from worker.collectors.playwright_manager import PlaywrightManager
 
 
+class NoChangeError(Exception):
+    """Custom exception for when a source didn't change."""
+
+    def __init__(self, message="Not modified"):
+        super().__init__(message)
+        logger.debug(message)
+
+    def __str__(self):
+        return "Not modified"
+
+
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
@@ -25,7 +36,7 @@ class BaseWebCollector(BaseCollector):
         self.proxies = None
         self.timeout = 60
         self.last_attempted = None
-        self.headers = {}
+        self.headers = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
@@ -35,50 +46,32 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(
-            self, url: str,
-            modified_since: Optional[datetime.datetime] = None
-            ) -> Tuple[requests.Response | None, str]:
+    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
-           If modified_since is given, make request conditional with If-Modified-Since.
-           Check for specific status codes and raise rest of errors 
+            If modified_since is given, make request conditional with If-Modified-Since
+            Check for specific status codes and raise rest of errors 
         """
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
 
         if modified_since:
-           request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         logger.debug(f"{self.name} sending GET request to {url}")
-        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
-
-        message = None
-
-        # check for specific responses, in order to display specific error messages
-        # 200 OK, but without content
-        if response.status_code == 200 and not response.content:
-            message = f"{self.name} request to {url} got Response 200 OK, but returned no content"
+        try:
+            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+            if response.ok and not response.content:
+                 raise ValueError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
+            if response.status_code == 304:
+                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
+            if response.status_code == 429:
+                 raise ValueError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise e
         
-        # 304 Not Modified
-        if response.status_code == 304:
-            if not (last_modified := self.get_last_modified(response)):
-                last_modified = f"at least {self.last_attempted}"
-            message = f"{url} was not modified since {last_modified}"
-        
-        # 429 too many requests
-        if response.status_code == 429:
-            message = f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
-            raise requests.exceptions.HTTPError(message)
-
-        if message is not None:
-            logger.info(message)
-            return response, message
-    
-        response.raise_for_status()
-
-        return response, message
-
+        return response
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
@@ -133,11 +126,7 @@ class BaseWebCollector(BaseCollector):
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
-        # send GET request to web_url
-        try:
-            response, _ = self.send_get_request(web_url, self.last_attempted)
-        except requests.exceptions.RequestException as e:
-            return "", None
+        response = self.send_get_request(web_url, self.last_attempted) 
 
         if not response.content:
             return "", None
