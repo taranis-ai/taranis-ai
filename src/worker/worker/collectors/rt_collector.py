@@ -4,7 +4,7 @@ from urllib.parse import urlparse, urljoin
 import requests
 
 from worker.log import logger
-from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
+from worker.collectors.base_web_collector import BaseWebCollector
 from worker.types import NewsItem
 
 
@@ -157,7 +157,7 @@ class RTCollector(BaseWebCollector):
         try:
             response = self.send_get_request(attachment_url, self.last_attempted)
         except Exception as e:
-            logger.error("Failed to get attachement value from {attachment_url}. Error: {e}")
+            logger.error(f"Failed to get attachement value from {attachment_url}. Error: {e}")
             return {}
 
         try:
@@ -174,7 +174,7 @@ class RTCollector(BaseWebCollector):
         try:
             response = self.send_get_request(attachments_url, self.last_attempted)
         except Exception as e:
-            logger.error(f"Failed to get ticket attachements from {attachments_url}")
+            logger.error(f"Failed to get ticket attachements from {attachments_url}. Error: {e}")
             return []
 
         try:
