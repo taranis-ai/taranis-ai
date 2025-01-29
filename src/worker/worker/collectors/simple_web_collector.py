@@ -80,7 +80,7 @@ class SimpleWebCollector(BaseWebCollector):
 
         if response.status_code == 429:
             logger.error("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
-            raise ValueError("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
+            raise requests.exceptions.HTTPError("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
 
         if not response or not response.ok:
             logger.info(f"Website {source['id']} returned no content")
