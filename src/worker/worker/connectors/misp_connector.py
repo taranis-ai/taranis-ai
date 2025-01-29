@@ -111,8 +111,8 @@ class MISPConnector:
         Create a TaranisObject for the story itself, add attributes from the story,
         and attach it to the event with all attributes correctly stored under the 'attributes' key.
         """
-        object_data = self.get_story_object_dict()
-        object_data.update(story)
+        object_data: dict = self.get_story_object_dict()
+        object_data |= story
         object_data["attributes"] = []
 
         story_object = BaseMispObject(
@@ -121,25 +121,37 @@ class MISPConnector:
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
 
-        attributes = story.get("attributes", [])
-        for attr in attributes:
+        attribute_list = self.add_attributes_from_story(story)
+
+        story_object.add_attributes("attributes", *attribute_list)
+
+        event.add_object(story_object)
+        # logger.info(f"Story object added to event {event.id} with template 'taranis-story'.")
+
+    def add_attributes_from_story(self, story: dict) -> list:
+        """Don't upload metadata of attributes to misp"""
+        # TODO: Temporary solution before changing the misp event to story mapping to story's UUID
+        if not any(attribute["key"] == "misp_event_uuid" for attribute in story.get("attributes", [])):
+            story.setdefault("attributes", []).append({"key": "misp_event_uuid", "value": f"{story.get('id', '')}"})
+
+        attribute_list = []
+        for attr in story.get("attributes", []):
             key = attr.get("key", "")
             value = attr.get("value")
             attribute_value = "{'key': '" + str(key) + "', 'value': '" + str(value) + "'}"
             if value is not None:
+                attribute_list.append(str(attribute_value))
                 logger.debug(f"Adding attribute to story object: attributes={attribute_value}")
-                story_object.add_attribute(object_relation="attributes", value=attribute_value)
             else:
                 logger.warning(f"Skipping attribute with missing value: {attr}")
-
-        event.add_object(story_object)
-        # logger.info(f"Story object added to event {event.id} with template 'taranis-story'.")
+        return attribute_list
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         """
         Create a MISPEvent from the 'story' dictionary.
         """
         event = MISPEvent()
+        event.uuid = story.get("id", "")
         event.info = story.get("title", "")
         event.threat_level_id = 4
         event.analysis = 0
