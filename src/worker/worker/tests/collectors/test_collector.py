@@ -11,13 +11,13 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     assert response.text == "200 OK"
     assert response.status_code == 200
 
-    with pytest.raises(ValueError) as exception:
+    with pytest.raises(NoChangeError) as exception:
         response = base_web_collector.send_get_request("https://test.org/no_content")
-    assert str(exception.value) == "Base Web Collector request to https://test.org/no_content got Response 200 OK, but returned no content"
+    assert str(exception.value) == "Not modified"
 
-    with pytest.raises(NoChangeError, match="Not modified") as exception:
+    with pytest.raises(NoChangeError) as exception:
         response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
-    assert str(exception.value) == "https://test.org/304 was not modified since at least 2022-01-01 00:00:00"
+    assert str(exception.value) == "Not modified"
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
@@ -44,7 +44,7 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     assert result == "Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == f"RSS-Feed {rss_collector_source_data_no_content['parameters']['FEED_URL']} returned no content"
+    assert result == f"Not modified"
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
