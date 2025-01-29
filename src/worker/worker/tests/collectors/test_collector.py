@@ -44,7 +44,7 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     assert result == "Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == f"Not modified"
+    assert result == "Not modified"
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
