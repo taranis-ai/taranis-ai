@@ -5,7 +5,7 @@ import uuid
 class TestAssessApi(BaseTest):
     base_uri = "/api/assess"
 
-    def test_get_OSINTSourceGroupsAssess_auth(self, client, auth_header):
+    def test_get_OSINTSourceGroupsAssess(self, client, fake_source, auth_header):
         """
         This test queries the OSINTSourceGroupsAssess authenticated.
         It expects a valid data and a valid status-code
@@ -13,7 +13,7 @@ class TestAssessApi(BaseTest):
         response = self.assert_get_ok(client, "osint-source-group-list", auth_header)
         assert response.get_json()["items"][0]["id"] == "default"
 
-    def test_get_OSINTSourcesList_auth(self, client, auth_header):
+    def test_get_OSINTSourcesList(self, client, fake_source, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
         It expects 1 OSINTSource ("manual") retured
@@ -24,30 +24,39 @@ class TestAssessApi(BaseTest):
         item_ids = [item["id"] for item in items]
         assert "manual" in item_ids
 
-    def test_post_AddNewsItem_auth(self, client, cleanup_news_item, auth_header):
-        """
-        This test queries the AddNewsItem authenticated.
-        It expects a valid data and a valid status-code
-        """
 
-        response = client.post("/api/assess/news-items", json=cleanup_news_item, headers=auth_header)
-        assert response
-        assert response.content_type == "application/json"
-        assert response.data
-        assert response.status_code == 200
+class TestAssessNewsItems(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_post_AddNewsItem(self, client, cleanup_news_item, auth_header):
+        response = self.assert_post_ok(client, "news-items", cleanup_news_item, auth_header)
         assert uuid.UUID(response.get_json()["story_id"], version=4)
 
-    def test_get_stories_auth(self, client, stories, auth_header):
+    def test_get_NewsItems(self, client, cleanup_news_item, auth_header):
+        response = self.assert_get_ok(client, "news-items", auth_header)
+        assert len(response.get_json()["items"]) == 1
+        assert response.get_json()["items"][0]["id"] == cleanup_news_item["id"]
+
+    def test_get_NewsItem(self, client, cleanup_news_item, auth_header):
+        response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
+        assert response.get_json()["id"] == cleanup_news_item["id"]
+
+    def test_delete_NewsItem(self, client, cleanup_news_item, auth_header):
+        response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
+        assert response.get_json()["id"] == cleanup_news_item["id"]
+        assert response.get_json()["message"] == "News Item deleted"
+
+
+class TestAssessStories(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_get_stories(self, client, stories, auth_header):
         """
         This test queries the stories authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/assess/stories", headers=auth_header)
-        assert response
-        assert response.data
-        assert response.get_json()["counts"]["total_count"] == 3
-        assert response.content_type == "application/json"
-        assert response.status_code == 200
+        response = self.assert_get_ok(client, "stories", auth_header)
+        assert response.get_json()["counts"]["total_count"] == 2
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
         assert response.status_code == 200
@@ -72,26 +81,12 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["counts"]["total_count"] > 0
 
         response = client.get("/api/assess/stories?offset=1", headers=auth_header)
-        assert len(response.get_json()["items"]) == 2
+        assert len(response.get_json()["items"]) == 1
 
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
-    def test_get_NewsItem_auth(self, client, stories, auth_header):
-        """
-        This test queries the NewsItems Authenticated.
-        It expects valid NewsItems
-        """
-        response = client.get("/api/assess/news-items", headers=auth_header)
-        assert response.content_type == "application/json"
-        assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 3
-
     def test_get_story_tags(self, client, stories, auth_header):
-        """
-        This test queries the tags Authentictaed.
-        It expects a list of tags
-        """
         from core.model.story import Story
 
         nia1 = Story.get(stories[0])
@@ -109,10 +104,17 @@ class TestAssessApi(BaseTest):
         assert response.content_type == "application/json"
         assert response.status_code == 200
         response = client.get("/api/assess/tags?min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 4
+        assert len(response.get_json()) == 3
         response = client.get("/api/assess/tags?search=fo&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?offset=1&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 3
+        assert len(response.get_json()) == 2
+
+    def test_delete_story(self, client, stories, auth_header):
+        response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
+
+        response = client.get("/api/assess/stories", headers=auth_header)
+        total_count = response.get_json()["counts"]["total_count"]
+        assert total_count == 1

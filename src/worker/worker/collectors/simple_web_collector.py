@@ -17,7 +17,7 @@ class SimpleWebCollector(BaseWebCollector):
         self.news_items = []
         self.web_url: str
         self.xpath: str
-        self.last_modified = None
+        self.last_attempted = None
         self.digest_splitting_limit: int
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -81,14 +81,9 @@ class SimpleWebCollector(BaseWebCollector):
             logger.info(f"Website {source['id']} returned no content")
             raise ValueError("Website returned no content")
 
-        last_attempted = self.get_last_attempted(source)
-        if not last_attempted:
+        self.last_attempted = self.get_last_attempted(source)
+        if not self.last_attempted:
             self.update_favicon(self.web_url, self.osint_source_id)
-        last_modified = self.get_last_modified(response)
-        self.last_modified = last_modified
-        if last_modified and last_attempted and last_modified < last_attempted and not manual:
-            logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
-            return "Last-Modified < Last-Attempted"
 
         try:
             self.news_items = self.gather_news_items()

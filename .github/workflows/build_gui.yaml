@@ -16,7 +16,7 @@ permissions:
 jobs:
   build_npm:
     name: npm build
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -45,7 +45,7 @@ jobs:
 
   build_docker:
     name: build with docker
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx

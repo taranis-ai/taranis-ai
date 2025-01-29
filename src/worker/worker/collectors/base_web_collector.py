@@ -6,13 +6,24 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from typing import Any
+from typing import Any, Optional
 import json
 
 from worker.log import logger
 from worker.types import NewsItem
 from worker.collectors.base_collector import BaseCollector
 from worker.collectors.playwright_manager import PlaywrightManager
+
+
+class NoChangeError(Exception):
+    """Custom exception for when a source didn't change."""
+
+    def __init__(self, message="Not modified"):
+        super().__init__(message)
+        logger.debug(message)
+
+    def __str__(self):
+        return "Not modified"
 
 
 class BaseWebCollector(BaseCollector):
@@ -23,7 +34,9 @@ class BaseWebCollector(BaseCollector):
         self.description = "Base abstract type for all collectors that use web scraping"
 
         self.proxies = None
-        self.headers = {}
+        self.timeout = 60
+        self.last_attempted = None
+        self.headers = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
@@ -32,6 +45,27 @@ class BaseWebCollector(BaseCollector):
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode = None
         self.web_url: str = ""
+
+    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response | None:
+        """Send a GET request to url with self.headers using self.proxies.
+        If modified_since is given, make request conditional with If-Modified-Since"""
+
+        # transform modified_since datetime object to str that is accepted by If-Modified-Since
+        request_headers = self.headers.copy()
+
+        if modified_since:
+            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+        try:
+            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+            if response.status_code == 304:
+                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to connect to {url}. Error: {e}")
+            return None
+
+        return response
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
@@ -85,12 +119,22 @@ class BaseWebCollector(BaseCollector):
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
-        response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
-        if not response or not response.ok:
-            return "", None
+
+        # send GET request to web_url
+        response = self.send_get_request(web_url, self.last_attempted)
+        if response is None:
+            return "", None  # failure case
+
         published_date = self.get_last_modified(response)
         if text := response.text:
             return text, published_date
+
+        # differentiate between no content returned due to not-modified or other reasons
+        if response.status_code == 304:
+            logger.info(f"Content of {web_url} was not modified since:{self.last_attempted or ''}")
+        else:
+            logger.error(f"No content found for url: {web_url}")
+
         return "", published_date
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
@@ -143,7 +187,6 @@ class BaseWebCollector(BaseCollector):
             content = extract(web_content, url=web_url)
 
         if not content or not web_content:
-            logger.error(f"No content found for url: {web_url}")
             return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 
         author, title = self.extract_meta(web_content, web_url)

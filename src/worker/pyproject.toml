@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "requests",
+    "requests[socks]",
 
     # Collector
     "beautifulsoup4",
@@ -27,6 +28,7 @@ dependencies = [
     "pyopenssl",
     "lxml",
     "playwright",
+    "langcodes",
 
     # Publisher
     "paramiko",
@@ -35,21 +37,15 @@ dependencies = [
 
     # Presenters
     "weasyprint",
+    "jinja2",
 
     # Connectors
     "pymisp==2.5.2",
 
     # Bots
-    "scipy==1.12.0",
-    "matplotlib==3.8.4",
     "ioc-finder",
     "ioc-fanger",
-    "flair",
-    "transformers",
-    "py3langid",
-    "nltk",
-    "taranis-story-clustering==0.8.1",
-    "taranis-sentiment-analysis==1.2.0"
+    "langdetect",
 ]
 dynamic = ["version"]
 

@@ -15,11 +15,11 @@ permissions:
 jobs:
   test:
     name: pytest
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           prune-cache: false
@@ -51,12 +51,12 @@ jobs:
 
   build_wheel:
     name: build wheel
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           prune-cache: false
@@ -80,7 +80,7 @@ jobs:
 
   build_docker:
     name: build docker
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Set up Docker Buildx
@@ -91,9 +91,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: get ghcr owner repository
+      - name: set build env
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+          echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
       - name: Build and push worker image
         uses: docker/build-push-action@v5
         with:
@@ -102,5 +103,8 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:${{ github.ref_name }}
+          build-args: |
+            git_info=${{ env.GIT_INFO }}
+            BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
           cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest
           cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest,mode=max

@@ -1,6 +1,7 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from sentiment_analysis.sentiment_analysis_multimodel import analyze_sentiment
+from worker.bot_api import BotApi
+from worker.config import Config
 
 
 class SentimentAnalysisBot(BaseBot):
@@ -9,6 +10,7 @@ class SentimentAnalysisBot(BaseBot):
         self.type = "SENTIMENT_ANALYSIS_BOT"
         self.name = "Sentiment Analysis Bot"
         self.description = "Bot to analyze the sentiment of news items' content"
+        self.bot_api = BotApi(Config.SENTIMENT_ANALYSIS_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
@@ -19,15 +21,13 @@ class SentimentAnalysisBot(BaseBot):
         logger.debug(f"Analyzing sentiment for {len(data)} news items")
 
         # Process each story
-        sentiment_results = self.analyze_news_items(data)
-        self.update_news_items(sentiment_results)
+        if sentiment_results := self.analyze_news_items(data):
+            self.update_news_items(sentiment_results)
+            return {
+                "message": "Sentiment analysis complete",
+            }
 
-        logger.debug(f"Sentiment analysis complete with results: {sentiment_results}")
-
-        return {
-            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],
-            "message": "Sentiment analysis complete",
-        }
+        return {"message": "No sentiment analysis results"}
 
     def analyze_news_items(self, stories: list) -> dict:
         results = {}
@@ -35,17 +35,13 @@ class SentimentAnalysisBot(BaseBot):
             news_items = story.get("news_items", [])
             for news_item in news_items:
                 text_content = news_item.get("content", "")
-                sentiment = analyze_sentiment(text_content)
-                if "score" not in sentiment:
-                    logger.error(f"Sentiment analysis failed for news item {news_item['id']}")
-                    continue
-
-                logger.debug(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
-                news_item_id = news_item["id"]
-                results[news_item_id] = {
-                    "sentiment": sentiment["score"],
-                    "category": sentiment["label"],  
-                }
+                if sentiment := self.bot_api.api_post("/", {"text": text_content}):
+                    logger.debug(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
+                    news_item_id = news_item["id"]
+                    results[news_item_id] = {
+                        "sentiment": sentiment["score"],
+                        "category": sentiment["label"],
+                    }
 
         return results
 
@@ -55,9 +51,8 @@ class SentimentAnalysisBot(BaseBot):
                 {"key": "sentiment_score", "value": str(sentiment_data.get("sentiment", "N/A"))},
                 {"key": "sentiment_category", "value": sentiment_data.get("category", "N/A")},
             ]
-            logger.debug(f"Updating news item {news_item_id} with attributes: {attributes}")
 
-            if success := self.core_api.update_news_item_attributes(news_item_id, attributes):  # noqa: F841
+            if self.core_api.update_news_item_attributes(news_item_id, attributes):
                 logger.debug(f"Successfully updated news item {news_item_id} with sentiment attributes.")
             else:
                 logger.error(f"Failed to update news item {news_item_id} with sentiment attributes.")
