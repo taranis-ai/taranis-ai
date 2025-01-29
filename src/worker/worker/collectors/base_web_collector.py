@@ -61,7 +61,7 @@ class BaseWebCollector(BaseCollector):
         logger.debug(f"{self.name} sending GET request to {url}")
         try:
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
-            if response.ok and not response.content:
+            if response.status_code == 200 and not response.content:
                  raise ValueError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
