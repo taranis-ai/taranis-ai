@@ -92,6 +92,10 @@
             />
           </v-col>
         </v-row>
+        <TimeIntervalFields
+          v-if="item.type === 'time_interval'"
+          v-model="formData[item.flatKey]"
+        />
 
         <v-col v-if="item.type === 'table'" cols="12" class="mt-1 mb-2">
           <v-data-table
@@ -147,6 +151,7 @@
 </template>
 
 <script>
+import TimeIntervalFields from '@/components/config/TimeIntervalFields.vue'
 import { watch, computed, onUpdated, onMounted } from 'vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -158,6 +163,9 @@ import {
 
 export default {
   name: 'EditConfig',
+  components: {
+    TimeIntervalFields
+  },
   props: {
     configData: {
       type: Object,

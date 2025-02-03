@@ -115,6 +115,8 @@ function formDataDefaultValues(format_type) {
     case 'table':
     case 'checkbox':
       return []
+    case 'time_interval':
+      return { interval: '' }
     default:
       return ''
   }

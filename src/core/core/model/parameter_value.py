@@ -18,6 +18,7 @@ class PARAMETER_TYPES(StrEnum):
     LIST = auto()
     DATE = auto()
     TABLE = auto()
+    TIME_INTERVAL = auto()
 
 
 def convert_interval(interval: str) -> int | None:
