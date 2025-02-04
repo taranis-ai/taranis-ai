@@ -9,6 +9,7 @@ from core.model.word_list import WordList
 from core.model.token_blacklist import TokenBlacklist
 from core.model.product import Product
 from core.config import Config
+from typing import Optional
 
 
 class Task(MethodView):
@@ -27,27 +28,16 @@ class Task(MethodView):
         task_id = data.get("task_id")
         result = data.get("result")
         status = data.get("status")
-        if not result or not status or "error" in result:
+
+        status_code = 201
+        if not result or "error" in result or status == "FAILURE":
             logger.error(f"{task_id=} - {result=} - {status=}")
+            status_code = 400
 
-            # failed presenter_tasks are saved in the tasks table
-            if result and task_id.startswith("presenter_task"):
-                task_data = {"id": result.get("product_id"), "result": result.get("message"), "status": status}
-                TaskModel.add_or_update(task_data)
-            return {"status": "error"}, 400
+        handle_task_specific_result(task_id, result)
 
-        if task_id.startswith("gather_word_list"):
-            WordList.update_word_list(**result)
-        elif task_id.startswith("cleanup_token_blacklist"):
-            TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
-        elif task_id.startswith("presenter_task"):
-            # the value of "render_result" in result is a dict of form {"mime_type": str, "data": bytes}
-            rendered_product = result.get("render_result", {}).get("data", "")
-            Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
-        else:
-            task_data = {"id": task_id, "result": result, "status": status}
-            TaskModel.add_or_update(task_data)
-        return {"status": status}, 201
+        TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
+        return {"status": status}, status_code
 
 
 def initialize(app: Flask):
@@ -56,3 +46,25 @@ def initialize(app: Flask):
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"))
     app.register_blueprint(task_bp)
+
+
+def serialize_result(result: Optional[dict | str] = None):
+
+    if "exc_message" in result:
+        if isinstance(result["exc_message"], (list, tuple)):
+            return " ".join(result["exc_message"])
+        return result["exc_message"]
+    
+    if "message" in result:
+        return result["message"]
+    return result
+
+
+def handle_task_specific_result(task_id: str, result: Optional[dict | str] = None):        
+        if task_id.startswith("gather_word_list"):
+            WordList.update_word_list(**result)
+        elif task_id.startswith("cleanup_token_blacklist"):
+            TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        elif task_id.startswith("presenter_task"):
+            rendered_product = result.get("render_result", {}).get("data", "")
+            Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
