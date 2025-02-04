@@ -50,6 +50,8 @@ def initialize(app: Flask):
 
 
 def serialize_result(result: Optional[dict | str] = None):
+    if result is None:
+        return None
 
     if "exc_message" in result:
         if isinstance(result["exc_message"], (list, tuple)):
