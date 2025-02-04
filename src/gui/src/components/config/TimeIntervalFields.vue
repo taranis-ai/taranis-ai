@@ -73,7 +73,6 @@ const isEnabled = computed({
     if (value) {
       emit('update:modelValue', '* */8 * * *')
     } else {
-      console.log(value)
       emit('update:modelValue', '')
     }
   }

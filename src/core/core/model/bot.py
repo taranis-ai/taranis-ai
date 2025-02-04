@@ -8,9 +8,10 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.parameter_value import ParameterValue, convert_interval
+from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
 from core.managers.schedule_manager import Scheduler
+from apscheduler.triggers.cron import CronTrigger
 
 
 class Bot(BaseModel):
@@ -104,22 +105,19 @@ class Bot(BaseModel):
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def get_schedule(self) -> int | None:
+    def get_schedule(self) -> str | None:
         refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
-        if refresh_interval_str == "":
-            return None
+        return None if refresh_interval_str == "" else refresh_interval_str
 
-        refresh_interval = convert_interval(refresh_interval_str)
-        if refresh_interval is None:
-            raise ValueError(f"Invalid REFRESH_INTERVAL: {refresh_interval_str}")
-        return refresh_interval
-
-    def to_task_dict(self, interval: int):
+    def to_task_dict(self, crontab: str) -> dict[str, Any]:
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
+            "jobs_params": {
+                "trigger": CronTrigger.from_crontab(crontab),
+                "max_instances": 1,
+            },
             "celery": {
                 "name": "bot_task",
                 "args": [self.id],

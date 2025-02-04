@@ -108,6 +108,7 @@ function formDataDefaultValues(format_type) {
       return false
     case 'text':
     case 'textarea':
+    case 'time_interval':
     case 'select':
       return ''
     case 'number':
@@ -115,8 +116,6 @@ function formDataDefaultValues(format_type) {
     case 'table':
     case 'checkbox':
       return []
-    case 'time_interval':
-      return { interval: '' }
     default:
       return ''
   }
