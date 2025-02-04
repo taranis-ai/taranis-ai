@@ -94,7 +94,7 @@
         </v-row>
         <TimeIntervalFields
           v-if="item.type === 'time_interval'"
-          v-model="formData[item.flatKey]"
+          v-model="formData[item.flatKey].interval"
         />
 
         <v-col v-if="item.type === 'table'" cols="12" class="mt-1 mb-2">

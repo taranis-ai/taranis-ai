@@ -1,26 +1,36 @@
 <template>
-  <v-container>
+  <v-container fluid class="pa-0 ma-0">
+    <v-row>
+      <v-col cols="12">
+        <v-switch
+          v-model="isEnabled"
+          label="Define a custom REFRESH_INTERVAL"
+        />
+      </v-col>
+    </v-row>
     <v-card class="pa-4 mb-4">
       <v-card-title class="text-h6">Refresh Interval</v-card-title>
       <v-divider></v-divider>
-
       <v-card-text>
         <v-row class="mt-3">
           <v-col cols="12">
-            <cron-vuetify v-model="value" @error="error = $event" />
+            <CronVuetify
+              :key="cronIntervalKey"
+              v-model="cronInterval"
+              @error="error = $event"
+              :disabled="!isEnabled"
+            />
           </v-col>
         </v-row>
-
         <v-row class="mt-3">
           <v-col cols="3">
             <v-text-field
               class="pt-3 cron-input"
-              :modelValue="value"
-              @update:model-value="nextValue = $event"
-              @blur="value = nextValue"
+              v-model="cronInterval"
               label="Cron Expression"
               :error-messages="error"
               variant="outlined"
+              :disabled="!isEnabled"
             />
           </v-col>
         </v-row>
@@ -30,17 +40,48 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { CronVuetify } from '@vue-js-cron/vuetify'
+import { ref, computed } from 'vue'
 
-const value = ref('* * * * *')
-const nextValue = ref('* * * * *')
+const props = defineProps({
+  modelValue: {
+    type: String,
+    default: ''
+  }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
 const error = ref('')
+
+const cronInterval = computed({
+  get() {
+    return props.modelValue
+  },
+  set(newValue) {
+    emit('update:modelValue', newValue)
+  }
+})
+
+const cronIntervalKey = computed(() => cronInterval.value)
+
+const isEnabled = computed({
+  get() {
+    return cronInterval.value !== ''
+  },
+  set(value) {
+    if (value) {
+      emit('update:modelValue', '* */8 * * *')
+    } else {
+      console.log(value)
+      emit('update:modelValue', '')
+    }
+  }
+})
 </script>
 
 <style scoped>
 @import '@vue-js-cron/vuetify/dist/vuetify.css';
-
 .cron-input {
   width: 100%;
 }
