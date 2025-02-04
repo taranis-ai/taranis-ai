@@ -29,15 +29,16 @@ class Task(MethodView):
         result = data.get("result")
         status = data.get("status")
 
-        status_code = 201
         if not result or "error" in result or status == "FAILURE":
             logger.error(f"{task_id=} - {result=} - {status=}")
-            status_code = 400
+            TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
+            return {"status": status}, 400
 
-        handle_task_specific_result(task_id, result)
+        if handle_task_specific_result(task_id, result):
+            return {"status": status}, 201
 
         TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
-        return {"status": status}, status_code
+        return {"status": status}, 201
 
 
 def initialize(app: Flask):
@@ -60,7 +61,7 @@ def serialize_result(result: Optional[dict | str] = None):
     return result
 
 
-def handle_task_specific_result(task_id: str, result: Optional[dict | str] = None):        
+def handle_task_specific_result(task_id: str, result: Optional[dict | str] = None) -> bool:        
         if task_id.startswith("gather_word_list"):
             WordList.update_word_list(**result)
         elif task_id.startswith("cleanup_token_blacklist"):
@@ -68,3 +69,6 @@ def handle_task_specific_result(task_id: str, result: Optional[dict | str] = Non
         elif task_id.startswith("presenter_task"):
             rendered_product = result.get("render_result", {}).get("data", "")
             Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
+        else:
+            return False
+        return True
