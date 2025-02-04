@@ -46,9 +46,11 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response | None:
+    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
-        If modified_since is given, make request conditional with If-Modified-Since"""
+            If modified_since is given, make request conditional with If-Modified-Since
+            Check for specific status codes and raise rest of errors 
+        """
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
@@ -56,15 +58,19 @@ class BaseWebCollector(BaseCollector):
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
+        logger.debug(f"{self.name} sending GET request to {url}")
         try:
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+            if response.status_code == 200 and not response.content:
+                 raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
+            if response.status_code == 429:
+                 raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to connect to {url}. Error: {e}")
-            return None
-
+            raise e
+        
         return response
 
     def parse_source(self, source):
@@ -120,20 +126,14 @@ class BaseWebCollector(BaseCollector):
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
-        # send GET request to web_url
-        response = self.send_get_request(web_url, self.last_attempted)
-        if response is None:
-            return "", None  # failure case
+        response = self.send_get_request(web_url, self.last_attempted) 
+
+        if not response.content:
+            return "", None
 
         published_date = self.get_last_modified(response)
         if text := response.text:
             return text, published_date
-
-        # differentiate between no content returned due to not-modified or other reasons
-        if response.status_code == 304:
-            logger.info(f"Content of {web_url} was not modified since:{self.last_attempted or ''}")
-        else:
-            logger.error(f"No content found for url: {web_url}")
 
         return "", published_date
 

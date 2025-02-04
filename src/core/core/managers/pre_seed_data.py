@@ -31,6 +31,7 @@ workers = [
             {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "REFRESH_INTERVAL"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
             {
                 "parameter": "DIGEST_SPLITTING_LIMIT",
@@ -62,6 +63,7 @@ workers = [
             {"parameter": "FIELDS_TO_INCLUDE"},
             {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "type": "RT_COLLECTOR",
     },
