@@ -15,10 +15,11 @@ RUN apt-get update && apt-get upgrade -y && \
 COPY ./src/worker/. /app/
 COPY ./.git /.git
 
+ENV UV_COMPILE_BYTECODE=1
+
 RUN uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen && \
-    python -m compileall /app/ && \
     # Install browser to /root/.cache/ms-playwright
     playwright install chromium --with-deps
 
@@ -29,7 +30,7 @@ LABEL description="Taranis AI Python Celery Worker"
 
 WORKDIR /app
 
-RUN apt-get update && apt-get upgrade -y && \
+RUN apt-get update && \
     apt-get install --no-install-recommends -y \
       libpango-1.0-0 \
       libpangoft2-1.0-0
@@ -40,7 +41,7 @@ USER user
 COPY --from=builder --chown=user:user /app/ /app/
 COPY --from=builder --chown=user:user /root/.cache/ms-playwright /app/.cache/ms-playwright
 
-
+ENV PYTHONOPTIMIZE=1
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
 ARG git_info
