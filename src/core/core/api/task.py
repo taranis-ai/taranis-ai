@@ -9,7 +9,6 @@ from core.model.word_list import WordList
 from core.model.token_blacklist import TokenBlacklist
 from core.model.product import Product
 from core.config import Config
-from typing import Optional
 
 
 class Task(MethodView):
