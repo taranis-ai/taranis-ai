@@ -1,9 +1,12 @@
-from flask import Blueprint, Flask
+import io
+from flask import Blueprint, Flask, request, send_file
 from flask.views import MethodView
+from datetime import datetime
 
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.model.story import Story
+from core.service.story import StoryService
 from core.managers import queue_manager
 from core.config import Config
 
@@ -49,6 +52,25 @@ class ClearQueues(MethodView):
         return {"message": "All queues cleared"}, 200
 
 
+class ExportStories(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
+    def get(self):
+        if request.args.get("metadata", False):
+            data = StoryService.export_with_metadata()
+        else:
+            data = StoryService.export()
+
+        timestamp = datetime.now().isoformat()
+        if data is None:
+            return {"error": "Unable to export"}, 400
+        return send_file(
+            io.BytesIO(data),
+            download_name=f"story_export_{timestamp}.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
+
+
 def initialize(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
 
@@ -58,5 +80,6 @@ def initialize(app: Flask):
     admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
     admin_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
     admin_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
+    admin_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
 
     app.register_blueprint(admin_bp)
