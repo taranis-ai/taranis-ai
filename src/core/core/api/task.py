@@ -57,20 +57,20 @@ def serialize_result(result: Optional[dict | str] = None):
         if isinstance(result["exc_message"], (list, tuple)):
             return " ".join(result["exc_message"])
         return result["exc_message"]
-    
+
     if "message" in result:
         return result["message"]
     return result
 
 
-def handle_task_specific_result(task_id: str, result: Optional[dict | str] = None) -> bool:        
-        if task_id.startswith("gather_word_list"):
-            WordList.update_word_list(**result)
-        elif task_id.startswith("cleanup_token_blacklist"):
-            TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
-        elif task_id.startswith("presenter_task"):
-            rendered_product = result.get("render_result", {}).get("data", "")
-            Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
-        else:
-            return False
-        return True
+def handle_task_specific_result(task_id: str, result: dict | str) -> bool:
+    if task_id.startswith("gather_word_list"):
+        WordList.update_word_list(**result)
+    elif task_id.startswith("cleanup_token_blacklist"):
+        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+    elif task_id.startswith("presenter_task"):
+        rendered_product = result.get("render_result", {}).get("data", "")
+        Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
+    else:
+        return False
+    return True
