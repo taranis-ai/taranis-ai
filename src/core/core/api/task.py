@@ -49,7 +49,7 @@ def initialize(app: Flask):
     app.register_blueprint(task_bp)
 
 
-def serialize_result(result: Optional[dict | str] = None):
+def serialize_result(result: dict | str | None = None):
     if result is None:
         return None
 
