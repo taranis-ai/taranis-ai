@@ -20,7 +20,7 @@ def initialize(app, initial_setup: bool = True):
     db.init_app(app)
 
     if initial_setup:
-        logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+        logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
         is_empty = is_db_empty()
         db.create_all()
         if is_empty:
