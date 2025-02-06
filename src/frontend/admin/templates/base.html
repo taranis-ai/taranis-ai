@@ -7,10 +7,20 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
     <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
+    <script src="{{ url_for('static', filename='js/json-enc.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
+
 </head>
 <body class="bg-gray-100 p-8">
     
     <div class="container mx-auto w-full max-w-full">
+        <!-- tmp menu here -->
+         <div>
+            <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
+            <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
+            <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
+         </div>
         {% block content %}{% endblock %}
     </div>
 </body>

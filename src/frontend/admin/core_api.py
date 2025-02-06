@@ -63,4 +63,7 @@ class CoreApi:
 
     def get_users(self, query_params=None):
         return self.api_get("/config/users", params=query_params)
+    
+    def get_organizations(self, query_params=None):
+        return self.api_get("/config/organizations", params=query_params)
 

@@ -8,6 +8,19 @@ from admin.core_api import CoreApi
 from admin.config import Config
 from dataclasses import dataclass
 
+@dataclass 
+class Address(object):
+    city: str
+    country: str
+    street: str
+    zip: str
+
+@dataclass
+class Organization(object):
+    id: int
+    name: str
+    description: str
+    address: Address
 @dataclass
 class User(object):
     id: int
@@ -32,7 +45,8 @@ class Dashboard(MethodView):
         return render_template("index.html", data=result)
     
 # create a users index view
-class Users(MethodView):
+
+class UsersAPI(MethodView):
     def get(self):
         result = CoreApi().get_users()
         # current_app.logger.info(parsed_result)
@@ -43,8 +57,16 @@ class Users(MethodView):
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         return render_template("users.html", users=users)
-    def new(self):
-        return render_template("new_user.html")
+    
+    
+class NewUser(MethodView):
+    def get(self):
+        result = CoreApi().get_organizations()
+        if result:
+            organizations = [Organization(**organization) for organization in result['items']]
+        if result is None:
+            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+        return render_template("new_user.html", organizations=organizations)
 
     # def post(self):
     #     data = request.json
@@ -55,6 +77,21 @@ class Users(MethodView):
 
     #     return jsonify(result)
 
+class OrganizationsAPI(MethodView):
+    def get(self):
+        result = CoreApi().get_organizations()
+        if result:
+            organizations = [Organization(**organization) for organization in result['items']]
+        if result is None:
+            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+
+        return render_template("organizations.html", organizations=organizations)
+    
+class NewOrganization(MethodView):
+    def get(self):
+        return render_template("new_organization.html")
+
+
 def init(app: Flask):
     HTMX(app)
     app.url_map.strict_slashes = False
@@ -63,9 +100,11 @@ def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
     admin_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
-    admin_bp.add_url_rule("/users", view_func=Users.as_view("users"))
+    admin_bp.add_url_rule("/users/", view_func=UsersAPI.as_view("users"))
+    admin_bp.add_url_rule("/users/new", view_func=NewUser.as_view("new_user"))
+    admin_bp.add_url_rule("/organizations/", view_func=OrganizationsAPI.as_view("organizations"))
+    admin_bp.add_url_rule("/organizations/new", view_func=NewOrganization.as_view("new_organization"))
     # just render the new user form
-    admin_bp.add_url_rule("/users/new", view_func=Users.as_view("new"))
                     
 
     app.register_blueprint(admin_bp)
