@@ -27,7 +27,7 @@ Install pre dependencies:
 
 * git
 * tmux
-* nodejs >= 20
+* nodejs >= 22
 * build-essential
 * [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
 
