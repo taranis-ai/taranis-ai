@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 0.5.0
+  version: 1.1.0
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -171,6 +171,27 @@ paths:
                   isalive:
                     type: boolean
                     examples: [True]
+  /users:
+    get:
+      security:
+      - UserAuth: []
+      tags: [users]
+      description: get the users details
+      responses:
+        '200':
+          description: the user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_response_detail'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+        '500':
+          description: Internal server error
+
+
   /users/profile:
     get:
       security:
@@ -1499,7 +1520,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/acl_entry.presentation'
+                      $ref: '#/components/schemas/acl_entry'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -1513,7 +1534,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/acl_entry.new'
+              $ref: '#/components/schemas/acl_entry'
       responses:
         '200':
           description: success
@@ -1540,7 +1561,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/acl_entry.new'
+              $ref: '#/components/schemas/acl_entry'
       responses:
         '200':
           description: success
@@ -1584,7 +1605,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/organization.presentation'
+                      $ref: '#/components/schemas/organization'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -1670,7 +1691,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/user.presentation'
+                      $ref: '#/components/schemas/user_response'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -1684,7 +1705,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/user.new'
+              $ref: '#/components/schemas/user_create'
       responses:
         '200':
           description: success
@@ -1703,6 +1724,22 @@ paths:
           type: integer
           minimum: 1
           maximum: 100000
+    get:
+      tags: [config]
+      description: get user details
+      security:
+        - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_response_detail'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
     put:
       tags: [config]
       description: update user
@@ -1712,7 +1749,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/user.new'
+              $ref: '#/components/schemas/user_create'
       responses:
         '200':
           description: success
@@ -2656,7 +2693,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/product'
+                $ref: '#/components/schemas/product_base'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -2670,7 +2707,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/product'
+              $ref: '#/components/schemas/product_response'
       responses:
         '200':
           description: success
@@ -2806,26 +2843,14 @@ components:
         tag:
           type: string
 
-    user.new:
-      allOf:
-        - $ref: '#/components/schemas/user.base'
-        - type: object
-          properties:
-            roles:
-              type: array
-              items:
-                type: integer
-            permissions:
-              type: array
-              items:
-                $ref: '#/components/schemas/permission.id'
-            organizations:
-              type: array
-              items:
-                $ref: '#/components/schemas/organization.id'
 
-    user.base:
+    user_create:
       type: object
+      required:
+        - username
+        - name
+        - organization
+        - roles
       properties:
         id:
           type: integer
@@ -2840,32 +2865,45 @@ components:
             - "Alice"
         password:
           type: string
-    user:
-      allOf:
-        - $ref: '#/components/schemas/user.base'
-        - type: object
-          properties:
-            roles:
-              type: array
-              items:
-                $ref: '#/components/schemas/role'
-            permissions:
-              type: array
-              items:
-                $ref: '#/components/schemas/permission'
-            organisations:
-              type: array
-              items:
-                $ref: '#/components/schemas/organization'
-    user.presentation:
-      allOf:
-        - $ref: '#/components/schemas/user'
-        - $ref: '#/components/schemas/presentation'
-    user.id:
-      type: object
-      properties:
+        organization:
+          type: integer
+          examples: [42]
+        roles:
+          type: array
+          items:
+            type: integer
+
+    user_response:
+      - type: object
+        properties:
         id:
           type: integer
+          examples: [42]
+        username:
+          type: string
+          examples:
+            - "user"
+        name:
+          type: string
+          examples:
+            - "Alice"
+        organization:
+          type: integer
+          examples: [42]
+        roles:
+          type: array
+          items:
+            type: integer
+        permissions:
+          type: array
+          items:
+            type: string
+
+    user_response_detail:
+      allOf:
+        - $ref: '#/components/schemas/user_response'
+        - $ref: '#/components/schemas/user_response_profile'
+
     hotkey:
       type: object
       properties:
@@ -2875,6 +2913,7 @@ components:
           type: string
         alias:
           type: string
+
     user_profile:
       type: object
       properties:
@@ -2884,9 +2923,22 @@ components:
         compact_view:
           type: boolean
           examples: [False]
-        show_charts:
+        infinite_scroll:
           type: boolean
           examples: [True]
+        show_charts:
+          type: boolean
+          examples: [False]
+        end_of_shift:
+          type: object
+          properties:
+            hours:
+              type: integer
+            minutes:
+              type: integer
+        language:
+          type: string
+          examples: ["en"]
         split_view:
           type: boolean
           examples: [False]
@@ -2904,11 +2956,7 @@ components:
           type: string
         description:
           type: string
-    permission.id:
-      type: object
-      properties:
-        id:
-          type: string
+
     role:
       properties:
         id:
@@ -2924,6 +2972,8 @@ components:
 
     organization:
       type: object
+      required:
+        - name
       properties:
         id:
           type: integer
@@ -2933,23 +2983,12 @@ components:
           type: string
         address:
           $ref: '#/components/schemas/address'
-    organization.presentation:
-      allOf:
-        - $ref: '#/components/schemas/organization'
-        - $ref: '#/components/schemas/presentation'
-    organization.id:
-      type: object
-      properties:
-        id:
-          type: integer
-
-    address.new:
-      allOf:
-        - $ref: '#/components/schemas/address'
 
     address:
       type: object
       properties:
+        id:
+          type: integer
         street:
           type: string
         city:
@@ -2959,9 +2998,6 @@ components:
         country:
           type: string
 
-    wordlist_entry.new:
-      allOf:
-        - $ref: '#/components/schemas/wordlist_entry'
     wordlist_entry:
       type: object
       properties:
@@ -3333,11 +3369,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/news_item'
-    story.id:
-      type: object
-      properties:
-        id:
-          type: string
 
     modify_item:
       type: object
@@ -3482,12 +3513,6 @@ components:
       allOf:
         - $ref: '#/components/schemas/asset_group'
         - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            users:
-              type: array
-              items:
-                $ref: '#/components/schemas/user.base'
 
     bot:
       type: object
@@ -3521,84 +3546,67 @@ components:
         category:
           type: string
 
-    acl_entry.new:
-      allOf:
-        - $ref: '#/components/schemas/acl_entry'
-        - type: object
-          properties:
-            users:
-              type: array
-              items:
-                $ref: '#/components/schemas/user.id'
-            roles:
-              type: array
-              items:
-                type: integer
-
     item_type:
       type: string
-      enum: [COLLECTOR, OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM, REPORT_ITEM_TYPE, PRODUCT_TYPE]
-    acl_entry_status:
-      type: object
-      properties:
-        see:
-          type: boolean
-        access:
-          type: boolean
-        modify:
-          type: boolean
-    acl_entry:
-      allOf:
-        - $ref: '#/components/schemas/acl_entry_status'
-        - type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-            description:
-              type: string
-            item_type:
-              $ref: '#/components/schemas/item_type'
-            item_id:
-              type: string
-            everyone:
-              type: boolean
-    acl_entry.presentation:
-      allOf:
-        - $ref: '#/components/schemas/acl_entry'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            roles:
-              type: array
-              items:
-                $ref: '#/components/schemas/role'
-            users:
-              type: array
-              items:
-                $ref: '#/components/schemas/user.base'
+      enum: [OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM_TYPE, PRODUCT_TYPE]
 
-    product.base:
-      type: object
-      properties:
-        id:
-          type: integer
-        title:
-          type: string
-        description:
-          type: string
-        product_type_id:
-          type: integer
-    product:
+    acl_entry:
+      - type: object
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          description:
+            type: string
+          item_type:
+            $ref: '#/components/schemas/item_type'
+          item_id:
+            type: string
+          enabled:
+            type: boolean
+          read_only:
+            type: boolean
+          roles:
+            type: array
+            items:
+              type: integer
+        required:
+          - name
+          - description
+          - item_type
+          - item_id
+
+    product_base:
+      - type: object
+        properties:
+          id:
+            type: string
+          title:
+            type: string
+          description:
+            type: string
+          product_type_id:
+            type: integer
+          report_items:
+            type: array
+            items:
+              type: string
+        required:
+          - title
+          - product_type_id
+
+    product_response:
       allOf:
-        - $ref: '#/components/schemas/product.base'
+        - $ref: '#/components/schemas/product_base'
         - type: object
           properties:
-            report_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item'
+            created:
+              type: string
+              format: date-time
+            last_rendered:
+              type: string
+              format: date-time
 
     report_item_lock:
       type: object

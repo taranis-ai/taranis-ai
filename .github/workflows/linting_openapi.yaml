@@ -1,0 +1,18 @@
+name: lint openapi
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/core/core/static/openapi3_1.yaml'
+
+jobs:
+  open_api_lint:
+    name: Lint OpenAPI spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: stoplightio/spectral-action@latest
+        with:
+          file_glob: 'src/core/core/static/openapi3_1.yaml'
