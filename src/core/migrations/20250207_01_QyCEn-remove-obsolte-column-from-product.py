@@ -1,5 +1,5 @@
 """
-remove obsolte column from product
+remove obsolete column from product
 """
 
 from yoyo import step
