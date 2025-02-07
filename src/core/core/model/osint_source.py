@@ -227,12 +227,10 @@ class OSINTSource(BaseModel):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
 
-        try:
-            interval = self.get_schedule()
-            entry = self.to_task_dict(interval)
-            Scheduler.add_celery_task(entry)
-        except ValueError as e:
-            return {"error": f"Could not schedule source {self.id}: {str(e)}"}, 400
+        interval = self.get_schedule()
+        entry = self.to_task_dict(interval)
+        Scheduler.add_celery_task(entry)
+
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
