@@ -87,7 +87,7 @@ paths:
     get:
       tags:
         - auth
-      operationId: LoginGet
+      operationId: auth.login
       description: get redirected to the URL requested before authentication
       parameters:
         - name: gotoUrl
@@ -111,6 +111,7 @@ paths:
     get:
       tags:
         - auth
+      operationId: auth.refresh
       description: refresh an API token
       responses:
         '200':
@@ -130,6 +131,7 @@ paths:
     delete:
       tags:
         - auth
+      operationId: auth.logout
       description: invalidate API token (i.e. logout)
       parameters:
         - name: jwt
@@ -158,6 +160,7 @@ paths:
     get:
       tags:
         - isalive
+      operationId: isalive
       description: see whether the Taranis instance is alive
       security: []
       responses:
@@ -175,6 +178,7 @@ paths:
     get:
       security:
       - UserAuth: []
+      operationId: user.user_info
       tags: [users]
       description: get the users details
       responses:
@@ -196,6 +200,7 @@ paths:
     get:
       security:
       - UserAuth: []
+      operationId: user.user_profile.get
       tags: [users]
       description: get the user's profile
       responses:
@@ -214,6 +219,7 @@ paths:
     put:
       security:
       - UserAuth: []
+      operationId: user.user_profile.put
       tags: [users]
       description: update the user's profile
       requestBody:
@@ -2671,6 +2677,8 @@ paths:
                     type: integer
                   items:
                     type: array
+                    items:
+                      $ref: '#/components/schemas/product_base'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -2737,6 +2745,7 @@ paths:
     get:
       tags: [publish]
       description: download a rendered product
+      operationId: publish.render_product.get
       security:
       - UserAuth: []
       responses:
@@ -2748,6 +2757,7 @@ paths:
           $ref: "#/components/responses/404NotFound"
     post:
       tags: [publish]
+      operationId: publish.render_product.post
       description: render a product
       security:
       - UserAuth: []
@@ -2772,6 +2782,7 @@ paths:
           type: string
     post:
       tags: [publish]
+      operationId: publish.publish_product
       description: generate a specific product at a specific publisher
       security:
       - UserAuth: []
@@ -2812,26 +2823,6 @@ components:
 
     #general
 
-
-    scheduled_task:
-      type: object
-      properties:
-        next_run_time:
-          type: string
-          format: date-time
-        last_run_at:
-          type: string
-          format: date-time
-        total_run_count:
-          type: integer
-        task:
-          type: string
-        args:
-          type: array
-          items:
-            type: string
-        schedule:
-          type: string
 
     presentation:
       type: object
@@ -2874,8 +2865,8 @@ components:
             type: integer
 
     user_response:
-      - type: object
-        properties:
+      type: object
+      properties:
         id:
           type: integer
           examples: [42]
@@ -2902,7 +2893,7 @@ components:
     user_response_detail:
       allOf:
         - $ref: '#/components/schemas/user_response'
-        - $ref: '#/components/schemas/user_response_profile'
+        - $ref: '#/components/schemas/user_profile'
 
     hotkey:
       type: object
@@ -3189,13 +3180,6 @@ components:
           type: string
         parameter:
           $ref: '#/components/schemas/parameter'
-    parameter_value.export:
-      type: object
-      properties:
-        value:
-          type: string
-        parameter:
-          $ref: '#/components/schemas/parameter.export'
 
     parameter_type:
       type: string
@@ -3214,11 +3198,6 @@ components:
           type: string
         type:
           $ref: '#/components/schemas/parameter_type'
-    parameter.export:
-      type: object
-      properties:
-        key:
-          type: string
 
     attribute_type:
       type: string
@@ -3481,25 +3460,7 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/report_item_attribute'
-    asset_vulnerability:
-      type: object
-      properties:
-        report_item:
-          $ref: '#/components/schemas/report_item_vulnerability'
-        solved:
-          type: boolean
-    asset.presentation:
-      allOf:
-        - $ref: '#/components/schemas/asset'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            vulnerabilities_count:
-              type: integer
-            vulnerabilities:
-              type: array
-              items:
-                $ref: '#/components/schemas/asset_vulnerability'
+
     asset_group:
       type: object
       properties:
@@ -3551,50 +3512,50 @@ components:
       enum: [OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM_TYPE, PRODUCT_TYPE]
 
     acl_entry:
-      - type: object
-        properties:
-          id:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        item_type:
+          $ref: '#/components/schemas/item_type'
+        item_id:
+          type: string
+        enabled:
+          type: boolean
+        read_only:
+          type: boolean
+        roles:
+          type: array
+          items:
             type: integer
-          name:
-            type: string
-          description:
-            type: string
-          item_type:
-            $ref: '#/components/schemas/item_type'
-          item_id:
-            type: string
-          enabled:
-            type: boolean
-          read_only:
-            type: boolean
-          roles:
-            type: array
-            items:
-              type: integer
-        required:
-          - name
-          - description
-          - item_type
-          - item_id
+      required:
+        - name
+        - description
+        - item_type
+        - item_id
 
     product_base:
-      - type: object
-        properties:
-          id:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        product_type_id:
+          type: integer
+        report_items:
+          type: array
+          items:
             type: string
-          title:
-            type: string
-          description:
-            type: string
-          product_type_id:
-            type: integer
-          report_items:
-            type: array
-            items:
-              type: string
-        required:
-          - title
-          - product_type_id
+      required:
+        - title
+        - product_type_id
 
     product_response:
       allOf:
@@ -3622,12 +3583,10 @@ components:
   securitySchemes:
     APIKey:
       type: http
-      in: header
       scheme: bearer
       bearerFormat: APIKEY
     UserAuth:
       type: http
-      in: header
       scheme: bearer
       bearerFormat: JWT
 

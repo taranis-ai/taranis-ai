@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: stoplightio/spectral-action@latest
+      - name: Running OpenAPI Spec diff action
+        uses: oasdiff/oasdiff-action/changelog@main
         with:
-          file_glob: 'src/core/core/static/openapi3_1.yaml'
+          base: 'https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml'
+          revision: 'src/core/core/static/openapi3_1.yaml'
+
