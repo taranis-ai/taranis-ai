@@ -1,5 +1,6 @@
 from celery.backends.base import BaseBackend
 from worker.core_api import CoreApi
+from celery.app.task import Context
 
 
 class HTTPBackend(BaseBackend):
@@ -7,7 +8,15 @@ class HTTPBackend(BaseBackend):
         super().__init__(app, **kwargs)
         self.core_api = CoreApi()
 
-    def store_result(self, task_id, result, state, traceback=None, request=None, **kwargs):
+    def store_result(
+        self,
+        task_id: str,
+        result: dict | str | Exception | None,
+        state: str,
+        traceback: str | None = None,
+        request: Context | None = None,
+        **kwargs,
+    ):
         data = {
             "task_id": task_id,
             "status": state,

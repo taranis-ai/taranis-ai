@@ -1,5 +1,5 @@
 import pytest
-
+import requests
 from worker.tests.testdata import news_items
 
 
@@ -7,15 +7,25 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     import datetime
     from worker.collectors.base_web_collector import NoChangeError
 
-    result = base_web_collector.send_get_request("https://test.org/200")
-    assert result.text == "200 OK"
-    assert result.status_code == 200
+    response = base_web_collector.send_get_request("https://test.org/200")
+    assert response.text == "200 OK"
+    assert response.status_code == 200
 
-    with pytest.raises(NoChangeError, match="Not modified"):
-        result = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+    with pytest.raises(NoChangeError) as exception:
+        response = base_web_collector.send_get_request("https://test.org/no_content")
+    assert str(exception.value) == "Not modified"
 
-    result = base_web_collector.send_get_request("https://test.org/404")
-    assert result is None
+    with pytest.raises(NoChangeError) as exception:
+        response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+    assert str(exception.value) == "Not modified"
+
+    with pytest.raises(requests.exceptions.HTTPError) as exception:
+        response = base_web_collector.send_get_request("https://test.org/429")
+    assert str(exception.value) == "Base Web Collector got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+
+    with pytest.raises(requests.exceptions.HTTPError) as exception:
+        response = base_web_collector.send_get_request("https://test.org/404")
+    assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
 
 def test_rss_collector(rss_collector_mock, rss_collector):
@@ -34,7 +44,7 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     assert result == "Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == f"RSS-Feed {rss_collector_source_data_no_content['parameters']['FEED_URL']} returned no content"
+    assert result == "Not modified"
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):

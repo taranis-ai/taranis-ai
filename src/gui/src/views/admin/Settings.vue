@@ -25,6 +25,22 @@
         </v-card>
       </v-col>
     </v-row>
+    <v-row no-gutters>
+      <v-card class="admin-settings-card pa-3" title="Export Stories">
+        <v-row no-gutters class="mt-2">
+          <v-col cols="6" class="pr-1">
+            <v-btn text="Export all Stories" block :href="exportStoryURL" />
+          </v-col>
+          <v-col cols="6" class="pl-1">
+            <v-btn
+              text="Export all Stories with metadata"
+              block
+              :href="exportStoryURL + '?metadata=true'"
+            />
+          </v-col>
+        </v-row>
+      </v-card>
+    </v-row>
 
     <v-row>
       <v-col class="pa-1 mx-4">
@@ -138,9 +154,12 @@ import {
   clearQueues
 } from '@/api/admin'
 import { computed, ref } from 'vue'
+import { useMainStore } from '@/stores/MainStore'
 export default {
   name: 'AdminSettings',
   setup() {
+    const mainStore = useMainStore()
+
     const tlpLevel = ref('')
 
     getSettings()
@@ -206,12 +225,16 @@ export default {
         notifyFailure(error)
       }
     }
+
+    const exportStoryURL = mainStore.coreAPIURL + '/admin/export-stories'
+
     return {
       deleteTags,
       ungroupAllStoriesAction,
       deleteEverything,
       purgeQueues,
       tlpLevels,
+      exportStoryURL,
       tlp
     }
   }
@@ -234,6 +257,7 @@ export default {
     color: rgb(var(--v-theme-primary));
   }
 }
+
 .admin-settings-expansion-panel-title .v-expansion-panel-title__overlay {
   display: none !important;
 }
