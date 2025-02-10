@@ -280,6 +280,12 @@ export function getAllSchedule() {
   return apiService.get('/config/workers/schedule')
 }
 
+export function getNextFireOn(cronExpression) {
+  return apiService.post('/config/workers/schedule', {
+    cron: cronExpression
+  })
+}
+
 export function getAllWorkers() {
   return apiService.get('/config/workers')
 }

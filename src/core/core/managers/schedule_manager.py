@@ -1,6 +1,8 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
+from datetime import datetime, timedelta
 
 from core.managers import queue_manager
 from core.log import logger
@@ -77,6 +79,24 @@ class Scheduler:
             }
         except Exception:
             return {}
+
+    @classmethod
+    def get_next_n_fire_times_from_cron(cls, cron_expr: str, n: int = 3) -> list[datetime]:
+        trigger = CronTrigger.from_crontab(cron_expr)
+        now = datetime.now(trigger.timezone) if trigger.timezone else datetime.now()
+
+        fire_times: list[datetime] = []
+        current: datetime = now
+
+        for _ in range(n):
+            next_fire: datetime | None = trigger.get_next_fire_time(None, current)
+            logger.error(f"{next_fire=}")
+            if next_fire is None:
+                break
+            fire_times.append(next_fire)
+            current = next_fire + timedelta(microseconds=1)
+
+        return fire_times
 
 
 def initialize():

@@ -93,7 +93,7 @@
           </v-col>
         </v-row>
         <TimeIntervalFields
-          v-if="item.type === 'time_interval'"
+          v-if="item.type === 'cron_interval'"
           v-model="formData[item.flatKey]"
         />
 

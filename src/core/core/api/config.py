@@ -364,6 +364,21 @@ class Schedule(MethodView):
         except Exception:
             logger.exception()
 
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def post(self):
+        data = request.get_json()
+        cron_expr = data.get("cron")
+        if not cron_expr:
+            return jsonify({"error": "Missing cron expression"}), 400
+
+        try:
+            fire_times = Scheduler.get_next_n_fire_times_from_cron(cron_expr, n=3)
+            formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
+            return jsonify(formatted_times), 200
+        except Exception as e:
+            logger.exception(e)
+            return jsonify({"error": "Failed to compute schedule"}), 500
+
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
@@ -646,12 +661,12 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
-    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
+    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
+    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
-    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
 
     app.register_blueprint(config_bp)
