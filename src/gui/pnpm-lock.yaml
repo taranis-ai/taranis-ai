@@ -25,7 +25,7 @@ importers:
         version: 8.54.0(pinia@2.3.1(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       '@vue-js-cron/vuetify':
         specifier: ^5.0.9
-        version: 5.0.9(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))
+        version: 5.0.9(typescript@5.7.3)(vite-plugin-vuetify@2.1.0)(vue@3.5.13(typescript@5.7.3))
       '@vuepic/vue-datepicker':
         specifier: ^11.0.1
         version: 11.0.1(vue@3.5.13(typescript@5.7.3))
@@ -452,6 +452,10 @@ packages:
 
   '@intlify/shared@11.1.0':
     resolution: {integrity: sha512-DvpNSxiMrFqYMaGSRDDnQgO/L0MqNH4KWw9CUx8LRHHIdWp08En9DpmSRNpauUOxKpHAhyJJxx92BHZk9J84EQ==}
+    engines: {node: '>= 16'}
+
+  '@intlify/shared@11.1.1':
+    resolution: {integrity: sha512-2kGiWoXaeV8HZlhU/Nml12oTbhv7j2ufsJ5vQaa0VTjzUmZVdd/nmKFRAOJ/FtjO90Qba5AnZDwsrY7ZND5udA==}
     engines: {node: '>= 16'}
 
   '@intlify/unplugin-vue-i18n@6.0.3':
@@ -2184,12 +2188,14 @@ snapshots:
 
   '@intlify/shared@11.1.0': {}
 
+  '@intlify/shared@11.1.1': {}
+
   '@intlify/unplugin-vue-i18n@6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.19.0(jiti@2.4.2))(rollup@4.34.3)(typescript@5.7.3)(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
     dependencies:
       '@eslint-community/eslint-utils': 4.4.1(eslint@9.19.0(jiti@2.4.2))
       '@intlify/bundle-utils': 10.0.0(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))
-      '@intlify/shared': 11.1.0
-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.0)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
+      '@intlify/shared': 11.1.1
+      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       '@rollup/pluginutils': 5.1.4(rollup@4.34.3)
       '@typescript-eslint/scope-manager': 8.23.0
       '@typescript-eslint/typescript-estree': 8.23.0(typescript@5.7.3)
@@ -2211,11 +2217,11 @@ snapshots:
       - supports-color
       - typescript
 
-  '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.1.0)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
+  '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.1.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.0(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))':
     dependencies:
       '@babel/parser': 7.26.7
     optionalDependencies:
-      '@intlify/shared': 11.1.0
+      '@intlify/shared': 11.1.1
       '@vue/compiler-dom': 3.5.13
       vue: 3.5.13(typescript@5.7.3)
       vue-i18n: 11.1.0(vue@3.5.13(typescript@5.7.3))
@@ -2536,10 +2542,10 @@ snapshots:
     dependencies:
       mustache: 4.2.0
 
-  '@vue-js-cron/vuetify@5.0.9(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))':
+  '@vue-js-cron/vuetify@5.0.9(typescript@5.7.3)(vite-plugin-vuetify@2.1.0)(vue@3.5.13(typescript@5.7.3))':
     dependencies:
       '@vue-js-cron/core': 5.4.1
-      vuetify: 3.7.6(typescript@5.7.3)(vite-plugin-vuetify@2.0.4)(vue@3.5.13(typescript@5.7.3))
+      vuetify: 3.7.11(typescript@5.7.3)(vite-plugin-vuetify@2.1.0)(vue@3.5.13(typescript@5.7.3))
     transitivePeerDependencies:
       - typescript
       - vite-plugin-vuetify
