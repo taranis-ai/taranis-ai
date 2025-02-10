@@ -369,7 +369,6 @@ class Schedule(MethodView):
         cron_expr = data.get("cron")
         if not cron_expr:
             return jsonify({"error": "Missing cron expression"}), 400
-
         try:
             fire_times = Scheduler.get_next_n_fire_times_from_cron(cron_expr, n=3)
             formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]

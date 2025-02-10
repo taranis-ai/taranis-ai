@@ -95,6 +95,7 @@
         <TimeIntervalFields
           v-if="item.type === 'cron_interval'"
           v-model="formData[item.flatKey]"
+          @validation="handleCronValidation(item.flatKey, $event)"
         />
 
         <v-col v-if="item.type === 'table'" cols="12" class="mt-1 mb-2">
@@ -223,9 +224,20 @@ export default {
 
     const { d } = useI18n()
 
+    const validationStates = ref({})
+
+    const handleCronValidation = (key, isValid) => {
+      validationStates.value[key] = isValid
+    }
+
     const handleSubmit = async () => {
       const { valid } = await config_form.value.validate()
-      if (!valid) {
+
+      const cronValidation = Object.values(validationStates.value).every(
+        (state) => state
+      )
+
+      if (!valid || !cronValidation) {
         return
       }
 
@@ -315,7 +327,8 @@ export default {
       search,
       addItem,
       handleSubmit,
-      handleFileUpload
+      handleFileUpload,
+      handleCronValidation
     }
   }
 }
