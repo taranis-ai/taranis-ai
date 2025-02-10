@@ -10,7 +10,7 @@ workers = [
             {"parameter": "CONTENT_LOCATION"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
             {
                 "parameter": "DIGEST_SPLITTING_LIMIT",
@@ -73,7 +73,7 @@ workers = [
             {"parameter": "ATTRIBUTE_NAME"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for news items analysis",
     },
@@ -84,7 +84,7 @@ workers = [
             {"parameter": "REGULAR_EXPRESSION"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for grouping news items into stories",
     },
@@ -94,7 +94,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for naturale language processing of news items",
     },
@@ -104,7 +104,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for extracting indicators of compromise from news items",
     },
@@ -115,7 +115,7 @@ workers = [
             {"parameter": "KEYWORDS"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for tagging news items",
     },
@@ -127,7 +127,7 @@ workers = [
                 "parameter": "ITEM_FILTER",
             },
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for Story Clustering",
     },
@@ -137,7 +137,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for summarizing stories",
     },
@@ -148,7 +148,7 @@ workers = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "TAGGING_WORDLISTS", "type": "table"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for tagging news items by wordlist",
     },
@@ -158,7 +158,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
         "description": "Bot for analyzing sentiment of news items",
     },
@@ -247,7 +247,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
     {
@@ -257,7 +257,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
     {
@@ -267,7 +267,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
     {
@@ -285,7 +285,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "time_interval"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
     {

@@ -63,6 +63,7 @@ const cronInterval = computed({
   }
 })
 
+// This is a workaround to force the cron component to re-render
 const cronIntervalKey = computed(() => cronInterval.value)
 
 const isEnabled = computed({
