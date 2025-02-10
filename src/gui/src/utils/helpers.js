@@ -108,7 +108,7 @@ function formDataDefaultValues(format_type) {
       return false
     case 'text':
     case 'textarea':
-    case 'time_interval':
+    case 'cron_interval':
     case 'select':
       return ''
     case 'number':
