@@ -78,10 +78,18 @@ jobs:
             src/worker/dist/taranis_worker-*.whl
             src/worker/dist/taranis_worker-*.tar.gz
 
-  build_docker:
-    name: build docker
-    runs-on: ubuntu-latest
+
+  build_container:
+    name: build container
+    runs-on: ${{ matrix.os }}
     needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -108,11 +116,12 @@ jobs:
             type=ref,event=branch
             type=raw,value=latest
 
-      - name: Build and push worker image
+      - name: Build and push worker
         uses: docker/build-push-action@v6
         with:
           file: docker/Containerfile.worker
           push: true
+          platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             git_info=${{ env.GIT_INFO }}

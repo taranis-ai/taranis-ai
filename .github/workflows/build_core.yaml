@@ -105,7 +105,11 @@ jobs:
     needs: test
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -137,6 +141,7 @@ jobs:
         with:
           file: docker/Containerfile.core
           push: true
+          platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             git_info=${{ env.GIT_INFO }}
