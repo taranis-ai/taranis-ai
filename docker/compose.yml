@@ -70,6 +70,7 @@ services:
 
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    shm_size: 256mb
     # ports:
     # - 6543:5432
     deploy:

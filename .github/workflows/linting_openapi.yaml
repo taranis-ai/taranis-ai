@@ -1,0 +1,21 @@
+name: lint openapi
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/core/core/static/openapi3_1.yaml'
+
+jobs:
+  open_api_lint:
+    name: Lint OpenAPI spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Running OpenAPI Spec diff action
+        uses: oasdiff/oasdiff-action/breaking@main
+        with:
+          base: 'https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml'
+          revision: 'src/core/core/static/openapi3_1.yaml'
+
