@@ -124,6 +124,7 @@ jobs:
           provenance: false
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
