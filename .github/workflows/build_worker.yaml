@@ -121,6 +121,7 @@ jobs:
         with:
           file: docker/Containerfile.worker
           push: true
+          provenance: false
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |

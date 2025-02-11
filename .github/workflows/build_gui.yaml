@@ -85,6 +85,7 @@ jobs:
         with:
           file: docker/Containerfile.gui
           push: true
+          provenance: false
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
