@@ -199,18 +199,7 @@ class RSSCollector(BaseWebCollector):
 
         # if manual flag is set, ignore if the feed was not modified
         modified_since = None if manual else self.last_attempted
-        if feed_response := self.send_get_request(self.feed_url, modified_since):
-            self.feed_content = feed_response
-        else:
-            raise RSSCollectorError("RSS-Feed could not be fetched")
-
-        # request returned 200 OK, but no content
-        if self.feed_content.status_code == 200 and not self.feed_content.content:
-            raise RSSCollectorError(f"RSS-Feed {self.feed_url} returned no content")
-
-        # content was not modified
-        if self.feed_content.status_code == 304:
-            raise NoChangeError(f"RSS-Feed {self.feed_url} was not modified since: {modified_since}")
+        self.feed_content = self.send_get_request(self.feed_url, modified_since)
 
         return feedparser.parse(self.feed_content.content)
 

@@ -1,5 +1,4 @@
 import io
-
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user

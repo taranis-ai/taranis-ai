@@ -62,7 +62,7 @@ class ProductsRender(MethodView):
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
 
-    publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render"))
+    publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("render_product"))
     publish_bp.add_url_rule(
         "/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )

@@ -24,7 +24,6 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
-        # sourcery skip: identity-comprehension
         query = db.select(cls.name, cls.tag_type)
 
         if search := filter_args.get("search"):
@@ -36,7 +35,6 @@ class NewsItemTag(BaseModel):
         if min_size := filter_args.get("min_size"):
             # returns only tags where the name appears at least min_size times in the database
             query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
-            # order by size
             query = query.order_by(func.count(cls.name).desc())
 
         offset = filter_args.get("offset", 0)

@@ -2,6 +2,20 @@ from pydantic import model_validator, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
 from datetime import datetime
+from urllib.parse import urlparse, urlunparse
+
+
+def mask_db_uri(uri: str) -> str:
+    parsed = urlparse(uri)
+
+    if parsed.password:
+        netloc = f"{parsed.username}:***@{parsed.hostname}"
+        if parsed.port:
+            netloc += f":{parsed.port}"
+    else:
+        netloc = parsed.netloc
+
+    return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
 
 
 class Settings(BaseSettings):
@@ -25,6 +39,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None
+    SQLALCHEMY_DATABASE_URI_MASK: str | None = None
     SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
@@ -43,6 +58,7 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
             self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
+        self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"

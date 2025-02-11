@@ -70,6 +70,7 @@ services:
 
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
+    shm_size: 256mb
     # ports:
     # - 6543:5432
     deploy:
@@ -153,6 +154,7 @@ services:
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
+      BOT_API_KEY: "${BOT_API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
@@ -180,7 +182,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
     environment:
-      API_KEY: "${API_KEY}"
+      API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -198,7 +200,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
     environment:
-      API_KEY: "${API_KEY}"
+      API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -214,9 +216,27 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_BOT_TAG:-latest}"
     environment:
-      API_KEY: "${API_KEY}"
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  sentiment_bot:
+    depends_on:
+      workers:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: always
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-bot:${TARANIS_BOT_TAG:-latest}"
+    environment:
+      API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"

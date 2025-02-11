@@ -150,15 +150,14 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
-      updateBot(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.name}`)
-        })
+    async function updateItem(item) {
+      try {
+        const result = await updateBot(item)
+        notifySuccess(result.data.message)
+        updateData()
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     const selectionChange = (new_selection) => {
