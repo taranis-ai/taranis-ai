@@ -105,10 +105,8 @@ class Bot(BaseModel):
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def get_schedule(self) -> str | None:
-        refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-
-        return None if refresh_interval_str == "" else refresh_interval_str
+    def get_schedule(self) -> str:
+        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
     def to_task_dict(self, crontab: str) -> dict[str, Any]:
         return {
