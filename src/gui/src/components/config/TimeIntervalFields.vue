@@ -40,7 +40,9 @@
             />
             <v-list v-else>
               <v-list-item v-for="(time, index) in nextFireTimes" :key="index">
-                <v-list-item-title>{{ time }}</v-list-item-title>
+                <v-list-item-title>{{
+                  formatTimestamp(time)
+                }}</v-list-item-title>
               </v-list-item>
               <v-list-item v-if="!nextFireTimes.length">
                 <v-list-item-title class="text-error">
@@ -59,6 +61,9 @@
 import { CronVuetify } from '@vue-js-cron/vuetify'
 import { ref, onMounted, computed } from 'vue'
 import { getNextFireOn } from '@/api/config'
+import { useI18n } from 'vue-i18n'
+
+const { d } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -66,11 +71,11 @@ const props = defineProps({
     default: '0 */8 * * *'
   }
 })
-
 const emit = defineEmits(['update:modelValue', 'validation'])
 const error = ref('')
 const nextFireTimes = ref([])
 const nextFireTimesLoading = ref(false)
+
 const internalCronValue = computed({
   get() {
     return props.modelValue
@@ -95,7 +100,6 @@ async function fetchNextFireTimes(cronValue) {
     nextFireTimes.value = []
     return
   }
-
   try {
     nextFireTimesLoading.value = true
     const response = await getNextFireOn(cronValue)
@@ -109,6 +113,10 @@ async function fetchNextFireTimes(cronValue) {
 
 function handleError(errorMsg) {
   error.value = errorMsg
+}
+
+function formatTimestamp(timestamp, formatKey = 'long') {
+  return d(new Date(timestamp), formatKey)
 }
 
 onMounted(() => {
