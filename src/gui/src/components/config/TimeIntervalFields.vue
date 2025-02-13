@@ -35,7 +35,7 @@
         <v-card-subtitle class="text-h6 mt-3">
           Upcoming Refresh Times
         </v-card-subtitle>
-        <v-row class="mt-2">
+        <v-row class="mt-2" style="min-height: 18vh">
           <v-col cols="12">
             <v-progress-circular
               v-if="nextFireTimesLoading"
