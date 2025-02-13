@@ -281,7 +281,7 @@ export function getAllSchedule() {
 }
 
 export function getNextFireOn(cronExpression) {
-  return apiService.post('/config/workers/schedule', {
+  return apiService.post('/config/refresh-interval', {
     cron: cronExpression
   })
 }

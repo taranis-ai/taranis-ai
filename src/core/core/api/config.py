@@ -363,6 +363,8 @@ class Schedule(MethodView):
         except Exception:
             logger.exception()
 
+
+class RefreshInterval(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def post(self):
         data = request.get_json()
@@ -666,5 +668,6 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
+    config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
 
     app.register_blueprint(config_bp)
