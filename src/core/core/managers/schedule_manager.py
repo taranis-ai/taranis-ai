@@ -92,11 +92,7 @@ class Scheduler:
             next_fire: datetime | None = trigger.get_next_fire_time(None, current)
             if next_fire is None:
                 break
-            shift_by_one_day_time = next_fire - timedelta(
-                days=1
-            )  #  Shift by one to comply with the usual mapping of Sunday=0, Monday=1, ..., Saturday=6
-            if shift_by_one_day_time >= now:
-                fire_times.append(shift_by_one_day_time)
+            fire_times.append(next_fire)
             current = next_fire + timedelta(microseconds=1)
 
         return fire_times

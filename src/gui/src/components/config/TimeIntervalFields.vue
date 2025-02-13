@@ -81,20 +81,59 @@ const emit = defineEmits(['update:modelValue', 'validation'])
 const error = ref('')
 const nextFireTimes = ref([])
 const nextFireTimesLoading = ref(false)
-const cronKey = ref(0) // This key is used to force re-render CronVuetify if string is cleared
+const cronKey = ref(0) // Used to force re-rendering if needed
+
+// ─── HELPER FUNCTIONS ──────────────────────────────────────────────
+
+// This function transforms the day-of-week (example: "* * * * 0,2-3,5-6") field in the cron expression using a single regex replace.
+// It applies the provided transformation function to every numeric token (or valid numeric range)
+// in the last field, leaving tokens like "*" or those containing letters unchanged.
+function transformDayOfWeek(cronExp, transformFn) {
+  return cronExp.replace(/(^.*\s+)(\S+)$/, (match, prefix, dowField) => {
+    if (dowField === '*' || /[a-zA-Z]/.test(dowField)) return match
+    const transformed = dowField
+      .split(',')
+      .map((token) =>
+        token
+          .split('-')
+          .map((t) => {
+            const num = parseInt(t.trim(), 10)
+            return isNaN(num) ? t : transformFn(num)
+          })
+          .join('-')
+      )
+      .join(',')
+    return prefix + transformed
+  })
+}
+
+// Forward transformation: Frontend (0=Sun,1=Mon, …,6=Sat)
+// to Backend (0=Mon,1=Tue, …,6=Sun)
+function shiftCronExpressionForward(cronExp) {
+  return transformDayOfWeek(cronExp, (num) => ((num + 6) % 7).toString())
+}
+
+// Backward transformation: Backend -> Frontend
+function shiftCronExpressionBackward(cronExp) {
+  return transformDayOfWeek(cronExp, (num) => ((num + 1) % 7).toString())
+}
+
+// ─── END HELPER FUNCTIONS ──────────────────────────────────────────
 
 const internalCronValue = computed({
   get() {
-    return props.modelValue
+    // Convert backend (shifted) to frontend (display) using the backward transformation.
+    return shiftCronExpressionBackward(props.modelValue)
   },
   set(newVal) {
-    // If the value is cleared, force a refresh
+    // Force CronVuetify to refresh if cron expression is cleared
     if (!newVal) {
       cronKey.value++
     }
-
-    fetchNextFireTimes(newVal)
-    emit('update:modelValue', newVal)
+    // Convert the unshifted (frontend) input into the shifted version for the backend.
+    const shiftedVal = shiftCronExpressionForward(newVal)
+    emit('update:modelValue', shiftedVal)
+    fetchNextFireTimes(shiftedVal)
   }
 })
 
