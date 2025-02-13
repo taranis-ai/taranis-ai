@@ -21,6 +21,12 @@
               v-model="internalCronValue"
               label="Cron Expression"
               :error-messages="error"
+              :hint="
+                !internalCronValue && !error
+                  ? 'Value empty, the default will be used - 0 */8 * * *'
+                  : ''
+              "
+              :persistent-hint="!error && !internalCronValue"
               variant="outlined"
             />
           </v-col>
@@ -75,12 +81,16 @@ const emit = defineEmits(['update:modelValue', 'validation'])
 const error = ref('')
 const nextFireTimes = ref([])
 const nextFireTimesLoading = ref(false)
+const cronKey = ref(0) // This key is used to force re-render CronVuetify if string is cleared
 
 const internalCronValue = computed({
   get() {
     return props.modelValue
   },
   set(newVal) {
+    // If the value is cleared, force a refresh
+    cronKey.value++
+
     fetchNextFireTimes(newVal)
     emit('update:modelValue', newVal)
   }
