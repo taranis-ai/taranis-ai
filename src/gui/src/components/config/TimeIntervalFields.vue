@@ -89,7 +89,9 @@ const internalCronValue = computed({
   },
   set(newVal) {
     // If the value is cleared, force a refresh
-    cronKey.value++
+    if (!newVal) {
+      cronKey.value++
+    }
 
     fetchNextFireTimes(newVal)
     emit('update:modelValue', newVal)
