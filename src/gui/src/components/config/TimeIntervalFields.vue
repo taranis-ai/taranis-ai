@@ -68,6 +68,7 @@ import { CronVuetify } from '@vue-js-cron/vuetify'
 import { ref, onMounted, computed } from 'vue'
 import { getNextFireOn } from '@/api/config'
 import { useI18n } from 'vue-i18n'
+import { debounce } from 'lodash-es'
 
 const { d } = useI18n()
 
@@ -83,7 +84,7 @@ const nextFireTimes = ref([])
 const nextFireTimesLoading = ref(false)
 const cronKey = ref(0) // Used to force re-rendering if needed
 
-// ─── HELPER FUNCTIONS ──────────────────────────────────────────────
+// ─── HELPER FUNCTIONS FOR SHIFTING ──────────────────────────────────────────────
 
 // This function transforms the day-of-week (example: "* * * * 0,2-3,5-6") field in the cron expression using a single regex replace.
 // It applies the provided transformation function to every numeric token (or valid numeric range)
@@ -118,7 +119,18 @@ function shiftCronExpressionBackward(cronExp) {
   return transformDayOfWeek(cronExp, (num) => ((num + 1) % 7).toString())
 }
 
-// ─── END HELPER FUNCTIONS ──────────────────────────────────────────
+// ─── END HELPER FUNCTIONS FOR SHIFTING──────────────────────────────────────────
+
+// Debounced function that triggers the API call only after a short delay and only if there is no error.
+const debouncedFetchNextFireTimes = debounce((cronValue) => {
+  if (!error.value) {
+    fetchNextFireTimes(cronValue)
+    emit('validation', true)
+  } else {
+    nextFireTimes.value = []
+    emit('validation', false)
+  }
+}, 300)
 
 const internalCronValue = computed({
   get() {
@@ -126,14 +138,20 @@ const internalCronValue = computed({
     return shiftCronExpressionBackward(props.modelValue)
   },
   set(newVal) {
-    // Force CronVuetify to refresh if cron expression is cleared
+    // Allow clearing the input field without re-triggering the error:
     if (!newVal) {
+      error.value = '' // Clear error when input is cleared
       cronKey.value++
+      emit('update:modelValue', newVal)
+      nextFireTimes.value = []
+      emit('validation', true)
+      return
     }
     // Convert the unshifted (frontend) input into the shifted version for the backend.
     const shiftedVal = shiftCronExpressionForward(newVal)
     emit('update:modelValue', shiftedVal)
-    fetchNextFireTimes(shiftedVal)
+    // Use debounced API call so that we wait for any error state to be set before firing the request.
+    debouncedFetchNextFireTimes(shiftedVal)
   }
 })
 
@@ -164,6 +182,7 @@ async function fetchNextFireTimes(cronValue) {
 
 function handleError(errorMsg) {
   error.value = errorMsg
+  emit('validation', false)
 }
 
 function formatTimestamp(timestamp, formatKey = 'long') {
