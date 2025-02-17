@@ -12,7 +12,10 @@ from core.config import Config
 cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
     "name": "Cleanup token blacklist",
-    "jobs_params": {"trigger": "interval", "hours": 8, "max_instances": 1},
+    "jobs_params": {
+        "trigger": CronTrigger.from_crontab("0 */8 * * *"),
+        "max_instances": 1,
+    },
     "celery": {
         "args": [],
         "queue": "misc",
