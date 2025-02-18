@@ -95,6 +95,7 @@
         <TimeIntervalFields
           v-if="item.type === 'cron_interval'"
           v-model="formData[item.flatKey]"
+          :type="configType"
           @validation="handleCronValidation(item.flatKey, $event)"
         />
 
@@ -154,6 +155,7 @@
 <script>
 import TimeIntervalFields from '@/components/config/TimeIntervalFields.vue'
 import { watch, computed, onUpdated, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -192,6 +194,8 @@ export default {
   setup(props, { emit }) {
     const config_form = ref(null)
     const search = ref({})
+    const route = useRoute()
+    const configType = ref(null)
     const formData = ref(
       flattenFormData(props.configData, props.formFormat) ||
         objectFromFormat(props.formFormat)
@@ -308,6 +312,11 @@ export default {
 
     onMounted(() => {
       config_form.value.scrollIntoView({ behavior: 'smooth' })
+
+      const path = route.path
+      if (path === '/config/sources') {
+        configType.value = path.split('/').pop()
+      }
     })
 
     watch(
@@ -328,7 +337,8 @@ export default {
       addItem,
       handleSubmit,
       handleFileUpload,
-      handleCronValidation
+      handleCronValidation,
+      configType
     }
   }
 }

@@ -1,6 +1,7 @@
 <template>
   <v-container fluid class="pa-0 ma-0">
     <v-card class="pa-4 mb-4">
+      {{ type }}
       <v-card-title class="text-h6">Refresh Interval</v-card-title>
       <v-divider></v-divider>
       <v-card-text>
@@ -23,7 +24,9 @@
               :error-messages="error"
               :hint="
                 !internalCronValue && !error
-                  ? 'Value empty, the default will be used - 0 */8 * * *'
+                  ? type === 'sources'
+                    ? 'Value empty, OSINT sources have a default - 0 */8 * * *'
+                    : 'Value empty, there is no default refresh interval'
                   : ''
               "
               :persistent-hint="!error && !internalCronValue"
@@ -76,6 +79,10 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: '0 */8 * * *'
+  },
+  type: {
+    type: String,
+    default: ''
   }
 })
 const emit = defineEmits(['update:modelValue', 'validation'])
