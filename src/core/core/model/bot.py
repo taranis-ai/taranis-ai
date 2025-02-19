@@ -92,8 +92,8 @@ class Bot(BaseModel):
         return f"{self.__tablename__}_{self.id}_{self.type}"
 
     def schedule_bot(self):
-        if interval := self.get_schedule():
-            entry = self.to_task_dict(interval)
+        if crontab_str := self.get_schedule():
+            entry = self.to_task_dict(crontab_str)
             Scheduler.add_celery_task(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
             return {"message": f"Schedule for bot {self.id} updated"}, 200
@@ -108,12 +108,12 @@ class Bot(BaseModel):
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
-    def to_task_dict(self, crontab: str) -> dict[str, Any]:
+    def to_task_dict(self, crontab_str: str) -> dict[str, Any]:
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
             "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab),
+                "trigger": CronTrigger.from_crontab(crontab_str),
                 "max_instances": 1,
             },
             "celery": {

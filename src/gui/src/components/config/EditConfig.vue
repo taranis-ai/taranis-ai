@@ -92,6 +92,11 @@
             />
           </v-col>
         </v-row>
+        <p v-if="item.type === 'cron_interval'" class="mt-2">
+          TIMEVALUE |{{ formData[item.flatKey] }}|{{
+            typeof formData[item.flatKey]
+          }}|
+        </p>
         <TimeIntervalFields
           v-if="item.type === 'cron_interval'"
           v-model="formData[item.flatKey]"

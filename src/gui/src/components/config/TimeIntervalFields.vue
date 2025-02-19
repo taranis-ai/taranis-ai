@@ -78,7 +78,7 @@ const { d } = useI18n()
 const props = defineProps({
   modelValue: {
     type: String,
-    default: '0 */8 * * *'
+    default: ''
   },
   type: {
     type: String,

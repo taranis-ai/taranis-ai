@@ -13,7 +13,7 @@ cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
     "name": "Cleanup token blacklist",
     "jobs_params": {
-        "trigger": CronTrigger.from_crontab("0 */8 * * *"),
+        "trigger": CronTrigger.from_crontab("0 2 * * *"),
         "max_instances": 1,
     },
     "celery": {
@@ -36,6 +36,7 @@ class Scheduler:
                 cls._scheduler.start()
         return cls._scheduler
 
+    # @replace_existing is not suitable for granian multiworker environments
     @classmethod
     def add_celery_task(cls, task: dict):
         celery_options = task.get("celery", {})

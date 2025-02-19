@@ -132,12 +132,12 @@ class OSINTSource(BaseModel):
         logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
         return "0 */8 * * *"
 
-    def to_task_dict(self, crontab: str):
+    def to_task_dict(self, crontab_str: str):
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
             "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab),
+                "trigger": CronTrigger.from_crontab(crontab_str),
                 "max_instances": 1,
             },
             "celery": {
