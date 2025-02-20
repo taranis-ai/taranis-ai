@@ -15,6 +15,7 @@ class NLPBot(BaseBot):
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
+            self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT)
             return self.process_stories(stories)
 
         return {"message": "No new stories found"}

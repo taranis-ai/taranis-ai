@@ -209,7 +209,7 @@ services:
         max-file: "10"
 
 
-  clustering_bot:
+  story_bot:
     depends_on:
       workers:
         condition: service_healthy
