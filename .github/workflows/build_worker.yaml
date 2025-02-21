@@ -43,10 +43,10 @@ jobs:
           version: 10
 
       - uses: actions/setup-node@v4
-        working-directory: src/gui
         with:
           node-version: 22
           cache: 'pnpm'
+          cache-dependency-path: src/gui/pnpm-lock.yaml
 
       - name: Install Playwright dependencies
         run: uv run playwright install --with-deps chromium

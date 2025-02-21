@@ -6,9 +6,6 @@ on:
     - 'src/core/**'
     - 'docker/Containerfile.core'
     - '.github/workflows/build_core.yaml'
-    branches:
-    - master
-    - feature/attestation
 
 permissions:
   packages: write
@@ -53,10 +50,10 @@ jobs:
           version: 10
 
       - uses: actions/setup-node@v4
-        working-directory: src/gui
         with:
           node-version: 22
           cache: 'pnpm'
+          cache-dependency-path: src/gui/pnpm-lock.yaml
 
       - name: Set Artifact Name
         run: echo "TRACES_ARTIFACT_NAME=playwright-traces-build-core" >> ${GITHUB_ENV}
@@ -72,7 +69,7 @@ jobs:
           retention-days: 7
           overwrite: true
           name: ${{ env.TRACES_ARTIFACT_NAME }}
-          path: trace.zip
+          path: src/core/trace.zip
 
 
   build_wheel:
