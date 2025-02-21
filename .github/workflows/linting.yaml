@@ -85,7 +85,6 @@ jobs:
           echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME}" >> $GITHUB_ENV
           echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
           tar -czf ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz dist/
-          ls -lha ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz
 
       - name: Upload built frontend
         uses: actions/upload-artifact@v4
@@ -127,14 +126,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.test_gui.outputs.gui_artifact_name }}
-          path: src/gui/${GUI_ARTIFACT_NAME}.tar.gz
+          path: src/gui/${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
 
       - name: Extract Artifact for CI/CD
         working-directory: src/gui
-        run: |
-          ls -lha .
-          tar xf ${GUI_ARTIFACT_NAME}.tar.gz
-          ls -lha . dist/
+        run: tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
 
       - name: Run e2e tests
         id: run_e2e
