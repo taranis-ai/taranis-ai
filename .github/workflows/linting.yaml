@@ -77,17 +77,19 @@ jobs:
       - name: Build frontend
         run: pnpm run build
 
-      - name: Set Artifact Name
+      - name: Preperae GUI artifact
         id: set_gui_artifact_name
         run: |
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
-          echo "gui_artifact_name=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_OUTPUT
+          GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}
+          echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          tar czf ${GUI_ARTIFACT_NAME}.tar.gz src/gui/dist/
 
       - name: Upload built frontend
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: src/gui/dist
+          path: src/gui/${GUI_ARTIFACT_NAME}.tar.gz
 
   e2e_tests:
     name: End-to-End Tests
@@ -123,19 +125,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.test_gui.outputs.gui_artifact_name }}
-          path: src/gui/dist
+          path: src/gui/${GUI_ARTIFACT_NAME}.tar.gz
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: |
-            src/gui/pnpm-lock.yaml
+      - name: Extract Artifact for CI/CD
+        working-directory: src/gui
+        run: tar xf ${GUI_ARTIFACT_NAME}.tar.gz
 
       - name: Run e2e tests
         id: run_e2e
