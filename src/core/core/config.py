@@ -1,7 +1,7 @@
 from pydantic import model_validator, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunparse
 
 
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
-    JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
 
     DB_URL: str = "localhost"

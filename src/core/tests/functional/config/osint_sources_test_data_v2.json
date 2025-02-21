@@ -62,7 +62,7 @@
                     "CONTENT_LOCATION": "description"
                 },
                 {
-                    "REFRESH_INTERVAL": "60"
+                    "REFRESH_INTERVAL": "0 */8 * * *"
                 }
             ]
         },

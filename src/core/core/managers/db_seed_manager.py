@@ -54,6 +54,7 @@ def sync_enum_with_db(enum_type, connection):
 def pre_seed_update(db_engine: Engine):
     from core.managers.pre_seed_data import workers, bots
     from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from core.model.parameter_value import PARAMETER_TYPES
     from core.model.bot import Bot
 
     pre_seed_source_groups()
@@ -68,6 +69,7 @@ def pre_seed_update(db_engine: Engine):
         sync_enum_with_db(COLLECTOR_TYPES, connection)
         sync_enum_with_db(PRESENTER_TYPES, connection)
         sync_enum_with_db(PUBLISHER_TYPES, connection)
+        sync_enum_with_db(PARAMETER_TYPES, connection)
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):

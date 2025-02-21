@@ -1,6 +1,8 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
+from datetime import datetime, timedelta
 
 from core.managers import queue_manager
 from core.log import logger
@@ -10,7 +12,10 @@ from core.config import Config
 cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
     "name": "Cleanup token blacklist",
-    "jobs_params": {"trigger": "interval", "hours": 8, "max_instances": 1},
+    "jobs_params": {
+        "trigger": CronTrigger.from_crontab("0 2 * * *"),
+        "max_instances": 1,
+    },
     "celery": {
         "args": [],
         "queue": "misc",
@@ -31,6 +36,7 @@ class Scheduler:
                 cls._scheduler.start()
         return cls._scheduler
 
+    # @replace_existing is not suitable for granian multiworker environments
     @classmethod
     def add_celery_task(cls, task: dict):
         celery_options = task.get("celery", {})
@@ -77,6 +83,23 @@ class Scheduler:
             }
         except Exception:
             return {}
+
+    @classmethod
+    def get_next_n_fire_times_from_cron(cls, cron_expr: str, n: int = 3) -> list[datetime]:
+        trigger = CronTrigger.from_crontab(cron_expr)
+        now = datetime.now(trigger.timezone) if trigger.timezone else datetime.now()
+
+        fire_times: list[datetime] = []
+        current: datetime = now
+
+        while len(fire_times) != n:
+            next_fire: datetime | None = trigger.get_next_fire_time(None, current)
+            if next_fire is None:
+                break
+            fire_times.append(next_fire)
+            current = next_fire + timedelta(microseconds=1)
+
+        return fire_times
 
 
 def initialize():
