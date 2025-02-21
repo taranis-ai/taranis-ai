@@ -83,15 +83,14 @@ jobs:
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
           GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}
           echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-          ls -lha . dist/
-          tar czf ${GUI_ARTIFACT_NAME}.tar.gz dist/
-          ls -lha .
+          tar -czf ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz dist/
+          ls -lha ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz
 
       - name: Upload built frontend
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: src/gui/${GUI_ARTIFACT_NAME}.tar.gz
+          path: ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz
 
   e2e_tests:
     name: End-to-End Tests
