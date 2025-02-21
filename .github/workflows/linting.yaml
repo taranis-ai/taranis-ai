@@ -130,10 +130,7 @@ jobs:
 
       - name: Extract Artifact for CI/CD
         working-directory: src/gui
-        run: |
-          ls -lha .
-          tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
-          ls -lha . dist/
+        run: tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
 
       - name: Run e2e tests
         id: run_e2e
