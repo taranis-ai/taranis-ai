@@ -14,11 +14,15 @@ permissions:
 
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-worker
+  LATEST: ${{ github.ref == 'refs/heads/master' }}
 
 jobs:
   test:
     name: pytest
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/worker
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -28,11 +32,9 @@ jobs:
           prune-cache: false
 
       - name: Set up Python
-        working-directory: src/worker
         run: uv python install
 
       - name: Install dependencies
-        working-directory: src/worker
         run: uv sync --all-extras --dev
 
       - name: Install pnpm
@@ -41,20 +43,24 @@ jobs:
           version: 10
 
       - uses: actions/setup-node@v4
+        working-directory: src/gui
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install Playwright dependencies
-        working-directory: src/worker
         run: uv run playwright install --with-deps chromium
 
       - name: pytest
-        working-directory: src/worker
         run: uv run pytest
+
 
   build_wheel:
     name: build wheel
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/worker
     needs: test
     steps:
       - uses: actions/checkout@v4
@@ -65,11 +71,9 @@ jobs:
           prune-cache: false
 
       - name: Set up Python
-        working-directory: src/worker
         run: uv python install
 
       - name: build
-        working-directory: src/worker
         run: |
           uv build
       - name: Upload wheel to artifacts
@@ -78,8 +82,8 @@ jobs:
           name: taranis_worker
           overwrite: true
           path: |
-            src/worker/dist/taranis_worker-*.whl
-            src/worker/dist/taranis_worker-*.tar.gz
+            dist/taranis_worker-*.whl
+            dist/taranis_worker-*.tar.gz
 
 
   build_container:
@@ -123,10 +127,10 @@ jobs:
         id: build
         with:
           file: docker/Containerfile.worker
-          provenance: false
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: true
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
@@ -178,8 +182,8 @@ jobs:
           images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=tag
-            type=ref,event=branch,enable=${{ github.ref != format('refs/heads/{0}', 'master') }}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
+            type=ref,event=branch,enable=${{ !env.LATEST }}
+            type=raw,value=latest,enable=${{ env.LATEST }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
@@ -187,6 +191,16 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
 
-      - name: Inspect image
+      - name: Get final merged image digest
+        if: ${{ env.LATEST }}
         run: |
-          docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.version }}
+          DIGEST=$(docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest --format '{{ json .Manifest.Digest }}' | tr -d '"')
+          echo "MERGED_DIGEST=$DIGEST" >> $GITHUB_ENV
+
+      - name: Generate attestation for merged multiarch image
+        if: ${{ env.LATEST }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.GHCR_IMAGE }}
+          subject-digest: ${{ env.MERGED_DIGEST }}
+          push-to-registry: true
