@@ -126,7 +126,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.test_gui.outputs.gui_artifact_name }}
-          path: src/gui/${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
+          path: src/gui/
 
       - name: Extract Artifact for CI/CD
         working-directory: src/gui
