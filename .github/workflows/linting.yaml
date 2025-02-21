@@ -81,13 +81,12 @@ jobs:
         id: set_gui_artifact_name
         run: |
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
-          # set output for downstream jobs
-          echo "::set-output name=gui_artifact_name::${GUI_ARTIFACT_NAME//\//-}"
+          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Upload built frontend
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.set_gui_artifact_name.outputs.gui_artifact_name }}
+          name: ${{ env.GUI_ARTIFACT_NAME }}
           path: src/gui/dist
 
   e2e_tests:

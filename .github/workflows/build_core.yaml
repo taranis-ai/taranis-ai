@@ -6,6 +6,8 @@ on:
     - 'src/core/**'
     - 'docker/Containerfile.core'
     - '.github/workflows/build_core.yaml'
+    branches:
+    - master
 
 permissions:
   packages: write
