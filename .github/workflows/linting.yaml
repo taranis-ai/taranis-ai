@@ -90,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz
+          path: ${{ runner.temp }}/${{ env.GUI_ARTIFACT_NAME }}.tar.gz
 
   e2e_tests:
     name: End-to-End Tests
