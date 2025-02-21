@@ -81,7 +81,7 @@ jobs:
         id: set_gui_artifact_name
         run: |
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
-          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+          echo "gui_artifact_name=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_OUTPUT
 
       - name: Upload built frontend
         uses: actions/upload-artifact@v4
