@@ -7,6 +7,9 @@ on:
 jobs:
   test_core:
     name: pytest core
+    defaults:
+      run:
+        working-directory: src/core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +20,12 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        working-directory: src/core
         run: uv python install
 
       - name: Install the project
-        working-directory: src/core
         run: uv sync --all-extras --dev
 
       - name: Lint with ruff
-        working-directory: src/core
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
@@ -49,6 +49,9 @@ jobs:
   test_gui:
     name: test gui
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/gui
     outputs:
       gui_artifact_name: ${{ steps.set_gui_artifact_name.outputs.gui_artifact_name }}
 
@@ -63,24 +66,19 @@ jobs:
         with:
           node-version: 22
           cache: 'pnpm'
-          cache-dependency-path: |
-            src/gui/pnpm-lock.yaml
+          cache-dependency-path: src/gui/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: src/gui
         run: pnpm install
 
       - name: Lint with eslint
-        working-directory: src/gui
         run: pnpm run lint_and_format
 
       - name: Build frontend
-        working-directory: src/gui
         run: pnpm run build
 
       - name: Set Artifact Name
         id: set_gui_artifact_name
-        shell: bash
         run: |
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
           # set output for downstream jobs
@@ -95,6 +93,9 @@ jobs:
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/core
     needs: [test_core, test_gui]
     steps:
       - uses: actions/checkout@v4
@@ -105,15 +106,12 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        working-directory: src/core
         run: uv python install
 
       - name: Install the project
-        working-directory: src/core
         run: uv sync --all-extras --dev
 
       - name: Install Playwright dependencies
-        working-directory: src/core
         run: uv run playwright install --with-deps chromium
 
       - name: Set Artifact Name
@@ -142,7 +140,6 @@ jobs:
 
       - name: Run e2e tests
         id: run_e2e
-        working-directory: src/core
         run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace
@@ -157,6 +154,9 @@ jobs:
   test_worker:
     name: pytest worker
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/worker
     steps:
       - uses: actions/checkout@v4
 
@@ -166,19 +166,15 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        working-directory: src/worker
         run: uv python install
 
       - name: Install the project
-        working-directory: src/worker
         run: uv sync --all-extras --dev
 
       - name: Install playwright dependencies
-        working-directory: src/worker
         run: uv run playwright install --with-deps chromium
 
       - name: Lint with ruff
-        working-directory: src/worker
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output

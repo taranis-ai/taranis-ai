@@ -99,8 +99,8 @@ jobs:
           name: taranis_core
           overwrite: true
           path: |
-            dist/taranis_core-*.whl
-            dist/taranis_core-*.tar.gz
+            src/core/dist/taranis_core-*.whl
+            src/core/dist/taranis_core-*.tar.gz
 
 
   build_container:
@@ -169,6 +169,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+
   merge:
     runs-on: ubuntu-latest
     needs:
@@ -198,7 +199,7 @@ jobs:
           images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=tag
-            type=ref,event=branch,enable=${{ !env.LATEST }}
+            type=ref,event=branch
             type=raw,value=latest,enable=${{ env.LATEST }}
 
       - name: Create manifest list and push
