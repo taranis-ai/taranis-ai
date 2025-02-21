@@ -82,6 +82,7 @@ jobs:
         run: |
           GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
           GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}
+          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME}" >> $GITHUB_ENV
           echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
           tar -czf ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz dist/
           ls -lha ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz
