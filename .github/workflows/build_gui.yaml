@@ -15,36 +15,41 @@ permissions:
 
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-gui
+  LATEST: ${{ github.ref == 'refs/heads/master' }}
 
 jobs:
   build_npm:
     name: npm build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/gui
     steps:
       - uses: actions/checkout@v4
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'pnpm'
-          cache-dependency-path: |
-            src/gui/pnpm-lock.yaml
+          cache-dependency-path: src/gui/pnpm-lock.yaml
+
       - name: Install dependencies
-        working-directory: src/gui
         run: pnpm install
+
       - name: Rebuild the dist/ directory
-        working-directory: src/gui
         run: pnpm run build
+
       - name: Upload dist to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: taranis_gui
           overwrite: true
-          path: |
-            src/gui/dist/
+          path: src/gui/dist/
 
 
   build_container:
@@ -90,12 +95,13 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: true
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
           cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest
           cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest,mode=max
-          outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true,compression=zstd
 
       - name: Export digest
         run: |
@@ -141,8 +147,8 @@ jobs:
           images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=tag
-            type=ref,event=branch,enable=${{ github.ref != format('refs/heads/{0}', 'master') }}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
+            type=ref,event=branch,enable=${{ !env.LATEST }}
+            type=raw,value=latest,enable=${{ env.LATEST }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
@@ -150,6 +156,16 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
 
-      - name: Inspect image
+      - name: Get final merged image digest
+        if: ${{ env.LATEST }}
         run: |
-          docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.version }}
+          DIGEST=$(docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest --format '{{ json .Manifest.Digest }}' | tr -d '"')
+          echo "MERGED_DIGEST=$DIGEST" >> $GITHUB_ENV
+
+      - name: Generate attestation for merged multiarch image
+        if: ${{ env.LATEST }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.GHCR_IMAGE }}
+          subject-digest: ${{ env.MERGED_DIGEST }}
+          push-to-registry: true
