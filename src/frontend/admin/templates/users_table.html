@@ -16,7 +16,7 @@
             <td>{{ user.roles|length }}</td>
             <td>{{ user.permissions|length }}</td>
             <td>
-                <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form">
+                <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
                     Edit
                 </button>
                 <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}">Delete</button>

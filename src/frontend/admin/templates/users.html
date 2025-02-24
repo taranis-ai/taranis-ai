@@ -4,9 +4,11 @@
 <div class="text-3xl font-bold mb-4">Users</div>
 {% include 'users_table.html' %}
 
-<a href="/frontend/users/new" hx-get="/frontend/users/new" hx-swap="outerHTML" hx-target="#user-form" class="btn btn-primary">New User</a>
+<a href="/frontend/users/new" hx-get="/frontend/users/new" hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary">New User</a>
 
-<div id="user-form"></div>
+<hr class="mt-2"/>
+
+<div id="user-form-container"></div>
 
 
 {% endblock %}
