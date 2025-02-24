@@ -186,7 +186,8 @@ class OSINTSource(BaseModel):
             return None
         if name := data.get("name"):
             osint_source.name = name
-        osint_source.description = data.get("description", "")
+        if description := data.get("description"):
+            osint_source.description = description
         icon_str = data.get("icon")
         if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
             osint_source.icon = icon
@@ -196,6 +197,11 @@ class OSINTSource(BaseModel):
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
+
+    def update_parameters(self, parameters: dict[str, Any]):
+        update_parameter = ParameterValue.get_or_create_from_list(parameters)
+        self.parameters = ParameterValue.get_update_values(self.parameters, update_parameter)
+        db.session.commit()
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
