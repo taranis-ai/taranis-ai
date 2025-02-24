@@ -1,0 +1,27 @@
+<script type="text/javascript">
+    function getAuthToken() {
+        return localStorage.getItem('ACCESS_TOKEN');
+        // the following does not work
+        // const cookieValue = document.cookie
+        //     .split("; ")
+        //     .find((row) => row.startsWith("access_token_cookie="))
+        //     ?.split("=")[1];
+        // console.log(`cookie: ${cookieValue}`);
+        // return cookieValue;
+    }
+    function getCSRFToken() {
+        const cookieValue = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrf_access_token="))
+            ?.split("=")[1];
+        return cookieValue;
+    }
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        console.log('htmx:configRequest');
+        // evt.detail.parameters['auth_token'] = getAuthToken(); // add a new parameter into the request
+        // evt.detail.headers['Authentication-Token'] = getAuthToken(); // add a new header into the request
+        const auth_token = getAuthToken();
+        evt.detail.headers['Authorization'] = `Bearer: ${auth_token}`; // add a new header into the request
+        evt.detail.headers['X-CSRF-Token'] = getCSRFToken(); // add a new header into the request
+    });
+</script>

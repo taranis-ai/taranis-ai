@@ -1,0 +1,92 @@
+{% set error = error | default({}) %}
+
+{% if action == 'new' %} 
+    <form id="user-form" hx-post="/frontend/users/" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg" hx-on::after-request="this.reset()">
+{% else %}
+    <form id="user-form" hx-put="/frontend/users/{{ user.id }}" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg" hx-on::after-request="this.reset()">
+{% endif %}
+
+    {% if error.globalerror %}
+    <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p> 
+    {% endif %}
+
+    <label class="floating-label mb-5">
+        <span>Username</span>
+        <input type="text" placeholder="Username" class="input input-md  validator" name="username" required value="{{ user.username }}" />
+    </label>
+
+    <label class="floating-label mb-5">
+        <span>Name</span>
+        <input type="text" placeholder="Name" class="input input-md validator" name="name" required value="{{ user.name }}" id="userform_name" />
+    </label>
+
+   
+    <label class="floating-label mb-5">
+        <span>Password</span>
+        {% if request.path == '/frontend/users/new' %}
+            <input type="password" placeholder="Password" class="input input-md validator" name="password" required />
+        {% else %}
+            <input type="password" placeholder="Password" class="input input-md validator" name="password" />
+        {% endif %}
+    </label>
+
+    <label class="">
+        <span>Roles</span>
+    </label>
+    <select name="roles[]" multiple required type="number" id="tom-select-it" class="validator mb-2">
+        {% for role in roles %}
+            {% if role.id in user.roles %}
+                <option value="{{ role.id }}" selected>{{ role.name }} - {{ role.description | truncate(50, true) }}</option>
+            {% else %}
+                <option value="{{ role.id }}">{{ role.name }} - {{ role.description | truncate(50, true) }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <p class="validator-hint mb-5">Required</p>
+
+    <!-- organization -->
+    <label class="floating-label mb-5">
+        <span>Organization</span>
+        <select name="organization" required type="number" class="validator">
+            {% for organization in organizations %}
+              {% if organization.id == user.organization %}
+                <option value="{{ organization.id }}" selected>{{ organization.name }}</option>
+              {% else %}
+                <option value="{{ organization.id }}">{{ organization.name }}</option>
+              {% endif %}
+            {% endfor %}
+        </select>
+        <p class="validator-hint">Required</p>
+    </label>
+    <div class="flex flex-wrap -mx-3 mb-6">
+        <div class="w-full px-3">
+            {% if request.path == '/frontend/users/new' %}
+                <input type="submit" class="btn btn-primary" value="Create User" />
+            {% else %}
+                <input type="submit" class="btn btn-primary" value="Update User" />
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+    // disable tomselect for now
+// var settings = {plugins: {
+// 		remove_button:{
+// 			title:'Remove this item',
+// 		}
+// 	},
+// 	persist: false,
+// 	create: true};
+// new TomSelect('#tom-select-it',settings);
+
+{% if error %}
+    {% for field in error %}
+        var errorField = document.getElementById("{{ field }}");
+        if (errorField) {
+            errorField.setCustomValidity("{{ error[field] }}");
+            errorField.reportValidity();
+        }
+    {% endfor %}
+{% endif %}
+</script>

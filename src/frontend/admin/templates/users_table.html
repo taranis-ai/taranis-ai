@@ -1,0 +1,27 @@
+<!-- list all retrieved users -->
+<table class="table table-striped" id="users-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Roles</th>
+            <th>Permissions</th>
+        </tr>
+    </thead>
+    <tbody hx-target="closest tr" hx-swap="outerHTML swap:1s" hx-confirm="Are you sure?">
+        {% for user in users %}
+        <tr>
+            <td>{{ user.name }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.roles|length }}</td>
+            <td>{{ user.permissions|length }}</td>
+            <td>
+                <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form">
+                    Edit
+                </button>
+                <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

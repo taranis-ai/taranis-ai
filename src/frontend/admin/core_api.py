@@ -6,7 +6,7 @@ from admin.config import Config
 
 
 class CoreApi:
-    def __init__(self):
+    def __init__(self, jwt_token=None):
         self.api_url = Config.TARANIS_CORE_URL
         self.jwt_token = self.get_jwt_from_request()
         self.headers = self.get_headers()
