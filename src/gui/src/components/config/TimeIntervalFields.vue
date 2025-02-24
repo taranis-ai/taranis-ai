@@ -128,8 +128,6 @@ function shiftCronExpressionBackward(cronExp) {
   return transformDayOfWeek(cronExp, (num) => ((num + 1) % 7).toString())
 }
 
-// ─── END HELPER FUNCTIONS FOR SHIFTING──────────────────────────────────────────
-
 // Debounced function that triggers the API call only after a short delay and only if there is no error.
 const debouncedFetchNextFireTimes = debounce((cronValue) => {
   if (!error.value) {
@@ -141,13 +139,11 @@ const debouncedFetchNextFireTimes = debounce((cronValue) => {
 
 const internalCronValue = computed({
   get() {
-    // Convert backend (shifted) to frontend (display) using the backward transformation.
     return shiftCronExpressionBackward(props.modelValue)
   },
   set(newVal) {
-    // Allow clearing the input field without re-triggering the error:
     if (!newVal) {
-      error.value = '' // Clear error when input is cleared
+      error.value = ''
       cronKey.value++
       emit('update:modelValue', newVal)
       nextFireTimes.value = []
@@ -156,11 +152,13 @@ const internalCronValue = computed({
 
     const isValid = rulesDict.cron(newVal)
     if (isValid !== true) {
-      error.value = isValid // Set error message from rule
-      nextFireTimes.value = [] // Clear next fire times if invalid
+      error.value = isValid
+      cronKey.value++
+      emit('update:modelValue', newVal)
+      nextFireTimes.value = []
       return
     } else {
-      error.value = '' // Clear any previous error if valid
+      error.value = ''
     }
 
     // Convert the unshifted (frontend) input into the shifted version for the backend.
