@@ -14,7 +14,6 @@ class TaranisBaseModel(BaseModel):
         kwargs.setdefault("exclude_none", True)
         return super().model_dump(*args, **kwargs)
 
-
 class Address(TaranisBaseModel):
     city: str
     country: str
@@ -25,9 +24,8 @@ class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
     id: int
     name: str
-    description: str
-    address: Address
-
+    description: str | None = None
+    address: Address | None = None
 
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
@@ -50,7 +48,6 @@ class User(TaranisBaseModel):
     username: str
     password: str | None = None
 
-
 class DataPersistenceLayer:
 
     def __init__(self, jwt_token=None):
@@ -60,6 +57,11 @@ class DataPersistenceLayer:
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
     
+    def get_endpoint(self, object_model: any):
+        if isinstance(object_model, BaseModel):
+            return object_model._core_endpoint
+        return object_model._core_endpoint.get_default()
+    
     def get_object(self, object_model: any, object_id: int | str):
         if result := self.get_objects(object_model):
             for object in result:
@@ -67,47 +69,24 @@ class DataPersistenceLayer:
                 if object.id == object_id:
                     return object
 
-
-    def store_object(self, object: any):
-        store_object = object.model_dump()
-        # hack: remove all key/values that are None or empty
-        # store_object = {k: v for k, v in store_object.items() if v is not None and v != ""}
-        print(f'Storing object: {store_object}')
-        result = self.api.api_post(object._core_endpoint, json_data=store_object)
-        print(f'Result: {result}')
-
-    def get_endpoint(self, object_model: any):
-        if isinstance(object_model, BaseModel):
-            return object_model._core_endpoint
-        return object_model._core_endpoint.get_default()
-
     def get_objects(self, object_model: any):
-        # if the object model has a field from another model we need to call ourself recursively to get all the data
-        # to test this we will check each field of the object model if any field is an object we will call ourself recursively
-        
         endpoint = self.get_endpoint(object_model)
-        # print(endpoint)
-
-        result = self.api.api_get(endpoint)
-
-        # for field in object_model.__annotations__:
-        #     print(field)
-        #     if isinstance(object_model.__annotations__[field], type):
-        #         # print("is object")
-        #         result[field] = self.get_objects(object_model.__annotations__[field])
-        if result:
+        if result := self.api.api_get(endpoint):
             return [object_model(**object) for object in result['items']]
         
+    def store_object(self, object: any):
+        store_object = object.model_dump()
+        result = self.api.api_post(object._core_endpoint, json_data=store_object)
+
     def delete_object(self, object_model: any, object_id: int | str):
         endpoint = self.get_endpoint(object_model)
-        result = self.api.api_delete(f"{endpoint}/{object_id}")
-        return result
+        return self.api.api_delete(f"{endpoint}/{object_id}")
     
     def update_object(self, object_model: any, object_id: int | str):
         endpoint = self.get_endpoint(object_model)
-        result = self.api.api_put(f"{endpoint}/{object_id}", json_data=object_model.model_dump())
-        return result
-
+        return self.api.api_put(
+            f"{endpoint}/{object_id}", json_data=object_model.model_dump()
+        )
 
 def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
@@ -120,7 +99,6 @@ def parse_formdata(formdata: ImmutableMultiDict):
         else:
             parsed_data[key] = request.form.get(key)
     return parsed_data
-
 
 class Dashboard(MethodView):
     def get(self):
@@ -181,15 +159,12 @@ class DeleteUser(MethodView):
     def delete(self, id):
         result = DataPersistenceLayer().delete_object(User, id)
         return "error" if result == "error" else Response(status=200)
-
   
 class NewUser(MethodView):
     def get(self):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         return render_template("new_user.html", organizations=organizations, roles=roles, action='new', user=User(name="", username="", organization=1, roles=[]), error={})
-    
-    
 
 class EditUser(MethodView):
     def get(self, id):
@@ -211,8 +186,6 @@ class EditUser(MethodView):
         user = DataPersistenceLayer().get_object(User, int(id))
         print(f"{user=}")
         return render_template("edit_user.html", organizations=organizations, roles=roles, user=user)
-    
- 
 
 class OrganizationsAPI(MethodView):
     def get(self):
