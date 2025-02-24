@@ -138,6 +138,8 @@ cd /path/to/taranis-scheduler # your taranis-scheduler directory
 ./start_dev.sh
 ```
 
+Taranis AI should be reachable on _local.taranis.ai_.
+
 
 ## Technology stack
 
