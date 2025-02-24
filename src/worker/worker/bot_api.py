@@ -6,9 +6,9 @@ from worker.config import Config
 
 
 class BotApi:
-    def __init__(self, bot_endpoint: str):
+    def __init__(self, bot_endpoint: str, bot_api_key: str | None = Config.BOT_API_KEY):
         self.api_url = bot_endpoint
-        self.api_key = Config.BOT_API_KEY
+        self.api_key = bot_api_key
         self.headers = self.get_headers()
         self.verify = Config.SSL_VERIFICATION
         self.timeout = Config.REQUESTS_TIMEOUT
@@ -17,6 +17,10 @@ class BotApi:
         if not self.api_key:
             return {}
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
+
+    def update_parameters(self, parameters: dict[str, str]):
+        self.api_url = parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT)
+        self.api_key = parameters.get("BOT_API_KEY", Config.BOT_API_KEY)
 
     def check_response(self, response: requests.Response, url: str):
         try:
