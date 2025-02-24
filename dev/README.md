@@ -48,6 +48,7 @@ cp dev/env.dev src/worker/.env
 ```
 
 Create a correct `config.local.json` file for gui
+
 ```bash
 echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
 ```
@@ -119,10 +120,12 @@ celery -A worker worker
 ```
 
 In GUI Tab:
+If `pnpm` is not available, check the [install guide](https://pnpm.io/installation)
 
 ```bash
+
 # If node modules isn't setup already
-npm install
+pnpm install
 
 # Run GUI
 pnpm run dev
