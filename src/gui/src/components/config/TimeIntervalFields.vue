@@ -90,6 +90,7 @@ const cronKey = ref(0) // Used to force re-rendering if needed
 
 const rulesDict = {
   cron: (v) =>
+    v === '' ||
     /^(\S+\s){4}\S$/.test(v) ||
     'Cron expression must be exactly five tokens separated by whitespace'
 }
@@ -152,6 +153,16 @@ const internalCronValue = computed({
       nextFireTimes.value = []
       return
     }
+
+    const isValid = rulesDict.cron(newVal)
+    if (isValid !== true) {
+      error.value = isValid // Set error message from rule
+      nextFireTimes.value = [] // Clear next fire times if invalid
+      return
+    } else {
+      error.value = '' // Clear any previous error if valid
+    }
+
     // Convert the unshifted (frontend) input into the shifted version for the backend.
     const shiftedVal = shiftCronExpressionForward(newVal)
     emit('update:modelValue', shiftedVal)
