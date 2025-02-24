@@ -7,11 +7,7 @@
       <v-card-text>
         <v-row class="mt-3">
           <v-col cols="12">
-            <CronVuetify
-              :key="cronKey"
-              v-model="cronVuetifyValue"
-              @error="handleError"
-            />
+            <CronVuetify v-model="cronVuetifyValue" @error="handleError" />
           </v-col>
         </v-row>
         <v-row class="mt-3">
@@ -21,6 +17,7 @@
               style="width: 100%"
               v-model="internalCronValue"
               label="Cron Expression"
+              :rules="[rulesDict.cron]"
               :error-messages="error"
               :hint="
                 !internalCronValue && !error
@@ -91,13 +88,17 @@ const nextFireTimes = ref([])
 const nextFireTimesLoading = ref(false)
 const cronKey = ref(0) // Used to force re-rendering if needed
 
-// ─── HELPER FUNCTIONS FOR SHIFTING ──────────────────────────────────────────────
+const rulesDict = {
+  cron: (v) =>
+    /^(\S+\s){4}\S$/.test(v) ||
+    'Cron expression must be exactly five tokens separated by whitespace'
+}
 
 // This function transforms the day-of-week (example: "* * * * 0,2-3,5-6") field in the cron expression using a single regex replace.
 // It applies the provided transformation function to every numeric token (or valid numeric range)
 // in the last field, leaving tokens like "*" or those containing letters unchanged.
 function transformDayOfWeek(cronExp, transformFn) {
-  return cronExp.replace(/(^.*\s+)(\S+)$/, (match, prefix, dowField) => {
+  return cronExp.replace(/(^.+\s+)(\S+)$/, (match, prefix, dowField) => {
     if (dowField === '*' || /[a-zA-Z]/.test(dowField)) return match
     const transformed = dowField
       .split(',')
@@ -132,10 +133,8 @@ function shiftCronExpressionBackward(cronExp) {
 const debouncedFetchNextFireTimes = debounce((cronValue) => {
   if (!error.value) {
     fetchNextFireTimes(cronValue)
-    emit('validation', true)
   } else {
     nextFireTimes.value = []
-    emit('validation', false)
   }
 }, 300)
 
@@ -151,7 +150,6 @@ const internalCronValue = computed({
       cronKey.value++
       emit('update:modelValue', newVal)
       nextFireTimes.value = []
-      emit('validation', true)
       return
     }
     // Convert the unshifted (frontend) input into the shifted version for the backend.
@@ -189,7 +187,6 @@ async function fetchNextFireTimes(cronValue) {
 
 function handleError(errorMsg) {
   error.value = errorMsg
-  emit('validation', false)
 }
 
 function formatTimestamp(timestamp, formatKey = 'long') {

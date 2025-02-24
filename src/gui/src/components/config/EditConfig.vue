@@ -101,7 +101,6 @@
           v-if="item.type === 'cron_interval'"
           v-model="formData[item.flatKey]"
           :type="configType"
-          @validation="handleCronValidation(item.flatKey, $event)"
         />
 
         <v-col v-if="item.type === 'table'" cols="12" class="mt-1 mb-2">
@@ -235,10 +234,6 @@ export default {
 
     const validationStates = ref({})
 
-    const handleCronValidation = (key, isValid) => {
-      validationStates.value[key] = isValid
-    }
-
     const handleSubmit = async () => {
       const { valid } = await config_form.value.validate()
 
@@ -342,7 +337,6 @@ export default {
       addItem,
       handleSubmit,
       handleFileUpload,
-      handleCronValidation,
       configType
     }
   }
