@@ -12,6 +12,8 @@ on:
 permissions:
   packages: write
   contents: write
+  id-token: write
+  attestations: write
 
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-gui
