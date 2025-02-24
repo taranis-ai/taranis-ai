@@ -7,7 +7,12 @@
       <v-card-text>
         <v-row class="mt-3">
           <v-col cols="12">
-            <CronVuetify v-model="cronVuetifyValue" @error="handleError" />
+            <CronVuetify
+              :key="cronKey"
+              v-model="cronVuetifyValue"
+              @error="handleError"
+            />
+            cronVuetifyValue: {{ cronVuetifyValue }}
           </v-col>
         </v-row>
         <v-row class="mt-3">
