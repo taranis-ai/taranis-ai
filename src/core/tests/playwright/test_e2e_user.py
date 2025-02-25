@@ -35,7 +35,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.get_by_role("button", name="Save").click()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
-    def test_e2e_assess(self, taranis_frontend: Page, e2e_server):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, stories):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
@@ -137,8 +137,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
-        def assert_edited_story():
-            self.highlight_element(page.locator('[class^="ml-auto mr-auto"] a')).click()
+        def assert_edited_story(story_ids):
+            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("link").first).click()
 
             # title
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
@@ -238,7 +238,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         hotkeys()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
-        assert_edited_story()
+        assert_edited_story(stories)
 
         assert_stories()
 
