@@ -1,7 +1,6 @@
 <template>
   <v-container fluid class="pa-0 ma-0">
     <v-card class="pa-4 mb-4">
-      {{ type }}
       <v-card-title class="text-h6">Refresh Interval</v-card-title>
       <v-divider></v-divider>
       <v-card-text>
@@ -12,7 +11,6 @@
               v-model="cronVuetifyValue"
               @error="handleError"
             />
-            cronVuetifyValue: {{ cronVuetifyValue }}
           </v-col>
         </v-row>
         <v-row class="mt-3">
