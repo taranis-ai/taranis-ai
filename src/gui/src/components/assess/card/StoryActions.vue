@@ -1,5 +1,5 @@
 <template>
-  <div v-if="active" class="ml-auto mr-auto" style="width: fit-content">
+  <div v-if="active" class="ml-auto mr-auto" style="width: fit-content" :data-testid="`story-actions-div-${story.id}`">
     <v-btn
       v-if="!reportView && !detailView"
       v-ripple="false"
