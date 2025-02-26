@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     REQUESTS_TIMEOUT: int = 60
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    CACHE_TYPE: str = "SimpleCache"
+    CACHE_DEFAULT_TIMEOUT: int = 300
+    CACHE_KEY_PREFIX: str = "taranis_frontend"
+
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

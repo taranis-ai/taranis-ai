@@ -4,10 +4,13 @@ from flask_htmx import HTMX
 from flask_caching import Cache
 from admin.filters import human_readable_trigger
 from werkzeug.datastructures import ImmutableMultiDict
+from admin.log import logger
 
 from admin.core_api import CoreApi
 from admin.config import Config
 from pydantic import BaseModel
+
+cache = Cache()
 
 class TaranisBaseModel(BaseModel):
     def model_dump(self, *args, **kwargs):
@@ -54,39 +57,71 @@ class DataPersistenceLayer:
         self.jwt_token = jwt_token or self.get_jwt_from_request()
         self.api = CoreApi(jwt_token=self.jwt_token)
 
+    def make_key(self, endpoint: str):
+        return f"{self.jwt_token[:10]}_{endpoint.replace('/', '_')}"
+
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
     
-    def get_endpoint(self, object_model: any):
+    def get_endpoint(self, object_model: TaranisBaseModel):
         if isinstance(object_model, BaseModel):
             return object_model._core_endpoint
         return object_model._core_endpoint.get_default()
     
-    def get_object(self, object_model: any, object_id: int | str):
+    def get_object(self, object_model: TaranisBaseModel, object_id: int | str) -> TaranisBaseModel|None:
         if result := self.get_objects(object_model):
             for object in result:
-                print(f'{type(object.id)} == {type(object_id)}')
                 if object.id == object_id:
                     return object
 
-    def get_objects(self, object_model: any):
-        endpoint = self.get_endpoint(object_model)
-        if result := self.api.api_get(endpoint):
-            return [object_model(**object) for object in result['items']]
-        
-    def store_object(self, object: any):
-        store_object = object.model_dump()
-        result = self.api.api_post(object._core_endpoint, json_data=store_object)
+    # jwt1 = "xxx"
+    # jwt2 = "yyy"
+    # jwt3 = "zzz"
 
-    def delete_object(self, object_model: any, object_id: int | str):
+    # xxx_users
+    # yyy_users
+    # zzz_users
+    # xxx_organizations
+    # yyy_organizations
+    # zzz_organizations
+    # invalidate *_users
+
+    def invalidate_cache(self, suffix: str):
+        keys = list(cache.cache._cache.keys())
+        keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
+        for key in keys_to_delete:
+            cache.delete(key)
+
+    
+    def get_objects(self, object_model: TaranisBaseModel) -> list[TaranisBaseModel]|None:
+        endpoint = self.get_endpoint(object_model)
+        # endpoint_for_cache = endpoint.replace("/", "_")
+        if cache_result := cache.get(key=self.make_key(endpoint)):
+            logger.info(f"Cache hit for {endpoint}")
+            return cache_result
+        if result := self.api.api_get(endpoint):
+            result_object = [object_model(**object) for object in result['items']]
+            cache.set(key=self.make_key(endpoint), value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
+            # for testing purposes, create a second cache key with a static prefix
+            cache.set(key=f"all_{self.make_key(endpoint)}", value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
+            return result_object
+        
+    def store_object(self, object: TaranisBaseModel):
+        store_object = object.model_dump()
+        return self.api.api_post(object._core_endpoint, json_data=store_object)
+
+    def delete_object(self, object_model: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object_model)
         return self.api.api_delete(f"{endpoint}/{object_id}")
     
-    def update_object(self, object_model: any, object_id: int | str):
+    def update_object(self, object_model: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object_model)
         return self.api.api_put(
             f"{endpoint}/{object_id}", json_data=object_model.model_dump()
         )
+    
+# retrieve user information from api route /users about current user
+# def get_user_detail()
 
 def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
@@ -122,22 +157,17 @@ class RolesAPI(MethodView):
 # create a users index view
 class UsersAPI(MethodView):
     def get(self):        
-        result = CoreApi().get_users()
-        # current_app.logger.info(parsed_result)
-        if result:
-            # TODO: maybe use dacite https://github.com/konradhalas/dacite
-            users = [User(**user) for user in result['items']]
+        result = DataPersistenceLayer().get_objects(User)
         if result is None:
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
-
-        return render_template("users.html", users=users)
+        return render_template("users.html", users=result)
     def post(self):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
-        if result == "error":
+        if not result:
+            organizations = DataPersistenceLayer().get_objects(Organization)
+            roles = DataPersistenceLayer().get_objects(Role)
             return render_template("new_user.html", organizations=organizations, roles=roles, user=user, error={"globalerror": "This is a global error message"})
-        if (user.name == "errortest"):
-            return render_template("new_user.html", organizations=organizations, roles=roles, user=user, error={"name": "This is an error message"})
         
         users = DataPersistenceLayer().get_objects(User)
         response =  render_template("users_table.html", users=users)
@@ -201,8 +231,22 @@ class NewOrganization(MethodView):
     def get(self):
         return render_template("new_organization.html")
 
+class InvalidateCache(MethodView):
+    def get(self, suffix: str):
+        keys = list(cache.cache._cache.keys())
+        keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
+        for key in keys_to_delete:
+            cache.delete(key)
+
+        return("Cache invalidated")
+
+class ListCacheKeys(MethodView):
+    def get(self):
+        keys = cache.cache._cache.keys()
+        return Response("<br>".join(keys))
 
 def init(app: Flask):
+    global cache
     HTMX(app)
     cache = Cache(app)
     app.url_map.strict_slashes = False
@@ -213,10 +257,15 @@ def init(app: Flask):
     admin_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
     admin_bp.add_url_rule("/users/", view_func=UsersAPI.as_view("users"))
     admin_bp.add_url_rule("/users/new", view_func=NewUser.as_view("new_user"))
+    # TODO fix EDIT /users/id 
     admin_bp.add_url_rule("/users/<id>/edit", view_func=EditUser.as_view("edit_user"))
     admin_bp.add_url_rule("users/<id>", view_func=DeleteUser.as_view("delete_user"), methods=["DELETE"])
     admin_bp.add_url_rule("users/<id>", view_func=UpdateUser.as_view("update_user"), methods=["PUT"])
     admin_bp.add_url_rule("/organizations/", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/new", view_func=NewOrganization.as_view("new_organization"))
+
+    # add a new route to invalidate cache specific to users
+    admin_bp.add_url_rule("/invalidate_cache/<suffix>", view_func=InvalidateCache.as_view("invalidate_cache"))
+    admin_bp.add_url_rule("/list_cache_keys", view_func=ListCacheKeys.as_view("list_cache_keys"))
 
     app.register_blueprint(admin_bp)
