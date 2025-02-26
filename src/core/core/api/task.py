@@ -52,6 +52,9 @@ def serialize_result(result: dict | str | None = None):
     if result is None:
         return None
 
+    if isinstance(result, str):
+        return result
+
     if "exc_message" in result:
         if isinstance(result["exc_message"], (list, tuple)):
             return " ".join(result["exc_message"])

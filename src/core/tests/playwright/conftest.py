@@ -7,21 +7,15 @@ from playwright.sync_api import Browser
 
 
 @pytest.fixture(scope="session")
-def install_node_modules():
-    try:
-        if not os.path.isdir("../gui/node_modules"):
-            print("Building node_modules")
-            print(os.path.isdir("../gui/node_modules"))
-            result = subprocess.call(["pnpm", "install"], cwd="../gui")
-            assert result == 0, f"Install failed with status code: {result}"
-    except Exception as e:
-        pytest.fail(str(e))
-
-
-@pytest.fixture(scope="session")
-def build_gui(install_node_modules):
+def build_gui():
     try:
         if not os.path.isdir("../gui/dist"):
+            if not os.path.isdir("../gui/node_modules"):
+                print("Building node_modules")
+                print(os.path.isdir("../gui/node_modules"))
+                result = subprocess.call(["pnpm", "install"], cwd="../gui")
+                assert result == 0, f"Install failed with status code: {result}"
+
             print("Building GUI")
             env = os.environ.copy()
             env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
@@ -949,11 +943,9 @@ def create_html_render(app):
             from core.managers.db_manager import db
 
             # get id of first product in product table
-            product = Product.get_first(db.select(Product))
-
-            try:
+            if product := Product.get_first(db.select(Product)):
                 product_id = product.id
-            except AttributeError:
+            else:
                 product_id = "test"
 
             # test html for product rendering

@@ -65,6 +65,12 @@
       :disabled="readOnly"
     >
       {{ submitText }}
+      <v-tooltip
+        v-if="storyId"
+        activator="parent"
+        location="bottom"
+        :text="submitText + ' ' + storyId"
+      />
     </v-btn>
   </v-form>
 </template>
@@ -158,7 +164,7 @@ export default {
 
       try {
         const result = await addNewsItem(news_item.value)
-        let new_story = result.data.id
+        let new_story = result.data.story_id
         if (props.storyId) {
           await groupAction([props.storyId, new_story])
           new_story = props.storyId

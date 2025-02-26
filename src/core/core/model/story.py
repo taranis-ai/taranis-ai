@@ -6,6 +6,7 @@ from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -372,9 +373,13 @@ class Story(BaseModel):
                 "story_id": story.id,
                 "news_item_ids": [news_item.id for news_item in story.news_items],
             }, 200
+        except IntegrityError:
+            logger.exception()
+            db.session.rollback()
+            return {"error": "Story already exists"}, 400
 
         except Exception:
-            logger.debug(f"Failed to add story: {data}")
+            logger.exception(f"Failed to add story: {data}")
             db.session.rollback()
             return {"error": "Failed to add story"}, 400
 

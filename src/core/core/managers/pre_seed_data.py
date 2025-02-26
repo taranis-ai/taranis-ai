@@ -95,6 +95,8 @@ workers = [
         "name": "NLP Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://nlp_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL"},
         ],
@@ -125,9 +127,9 @@ workers = [
         "type": "STORY_BOT",
         "name": "Story Clustering Bot",
         "parameters": [
-            {
-                "parameter": "ITEM_FILTER",
-            },
+            {"parameter": "ITEM_FILTER", "value": "range=week"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://story_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL"},
         ],
@@ -138,6 +140,8 @@ workers = [
         "name": "Summary generation Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://summary_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL"},
         ],
@@ -159,6 +163,8 @@ workers = [
         "name": "Sentiment Analysis Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://sentiment_analysis_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
             {"parameter": "REFRESH_INTERVAL"},
         ],
