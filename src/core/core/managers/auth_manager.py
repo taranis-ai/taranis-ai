@@ -3,7 +3,6 @@ from functools import wraps
 from flask import Response, request, Flask
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
-# from core.managers import queue_manager
 from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.dev_authenticator import DevAuthenticator
