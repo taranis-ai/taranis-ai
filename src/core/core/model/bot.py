@@ -10,7 +10,7 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue, convert_interval
 from core.model.worker import BOT_TYPES, Worker
-from core.managers.schedule_manager import Scheduler
+from core.managers import schedule_manager
 
 
 class Bot(BaseModel):
@@ -93,14 +93,14 @@ class Bot(BaseModel):
     def schedule_bot(self):
         if interval := self.get_schedule():
             entry = self.to_task_dict(interval)
-            Scheduler.add_celery_task(entry)
+            schedule_manager.schedule.add_celery_task(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
             return {"message": f"Schedule for bot {self.id} updated"}, 200
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
         entry_id = self.to_task_id()
-        Scheduler.remove_periodic_task(entry_id)
+        schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 

@@ -7,6 +7,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.config import Config
 
+
 cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
     "name": "Cleanup token blacklist",
@@ -19,53 +20,63 @@ cleanup_blacklist_periodic_task = {
     },
 }
 
+schedule: "Scheduler"
+
 
 class Scheduler:
-    _instance = None
+    def __init__(self):
+        self._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(engine=db.engine)})
+        self.start()
 
-    def __new__(cls) -> BackgroundScheduler:
-        if cls._instance is None:
-            cls._instance = super(Scheduler, cls).__new__(cls)
-            cls._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(engine=db.engine)})
-            if not Config.DISABLE_SCHEDULER:
-                cls._scheduler.start()
-        return cls._scheduler
+    def start(self):
+        if Config.DISABLE_SCHEDULER:
+            logger.info("Scheduler is disabled")
+            return
+        self._scheduler.start()
 
-    @classmethod
-    def add_celery_task(cls, task: dict):
+    def add_celery_task(self, task: dict):
         celery_options = task.get("celery", {})
-        if existing_task := Scheduler().get_job(task["id"]):
-            existing_task.remove()
-        Scheduler().add_job(
+        self.add_job(
             func=queue_manager.queue_manager.celery.send_task,
             id=task["id"],
             name=task["name"],
             kwargs=celery_options,
             **task["jobs_params"],
+            replace_existing=True,
         )
 
-    @classmethod
-    def get_periodic_tasks(cls) -> dict:
-        jobs = Scheduler().get_jobs()
-        items = [cls.serialize_job(job) for job in jobs]
+    @property
+    def scheduler(self):
+        return self._scheduler
+
+    def add_job(self, **kwargs):
+        self._scheduler.add_job(**kwargs)
+
+    def get_jobs(self) -> list[Job]:
+        return self._scheduler.get_jobs()
+
+    def get_job(self, job_id: str) -> Job | None:
+        return self._scheduler.get_job(job_id)
+
+    def get_periodic_tasks(self) -> dict:
+        jobs = self.get_jobs()
+        logger.debug([self.serialize_job(job) for job in jobs])
+        items = [self.serialize_job(job) for job in jobs]
         return {"items": items, "total_count": len(items)}
 
-    @classmethod
-    def get_periodic_task(cls, job_id: str) -> dict | None:
-        if job := Scheduler().get_job(job_id):
-            return cls.serialize_job(job)
+    def get_periodic_task(self, job_id: str) -> dict | None:
+        if job := self.get_job(job_id):
+            return self.serialize_job(job)
         return None
 
-    @classmethod
-    def remove_periodic_task(cls, job_id: str):
-        if job := Scheduler().get_job(job_id):
+    def remove_periodic_task(self, job_id: str):
+        if job := self.get_job(job_id):
             job.remove()
             return True
         logger.warning(f"Job {job_id} not found")
         return False
 
-    @classmethod
-    def serialize_job(cls, job: Job) -> dict:
+    def serialize_job(self, job: Job) -> dict:
         try:
             return {
                 "id": job.id,
@@ -76,10 +87,13 @@ class Scheduler:
                 "next_run_time": job.next_run_time,
             }
         except Exception:
+            logger.exception("Failed to serialize job")
             return {}
 
 
 def initialize():
-    if not Scheduler().get_job(cleanup_blacklist_periodic_task["id"]):
-        Scheduler.add_celery_task(cleanup_blacklist_periodic_task)
+    global schedule
+    schedule = Scheduler()
+
+    schedule.add_celery_task(cleanup_blacklist_periodic_task)
     logger.debug("Scheduler initialized")

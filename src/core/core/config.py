@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_SCHEMA: str = "postgresql+psycopg"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
-    SQLALCHEMY_DATABASE_URI: str | None = None
+    SQLALCHEMY_DATABASE_URI: str = ""
     SQLALCHEMY_DATABASE_URI_MASK: str | None = None
     SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
     COLORED_LOGS: bool = True
