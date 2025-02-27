@@ -123,8 +123,11 @@ In GUI Tab:
 If `pnpm` is not available, check the [install guide](https://pnpm.io/installation)
 
 ```bash
+# If pnpm isn't setup already
+npm install --global corepack@latest
+corepack enable pnpm
 
-# If node modules isn't setup already
+# If node_modules isn't setup already
 pnpm install
 
 # Run GUI
