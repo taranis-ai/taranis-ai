@@ -9,4 +9,6 @@ set -eu
 
 # ./tailwindcss -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch
 
-npx @tailwindcss/cli -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch
+pnpm install
+pnpm run tailwind:watch
+

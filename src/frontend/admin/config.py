@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
+    JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
@@ -17,8 +18,6 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
-    CACHE_TYPE: str = "SimpleCache"
-    CACHE_DEFAULT_TIMEOUT: int = 300
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
     TARANIS_CORE_HOST: str = "http://local.taranis.ai"
     TARANIS_BASE_PATH: str = "/"
@@ -29,7 +28,6 @@ class Settings(BaseSettings):
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     CACHE_KEY_PREFIX: str = "taranis_frontend"
-
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

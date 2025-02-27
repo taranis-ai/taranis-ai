@@ -1,4 +1,7 @@
 {
+	"scripts": {
+	  "tailwind:watch": "tailwindcss -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch"
+	},
 	"dependencies": {
 		"@tailwindcss/cli": "^4.0.1",
 		"tailwindcss": "^4.0.1"

@@ -1,6 +1,7 @@
 from flask import Flask
 from admin import router
 from admin.config import Config
+from admin import auth
 
 
 def create_app():
@@ -15,3 +16,4 @@ def create_app():
 
 def init(app: Flask):
     router.init(app)
+    auth.init(app)
