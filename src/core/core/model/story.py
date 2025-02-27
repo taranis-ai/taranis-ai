@@ -55,6 +55,7 @@ class Story(BaseModel):
         comments: str = "",
         links=None,
         attributes=None,
+        # tags=None,
         news_items=None,
         id=None,
     ):
@@ -70,6 +71,8 @@ class Story(BaseModel):
         self.links = links or []
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
+        # if tags:
+        #     self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created):
         if isinstance(created, datetime):
