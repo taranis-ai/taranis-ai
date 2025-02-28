@@ -20,7 +20,7 @@
                     {% for organization in organizations %}
                     <tr>
                         <td>{{ organization.name }}</td>
-                        <td>{{ organization.description|truncate(50) }}</td>
+                        <td>{{ organization.description|truncate(50) if organization.description }}</td>
                         <td>
                             <a href="#/organizations/{{ organization.id }}" class="btn btn-primary">Edit</a>
                             <button class="btn btn-danger" ng-click="deleteOrganization(organization.id)">Delete</button>
