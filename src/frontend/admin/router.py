@@ -10,8 +10,8 @@ from admin.log import logger
 from admin.core_api import CoreApi
 from admin.config import Config
 from pydantic import BaseModel
-
-cache = Cache()
+from admin.cache import cache 
+# cache = Cache()
 
 
 class TaranisBaseModel(BaseModel):
@@ -293,7 +293,9 @@ class UserCache(MethodView):
 def init(app: Flask):
     global cache
     HTMX(app)
-    cache = Cache(app)
+    # cache = FrontendCache()
+    cache.init_app(app)
+    # cache = Cache(app)
     app.url_map.strict_slashes = False
     app.jinja_env.filters["human_readable"] = human_readable_trigger
 
