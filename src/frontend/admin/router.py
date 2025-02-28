@@ -3,76 +3,15 @@ from flask import Flask, render_template, Blueprint, request, Response, jsonify
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from werkzeug.datastructures import ImmutableMultiDict
-from typing import TypeVar, Type
 
 from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import TaranisBaseModel, Role, User, Organization
-from admin.log import logger
-
-
-T = TypeVar("T", bound=TaranisBaseModel)
-
-
-class DataPersistenceLayer:
-    def __init__(self, jwt_token=None):
-        self.jwt_token = jwt_token or self.get_jwt_from_request()
-        self.api = CoreApi(jwt_token=self.jwt_token)
-
-    def make_key(self, endpoint: str):
-        return f"{get_jwt_identity()}_{endpoint.replace('/', '_')}"
-
-    def get_jwt_from_request(self):
-        return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
-
-    def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
-        if isinstance(object_model, BaseModel):
-            return object_model._core_endpoint
-        return object_model._core_endpoint.get_default()  # type: ignore
-
-    def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
-        if result := self.get_objects(object_model):
-            for object in result:
-                if object.id == object_id:  # type: ignore
-                    return object
-
-    def invalidate_cache(self, suffix: str):
-        keys = list(cache.cache._cache.keys())
-        keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
-        for key in keys_to_delete:
-            cache.delete(key)
-
-    def get_objects(self, object_model: Type[T]) -> list[T] | None:
-        endpoint = self.get_endpoint(object_model)
-        # endpoint_for_cache = endpoint.replace("/", "_")
-        if cache_result := cache.get(key=self.make_key(endpoint)):
-            logger.info(f"Cache hit for {endpoint}")
-            return cache_result
-        if result := self.api.api_get(endpoint):
-            result_object = [object_model(**object) for object in result["items"]]  # type: ignore
-            cache.set(key=self.make_key(endpoint), value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
-            # for testing purposes, create a second cache key with a static prefix
-            return result_object
-
-    def store_object(self, object: TaranisBaseModel):
-        store_object = object.model_dump()
-        return self.api.api_post(object._core_endpoint, json_data=store_object)
-
-    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):
-        endpoint = self.get_endpoint(object_model)
-        return self.api.api_delete(f"{endpoint}/{object_id}")
-
-    def update_object(self, object: TaranisBaseModel, object_id: int | str):
-        endpoint = self.get_endpoint(object)
-        return self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
-
-
-# retrieve user information from api route /users about current user
-# def get_user_detail()
+from admin.models import Role, User, Organization
+from admin.data_persistence import DataPersistenceLayer
 
 
 def is_htmx_request() -> bool:
@@ -117,6 +56,7 @@ class UsersAPI(MethodView):
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
         return render_template("users.html", users=result)
 
+    @jwt_required()
     def post(self):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
@@ -145,12 +85,14 @@ class UpdateUser(MethodView):
 
 
 class DeleteUser(MethodView):
+    @jwt_required()
     def delete(self, id):
         result = DataPersistenceLayer().delete_object(User, id)
         return "error" if result == "error" else Response(status=200)
 
 
 class NewUser(MethodView):
+    @jwt_required()
     def get(self):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
@@ -165,20 +107,8 @@ class NewUser(MethodView):
 
 
 class EditUser(MethodView):
+    @jwt_required()
     def get(self, id):
-        # orga_result = CoreApi().get_organizations()
-        # if orga_result:
-        #     organizations = [Organization(**organization) for organization in orga_result['items']]
-        # if orga_result is None:
-        #     return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
-        # roles_result = CoreApi().get_roles()
-        # if roles_result:
-        #     roles = [Role(**role) for role in roles_result['items']]
-        # if roles_result is None:
-        #     return f"Failed to fetch roles from: {Config.TARANIS_CORE_URL}", 500
-        # # user_id = request.view_args.get("id")
-        # result = CoreApi().get_user(id)
-        # user=User(**result)
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         user = DataPersistenceLayer().get_object(User, int(id))
@@ -187,6 +117,7 @@ class EditUser(MethodView):
 
 
 class OrganizationsAPI(MethodView):
+    @jwt_required()
     def get(self):
         result = DataPersistenceLayer().get_objects(Organization)
         if result is None:
