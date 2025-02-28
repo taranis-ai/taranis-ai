@@ -14,7 +14,7 @@ class Settings(BaseModel):
     settings: Mapped["dict"] = db.Column(db.JSON)
 
     def __init__(self, settings: dict | None = None):
-        self.settings = settings or {"global_proxy": "", "default_collector_interval": "* */8 * * *"}
+        self.settings = settings or {"global_proxy": "", "default_collector_interval": "0 */8 * * *"}
 
     @classmethod
     def update(cls, data) -> tuple[dict, int]:
