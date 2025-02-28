@@ -4,7 +4,6 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from core.managers import queue_manager
-from core.managers.schedule_manager import Scheduler
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
@@ -26,6 +25,7 @@ from core.model import (
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
+from core.managers import schedule_manager
 from core.config import Config
 
 
@@ -354,10 +354,10 @@ class Schedule(MethodView):
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := Scheduler.get_periodic_task(task_id):
+                if result := schedule_manager.schedule.get_periodic_task(task_id):
                     return result, 200
                 return {"error": "Task not found"}, 404
-            if schedules := Scheduler.get_periodic_tasks():
+            if schedules := schedule_manager.schedule.get_periodic_tasks():
                 return schedules, 200
             return {"error": "No schedules found"}, 404
         except Exception:
@@ -372,7 +372,7 @@ class RefreshInterval(MethodView):
         if not cron_expr:
             return jsonify({"error": "Missing cron expression"}), 400
         try:
-            fire_times = Scheduler.get_next_n_fire_times_from_cron(cron_expr, n=3)
+            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
             formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
             return jsonify(formatted_times), 200
         except Exception as e:

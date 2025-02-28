@@ -29,7 +29,7 @@ class OSINTSourcesList(MethodView):
 class NewsItems(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        filter_keys = ["search" "read", "important", "relevant", "in_analyze", "range", "sort"]
+        filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)

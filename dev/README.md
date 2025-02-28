@@ -18,7 +18,7 @@ cp dev/env.dev src/worker/.env
 ```
 
 ```bash
-dev/start_dev.sh
+./dev/start_dev.sh
 ```
 
 ## Hard Mode
@@ -47,14 +47,32 @@ cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
 ```
 
+Create a correct `config.local.json` file for gui
+
+```bash
+echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
+```
+
 Start support services via the dev compose file
 
 ```bash
 docker compose -f dev/compose.yml up -d
 ```
 
-Start a tmux session with 3 panes for the 3 processes:
+Setup nginx.
+Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
+```bash
+# Debian based example
+sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+sudo nginx -t && sudo systemctl restart nginx
 
+# Red Hat based example
+sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
+sudo nginx -t && sudo systemctl restart nginx
+```
+
+Start a tmux session with 3 panes for the 3 processes:
 ```bash
 # Start a new session named taranis with the first tab and cd to src/core
 tmux new-session -s taranis -n core -c src/core -d
@@ -102,21 +120,28 @@ celery -A worker worker
 ```
 
 In GUI Tab:
+If `pnpm` is not available, check the [install guide](https://pnpm.io/installation)
 
 ```bash
-# If node modules isn't setup already
-npm install
+# If pnpm isn't setup already
+npm install --global corepack@latest
+corepack enable pnpm
+
+# If node_modules isn't setup already
+pnpm install
 
 # Run GUI
 pnpm run dev
 ```
 
-## Optionally start scheduler (another repository) in tmux
+## Optionally start scheduler frontend ([another repository](https://github.com/taranis-ai/taranis-scheduler)) in tmux
 
 ```bash
-cd ../taranis-scheduler # your taranis-scheduler directory
-start_dev.sh
+cd /path/to/taranis-scheduler # your taranis-scheduler directory
+./start_dev.sh
 ```
+
+Taranis AI should be reachable on _local.taranis.ai_.
 
 
 ## Technology stack

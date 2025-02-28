@@ -102,6 +102,11 @@ class IgnoreHeartbeatTickFilter(logging.Filter):
         return "heartbeat_tick" not in record.getMessage()
 
 
+class IgnorePingFilter(logging.Filter):
+    def filter(self, record):
+        return "pidbox received method ping" not in record.getMessage()
+
+
 @after_setup_logger.connect
 def setup_loggers(logger, *args, **kwargs):
     logger.setLevel(logging.INFO)
@@ -109,6 +114,7 @@ def setup_loggers(logger, *args, **kwargs):
         logger.setLevel(logging.DEBUG)
     ampq_logger = logging.getLogger("amqp.connection.Connection.heartbeat_tick")
     ampq_logger.addFilter(IgnoreHeartbeatTickFilter())
+    logging.getLogger("kombu.pidbox").addFilter(IgnorePingFilter())
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)
