@@ -3,8 +3,9 @@ from functools import wraps
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 from admin.config import Config
 from admin.log import logger
-from admin.cache import cache
+from admin.cache import add_user_to_cache, get_user_from_cache
 from admin.core_api import CoreApi
+from admin.models import User
 
 jwt = JWTManager()
 
@@ -48,7 +49,7 @@ def auth_required(permissions: list | str | None = None):
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
-            permission_claims = current_user.get_permissions()
+            permission_claims = current_user.permissions
 
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
@@ -63,26 +64,32 @@ def auth_required(permissions: list | str | None = None):
 
     return auth_required_wrap
 
+
 def get_user_details():
     api = CoreApi()
     # read userdetails from core on route /users
-    return api.api_get("/users")
+    if result := api.api_get("/users"):
+        return add_user_to_cache(result)
+    return None
+
 
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
     # read userdata from cache
     # return User.find_by_name(identity) if identity else None
-    cached_user = cache.get(identity)
-    return cached_user or get_user_details()
+    return get_user_from_cache(identity) or get_user_details()
 
 
 @jwt.user_identity_loader
 def user_identity_lookup(user: "User"):
     return user.username
 
-# jtw token blacklisting is handled by core
-# cached userdata is invalidated, when userdata is changed
+
 @jwt.token_in_blocklist_loader
 def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
+    """
+    jtw token blacklisting is handled by core
+    cached userdata is invalidated, when userdata is changed
+    """
     return False

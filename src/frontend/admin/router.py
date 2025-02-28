@@ -1,96 +1,44 @@
-from flask import Flask, render_template, Blueprint, request, Response
+from pydantic import BaseModel
+from flask import Flask, render_template, Blueprint, request, Response, jsonify
+from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
-from flask_caching import Cache
-from admin.filters import human_readable_trigger
-from flask_jwt_extended import jwt_required, current_user
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.datastructures import ImmutableMultiDict
-from admin.log import logger
+from typing import TypeVar, Type
 
+from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
-from pydantic import BaseModel
-from admin.cache import cache 
-# cache = Cache()
+from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
+from admin.models import TaranisBaseModel, Role, User, Organization
+from admin.log import logger
 
 
-class TaranisBaseModel(BaseModel):
-    def model_dump(self, *args, **kwargs):
-        kwargs.setdefault("exclude_none", True)
-        return super().model_dump(*args, **kwargs)
-
-
-class Address(TaranisBaseModel):
-    city: str
-    country: str
-    street: str
-    zip: str
-
-
-class Organization(TaranisBaseModel):
-    _core_endpoint = "/config/organizations"
-    id: int
-    name: str
-    description: str | None = None
-    address: Address | None = None
-
-
-class Role(TaranisBaseModel):
-    _core_endpoint = "/config/roles"
-    id: int
-    name: str
-    description: str
-    permissions: list[str]
-    tlp_level: int | None = None
-
-
-class User(TaranisBaseModel):
-    _core_endpoint = "/config/users"
-
-    id: int | None = None
-    name: str
-    organization: Organization | int | dict
-    permissions: list[str] | None = None
-    profile: dict | None = None
-    roles: list[Role] | list[int] | list[dict]
-    username: str
-    password: str | None = None
+T = TypeVar("T", bound=TaranisBaseModel)
 
 
 class DataPersistenceLayer:
     def __init__(self, jwt_token=None):
         self.jwt_token = jwt_token or self.get_jwt_from_request()
-        self.user = current_user
         self.api = CoreApi(jwt_token=self.jwt_token)
 
     def make_key(self, endpoint: str):
-        return f"{self.user.id}_{endpoint.replace('/', '_')}"
+        return f"{get_jwt_identity()}_{endpoint.replace('/', '_')}"
 
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
 
-    def get_endpoint(self, object_model: TaranisBaseModel):
+    def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
         if isinstance(object_model, BaseModel):
             return object_model._core_endpoint
-        return object_model._core_endpoint.get_default()
+        return object_model._core_endpoint.get_default()  # type: ignore
 
-    def get_object(self, object_model: TaranisBaseModel, object_id: int | str) -> TaranisBaseModel | None:
+    def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
         if result := self.get_objects(object_model):
             for object in result:
-                if object.id == object_id:
+                if object.id == object_id:  # type: ignore
                     return object
-
-    # jwt1 = "xxx"
-    # jwt2 = "yyy"
-    # jwt3 = "zzz"
-
-    # xxx_users
-    # yyy_users
-    # zzz_users
-    # xxx_organizations
-    # yyy_organizations
-    # zzz_organizations
-    # invalidate *_users
 
     def invalidate_cache(self, suffix: str):
         keys = list(cache.cache._cache.keys())
@@ -98,30 +46,29 @@ class DataPersistenceLayer:
         for key in keys_to_delete:
             cache.delete(key)
 
-    def get_objects(self, object_model: TaranisBaseModel) -> list[TaranisBaseModel] | None:
+    def get_objects(self, object_model: Type[T]) -> list[T] | None:
         endpoint = self.get_endpoint(object_model)
         # endpoint_for_cache = endpoint.replace("/", "_")
         if cache_result := cache.get(key=self.make_key(endpoint)):
             logger.info(f"Cache hit for {endpoint}")
             return cache_result
         if result := self.api.api_get(endpoint):
-            result_object = [object_model(**object) for object in result["items"]]
+            result_object = [object_model(**object) for object in result["items"]]  # type: ignore
             cache.set(key=self.make_key(endpoint), value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
             # for testing purposes, create a second cache key with a static prefix
-            cache.set(key=f"all_{self.make_key(endpoint)}", value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
             return result_object
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()
         return self.api.api_post(object._core_endpoint, json_data=store_object)
 
-    def delete_object(self, object_model: TaranisBaseModel, object_id: int | str):
+    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):
         endpoint = self.get_endpoint(object_model)
         return self.api.api_delete(f"{endpoint}/{object_id}")
 
-    def update_object(self, object_model: TaranisBaseModel, object_id: int | str):
-        endpoint = self.get_endpoint(object_model)
-        return self.api.api_put(f"{endpoint}/{object_id}", json_data=object_model.model_dump())
+    def update_object(self, object: TaranisBaseModel, object_id: int | str):
+        endpoint = self.get_endpoint(object)
+        return self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
 
 
 # retrieve user information from api route /users about current user
@@ -154,18 +101,16 @@ class Dashboard(MethodView):
 
 class RolesAPI(MethodView):
     def get(self):
-        result = CoreApi().get_roles()
-        if result:
-            roles = [Role(**role) for role in result["items"]]
+        result = DataPersistenceLayer().get_objects(Role)
         if result is None:
             return f"Failed to fetch roles from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("roles.html", roles=roles)
+        return render_template("roles.html", roles=result)
 
 
 # create a users index view
 class UsersAPI(MethodView):
-    @jwt_required
+    @jwt_required()
     def get(self):
         result = DataPersistenceLayer().get_objects(User)
         if result is None:
@@ -243,13 +188,11 @@ class EditUser(MethodView):
 
 class OrganizationsAPI(MethodView):
     def get(self):
-        result = CoreApi().get_organizations()
-        if result:
-            organizations = [Organization(**organization) for organization in result["items"]]
+        result = DataPersistenceLayer().get_objects(Organization)
         if result is None:
-            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+            return f"Failed to fetch organization from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("organizations.html", organizations=organizations)
+        return render_template("organizations.html", organizations=result)
 
 
 class NewOrganization(MethodView):
@@ -273,29 +216,45 @@ class ListCacheKeys(MethodView):
         return Response("<br>".join(keys))
 
 
-class UserCache(MethodView):
-    def get_cache_key(self, user_id: int) -> str:
-        return f"user_cache_{user_id}"
+class ListUserCache(MethodView):
+    def get(self):
+        return jsonify(get_cached_users())
 
+
+class UserCache(MethodView):
     def post(self):
         user = request.json
         if not user:
             return {"error": "No data provided"}, 400
-        cache.set(key=self.get_cache_key(user.get("id")), value=user, timeout=Config.CACHE_DEFAULT_TIMEOUT)
+        add_user_to_cache(user)
 
     def delete(self):
         body = request.json
         if not body:
             return {"error": "No data provided"}, 400
-        cache.delete(key=self.get_cache_key(body.get("id")))
+        remove_user_from_cache(body["username"])
+
+
+class TaranisJSONProvider(DefaultJSONProvider):
+    def dumps(self, obj, **kwargs):
+        transformed_obj = self._transform(obj)
+        return super().dumps(transformed_obj, **kwargs)
+
+    def _transform(self, obj):
+        if isinstance(obj, BaseModel):
+            return obj.model_dump(exclude_none=True)
+        elif isinstance(obj, list):
+            return [self._transform(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: self._transform(value) for key, value in obj.items()}
+        return obj
 
 
 def init(app: Flask):
-    global cache
+    app.json_provider_class = TaranisJSONProvider
+    app.json = app.json_provider_class(app)
     HTMX(app)
-    # cache = FrontendCache()
-    cache.init_app(app)
-    # cache = Cache(app)
+
     app.url_map.strict_slashes = False
     app.jinja_env.filters["human_readable"] = human_readable_trigger
 
@@ -316,5 +275,6 @@ def init(app: Flask):
     # add a new route to invalidate cache specific to users
     admin_bp.add_url_rule("/invalidate_cache/<suffix>", view_func=InvalidateCache.as_view("invalidate_cache"))
     admin_bp.add_url_rule("/list_cache_keys", view_func=ListCacheKeys.as_view("list_cache_keys"))
+    admin_bp.add_url_rule("/list_user_cache", view_func=ListUserCache.as_view("list_user_cache"))
 
     app.register_blueprint(admin_bp)

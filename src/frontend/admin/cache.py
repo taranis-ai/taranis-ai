@@ -1,17 +1,40 @@
 from flask_caching import Cache
+from admin.config import Config
+from admin.models import User
+from admin.log import logger
 
-class FrontendCache:
-    def __init__(self):
-        self.cache = Cache()
+cache = Cache()
 
-    # TODO: explain this method
-    def init_app(self, app):
-        self.cache.init_app(app)
 
-    def get(self, key):
-        return self.cache.get(key)
-    
-    def set(self, key, value, timeout=None):
-        return self.cache.set(key, value, timeout)
+def add_user_to_cache(user: dict) -> User | None:
+    try:
+        user_object = User(**user)
+        cache.set(key=f"user_cache_{user['username']}", value=user_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
+        return user_object
+    except Exception:
+        logger.exception("Failed to add user to cache")
+        return None
 
-cache = FrontendCache()
+
+def get_user_from_cache(username: str) -> User | None:
+    return cache.get(f"user_cache_{username}")
+
+
+def remove_user_from_cache(username: str):
+    cache.delete(f"user_cache_{username}")
+
+
+def get_cached_users() -> list[User]:
+    prefix = "user_cache_"
+    users = []
+    for key in cache.cache._cache:
+        username = key.removeprefix(prefix)
+        if username == key:
+            continue
+        if user := get_user_from_cache(username):
+            users.append(user)
+    return users
+
+
+def init(app):
+    cache.init_app(app)
