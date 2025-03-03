@@ -17,7 +17,6 @@
         return cookieValue;
     }
     document.body.addEventListener('htmx:configRequest', function(evt) {
-        console.log('htmx:configRequest');
         // evt.detail.parameters['auth_token'] = getAuthToken(); // add a new parameter into the request
         // evt.detail.headers['Authentication-Token'] = getAuthToken(); // add a new header into the request
         const auth_token = getAuthToken();

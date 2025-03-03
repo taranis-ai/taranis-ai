@@ -27,6 +27,7 @@ from core.model.permission import Permission
 from core.managers.decorators import extract_args
 from core.managers import schedule_manager
 from core.config import Config
+import requests
 
 
 class DictionariesReload(MethodView):
@@ -265,6 +266,13 @@ class UsersExport(MethodView):
             mimetype="application/json",
             as_attachment=True,
         )
+    
+# temp method to test frontend cache invalidation
+# ideally, this should be sent asynchronously
+def invalidate_cache(suffix: str):
+    # request to URL with suffix
+    frontend_url = f'http://local.taranis.ai/frontend/invalidate_cache/{suffix}'
+    requests.get(frontend_url)
 
 
 class Users(MethodView):
@@ -279,6 +287,8 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
+            # send request to frontend to invalidate cache
+            invalidate_cache("users")
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except Exception:
             logger.exception()
@@ -287,7 +297,10 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
         try:
-            return user.User.update(user_id, request.json)
+            result = user.User.update(user_id, request.json)
+            # send request to frontend to invalidate cache
+            invalidate_cache("users")
+            return result
         except Exception:
             logger.exception()
             return {"error": "Could not update user"}, 400
@@ -295,7 +308,10 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
         try:
-            return user.User.delete(user_id)
+            result =  user.User.delete(user_id)
+            # send request to frontend to invalidate cache
+            invalidate_cache("users")
+            return result
         except Exception:
             logger.exception()
             return {"error": "Could not delete user"}, 400

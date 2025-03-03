@@ -73,6 +73,7 @@ class UsersAPI(MethodView):
 
 
 class UpdateUser(MethodView):
+    @jwt_required()
     def put(self, id):
         user = User(**parse_formdata(request.form))
         print(f"sending {parse_formdata(request.form)} to API")

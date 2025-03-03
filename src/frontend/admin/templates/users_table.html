@@ -1,27 +1,29 @@
 <!-- list all retrieved users -->
-<table class="table table-striped" id="users-table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Username</th>
-            <th>Roles</th>
-            <th>Permissions</th>
-        </tr>
-    </thead>
-    <tbody hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
-        {% for user in users %}
-        <tr>
-            <td>{{ user.name }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.roles|length }}</td>
-            <td>{{ user.permissions|length }}</td>
-            <td>
-                <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
-                    Edit
-                </button>
-                <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="bg-white rounded-sm p-4 shadow-lg">
+    <table class="table table-striped" id="users-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Roles</th>
+                <th>Permissions</th>
+            </tr>
+        </thead>
+        <tbody hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
+            {% for user in users %}
+            <tr>
+                <td>{{ user.name }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.roles|length }}</td>
+                <td>{{ user.permissions|length }}</td>
+                <td>
+                    <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
+                        Edit
+                    </button>
+                    <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

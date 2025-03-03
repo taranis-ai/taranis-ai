@@ -1,5 +1,6 @@
 {% set error = error | default({}) %}
 
+<div class="bg-white rounded-sm p-4 shadow-lg">
 {% if action == 'new' %} 
     <form id="user-form" hx-post="/frontend/users/" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg" hx-on::after-request="this.reset()">
 {% else %}
@@ -68,7 +69,7 @@
         </div>
     </div>
 </form>
-
+</div>
 <script>
     // disable tomselect for now
 // var settings = {plugins: {
@@ -90,3 +91,4 @@
     {% endfor %}
 {% endif %}
 </script>
+
