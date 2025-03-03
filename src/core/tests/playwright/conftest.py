@@ -186,6 +186,19 @@ def stories(app, news_items_list):
 
         yield story_ids
 
+@pytest.fixture(scope="session")
+def story_news_items(app, stories):
+    from core.model.story import Story
+    story_news_items_dict = {}
+    with app.app_context():
+        for story_id in stories:
+            if story := Story.get(story_id):
+                story_news_items_dict[story_id] = story.news_items
+            else:
+                story_news_items_dict[story_id] = []
+
+    yield story_news_items_dict
+
 
 @pytest.fixture(scope="session")
 def news_items_list(app, fake_source):
