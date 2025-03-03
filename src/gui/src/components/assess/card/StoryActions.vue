@@ -224,7 +224,7 @@
           v-bind="props"
           color="#919191"
           icon="mdi-dots-horizontal"
-          title="show drop-down"
+          title="show story-actions-menu"
         />
       </template>
 
