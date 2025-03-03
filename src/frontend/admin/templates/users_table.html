@@ -3,8 +3,8 @@
     <table class="table table-striped" id="users-table">
         <thead>
             <tr>
-                <th>Name</th>
                 <th>Username</th>
+                <th>Name</th>
                 <th>Roles</th>
                 <th>Permissions</th>
             </tr>
@@ -12,8 +12,8 @@
         <tbody hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
             {% for user in users %}
             <tr>
-                <td>{{ user.name }}</td>
                 <td>{{ user.username }}</td>
+                <td>{{ user.name }}</td>
                 <td>{{ user.roles|length }}</td>
                 <td>{{ user.permissions|length }}</td>
                 <td>
