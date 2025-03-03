@@ -25,6 +25,7 @@
       :to="`/story/${story.id}`"
       tag="button"
       @click.stop
+      title="open detail view"
     >
       <v-tooltip activator="parent" text="open detail view" />
       <v-icon icon="mdi-magnify" />
@@ -41,6 +42,7 @@
           v-bind="props"
           icon="mdi-book-edit-outline"
           :to="`/story/${story.id}/edit`"
+          title="edit story"
         />
       </template>
     </v-tooltip>
@@ -54,6 +56,7 @@
       color="#919191"
       icon="mdi-google-circles-communities"
       @click.stop="sharingDialog = true"
+      title="add to report"
     >
       <v-tooltip activator="parent" text="add to report" />
       <v-icon icon="mdi-google-circles-communities" />
@@ -70,6 +73,7 @@
           icon="mdi-trash-can"
           v-bind="props"
           @click.stop="$emit('remove-from-report')"
+          title="remove from report"
         />
       </template>
     </v-tooltip>
@@ -88,6 +92,7 @@
           :icon="story.read ? 'mdi-eye-check-outline' : 'mdi-eye-off-outline'"
           v-bind="props"
           @click="markAsRead()"
+          title="mark as read"
         />
       </template>
     </v-tooltip>
@@ -110,6 +115,7 @@
                 : 'mdi-star-check-outline'
             "
             @click.stop="markAsImportant()"
+            title="mark as important"
           />
         </template>
       </v-tooltip>
@@ -124,6 +130,7 @@
             v-bind="props"
             icon="mdi-email-outline"
             @click.stop="shareViaMail"
+            title="send via mail"
           />
         </template>
       </v-tooltip>
@@ -141,6 +148,7 @@
             v-bind="props"
             icon="mdi-ungroup"
             @click.stop="ungroup()"
+            title="ungroup"
           />
         </template>
       </v-tooltip>
@@ -155,6 +163,7 @@
             v-bind="props"
             icon="mdi-open-in-app"
             :to="'/newsitem/' + story.news_items[0].id"
+            title="open news item"
           />
         </template>
       </v-tooltip>
@@ -169,6 +178,7 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/newsitem/${story.news_items[0].id}/edit`"
+            title="edit newsitem"
           />
         </template>
       </v-tooltip>
@@ -183,6 +193,7 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/enter/${story.id}`"
+            title="create and attach news item"
           />
         </template>
       </v-tooltip>
@@ -197,12 +208,13 @@
             v-bind="props"
             icon="mdi-delete-outline"
             @click.stop="deleteDialog = true"
+            title="delete story"
           />
         </template>
       </v-tooltip>
     </div>
 
-    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
+    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y :data-testid="`story-actions-menu-${story.id}`">
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -212,6 +224,7 @@
           v-bind="props"
           color="#919191"
           icon="mdi-dots-horizontal"
+          title="show drop-down"
         />
       </template>
 
@@ -222,14 +235,14 @@
             text="open detail view"
             location="start"
           />
-          <v-icon icon="mdi-magnify" />
+          <v-icon icon="mdi-magnify" title="open detail view"/>
         </v-list-item>
         <v-list-item
           v-if="compactView && !reportView"
           @click.stop="sharingDialog = true"
         >
           <v-tooltip activator="parent" text="add to report" location="start" />
-          <v-icon icon="mdi-google-circles-communities" />
+          <v-icon icon="mdi-google-circles-communities" title="add to report"/>
         </v-list-item>
         <v-list-item
           v-if="detailView || compactView"
@@ -238,6 +251,7 @@
           "
           class="hidden-xl-only"
           @click.stop="markAsRead()"
+          title="mark as read"
         />
         <v-list-item @click.stop="markAsImportant()">
           <v-tooltip
@@ -249,6 +263,7 @@
             :icon="
               !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
             "
+            title="mark as important"
           />
         </v-list-item>
 
@@ -286,7 +301,7 @@
         </v-list-item>
         <v-list-item :to="`/story/${story.id}/edit`">
           <v-tooltip activator="parent" text="edit story" location="start" />
-          <v-icon icon="mdi-book-edit-outline" />
+          <v-icon icon="mdi-book-edit-outline" title="edit story"/>
         </v-list-item>
 
         <v-list-item
