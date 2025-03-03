@@ -6,7 +6,6 @@ import re
 from playwright.sync_api import expect, Page
 from playwright_helpers import PlaywrightHelpers
 
-
 @pytest.mark.e2e_user
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
@@ -24,51 +23,45 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
-        self.highlight_element(page.locator("role=button")).click()
+        self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
-        page.get_by_role("button").nth(1).click()
+        page.locator("button[name='user-menu-button']").click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
-    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, stories):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, stories, story_news_items):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
 
-        def assert_stories():
-            expect(page.get_by_role("main")).to_contain_text(
-                "Genetic Engineering Data Theft by APT81 (8) This story informs about the current security state."
+        def assert_stories(story_ids: list, story_news_items: dict):
+
+            expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_role("heading")).to_contain_text(
+                story_news_items[story_ids[0]].title
             )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:geneticresearchsecurity.com Author:Irene ThompsonGenetic Engineering Data Theft by APT81APT81 targets national research labs to steal genetic engineering data."
+
+            expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text(
+                "This story informs about the current security state."
             )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:smartcityupdate.com Author:Bethany WhiteSmart City Sabotage by APT74 in EuropeAPT74 involved in sabotaging smart city projects across Europe."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:mediasecurityfocus.com Author:Charles LeeInternational Media Manipulation by APT75APT75 uses sophisticated cyber attacks to manipulate international media outlets."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:pharmasecuritytoday.com Author:Diana BrooksPharmaceutical Trade Secrets Theft by APT76APT76 implicated in stealing trade secrets from global pharmaceutical companies."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:powergridsecurityfocus.com Author:Evan MoralesPower Grid Disruptions in Asia by APT77APT77 deploys disruptive attacks against national power grids in Asia."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:aerospacesecuritytoday.com Author:Fiona GarciaEspionage in Aerospace Industries by APT78APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:sportseventsecurity.com Author:Gregory PhillipsOlympic Website DDoS Attacks by APT79APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics."
-            )
-            expect(page.get_by_role("main")).to_contain_text(
-                "Article:telecomsecurityupdate.com Author:Holly JensenGlobal Telecommunications Disrupted by APT80APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications."
-            )
+
+            # loop over all news_items attached to the story
+            for news_item in story_news_items[story_ids[0]]:
+                news_item_article = re.search(r'(?:https?://)?(?:www\.)?([^/]+)', news_item.link).group(1)
+                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Article:")).to_contain_text(
+                    news_item_article
+                )
+                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Published:")).to_contain_text(
+                    f"{news_item.published.strftime("%b %d, %Y, %H:%M:%S")}"
+                )
+                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Author:")).to_contain_text(
+                    news_item.author
+                )
 
         def hotkeys():
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81")).click()
@@ -78,12 +71,12 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.keyboard.press("Control+I")
             self.short_sleep(duration=1)
 
-        def interact_with_story():
-            self.highlight_element(page.locator("button:nth-child(5)").first).click()
+        def interact_with_story(story_ids):
+            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("button", name="show story-actions-menu")).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_story_options.png")
 
-            self.highlight_element(page.locator('[id^="v-menu-"] div > div > a:nth-of-type(1) > div > i').first).click()
+            self.highlight_element(page.get_by_test_id(f"story-actions-menu-{story_ids[0]}").get_by_title("edit story")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("APT75")
             self.short_sleep(0.5)
@@ -115,20 +108,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
-            # story should contain one attribute "test_key": "dangerous"
-            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+            expect(page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")).to_have_value(
                 "test_key"
             )
-            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+            expect(page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")).to_have_value(
                 "dangerous"
             )
-
-            self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
             self.highlight_element(
-                page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
+                page.locator("div[name='summary']").get_by_role("textbox"), scroll=False
             ).fill("This story informs about the current security state.")
             self.highlight_element(
-                page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False
+                page.locator("div[name='comment']").get_by_role("textbox"), scroll=False
             ).fill("I like this story, it needs to be reviewed.")
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
@@ -138,49 +128,43 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def assert_edited_story(story_ids):
-            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("link").first).click()
+            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("link", name="edit story")).click()
 
-            # title
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
 
-            # summary
             expect(
-                page.locator("div").filter(has_text=re.compile(r"^Summary91")).get_by_role("textbox").locator(":first-child")
+                page.locator("div[name='summary']").get_by_role("textbox")
             ).to_have_text("This story informs about the current security state.")
 
-            # comment
             expect(
-                page.locator("div").filter(has_text=re.compile(r"^Comment91")).get_by_role("textbox").locator(":first-child")
+                page.locator("div[name='comment']").get_by_role("textbox")
             ).to_have_text("I like this story, it needs to be reviewed.")
 
-            # tags
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(1) > span > div")).to_have_text("APT75")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(2) > span > div")).to_have_text("APT74")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(3) > span > div")).to_have_text("APT76")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(4) > span > div")).to_have_text("APT77")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(5) > span > div")).to_have_text("APT78")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(6) > span > div")).to_have_text("APT79")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(7) > span > div")).to_have_text("APT80")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div:nth-of-type(8) > span > div")).to_have_text("APT81")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(0)).to_have_text("APT75")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(1)).to_have_text("APT74")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(2)).to_have_text("APT76")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(3)).to_have_text("APT77")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(4)).to_have_text("APT78")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(5)).to_have_text("APT79")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(6)).to_have_text("APT80")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
-            # attributes
-            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > div > div > div > div > input")).to_have_value(
+            expect(page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")).to_have_value(
                 "test_key"
             )
-            expect(page.locator("table > tbody > tr:nth-of-type(1) > td:nth-of-type(2) > div > div > div > div > input")).to_have_value(
+            expect(page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")).to_have_value(
                 "dangerous"
             )
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
         def infinite_scroll_all_items():
-            self.smooth_scroll(page.locator("div:nth-child(21)").first)
+            self.smooth_scroll(page.locator("div:nth-child(21)").first) # scroll to the 20th story
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
-            self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))
+            self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))  # scroll to the 30th story
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.short_sleep(duration=1)
-
-            self.highlight_element(page.locator('input:near(:text("Items per page"))').first).click()
-            self.highlight_element(page.get_by_label("Items per page")).click()
+            self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_role("textbox", name="search")).click()
+            self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_role("textbox", name="Items per page")).click()
             self.highlight_element(page.get_by_role("option", name="100")).click()
 
         def enter_hotkey_menu():
@@ -229,7 +213,6 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         page = taranis_frontend
         self.add_keystroke_overlay(page)
-
         go_to_assess()
         enter_hotkey_menu()
         infinite_scroll_all_items()
@@ -237,10 +220,10 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
-        interact_with_story()
+        interact_with_story(stories)
         assert_edited_story(stories)
 
-        assert_stories()
+        assert_stories(stories, story_news_items)
 
         # TODO: uncomment when frontend charts is fixed
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
