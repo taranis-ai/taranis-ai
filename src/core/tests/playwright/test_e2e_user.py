@@ -43,7 +43,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def assert_stories(story_ids: list, story_news_items: dict):
 
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_role("heading")).to_contain_text(
-                story_news_items[story_ids[0]].title
+                story_news_items[story_ids[0]][0].title
             )
 
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text(
