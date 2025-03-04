@@ -2,9 +2,9 @@
 
 <div class="bg-white rounded-sm p-4 shadow-lg">
 {% if action == 'new' %} 
-    <form id="user-form" hx-post="/frontend/users/" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg" hx-on::after-request="this.reset()">
+    <form id="user-form" hx-post="/frontend/users/" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg">
 {% else %}
-    <form id="user-form" hx-put="/frontend/users/{{ user.id }}" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg" hx-on::after-request="this.reset()">
+    <form id="user-form" hx-put="/frontend/users/{{ user.id }}" hx-swap="outerHTML" class="w-full max-w-lg"  hx-target="#users-table"  hx-target-error="#status-msg">
 {% endif %}
 
     {% if error.globalerror %}
@@ -34,7 +34,7 @@
     <label class="">
         <span>Roles</span>
     </label>
-    <select name="roles[]" multiple required type="number" id="tom-select-it" class="validator mb-2">
+    <select name="roles[]" multiple required type="number" id="tom-select-it" class="validator mb-2 select">
         {% for role in roles %}
             {% if role.id in user.roles %}
                 <option value="{{ role.id }}" selected>{{ role.name }} - {{ role.description | truncate(50, true) }}</option>
@@ -48,7 +48,7 @@
     <!-- organization -->
     <label class="floating-label mb-5">
         <span>Organization</span>
-        <select name="organization" required type="number" class="validator">
+        <select name="organization" required type="number" class="validator select">
             {% for organization in organizations %}
               {% if organization.id == user.organization %}
                 <option value="{{ organization.id }}" selected>{{ organization.name }}</option>
@@ -68,6 +68,14 @@
             {% endif %}
         </div>
     </div>
+
+    <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+        <legend class="fieldset-legend">Settings</legend>
+        <div class="join">
+          <input type="text" class="input join-item" placeholder="Product name" />
+          <button class="btn join-item">save</button>
+        </div>
+      </fieldset>
 </form>
 </div>
 <script>
@@ -90,5 +98,18 @@
         }
     {% endfor %}
 {% endif %}
+</script>
+
+<script>
+    document.getElementById("user-form").addEventListener("submit", function(event){
+        var myForm = event.target;
+        //Extract Each Element Value
+        for (var i = 0; i < myForm.elements.length; i++) {
+            console.log(`resetting: ${myForm.elements[i].name}`);
+            myForm.elements[i].setCustomValidity("");
+            // myForm.elements[i].reportValidity();
+
+        }
+    });
 </script>
 

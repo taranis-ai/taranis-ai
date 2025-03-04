@@ -12,6 +12,7 @@ from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
 from admin.models import Role, User, Organization
 from admin.data_persistence import DataPersistenceLayer
+from admin.log import logger
 
 
 def is_htmx_request() -> bool:
@@ -61,13 +62,20 @@ class UsersAPI(MethodView):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
         if not result:
-            organizations = DataPersistenceLayer().get_objects(Organization)
-            roles = DataPersistenceLayer().get_objects(Role)
-            return render_template(
-                "new_user.html", organizations=organizations, roles=roles, user=user, error={"globalerror": "This is a global error message"}
-            )
+            # organizations = DataPersistenceLayer().get_objects(Organization)
+            # roles = DataPersistenceLayer().get_objects(Role)
+            # TODO: parse and display error message
+            # logger.debug(f"Error: {result.content}")
+            # logger.debug(f"User: {user}")
+            # response = render_template(
+            #     "new_user.html", organizations=organizations, roles=roles, user=user, error={"core": result.content}
+            # )
+            response = render_template( "error.html", content=result.content.decode())
+            logger.debug(f"Error: {response}")
+            return response, 400
 
         users = DataPersistenceLayer().get_objects(User)
+        # TODO: we could return empty response and refresh the page only
         response = render_template("users_table.html", users=users)
         return response, 200, {"HX-Refresh": "true"}
 
