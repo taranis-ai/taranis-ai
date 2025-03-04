@@ -43,7 +43,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def assert_stories(story_ids: list, story_news_items: dict):
 
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_role("heading")).to_contain_text(
-                story_news_items[story_ids[0]][0].title
+                "Genetic Engineering Data Theft by APT81"
             )
 
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text(
@@ -72,7 +72,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.short_sleep(duration=1)
 
         def interact_with_story(story_ids):
-            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("button", name="show story-actions-menu")).click()
+            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("show story-actions-menu")).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_story_options.png")
 
@@ -128,7 +128,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def assert_edited_story(story_ids):
-            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_role("link", name="edit story")).click()
+            self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("edit story")).click()
 
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
 
@@ -229,7 +229,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
-    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix):
+    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix, stories, story_news_items):
         base_url = e2e_server.url()
 
         def go_to_analyze():
@@ -282,17 +282,17 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def add_stories_to_report_1():
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
-            self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
+            self.highlight_element(page.get_by_role("heading", name="Global Mining Espionage by APT67").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
-            self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
+            self.highlight_element(page.get_by_role("heading", name="Advanced Phishing Techniques by APT58").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
-            self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
+            self.highlight_element(page.get_by_role("heading", name="Genetic Engineering Data Theft by APT81 ").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
