@@ -24,7 +24,7 @@ class CoreApi:
             if response.ok:
                 return response.json()
         except Exception:
-            logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            logger.error(f"(catched) Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
@@ -40,7 +40,8 @@ class CoreApi:
         if not json_data:
             json_data = {}
         response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        return self.check_response(response, url)
+        # return self.check_response(response, url)
+        return response
 
     def api_get(self, url, params=None):
         url = f"{self.api_url}{url}"
