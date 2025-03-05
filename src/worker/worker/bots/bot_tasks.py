@@ -31,10 +31,9 @@ class BotTask(Task):
         bot_config = self.core_api.get_bot_config(bot_id)
         if not bot_config:
             logger.error(f"Bot with id {bot_id} not found")
-            return
+            return {"error": f"Bot with id {bot_id} not found"}
 
-        self.execute_by_config(bot_config, filter)
-        return
+        return self.execute_by_config(bot_config, filter)
 
     def execute_by_config(self, bot_config: dict, filter: dict | None = None):
         bot_type = bot_config.get("type")

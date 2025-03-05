@@ -3,7 +3,7 @@
 import os
 import time
 import multiprocessing
-from granian import Granian
+from granian.server import Server as Granian
 from granian.constants import Interfaces
 from granian.log import LogLevels
 from sqlalchemy import create_engine
@@ -47,12 +47,12 @@ def wait_for_db(max_retries=5):
 def app_loader(target):
     if target != "core":
         raise RuntimeError("Should never get there")
-    return create_app(initial_setup=False)
+    return create_app(startup_mode="multi_worker")
 
 
 def main():
     wait_for_db()
-    create_app(db_setup=True)
+    create_app(startup_mode="db_setup")
     Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(
         target_loader=app_loader
     )

@@ -9,13 +9,16 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "apscheduler",
+    "prefect",
     "Flask",
+    "Flask[async]",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "yoyo-migrations",
@@ -63,7 +66,7 @@ dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis", "build
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
