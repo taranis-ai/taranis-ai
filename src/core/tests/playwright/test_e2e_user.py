@@ -40,7 +40,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
 
-        def assert_stories(story_ids: list, story_news_items: dict):
+        def assert_first_story_and_news_items(story_ids: list, story_news_items: dict):
 
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_role("heading")).to_contain_text(
                 "Genetic Engineering Data Theft by APT81"
@@ -223,7 +223,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         interact_with_story(stories)
         assert_edited_story(stories)
 
-        assert_stories(stories, story_news_items)
+        assert_first_story_and_news_items(stories, story_news_items)
 
         # TODO: uncomment when frontend charts is fixed
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
