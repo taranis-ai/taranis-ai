@@ -20,7 +20,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
-        self.highlight_element(page.locator("role=button")).click()
+        self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
     def test_assess(self, taranis_frontend: Page):
@@ -75,9 +75,7 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def apply_filter():
             # Set time filter
-            self.highlight_element(
-                page.locator("div").filter(has_text=re.compile(r"^Filter more details TagsTags$")).get_by_role("button").first
-            ).click()
+            self.highlight_element(page.get_by_test_id("from-end-last-shift-button")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             expect(page.get_by_role("button", name="not read")).to_be_visible()
