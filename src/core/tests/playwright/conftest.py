@@ -199,6 +199,32 @@ def story_news_items(app, stories):
 
     yield story_news_items_dict
 
+@pytest.fixture(scope="session")
+def stories_date_descending(app, stories):
+    from core.model.story import Story
+    with app.app_context():
+        creation_timestamps = []
+        for story_id in stories:
+            try:
+                creation_timestamps.append(Story.get(story_id).created)
+            except AttributeError:
+                creation_timestamps.append(datetime.fromtimestamp(0))
+        story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
+    return story_ids
+
+@pytest.fixture(scope="session")
+def stories_relevance_descending(app, stories):
+    from core.model.story import Story
+    with app.app_context():
+        relevances = []
+        for story_id in stories:
+            try:
+                relevances.append(Story.get(story_id).relevance)
+            except AttributeError:
+                relevances.append(0)
+        story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
+    return story_ids
+
 
 @pytest.fixture(scope="session")
 def news_items_list(app, fake_source):
