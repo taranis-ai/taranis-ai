@@ -42,26 +42,66 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def assert_first_story_and_news_items(story_ids: list, story_news_items: dict):
 
+            # story
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_role("heading")).to_contain_text(
                 "Genetic Engineering Data Theft by APT81"
             )
-
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text(
                 "This story informs about the current security state."
             )
+            import pdb; pdb.set_trace()
 
-            # loop over all news_items attached to the story
-            for news_item in story_news_items[story_ids[0]]:
-                news_item_article = re.search(r'(?:https?://)?(?:www\.)?([^/]+)', news_item.link).group(1)
-                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Article:")).to_contain_text(
-                    news_item_article
-                )
-                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Published:")).to_contain_text(
-                    f"{news_item.published.strftime("%b %d, %Y, %H:%M:%S")}"
-                )
-                expect(page.get_by_test_id(f"news-item-card-{news_item.id}").get_by_role("row", name="Author:")).to_contain_text(
-                    news_item.author
-                )
+            # attached news items
+            news_item_ids = story_news_items[story_ids[0]]
+
+            # 1
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Genetic Engineering Data Theft by APT81")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT81 targets national research labs to steal genetic engineering data.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("geneticresearchsecurity.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Irene Thompson")
+
+            # 2
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Smart City Sabotage by APT74 in Europe")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT74 involved in sabotaging smart city projects across Europe.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("smartcityupdate.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Bethany White")
+
+            # 3 
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("International Media Manipulation by APT75")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT75 uses sophisticated cyber attacks to manipulate international media outlets.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("mediasecurityfocus.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Charles Lee")
+
+            # 4
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT76 implicated in stealing trade secrets from global pharmaceutical companies.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("pharmasecuritytoday.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Diana Brooks")
+
+            # 5
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Power Grid Disruptions in Asia by APT7")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT77 deploys disruptive attacks against national power grids in Asia.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("powergridsecurityfocus.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Evan Morales")
+
+            #6
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Espionage in Aerospace Industries by APT78")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("aerospacesecuritytoday.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Fiona Garcia")
+
+            # 7
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Olympic Website DDoS Attacks by APT79")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("sportseventsecurity.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Gregory Phillips")
+            
+            # 8
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Global Telecommunications Disrupted by APT80")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("telecomsecurityupdate.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Holly Jensen")
+
 
         def hotkeys():
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81")).click()
