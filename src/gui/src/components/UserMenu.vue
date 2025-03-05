@@ -1,7 +1,7 @@
 <template>
   <v-menu close-on-back close-on-content-click>
     <template #activator="{ props }">
-      <v-btn icon="mdi-account-outline" v-bind="props" name="user-menu-button"/>
+      <v-btn icon="mdi-account-outline" v-bind="props" data-testid="user-menu-button"/>
     </template>
     <v-list>
       <v-list-item prepend-icon="mdi-account-outline" @click="userview">
