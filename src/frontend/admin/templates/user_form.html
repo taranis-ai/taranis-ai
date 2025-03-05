@@ -89,27 +89,21 @@
 // 	create: true};
 // new TomSelect('#tom-select-it',settings);
 
-{% if error %}
-    {% for field in error %}
-        var errorField = document.getElementById("{{ field }}");
-        if (errorField) {
-            errorField.setCustomValidity("{{ error[field] }}");
-            errorField.reportValidity();
-        }
-    {% endfor %}
-{% endif %}
-</script>
 
-<script>
-    document.getElementById("user-form").addEventListener("submit", function(event){
-        var myForm = event.target;
-        //Extract Each Element Value
-        for (var i = 0; i < myForm.elements.length; i++) {
-            console.log(`resetting: ${myForm.elements[i].name}`);
-            myForm.elements[i].setCustomValidity("");
-            // myForm.elements[i].reportValidity();
+    function resetDaisyUIValidation(form) {
+    // Clone and replace each input field to reset validity
+        form.querySelectorAll("input, select, textarea").forEach((input) => {
+            const newInput = input.cloneNode(true); // Clone input
+            input.replaceWith(newInput); // Replace with fresh copy
+        });
+    }
 
+    document.addEventListener('htmx:afterRequest', function (event) {
+        if (event.detail.xhr.status === 400) {
+            const form = document.getElementById("user-form");
+            resetDaisyUIValidation(form);
         }
     });
+
 </script>
 
