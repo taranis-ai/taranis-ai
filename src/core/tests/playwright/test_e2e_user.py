@@ -28,13 +28,13 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
-        page.locator("button[name='user-menu-button']").click()
+        page.get_by_test_id("user-menu-button").click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
-    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, stories, story_news_items):
+    def test_e2e_assess(self, taranis_frontend: Page, stories: list, story_news_items: dict, stories_date_descending: list):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
@@ -49,10 +49,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id(f"story-card-{story_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text(
                 "This story informs about the current security state."
             )
-            import pdb; pdb.set_trace()
 
             # attached news items
-            news_item_ids = story_news_items[story_ids[0]]
+            news_item_ids = [news_item.id for news_item in story_news_items[story_ids[0]]]
 
             # 1
             expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Genetic Engineering Data Theft by APT81")
@@ -61,46 +60,46 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Irene Thompson")
 
             # 2
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Smart City Sabotage by APT74 in Europe")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT74 involved in sabotaging smart city projects across Europe.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("smartcityupdate.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Bethany White")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[1]}").get_by_role("heading")).to_contain_text("Smart City Sabotage by APT74 in Europe")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[1]}").get_by_test_id("summarized-content-span")).to_contain_text("APT74 involved in sabotaging smart city projects across Europe.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[1]}").get_by_role("row", name="Article:")).to_contain_text("smartcityupdate.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[1]}").get_by_role("row", name="Author:")).to_contain_text("Bethany White")
 
             # 3 
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("International Media Manipulation by APT75")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT75 uses sophisticated cyber attacks to manipulate international media outlets.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("mediasecurityfocus.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Charles Lee")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[2]}").get_by_role("heading")).to_contain_text("International Media Manipulation by APT75")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[2]}").get_by_test_id("summarized-content-span")).to_contain_text("APT75 uses sophisticated cyber attacks to manipulate international media outlets.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[2]}").get_by_role("row", name="Article:")).to_contain_text("mediasecurityfocus.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[2]}").get_by_role("row", name="Author:")).to_contain_text("Charles Lee")
 
             # 4
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT76 implicated in stealing trade secrets from global pharmaceutical companies.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("pharmasecuritytoday.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Diana Brooks")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[3]}").get_by_role("heading")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[3]}").get_by_test_id("summarized-content-span")).to_contain_text("APT76 implicated in stealing trade secrets from global pharmaceutical companies.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[3]}").get_by_role("row", name="Article:")).to_contain_text("pharmasecuritytoday.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[3]}").get_by_role("row", name="Author:")).to_contain_text("Diana Brooks")
 
             # 5
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Power Grid Disruptions in Asia by APT7")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT77 deploys disruptive attacks against national power grids in Asia.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("powergridsecurityfocus.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Evan Morales")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[4]}").get_by_role("heading")).to_contain_text("Power Grid Disruptions in Asia by APT7")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[4]}").get_by_test_id("summarized-content-span")).to_contain_text("APT77 deploys disruptive attacks against national power grids in Asia.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[4]}").get_by_role("row", name="Article:")).to_contain_text("powergridsecurityfocus.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[4]}").get_by_role("row", name="Author:")).to_contain_text("Evan Morales")
 
             #6
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Espionage in Aerospace Industries by APT78")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("aerospacesecuritytoday.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Fiona Garcia")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[5]}").get_by_role("heading")).to_contain_text("Espionage in Aerospace Industries by APT78")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[5]}").get_by_test_id("summarized-content-span")).to_contain_text("APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[5]}").get_by_role("row", name="Article:")).to_contain_text("aerospacesecuritytoday.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[5]}").get_by_role("row", name="Author:")).to_contain_text("Fiona Garcia")
 
             # 7
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Olympic Website DDoS Attacks by APT79")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("sportseventsecurity.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Gregory Phillips")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[6]}").get_by_role("heading")).to_contain_text("Olympic Website DDoS Attacks by APT79")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[6]}").get_by_test_id("summarized-content-span")).to_contain_text("APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[6]}").get_by_role("row", name="Article:")).to_contain_text("sportseventsecurity.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[6]}").get_by_role("row", name="Author:")).to_contain_text("Gregory Phillips")
             
             # 8
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("heading")).to_contain_text("Global Telecommunications Disrupted by APT80")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_test_id("summarized-content-span")).to_contain_text("APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications.")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Article:")).to_contain_text("telecomsecurityupdate.com")
-            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[0]}").get_by_role("row", name="Author:")).to_contain_text("Holly Jensen")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[7]}").get_by_role("heading")).to_contain_text("Global Telecommunications Disrupted by APT80")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[7]}").get_by_test_id("summarized-content-span")).to_contain_text("APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications.")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[7]}").get_by_role("row", name="Article:")).to_contain_text("telecomsecurityupdate.com")
+            expect(page.get_by_test_id(f"news-item-card-{news_item_ids[7]}").get_by_role("row", name="Author:")).to_contain_text("Holly Jensen")
 
 
         def hotkeys():
@@ -180,6 +179,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator("div[name='comment']").get_by_role("textbox")
             ).to_have_text("I like this story, it needs to be reviewed.")
 
+            # Tag chips
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(0)).to_have_text("APT75")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(1)).to_have_text("APT74")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(2)).to_have_text("APT76")
@@ -197,10 +197,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             )
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
-        def infinite_scroll_all_items():
-            self.smooth_scroll(page.locator("div:nth-child(21)").first) # scroll to the 20th story
+        def infinite_scroll_all_items(stories_date_descending):
+            self.smooth_scroll(page.get_by_test_id(f"story-card-{stories_date_descending[19]}"))
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
-            self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))  # scroll to the 30th story
+            self.smooth_scroll(page.get_by_test_id(f"story-card-{stories_date_descending[37]}"))
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.short_sleep(duration=1)
             self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_role("textbox", name="search")).click()
@@ -255,7 +255,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.add_keystroke_overlay(page)
         go_to_assess()
         enter_hotkey_menu()
-        infinite_scroll_all_items()
+        infinite_scroll_all_items(stories_date_descending)
 
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
@@ -269,7 +269,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
-    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix, stories, story_news_items):
+    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix: str, stories_relevance_descending: list):
         base_url = e2e_server.url()
 
         def go_to_analyze():
@@ -320,19 +320,20 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Save").click()
             page.locator("div").filter(has_text="created").nth(2).click()
 
-        def add_stories_to_report_1():
+        def add_stories_to_report_1(stories_relevance_descending: list):
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
-            self.highlight_element(page.get_by_role("heading", name="Global Mining Espionage by APT67").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
+
+            self.highlight_element(page.get_by_test_id(f"story-card-{stories_relevance_descending[2]}").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
-            self.highlight_element(page.get_by_role("heading", name="Advanced Phishing Techniques by APT58").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{stories_relevance_descending[4]}").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
-            self.highlight_element(page.get_by_role("heading", name="Genetic Engineering Data Theft by APT81 ").locator("xpath=ancestor::div[6]").get_by_test_id("add to report")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{stories_relevance_descending[0]}").get_by_test_id("add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
@@ -344,12 +345,15 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("handler", exact=True), scroll=False).fill("John Doe")
             self.highlight_element(page.get_by_label("co_handler"), scroll=False).fill("Arthur Doyle")
             self.highlight_element(page.get_by_label("Open").nth(1), scroll=False).click()
+
+            # add/remove story chips to vulnerabilities field
             self.highlight_element(page.get_by_text("Global Mining Espionage by APT67", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_text("Advanced Phishing Techniques by APT58", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
             self.highlight_element(page.get_by_label("Open").nth(2), scroll=False).click()
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
+
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
             self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
             page.locator("div").filter(has_text="updated").nth(2).click()
@@ -383,7 +387,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         report_3()
         go_to_analyze()
         report_4()
-        add_stories_to_report_1()
+        add_stories_to_report_1(stories_relevance_descending)
 
         go_to_analyze()
         modify_report_1()
