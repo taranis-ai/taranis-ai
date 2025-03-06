@@ -69,13 +69,14 @@
         </div>
     </div>
 
-    <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+    <!-- alternative layout with fieldset -->
+    <!-- <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
         <legend class="fieldset-legend">Settings</legend>
         <div class="join">
           <input type="text" class="input join-item" placeholder="Product name" />
           <button class="btn join-item">save</button>
         </div>
-      </fieldset>
+      </fieldset> -->
 </form>
 </div>
 <script>
@@ -90,13 +91,35 @@
 // new TomSelect('#tom-select-it',settings);
 
 
-    function resetDaisyUIValidation(form) {
-    // Clone and replace each input field to reset validity
-        form.querySelectorAll("input, select, textarea").forEach((input) => {
-            const newInput = input.cloneNode(true); // Clone input
-            input.replaceWith(newInput); // Replace with fresh copy
-        });
-    }
+function resetDaisyUIValidation(form) {
+    const parent = form.parentNode;
+    const nextSibling = form.nextSibling;
+
+    // Clone the form
+    const newForm = form.cloneNode(true);
+
+    // Restore user input values
+    form.querySelectorAll("input, textarea, select").forEach((element, index) => {
+        const newElement = newForm.elements[index];
+
+        if (element.type === "checkbox" || element.type === "radio") {
+            newElement.checked = element.checked; // Restore checked state
+        } else if (element.tagName === "SELECT") {
+            newElement.value = element.value; // Restore selected value
+        } else {
+            newElement.value = element.value; // Restore text input values
+        }
+    });
+
+    // Replace the form to reset validation states
+    parent.replaceChild(newForm, form);
+
+    // Restore event listeners (if needed)
+    // newForm.addEventListener("submit", handleFormSubmit);
+}
+
+
+
 
     document.addEventListener('htmx:afterRequest', function (event) {
         if (event.detail.xhr.status === 400) {
