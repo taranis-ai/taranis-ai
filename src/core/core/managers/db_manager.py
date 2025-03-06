@@ -1,35 +1,42 @@
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import reflection, Engine
 from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
 
 from core.managers.db_seed_manager import pre_seed, pre_seed_update
-from core.managers.db_migration_manager import migrate, mark
+from core.managers.db_migration_manager import perform_migration
 from core.log import logger
 
-db = SQLAlchemy()
+db: SQLAlchemy = SQLAlchemy()
 
 
-def is_db_empty():
-    inspector = reflection.Inspector.from_engine(db.engine)
-    tables = inspector.get_table_names()
-    return len(tables) == 0
+def initial_database_setup(engine: Engine):
+    is_empty = is_db_empty(engine)
+    db.metadata.create_all(bind=engine)
+    if is_empty:
+        logger.debug("Create new Database")
+        pre_seed()
+        perform_migration("mark")
+    else:
+        perform_migration("migrate")
+        pre_seed_update(db.engine)
+
+    db.session.remove()
 
 
-def initialize(app, initial_setup: bool = True):
+def initialize(app: Flask, initial_setup: bool = True):
+    logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
     db.init_app(app)
 
     if initial_setup:
-        logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
-        is_empty = is_db_empty()
-        db.create_all()
-        if is_empty:
-            logger.debug("Create new Database")
-            pre_seed()
-            mark(app, initial_setup)
-        else:
-            migrate(app, initial_setup)
-            pre_seed_update(db.engine)
+        initial_database_setup(db.engine)
+
+
+def is_db_empty(engine: Engine) -> bool:
+    inspector = reflection.Inspector.from_engine(engine)
+    tables = inspector.get_table_names()
+    return len(tables) == 0
 
 
 @event.listens_for(Engine, "connect")

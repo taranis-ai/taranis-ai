@@ -4,8 +4,8 @@ from pathlib import Path
 from flask_caching import Cache
 from flask_cors import CORS
 
-import core.api as core_api
 from core.config import Config
+import core.api as core_api
 
 
 def initialize(app):

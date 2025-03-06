@@ -8,12 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
+from core.managers import schedule_manager
 from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
-from core.managers.schedule_manager import Scheduler
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 from apscheduler.triggers.cron import CronTrigger
@@ -234,14 +234,14 @@ class OSINTSource(BaseModel):
 
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)
-        Scheduler.add_celery_task(entry)
+        schedule_manager.schedule.add_celery_task(entry)
 
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):
         entry_id = self.to_task_id()
-        Scheduler.remove_periodic_task(entry_id)
+        schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 

@@ -7,8 +7,8 @@ from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
 from core.model.product import Product
 from core.model.report_item import ReportItem
-from core.managers.schedule_manager import Scheduler
 from core.managers.auth_manager import auth_required
+from core.managers import schedule_manager
 from core.config import Config
 
 
@@ -21,7 +21,7 @@ class Dashboard(MethodView):
         report_items_in_progress = ReportItem.count_all(False)
         total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
         latest_collected = NewsItem.latest_collected()
-        schedule_length = len(Scheduler.get_periodic_tasks())
+        schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
         return {
             "total_news_items": total_news_items,
             "total_products": total_products,

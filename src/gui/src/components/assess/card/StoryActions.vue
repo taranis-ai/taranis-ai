@@ -1,5 +1,10 @@
 <template>
-  <div v-if="active" class="ml-auto mr-auto" style="width: fit-content">
+  <div
+    v-if="active"
+    class="ml-auto mr-auto"
+    style="width: fit-content"
+    :data-testid="`story-actions-div-${story.id}`"
+  >
     <v-btn
       v-if="!reportView && !detailView"
       v-ripple="false"
@@ -172,6 +177,20 @@
           />
         </template>
       </v-tooltip>
+      <v-tooltip text="create news item and attach to this story">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-pencil-outline"
+            :to="`/enter/${story.id}`"
+          />
+        </template>
+      </v-tooltip>
       <v-tooltip text="delete">
         <template #activator="{ props }">
           <v-btn
@@ -291,7 +310,7 @@
           <v-tooltip
             activator="parent"
             location="start"
-            text="create news item"
+            text="create news item and attach to this story"
           />
         </v-list-item>
         <v-list-item @click.stop="deleteDialog = true">

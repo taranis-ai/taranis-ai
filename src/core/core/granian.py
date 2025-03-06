@@ -38,6 +38,8 @@ def wait_for_db(max_retries=5):
             print(f"Attempt {retry_count}: Waiting for database to be ready (wait: {wait_time}s)...")
             time.sleep(wait_time)
             wait_time = min(wait_time + 1, 5)
+        finally:
+            engine.dispose()
 
     raise RuntimeError(f"Could not connect to the database after {max_retries} attempts.")
 
@@ -50,7 +52,7 @@ def app_loader(target):
 
 def main():
     wait_for_db()
-    create_app(initial_setup=True)
+    create_app(db_setup=True)
     Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(
         target_loader=app_loader
     )
