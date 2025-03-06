@@ -190,20 +190,18 @@ export default {
 
     const rulesDict = {
       required: (v) => Boolean(v) || 'Required',
-      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
-      filesize: (v) =>
-        Boolean(v.length == 0) ||
-        Boolean(v[0].size < 2 * 1024 * 1024) ||
-        'Filesize must be less than 2MB',
+      email: (v) => (v && /.+@.+\..+/.test(v)) || 'E-mail must be valid',
+      filesize: (v) => {
+        if (!v || !Array.isArray(v) || v.length === 0) return true
+        return v[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2MB'
+      },
       tlp: (v) =>
         ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
           v
         ) ||
         'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
       json: (v) => {
-        if (!v || v.length === 0) {
-          return true
-        }
+        if (!v || v.length === 0) return true
         try {
           JSON.parse(v)
           return true
