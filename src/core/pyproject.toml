@@ -16,7 +16,7 @@ classifiers = [
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "apscheduler",
-    "prefect",
+    "prefect-client",
     "Flask",
     "Flask[async]",
     "Flask-Cors",

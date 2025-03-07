@@ -1,0 +1,50 @@
+FROM prefecthq/prefect:3-python3.12 AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+WORKDIR /app/
+
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install --no-install-recommends -y \
+      build-essential \
+      python3-dev \
+      libglib2.0-0 \
+      libpango-1.0-0 \
+      libpangoft2-1.0-0 \
+      git
+
+COPY ./src/prefect/. /app/
+COPY ./.git /.git
+
+ENV UV_COMPILE_BYTECODE=1
+
+RUN uv venv && \
+    export PATH="/app/.venv/bin:$PATH" && \
+    uv sync --frozen && \
+    # Install browser to /root/.cache/ms-playwright
+    playwright install chromium --with-deps
+
+
+FROM prefecthq/prefect:3-python3.12
+
+LABEL description="Taranis AI prefect worker"
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+      libpango-1.0-0 \
+      libpangoft2-1.0-0
+
+
+RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
+USER user
+COPY --from=builder --chown=user:user /app/ /app/
+COPY --from=builder --chown=user:user /root/.cache/ms-playwright /app/.cache/ms-playwright
+
+ENV PYTHONOPTIMIZE=1
+ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"
+ARG git_info
+ENV GIT_INFO=${git_info:-'{}'}
+RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
+

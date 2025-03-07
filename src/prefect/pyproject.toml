@@ -8,13 +8,12 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "Framework :: Celery",
+    "Framework :: Prefect",
     "Topic :: Security",
 ]
 requires-python = ">=3.11,<3.13"
 dependencies = [
     # Core
-    "celery",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -51,7 +50,6 @@ dynamic = ["version"]
 dev = [
     "ruff",
     "pytest",
-    "pytest-celery",
     "requests-mock",
     "watchdog",
     "build",
@@ -78,7 +76,7 @@ root = "../.."
 
 [tool.ruff]
 line-length = 142
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

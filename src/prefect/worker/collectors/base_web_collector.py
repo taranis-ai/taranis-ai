@@ -49,7 +49,7 @@ class BaseWebCollector(BaseCollector):
     def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
             If modified_since is given, make request conditional with If-Modified-Since
-            Check for specific status codes and raise rest of errors 
+            Check for specific status codes and raise rest of errors
         """
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
@@ -70,7 +70,7 @@ class BaseWebCollector(BaseCollector):
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise e
-        
+
         return response
 
     def parse_source(self, source):
@@ -126,7 +126,7 @@ class BaseWebCollector(BaseCollector):
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
-        response = self.send_get_request(web_url, self.last_attempted) 
+        response = self.send_get_request(web_url, self.last_attempted)
 
         if not response.content:
             return "", None
