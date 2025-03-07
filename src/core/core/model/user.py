@@ -80,6 +80,12 @@ class User(BaseModel):
         }
 
     @classmethod
+    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_detail_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+
+    @classmethod
     def add(cls, data) -> "User":
         item = cls.from_dict(data)
         db.session.add(item)

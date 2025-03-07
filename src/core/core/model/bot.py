@@ -8,9 +8,10 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.parameter_value import ParameterValue, convert_interval
+from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
-from core.managers.schedule_manager import Scheduler
+from apscheduler.triggers.cron import CronTrigger
+from core.managers import schedule_manager
 
 
 class Bot(BaseModel):
@@ -91,35 +92,30 @@ class Bot(BaseModel):
         return f"{self.__tablename__}_{self.id}_{self.type}"
 
     def schedule_bot(self):
-        if interval := self.get_schedule():
-            entry = self.to_task_dict(interval)
-            Scheduler.add_celery_task(entry)
+        if crontab_str := self.get_schedule():
+            entry = self.to_task_dict(crontab_str)
+            schedule_manager.schedule.add_celery_task(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
             return {"message": f"Schedule for bot {self.id} updated"}, 200
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
         entry_id = self.to_task_id()
-        Scheduler.remove_periodic_task(entry_id)
+        schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def get_schedule(self) -> int | None:
-        refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+    def get_schedule(self) -> str:
+        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
-        if refresh_interval_str == "":
-            return None
-
-        refresh_interval = convert_interval(refresh_interval_str)
-        if refresh_interval is None:
-            raise ValueError(f"Invalid REFRESH_INTERVAL: {refresh_interval_str}")
-        return refresh_interval
-
-    def to_task_dict(self, interval: int):
+    def to_task_dict(self, crontab_str: str) -> dict[str, Any]:
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
+            "jobs_params": {
+                "trigger": CronTrigger.from_crontab(crontab_str),
+                "max_instances": 1,
+            },
             "celery": {
                 "name": "bot_task",
                 "args": [self.id],

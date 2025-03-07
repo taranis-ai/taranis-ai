@@ -8,12 +8,13 @@ from core.log import logger
 from kombu.exceptions import OperationalError
 from kombu import Queue
 
+
 queue_manager: "QueueManager"
 
 
 class QueueManager:
     def __init__(self, app: Flask):
-        self.celery: Celery = self.init_app(app)
+        self._celery: Celery = self.init_app(app)
         self.error: str = ""
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
         self.queue_user = app.config["QUEUE_BROKER_USER"]
@@ -33,12 +34,16 @@ class QueueManager:
         self.schedule_word_list_gathering()
 
     def clear_queues(self):
-        with self.celery.connection() as conn:
+        with self._celery.connection() as conn:
             for queue_name in set(self.queue_names):
                 with contextlib.suppress(Exception):
                     queue = Queue(name=queue_name, channel=conn)
                     queue.purge()
             logger.info("All queues cleared")
+
+    @property
+    def celery(self) -> Celery:
+        return self._celery
 
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
@@ -50,7 +55,7 @@ class QueueManager:
 
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
-            self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+            self._celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
 
     def get_queued_tasks(self):
         if self.error:
@@ -68,7 +73,7 @@ class QueueManager:
             logger.error("QueueManager not initialized")
             return {"error": "QueueManager not initialized"}, 500
         try:
-            result = self.celery.control.ping()
+            result = self._celery.control.ping()
             self.error = ""
             return [
                 {
@@ -84,18 +89,18 @@ class QueueManager:
     def send_task(self, *args, **kwargs):
         if self.error:
             return False
-        self.celery.send_task(*args, **kwargs)
+        self._celery.send_task(*args, **kwargs)
         return True
 
     def get_queue_status(self) -> tuple[dict, int]:
         if self.error:
             return {"error": "Could not reach rabbitmq", "url": ""}, 500
-        return {"status": "🚀 Up and running 🏃", "url": f"{self.celery.broker_connection().as_uri()}"}, 200
+        return {"status": "🚀 Up and running 🏃", "url": f"{self._celery.broker_connection().as_uri()}"}, 200
 
     def get_task(self, task_id) -> tuple[dict, int]:
         if self.error:
             return {"error": "Could not reach rabbitmq"}, 500
-        task = self.celery.AsyncResult(task_id)
+        task = self._celery.AsyncResult(task_id)
         if task.state == "SUCCESS":
             return {"result": task.result}, 200
         if task.state == "FAILURE":
@@ -109,7 +114,7 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def preview_osint_source(self, source_id: str):
-        task = self.celery.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}")
+        task = self._celery.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}")
         logger.info(f"Collect for source {source_id} scheduled as {task.id}")
         return {"message": f"Refresh for source {source_id} scheduled", "task_id": task.id}, 200
 
@@ -166,7 +171,7 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def get_bot_signature(self, bot_id: str, source_id: str):
-        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
+        return self._celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
@@ -187,11 +192,11 @@ def initialize(app: Flask, initial_setup: bool = True):
     global queue_manager
     queue_manager = QueueManager(app)
     try:
-        with queue_manager.celery.connection() as conn:
+        with queue_manager._celery.connection() as conn:
             conn.ensure_connection(max_retries=3)
             queue_manager.error = ""
         if initial_setup:
-            logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
+            logger.info(f"QueueManager initialized: {queue_manager._celery.broker_connection().as_uri()}")
             queue_manager.post_init()
     except OperationalError:
         logger.error("Could not reach rabbitmq")

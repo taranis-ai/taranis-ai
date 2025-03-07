@@ -1,6 +1,6 @@
 from flask import request, Flask, Blueprint
 from flask.views import MethodView
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from core.managers.auth_manager import api_key_required
 from core.model.task import Task as TaskModel
@@ -27,26 +27,16 @@ class Task(MethodView):
         task_id = data.get("task_id")
         result = data.get("result")
         status = data.get("status")
-        if not result or not status or "error" in result:
+
+        if not result or "error" in result or status == "FAILURE":
             logger.error(f"{task_id=} - {result=} - {status=}")
+            TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
+            return {"status": status}, 400
 
-            # failed presenter_tasks are saved in the tasks table
-            if result and task_id.startswith("presenter_task"):
-                task_data = {"id": result.get("product_id"), "result": result.get("message"), "status": status}
-                TaskModel.add_or_update(task_data)
-            return {"status": "error"}, 400
+        if handle_task_specific_result(task_id, result):
+            return {"status": status}, 201
 
-        if task_id.startswith("gather_word_list"):
-            WordList.update_word_list(**result)
-        elif task_id.startswith("cleanup_token_blacklist"):
-            TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
-        elif task_id.startswith("presenter_task"):
-            # the value of "render_result" in result is a dict of form {"mime_type": str, "data": bytes}
-            rendered_product = result.get("render_result", {}).get("data", "")
-            Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
-        else:
-            task_data = {"id": task_id, "result": result, "status": status}
-            TaskModel.add_or_update(task_data)
+        TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
         return {"status": status}, 201
 
 
@@ -56,3 +46,33 @@ def initialize(app: Flask):
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"))
     app.register_blueprint(task_bp)
+
+
+def serialize_result(result: dict | str | None = None):
+    if result is None:
+        return None
+
+    if isinstance(result, str):
+        return result
+
+    if "exc_message" in result:
+        if isinstance(result["exc_message"], (list, tuple)):
+            return " ".join(result["exc_message"])
+        return result["exc_message"]
+
+    if "message" in result:
+        return result["message"]
+    return result
+
+
+def handle_task_specific_result(task_id: str, result: dict | str) -> bool:
+    if task_id.startswith("gather_word_list"):
+        WordList.update_word_list(**result)
+    elif task_id.startswith("cleanup_token_blacklist"):
+        TokenBlacklist.delete_older(datetime.now() - Config.JWT_ACCESS_TOKEN_EXPIRES)
+    elif task_id.startswith("presenter_task"):
+        rendered_product = result.get("render_result", {}).get("data", "")
+        Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
+    else:
+        return False
+    return True

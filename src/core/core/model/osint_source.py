@@ -8,14 +8,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
+from core.managers import schedule_manager
 from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.parameter_value import ParameterValue, convert_interval
+from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
-from core.managers.schedule_manager import Scheduler
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
+from apscheduler.triggers.cron import CronTrigger
 
 if TYPE_CHECKING:
     from core.model.user import User
@@ -123,24 +124,22 @@ class OSINTSource(BaseModel):
     def to_task_id(self) -> str:
         return f"{self.type}_{self.id}"
 
-    def get_schedule(self) -> int:
-        refresh_interval_str = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+    def get_schedule(self) -> str:
+        if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
+            return refresh_interval
 
-        # use default interval (480 min = 8h) if no REFERESH_INTERVAL was set
-        if refresh_interval_str == "":
-            logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
-            return 480
+        # use default interval (0 */8 * * * = 8h) if no REFERESH_INTERVAL was set will be moved to admin settings
+        logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
+        return "0 */8 * * *"
 
-        refresh_interval = convert_interval(refresh_interval_str)
-        if refresh_interval is None:
-            raise ValueError(f"Invalid REFRESH_INTERVAL: {refresh_interval_str}")
-        return refresh_interval
-
-    def to_task_dict(self, interval: int):
+    def to_task_dict(self, crontab_str: str):
         return {
             "id": self.to_task_id(),
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {"trigger": "interval", "minutes": interval, "max_instances": 1},
+            "jobs_params": {
+                "trigger": CronTrigger.from_crontab(crontab_str),
+                "max_instances": 1,
+            },
             "celery": {
                 "name": "collector_task",
                 "args": [self.id],
@@ -181,7 +180,8 @@ class OSINTSource(BaseModel):
             return None
         if name := data.get("name"):
             osint_source.name = name
-        osint_source.description = data.get("description", "")
+        if description := data.get("description"):
+            osint_source.description = description
         icon_str = data.get("icon")
         if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
             osint_source.icon = icon
@@ -191,6 +191,11 @@ class OSINTSource(BaseModel):
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
+
+    def update_parameters(self, parameters: dict[str, Any]):
+        update_parameter = ParameterValue.get_or_create_from_list(parameters)
+        self.parameters = ParameterValue.get_update_values(self.parameters, update_parameter)
+        db.session.commit()
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
@@ -221,18 +226,16 @@ class OSINTSource(BaseModel):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
 
-        try:
-            interval = self.get_schedule()
-            entry = self.to_task_dict(interval)
-            Scheduler.add_celery_task(entry)
-        except ValueError as e:
-            return {"error": f"Could not schedule source {self.id}: {str(e)}"}, 400
+        interval = self.get_schedule()
+        entry = self.to_task_dict(interval)
+        schedule_manager.schedule.add_celery_task(entry)
+
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):
         entry_id = self.to_task_id()
-        Scheduler.remove_periodic_task(entry_id)
+        schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 

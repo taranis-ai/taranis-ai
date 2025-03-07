@@ -1,27 +1,26 @@
 from yoyo import read_migrations
 from yoyo import get_backend
 from core.log import logger
+from core.config import Config
+from typing import Literal
 
 
 def is_postgresql(uri: str) -> bool:
     return "postgresql" in uri
 
 
-def migrate(app, initial_setup: bool = True):
-    if initial_setup and is_postgresql(app.config.get("SQLALCHEMY_DATABASE_URI")):
-        logger.info(f"Migrating Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-        backend = get_backend(app.config.get("SQLALCHEMY_DATABASE_URI"))
-        migrations = read_migrations("migrations")
+def perform_migration(action: Literal["migrate", "mark"]):
+    if not is_postgresql(Config.SQLALCHEMY_DATABASE_URI):
+        return
 
-        with backend.lock():
+    logger.info(f"{action.capitalize()}ing Database: {Config.SQLALCHEMY_DATABASE_URI_MASK}")
+    backend = get_backend(Config.SQLALCHEMY_DATABASE_URI)
+    migrations = read_migrations("migrations")
+
+    with backend.lock():
+        if action == "migrate":
             backend.apply_migrations(backend.to_apply(migrations))
-
-
-def mark(app, initial_setup: bool = True):
-    if initial_setup:
-        logger.info(f"Marking Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-        backend = get_backend(app.config.get("SQLALCHEMY_DATABASE_URI"))
-        migrations = read_migrations("migrations")
-
-        with backend.lock():
+            logger.info("Database migrations applied successfully.")
+        elif action == "mark":
             backend.mark_migrations(migrations)
+            logger.info("Migrations marked successfully.")

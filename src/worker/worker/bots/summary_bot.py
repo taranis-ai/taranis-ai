@@ -5,7 +5,7 @@ from worker.config import Config
 
 
 class SummaryBot(BaseBot):
-    def __init__(self, language="en"):
+    def __init__(self):
         super().__init__()
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
@@ -14,8 +14,11 @@ class SummaryBot(BaseBot):
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
             parameters = {}
+
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
+
+        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
 
         for story in data:
             news_items = story.get("news_items", [])

@@ -3,7 +3,6 @@ from functools import wraps
 from flask import Response, request, Flask
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
-# from core.managers import queue_manager
 from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.dev_authenticator import DevAuthenticator
@@ -98,20 +97,16 @@ def api_key_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         error = ({"error": "not authorized"}, 401)
-
         auth_header = request.headers.get("Authorization", None)
-        if not auth_header:
-            logger.store_auth_error_activity("Missing Authorization header")
-            return error
 
-        if not auth_header.startswith("Bearer"):
+        if not auth_header or not auth_header.startswith("Bearer"):
             logger.store_auth_error_activity("Missing Authorization Bearer")
             return error
 
         api_key = auth_header.replace("Bearer ", "")
 
         if Config.API_KEY != api_key:
-            logger.store_auth_error_activity(f"Incorrect api key: {api_key}")
+            logger.store_auth_error_activity("Incorrect api key")
             return error
 
         # allow

@@ -6,6 +6,7 @@ from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -98,28 +99,6 @@ class Story(BaseModel):
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
-
-    @classmethod
-    def get_story_clusters(cls, days: int = 7, limit: int = 10):
-        start_date = datetime.now() - timedelta(days=days)
-        if clusters := cls.get_filtered(
-            db.select(cls)
-            .join(NewsItem)
-            .filter(NewsItem.published >= start_date)
-            .group_by(cls.title, cls.id)
-            .order_by(func.count().desc())
-            .having(func.count() > 1)
-            .limit(limit)
-        ):
-            return [
-                {
-                    "name": cluster.title,
-                    "size": len(cluster.news_items),
-                    "published": [ni.published.isoformat() for ni in cluster.news_items],
-                }
-                for cluster in clusters
-            ]
-        return []
 
     @classmethod
     def get_additional_counts(cls, filter_query):
@@ -346,7 +325,7 @@ class Story(BaseModel):
         query = cls.enhance_with_report_count(query)
 
         for story, user_vote, report_count in db.session.execute(query):
-            story_data = story.to_dict()  # Assuming Story has a method to_dict()
+            story_data = story.to_dict()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
             biggest_story = max(biggest_story, len(story_data["news_items"]))
@@ -397,9 +376,13 @@ class Story(BaseModel):
                 "story_id": story.id,
                 "news_item_ids": [news_item.id for news_item in story.news_items],
             }, 200
+        except IntegrityError:
+            logger.exception()
+            db.session.rollback()
+            return {"error": "Story already exists"}, 400
 
         except Exception:
-            logger.debug(f"Failed to add story: {data}")
+            logger.exception(f"Failed to add story: {data}")
             db.session.rollback()
             return {"error": "Failed to add story"}, 400
 
