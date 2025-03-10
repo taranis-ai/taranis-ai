@@ -8,6 +8,7 @@
       class="item-action-btn"
       density="compact"
       @click.stop="openCard"
+      data-testid="show details"
     >
       <v-tooltip
         activator="parent"
