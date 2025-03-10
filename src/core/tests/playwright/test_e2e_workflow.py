@@ -109,7 +109,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
             self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("mark as read"), scroll=False).click()
 
-            for i in range(20, 29):
+            for i in range(20, 28):
                 self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
 
 
@@ -279,7 +279,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
             self.highlight_element(page.get_by_text("Test Report").last).click()
-            page.locator(".w-100").click()
+            page.get_by_test_id("all-stories-div").click()
             page.keyboard.press("Control+A")
             self.short_sleep(duration=1)
             page.keyboard.press("Control+Space")
