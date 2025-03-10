@@ -23,7 +23,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
-    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list):
+    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
         def enter_hotkey_menu():
             page.keyboard.press("Control+Shift+L")
             self.short_sleep(duration=1)
@@ -113,54 +113,30 @@ class TestUserWorkflow(PlaywrightHelpers):
                 self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
 
 
-        def assess_workflow_2():
+        def assess_workflow_2(important_story_ids):
             self.highlight_element(page.get_by_role("button", name="not important")).click()
             self.highlight_element(page.get_by_role("button", name="important")).click()
             expect(page.get_by_role("button", name="important")).to_be_visible()
 
-            # Check stories
-            self.highlight_element(page.locator(".ml-auto > button").first).click()
-            self.highlight_element(page.locator(".ml-auto > button").first).click()
-            self.highlight_element(
-                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
-            self.highlight_element(
-                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
-            ).click()
+            # Show/unshow details of all stories
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("show details")).click()       
+            
+            # Open last story
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("open detail view")).click()
 
-            # Open story
-            self.highlight_element(
-                page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("button").nth(0)
-            ).click()
-            self.highlight_element(
-                page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("link").nth(2)
-            ).click()
             # Mark as read
-            self.highlight_element(
-                page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("button").nth(3)
-            ).click()
+            self.highlight_element(page.get_by_test_id("mark as read")).click()
+            
             # Remove mark as important
-            self.highlight_element(
-                page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("button").nth(4)
-            ).click()
+            self.highlight_element(page.get_by_test_id("mark as important")).click()
             go_to_assess()
             self.highlight_element(page.get_by_role("button", name="reset filter")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
@@ -168,22 +144,19 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="important")).click()
 
             # Merge stories
-            self.highlight_element(page.locator("div").filter(has_text="Advanced Phishing Techniques by APT58").nth(5)).click()
-            self.highlight_element(page.locator("div").filter(has_text="APT73 Exploits Global Shipping").nth(5)).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}")).click()
             self.highlight_element(page.get_by_role("button", name="merge")).click()
+
             # Edit story
-            self.highlight_element(
-                page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(3)
-            ).click()
-            self.highlight_element(page.get_by_role("listbox").get_by_role("link").nth(0)).click()
-            self.highlight_element(
-                page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
-            ).fill(
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("show story-actions-menu")).click()
+            self.highlight_element(page.get_by_test_id(f"story-actions-menu-{important_story_ids[2]}").get_by_title("edit story")).click()
+            
+            self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "Recent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
-            )
-            self.highlight_element(
-                page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False
-            ).fill("I like this story, it needs to be reviewed.")
+            )            
+            self.highlight_element(page.locator("div[name='comment']").get_by_role("textbox"), scroll=False).fill("I like this story, it needs to be reviewed.")
+            
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("APT75")
             self.short_sleep(0.5)
@@ -224,7 +197,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         enter_hotkey_menu()
         apply_filter()
         assess_workflow_1(stories_date_descending_not_important)
-        assess_workflow_2()
+        assess_workflow_2(stories_date_descending_important)
 
     def test_reports(self, taranis_frontend: Page):
         def go_to_analyze():

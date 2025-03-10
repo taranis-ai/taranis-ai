@@ -226,6 +226,19 @@ def stories_date_descending_not_important(app, stories_date_descending):
     yield story_ids
 
 @pytest.fixture(scope="session")
+def stories_date_descending_important(app, stories_date_descending):
+    from core.model.story import Story
+    with app.app_context():
+        story_ids = []
+        for story_id in stories_date_descending:
+            try:
+                if Story.get(story_id).important:
+                    story_ids.append(story_id)
+            except AttributeError:
+                continue
+    yield story_ids
+
+@pytest.fixture(scope="session")
 def stories_relevance_descending(app, stories):
     from core.model.story import Story
     with app.app_context():
