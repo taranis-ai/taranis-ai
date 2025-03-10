@@ -210,7 +210,20 @@ def stories_date_descending(app, stories):
             except AttributeError:
                 creation_timestamps.append(datetime.fromtimestamp(0))
         story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
-    return story_ids
+    yield story_ids
+
+@pytest.fixture(scope="session")
+def stories_date_descending_not_important(app, stories_date_descending):
+    from core.model.story import Story
+    with app.app_context():
+        story_ids = []
+        for story_id in stories_date_descending:
+            try:
+                if not Story.get(story_id).important:
+                    story_ids.append(story_id)
+            except AttributeError:
+                continue
+    yield story_ids
 
 @pytest.fixture(scope="session")
 def stories_relevance_descending(app, stories):
@@ -223,7 +236,7 @@ def stories_relevance_descending(app, stories):
             except AttributeError:
                 relevances.append(0)
         story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
-    return story_ids
+    yield story_ids
 
 
 @pytest.fixture(scope="session")

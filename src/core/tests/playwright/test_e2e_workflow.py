@@ -23,7 +23,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
-    def test_assess(self, taranis_frontend: Page, stories_date_descending: list):
+    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list):
         def enter_hotkey_menu():
             page.keyboard.press("Control+Shift+L")
             self.short_sleep(duration=1)
@@ -83,27 +83,35 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="important")).click()
             expect(page.get_by_role("button", name="not important")).to_be_visible()
 
-        def assess_workflow_1(stories_date_descending):
+        def assess_workflow_1(visible_story_ids):
             # Check summary and mark as read
 
             # first story
-            self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[0]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[0]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[0]}").get_by_test_id("summarized-content-span"), scroll=False)
+            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[0]}").get_by_test_id("mark as read"), scroll=False).click()
 
             # next story            
-            self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[1]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[1]}").get_by_test_id("mark as read"), scroll=False).click()
-            
+            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[1]}").get_by_test_id("summarized-content-span"), scroll=False)
+            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[1]}").get_by_test_id("mark as read"), scroll=False).click()
+
             for i in range(2, 7):
-                self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[i]}").get_by_test_id("mark as read"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
 
             # select multiple, press mark as read once
             for i in range(7, 10):
-                self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[i]}"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}"), scroll=False).click()
             self.highlight_element(page.get_by_role("button", name="mark as read")).click()
 
-            for i in range(10, 29):
-                self.highlight_element(page.get_by_test_id(f"story-card-{stories_date_descending[i]}").get_by_test_id("mark as read"), scroll=False).click()
+            # remaining stories
+            for i in range(10, 20):
+                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+            
+            # after all stories are marked as read in first page, last story is carried over -> mark it twice
+            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[19]}").get_by_test_id("mark as read"), scroll=False).click()
+
+            for i in range(20, 29):
+                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+
 
         def assess_workflow_2():
             self.highlight_element(page.get_by_role("button", name="not important")).click()
@@ -215,7 +223,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         go_to_assess()
         enter_hotkey_menu()
         apply_filter()
-        assess_workflow_1(stories_date_descending)
+        assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2()
 
     def test_reports(self, taranis_frontend: Page):
