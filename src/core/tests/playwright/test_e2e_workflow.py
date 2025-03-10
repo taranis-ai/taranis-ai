@@ -83,34 +83,34 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="important")).click()
             expect(page.get_by_role("button", name="not important")).to_be_visible()
 
-        def assess_workflow_1(visible_story_ids):
+        def assess_workflow_1(non_important_story_ids):
             # Check summary and mark as read
 
             # first story
-            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[0]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[0]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("summarized-content-span"), scroll=False)
+            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("mark as read"), scroll=False).click()
 
             # next story            
-            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[1]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[1]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("summarized-content-span"), scroll=False)
+            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("mark as read"), scroll=False).click()
 
             for i in range(2, 7):
-                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
 
             # select multiple, press mark as read once
             for i in range(7, 10):
-                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}"), scroll=False).click()
             self.highlight_element(page.get_by_role("button", name="mark as read")).click()
 
             # remaining stories
             for i in range(10, 20):
-                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
             
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
-            self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[19]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("mark as read"), scroll=False).click()
 
             for i in range(20, 29):
-                self.highlight_element(page.get_by_test_id(f"story-card-{visible_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
 
 
         def assess_workflow_2():
