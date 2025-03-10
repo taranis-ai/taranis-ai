@@ -13,6 +13,7 @@ from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_ca
 from admin.models import Role, User, Organization
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
+from admin.auth import get_jwt_identity
 
 
 def is_htmx_request() -> bool:
@@ -121,8 +122,8 @@ class EditUser(MethodView):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         user = DataPersistenceLayer().get_object(User, int(id))
-        print(f"{user=}")
-        return render_template("edit_user.html", organizations=organizations, roles=roles, user=user)
+        current_user = get_jwt_identity()
+        return render_template("edit_user.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
 
 
 class OrganizationsAPI(MethodView):
