@@ -27,7 +27,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
-        page.get_by_role("button").nth(1).click()
+        page.get_by_test_id("user-menu-button").click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
@@ -100,7 +100,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("User was successfully updated").click()
 
         def remove_user():
-            page.locator("tr:nth-child(2) > td").first.click()
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
             page.get_by_role("button", name="Delete").click()
             # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
             page.get_by_text("Successfully deleted").click()

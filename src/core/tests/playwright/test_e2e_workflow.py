@@ -311,6 +311,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         expect(page).to_have_title("Taranis AI | Publish")
+
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
         self.highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product Type").locator("div")).click()
         self.highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
@@ -319,10 +320,10 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).click()
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
-        # wait for 1s until the product is saved, mock the rendering
+
         self.short_sleep(duration=1)
         create_html_render()
-        # click on Render Product, wait 6s until the rendered product is fetched
+
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
         self.short_sleep(duration=6)
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
