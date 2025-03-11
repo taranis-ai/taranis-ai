@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import re
 import time
 import pytest
 from playwright.sync_api import expect, Page
@@ -87,15 +86,25 @@ class TestUserWorkflow(PlaywrightHelpers):
             # Check summary and mark as read
 
             # first story
-            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("summarized-content-span"), scroll=False
+            )
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("mark as read"), scroll=False
+            ).click()
 
-            # next story            
-            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("summarized-content-span"), scroll=False)
-            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("mark as read"), scroll=False).click()
+            # next story
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("summarized-content-span"), scroll=False
+            )
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("mark as read"), scroll=False
+            ).click()
 
             for i in range(2, 7):
-                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False
+                ).click()
 
             # select multiple, press mark as read once
             for i in range(7, 10):
@@ -104,14 +113,19 @@ class TestUserWorkflow(PlaywrightHelpers):
 
             # remaining stories
             for i in range(10, 20):
-                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
-            
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False
+                ).click()
+
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
-            self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("mark as read"), scroll=False).click()
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("mark as read"), scroll=False
+            ).click()
 
             for i in range(20, 28):
-                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False).click()
-
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("mark as read"), scroll=False
+                ).click()
 
         def assess_workflow_2(important_story_ids):
             self.highlight_element(page.get_by_role("button", name="not important")).click()
@@ -127,8 +141,8 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("show details")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("show details")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("show details")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("show details")).click()       
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("show details")).click()       
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("show details")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("show details")).click()
 
             # Open specific story
             self.highlight_element(
@@ -154,14 +168,18 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="merge")).click()
 
             # Edit story
-            self.highlight_element(page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(3)).click()
+            self.highlight_element(
+                page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(3)
+            ).click()
             self.highlight_element(page.get_by_role("listbox").get_by_role("link").nth(0)).click()
 
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "Recent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
-            )            
-            self.highlight_element(page.locator("div[name='comment']").get_by_role("textbox"), scroll=False).fill("I like this story, it needs to be reviewed.")
-            
+            )
+            self.highlight_element(page.locator("div[name='comment']").get_by_role("textbox"), scroll=False).fill(
+                "I like this story, it needs to be reviewed."
+            )
+
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("APT75")
             self.short_sleep(0.5)
