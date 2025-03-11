@@ -123,18 +123,28 @@ class BaseCollector:
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
         for story in stories_for_publishing:
+            if "news_items" in story:
+                story["news_items"] = [item.to_dict() for item in story["news_items"]]
             self.core_api.add_or_update_story(story)
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
-        # Get existing stories from core api and see if the in the field "attributes" there is a dict that contains the key "rt_id" and the value is the same as the value of the key "rt_id" in the new story
+        # Get existing stories from core api. For each new story,
+        # if any dict in the "attributes" list of an existing story has a matching key-value pair,
+        # assign the existing story's id to the new story.
 
         existing_stories = self.core_api.get_stories({"source": source["id"]})
         if not existing_stories:
             return new_stories
 
         for story in new_stories:
+            new_story_value = story.get(story_attribute_key)
             for existing_story in existing_stories:
-                if story[story_attribute_key] == existing_story.get("attributes", {}).get(story_attribute_key):
-                    story["id"] = existing_story["id"]
+                attributes = existing_story.get("attributes", [])
+                for attribute in attributes:
+                    if attribute.get(story_attribute_key) == new_story_value:
+                        story["id"] = existing_story["id"]
+                        break
+                if "id" in story:
                     break
+
         return new_stories
