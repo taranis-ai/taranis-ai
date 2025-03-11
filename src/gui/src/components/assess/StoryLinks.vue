@@ -14,7 +14,6 @@
     item-title="link"
     label="Links"
     multiple
-    :disabled="disabled"
   />
   <v-btn class="mt-5" color="primary" @click="updateLinksFromNewsItems">
     {{ $t('enter.updatelinks') }}
@@ -35,10 +34,6 @@ export default {
     newsItems: {
       type: Array,
       default: () => []
-    },
-    disabled: {
-      type: Boolean,
-      default: false
     }
   },
   emits: ['update:modelValue'],

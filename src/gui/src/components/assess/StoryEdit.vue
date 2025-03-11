@@ -61,11 +61,7 @@
               />
             </template>
           </attributes-table>
-          <story-links
-            v-model="story.links"
-            :news-items="story.news_items"
-            :disabled="hasRtId"
-          />
+          <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
           <v-btn
