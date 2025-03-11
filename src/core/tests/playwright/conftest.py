@@ -186,9 +186,11 @@ def stories(app, news_items_list):
 
         yield story_ids
 
+
 @pytest.fixture(scope="session")
 def story_news_items(app, stories):
     from core.model.story import Story
+
     story_news_items_dict = {}
     with app.app_context():
         for story_id in stories:
@@ -199,9 +201,11 @@ def story_news_items(app, stories):
 
     yield story_news_items_dict
 
+
 @pytest.fixture(scope="session")
 def stories_date_descending(app, stories):
     from core.model.story import Story
+
     with app.app_context():
         creation_timestamps = []
         for story_id in stories:
@@ -212,9 +216,11 @@ def stories_date_descending(app, stories):
         story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
     yield story_ids
 
+
 @pytest.fixture(scope="session")
 def stories_date_descending_not_important(app, stories_date_descending):
     from core.model.story import Story
+
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
@@ -225,9 +231,11 @@ def stories_date_descending_not_important(app, stories_date_descending):
                 continue
     yield story_ids
 
+
 @pytest.fixture(scope="session")
 def stories_date_descending_important(app, stories_date_descending):
     from core.model.story import Story
+
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
@@ -238,9 +246,11 @@ def stories_date_descending_important(app, stories_date_descending):
                 continue
     yield story_ids
 
+
 @pytest.fixture(scope="session")
 def stories_relevance_descending(app, stories):
     from core.model.story import Story
+
     with app.app_context():
         relevances = []
         for story_id in stories:
