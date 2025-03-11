@@ -92,6 +92,11 @@
             />
           </v-col>
         </v-row>
+        <TimeIntervalFields
+          v-if="item.type === 'cron_interval'"
+          v-model="formData[item.flatKey]"
+          :type="configType"
+        />
 
         <v-col v-if="item.type === 'table'" cols="12" class="mt-1 mb-2">
           <v-data-table
@@ -147,7 +152,9 @@
 </template>
 
 <script>
+import TimeIntervalFields from '@/components/config/TimeIntervalFields.vue'
 import { watch, computed, onUpdated, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -158,6 +165,9 @@ import {
 
 export default {
   name: 'EditConfig',
+  components: {
+    TimeIntervalFields
+  },
   props: {
     configData: {
       type: Object,
@@ -183,6 +193,8 @@ export default {
   setup(props, { emit }) {
     const config_form = ref(null)
     const search = ref({})
+    const route = useRoute()
+    const configType = ref(null)
     const formData = ref(
       flattenFormData(props.configData, props.formFormat) ||
         objectFromFormat(props.formFormat)
@@ -190,20 +202,18 @@ export default {
 
     const rulesDict = {
       required: (v) => Boolean(v) || 'Required',
-      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
-      filesize: (v) =>
-        Boolean(v.length == 0) ||
-        Boolean(v[0].size < 2 * 1024 * 1024) ||
-        'Filesize must be less than 2MB',
+      email: (v) => (v && /.+@.+\..+/.test(v)) || 'E-mail must be valid',
+      filesize: (v) => {
+        if (!v || !Array.isArray(v) || v.length === 0) return true
+        return v[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2MB'
+      },
       tlp: (v) =>
         ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
           v
         ) ||
         'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
       json: (v) => {
-        if (!v || v.length === 0) {
-          return true
-        }
+        if (!v || v.length === 0) return true
         try {
           JSON.parse(v)
           return true
@@ -215,9 +225,16 @@ export default {
 
     const { d } = useI18n()
 
+    const validationStates = ref({})
+
     const handleSubmit = async () => {
       const { valid } = await config_form.value.validate()
-      if (!valid) {
+
+      const cronValidation = Object.values(validationStates.value).every(
+        (state) => state
+      )
+
+      if (!valid || !cronValidation) {
         return
       }
 
@@ -288,6 +305,11 @@ export default {
 
     onMounted(() => {
       config_form.value.scrollIntoView({ behavior: 'smooth' })
+
+      const path = route.path
+      if (path === '/config/sources') {
+        configType.value = path.split('/').pop()
+      }
     })
 
     watch(
@@ -307,7 +329,8 @@ export default {
       search,
       addItem,
       handleSubmit,
-      handleFileUpload
+      handleFileUpload,
+      configType
     }
   }
 }
