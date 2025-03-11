@@ -31,3 +31,4 @@ def initialize_managers(app: Flask, initial_setup: bool = True):
     api_manager.initialize(app)
     data_manager.initialize(initial_setup)
     schedule_manager.initialize()
+    queue_manager.queue_manager.post_init()
