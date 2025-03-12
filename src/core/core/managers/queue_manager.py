@@ -19,7 +19,7 @@ class QueueManager:
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
         self.queue_user = app.config["QUEUE_BROKER_USER"]
         self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
-        self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
+        self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers", "connectors"]
 
     def init_app(self, app: Flask):
         celery_app = Celery("taranis-ai")
@@ -128,6 +128,18 @@ class QueueManager:
             self.send_task("collector_task", args=[source.id, True], queue="collectors")
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
+
+    def push_to_connector(self, connector_id: str, story_ids: list[str]):
+        if self.send_task("connector_task", args=[connector_id, story_ids], queue="connectors"):
+            logger.info(f"Connector with id: {connector_id} scheduled")
+            return {"message": f"Connector with id: {connector_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
+    def pull_from_connector(self, connector_id: str):
+        if self.send_task("connector_task", args=[connector_id, None], queue="connectors"):
+            logger.info(f"Connector with id: {connector_id} scheduled")
+            return {"message": f"Connector with id: {connector_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
 
     def gather_word_list(self, word_list_id: int):
         if self.send_task("gather_word_list", args=[word_list_id], queue="misc", task_id=f"gather_word_list_{word_list_id}"):

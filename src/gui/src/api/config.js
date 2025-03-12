@@ -372,3 +372,24 @@ export function updatePublisher(node) {
 export function deletePublisher(node) {
   return apiService.delete(`/config/publishers-presets/${node.id}`)
 }
+
+export function getAllConnectors(filter_data) {
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  return apiService.get(`/config/connectors?${filter}`)
+}
+
+export function createConnector(connector) {
+  return apiService.post('/config/connectors', connector)
+}
+
+export function updateConnector(connector) {
+  return apiService.put(`/config/connectors/${connector.id}`, connector)
+}
+
+export function pullFromAllConnectors() {
+  return apiService.post('/config/connectors/pull')
+}
+
+export function pullFromConnector(connector_id) {
+  return apiService.post(`/config/connectors/${connector_id}/pull`)
+}
