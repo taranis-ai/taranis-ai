@@ -174,7 +174,6 @@ def test_rt_collector_collect(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
-
     assert result is None
 
 

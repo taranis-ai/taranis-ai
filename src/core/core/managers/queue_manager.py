@@ -197,7 +197,6 @@ def initialize(app: Flask, initial_setup: bool = True):
             queue_manager.error = ""
         if initial_setup:
             logger.info(f"QueueManager initialized: {queue_manager._celery.broker_connection().as_uri()}")
-            queue_manager.post_init()
     except OperationalError:
         logger.error("Could not reach rabbitmq")
         queue_manager.error = "Could not reach rabbitmq"
