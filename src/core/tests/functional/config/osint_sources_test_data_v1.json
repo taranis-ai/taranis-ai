@@ -95,7 +95,7 @@
           }
         },
         {
-          "value": "60",
+          "value": "0 */8 * * *",
           "parameter": {
             "key": "REFRESH_INTERVAL"
           }

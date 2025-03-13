@@ -2,6 +2,7 @@ import base64
 import hashlib
 from urllib.parse import urlparse, urljoin
 import requests
+from datetime import datetime
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
@@ -146,7 +147,7 @@ class RTCollector(BaseWebCollector):
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             title="attachment",
             content=decoded_content or "attachment without content",
-            published_date=attachment.get("Created", ""),
+            published_date=datetime.fromisoformat(created),
             author=author,
             review=source.get("review", ""),
             source=self.base_url,
@@ -208,9 +209,7 @@ class RTCollector(BaseWebCollector):
         self.last_attempted = self.get_last_attempted(source)
 
         logger.info(f"Searching for tickets with query: {self.search_query}")
-        response = self.send_get_request(
-            f"{self.api_url}tickets?query={self.search_query}", self.last_attempted
-        )
+        response = self.send_get_request(f"{self.api_url}tickets?query={self.search_query}", self.last_attempted)
 
         try:
             tickets_ids_list = [ticket.get("id") for ticket in response.json().get("items", [])]

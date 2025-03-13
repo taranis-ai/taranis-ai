@@ -14,6 +14,7 @@ classifiers = [
 requires-python = ">=3.11,<3.13"
 dependencies = [
     # Core
+    "prefect-client",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -61,6 +62,9 @@ dev = [
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
+
+[project.scripts]
+taranis-worker = "worker:main"
 
 [build-system]
 requires = [

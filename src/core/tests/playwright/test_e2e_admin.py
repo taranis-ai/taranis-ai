@@ -27,7 +27,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
-        page.get_by_role("button").nth(1).click()
+        page.get_by_test_id("user-menu-button").click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
@@ -100,7 +100,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("User was successfully updated").click()
 
         def remove_user():
-            page.locator("tr:nth-child(2) > td").first.click()
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
             page.get_by_role("button", name="Delete").click()
             # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
             page.get_by_text("Successfully deleted").click()
@@ -133,6 +133,17 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("Simple Web Collector").click()
             page.get_by_label("WEB_URL").click()
             page.get_by_label("WEB_URL").fill("www.example.com")
+            page.locator("span").filter(has_text="every month").click()
+            page.get_by_text("January").click()
+            page.get_by_text("every day", exact=True).click()
+            page.locator("div").filter(has_text=re.compile(r"^2$")).nth(1).click()
+            page.locator("span").filter(has_text="every day of the week").click()
+            page.get_by_text("Wednesday").click()
+            page.locator("span").filter(has_text="every hour").click()
+            page.get_by_text("08").click()
+            page.locator("span").filter(has_text="every minute").click()
+            page.get_by_text("35", exact=True).click()
+            expect(page.get_by_role("textbox", name="Cron Expression Cron")).to_have_value("35 8 2 1 3")
             page.get_by_role("button", name="Submit").click()
             page.get_by_text("Successfully created New").click()
 
@@ -142,7 +153,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_wordlists.png")
 
         def edit_wordlist():
-            page.pause()
             page.get_by_role("button", name="load default lists").click()
             page.get_by_role("button", name="New Item").click()
             page.get_by_role("cell", name="CVE Products").click()

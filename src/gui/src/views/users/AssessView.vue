@@ -1,5 +1,5 @@
 <template>
-  <div class="w-100">
+  <div class="w-100" data-testid="all-stories-div">
     <div v-if="loading" class="d-flex justify-center align-center">
       <v-progress-circular
         color="primary"

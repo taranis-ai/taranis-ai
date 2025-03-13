@@ -1,5 +1,10 @@
 <template>
-  <div v-if="active" class="ml-auto mr-auto" style="width: fit-content" :data-testid="`story-actions-div-${story.id}`">
+  <div
+    v-if="active"
+    class="ml-auto mr-auto"
+    style="width: fit-content"
+    :data-testid="`story-actions-div-${story.id}`"
+  >
     <v-btn
       v-if="!reportView && !detailView"
       v-ripple="false"
@@ -8,6 +13,7 @@
       class="item-action-btn"
       density="compact"
       @click.stop="openCard"
+      data-testid="show details"
     >
       <v-tooltip
         activator="parent"
@@ -25,6 +31,7 @@
       :to="`/story/${story.id}`"
       tag="button"
       @click.stop
+      data-testid="open detail view"
     >
       <v-tooltip activator="parent" text="open detail view" />
       <v-icon icon="mdi-magnify" />
@@ -41,6 +48,7 @@
           v-bind="props"
           icon="mdi-book-edit-outline"
           :to="`/story/${story.id}/edit`"
+          data-testid="edit story"
         />
       </template>
     </v-tooltip>
@@ -54,6 +62,7 @@
       color="#919191"
       icon="mdi-google-circles-communities"
       @click.stop="sharingDialog = true"
+      data-testid="add to report"
     >
       <v-tooltip activator="parent" text="add to report" />
       <v-icon icon="mdi-google-circles-communities" />
@@ -70,6 +79,7 @@
           icon="mdi-trash-can"
           v-bind="props"
           @click.stop="$emit('remove-from-report')"
+          data-testid="remove from report"
         />
       </template>
     </v-tooltip>
@@ -88,6 +98,7 @@
           :icon="story.read ? 'mdi-eye-check-outline' : 'mdi-eye-off-outline'"
           v-bind="props"
           @click="markAsRead()"
+          data-testid="mark as read"
         />
       </template>
     </v-tooltip>
@@ -110,6 +121,7 @@
                 : 'mdi-star-check-outline'
             "
             @click.stop="markAsImportant()"
+            data-testid="mark as important"
           />
         </template>
       </v-tooltip>
@@ -124,6 +136,7 @@
             v-bind="props"
             icon="mdi-email-outline"
             @click.stop="shareViaMail"
+            data-testid="send via mail"
           />
         </template>
       </v-tooltip>
@@ -141,6 +154,7 @@
             v-bind="props"
             icon="mdi-ungroup"
             @click.stop="ungroup()"
+            data-testid="ungroup"
           />
         </template>
       </v-tooltip>
@@ -155,6 +169,7 @@
             v-bind="props"
             icon="mdi-open-in-app"
             :to="'/newsitem/' + story.news_items[0].id"
+            data-testid="open news item"
           />
         </template>
       </v-tooltip>
@@ -169,6 +184,7 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/newsitem/${story.news_items[0].id}/edit`"
+            data-testid="edit newsitem"
           />
         </template>
       </v-tooltip>
@@ -183,6 +199,7 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/enter/${story.id}`"
+            data-testid="create and attach news item"
           />
         </template>
       </v-tooltip>
@@ -197,12 +214,13 @@
             v-bind="props"
             icon="mdi-delete-outline"
             @click.stop="deleteDialog = true"
+            data-testid="delete story"
           />
         </template>
       </v-tooltip>
     </div>
 
-    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
+    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y :data-testid="`story-actions-menu-${story.id}`">
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -212,6 +230,7 @@
           v-bind="props"
           color="#919191"
           icon="mdi-dots-horizontal"
+          data-testid="show story-actions-menu"
         />
       </template>
 
@@ -222,14 +241,14 @@
             text="open detail view"
             location="start"
           />
-          <v-icon icon="mdi-magnify" />
+          <v-icon icon="mdi-magnify" data-testid="open detail view"/>
         </v-list-item>
         <v-list-item
           v-if="compactView && !reportView"
           @click.stop="sharingDialog = true"
         >
           <v-tooltip activator="parent" text="add to report" location="start" />
-          <v-icon icon="mdi-google-circles-communities" />
+          <v-icon icon="mdi-google-circles-communities" data-testid="add to report"/>
         </v-list-item>
         <v-list-item
           v-if="detailView || compactView"
@@ -238,6 +257,7 @@
           "
           class="hidden-xl-only"
           @click.stop="markAsRead()"
+          data-testid="mark as read"
         />
         <v-list-item @click.stop="markAsImportant()">
           <v-tooltip
@@ -249,6 +269,7 @@
             :icon="
               !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
             "
+            data-testid="mark as important"
           />
         </v-list-item>
 
@@ -286,7 +307,7 @@
         </v-list-item>
         <v-list-item :to="`/story/${story.id}/edit`">
           <v-tooltip activator="parent" text="edit story" location="start" />
-          <v-icon icon="mdi-book-edit-outline" />
+          <v-icon icon="mdi-book-edit-outline" title="edit story"/>
         </v-list-item>
 
         <v-list-item

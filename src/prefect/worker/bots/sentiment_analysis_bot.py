@@ -34,16 +34,27 @@ class SentimentAnalysisBot(BaseBot):
     def analyze_news_items(self, stories: list) -> dict:
         results = {}
         for story in stories:
-            news_items = story.get("news_items", [])
-            for news_item in news_items:
+            for news_item in story.get("news_items", []):
                 text_content = news_item.get("content", "")
-                if sentiment := self.bot_api.api_post("/", {"text": text_content}):
-                    logger.debug(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
-                    news_item_id = news_item["id"]
-                    results[news_item_id] = {
-                        "sentiment": sentiment["score"],
-                        "category": sentiment["label"],
-                    }
+                response = self.bot_api.api_post("/", {"text": text_content})
+
+                if not response:
+                    continue
+                if "error" in response:
+                    logger.error(response["error"])
+                    continue
+
+                sentiment = response.get("sentiment")
+                if not sentiment:
+                    continue
+
+                label = sentiment.get("label")
+                score = sentiment.get("score")
+                logger.debug(f"Received sentiment label: {label} with score: {score}")
+
+                news_item_id = news_item.get("id")
+                if news_item_id is not None:
+                    results[news_item_id] = {"sentiment": score, "category": label}
 
         return results
 

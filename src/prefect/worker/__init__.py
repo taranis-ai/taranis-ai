@@ -6,7 +6,7 @@ from worker.tasks import setup_tasks
 
 def main():
     core_api = CoreApi()
-    setup_tasks(self.app)
+    setup_tasks()
 
 
 if __name__ == "worker":

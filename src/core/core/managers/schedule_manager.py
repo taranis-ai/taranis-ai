@@ -1,8 +1,10 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
 from prefect import task, flow
 from prefect.schedules import Cron
+from datetime import datetime, timedelta
 
 from core.managers import queue_manager
 from core.log import logger
@@ -13,7 +15,10 @@ from core.config import Config
 cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
     "name": "Cleanup token blacklist",
-    "jobs_params": {"trigger": "interval", "hours": 8, "max_instances": 1},
+    "jobs_params": {
+        "trigger": CronTrigger.from_crontab("0 2 * * *"),
+        "max_instances": 1,
+    },
     "celery": {
         "args": [],
         "queue": "misc",
@@ -91,6 +96,23 @@ class Scheduler:
         except Exception:
             logger.exception("Failed to serialize job")
             return {}
+
+    @classmethod
+    def get_next_n_fire_times_from_cron(cls, cron_expr: str, n: int = 3) -> list[datetime]:
+        trigger = CronTrigger.from_crontab(cron_expr)
+        now = datetime.now(trigger.timezone) if trigger.timezone else datetime.now()
+
+        fire_times: list[datetime] = []
+        current: datetime = now
+
+        while len(fire_times) != n:
+            next_fire: datetime | None = trigger.get_next_fire_time(None, current)
+            if next_fire is None:
+                break
+            fire_times.append(next_fire)
+            current = next_fire + timedelta(microseconds=1)
+
+        return fire_times
 
 
 @task(task_run_name="debug_task", log_prints=True)
