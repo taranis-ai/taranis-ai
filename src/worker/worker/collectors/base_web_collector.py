@@ -48,8 +48,8 @@ class BaseWebCollector(BaseCollector):
 
     def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
-            If modified_since is given, make request conditional with If-Modified-Since
-            Check for specific status codes and raise rest of errors 
+        If modified_since is given, make request conditional with If-Modified-Since
+        Check for specific status codes and raise rest of errors
         """
 
         # transform modified_since datetime object to str that is accepted by If-Modified-Since
@@ -62,15 +62,15 @@ class BaseWebCollector(BaseCollector):
         try:
             response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             if response.status_code == 200 and not response.content:
-                 raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
+                raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
             if response.status_code == 429:
-                 raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+                raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise e
-        
+
         return response
 
     def parse_source(self, source):
@@ -126,7 +126,7 @@ class BaseWebCollector(BaseCollector):
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
-        response = self.send_get_request(web_url, self.last_attempted) 
+        response = self.send_get_request(web_url, self.last_attempted)
 
         if not response.content:
             return "", None

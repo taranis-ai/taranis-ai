@@ -1,6 +1,6 @@
 from flask import request, Flask, Blueprint
 from flask.views import MethodView
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from core.managers.auth_manager import api_key_required
 from core.model.task import Task as TaskModel
@@ -69,7 +69,7 @@ def handle_task_specific_result(task_id: str, result: dict | str) -> bool:
     if task_id.startswith("gather_word_list"):
         WordList.update_word_list(**result)
     elif task_id.startswith("cleanup_token_blacklist"):
-        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        TokenBlacklist.delete_older(datetime.now() - Config.JWT_ACCESS_TOKEN_EXPIRES)
     elif task_id.startswith("presenter_task"):
         rendered_product = result.get("render_result", {}).get("data", "")
         Product.update_render_for_id(result.get("product_id"), rendered_product.encode("utf-8"))
