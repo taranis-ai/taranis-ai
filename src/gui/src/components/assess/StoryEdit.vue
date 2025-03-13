@@ -29,6 +29,7 @@
             v-model:content="story.summary"
             :header="$t('enter.summary')"
             :placeholder="$t('enter.summary_placeholder')"
+            name="summary"
           />
           <v-row>
             <v-col cols="auto">
@@ -43,6 +44,7 @@
             v-model:content="story.comments"
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
+            name="comment"
           />
 
           <edit-tags v-model="story.tags" />
