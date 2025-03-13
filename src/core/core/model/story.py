@@ -357,7 +357,16 @@ class Story(BaseModel):
 
     @classmethod
     def add_or_update(cls, data) -> "tuple[dict, int]":
-        return cls.add(data) if "id" not in data else cls.update(data["id"], data)
+        story_ids = [data.get("id")]
+        if "id" not in data:
+            return cls.add(data)
+        for news_item in data.get("news_items", []):
+            result, _ = cls.add_single_news_item(news_item)
+            story_id = result.get("story_id")
+            if story_id is not None:
+                story_ids.append(story_id)
+        cls.group_stories(story_ids)
+        return cls.update(data["id"], data)
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":

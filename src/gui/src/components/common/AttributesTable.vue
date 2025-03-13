@@ -19,6 +19,7 @@
             max-width="50%"
             class=""
             @click="showDialog = true"
+            :disabled="disabled"
           />
         </v-row>
         <slot name="top"></slot>
@@ -33,6 +34,7 @@
               flat
               hide-details
               @change="updateValue()"
+              :disabled="disabled"
             ></v-text-field>
           </td>
           <td>
@@ -93,7 +95,8 @@ import { computed, ref } from 'vue'
 const props = defineProps({
   modelValue: { type: Array, required: true, default: () => [] },
   headerFilter: { type: Array, default: () => ['key', 'value'] },
-  order: { type: Boolean, default: false }
+  order: { type: Boolean, default: false },
+  disabled: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])
