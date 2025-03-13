@@ -1,4 +1,4 @@
-from celery import Task, shared_task
+from prefect import flow
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector
@@ -59,26 +59,15 @@ class Collector:
         return None
 
 
-class CollectorTask(Task):
-    name = "collector_task"
-    max_retries = 3
-    priority = 5
-    default_retry_delay = 60
-    time_limit = 300
-
-    def __init__(self):
-        self.core_api = CoreApi()
-
-    def run(self, osint_source_id: str, manual: bool = False):
-        self.collector = Collector()
-        logger.info(f"Starting collector task {self.name}")
-        if err := self.collector.collect_by_source_id(osint_source_id, manual):
-            return err
-        self.core_api.run_post_collection_bots(osint_source_id)
-        return f"Successfully collected source {osint_source_id}"
+@flow(name="collector_task")
+def collector_task(osint_source_id: str, manual: bool = False):
+    collector = Collector()
+    if err := collector.collect_by_source_id(osint_source_id, manual):
+        return err
+    return f"Successfully collected source {osint_source_id}"
 
 
-@shared_task(time_limit=300, name="collector_preview", track_started=True, acks_late=True, priority=8)
+@flow(name="collector_preview")
 def collector_preview(osint_source_id: str):
     collector = Collector()
     source, err = collector.get_source(osint_source_id)

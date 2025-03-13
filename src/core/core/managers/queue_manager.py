@@ -87,10 +87,7 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
 
     def send_task(self, *args, **kwargs):
-        if self.error:
-            return False
-        self._celery.send_task(*args, **kwargs)
-        return True
+        return False if self.error else self._celery.send_task(*args, **kwargs)
 
     def get_queue_status(self) -> tuple[dict, int]:
         if self.error:

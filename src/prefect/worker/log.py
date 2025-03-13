@@ -4,13 +4,12 @@ import socket
 import logging
 import traceback
 import datetime
-from celery.signals import after_setup_logger
 
 from worker.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: tuple[str, int] | str | None):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: tuple[str, int] | str | None):
         self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
@@ -25,9 +24,6 @@ class TaranisLogger:
                 print("Unable to connect to syslog server!")
 
         lloggers = [logging.getLogger()]
-
-        if gunicorn:
-            lloggers = [logging.getLogger("gunicorn.error")]
 
         for llogger in lloggers:
             llogger.handlers.clear()
@@ -97,24 +93,5 @@ class Logger(TaranisLogger):
         self.info(log_text)
 
 
-class IgnoreHeartbeatTickFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        return "heartbeat_tick" not in record.getMessage()
+logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)
 
-
-class IgnorePingFilter(logging.Filter):
-    def filter(self, record):
-        return "pidbox received method ping" not in record.getMessage()
-
-
-@after_setup_logger.connect
-def setup_loggers(logger, *args, **kwargs):
-    logger.setLevel(logging.INFO)
-    if Config.DEBUG:
-        logger.setLevel(logging.DEBUG)
-    ampq_logger = logging.getLogger("amqp.connection.Connection.heartbeat_tick")
-    ampq_logger.addFilter(IgnoreHeartbeatTickFilter())
-    logging.getLogger("kombu.pidbox").addFilter(IgnorePingFilter())
-
-
-logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)
