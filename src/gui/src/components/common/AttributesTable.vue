@@ -6,6 +6,7 @@
       :items-per-page="5"
       :hide-default-footer="modelValue.length < 5"
       class="elevation-1"
+      data-testid="attributes-table"
     >
       <template #top>
         <v-row class="justify-center">

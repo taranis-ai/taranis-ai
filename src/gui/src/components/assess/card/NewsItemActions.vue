@@ -1,5 +1,9 @@
 <template>
-  <div class="ml-auto mr-auto" style="width: fit-content">
+  <div
+    class="ml-auto mr-auto"
+    style="width: fit-content"
+    :data-testid="`story-actions-div-${newsItem.id}`"
+  >
     <v-tooltip
       v-if="!detailView"
       :text="openSummary ? 'hide details' : 'show details'"
