@@ -30,6 +30,13 @@ class Settings(BaseModel):
 
     @classmethod
     def initialize(cls):
-        if not Settings.get(1):
+        if settings := cls.get(1):
+            current_settings = settings.settings
+            if "default_collector_proxy" not in current_settings:
+                current_settings["default_collector_proxy"] = ""
+            if "default_collector_interval" not in current_settings:
+                current_settings["default_collector_interval"] = "0 */8 * * *"
+        else:
             db.session.add(Settings())
-            db.session.commit()
+
+        db.session.commit()
