@@ -56,6 +56,7 @@ def pre_seed_update(db_engine: Engine):
     from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
     from core.model.parameter_value import PARAMETER_TYPES
     from core.model.bot import Bot
+    from core.model.settings import Settings
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -82,6 +83,8 @@ def pre_seed_update(db_engine: Engine):
         bot = Bot.filter_by_type(b["type"])
         if not bot:
             Bot.add(b)
+
+    Settings.initialize()
 
 
 def migrate_refresh_intervals(connection):
