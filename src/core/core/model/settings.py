@@ -3,6 +3,7 @@ from sqlalchemy.schema import CheckConstraint
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.log import logger
 
 
 class Settings(BaseModel):
@@ -20,11 +21,12 @@ class Settings(BaseModel):
     def update(cls, data) -> tuple[dict, int]:
         settings = cls.get(1)
         if settings is None:
+            logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
 
         settings.settings = data
         db.session.commit()
-        return {"message": "Successfully updated settings"}, 200
+        return {"message": "Successfully updated settings", "settings": data}, 200
 
     @classmethod
     def initialize(cls):

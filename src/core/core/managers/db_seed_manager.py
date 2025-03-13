@@ -308,6 +308,7 @@ def pre_seed_default_user():
 def pre_seed_assets():
     from core.model.asset import AssetGroup
     from core.model.organization import Organization
+    from core.model.settings import Settings
 
     if AssetGroup.get("default"):
         return
@@ -321,3 +322,5 @@ def pre_seed_assets():
             "id": "default",
         }
     )
+
+    Settings.initialize()
