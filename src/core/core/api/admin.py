@@ -7,6 +7,7 @@ from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.model.story import Story
 from core.service.story import StoryService
+from core.model.settings import Settings
 from core.managers import queue_manager
 from core.config import Config
 
@@ -71,6 +72,18 @@ class ExportStories(MethodView):
         )
 
 
+class SettingsView(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
+    def get(self):
+        return Settings.get_all_for_api({})
+
+    @auth_required("ADMIN_OPERATIONS")
+    def put(self):
+        if data := request.json:
+            return Settings.update(data)
+        return {"error": "No data provided"}, 400
+
+
 def initialize(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
 
@@ -81,5 +94,6 @@ def initialize(app: Flask):
     admin_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
     admin_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
     admin_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
+    admin_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 
     app.register_blueprint(admin_bp)
