@@ -94,4 +94,3 @@ class Logger(TaranisLogger):
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)
-

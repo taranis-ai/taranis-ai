@@ -46,9 +46,7 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(
-        self, url: str, modified_since: Optional[datetime.datetime] = None
-    ) -> requests.Response:
+    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
         If modified_since is given, make request conditional with If-Modified-Since
         Check for specific status codes and raise rest of errors
@@ -58,27 +56,17 @@ class BaseWebCollector(BaseCollector):
         request_headers = self.headers.copy()
 
         if modified_since:
-            request_headers["If-Modified-Since"] = modified_since.strftime(
-                "%a, %d %b %Y %H:%M:%S GMT"
-            )
+            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         logger.debug(f"{self.name} sending GET request to {url}")
         try:
-            response = requests.get(
-                url, headers=request_headers, proxies=self.proxies, timeout=self.timeout
-            )
+            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
             if response.status_code == 200 and not response.content:
-                raise NoChangeError(
-                    f"{self.name} request to {url} got Response 200 OK, but returned no content"
-                )
+                raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
             if response.status_code == 304:
-                raise NoChangeError(
-                    f"Content of {url} was not modified - {response.text}"
-                )
+                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
             if response.status_code == 429:
-                raise requests.exceptions.HTTPError(
-                    f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
-                )
+                raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise e
@@ -87,9 +75,7 @@ class BaseWebCollector(BaseCollector):
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
-        self.digest_splitting_limit = int(
-            source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30)
-        )
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
@@ -111,18 +97,12 @@ class BaseWebCollector(BaseCollector):
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
-                raise ValueError(
-                    f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object"
-                )
+                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
         except (json.JSONDecodeError, TypeError) as e:
-            raise ValueError(
-                f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}"
-            ) from e
+            raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
-    def get_last_modified(
-        self, response: requests.Response
-    ) -> datetime.datetime | None:
+    def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
             return dateparser.parse(last_modified, ignoretz=True)
         return None
@@ -137,22 +117,16 @@ class BaseWebCollector(BaseCollector):
 
     def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first
-        icon_url = (
-            f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
-        )
+        icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
         r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
         if not r.ok:
             return None
 
-        icon_content = {
-            "file": (r.headers.get("content-disposition", "file"), r.content)
-        }
+        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(
-        self, web_url: str, xpath: str = ""
-    ) -> tuple[str, datetime.datetime | None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
@@ -167,9 +141,7 @@ class BaseWebCollector(BaseCollector):
 
         return "", published_date
 
-    def xpath_extraction(
-        self, html_content, xpath: str, get_content: bool = True
-    ) -> str | None:
+    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
         logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
@@ -196,9 +168,7 @@ class BaseWebCollector(BaseCollector):
 
     def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
         web_content = self.extract_web_content(web_url, xpath)
-        for_hash: str = (
-            web_content["author"] + web_content["title"] + self.clean_url(web_url)
-        )
+        for_hash: str = web_content["author"] + web_content["title"] + self.clean_url(web_url)
         return NewsItem(
             osint_source_id=self.osint_source_id,
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
@@ -252,14 +222,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(
-                    f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}"
-                )
+                logger.warning(f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}")
                 continue
             except Exception as e:
-                logger.error(
-                    f"{self.type} failed digest splitting with error: {str(e)}"
-                )
+                logger.error(f"{self.type} failed digest splitting with error: {str(e)}")
                 raise e
 
         return news_items

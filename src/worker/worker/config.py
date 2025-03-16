@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Literal, Any
+from typing import Literal
 from pydantic import model_validator, ValidationInfo, field_validator
 
 
@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers"]] = ["Bots", "Collectors", "Presenters", "Publishers"]
+    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers"]] = [
+        "Bots",
+        "Collectors",
+        "Presenters",
+        "Publishers",
+    ]
     SUMMARY_API_ENDPOINT: str = "http://summary_bot:8000"
     NLP_API_ENDPOINT: str = "http://nlp_bot:8000"
     STORY_API_ENDPOINT: str = "http://story_bot:8000"
@@ -42,4 +47,3 @@ class Settings(BaseSettings):
 
 
 Config = Settings()
-

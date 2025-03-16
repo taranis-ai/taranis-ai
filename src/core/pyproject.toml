@@ -17,6 +17,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "apscheduler",
     "prefect-client",
+    "pytz",
     "Flask",
     "Flask[async]",
     "Flask-Cors",

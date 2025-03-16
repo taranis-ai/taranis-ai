@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM prefecthq/prefect:3-python3.12 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app/
@@ -24,9 +24,9 @@ RUN uv venv && \
     playwright install chromium --with-deps
 
 
-FROM python:3.12-slim
+FROM prefecthq/prefect:3-python3.12
 
-LABEL description="Taranis AI Python Celery Worker"
+LABEL description="Taranis AI prefect worker"
 
 WORKDIR /app
 
@@ -48,6 +48,3 @@ ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
-ENTRYPOINT [ "celery" ]
-
-CMD ["--app", "worker", "worker"]
