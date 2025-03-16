@@ -24,6 +24,7 @@ class NewsItem:
         published_date: datetime | None = None,
         collected_date: datetime | None = None,
         attributes: list | None = None,
+        last_change: str | None = "external",
     ):
         self.osint_source_id = osint_source_id
         self.hash = hash
@@ -41,6 +42,7 @@ class NewsItem:
             published_date = collected_date
         self.published_date = published_date
         self.attributes = attributes or []
+        self.last_change = last_change
 
     def to_dict(self):
         data = {
@@ -54,6 +56,7 @@ class NewsItem:
             "content": self.content,
             "osint_source_id": self.osint_source_id,
             "attributes": self.attributes,
+            "last_change": self.last_change,
         }
         if self.language:
             data["language"] = self.language
