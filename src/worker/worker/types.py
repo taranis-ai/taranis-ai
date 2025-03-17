@@ -13,6 +13,7 @@ class NewsItem:
     def __init__(
         self,
         osint_source_id: str,
+        id: str | None = None,
         hash: str = "",
         author: str = "",
         title: str = "",
@@ -27,6 +28,7 @@ class NewsItem:
         last_change: str | None = "external",
     ):
         self.osint_source_id = osint_source_id
+        self.id = id
         self.hash = hash
         self.author = author
         self.title = title

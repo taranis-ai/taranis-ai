@@ -363,16 +363,20 @@ class Story(BaseModel):
 
     @classmethod
     def add_or_update(cls, data) -> "tuple[dict, int]":
-        story_ids = [data.get("id")]
         if "id" not in data:
             return cls.add(data)
-        for news_item in data.get("news_items", []):
-            result, _ = cls.add_single_news_item(news_item)
-            story_id = result.get("story_id")
-            if story_id is not None:
-                story_ids.append(story_id)
-        cls.group_stories(story_ids)
-        return cls.update(data["id"], data)
+
+        if not data.pop("conflict", None):
+            story_ids = []
+            for news_item in data.get("news_items", []):
+                result, _ = cls.add_single_news_item(news_item)
+                story_id = result.get("story_id")
+                if story_id is not None:
+                    story_ids.append(story_id)
+            cls.group_stories(story_ids)
+            return cls.update(data["id"], data)
+
+        return cls.update_with_conflicts(data["id"], data)
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
@@ -509,6 +513,11 @@ class Story(BaseModel):
         story.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
+
+    @classmethod
+    def update_with_conflicts(cls, id, data) -> tuple[dict, int]:
+        logger.warning(f"Conflict detected for story {id}")
+        return {"warning": "Conflict detected"}, 409
 
     def set_attributes(self, attributes: list[dict]):
         """
@@ -744,6 +753,7 @@ class Story(BaseModel):
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
             cls.update_stories({story})
+            story.last_change = "internal"
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:
@@ -818,6 +828,7 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
+        self.last_change = "internal"
 
     def update_timestamps(self):
         self.updated = datetime.now()

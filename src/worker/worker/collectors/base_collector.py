@@ -115,10 +115,15 @@ class BaseCollector:
         self.core_api.update_osintsource_status(source["id"], None)
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
-        """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
+        """
+        story_lists example: [{title: str, news_items: list[NewsItem]}]
+        """
         if not story_attribute_key:
             news_items = [item for story_list in story_lists for item in story_list["news_items"]]
             return self.publish(news_items, source)
+
+        if story_lists[0].get("id"):
+            self.publish_misp_stories(story_lists, story_attribute_key, source)
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
         for story in stories_for_publishing:
@@ -154,3 +159,16 @@ class BaseCollector:
                     break
 
         return new_stories
+
+    def publish_misp_stories(self, story_lists: list[dict], story_attribute_key: str, source: dict):
+        for story in story_lists:
+            if existing_story := self.core_api.get_stories({"story_id": source["id"]}):
+                if self.check_internal_changes(existing_story):
+                    logger.info(f"Internal changes detected in story {existing_story[0].get('id')}, skipping update")
+                    story["conflict"] = True
+                self.core_api.add_or_update_story(story)
+
+    def check_internal_changes(self, existing_story) -> bool:
+        if existing_story.get("last_change") == "internal":
+            return True
+        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items"))
