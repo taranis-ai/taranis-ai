@@ -40,6 +40,7 @@ class NewsItemService:
             logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 400
 
+        story.last_change = "internal"
         story.news_items.remove(news_item)
         news_item.delete_item()
         story.update_status()

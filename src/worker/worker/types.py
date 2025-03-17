@@ -48,6 +48,7 @@ class NewsItem:
 
     def to_dict(self):
         data = {
+            "id": self.id,
             "hash": self.hash,
             "title": self.title,
             "source": self.source,

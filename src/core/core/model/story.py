@@ -362,19 +362,36 @@ class Story(BaseModel):
         return stories
 
     @classmethod
+    def delete_news_items(cls, news_items_to_delete: list[str]):
+        for news_item_id in news_items_to_delete:
+            if news_item := NewsItem.get(news_item_id):
+                news_item.delete_item()
+
+    @classmethod
     def add_or_update(cls, data) -> "tuple[dict, int]":
         if "id" not in data:
             return cls.add(data)
 
-        if not data.pop("conflict", None):
-            story_ids = []
+        story_ids = [data.get("id")]
+        conflict = data.pop("conflict", None)
+
+        if Story.get(data["id"]) is None:
+            return cls.add(data)
+
+        if not conflict:
+            if "news_items_to_delete" in data:
+                cls.delete_news_items(data.pop("news_items_to_delete"))
+
             for news_item in data.get("news_items", []):
-                result, _ = cls.add_single_news_item(news_item)
-                story_id = result.get("story_id")
-                if story_id is not None:
-                    story_ids.append(story_id)
+                logger.debug(f"{NewsItem.get(news_item.get('id'))}")
+                if not NewsItem.get(news_item.get("id")):
+                    result, _ = cls.add_single_news_item(news_item)
+                    story_id = result.get("story_id")
+                    if story_id is not None:
+                        story_ids.append(story_id)
+
             cls.group_stories(story_ids)
-            return cls.update(data["id"], data)
+            return cls.update(data["id"], data, external=True)
 
         return cls.update_with_conflicts(data["id"], data)
 
@@ -472,7 +489,7 @@ class Story(BaseModel):
         return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None) -> tuple[dict, int]:
+    def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -508,9 +525,8 @@ class Story(BaseModel):
         if "links" in data:
             story.links = data["links"]
 
-        story.last_change = "internal"
-
-        story.update_status()
+        story.last_change = "external" if external else "internal"
+        story.update_status(external)
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
@@ -818,7 +834,7 @@ class Story(BaseModel):
             return None
         return sentiment
 
-    def update_status(self):
+    def update_status(self, external=False):
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
@@ -828,7 +844,7 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
-        self.last_change = "internal"
+        self.last_change = "external" if external else "internal"
 
     def update_timestamps(self):
         self.updated = datetime.now()
