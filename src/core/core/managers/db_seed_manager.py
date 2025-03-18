@@ -54,7 +54,9 @@ def sync_enum_with_db(enum_type, connection):
 def pre_seed_update(db_engine: Engine):
     from core.managers.pre_seed_data import workers, bots
     from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from core.model.parameter_value import PARAMETER_TYPES
     from core.model.bot import Bot
+    from core.model.settings import Settings
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -68,6 +70,8 @@ def pre_seed_update(db_engine: Engine):
         sync_enum_with_db(COLLECTOR_TYPES, connection)
         sync_enum_with_db(PRESENTER_TYPES, connection)
         sync_enum_with_db(PUBLISHER_TYPES, connection)
+        sync_enum_with_db(PARAMETER_TYPES, connection)
+        migrate_refresh_intervals(connection)
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -79,6 +83,40 @@ def pre_seed_update(db_engine: Engine):
         bot = Bot.filter_by_type(b["type"])
         if not bot:
             Bot.add(b)
+
+    Settings.initialize()
+
+
+def migrate_refresh_intervals(connection):
+    from core.model.osint_source import OSINTSource
+
+    sources = OSINTSource.get_all_for_collector()
+
+    for source in sources:
+        for param in source.parameters:
+            if param.parameter == "REFRESH_INTERVAL":
+                try:
+                    interval = int(param.value)
+                except ValueError:
+                    continue
+
+                new_cron = convert_interval_to_cron(interval)
+                logger.info(f"Updating OSINTSource {source.id}: {interval} minutes -> cron '{new_cron}'")
+                source.update_parameters({"REFRESH_INTERVAL": new_cron})
+
+
+def convert_interval_to_cron(interval: int) -> str:
+    if interval < 1:
+        return "0 */8 * * *"
+    elif interval < 60:
+        return f"*/{interval} * * * *"
+    elif interval < 1440:
+        hours = interval // 60
+        return "0 * * * *" if hours == 1 else f"0 */{hours} * * *"
+    elif interval <= 40000:
+        days = interval // 1440
+        return "0 4 0 * *" if days == 1 else f"0 4 */{days} * *"
+    return "0 */8 * * *"
 
 
 def pre_seed_source_groups():
@@ -270,6 +308,7 @@ def pre_seed_default_user():
 def pre_seed_assets():
     from core.model.asset import AssetGroup
     from core.model.organization import Organization
+    from core.model.settings import Settings
 
     if AssetGroup.get("default"):
         return
@@ -283,3 +322,5 @@ def pre_seed_assets():
             "id": "default",
         }
     )
+
+    Settings.initialize()

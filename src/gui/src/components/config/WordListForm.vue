@@ -167,6 +167,7 @@ export default {
       }
 
       const wordlistData = {
+        id: props.wordlistId,
         name: wordlist.value.name,
         description: wordlist.value.description,
         link: wordlist.value.link,

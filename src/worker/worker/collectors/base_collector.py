@@ -116,25 +116,41 @@ class BaseCollector:
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
-
         if not story_attribute_key:
             news_items = [item for story_list in story_lists for item in story_list["news_items"]]
             return self.publish(news_items, source)
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
         for story in stories_for_publishing:
+            if "news_items" in story:
+                story["news_items"] = [item.to_dict() for item in story["news_items"]]
+        for story in stories_for_publishing:
             self.core_api.add_or_update_story(story)
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
-        # Get existing stories from core api and see if the in the field "attributes" there is a dict that contains the key "rt_id" and the value is the same as the value of the key "rt_id" in the new story
-
         existing_stories = self.core_api.get_stories({"source": source["id"]})
         if not existing_stories:
             return new_stories
 
         for story in new_stories:
-            for existing_story in existing_stories:
-                if story[story_attribute_key] == existing_story.get("attributes", {}).get(story_attribute_key):
-                    story["id"] = existing_story["id"]
+            story_attributes = story.get("attributes", [])
+            # Find the attribute dict where key = story_attribute_key and get its value
+            story_attr_value = None
+            for attr in story_attributes:
+                if attr.get("key") == story_attribute_key:
+                    story_attr_value = attr.get("value")
                     break
+
+            if story_attr_value is None:
+                continue
+
+            for existing_story in existing_stories:
+                existing_attributes = existing_story.get("attributes", [])
+                for existing_attr in existing_attributes:
+                    if existing_attr.get("key") == story_attribute_key and story_attr_value == existing_attr.get("value"):
+                        story["id"] = existing_story.get("id")
+                        break
+                if "id" in story:
+                    break
+
         return new_stories

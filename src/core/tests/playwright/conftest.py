@@ -188,6 +188,81 @@ def stories(app, news_items_list):
 
 
 @pytest.fixture(scope="session")
+def story_news_items(app, stories):
+    from core.model.story import Story
+
+    story_news_items_dict = {}
+    with app.app_context():
+        for story_id in stories:
+            if story := Story.get(story_id):
+                story_news_items_dict[story_id] = story.news_items
+            else:
+                story_news_items_dict[story_id] = []
+
+    yield story_news_items_dict
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending(app, stories):
+    from core.model.story import Story
+
+    with app.app_context():
+        creation_timestamps = []
+        for story_id in stories:
+            try:
+                creation_timestamps.append(Story.get(story_id).created)
+            except AttributeError:
+                creation_timestamps.append(datetime.fromtimestamp(0))
+        story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending_not_important(app, stories_date_descending):
+    from core.model.story import Story
+
+    with app.app_context():
+        story_ids = []
+        for story_id in stories_date_descending:
+            try:
+                if not Story.get(story_id).important:
+                    story_ids.append(story_id)
+            except AttributeError:
+                continue
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending_important(app, stories_date_descending):
+    from core.model.story import Story
+
+    with app.app_context():
+        story_ids = []
+        for story_id in stories_date_descending:
+            try:
+                if Story.get(story_id).important:
+                    story_ids.append(story_id)
+            except AttributeError:
+                continue
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
+def stories_relevance_descending(app, stories):
+    from core.model.story import Story
+
+    with app.app_context():
+        relevances = []
+        for story_id in stories:
+            try:
+                relevances.append(Story.get(story_id).relevance)
+            except AttributeError:
+                relevances.append(0)
+        story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
 def news_items_list(app, fake_source):
     yield [
         {

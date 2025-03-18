@@ -9,3 +9,15 @@ class TestAdminApi(BaseTest):
         assert response.get_json()["message"] == "All Story deleted"
         response = client.get("/api/assess/stories", headers=auth_header)
         assert response.get_json()["counts"]["total_count"] == 0
+
+    def test_settings_update(self, client, auth_header):
+        """
+        Test updating settings
+        """
+        test_settings = {"default_collector_proxy": "http://test_server:1111", "default_collector_interval": "5 5 * * *"}
+
+        response = self.assert_put_ok(client, "settings", test_settings, auth_header)
+        response_settings = response.get_json()
+
+        assert response_settings["message"] == "Successfully updated settings"
+        assert response_settings["settings"] == test_settings

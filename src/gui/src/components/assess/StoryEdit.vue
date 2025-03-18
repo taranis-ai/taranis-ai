@@ -24,11 +24,13 @@
             name="title"
             type="text"
             :rules="[rules.required]"
+            :disabled="hasRtId"
           />
           <code-editor
             v-model:content="story.summary"
             :header="$t('enter.summary')"
             :placeholder="$t('enter.summary_placeholder')"
+            name="summary"
           />
           <v-row>
             <v-col cols="auto">
@@ -43,11 +45,15 @@
             v-model:content="story.comments"
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
+            name="comment"
           />
 
           <edit-tags v-model="story.tags" />
 
-          <attributes-table v-model="filteredStoryAttributes">
+          <attributes-table
+            v-model="filteredStoryAttributes"
+            :disabled="hasRtId"
+          >
             <template #top>
               <v-btn
                 class="mt-4"
@@ -65,7 +71,6 @@
             class="mt-5"
             type="submit"
             :color="hasRtId ? 'error' : 'success'"
-            :disabled="hasRtId"
           >
             {{ $t('button.update') }}
           </v-btn>
