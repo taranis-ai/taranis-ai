@@ -33,7 +33,8 @@ class CoreApi:
         if not json_data:
             json_data = {}
         response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        return self.check_response(response, url)
+        # return 
+        return response
 
     def api_post(self, url, json_data=None) -> dict:
         url = f"{self.api_url}{url}"

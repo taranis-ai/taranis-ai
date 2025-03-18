@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
-{% include 'core_token_js.html' %}
 <div class="text-3xl font-bold mb-4">Users</div>
 {% include 'users_table.html' %}
 
-<a href="/frontend/users/new" hx-get="/frontend/users/new" hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary mt-2">New User</a>
+<div hx-get="/frontend/users/new" hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary mt-2">New User</div>
 
-<div id="user-form-container"></div>
+
+<div id="user-form-container">
+</div>
 
 {% endblock %}

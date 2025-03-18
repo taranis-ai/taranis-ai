@@ -1336,6 +1336,9 @@
   .collapse {
     visibility: collapse;
   }
+  .invisible {
+    visibility: hidden;
+  }
   .visible {
     visibility: visible;
   }
@@ -2403,9 +2406,6 @@
   .mt-4 {
     margin-top: calc(var(--spacing) * 4);
   }
-  .mr-2 {
-    margin-right: calc(var(--spacing) * 2);
-  }
   .fieldset-legend {
     margin-bottom: calc(0.25rem * -1);
     display: flex;
@@ -2615,11 +2615,28 @@
     font-size: var(--cardtitle-fs, 1.125rem);
     font-weight: 600;
   }
+  .fieldset-label {
+    display: flex;
+    align-items: center;
+    gap: calc(0.25rem * 1.5);
+    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+    &:is(label, a), &:has(input) {
+      cursor: pointer;
+    }
+  }
   .card-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: calc(0.25rem * 2);
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    --tabs-height: auto;
+    --tabs-direction: row;
+    height: var(--tabs-height);
+    flex-direction: var(--tabs-direction);
   }
   .chat {
     display: grid;
@@ -2691,6 +2708,9 @@
     max-width: var(--container-lg);
   }
   .flex-shrink {
+    flex-shrink: 1;
+  }
+  .shrink {
     flex-shrink: 1;
   }
   .shrink-0 {
@@ -2800,6 +2820,9 @@
   .bg-gray-100 {
     background-color: var(--color-gray-100);
   }
+  .bg-red-500 {
+    background-color: var(--color-red-500);
+  }
   .bg-white {
     background-color: var(--color-white);
   }
@@ -2830,9 +2853,6 @@
   .stroke-current {
     stroke: currentColor;
   }
-  .stroke-info {
-    stroke: var(--color-info);
-  }
   .p-4 {
     padding: calc(var(--spacing) * 4);
   }
@@ -2848,9 +2868,6 @@
   }
   .px-3 {
     padding-inline: calc(var(--spacing) * 3);
-  }
-  .pb-2 {
-    padding-bottom: calc(var(--spacing) * 2);
   }
   .pb-4 {
     padding-bottom: calc(var(--spacing) * 4);
@@ -2891,6 +2908,9 @@
   .text-purple-500 {
     color: var(--color-purple-500);
   }
+  .text-red-500 {
+    color: var(--color-red-500);
+  }
   .btn-link {
     text-decoration-line: underline;
     outline-color: currentColor;
@@ -2907,6 +2927,10 @@
   }
   .underline {
     text-decoration-line: underline;
+  }
+  .shadow {
+    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .shadow-lg {
     --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
@@ -2967,6 +2991,11 @@
     }
     .card-title {
       --cardtitle-fs: 0.875rem;
+    }
+  }
+  .input-error {
+    &, &:focus, &:focus-within {
+      --input-color: var(--color-error);
     }
   }
   .hover\:opacity-80 {

@@ -36,6 +36,7 @@ class Role(TaranisBaseModel):
 
 class User(TaranisBaseModel):
     _core_endpoint = "/config/users"
+    _errors = {}
 
     id: int | None = None
     name: str

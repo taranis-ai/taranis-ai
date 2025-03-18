@@ -3,7 +3,7 @@ from flask import Flask, render_template, Blueprint, request, Response, jsonify
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_csrf_token
 from werkzeug.datastructures import ImmutableMultiDict
 
 from admin.filters import human_readable_trigger
@@ -13,7 +13,7 @@ from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_ca
 from admin.models import Role, User, Organization
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
-from admin.auth import get_jwt_identity
+from admin.auth import get_jwt_identity, auth_required
 
 
 def is_htmx_request() -> bool:
@@ -58,27 +58,34 @@ class UsersAPI(MethodView):
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
         return render_template("users.html", users=result)
 
-    @jwt_required()
+    @auth_required()
     def post(self):
+        if is_htmx_request():
+            logger.debug("Received htmx request")
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
-        if not result:
-            # organizations = DataPersistenceLayer().get_objects(Organization)
-            # roles = DataPersistenceLayer().get_objects(Role)
-            # TODO: parse and display error message
-            # logger.debug(f"Error: {result.content}")
-            # logger.debug(f"User: {user}")
-            # response = render_template(
-            #     "new_user.html", organizations=organizations, roles=roles, user=user, error={"core": result.content}
-            # )
-            response = render_template( "error.html", content=result.content.decode())
-            logger.debug(f"Error: {response}")
-            return response, 400
+        if not result.ok:
+            logger.debug(f"Error: {result.content}")
+            logger.debug(result.status_code)
+            # response = render_template( "error.html", content=result.content.decode())
+            # logger.debug(f"Error: {response}")
+            logger.debug(f"User back: {user.__dict__}")
+            organizations = DataPersistenceLayer().get_objects(Organization)
+            roles = DataPersistenceLayer().get_objects(Role)
+            # add a static error message as test
+            # user._errors['username'] = "Username already exists"
 
-        users = DataPersistenceLayer().get_objects(User)
-        # TODO: we could return empty response and refresh the page only
-        response = render_template("users_table.html", users=users)
-        return response, 200, {"HX-Refresh": "true"}
+            return render_template(
+                "user_form.html",
+                organizations=organizations,
+                roles=roles,
+                action="new",
+                user=user,
+                error=result.content.decode(),
+                form_error={"username": "Username already exists"},
+            ), result.status_code
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class UpdateUser(MethodView):
@@ -88,10 +95,16 @@ class UpdateUser(MethodView):
         print(f"sending {parse_formdata(request.form)} to API")
         result = DataPersistenceLayer().update_object(user, id)
         print(f"got result: {result}")
+        if not result.ok:
+            logger.debug(f"Error: {result.content}")
+            logger.debug(result.status_code)
+            organizations = DataPersistenceLayer().get_objects(Organization)
+            roles = DataPersistenceLayer().get_objects(Role)
+            response = render_template("user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit")
+            return response, 200
 
-        users = DataPersistenceLayer().get_objects(User)
-        response = render_template("users_table.html", users=users)
-        return response, 200, {"HX-Refresh": "true"}
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
 
 
 class DeleteUser(MethodView):
@@ -107,12 +120,10 @@ class NewUser(MethodView):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         return render_template(
-            "new_user.html",
+            "user_form.html",
             organizations=organizations,
             roles=roles,
-            action="new",
-            user=User(name="", username="", organization=1, roles=[]),
-            error={},
+            action="new"
         )
 
 
