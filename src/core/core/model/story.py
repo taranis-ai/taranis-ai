@@ -7,6 +7,7 @@ from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
+from dataclasses import dataclass
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -393,7 +394,9 @@ class Story(BaseModel):
             cls.group_stories(story_ids)
             return cls.update(data["id"], data, external=True)
 
-        return cls.update_with_conflicts(data["id"], data)
+        result = cls.update_with_conflicts(data["id"], data)
+        logger.debug(f"{result=}")
+        return result
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
@@ -531,9 +534,24 @@ class Story(BaseModel):
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
     @classmethod
-    def update_with_conflicts(cls, id, data) -> tuple[dict, int]:
-        logger.warning(f"Conflict detected for story {id}")
-        return {"warning": "Conflict detected"}, 409
+    def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
+        current_data = Story.get(id)
+        if current_data:
+            current_data_dict = current_data.to_detail_dict()
+            conflict = StoryConflict(story_id=id, original=current_data_dict, updated=data)
+            logger.warning(f"Conflict detected for story {id}")
+            StoryConflict.conflict_store[id] = conflict
+            return {
+                "warning": "Conflict detected",
+                "conflict": {
+                    "original": current_data_dict,
+                    "updated": data,
+                },
+            }, 409
+
+        # Proceed with update if there is no conflict (or no existing story).
+        # For example: db_update_story(id, data)
+        return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
         """
@@ -995,3 +1013,22 @@ class ReportItemStory(BaseModel):
     @classmethod
     def count(cls, story_id):
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))
+
+
+@dataclass
+class StoryConflict:
+    story_id: str
+    original: dict[str, Any]
+    updated: dict[str, Any]
+    # A class-level store to hold conflicts
+    conflict_store = {}
+
+    def resolve(self, resolution: dict[str, Any]) -> dict[str, Any]:
+        """
+        Applies the resolution changes to the updated data.
+        This example simply updates the updated dict with the resolution.
+        Customize this logic as needed.
+        """
+        resolved = self.updated.copy()
+        resolved.update(resolution)
+        return resolved

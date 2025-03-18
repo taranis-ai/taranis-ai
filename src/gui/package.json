@@ -21,8 +21,8 @@
     "@codemirror/lang-json": "^6.0.1",
     "@intlify/unplugin-vue-i18n": "^6.0.3",
     "@mdi/font": "^7.4.47",
-    "@vue-js-cron/vuetify": "^5.0.9",
     "@sentry/vue": "^9.2.0",
+    "@vue-js-cron/vuetify": "^5.0.9",
     "@vuepic/vue-datepicker": "^11.0.1",
     "@vueuse/core": "^12.7.0",
     "axios": "^1.8.1",
@@ -30,6 +30,7 @@
     "codemirror": "^6.0.1",
     "js-base64": "^3.7.7",
     "lodash-es": "^4.17.21",
+    "mergely-react": "^1.1.0",
     "object-hash": "^3.0.0",
     "pinia": "^3.0.1",
     "pinia-plugin-persistedstate": "^4.2.0",
@@ -54,5 +55,10 @@
     "vite": "^6.2.0",
     "vite-plugin-vuetify": "^2.1.0",
     "vue-tsc": "^2.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "v-code-diff"
+    ]
   }
 }

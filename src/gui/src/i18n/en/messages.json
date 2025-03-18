@@ -191,7 +191,8 @@
         "assets": "Assets",
         "config": "Configuration",
         "dashboard": "Dashboard",
-        "publish": "Publish"
+        "publish": "Publish",
+        "conflicts": "Conflicts"
     },
     "nav_menu": {
         "acls": "ACL",

@@ -77,7 +77,7 @@
             :prepend-icon="button.icon"
             class="main-menu-btn"
           >
-            <span class="main-menu-item"> {{ $t(button.title) }} </span>
+            <span class="main-menu-item">{{ $t(button.title) }}</span>
           </v-btn>
         </div>
         <user-menu />
@@ -159,6 +159,7 @@ export default defineComponent({
         route.name === 'analyze' ||
         route.name === 'publish' ||
         route.name === 'assets' ||
+        route.name === 'conflicts' ||
         (route.path.startsWith('/config') &&
           !/^\/config\/sources\/[^/]+/.test(route.path))
       )
@@ -200,6 +201,12 @@ export default defineComponent({
         icon: 'mdi-file-multiple-outline',
         permission: 'ASSETS_ACCESS',
         route: '/assets'
+      },
+      {
+        title: 'main_menu.conflicts',
+        icon: 'mdi-alert-circle-outline',
+        permission: 'ASSESS_ACCESS',
+        route: '/conflicts'
       }
     ]
 

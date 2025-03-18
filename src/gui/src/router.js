@@ -142,6 +142,13 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
+      path: '/conflicts',
+      name: 'conflicts',
+      components: {
+        default: () => import('@/views/users/ConflictsView.vue')
+      }
+    },
+    {
       path: '/cluster/:cluster',
       name: 'cluster',
       props: true,
