@@ -4,6 +4,7 @@
     color="cx-drawer-bg"
     :permanent="true"
     :width="300"
+    data-testid="filter-navigation-div"
   >
     <v-container class="pa-0 ma-0">
       <!-- search -->

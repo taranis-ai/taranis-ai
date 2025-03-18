@@ -24,6 +24,7 @@
           @add-item="addItem"
           @update-items="updateData"
           @selection-change="selectionChange"
+          data-testid="user-view-table"
         >
           <template #titlebar>
             <v-btn
