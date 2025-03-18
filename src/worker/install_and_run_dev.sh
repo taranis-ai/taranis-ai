@@ -11,4 +11,5 @@ fi
 
 source .venv/bin/activate
 
-python ./start_dev_worker.py
+python -m worker
+

@@ -1,6 +1,5 @@
 FROM prefecthq/prefect:3-python3.12 AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app/
 
 RUN apt-get update && apt-get upgrade -y && \

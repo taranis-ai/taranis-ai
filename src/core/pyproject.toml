@@ -26,7 +26,6 @@ dependencies = [
     "Flask-SQLAlchemy",
     "flask_caching",
     "click",
-    "celery",
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",

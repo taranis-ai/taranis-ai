@@ -1,32 +1,21 @@
-from celery import Celery
 from flask import Flask
 import requests
-import contextlib
 from requests.auth import HTTPBasicAuth
 
-from core.log import logger
 from kombu.exceptions import OperationalError
-from kombu import Queue
-
+from prefect import get_client
+from core.log import logger
 
 queue_manager: "QueueManager"
 
 
 class QueueManager:
     def __init__(self, app: Flask):
-        self._celery: Celery = self.init_app(app)
         self.error: str = ""
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
         self.queue_user = app.config["QUEUE_BROKER_USER"]
         self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
-
-    def init_app(self, app: Flask):
-        celery_app = Celery("taranis-ai")
-        celery_app.config_from_object(app.config["CELERY"])
-        celery_app.set_default()
-        app.extensions["celery"] = celery_app
-        return celery_app
 
     def post_init(self):
         self.clear_queues()
@@ -34,21 +23,16 @@ class QueueManager:
         self.schedule_word_list_gathering()
 
     def clear_queues(self):
-        with self._celery.connection() as conn:
-            for queue_name in set(self.queue_names):
-                with contextlib.suppress(Exception):
-                    queue = Queue(name=queue_name, channel=conn)
-                    queue.purge()
-            logger.info("All queues cleared")
-
-    @property
-    def celery(self) -> Celery:
-        return self._celery
+        logger.info("All queues cleared")
 
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
         [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
+
+    async def list_worker_queues(self):
+        async with get_client() as client:
+            return await client.read_flow_runs()
 
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
@@ -73,15 +57,7 @@ class QueueManager:
             logger.error("QueueManager not initialized")
             return {"error": "QueueManager not initialized"}, 500
         try:
-            result = self._celery.control.ping()
-            self.error = ""
-            return [
-                {
-                    "name": list(worker.keys())[0],
-                    "status": list(list(worker.values())[0].keys())[0],
-                }
-                for worker in result
-            ]
+            return self.list_worker_queues()
         except Exception:
             self.error = "Could not reach rabbitmq"
             return {"error": "Could not reach rabbitmq"}, 500
