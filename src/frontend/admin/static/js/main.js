@@ -9,3 +9,16 @@ function getCSRFToken() {
 document.body.addEventListener('htmx:configRequest', function(evt) {
     evt.detail.headers['X-CSRF-TOKEN'] = getCSRFToken(); // add CSRF to every request
 });
+function toggleDetails(jobId) {
+    const jobRow = document.getElementById(`job-row-${jobId}`);
+    const detailsRow = document.getElementById(`details-${jobId}`);
+    const isExpanded = jobRow.getAttribute('data-expanded') === 'true';
+
+    if (isExpanded) {
+        detailsRow.classList.add('hidden');
+        jobRow.setAttribute('data-expanded', 'false');
+    } else {
+        detailsRow.classList.remove('hidden');
+        jobRow.setAttribute('data-expanded', 'true');
+    }
+}

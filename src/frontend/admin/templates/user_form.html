@@ -15,7 +15,7 @@
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
-<div class="bg-white rounded-sm p-4 shadow-lg">
+<div class="bg-base-100 rounded-sm p-4 shadow-lg">
     {% if new_user %}
         <h1 class="text-3xl font-bold mb-5">Create User</h1>
     {% else %}
@@ -23,39 +23,25 @@
     {% endif %}
 
 
-    
+
         <form id="user-form" {% if new_user %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#user-form-container" hx-target-error="#user-form-container" class="w-full max-w-lg">
 
         {% if error.globalerror %}
-        <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p> 
+        <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
         {% endif %}
 
         <label class="floating-label mb-5">
             <span>Username</span>
-            
-                <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"
-                
-                />
-        </label>
 
-        <fiedlset class="fieldset">
-            <legend class="fieldset-legend">Username</legend>
-            <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"
-            
-            />
-            {% if form_error.username %}
-                <p class="fieldset-label"></p>
-                    <span class="error text-red-500 ">{{ form_error.username }}</span>
-                </p>
-            {% endif %}
-        </fieldset>
+                <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
+        </label>
 
         <label class="floating-label mb-5">
             <span>Name</span>
             <input type="text" placeholder="Name" class="input input-md validator" name="name" required value="{{ user.name }}" id="userform_name" />
         </label>
 
-    
+
         <label class="floating-label mb-5">
             <span>Password</span>
                 <input id="user-password" type="password" placeholder="Password" class="input input-md validator" name="password"
@@ -68,7 +54,7 @@
         <label class="">
             <span>Roles</span>
         </label>
-        <select name="roles[]" multiple required type="number" id="tom-select-it" class="validator mb-2 select">
+        <select name="roles[]" multiple required type="number" id="user-role-select">
             {% for role in roles %}
                 {% if role.id in user.roles %}
                     <option value="{{ role.id }}" selected>{{ role.name }} - {{ role.description | truncate(50, true) }}</option>
@@ -102,15 +88,6 @@
                 {% endif %}
             </div>
         </div>
-
-        <!-- alternative layout with fieldset -->
-        <!-- <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
-            <legend class="fieldset-legend">Settings</legend>
-            <div class="join">
-            <input type="text" class="input join-item validator" placeholder="Product name" required />
-            <button class="btn join-item">save</button>
-            </div>
-        </fieldset> -->
     </form>
 
     {% if error|length > 1 %}
@@ -129,3 +106,11 @@
     </section>
     {% endif %}
 </div>
+
+<script>
+  var settings = {plugins: ['remove_button'], persist:false, 		onItemAdd:function(){
+			this.setTextboxValue('');
+			this.refreshOptions();
+		},};
+  new TomSelect('#user-role-select', settings);
+</script>

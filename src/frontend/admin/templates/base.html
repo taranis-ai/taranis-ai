@@ -9,10 +9,11 @@
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
     <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
     <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/debug.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 </head>
-<body class="bg-gray-100 p-8 min-h-screen" hx-ext="response-targets">
+<body class="bg-base-300 p-8 min-h-screen" hx-ext="response-targets">
 
     <div class="container mx-auto w-full max-w-full">
         <!-- tmp menu here -->
@@ -21,7 +22,7 @@
             <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
             <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
             <section id="toast-container"></section>
-            
+
         </div>
         {% block content %}{% endblock %}
         <section id="status-msg"></section>

@@ -1,7 +1,10 @@
 import io
+import requests
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from sqlalchemy.exc import IntegrityError
+from psycopg.errors import UniqueViolation
 
 from core.managers import queue_manager
 from core.log import logger
@@ -27,7 +30,20 @@ from core.model.permission import Permission
 from core.managers.decorators import extract_args
 from core.managers import schedule_manager
 from core.config import Config
-import requests
+
+
+def convert_integrity_error(error: IntegrityError) -> str:
+    """
+    Converts an IntegrityError into a more descriptive ValidationError.
+    Currently handles UniqueViolation errors using psycopg2's diagnostics.
+    """
+    orig = error.orig
+    if isinstance(orig, UniqueViolation):
+        constraint = orig.diag.constraint_name
+        field = constraint.split("_")[1] if constraint else None
+        if field:
+            return f"A record with this {field} already exists."
+    return str(error)
 
 
 class DictionariesReload(MethodView):
@@ -266,12 +282,13 @@ class UsersExport(MethodView):
             mimetype="application/json",
             as_attachment=True,
         )
-    
+
+
 # temp method to test frontend cache invalidation
 # ideally, this should be sent asynchronously
 def invalidate_cache(suffix: str):
     # request to URL with suffix
-    frontend_url = f'http://local.taranis.ai/frontend/invalidate_cache/{suffix}'
+    frontend_url = f"http://local.taranis.ai/frontend/invalidate_cache/{suffix}"
     requests.get(frontend_url)
 
 
@@ -287,12 +304,13 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
-            # send request to frontend to invalidate cache
             invalidate_cache("users")
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
+        except IntegrityError as e:
+            return convert_integrity_error(e), 400
         except Exception:
             logger.exception()
-            return "Could not create user", 400
+            return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
@@ -308,7 +326,7 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
         try:
-            result =  user.User.delete(user_id)
+            result = user.User.delete(user_id)
             # send request to frontend to invalidate cache
             invalidate_cache("users")
             return result

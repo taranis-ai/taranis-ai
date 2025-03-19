@@ -28,21 +28,21 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def api_put(self, url, json_data=None):
+    def api_put(self, url, json_data=None) -> requests.Response:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        # return 
-        return response
+        return requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
-    def api_post(self, url, json_data=None) -> dict:
+    def api_post(self, url, json_data=None) -> requests.Response:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        # return self.check_response(response, url)
-        return response
+        return requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+
+    def api_delete(self, url) -> requests.Response:
+        url = f"{self.api_url}{url}"
+        return requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
 
     def api_get(self, url, params=None):
         url = f"{self.api_url}{url}"
@@ -55,17 +55,11 @@ class CoreApi:
             return None
         return self.check_response(response, url)
 
-    def api_delete(self, url):
-        url = f"{self.api_url}{url}"
-        response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        return self.check_response(response, url)
-
     def get_dashboard(self, query_params=None):
         return self.api_get("/dashboard", params=query_params)
 
     def get_users(self, query_params=None):
         return self.api_get("/config/users", params=query_params)
-    
+
     def get_organizations(self, query_params=None):
         return self.api_get("/config/organizations", params=query_params)
-

@@ -1,0 +1,9 @@
+{% for job in jobs %}
+<tr hx-get="{{ url_for('jobs.jobdetails', job_id=job.id) }}" hx-target="#details-{{ job.id }}" hx-swap="innerHTML" data-expanded="false" onclick="toggleDetails('{{ job.id }}')" id="job-row-{{ job.id }}">
+    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.id }}</td>
+    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.name }}</td>
+    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.trigger }}</td>
+    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.next_run_time }}</td>
+</tr>
+<tr id="details-{{ job.id }}" class="hidden transition-all duration-300 ease-in-out"></tr>
+{% endfor %}

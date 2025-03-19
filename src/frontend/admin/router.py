@@ -1,9 +1,9 @@
 from pydantic import BaseModel
-from flask import Flask, render_template, Blueprint, request, Response, jsonify
+from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
-from flask_jwt_extended import jwt_required, get_csrf_token
+from flask_jwt_extended import jwt_required
 from werkzeug.datastructures import ImmutableMultiDict
 
 from admin.filters import human_readable_trigger
@@ -57,7 +57,7 @@ class UsersAPI(MethodView):
 
         if result is None:
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
-        
+
         if is_htmx_request():
             return render_template("users_table.html", users=result)
         return render_template("users.html", users=result)
@@ -69,10 +69,6 @@ class UsersAPI(MethodView):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
         if not result.ok:
-            logger.debug(f"Error: {result.content}")
-            logger.debug(result.status_code)
-            # response = render_template( "error.html", content=result.content.decode())
-            # logger.debug(f"Error: {response}")
             logger.debug(f"User back: {user.__dict__}")
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
@@ -85,8 +81,8 @@ class UsersAPI(MethodView):
                 roles=roles,
                 action="new",
                 user=user,
-                error=result.content.decode(),
-                form_error={"username": "Username already exists"},
+                error=result.json(),
+                form_error={},
             ), result.status_code
 
         return Response(status=200, headers={"HX-Refresh": "true"})
@@ -104,11 +100,12 @@ class UpdateUser(MethodView):
             logger.debug(result.status_code)
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
-            response = render_template("user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit")
+            response = render_template(
+                "user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit"
+            )
             return response, 200
 
         return Response(status=200, headers={"HX-Refresh": "true"})
-
 
 
 class DeleteUser(MethodView):
@@ -123,12 +120,7 @@ class NewUser(MethodView):
     def get(self):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
-        return render_template(
-            "user_form.html",
-            organizations=organizations,
-            roles=roles,
-            action="new"
-        )
+        return render_template("user_form.html", organizations=organizations, roles=roles, action="new")
 
 
 class EditUser(MethodView):
@@ -206,10 +198,15 @@ class TaranisJSONProvider(DefaultJSONProvider):
         return obj
 
 
+def handle_unauthorized(e):
+    return redirect("/login", code=302)
+
+
 def init(app: Flask):
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
     HTMX(app)
+    app.register_error_handler(401, handle_unauthorized)
 
     app.url_map.strict_slashes = False
     app.jinja_env.filters["human_readable"] = human_readable_trigger
