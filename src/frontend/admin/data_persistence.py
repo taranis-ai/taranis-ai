@@ -1,15 +1,12 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
-from typing import TypeVar, Type
+from typing import Type
 
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache
-from admin.models import TaranisBaseModel
+from admin.models import TaranisBaseModel, T, CacheObject
 from admin.log import logger
-
-
-T = TypeVar("T", bound=TaranisBaseModel)
 
 
 class DataPersistenceLayer:
@@ -45,10 +42,11 @@ class DataPersistenceLayer:
             logger.info(f"Cache hit for {endpoint}")
             return cache_result
         if result := self.api.api_get(endpoint):
-            result_object = [object_model(**object) for object in result["items"]]  # type: ignore
-            cache.set(key=self.make_key(endpoint), value=result_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
+            result_object = [object_model(**object) for object in result["items"]]
+            cache_object = CacheObject(result_object)
+            cache.set(key=self.make_key(endpoint), value=cache_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
             # for testing purposes, create a second cache key with a static prefix
-            return result_object
+            return cache_object
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()

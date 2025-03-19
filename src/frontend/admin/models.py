@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import ClassVar
+from typing import TypeVar
 
+T = TypeVar("T", bound="TaranisBaseModel")
 
 class TaranisBaseModel(BaseModel):
     _core_endpoint: ClassVar[str]
@@ -46,3 +48,38 @@ class User(TaranisBaseModel):
     roles: list[Role] | list[int] | list[dict]
     username: str
     password: str | None = None
+
+
+class CacheObject(list):
+    def __init__(self, iterable=None, page: int = 1, limit: int = 20, order: str = ""):
+        iterable = iterable or []
+        super().__init__(iterable)
+        self.page = page
+        self.limit = limit
+        self.order = order
+
+    @property
+    def current_page(self):
+        return self.page
+
+    @property
+    def offset(self):
+        return (self.page - 1) * self.limit
+    
+    @property
+    def total_pages(self):
+        return (len(self) + self.limit - 1) // self.limit
+    
+    @property
+    def last_page(self) -> bool:
+        return self.page == self.total_pages
+    
+    @property
+    def first_page(self) -> bool:
+        return self.page == 1
+
+
+    @property
+    def current_range(self):
+        return f"{self.offset + 1}-{min(self.offset + self.limit, len(self))}"
+    
