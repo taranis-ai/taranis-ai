@@ -5,7 +5,7 @@
 <div>
   Items per Page:
   <select name="limit" class="select"
-  hx-get="{{ update_query_params({'page': 1}) }}"
+  hx-get="{{ update_query_params({'page': 1}, exclude=['limit']) }}"
   hx-include="this"
   hx-push-url="true">
   {% for option in [5, 20, 50, 100] %}
