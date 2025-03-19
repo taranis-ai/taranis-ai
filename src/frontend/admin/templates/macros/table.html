@@ -4,8 +4,9 @@
 <th>
   <a  href="{{ update_query_params({'order': title ~ '_' ~ ('asc' if request.args.get('order') != title ~ '_asc' else 'desc'), 'page': 1}) }}"
       hx-get="{{ update_query_params({'order': title ~ '_' ~ ('asc' if request.args.get('order') != title ~ '_asc' else 'desc'), 'page': 1}) }}"
-      hx-target="#users-table"
-      hx-push-url="true">
+      hx-target="closest table"
+      hx-push-url="true"
+      class="link link-hover">
       {{ title|capitalize }}
       {% if request.args.get('order', '').startswith(title) %}
         {% if request.args.get('order').endswith('_asc') %}▲{% else %}▼{% endif %}

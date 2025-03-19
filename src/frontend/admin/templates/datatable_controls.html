@@ -19,25 +19,25 @@
 Current Range {{ data.current_range }} of {{ data.length }}
 
 <a href="{{ update_query_params({'page': 1}) }}"
-   class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}"
+   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
    hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
     <<
 </a>
 
 <a href="{{ update_query_params({'page': data.current_page - 1}) }}"
-   class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}"
+   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
    hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
     <
 </a>
 
 <a href="{{ update_query_params({'page': data.current_page + 1}) }}"
-   class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}"
+   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
    hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
     >
 </a>
 
 <a href="{{ update_query_params({'page': data.total_pages}) }}"
-   class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}"
+   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
    hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
     >>
 </a>
