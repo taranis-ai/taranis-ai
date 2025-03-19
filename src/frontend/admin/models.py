@@ -4,6 +4,7 @@ from typing import TypeVar
 
 T = TypeVar("T", bound="TaranisBaseModel")
 
+
 class TaranisBaseModel(BaseModel):
     _core_endpoint: ClassVar[str]
 
@@ -58,6 +59,12 @@ class CacheObject(list):
         self.limit = limit
         self.order = order
 
+    def __getitem__(self, item):
+        result = super().__getitem__(item)
+        if isinstance(item, slice):
+            return CacheObject(result, page=self.page, limit=self.limit, order=self.order)
+        return result
+
     @property
     def current_page(self):
         return self.page
@@ -65,21 +72,19 @@ class CacheObject(list):
     @property
     def offset(self):
         return (self.page - 1) * self.limit
-    
+
     @property
     def total_pages(self):
         return (len(self) + self.limit - 1) // self.limit
-    
+
     @property
     def last_page(self) -> bool:
         return self.page == self.total_pages
-    
+
     @property
     def first_page(self) -> bool:
         return self.page == 1
 
-
     @property
     def current_range(self):
         return f"{self.offset + 1}-{min(self.offset + self.limit, len(self))}"
-    
