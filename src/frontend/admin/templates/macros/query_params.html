@@ -1,0 +1,7 @@
+{% macro update_query_params(new_params) %}
+    {% set params = request.args.to_dict(flat=True) %}
+    {% for key, value in new_params.items() %}
+        {% set _ = params.update({key: value}) %}
+    {% endfor %}
+    ?{{ params|urlencode }}
+{% endmacro %}

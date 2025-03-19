@@ -1,0 +1,17 @@
+{% macro table_header(title, sortable) %}
+{% if sortable %}
+<th>
+    <a href="#"
+       hx-get="?order={{ title }}_{{ 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' }}"
+       hx-target="#users-table"
+       hx-push-url="true">
+        {{ title|capitalize }}
+        {% if request.args.get('order', '').startswith(title) %}
+            {% if request.args.get('order').endswith('_asc') %}▲{% else %}▼{% endif %}
+        {% endif %}
+    </a>
+</th>
+{% else %}
+  <th>{{ title|capitalize }}</th>
+{% endif %}
+{% endmacro %}

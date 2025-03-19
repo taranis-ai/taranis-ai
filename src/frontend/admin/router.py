@@ -1,33 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
 from flask_jwt_extended import jwt_required
-from werkzeug.datastructures import ImmutableMultiDict
 
 from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import Role, User, Organization
+from admin.models import Role, User, Organization, PagingData
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
-
-
-def is_htmx_request() -> bool:
-    return "HX-Request" in request.headers
-
-
-def parse_formdata(formdata: ImmutableMultiDict):
-    parsed_data = {}
-    for key in formdata.keys():
-        if key.endswith("[]"):
-            parsed_data[key[:-2]] = request.form.getlist(key)
-        else:
-            parsed_data[key] = request.form.get(key)
-    return parsed_data
+from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_params
 
 
 class Dashboard(MethodView):
@@ -53,7 +39,12 @@ class RolesAPI(MethodView):
 class UsersAPI(MethodView):
     @jwt_required()
     def get(self):
-        result = DataPersistenceLayer().get_objects(User,limit=2)
+        query_params = convert_query_params(request.args, PagingData)
+        try:
+            q = PagingData(**query_params)
+        except ValidationError as ve:
+            return {"error": str(ve)}
+        result = DataPersistenceLayer().get_objects(User, q)
 
         if result is None:
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500

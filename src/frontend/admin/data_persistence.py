@@ -5,7 +5,7 @@ from typing import Type
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache
-from admin.models import TaranisBaseModel, T, CacheObject
+from admin.models import TaranisBaseModel, T, CacheObject, PagingData
 from admin.log import logger
 
 
@@ -26,7 +26,7 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
         if result := self.get_objects(object_model):
             for object in result:
-                if object.id == object_id:  
+                if object.id == object_id:  # type: ignore
                     return object
 
     def invalidate_cache(self, suffix: str):
@@ -35,16 +35,17 @@ class DataPersistenceLayer:
         for key in keys_to_delete:
             cache.delete(key)
 
-    def get_objects(self, object_model: Type[T], limit: int=20) -> list[T] | None:
+    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> list[T] | None:
         endpoint = self.get_endpoint(object_model)
-        if cache_result := cache.get(key=self.make_key(endpoint)):
+        cache_object: CacheObject | None
+        if cache_object := cache.get(key=self.make_key(endpoint)):
             logger.info(f"Cache hit for {endpoint}")
-            return cache_result.paginate()
+            return cache_object.paginate(paging_data)
         if result := self.api.api_get(endpoint):
             result_object = [object_model(**object) for object in result["items"]]
             cache_object = CacheObject(result_object)
             cache.set(key=self.make_key(endpoint), value=cache_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
-            return cache_object.paginate()
+            return cache_object.paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()

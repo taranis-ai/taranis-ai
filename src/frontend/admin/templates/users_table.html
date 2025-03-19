@@ -1,39 +1,39 @@
-<!-- list all retrieved users -->
 
-    <table class="table table-striped" id="users-table">
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Roles</th>
-                <th>Permissions</th>
-            </tr>
-        </thead>
-        <tbody >
-            {% for user in users %}
-            <tr>
-                <td>{{ user.username }}</td>
-                <td>{{ user.name }}</td>
-                <td>{{ user.roles|length }}</td>
-                <td>{{ user.permissions|length }}</td>
-                <td hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
-                    <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
-                        Edit
-                    </button>
-                    <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot hx-target="#users-table">
+{% from "macros/table.html" import table_header with context %}
+<table class="table table-striped" id="users-table">
+    <thead>
         <tr>
-            <td />
-            <td />
-            <td colspan="2">
-        {% with data=users %}
-            {% include 'datatable_controls.html' %}
-        {% endwith %}
+          {{ table_header('username', True) }}
+          {{ table_header('name', True) }}
+          {{ table_header('roles', False) }}
+          {{ table_header('permissions', False) }}
+        </tr>
+    </thead>
+    <tbody >
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.roles|length }}</td>
+            <td>{{ user.permissions|length }}</td>
+            <td hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
+                <button hx-get="/frontend/users/{{ user.id }}/edit" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
+                    Edit
+                </button>
+                <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
             </td>
         </tr>
-        </tfoot>
-    </table>
+        {% endfor %}
+    </tbody>
+    <tfoot hx-target="#users-table">
+    <tr>
+        <td />
+        <td />
+        <td colspan="2">
+    {% with data=users %}
+        {% include 'datatable_controls.html' %}
+    {% endwith %}
+        </td>
+    </tr>
+    </tfoot>
+</table>
