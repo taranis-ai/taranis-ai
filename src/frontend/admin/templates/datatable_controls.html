@@ -1,18 +1,18 @@
-<!-- Creates Table Contorls Itmes per page, Page Number, Next, Previous, First, Last --> 
+<!-- Creates Table Controls Itmes per page, Page Number, Next, Previous, First, Last --> 
 
 Items per Page {{ data.limit }}
 Current Range {{ data.current_range }} of {{ data | length }} 
 
 
-<a href="?page=1" class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}" hx-get="?page=1">
+<a href="?page=1" class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}" hx-get="?page=1" hx-push-url="true">
     <<
 </a>
-<a href="?page={{ data.current_page - 1 }}" hx-get="?page={{ data.current_page - 1 }}" class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}">
+<a href="?page={{ data.current_page - 1 }}" hx-get="?page={{ data.current_page - 1 }}" class="{% if data.first_page %}pointer-events-none{% else %}link{% endif %}" hx-push-url="true">
     <
 </a>
-<a href="?page={{ data.current_page + 1 }}" hx-get="?page={{ data.current_page + 1 }}" class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}">
+<a href="?page={{ data.current_page + 1 }}" hx-get="?page={{ data.current_page + 1 }}" class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}" hx-push-url="true">
     >
 </a>
-<a href="?page={{ data.total_pages }}" hx-get="?page={{ data.total_pages }}" class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}">
+<a href="?page={{ data.total_pages }}" hx-get="?page={{ data.total_pages }}" class="{% if data.last_page %}pointer-events-none{% else %}link{% endif %}" hx-push-url="true">
     >>
 </a>

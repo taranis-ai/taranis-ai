@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="text-3xl font-bold mb-4">Users</div>
-{% include 'users_table.html' %}
+<div class="bg-white rounded-sm p-4 shadow-lg">
+    {% include 'users_table.html' %}
+</div>
 
 <div hx-get="/frontend/users/new" hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary mt-2">New User</div>
 

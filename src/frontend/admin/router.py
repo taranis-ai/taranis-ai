@@ -53,7 +53,7 @@ class RolesAPI(MethodView):
 class UsersAPI(MethodView):
     @jwt_required()
     def get(self):
-        result = DataPersistenceLayer().get_objects(User)
+        result = DataPersistenceLayer().get_objects(User,limit=2)
 
         if result is None:
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500

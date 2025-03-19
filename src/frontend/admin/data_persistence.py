@@ -26,7 +26,7 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
         if result := self.get_objects(object_model):
             for object in result:
-                if object.id == object_id:  # type: ignore
+                if object.id == object_id:  
                     return object
 
     def invalidate_cache(self, suffix: str):
@@ -35,18 +35,16 @@ class DataPersistenceLayer:
         for key in keys_to_delete:
             cache.delete(key)
 
-    def get_objects(self, object_model: Type[T]) -> list[T] | None:
+    def get_objects(self, object_model: Type[T], limit: int=20) -> list[T] | None:
         endpoint = self.get_endpoint(object_model)
-        # endpoint_for_cache = endpoint.replace("/", "_")
         if cache_result := cache.get(key=self.make_key(endpoint)):
             logger.info(f"Cache hit for {endpoint}")
-            return cache_result
+            return cache_result.paginate()
         if result := self.api.api_get(endpoint):
             result_object = [object_model(**object) for object in result["items"]]
             cache_object = CacheObject(result_object)
             cache.set(key=self.make_key(endpoint), value=cache_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
-            # for testing purposes, create a second cache key with a static prefix
-            return cache_object
+            return cache_object.paginate()
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()

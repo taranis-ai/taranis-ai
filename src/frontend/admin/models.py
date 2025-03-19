@@ -88,3 +88,12 @@ class CacheObject(list):
     @property
     def current_range(self):
         return f"{self.offset + 1}-{min(self.offset + self.limit, len(self))}"
+    
+    def paginate(self):
+        return self[self.offset:self.offset + self.limit]
+
+
+class PagingData(BaseModel):
+    page: int
+    limit: int
+    order: str
