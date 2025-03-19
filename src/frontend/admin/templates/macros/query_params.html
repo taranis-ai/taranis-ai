@@ -1,5 +1,8 @@
-{% macro update_query_params(new_params) %}
+{% macro update_query_params(new_params={}, exclude=[]) %}
     {% set params = request.args.to_dict(flat=True) %}
+    {% for key in exclude %}
+        {% set _ = params.pop(key, None) %}
+    {% endfor %}
     {% for key, value in new_params.items() %}
         {% set _ = params.update({key: value}) %}
     {% endfor %}

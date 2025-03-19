@@ -2,7 +2,20 @@
 
 {% from "macros/query_params.html" import update_query_params with context %}
 
-Items per Page {{ data.limit }}
+<div>
+  Items per Page:
+  <select name="limit" class="select"
+  hx-get="{{ update_query_params({'page': 1}) }}"
+  hx-include="this"
+  hx-push-url="true">
+  {% for option in [5, 20, 50, 100] %}
+  <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
+      {{ option }}
+  </option>
+  {% endfor %}
+  </select>
+</div>
+
 Current Range {{ data.current_range }} of {{ data.length }}
 
 <a href="{{ update_query_params({'page': 1}) }}"

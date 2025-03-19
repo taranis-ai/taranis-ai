@@ -1,15 +1,16 @@
 {% macro table_header(title, sortable) %}
+{% from "macros/query_params.html" import update_query_params with context %}
 {% if sortable %}
 <th>
-    <a href="#"
-       hx-get="?order={{ title }}_{{ 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' }}&page={{ request.args.get('page', 1) }}"
-       hx-target="#users-table"
-       hx-push-url="true">
-        {{ title|capitalize }}
-        {% if request.args.get('order', '').startswith(title) %}
-            {% if request.args.get('order').endswith('_asc') %}▲{% else %}▼{% endif %}
-        {% endif %}
-    </a>
+  <a  href="{{ update_query_params({'order': title ~ '_' ~ ('asc' if request.args.get('order') != title ~ '_asc' else 'desc'), 'page': 1}) }}"
+      hx-get="{{ update_query_params({'order': title ~ '_' ~ ('asc' if request.args.get('order') != title ~ '_asc' else 'desc'), 'page': 1}) }}"
+      hx-target="#users-table"
+      hx-push-url="true">
+      {{ title|capitalize }}
+      {% if request.args.get('order', '').startswith(title) %}
+        {% if request.args.get('order').endswith('_asc') %}▲{% else %}▼{% endif %}
+      {% endif %}
+  </a>
 </th>
 {% else %}
   <th>{{ title|capitalize }}</th>
