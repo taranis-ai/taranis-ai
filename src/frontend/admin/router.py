@@ -10,7 +10,7 @@ from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import Role, User, Organization, CacheObject
+from admin.models import Role, User, Organization
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
@@ -92,12 +92,8 @@ class UpdateUser(MethodView):
     @jwt_required()
     def put(self, id):
         user = User(**parse_formdata(request.form))
-        print(f"sending {parse_formdata(request.form)} to API")
         result = DataPersistenceLayer().update_object(user, id)
-        print(f"got result: {result}")
         if not result.ok:
-            logger.debug(f"Error: {result.content}")
-            logger.debug(result.status_code)
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
             response = render_template(
