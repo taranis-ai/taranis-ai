@@ -10,7 +10,7 @@ from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import Role, User, Organization
+from admin.models import Role, User, Organization, CacheObject
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
@@ -54,8 +54,12 @@ class UsersAPI(MethodView):
     @jwt_required()
     def get(self):
         result = DataPersistenceLayer().get_objects(User)
+
         if result is None:
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+        
+        if is_htmx_request():
+            return render_template("users_table.html", users=result)
         return render_template("users.html", users=result)
 
     @auth_required()
