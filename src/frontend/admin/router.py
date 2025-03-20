@@ -53,7 +53,7 @@ class ScheduleAPI(MethodView):
 
 class ScheduleJobDetailsAPI(MethodView):
     @jwt_required()
-    def get(self, job_id: int):
+    def get(self, job_id: str):
         job = DataPersistenceLayer().get_object(Job, job_id)
         if job is None:
             return f"Failed to fetch job from: {Config.TARANIS_CORE_URL}", 500
@@ -229,7 +229,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
 
     admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
-    admin_bp.add_url_rule("/schedule/job/<int:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
+    admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
 
     admin_bp.add_url_rule("/organizations/", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/new", view_func=NewOrganization.as_view("new_organization"))

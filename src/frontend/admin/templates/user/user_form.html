@@ -22,16 +22,14 @@
         {% include "user/edit_user.html" %}
     {% endif -%}
 
-        <form id="user-form" {% if new_user %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#user-form-container" hx-target-error="#user-form-container" class="w-full max-w-lg">
-
-        {% if error.globalerror %}
+    <form id="user-form" {% if new_user %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#user-form-container" hx-target-error="#user-form-container" class="w-full max-w-lg">
+        {% if error.globalerror -%}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
-        {% endif %}
+        {% endif -%}
 
         <label class="floating-label mb-5">
             <span>Username</span>
-
-                <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
+            <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
         </label>
 
         <label class="floating-label mb-5">
@@ -39,14 +37,10 @@
             <input type="text" placeholder="Name" class="input input-md validator" name="name" required value="{{ user.name }}" id="userform_name" />
         </label>
 
-
         <label class="floating-label mb-5">
             <span>Password</span>
-                <input id="user-password" type="password" placeholder="Password" class="input input-md validator" name="password"
+                <input id="user-password" type="password" placeholder="Password" class="input input-md validator {% if form_error.password %}input-error{% endif %}" name="password"
                 {% if new_user %}required hx-preserve{% endif %}/>
-                {% if form_error.password %}
-                    <span class="error">{{ form_error.password }}</span>
-                {% endif %}
         </label>
 
         <label class="">

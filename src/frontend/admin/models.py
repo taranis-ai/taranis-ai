@@ -22,8 +22,8 @@ class Address(TaranisBaseModel):
 
 
 class Job(TaranisBaseModel):
-    _core_endpoint = "/config/jobs"
-    id: int
+    _core_endpoint = "/config/schedule"
+    id: str
     name: str
     trigger: str
     next_run_time: str
