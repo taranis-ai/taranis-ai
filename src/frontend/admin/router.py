@@ -4,6 +4,7 @@ from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
 from flask_jwt_extended import jwt_required
+from swagger_ui import api_doc
 
 from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
@@ -217,6 +218,8 @@ def init(app: Flask):
     app.json = app.json_provider_class(app)
     HTMX(app)
     app.register_error_handler(401, handle_unauthorized)
+
+    api_doc(app, config_url=f"{Config.TARANIS_CORE_URL}/static/openapi3_1.yaml", url_prefix=f"{Config.APPLICATION_ROOT}/doc", editor=False)
 
     app.url_map.strict_slashes = False
     app.jinja_env.filters["human_readable"] = human_readable_trigger

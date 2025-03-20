@@ -21,6 +21,7 @@ dependencies = [
     "flask-cors",
     "click",
     "pydantic-settings",
+    "swagger-ui-py-x",
     "python-dotenv",
     "granian",
     "requests",

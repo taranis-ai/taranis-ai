@@ -1,6 +1,7 @@
 from functools import wraps
-
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
+from flask import redirect
+
 from admin.config import Config
 from admin.log import logger
 from admin.cache import add_user_to_cache, get_user_from_cache
@@ -76,8 +77,6 @@ def get_user_details():
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
-    # read userdata from cache
-    # return User.find_by_name(identity) if identity else None
     return get_user_from_cache(identity) or get_user_details()
 
 
@@ -93,3 +92,13 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
     cached userdata is invalidated, when userdata is changed
     """
     return False
+
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    return redirect("/login", code=302)
+
+
+@jwt.unauthorized_loader
+def unauthorized_callback(callback):
+    return redirect("/login", code=302)

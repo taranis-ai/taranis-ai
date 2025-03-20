@@ -8,6 +8,9 @@
           {{ table_header('roles', False) }}
           {{ table_header('permissions', False) }}
         </tr>
+        <tr>
+          {% include 'partials/import_export.html' %}
+        </tr>
     </thead>
     <tbody >
         {% for user in users %}
