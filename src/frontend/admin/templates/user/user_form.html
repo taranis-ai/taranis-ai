@@ -101,5 +101,8 @@
 			this.setTextboxValue('');
 			this.refreshOptions();
 		}};
-  new TomSelect('#user-role-select', settings);
+
+  htmx.onLoad(function(elt) {
+    new TomSelect('#user-role-select', settings);
+  });
 </script>
