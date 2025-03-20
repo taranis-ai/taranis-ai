@@ -97,6 +97,9 @@
 		}};
 
   htmx.onLoad(function(elt) {
+   
+    var elt = document.getElementById('user-role-select');
+    if (elt && elt.classList.contains('tomselected')) return;
     new TomSelect('#user-role-select', settings);
   });
 </script>
