@@ -118,6 +118,10 @@ class BaseCollector:
         """
         story_lists example: [{title: str, news_items: list[NewsItem]}]
         """
+        if not story_lists:
+            logger.info(f"No stories to publish from source {source.get('name')} ({source.get('id')})")
+            return None
+
         if not story_attribute_key:
             news_items = [item for story_list in story_lists for item in story_list["news_items"]]
             return self.publish(news_items, source)
