@@ -10,7 +10,7 @@ load_dotenv(dotenv_path="tests/.env", override=True)
 
 app = create_app()
 schemathesis.experimental.OPEN_API_3_1.enable()
-schema = schemathesis.from_wsgi("/api/doc/swagger.json", app, skip_deprecated_operations=True)
+schema = schemathesis.from_wsgi("/frontend/doc/swagger.json", app, skip_deprecated_operations=True)
 
 
 @schema.auth()
@@ -93,7 +93,7 @@ def test_schema_no_auth(case, auth_header_no_permissions, caplog):
 
 # @pytest.fixture
 # def state_machine(app, auth_header):
-#     s = schemathesis.from_wsgi("/api/doc/swagger.json", app)
+#     s = schemathesis.from_wsgi("/frontend/doc/swagger.json", app)
 #     s.add_link(
 #         source=s["/assess/news-items"]["POST"],
 #         target=s["/assess/news-items/{item_id}"]["GET"],
