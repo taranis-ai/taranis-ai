@@ -18,14 +18,24 @@
     <div class="container mx-auto w-full max-w-full">
         <!-- tmp menu here -->
         <div>
-            <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
-            <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
-            <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
+            <div id="debug_menu">
+              <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
+              <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
+              <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
+              <a href="{{ url_for('admin.schedule') }}" class="text-blue-500 underline">Schedule</a>
+            </div>
             <section id="toast-container"></section>
-
         </div>
         {% block content %}{% endblock %}
         <section id="status-msg"></section>
     </div>
 </body>
 </html>
+
+<script>
+  // hide debug menu if loaded inside iframe
+
+  if (window.self !== window.top) {
+    document.getElementById('debug_menu').style.display = 'none';
+  }
+</script>

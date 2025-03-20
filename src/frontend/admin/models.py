@@ -21,6 +21,14 @@ class Address(TaranisBaseModel):
     zip: str
 
 
+class Job(TaranisBaseModel):
+    _core_endpoint = "/config/jobs"
+    id: int
+    name: str
+    trigger: str
+    next_run_time: str
+
+
 class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
     id: int

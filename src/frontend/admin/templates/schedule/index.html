@@ -1,3 +1,6 @@
+{% extends 'base.html' %}
+{% block content %}
+
 <table id="scheduleTable">
     <thead>
         <tr>
@@ -8,13 +11,7 @@
         </tr>
     </thead>
     <tbody id="jobs-body">
-        {% include "jobs_partial.html" %}
+        {% include "schedule/job.html" %}
     </tbody>
 </table>
-
-<script src="https://cdn.datatables.net/2.2.2/js/dataTables.dataTables.min.js"></script>
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/js/dataTables.min.js">
-
-<script>
-    let table = new DataTable('#scheduleTable');
-</script>
+{% endblock %}

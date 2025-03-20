@@ -9,7 +9,7 @@ from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import Role, User, Organization, PagingData
+from admin.models import Role, User, Organization, PagingData, Job
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
@@ -35,6 +35,31 @@ class RolesAPI(MethodView):
         return render_template("roles.html", roles=result)
 
 
+class ScheduleAPI(MethodView):
+    @jwt_required()
+    def get(self):
+        query_params = convert_query_params(request.args, PagingData)
+        try:
+            q = PagingData(**query_params)
+        except ValidationError as ve:
+            return {"error": str(ve)}
+        result = DataPersistenceLayer().get_objects(Job, q)
+
+        if result is None:
+            return f"Failed to fetch jobs from: {Config.TARANIS_CORE_URL}", 500
+
+        return render_template("schedule/index.html", jobs=result)
+
+
+class ScheduleJobDetailsAPI(MethodView):
+    @jwt_required()
+    def get(self, job_id: int):
+        job = DataPersistenceLayer().get_object(Job, job_id)
+        if job is None:
+            return f"Failed to fetch job from: {Config.TARANIS_CORE_URL}", 500
+        return render_template("schedule/job_details.html", job=job)
+
+
 # create a users index view
 class UsersAPI(MethodView):
     @jwt_required()
@@ -50,8 +75,8 @@ class UsersAPI(MethodView):
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         if is_htmx_request():
-            return render_template("users_table.html", users=result)
-        return render_template("users.html", users=result)
+            return render_template("user/users_table.html", users=result)
+        return render_template("user/index.html", users=result)
 
     @auth_required()
     def post(self):
@@ -67,7 +92,7 @@ class UsersAPI(MethodView):
             # user._errors['username'] = "Username already exists"
 
             return render_template(
-                "user_form.html",
+                "user/user_form.html",
                 organizations=organizations,
                 roles=roles,
                 action="new",
@@ -81,6 +106,16 @@ class UsersAPI(MethodView):
 
 class UpdateUser(MethodView):
     @jwt_required()
+    def get(self, user_id: int):
+        organizations = DataPersistenceLayer().get_objects(Organization)
+        roles = DataPersistenceLayer().get_objects(Role)
+        if user_id == 0:
+            return render_template("user/user_form.html", organizations=organizations, roles=roles, action="new")
+        user = DataPersistenceLayer().get_object(User, user_id)
+        current_user = get_jwt_identity()
+        return render_template("user/user_form.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
+
+    @jwt_required()
     def put(self, id):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(user, id)
@@ -88,14 +123,12 @@ class UpdateUser(MethodView):
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
             response = render_template(
-                "user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit"
+                "user/user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit"
             )
             return response, 200
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 
-
-class DeleteUser(MethodView):
     @jwt_required()
     def delete(self, id):
         result = DataPersistenceLayer().delete_object(User, id)
@@ -107,17 +140,7 @@ class NewUser(MethodView):
     def get(self):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
-        return render_template("user_form.html", organizations=organizations, roles=roles, action="new")
-
-
-class EditUser(MethodView):
-    @jwt_required()
-    def get(self, id):
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-        user = DataPersistenceLayer().get_object(User, int(id))
-        current_user = get_jwt_identity()
-        return render_template("edit_user.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
+        return render_template("user/user_form.html", organizations=organizations, roles=roles, action="new")
 
 
 class OrganizationsAPI(MethodView):
@@ -127,7 +150,7 @@ class OrganizationsAPI(MethodView):
         if result is None:
             return f"Failed to fetch organization from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("organizations.html", organizations=result)
+        return render_template("organization/organizations.html", organizations=result)
 
 
 class NewOrganization(MethodView):
@@ -201,12 +224,13 @@ def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
     admin_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
-    admin_bp.add_url_rule("/users/", view_func=UsersAPI.as_view("users"))
-    admin_bp.add_url_rule("/users/new", view_func=NewUser.as_view("new_user"))
-    # TODO fix EDIT /users/id
-    admin_bp.add_url_rule("/users/<id>/edit", view_func=EditUser.as_view("edit_user"))
-    admin_bp.add_url_rule("users/<id>", view_func=DeleteUser.as_view("delete_user"), methods=["DELETE"])
-    admin_bp.add_url_rule("users/<id>", view_func=UpdateUser.as_view("update_user"), methods=["PUT"])
+
+    admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
+    admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
+
+    admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
+    admin_bp.add_url_rule("/schedule/job/<int:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
+
     admin_bp.add_url_rule("/organizations/", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/new", view_func=NewOrganization.as_view("new_organization"))
 
