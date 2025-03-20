@@ -10,7 +10,7 @@ export default {
   setup() {
     const store = useMainStore()
     store.resetItemCount()
-    const iframeSrc = store.coreAPIURL + '/doc'
+    const iframeSrc = `${import.meta.env.BASE_URL}frontend/doc`
     return { iframeSrc }
   }
 }

@@ -5,7 +5,11 @@
         <v-icon v-bind="props" icon="mdi-text-short" />
       </template>
     </v-tooltip>
-    <span v-dompurify-html="highlighted" style="word-wrap: anywhere" data-testid="summarized-content-span"/>
+    <span
+      v-dompurify-html="highlighted"
+      style="word-wrap: anywhere"
+      data-testid="summarized-content-span"
+    />
   </span>
 </template>
 
