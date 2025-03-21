@@ -10,7 +10,7 @@ load_dotenv(dotenv_path="tests/.env", override=True)
 
 app = create_app()
 schemathesis.experimental.OPEN_API_3_1.enable()
-schema = schemathesis.from_wsgi("/frontend/doc/swagger.json", app, skip_deprecated_operations=True)
+schema = schemathesis.from_wsgi("/api/static/openapi3_1.yaml", app, skip_deprecated_operations=True)
 
 
 @schema.auth()
