@@ -1,0 +1,42 @@
+
+{% from "macros/table.html" import table_header with context %}
+<table class="table" id="users-table">
+    <thead>
+        <tr>
+          {{ table_header('username', True) }}
+          {{ table_header('name', True) }}
+          {{ table_header('roles', False) }}
+          {{ table_header('permissions', False) }}
+        </tr>
+        <tr>
+          {% include 'partials/import_export.html' %}
+        </tr>
+    </thead>
+    <tbody >
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.roles|length }}</td>
+            <td>{{ user.permissions|length }}</td>
+            <td hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
+                <button href="/frontend/users/{{ user.id }}" hx-get="/frontend/users/{{ user.id }}" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
+                    Edit
+                </button>
+                <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot hx-target="#users-table">
+    <tr>
+        <td />
+        <td />
+        <td colspan="2">
+    {% with data=users %}
+        {% include 'partials/datatable_controls.html' %}
+    {% endwith %}
+        </td>
+    </tr>
+    </tfoot>
+</table>

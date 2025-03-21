@@ -46,6 +46,48 @@ jobs:
           echo "- **⏱ Duration:** $(echo "$pytest_output" | grep -oP '\d+\.\d+(?= seconds)' || echo 0) seconds" >> $GITHUB_STEP_SUMMARY
 
 
+
+  test_frontend:
+    name: pytest frontend
+    defaults:
+      run:
+        working-directory: src/frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Lint with ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Run tests and capture output
+        run: |
+          {
+            echo "pytest_output<<EOF"
+            uv run pytest || true
+            echo "EOF"
+          } >> $GITHUB_ENV
+
+      - name: Extract and Post Test Summary
+        run: |
+          echo "### ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **✅ Passed:** $(echo "$pytest_output" | grep -oP '\d+(?= passed)' || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **❌ Failed:** $(echo "$pytest_output" | grep -oP '\d+(?= failed)' || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Skipped:** $(echo "$pytest_output" | grep -oP '\d+(?= skipped)' || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **🚨 Errors:** $(echo "$pytest_output" | grep -oP '\d+(?= error)' || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⏱ Duration:** $(echo "$pytest_output" | grep -oP '\d+\.\d+(?= seconds)' || echo 0) seconds" >> $GITHUB_STEP_SUMMARY
+
+
   test_gui:
     name: test gui
     runs-on: ubuntu-latest

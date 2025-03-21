@@ -1,0 +1,43 @@
+<!-- Creates Table Controls Itmes per page, Page Number, Next, Previous, First, Last -->
+
+{% from "macros/query_params.html" import update_query_params with context %}
+
+<div>
+  Items per Page:
+  <select name="limit" class="select"
+  hx-get="{{ update_query_params({'page': 1}, exclude=['limit']) }}"
+  hx-include="this"
+  hx-push-url="true">
+  {% for option in [5, 20, 50, 100] %}
+  <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
+      {{ option }}
+  </option>
+  {% endfor %}
+  </select>
+</div>
+
+Current Range {{ data.current_range }} of {{ data.length }}
+
+<a href="{{ update_query_params({'page': 1}) }}"
+   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
+   hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
+    <<
+</a>
+
+<a href="{{ update_query_params({'page': data.current_page - 1}) }}"
+   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
+   hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
+    <
+</a>
+
+<a href="{{ update_query_params({'page': data.current_page + 1}) }}"
+   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
+   hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
+    >
+</a>
+
+<a href="{{ update_query_params({'page': data.total_pages}) }}"
+   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
+   hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
+    >>
+</a>

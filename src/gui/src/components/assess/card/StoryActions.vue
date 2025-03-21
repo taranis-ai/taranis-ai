@@ -220,7 +220,12 @@
       </v-tooltip>
     </div>
 
-    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y :data-testid="`story-actions-menu-${story.id}`">
+    <v-menu
+      v-if="!reportView && !openSummary"
+      location="bottom"
+      offset-y
+      :data-testid="`story-actions-menu-${story.id}`"
+    >
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -241,14 +246,17 @@
             text="open detail view"
             location="start"
           />
-          <v-icon icon="mdi-magnify" data-testid="open detail view"/>
+          <v-icon icon="mdi-magnify" data-testid="open detail view" />
         </v-list-item>
         <v-list-item
           v-if="compactView && !reportView"
           @click.stop="sharingDialog = true"
         >
           <v-tooltip activator="parent" text="add to report" location="start" />
-          <v-icon icon="mdi-google-circles-communities" data-testid="add to report"/>
+          <v-icon
+            icon="mdi-google-circles-communities"
+            data-testid="add to report"
+          />
         </v-list-item>
         <v-list-item
           v-if="detailView || compactView"
@@ -307,7 +315,7 @@
         </v-list-item>
         <v-list-item :to="`/story/${story.id}/edit`">
           <v-tooltip activator="parent" text="edit story" location="start" />
-          <v-icon icon="mdi-book-edit-outline" title="edit story"/>
+          <v-icon icon="mdi-book-edit-outline" title="edit story" />
         </v-list-item>
 
         <v-list-item
