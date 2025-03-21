@@ -1,4 +1,5 @@
-from pymisp import MISPObject, PyMISP, MISPEvent, MISPShadowAttribute, exceptions
+from datetime import datetime, timezone
+from pymisp import MISPEventReport, MISPObject, PyMISP, MISPEvent, MISPShadowAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.core_api import CoreApi
@@ -227,6 +228,22 @@ class MISPConnector:
         self.add_event_attributes(story, event)
         return event
 
+    def create_event_report_content(self, story) -> str:
+        return "# Story description\n" + story.get("description") + "\n\n" + "# Story comment\n" + story.get("comments")
+
+    def create_event_report(self, story: dict, existing_uuid: str | None = None) -> MISPEventReport:
+        """
+        Creates and returns a MISPEventReport from a story.
+        If an existing_uuid is provided, it is reused to allow an update instead of adding a new report.
+        """
+        report_title = story.get("title", "")
+        content = self.create_event_report_content(story)
+        new_report = MISPEventReport()
+        if existing_uuid:
+            new_report.uuid = existing_uuid
+        new_report.from_dict(name=report_title, content=content, timestamp=datetime.now(timezone.utc))
+        return new_report
+
     def get_event_by_uuid(self, misp: PyMISP, story: dict, event_uuid: str) -> MISPEvent | None:
         if results := misp.search(controller="events", uuid=event_uuid, pythonify=True):
             logger.debug(f"Event to update exists: {results}")
@@ -242,6 +259,9 @@ class MISPConnector:
 
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
         event = self.create_misp_event(story)
+        # Create a new report without reusing any UUID.
+        new_report = self.create_event_report(story)
+        event.EventReport = [new_report]
         created_event: MISPEvent | dict = misp.add_event(event, pythonify=True)
         return None if isinstance(created_event, dict) else created_event
 
@@ -364,10 +384,16 @@ class MISPConnector:
     #     with open("tests/mispevent_testfiles/proposals.json") as f:
     #         ref_json = json.load(f)
     #     self.assertEqual(self.mispevent.to_json(sort_keys=True, indent=2), json.dumps(ref_json, sort_keys=True, indent=2))
-
-    def _update_event_with_story(self, story_prepared, misp_event_uuid, existing_event, misp: PyMISP):
+    def _update_event_with_story(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP):
         event_to_add = self.create_misp_event(story_prepared)
         event_to_add.uuid = misp_event_uuid
+
+        existing_report_uuid = None
+        if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
+            existing_report_uuid = existing_event.EventReport[0].uuid
+
+        new_report = self.create_event_report(story_prepared, existing_report_uuid)
+        event_to_add.EventReport = [new_report]
 
         updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=existing_event.id, pythonify=True)
         if isinstance(updated_event, dict):
