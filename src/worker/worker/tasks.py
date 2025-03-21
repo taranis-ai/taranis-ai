@@ -26,3 +26,8 @@ def setup_tasks(app: Celery):
         from worker.publishers.publisher_tasks import PublisherTask
 
         app.register_task(PublisherTask())
+
+    if "Connectors" in Config.WORKER_TYPES:
+        from worker.connectors.connector_tasks import ConnectorTask
+
+        app.register_task(ConnectorTask())
