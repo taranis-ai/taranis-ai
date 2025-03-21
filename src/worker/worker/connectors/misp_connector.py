@@ -42,10 +42,10 @@ class MISPConnector:
         logger.debug(f"{connector_config=}")
         self.parse_parameters(connector_config.get("parameters", ""))
         for story in stories:
-            misp_event_uuid = self.get_event_uuid_from_story(story)
+            misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
             self.misp_sender(story, misp_event_uuid)
 
-    def get_event_uuid_from_story(self, story: dict) -> str | None:
+    def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
         story_attributes = story.get("attributes", [])
         return next(
             (attribute.get("value") for attribute in story_attributes if attribute.get("key") == "misp_event_uuid"),
@@ -76,7 +76,7 @@ class MISPConnector:
     def get_story_object_dict() -> dict:
         """Useful for unit testing or ensuring consistent keys."""
         return {
-            "attributes": [],
+            "attributes": {},
             "comments": "",
             "created": "",
             "description": "",
@@ -84,7 +84,7 @@ class MISPConnector:
             "id": "",
             "important": False,
             "likes": 0,
-            "links": [],
+            "links": {},
             "read": False,
             "relevance": 0,
             "summary": "",
@@ -98,6 +98,7 @@ class MISPConnector:
         For each news item in 'news_items', create a TaranisObject and add it to the event.
         """
         for news_item in news_items:
+            news_item.pop("last_change", None)  # key intended for internal use only
             object_data = self.get_news_item_object_dict()
             object_data.update(news_item)
 
@@ -108,43 +109,106 @@ class MISPConnector:
 
     def add_story_object(self, story: dict, event: MISPEvent) -> None:
         """
-        Create a TaranisObject for the story itself, add attributes from the story,
-        and attach it to the event with all attributes correctly stored under the 'attributes' key.
+        Create a TaranisObject for the story itself, add attributes, links, and tags from the story,
+        and attach it to the event with all data correctly stored under their respective keys.
         """
+        # Remove internal keys not meant for external processing
+        story.pop("last_change", None)
+
         object_data: dict = self.get_story_object_dict()
         object_data |= story
         object_data["attributes"] = []
+        object_data["links"] = []
+        object_data["tags"] = []
 
         story_object = BaseMispObject(
             parameters=object_data,
             template="taranis-story",
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
-
         attribute_list = self.add_attributes_from_story(story)
+        link_list = self._process_items(story, "links", self._process_link)
+        tag_list = self._process_items(story, "tags", self._process_tags)
 
         story_object.add_attributes("attributes", *attribute_list)
+        story_object.add_attributes("links", *link_list)
+        story_object.add_attributes("tags", *tag_list)
 
         event.add_object(story_object)
-        # logger.info(f"Story object added to event {event.id} with template 'taranis-story'.")
 
-    def add_attributes_from_story(self, story: dict) -> list:
-        """Don't upload metadata of attributes to misp"""
-        # TODO: Temporary solution before changing the misp event to story mapping to story's UUID
-        if not any(attribute["key"] == "misp_event_uuid" for attribute in story.get("attributes", [])):
+    def add_misp_event_uuid_attribute(self, story: dict) -> None:
+        """
+        Ensure the story has a 'misp_event_uuid' attribute so that the system can determine if it is
+        an update or a new event.
+        """
+        if not any(attribute.get("key") == "misp_event_uuid" for attribute in story.get("attributes", [])):
             story.setdefault("attributes", []).append({"key": "misp_event_uuid", "value": f"{story.get('id', '')}"})
 
-        attribute_list = []
-        for attr in story.get("attributes", []):
-            key = attr.get("key", "")
-            value = attr.get("value")
-            attribute_value = "{'key': '" + str(key) + "', 'value': '" + str(value) + "'}"
-            if value is not None:
-                attribute_list.append(str(attribute_value))
-                logger.debug(f"Adding attribute to story object: attributes={attribute_value}")
-            else:
-                logger.warning(f"Skipping attribute with missing value: {attr}")
-        return attribute_list
+    def add_attributes_from_story(self, story: dict) -> list:
+        """
+        Process attributes from the story, ensuring internal metadata (like misp_event_uuid)
+        is added and only valid attributes are included.
+        """
+        self.add_misp_event_uuid_attribute(story)
+        return self._process_items(story, "attributes", self._process_attribute)
+
+    def _process_items(self, story: dict, key: str, processor) -> list:
+        """
+        Generic helper to process a list of items stored under the provided key in the story dictionary.
+
+        :param story: The source dictionary containing the items.
+        :param key: The key corresponding to the list of items (e.g., 'attributes', 'links', 'tags').
+        :param processor: A function that takes an item and returns a processed string (or None if invalid).
+        :return: A list of processed item strings.
+        """
+        items_list = []
+        for item in story.get(key, []):
+            processed = processor(item)
+            if processed is not None:
+                items_list.append(processed)
+        return items_list
+
+    def _process_attribute(self, attr: dict) -> str | None:
+        """
+        Process a single attribute dict into its string representation.
+        """
+        key = attr.get("key", "")
+        value = attr.get("value")
+        if value is not None:
+            attribute_value = f"{{'key': '{key}', 'value': '{value}'}}"
+            logger.debug(f"Adding attribute: {attribute_value}")
+            return attribute_value
+        else:
+            logger.warning(f"Skipping attribute with missing value: {attr}")
+            return None
+
+    def _process_link(self, link_item: dict) -> str | None:
+        """
+        Process a single link dict into its string representation.
+        """
+        link = link_item.get("link", "")
+        news_item_id = link_item.get("news_item_id", "")
+        if link and news_item_id:
+            link_value = f"{{'link': '{link}', 'news_item_id': '{news_item_id}'}}"
+            logger.debug(f"Adding link: {link_value}")
+            return link_value
+        else:
+            logger.warning(f"Skipping link with missing data: {link_item}")
+            return None
+
+    def _process_tags(self, tag_item: dict) -> str | None:
+        """
+        Process a single tag dict into its string representation.
+        """
+        name = tag_item.get("name", "")
+        tag_type = tag_item.get("tag_type", "")
+        if name:
+            tag_value = f"{{'name': '{name}', 'tag_type': '{tag_type}'}}"
+            logger.debug(f"Adding tag: {tag_value}")
+            return tag_value
+        else:
+            logger.warning(f"Skipping tag with missing data: {tag_item}")
+            return None
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         """
@@ -311,7 +375,7 @@ class MISPConnector:
                 error_tuple = updated_event["errors"]
                 http_code, error_data = error_tuple[0], error_tuple[1]
 
-                logger.error(f"MISP returned an error. HTTP code: {http_code}. " f"Details: {error_data}")
+                logger.error(f"MISP returned an error. HTTP code: {http_code}. Details: {error_data}")
                 if http_code == 403:
                     logger.error("MISP returned a permission error, you should create a proposal.")
                     misp = PyMISP(
@@ -363,7 +427,7 @@ class MISPConnector:
 
     def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> None:
         """
-        Sends or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
+        Creates or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
         """
         if event_uuid := self.send_event_to_misp(story, misp_event_uuid):
             self.core_api.api_patch(

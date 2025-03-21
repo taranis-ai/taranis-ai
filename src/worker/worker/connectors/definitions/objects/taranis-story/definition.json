@@ -28,7 +28,7 @@
         },
         "important": {
             "description": "Flag indicating importance",
-            "misp-attribute": "text",
+            "misp-attribute": "boolean",
             "ui-priority": 0
         },
         "likes": {
@@ -38,13 +38,13 @@
         },
         "links": {
             "description": "One or more links associated with the story",
-            "misp-attribute": "link",
+            "misp-attribute": "text",
             "multiple": true,
             "ui-priority": 0
         },
         "read": {
             "description": "Flag indicating if the story was read",
-            "misp-attribute": "text",
+            "misp-attribute": "boolean",
             "ui-priority": 0
         },
         "relevance": {
