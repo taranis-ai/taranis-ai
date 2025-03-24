@@ -7,7 +7,7 @@ from core.model.story import StoryConflict
 from core.audit import audit_logger
 
 
-class Conflicts(MethodView):
+class Connections(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id=None):
         if story_id:
@@ -26,10 +26,10 @@ class Conflicts(MethodView):
 
 
 def initialize(app: Flask):
-    conflicts_bp = Blueprint("conflicts", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/conflicts")
+    conflicts_bp = Blueprint("connections", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/connections")
 
-    conflicts_bp.add_url_rule("/compare", view_func=Conflicts.as_view("conflicts"))
-    conflicts_bp.add_url_rule("/compare/<string:story_id>", view_func=Conflicts.as_view("conflict_by_story_id"))
+    conflicts_bp.add_url_rule("/conflicts/compare", view_func=Connections.as_view("conflicts"))
+    conflicts_bp.add_url_rule("/compare/<string:story_id>", view_func=Connections.as_view("conflict_by_story_id"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)

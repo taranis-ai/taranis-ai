@@ -6,6 +6,7 @@ from core.api import (
     auth,
     bots,
     config,
+    connnections,
     dashboard,
     isalive,
     publish,
@@ -14,7 +15,6 @@ from core.api import (
     worker,
     frontend,
     static,
-    conflicts,
 )
 
 __all__ = [
@@ -33,5 +33,5 @@ __all__ = [
     "worker",
     "static",
     "frontend",
-    "conflicts",
+    "connnections",
 ]

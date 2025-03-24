@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getAllConflicts, resolveConflict } from '@/api/conflicts'
+import { getAllConflicts, resolveConflict } from '@/api/connections'
 
 export const useConflictsStore = defineStore('conflicts', () => {
   const conflicts = ref([])

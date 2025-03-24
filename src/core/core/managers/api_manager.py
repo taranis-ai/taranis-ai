@@ -27,7 +27,7 @@ def initialize(app):
     core_api.auth.initialize(app)
     core_api.bots.initialize(app)
     core_api.config.initialize(app)
-    core_api.conflicts.initialize(app)
+    core_api.connnections.initialize(app)
     core_api.dashboard.initialize(app)
     core_api.isalive.initialize(app)
     core_api.publish.initialize(app)

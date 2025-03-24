@@ -71,6 +71,14 @@
           </span>
         </template>
       </dash-board-card>
+      <dash-board-card link-to="/connections" link-text="Connections">
+        <template #content>
+          <v-icon class="mr-2"> mdi-tools </v-icon>
+          <span class="caption">
+            Here you will find all connection management tools.
+          </span>
+        </template>
+      </dash-board-card>
     </v-row>
   </v-container>
 </template>

@@ -6,7 +6,7 @@
       </v-col>
     </v-row>
     <v-row no-gutters>
-      <dash-board-card link-to="/assess" link-text="Assess" cols="6">
+      <dash-board-card link-to="/assess" link-text="Assess" cols="4">
         <template #content>
           <v-icon class="mr-2"> mdi-email-multiple-outline </v-icon>
           <span class="caption">
@@ -16,12 +16,20 @@
           </span>
         </template>
       </dash-board-card>
-      <dash-board-card link-to="/publish" link-text="Publish" cols="6">
+      <dash-board-card link-to="/publish" link-text="Publish" cols="4">
         <template #content>
           <v-icon class="mr-2" color="orange"> mdi-email-check-outline </v-icon>
           <span class="caption">
             There are <b>{{ dashboard_data.total_products }}</b> products ready
             for publications.
+          </span>
+        </template>
+      </dash-board-card>
+      <dash-board-card link-to="/connections" link-text="Connections" cols="4">
+        <template #content>
+          <v-icon class="mr-2"> mdi-tools </v-icon>
+          <span class="caption">
+            Here you will find all connection management tools.
           </span>
         </template>
       </dash-board-card>
