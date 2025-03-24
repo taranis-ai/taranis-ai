@@ -131,7 +131,7 @@ class UpdateUser(MethodView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @jwt_required()
-    def delete(self, id):
+    def delete(self, user_id):
         result = DataPersistenceLayer().delete_object(User, id)
         return "error" if result == "error" else Response(status=200)
 
