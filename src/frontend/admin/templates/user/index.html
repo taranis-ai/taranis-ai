@@ -1,8 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="text-3xl font-bold mb-4">Users</div>
-<div class="bg-white rounded-sm p-4 shadow-lg">
+<div class="bg-white rounded-sm p-4 shadow-lg" x-data="{ selectedusers: [] }">
+    {% include 'partials/import_export.html' %}
     {% include 'user/users_table.html' %}
+      <!-- Debugging output -->
+    <span x-text="selectedusers"></span>
 </div>
 
 <div hx-get={{ url_for('admin.edit_user', user_id=0) }} hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary mt-2">New User</div>

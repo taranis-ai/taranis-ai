@@ -1,43 +1,49 @@
-<!-- Creates Table Controls Itmes per page, Page Number, Next, Previous, First, Last -->
-
 {% from "macros/query_params.html" import update_query_params with context %}
-
-<div>
-  Items per Page:
-  <select name="limit" class="select"
-  hx-get="{{ update_query_params({'page': 1}, exclude=['limit']) }}"
-  hx-include="this"
-  hx-push-url="true">
-  {% for option in [5, 20, 50, 100] %}
-  <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
-      {{ option }}
-  </option>
-  {% endfor %}
-  </select>
-</div>
-
-Current Range {{ data.current_range }} of {{ data.length }}
-
-<a href="{{ update_query_params({'page': 1}) }}"
-   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
-   hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
-    <<
-</a>
-
-<a href="{{ update_query_params({'page': data.current_page - 1}) }}"
-   class="{% if data.first_page %}pointer-events-none{% else %}link link-hover{% endif %}"
-   hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
-    <
-</a>
-
-<a href="{{ update_query_params({'page': data.current_page + 1}) }}"
-   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
-   hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
-    >
-</a>
-
-<a href="{{ update_query_params({'page': data.total_pages}) }}"
-   class="{% if data.last_page %}pointer-events-none{% else %}link link-hover{% endif %}"
-   hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
-    >>
-</a>
+<div class="flex items-center justify-between gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
+    <!-- Items per Page -->
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-medium">Items per page:</span>
+      <select name="limit" class="select select-bordered select-sm h-8"
+          hx-get="{{ update_query_params({'page': 1}, exclude=['limit']) }}"
+          hx-include="this"
+          hx-push-url="true">
+        {% for option in [5, 20, 50, 100] %}
+        <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
+          {{ option }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  
+    <!-- Pagination Buttons & Current Page -->
+    <div class="flex items-center gap-2">
+      <a href="{{ update_query_params({'page': 1}) }}"
+         class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
+         hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
+        «
+      </a>
+  
+      <a href="{{ update_query_params({'page': data.current_page - 1}) }}"
+         class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
+         hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
+        ‹
+      </a>
+  
+      <span class="px-3 py-1 h-8 flex items-center bg-base-200 rounded-md text-sm font-semibold">
+        Page {{ data.current_page }} of {{ data.total_pages }}
+      </span>
+  
+      <a href="{{ update_query_params({'page': data.current_page + 1}) }}"
+         class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
+         hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
+        ›
+      </a>
+  
+      <a href="{{ update_query_params({'page': data.total_pages}) }}"
+         class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
+         hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
+        »
+      </a>
+    </div>
+  </div>
+  
