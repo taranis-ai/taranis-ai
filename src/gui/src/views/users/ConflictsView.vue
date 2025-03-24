@@ -84,9 +84,6 @@ async function initMergelyGlobally() {
   await loadCSS(
     'https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.css'
   )
-  await loadScript(
-    'https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.min.js'
-  )
 }
 
 function initMergelyForConflict(conflict) {

@@ -358,10 +358,6 @@ export const useAssessStore = defineStore(
       }
     }
 
-    function shareStoryToConnector(connector_id, story_ids) {
-      shareToConnector(connector_id, story_ids)
-    }
-
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }
@@ -416,8 +412,7 @@ export const useAssessStore = defineStore(
       markSelectionAsImportant,
       sseNewsItemsUpdated,
       markStoryAsRead,
-      markStoryAsImportant,
-      shareStoryToConnector
+      markStoryAsImportant
     }
   },
   {

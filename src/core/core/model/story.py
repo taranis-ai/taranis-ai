@@ -545,8 +545,7 @@ class Story(BaseModel):
 
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
-        current_data = Story.get(id)
-        if current_data:
+        if current_data := Story.get(id):
             current_data_dict = current_data.to_detail_dict()
             conflict = StoryConflict(story_id=id, original=current_data_dict, updated=data)
             logger.warning(f"Conflict detected for story {id}")

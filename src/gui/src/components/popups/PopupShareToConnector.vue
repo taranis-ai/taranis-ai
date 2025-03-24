@@ -37,7 +37,7 @@
   </v-card>
 </template>
 <script>
-import { useAssessStore } from '@/stores/AssessStore'
+import { shareToConnector } from '@/api/assess'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { ref, onMounted } from 'vue'
 export default {
@@ -52,16 +52,12 @@ export default {
   emits: ['close'],
   setup(props, { emit }) {
     const configStore = useConfigStore()
-    const assessStore = useAssessStore()
     const connectors = ref([])
     const connectorSelection = ref(null)
 
     const share = () => {
       if (connectorSelection.value && props.itemIds.length > 0) {
-        assessStore.shareStoryToConnector(
-          connectorSelection.value,
-          props.itemIds
-        )
+        shareToConnector(connectorSelection.value, props.itemIds)
         emit('close')
       }
     }

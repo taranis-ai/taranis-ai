@@ -142,7 +142,7 @@ class MISPConnector:
         Ensure the story has a 'misp_event_uuid' attribute so that the system can determine if it is
         an update or a new event.
         """
-        if not any(attribute.get("key") == "misp_event_uuid" for attribute in story.get("attributes", [])):
+        if all(attribute.get("key") != "misp_event_uuid" for attribute in story.get("attributes", [])):
             story.setdefault("attributes", []).append({"key": "misp_event_uuid", "value": f"{story.get('id', '')}"})
 
     def add_attributes_from_story(self, story: dict) -> list:

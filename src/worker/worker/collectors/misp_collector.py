@@ -94,12 +94,12 @@ class MISPCollector(BaseCollector):
                 # Obviously, there is still a case when the various Taranis AI instances could ingest
                 # the same news item from same/different sources and create different hashes.
                 case "hash":
-                    hash = item.get("value", "")
+                    hash_value = item.get("value", "")
         return NewsItem(
             osint_source_id=source["id"],
             source=self.url,
             id=news_item_id,
-            hash=hash,
+            hash=hash_value,
             author=author,
             title=title,
             content=content,
