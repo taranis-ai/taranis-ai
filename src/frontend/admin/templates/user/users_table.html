@@ -3,20 +3,29 @@
 <table class="table" id="users-table">
     <thead>
         <tr>
+            <th>
+                <input type="checkbox" class="checkbox" x-on:click="toggleSelect()" />
+            </th>
           {{ table_header('username', True) }}
           {{ table_header('name', True) }}
           {{ table_header('roles', False) }}
           {{ table_header('permissions', False) }}
+          <th class="text-right">Actions</th>
         </tr>
     </thead>
     <tbody >
         {% for user in users %}
         <tr>
+            <td>
+                <input type="checkbox" class="checkbox checkbox-sm" 
+                    value="{{ user.id }}" name="cb[]"
+                    x-model="selectedusers" />
+            </td>
             <td>{{ user.username }}</td>
             <td>{{ user.name }}</td>
             <td>{{ user.roles|length }}</td>
             <td>{{ user.permissions|length }}</td>
-            <td hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
+            <td class="text-right" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
                 <button href="/frontend/users/{{ user.id }}" hx-get="/frontend/users/{{ user.id }}" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
                     Edit
                 </button>
