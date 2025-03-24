@@ -456,10 +456,13 @@ class MISPConnector:
         Creates or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
         """
         if event_uuid := self.send_event_to_misp(story, misp_event_uuid):
+            # Update the Story with the MISP event UUID
             self.core_api.api_patch(
                 f"/bots/story/{story.get('id', '')}/attributes",
                 [{"key": "misp_event_uuid", "value": f"{event_uuid}"}],
             )
+            # Update the Story with so the last change is set to "external"
+            self.core_api.api_post("/worker/stories", story)
 
 
 def sending():
