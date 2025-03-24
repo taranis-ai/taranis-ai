@@ -2,8 +2,8 @@
   {% set show_export = show_export if show_export else true %}
   {% set accepts = accepts if accepts else '' %}
 
-    <div class="flex justify-end w-full">
-      <div class="join gap-1 w-1/3 justify-end">
+    <div class="grow-0">
+      <div class="join gap-1">
         {% if show_import -%}
         <form hx-post="/upload" hx-encoding="multipart/form-data">
           <label class="btn btn-accent join-item cursor-pointer btn-outline col-start-3">

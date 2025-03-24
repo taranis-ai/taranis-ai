@@ -1,6 +1,9 @@
 
 {% from "macros/table.html" import table_header with context %}
-<table class="table" id="users-table">
+<table class="table" id="users-table" x-data="{ 
+    selectedusers: [], 
+    
+}">
     <thead>
         <tr>
             <th>

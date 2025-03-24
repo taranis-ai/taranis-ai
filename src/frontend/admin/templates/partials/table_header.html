@@ -1,0 +1,16 @@
+<div class="flex gap-4">
+
+<div class="grow-0">
+  <div hx-get={{ url_for('admin.edit_user', user_id=0) }} hx-swap="innerHTML" hx-target="#user-form-container" class="btn btn-primary">
+    New User
+  </div>
+</div>
+
+<div class="grow">
+<input type="text" class="input w-full" placeholder="Search..." hx-get="{{ url_for('admin.users') }}" hx-trigger="keyup" hx-target="#user-table" hx-swap="outerHTML" name="search" value="{{ request.args.get('search', '') }}" hx-debounce="500" />
+</div>
+
+{% include 'partials/import_export.html' %}
+
+
+</div>
