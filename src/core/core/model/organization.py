@@ -1,9 +1,8 @@
 from sqlalchemy.sql import Select
 from typing import Any
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.model.address import Address
 from core.model.base_model import BaseModel
 
 
@@ -14,22 +13,15 @@ class Organization(BaseModel):
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
-    address_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address: Mapped["Address|None"] = relationship("Address", cascade="all")
+    address: Mapped["dict"] = db.Column(db.JSON)
 
-    def __init__(self, name: str, description: str | None = None, address=None, id: int | None = None):
+    def __init__(self, name: str, description: str | None = None, address: dict | None = None, id: int | None = None):
         if id:
             self.id = id
         self.name = name
         if description:
             self.description = description
-        self.address = Address.from_dict(address) if address else None
-
-    def to_dict(self):
-        data = super().to_dict()
-        data["address"] = self.address.to_dict() if self.address else None
-        data.pop("address_id")
-        return data
+        self.address = address or {}
 
     def to_user_dict(self):
         return {
