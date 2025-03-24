@@ -24,10 +24,18 @@ class DataPersistenceLayer:
         return object_model._core_endpoint
 
     def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
-        if result := self.get_objects(object_model):
-            for object in result:
+        endpoint = self.get_endpoint(object_model)
+
+        if cache_object := cache.get(key=self.make_key(endpoint)):
+            logger.info(f"Cache hit for {endpoint}")
+            for object in cache_object:
                 if object.id == object_id:  # type: ignore
                     return object
+        if result := self.api.api_get(f"{endpoint}/{object_id}"):
+            return object_model(**result)
+
+        logger.warning(f"Failed to fetch object from: {endpoint}")
+
 
     def invalidate_cache(self, suffix: str):
         keys = list(cache.cache._cache.keys())
