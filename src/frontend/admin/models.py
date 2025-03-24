@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from typing import ClassVar
-from typing import TypeVar
+from typing import ClassVar, TypeVar
 
 
 T = TypeVar("T", bound="TaranisBaseModel")
@@ -49,6 +48,7 @@ class Role(TaranisBaseModel):
 class User(TaranisBaseModel):
     _core_endpoint = "/config/users"
     _errors = {}
+    _search_fields = ["name", "username"]
 
     id: int | None = None
     name: str
@@ -64,6 +64,7 @@ class PagingData(BaseModel):
     page: int | None = None
     limit: int | None = None
     order: str | None = None
+    search: str | None = None
 
 
 class CacheObject(list):
@@ -104,6 +105,23 @@ class CacheObject(list):
     @property
     def current_range(self):
         return f"{self.offset + 1}-{min(self.offset + self.limit, self.length)}"
+
+    def search(self, search: str) -> "CacheObject":
+        result_object: CacheObject = CacheObject([])
+        for co in self:
+            for field in co._search_fields:
+                value = getattr(co, field, "")
+                if search.lower() in str(value).lower():
+                    result_object.append(co)
+                    break
+        return result_object
+
+    def search_and_paginate(self, paging: PagingData | None) -> "CacheObject":
+        if not paging:
+            return self[self.offset : self.offset + self.limit]
+        if paging.search:
+            return self.search(paging.search).paginate(paging)
+        return self.paginate(paging)
 
     def paginate(self, paging: PagingData | None) -> "CacheObject":
         if not paging:

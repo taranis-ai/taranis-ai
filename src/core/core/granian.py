@@ -19,13 +19,14 @@ if os.getenv("DEBUG", "false").lower() == "true":
 workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
 address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
 port = int(os.getenv("GRANIAN_PORT", 8080))
+connect_timeout = int(os.getenv("SQLALCHEMY_CONNECT_TIMEOUT", 10))
 
 
 def wait_for_db(max_retries=5):
     db_url = Config.SQLALCHEMY_DATABASE_URI
     if not db_url:
         raise RuntimeError("SQLALCHEMY_DATABASE_URI is not set")
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, connect_args={"connect_timeout": connect_timeout})
     retry_count = 0
     wait_time = 1  # Start with a 1 second wait
 

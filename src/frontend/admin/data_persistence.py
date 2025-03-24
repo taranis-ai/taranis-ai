@@ -36,7 +36,6 @@ class DataPersistenceLayer:
 
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
-
     def invalidate_cache(self, suffix: str):
         keys = list(cache.cache._cache.keys())
         keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
@@ -48,12 +47,12 @@ class DataPersistenceLayer:
         cache_object: CacheObject | None
         if cache_object := cache.get(key=self.make_key(endpoint)):
             logger.info(f"Cache hit for {endpoint}")
-            return cache_object.paginate(paging_data)
+            return cache_object.search_and_paginate(paging_data)
         if result := self.api.api_get(endpoint):
             result_object = [object_model(**object) for object in result["items"]]
             cache_object = CacheObject(result_object)
             cache.set(key=self.make_key(endpoint), value=cache_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
-            return cache_object.paginate(paging_data)
+            return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()

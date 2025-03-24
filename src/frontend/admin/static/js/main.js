@@ -22,16 +22,3 @@ function toggleDetails(jobId) {
         jobRow.setAttribute('data-expanded', 'true');
     }
 }
-
-function toggleSelect() {
-    let checkboxes = document.getElementsByName('cb[]');
-    let checkboxes_array = Array.from(checkboxes);
-    let allChecked = checkboxes_array.every(checkbox => checkbox.checked);
-    this.selectedusers = [];
-    for (let checkbox of checkboxes) {
-        checkbox.checked = !allChecked;
-        if (checkbox.checked) {
-            this.selectedusers.push(checkbox.value);
-        }
-    }
-}

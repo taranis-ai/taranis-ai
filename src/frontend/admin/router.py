@@ -132,7 +132,7 @@ class UpdateUser(MethodView):
 
     @jwt_required()
     def delete(self, user_id):
-        result = DataPersistenceLayer().delete_object(User, id)
+        result = DataPersistenceLayer().delete_object(User, user_id)
         return "error" if result == "error" else Response(status=200)
 
 

@@ -1,3 +1,4 @@
+{% from "macros/query_params.html" import update_query_params with context %}
 <div class="flex gap-4">
 
 <div class="grow-0">
@@ -7,10 +8,22 @@
 </div>
 
 <div class="grow">
-<input type="text" class="input w-full" placeholder="Search..." hx-get="{{ url_for('admin.users') }}" hx-trigger="keyup" hx-target="#user-table" hx-swap="outerHTML" name="search" value="{{ request.args.get('search', '') }}" hx-debounce="500" />
+  <form
+    hx-get="{{ request.path }}"
+    hx-push-url="true"
+    hx-target="#{{ table_id }}"
+    hx-trigger="input delay:500ms"
+  >
+    <input
+      type="search"
+      name="search"
+      class="input w-full"
+      placeholder="Search..."
+    />
+  </form>
 </div>
 
-{% include 'partials/import_export.html' %}
 
+{% include 'partials/import_export.html' %}
 
 </div>

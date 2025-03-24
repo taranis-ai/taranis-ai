@@ -2,10 +2,11 @@
 {% block content %}
 <div class="text-3xl font-bold mb-4">Users</div>
 <div class="bg-white rounded-sm p-4 shadow-lg" >
+    {% set table_id = 'users-table' %}
     {% include 'partials/table_header.html' %}
     {% include 'user/users_table.html' %}
       <!-- Debugging output -->
-   
+
 </div>
 
 <div id="user-form-container"></div>
