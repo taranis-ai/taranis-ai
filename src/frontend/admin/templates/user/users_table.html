@@ -36,12 +36,12 @@
     </tbody>
     <tfoot hx-target="#users-table">
     <tr>
-        <td />
-        <td />
-        <td colspan="2">
-    {% with data=users %}
-        {% include 'partials/datatable_controls.html' %}
-    {% endwith %}
+        <td colspan="5">
+            <div class="flex justify-center">
+                {% with data=users %}
+                    {% include 'partials/datatable_controls.html' %}
+                {% endwith %}
+            </div>
         </td>
     </tr>
     </tfoot>
