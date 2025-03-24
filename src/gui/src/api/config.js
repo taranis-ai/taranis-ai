@@ -389,7 +389,3 @@ export function updateConnector(connector) {
 export function pullFromAllConnectors() {
   return apiService.post('/config/connectors/pull')
 }
-
-export function pullFromConnector(connector_id) {
-  return apiService.post(`/config/connectors/${connector_id}/pull`)
-}

@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title> Add to Report </v-card-title>
+    <v-card-title> Share to a connected instance </v-card-title>
     <v-card-text>
       Select a connector:
       <v-autocomplete

@@ -28,54 +28,9 @@
               @import="importData"
               @export="showExportPopup = true"
             /> -->
-            <v-btn
-              dark
-              color="blue-grey"
-              class="ml-4"
-              prepend-icon="mdi-run"
-              @click="pullFromAllConnectors"
-            >
-              Pull from Connectors
-            </v-btn>
           </template>
-          <template #actionColumn="source">
-            <v-tooltip left>
-              <template #activator="{ props }">
-                <v-icon
-                  v-bind="props"
-                  color="secondary"
-                  icon="mdi-run"
-                  @click.stop="collectSource(source.item)"
-                />
-              </template>
-              <span>Collect Source</span>
-            </v-tooltip>
-            <v-tooltip left>
-              <template #activator="{ props }">
-                <v-icon
-                  v-bind="props"
-                  color="secondary"
-                  icon="mdi-file-find"
-                  @click.stop="previewSource(source.item)"
-                />
-              </template>
-              <span>Preview Connector</span>
-            </v-tooltip>
-            <v-tooltip left>
-              <template #activator="{ props }">
-                <v-icon
-                  v-bind="props"
-                  :color="source.item.state > '-2' ? 'green' : 'red'"
-                  :icon="
-                    source.item.state > '-2'
-                      ? 'mdi-toggle-switch-outline'
-                      : 'mdi-toggle-switch-off-outline'
-                  "
-                  @click.stop="toggleState(source.item)"
-                />
-              </template>
-              <span>{{ source.item.state > '-2' ? 'Disable' : 'Enable' }}</span>
-            </v-tooltip>
+          <template #actionColumn="{ item }">
+            <!-- No actions for connectors -->
           </template>
           <template #nodata>
             <v-empty-state
@@ -127,9 +82,7 @@ import {
   deleteOSINTSource,
   updateConnector,
   // importOSINTSources,
-  pullFromConnector,
   previewOSINTSSource,
-  pullFromAllConnectors,
   createConnector
 } from '@/api/config'
 
@@ -157,10 +110,7 @@ export default {
     const { connector_types, parameters } = storeToRefs(configStore)
 
     const connectors = computed(() => {
-      // remove the source where id === 'manual'
-      return configStore.connectors.items.filter(
-        (source) => source.id !== 'manual'
-      )
+      return configStore.connectors.items
     })
 
     const connector_options = ref([])
@@ -340,26 +290,6 @@ export default {
       selected.value = new_selection
     }
 
-    function pullFromAllConnectors() {
-      pullFromAllConnectors()
-        .then(() => {
-          notifySuccess('Successfully collected all sources')
-        })
-        .catch(() => {
-          notifyFailure('Failed to collect all sources')
-        })
-    }
-
-    function collectSource(connector) {
-      pullFromConnector(connector.id)
-        .then(() => {
-          notifySuccess(`Successfully collected ${connector.name}`)
-        })
-        .catch(() => {
-          notifyFailure(`Failed to collect ${connector.name}`)
-        })
-    }
-
     function previewSource(connector) {
       previewOSINTSSource(connector.id)
         .then(() => {
@@ -397,10 +327,8 @@ export default {
       createItem,
       updateItem,
       // importData,
-      collectSource,
       previewSource,
       forceDeleteItem,
-      pullFromAllConnectors,
       toggleState,
       selectionChange
     }
