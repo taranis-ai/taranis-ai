@@ -1,93 +1,70 @@
-from celery import Task
-
+from prefect import flow, get_run_logger
 import worker.presenters
 from worker.presenters.base_presenter import BasePresenter
-from worker.log import logger
 from worker.core_api import CoreApi
-from requests.exceptions import ConnectionError
-from celery.exceptions import Ignore
 
 
-class PresenterTask(Task):
-    name = "presenter_task"
-    max_retries = 3
-    priority = 8
-    default_retry_delay = 60
-    time_limit = 60
+def get_product(product_id: int, core_api: CoreApi) -> dict[str, str]:
+    if product := core_api.get_product(product_id):
+        return product
 
-    def __init__(self):
-        self.core_api = CoreApi()
-        self.presenters = {
-            "html_presenter": worker.presenters.HTMLPresenter(),
-            "json_presenter": worker.presenters.JSONPresenter(),
-            "pdf_presenter": worker.presenters.PDFPresenter(),
-            "text_presenter": worker.presenters.TextPresenter(),
-        }
+    raise ValueError(f"Product with id {product_id} not found")
 
-    def get_product(self, product_id: int) -> tuple[dict[str, str] | None, str | None]:
-        try:
-            product = self.core_api.get_product(product_id)
-        except ConnectionError as e:
-            logger.critical(e)
-            return None, str(e)
 
-        if not product:
-            logger.error(f"Product with id {product_id} not found")
-            return None, f"Product with id {product_id} not found"
-        return product, None
+def get_template(presenter_id: int, core_api: CoreApi) -> str:
+    if template := core_api.get_template(presenter_id):
+        return template
 
-    def get_template(self, presenter: int) -> tuple[str | None, None | str]:
-        try:
-            template = self.core_api.get_template(presenter)
-        except ConnectionError as e:
-            logger.critical(e)
-            return None, str(e)
+    raise ValueError(f"Template with id {presenter_id} not found")
 
-        if not template:
-            logger.error(f"presenter with id {presenter} not found")
-            return None, f"presenter with id {presenter} not found"
-        return template, None
 
-    def get_presenter(self, product) -> tuple[BasePresenter | None, str | None]:
-        presenter_type = product.get("type")
-        if not presenter_type:
-            logger.error(f"Product {product['id']} has no presenter_type")
-            return None, f"Product {product['id']} has no presenter_type"
+def get_presenter(product: dict[str, str]) -> BasePresenter:
+    presenters: dict[str, BasePresenter] = {
+        "html_presenter": worker.presenters.HTMLPresenter(),
+        "json_presenter": worker.presenters.JSONPresenter(),
+        "pdf_presenter": worker.presenters.PDFPresenter(),
+        "text_presenter": worker.presenters.TextPresenter(),
+    }
 
-        if presenter := self.presenters.get(presenter_type):
-            return presenter, None
+    presenter_type = product.get("type")
+    if not presenter_type:
+        raise ValueError(f"Product {product['id']} has no presenter_type")
 
-        return None, f"Presenter {presenter_type} not implemented"
+    if presenter := presenters.get(presenter_type):
+        return presenter
 
-    def raise_error(self, err: str, product_id: int):
-        self.update_state(state="FAILURE", meta={"message": err, "product_id": product_id})
-        logger.error(f"Error rendering product {product_id}: {err}")
-        raise Ignore()
+    raise ValueError(f"Presenter {presenter_type} not implemented")
 
-    def run(self, product_id: int):
-        err = None
 
-        product, err = self.get_product(product_id)
-        if err or not product:
-            self.raise_error(err, product_id)
+def generate_content(product: dict[str, str], template: str, presenter: BasePresenter) -> dict[str, str | bytes]:
+    if rendered_content := presenter.generate(product, template):
+        return rendered_content
+    raise ValueError("Presenter returned no content")
 
-        presenter, err = self.get_presenter(product)
-        if err or not presenter:
-            self.raise_error(err, product_id)
 
-        type_id: int = int(product["type_id"])
-        template, err = self.get_template(type_id)
-        if err or not product:
-            self.raise_error(err, product_id)
+@flow(name="render_product")
+def render_product(product_id: int):
+    logger = get_run_logger()
+    core_api = CoreApi()
+
+    try:
+        product = get_product(product_id, core_api)
+        presenter = get_presenter(product)
+        type_id = int(product["type_id"])
+        template = get_template(type_id, core_api)
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
-        try:
-            rendered_product = presenter.generate(product, template)
-        except Exception as e:
-            self.raise_error(str(e), product_id)
+        rendered_product = generate_content(product, template, presenter)
 
-        if not rendered_product:
-            self.raise_error("Presenter returned no content", product_id)
+        logger.info(f"Product {product_id} rendered successfully")
 
-        return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": rendered_product}
+        return {
+            "product_id": product_id,
+            "message": f"Product: {product_id} rendered successfully",
+            "render_result": rendered_product,
+        }
+
+    except Exception as e:
+        logger.error(f"Error rendering product {product_id}: {e}")
+        raise
