@@ -203,6 +203,21 @@
           />
         </template>
       </v-tooltip>
+      <v-tooltip text="share story to connector">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-monitor-share"
+            @click.stop="shareToConnectorDialog = true"
+            data-testid="share story to connector"
+          />
+        </template>
+      </v-tooltip>
       <v-tooltip text="delete">
         <template #activator="{ props }">
           <v-btn
