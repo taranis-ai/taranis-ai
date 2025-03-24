@@ -15,12 +15,12 @@ class MISPConnector:
 
         self.proxies = None
         self.headers = {}
-        self.connector_id: str
+        self.connector_id: str = ""
 
         self.url: str = ""
         self.api_key: str = ""
         self.ssl: bool = False
-        self.request_timeout: int
+        self.request_timeout: int = 5
         self.sharing_group_id: str = ""
         self.distribution: str = "1"
 
@@ -30,8 +30,8 @@ class MISPConnector:
         self.api_key = parameters.get("API_KEY", "")
         self.ssl = parameters.get("SSL", False)
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
-        self.proxies = parameters.get("PROXIES", "")
-        self.headers = parameters.get("HEARERS", "")
+        self.proxies = parameters.get("PROXIES")
+        self.headers = parameters.get("HEADERS", {})
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
         self.distribution = parameters.get("DISTRIBUTION", "")
         if not self.distribution and self.sharing_group_id:
@@ -137,7 +137,7 @@ class MISPConnector:
 
         event.add_object(story_object)
 
-    def add_misp_event_uuid_attribute(self, story: dict) -> None:
+    def set_misp_event_uuid_attribute(self, story: dict) -> None:
         """
         Ensure the story has a 'misp_event_uuid' attribute so that the system can determine if it is
         an update or a new event.
@@ -150,7 +150,7 @@ class MISPConnector:
         Process attributes from the story, ensuring internal metadata (like misp_event_uuid)
         is added and only valid attributes are included.
         """
-        self.add_misp_event_uuid_attribute(story)
+        self.set_misp_event_uuid_attribute(story)
         return self._process_items(story, "attributes", self._process_attribute)
 
     def _process_items(self, story: dict, key: str, processor) -> list:
@@ -299,7 +299,7 @@ class MISPConnector:
                 return obj
         return None
 
-    def prepocess_story(self, story: dict, ids_in_misp: set) -> dict | None:
+    def preprocess_story(self, story: dict, ids_in_misp: set) -> dict | None:
         """
         Drop news items from 'story' that already exist in the MISP event
         (to avoid adding duplicates).
@@ -317,7 +317,7 @@ class MISPConnector:
             self.remove_missing_objects_from_misp(misp, event, story)
 
             ids_in_misp = self.get_event_object_ids(event)
-            if story_prepared := self.prepocess_story(story, ids_in_misp):
+            if story_prepared := self.preprocess_story(story, ids_in_misp):
                 return self._update_event_with_story(story_prepared, misp_event_uuid, event, misp)
         return None
 
@@ -406,7 +406,7 @@ class MISPConnector:
                     logger.error("MISP returned a permission error, you should create a proposal.")
                     misp = PyMISP(
                         url=self.url,
-                        key="f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
+                        key=self.api_key,
                         ssl=self.ssl,
                         proxies=self.proxies,
                         http_headers=self.headers,
