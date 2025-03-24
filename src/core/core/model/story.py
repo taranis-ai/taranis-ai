@@ -473,14 +473,19 @@ class Story(BaseModel):
     def add_news_items(cls, news_items_list: list[dict]):
         story_ids = []
         news_item_ids = []
+        skipped_items = []
         try:
             for news_item in news_items_list:
                 if err := cls.check_news_item_data(news_item):
                     logger.warning(err)
+                    skipped_items.append(err)
                     continue
                 message, status = cls.add_from_news_item(news_item)
                 if status > 299:
-                    return message, status
+                    error_message = message.get("error", "Unknown error")
+                    logger.warning(error_message)
+                    skipped_items.append(error_message)
+                    continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
             db.session.commit()
@@ -488,8 +493,13 @@ class Story(BaseModel):
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        logger.info(f"Added {len(story_ids)} news items - {story_ids}")
-        return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
+        result = {
+            "story_ids": story_ids,
+            "news_item_ids": news_item_ids,
+        }
+        if skipped_items:
+            result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+        return result, 200
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
