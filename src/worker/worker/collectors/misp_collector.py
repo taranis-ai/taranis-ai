@@ -145,9 +145,11 @@ class MISPCollector(BaseCollector):
                 case "summary":
                     story_properties["summary"] = item.get("value", "")
                 case "important":
-                    story_properties["important"] = item.get("value", False)
+                    val = item.get("value", 0)
+                    story_properties["important"] = True if str(val) == "1" or val == 1 else False
                 case "read":
-                    story_properties["read"] = item.get("value", False)
+                    val = item.get("value", 0)
+                    story_properties["read"] = True if str(val) == "1" or val == 1 else False
                 case "created":
                     story_properties["created"] = item.get("value", None)
                 case "links":
@@ -199,7 +201,7 @@ if __name__ == "__main__":
         "name": "https",
         "parameters": {
             "ADDITIONAL_HEADERS": "",
-            "API_KEY": "f10V7k9PUJA6xgwH578Jia7C1lbceBfqTOpeIJqc",
+            "API_KEY": "bXSZEtpNQL6somSCz08x3IzEnDx1bkM6wwZRd0uZ",
             "PROXY_SERVER": "",
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",
