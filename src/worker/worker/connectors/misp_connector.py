@@ -56,7 +56,10 @@ class MISPConnector:
 
     @staticmethod
     def get_news_item_object_dict() -> dict:
-        """Useful for unit testing or ensuring consistent keys."""
+        """
+        Useful for unit testing or ensuring consistent keys.
+        If you add or remove a key from here, do the same for the respective object definition file.
+        """
         return {
             "author": "",
             "content": "",
@@ -76,7 +79,10 @@ class MISPConnector:
 
     @staticmethod
     def get_story_object_dict() -> dict:
-        """Useful for unit testing or ensuring consistent keys."""
+        """
+        Useful for unit testing or ensuring consistent keys.
+        If you add or remove a key from here, do the same for the respective object definition file.
+        """
         return {
             "attributes": {},
             "comments": "",
