@@ -17,13 +17,13 @@
 
     <!-- Pagination Buttons & Current Page -->
     <div class="flex items-center gap-2">
-      <a hx-disable="{{ data.first_page }}"
+      <a {% if data.first_page %}hx-disable{% endif %}
          class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
         «
       </a>
 
-      <a hx-disable="{{ data.first_page }}"
+      <a {% if data.first_page %}hx-disable{% endif %}
          class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
         ‹
@@ -33,13 +33,13 @@
         Page {{ data.current_page }} of {{ data.total_pages }}
       </span>
 
-      <a hx-disable="{{ data.last_page }}"
+      <a {% if data.last_page %}hx-disable{% endif %}
          class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
         ›
       </a>
 
-      <a hx-disable="{{ data.last_page }}"
+      <a {% if data.last_page %}hx-disable{% endif %}
          class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
         »
