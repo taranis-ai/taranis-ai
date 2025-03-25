@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Callable
 from pymisp import MISPEventReport, MISPObject, PyMISP, MISPEvent, MISPShadowAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
@@ -153,7 +154,7 @@ class MISPConnector:
         self.set_misp_event_uuid_attribute(story)
         return self._process_items(story, "attributes", self._process_attribute)
 
-    def _process_items(self, story: dict, key: str, processor) -> list:
+    def _process_items(self, story: dict, key: str, processor: Callable) -> list:
         """
         Generic helper to process a list of items stored under the provided key in the story dictionary.
 

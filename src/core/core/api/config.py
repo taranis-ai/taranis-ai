@@ -384,9 +384,9 @@ class RefreshInterval(MethodView):
 class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_ACCESS")
     @extract_args("search")
-    def get(self, source_id=None, filter_args=None):
-        if source_id:
-            return connector.Connector.get_for_api(source_id)
+    def get(self, connector_id=None, filter_args=None):
+        if connector_id:
+            return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_CONNECTOR_CREATE")
@@ -407,15 +407,15 @@ class Connectors(MethodView):
         return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
-    def delete(self, source_id: str):
+    def delete(self, connector_id: str):
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
+        if not force and NewsItemService.has_related_news_items(connector_id):
             return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+                "error": f"""OSINT Source with ID: {connector_id} has related News Items.
                 To delete this item and all related News Items, set the 'force' flag."""
             }, 409
 
-        return osint_source.OSINTSource.delete(source_id, force=force)
+        return osint_source.OSINTSource.delete(connector_id, force=force)
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
     def patch(self, source_id: str):

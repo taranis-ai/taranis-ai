@@ -6,7 +6,7 @@ from core.api import (
     auth,
     bots,
     config,
-    connnections,
+    connectors,
     dashboard,
     isalive,
     publish,
@@ -33,5 +33,5 @@ __all__ = [
     "worker",
     "static",
     "frontend",
-    "connnections",
+    "connectors",
 ]

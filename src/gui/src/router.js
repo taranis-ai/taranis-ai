@@ -142,10 +142,14 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
-      path: '/connections',
-      name: 'connections',
+      path: '/connectors',
+      name: 'connector-user-access',
       components: {
         default: () => import('@/views/users/ConflictsView.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONNECTOR_USER_ACCESS
       }
     },
     {

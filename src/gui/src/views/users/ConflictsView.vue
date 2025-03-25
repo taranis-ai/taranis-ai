@@ -45,7 +45,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
-import { useConflictsStore } from '@/stores/ConflictsStore'
+import { useConflictsStore } from '@/stores/ConnectorStore'
 
 // Helper functions to dynamically load external assets
 function loadScript(src) {

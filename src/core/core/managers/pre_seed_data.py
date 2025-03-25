@@ -619,6 +619,7 @@ permissions: list[dict] = [
     {"id": "CONFIG_CONNECTOR_CREATE", "name": "Config connector create", "description": "Create to connector configuration"},
     {"id": "CONFIG_CONNECTOR_UPDATE", "name": "Config connector update", "description": "Update to connector configuration"},
     {"id": "CONFIG_CONNECTOR_DELETE", "name": "Config connector delete", "description": "Delete to connector configuration"},
+    {"id": "CONNECTOR_USER_ACCESS", "name": "Connector user access", "description": "Access to connector management"},
 ]
 
 
