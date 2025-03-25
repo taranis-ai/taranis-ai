@@ -14,8 +14,7 @@
             <input type="file" name="file" class="hidden" accept=".json" hx-post="{{ url_for('admin.import_users') }}" hx-encoding="multipart/form-data" >
           </label>
         </form>
-        <input type="file" name="file" accept=".json" hx-post="{{ url_for('admin.import_users') }}" hx-encoding="multipart/form-data" >
-
+        
         {% endif -%}
         {% if show_export -%}
         <a
