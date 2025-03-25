@@ -222,7 +222,7 @@ class ExportImportUsers(MethodView):
 
         if not response:
             logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return "Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         return Response(
             response.iter_content(chunk_size=8192),
@@ -240,7 +240,7 @@ class ExportImportUsers(MethodView):
 
         if not response:
             logger.debug(f"Failed to import users to: {Config.TARANIS_CORE_URL}")
-            return "Failed to import users to: {Config.TARANIS_CORE_URL}", 500
+            return f"Failed to import users to: {Config.TARANIS_CORE_URL}", 500
 
         return Response(status=200)
 
