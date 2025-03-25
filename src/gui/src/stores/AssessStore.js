@@ -9,8 +9,7 @@ import {
   updateStoryTags,
   groupAction,
   unGroupAction,
-  getStory,
-  shareToConnector
+  getStory
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
