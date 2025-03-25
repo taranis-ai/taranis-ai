@@ -1,5 +1,4 @@
 import requests
-from urllib.parse import urlencode
 from flask import request
 from admin.log import logger
 from admin.config import Config
@@ -44,16 +43,23 @@ class CoreApi:
         url = f"{self.api_url}{url}"
         return requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
 
-    def api_get(self, url, params=None):
+    def api_get(self, url, params: dict | None = None):
         url = f"{self.api_url}{url}"
-        if params:
-            url += f"?{urlencode(params)}"
         try:
-            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params)
         except Exception as e:
             logger.error(f"Call to {url} failed {e}")
             return None
         return self.check_response(response, url)
+
+    def api_download(self, url, params: dict | None = None):
+        url = f"{self.api_url}{url}"
+        try:
+            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params, stream=True)
+        except Exception as e:
+            logger.error(f"Call to {url} failed {e}")
+            return None
+        return response
 
     def get_dashboard(self, query_params=None):
         return self.api_get("/dashboard", params=query_params)
@@ -63,3 +69,9 @@ class CoreApi:
 
     def get_organizations(self, query_params=None):
         return self.api_get("/config/organizations", params=query_params)
+
+    def export_users(self, user_ids=None):
+        return self.api_download("/config/users-export", params=user_ids)
+
+    def import_users(self, users):
+        return self.api_post("/config/users-import", json_data=users)

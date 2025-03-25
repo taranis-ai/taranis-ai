@@ -5,6 +5,7 @@ from flask.views import MethodView
 from flask_htmx import HTMX
 from flask_jwt_extended import jwt_required
 from swagger_ui import api_doc
+import json
 
 from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
@@ -213,6 +214,37 @@ def handle_unauthorized(e):
     return redirect("/login", code=302)
 
 
+class ExportImportUsers(MethodView):
+    def get(self):
+        user_ids = request.args.getlist("ids")
+
+        response = CoreApi().export_users(user_ids)
+
+        if not response:
+            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            return "Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+
+        return Response(
+            response.iter_content(chunk_size=8192),
+            content_type=response.headers.get("Content-Type", "application/json"),
+            headers={"Content-Disposition": response.headers.get("Content-Disposition", "attachment; filename=users_export.json")},
+            status=response.status_code,
+        )
+
+    def post(self):
+        file = request.files.get("file")
+        if not file:
+            return {"error": "No file provided"}, 400
+
+        response = CoreApi().import_users(json.loads(file.read()))
+
+        if not response:
+            logger.debug(f"Failed to import users to: {Config.TARANIS_CORE_URL}")
+            return "Failed to import users to: {Config.TARANIS_CORE_URL}", 500
+
+        return Response(status=200)
+
+
 def init(app: Flask):
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
@@ -230,6 +262,8 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
+    admin_bp.add_url_rule("/export/users", view_func=ExportImportUsers.as_view("export_users"))
+    admin_bp.add_url_rule("/import/users", view_func=ExportImportUsers.as_view("import_users"))
 
     admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
     admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
