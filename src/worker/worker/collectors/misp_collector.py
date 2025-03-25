@@ -31,7 +31,7 @@ class MISPCollector(BaseCollector):
         self.ssl = parameters.get("SSL", False)
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES", "")
-        self.headers = parameters.get("HEARERS", "")
+        self.headers = parameters.get("HEADERS", "")
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
 
         if not self.url or not self.api_key:
@@ -114,27 +114,31 @@ class MISPCollector(BaseCollector):
         return story_properties
 
     def get_story_properties_from_story_object(self, event: dict) -> dict:
+        """
+        Useful for unit testing.
+        If you add or remove a key from here, do the same for the respective object definition file.
+        """
         story_properties = {
             "id": None,
             "title": "",
             "comments": "",
             "description": "",
             "summary": "",
-            # "likes": 0,
-            # "dislikes": 0,
-            # "relevance": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "relevance": 0,
             "read": False,
             "important": False,
             "created": None,
-            # "updated": None,
+            "updated": None,
             "links": [],
-            # "tags": [],
+            "tags": [],
             "attributes": [],
         }
 
         for item in event.get("Attribute", []):
             match item.get("object_relation", ""):
-                case "id":  # setting the same story id is not necessary and could increase the risk of conflicts
+                case "id":
                     story_properties["id"] = item.get("value", None)
                 case "title":
                     story_properties["title"] = item.get("value", "")
@@ -145,30 +149,26 @@ class MISPCollector(BaseCollector):
                 case "summary":
                     story_properties["summary"] = item.get("value", "")
                 case "important":
-                    val = item.get("value", 0)
-                    story_properties["important"] = True if str(val) == "1" or val == 1 else False
+                    story_properties["important"] = bool(int(item.get("value", 0)))
                 case "read":
-                    val = item.get("value", 0)
-                    story_properties["read"] = True if str(val) == "1" or val == 1 else False
+                    story_properties["read"] = bool(int(item.get("value", 0)))
                 case "created":
                     story_properties["created"] = item.get("value", None)
                 case "links":
                     story_properties["links"].append(item.get("value", None))
-                # case "tags": TODO: implement tags
-                #     story_properties["tags"].append(item.get("value", ""))
+                case "tags":
+                    story_properties["tags"].append(item.get("value", ""))
                 case "attributes":
                     value = item.get("value", "")
-                    # Handle malformed attribute strings
-                    logger.debug(f"{value=}")
                     story_properties["attributes"].append(ast.literal_eval(value))
-                # case "relevance":
-                #     story_properties["relevance"] = item.get("value", 0)
-                # case "updated":
-                #     story_properties["updated"] = item.get("value", None)
-                # case "likes":
-                #     story_properties["likes"] = int(item.get("value", 0))
-                # case "dislikes":
-                #     story_properties["dislikes"] = int(item.get("value", 0))
+                case "relevance":
+                    story_properties["relevance"] = item.get("value", 0)
+                case "updated":
+                    story_properties["updated"] = item.get("value", None)
+                case "likes":
+                    story_properties["likes"] = int(item.get("value", 0))
+                case "dislikes":
+                    story_properties["dislikes"] = int(item.get("value", 0))
         return story_properties
 
     def get_story(self, event: dict, source: dict) -> dict | None:
