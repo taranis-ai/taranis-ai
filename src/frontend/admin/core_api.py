@@ -74,4 +74,7 @@ class CoreApi:
         return self.api_download("/config/users-export", params=user_ids)
 
     def import_users(self, users):
-        return self.api_post("/config/users-import", json_data=users)
+        logger.info(f"Importing users: {users}")
+        response = self.api_post("/config/users-import", json_data=users)
+        logger.info(f"Response: {response.__dict__}")
+        return response

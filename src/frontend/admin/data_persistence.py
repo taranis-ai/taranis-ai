@@ -56,6 +56,7 @@ class DataPersistenceLayer:
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()
+        logger.info(f"Storing object: {store_object}")
         return self.api.api_post(object._core_endpoint, json_data=store_object)
 
     def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):

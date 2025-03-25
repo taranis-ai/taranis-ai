@@ -261,6 +261,7 @@ class Organizations(MethodView):
 class UsersImport(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
     def post(self):
+        logger.debug("Importing users")
         user_list = request.json
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
