@@ -2,6 +2,7 @@
 {% from "macros/table.html" import table_header with context %}
 {% set user_ids = users | map(attribute='id') | list | tojson %}
 {% set table_id = 'users-table' %}
+
 <table class="table" id="{{ table_id }}" x-data="{ selectedusers: [] }">
     <thead>
         <tr>
@@ -40,11 +41,11 @@
             </td>
         </tr>
         {% endfor %}
-        
+
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
     <tr>
-        <td colspan="5">
+        <td colspan="6">
             <div class="flex justify-center">
                 {% with data=users %}
                     {% include 'partials/datatable_controls.html' %}

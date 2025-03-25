@@ -14,36 +14,35 @@
         {% endfor %}
       </select>
     </div>
-  
+
     <!-- Pagination Buttons & Current Page -->
     <div class="flex items-center gap-2">
-      <a href="{{ update_query_params({'page': 1}) }}"
+      <a hx-disable="{{ data.first_page }}"
          class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': 1}) }}" hx-push-url="true">
         «
       </a>
-  
-      <a href="{{ update_query_params({'page': data.current_page - 1}) }}"
+
+      <a hx-disable="{{ data.first_page }}"
          class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true">
         ‹
       </a>
-  
+
       <span class="px-3 py-1 h-8 flex items-center bg-base-200 rounded-md text-sm font-semibold">
         Page {{ data.current_page }} of {{ data.total_pages }}
       </span>
-  
-      <a href="{{ update_query_params({'page': data.current_page + 1}) }}"
+
+      <a hx-disable="{{ data.last_page }}"
          class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true">
         ›
       </a>
-  
-      <a href="{{ update_query_params({'page': data.total_pages}) }}"
+
+      <a hx-disable="{{ data.last_page }}"
          class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
          hx-get="{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true">
         »
       </a>
     </div>
   </div>
-  
