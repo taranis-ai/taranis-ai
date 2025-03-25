@@ -155,9 +155,11 @@ class MISPCollector(BaseCollector):
                 case "created":
                     story_properties["created"] = item.get("value", None)
                 case "links":
-                    story_properties["links"].append(item.get("value", None))
+                    if value := item.get("value", None):
+                        story_properties["links"].append(ast.literal_eval(value))
                 case "tags":
-                    story_properties["tags"].append(item.get("value", ""))
+                    if value := item.get("value", ""):
+                        story_properties["tags"].append(ast.literal_eval(value))
                 case "attributes":
                     value = item.get("value", "")
                     story_properties["attributes"].append(ast.literal_eval(value))
