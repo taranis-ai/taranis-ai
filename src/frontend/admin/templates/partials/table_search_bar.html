@@ -1,0 +1,15 @@
+<div class="grow">
+  <form
+    hx-get="{{ request.path }}"
+    hx-push-url="true"
+    hx-target="#{{ table_id }}"
+    hx-trigger="input delay:500ms"
+  >
+    <input
+      type="search"
+      name="search"
+      class="input w-full"
+      placeholder="Search..."
+    />
+  </form>
+</div>

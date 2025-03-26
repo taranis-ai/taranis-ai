@@ -214,7 +214,8 @@ def handle_unauthorized(e):
     return redirect("/login", code=302)
 
 
-class ExportImportUsers(MethodView):
+class ExportUsers(MethodView):
+    @jwt_required()
     def get(self):
         user_ids = request.args.getlist("ids")
 
@@ -230,6 +231,15 @@ class ExportImportUsers(MethodView):
             headers={"Content-Disposition": response.headers.get("Content-Disposition", "attachment; filename=users_export.json")},
             status=response.status_code,
         )
+
+
+class ImportUsers(MethodView):
+    @jwt_required()
+    def get(self):
+        organizations = DataPersistenceLayer().get_objects(Organization)
+        roles = DataPersistenceLayer().get_objects(Role)
+
+        return render_template("user/user_import.html", roles=roles, organizations=organizations)
 
     def post(self):
         file = request.files.get("file")
@@ -262,8 +272,8 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
-    admin_bp.add_url_rule("/export/users", view_func=ExportImportUsers.as_view("export_users"))
-    admin_bp.add_url_rule("/import/users", view_func=ExportImportUsers.as_view("import_users"))
+    admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
+    admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
     admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
     admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
