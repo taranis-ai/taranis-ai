@@ -2,7 +2,7 @@
 
 
 <div class="p-5" x-data="userImport()">
-  <form id="form" hx-post="/import-users" hx-trigger="submit" hx-target="#result" @submit.prevent="submitForm">
+  <form id="form" hx-trigger="submit" hx-target="#result" @submit.prevent="submitForm">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div>
         <label class="label">
@@ -71,6 +71,7 @@
         reader.onload = (e) => {
           const data = JSON.parse(e.target.result);
           this.userList = data.data;
+          console.log(this.userList);
         };
         reader.readAsText(file);
       },
