@@ -118,9 +118,9 @@ class UpdateUser(MethodView):
         return render_template("user/user_form.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
 
     @jwt_required()
-    def put(self, id):
+    def put(self, user_id):
         user = User(**parse_formdata(request.form))
-        result = DataPersistenceLayer().update_object(user, id)
+        result = DataPersistenceLayer().update_object(user, user_id)
         if not result.ok:
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
