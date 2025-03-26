@@ -260,7 +260,7 @@ class ImportUsers(MethodView):
             logger.debug(f"Failed to import users to: {Config.TARANIS_CORE_URL}")
             return f"Failed to import users to: {Config.TARANIS_CORE_URL}", 500
 
-        return Response(status=200)
+        return Response(status=200, headers={"HX-Refresh": "true"})
 
 
 def init(app: Flask):

@@ -266,6 +266,7 @@ class UsersImport(MethodView):
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
+            invalidate_cache("users")
             return {"users": users, "count": len(users), "message": "Successfully imported users"}
         return {"error": "Unable to import"}, 400
 
