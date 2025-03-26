@@ -134,7 +134,7 @@ class UpdateUser(MethodView):
     @jwt_required()
     def delete(self, user_id):
         result = DataPersistenceLayer().delete_object(User, user_id)
-        return "error" if result == "error" else Response(status=200)
+        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class NewUser(MethodView):
@@ -183,16 +183,16 @@ class ListUserCache(MethodView):
 
 class UserCache(MethodView):
     def post(self):
-        user = request.json
-        if not user:
+        if user := request.json:
+            add_user_to_cache(user)
+        else:
             return {"error": "No data provided"}, 400
-        add_user_to_cache(user)
 
     def delete(self):
-        body = request.json
-        if not body:
+        if body := request.json:
+            remove_user_from_cache(body["username"])
+        else:
             return {"error": "No data provided"}, 400
-        remove_user_from_cache(body["username"])
 
 
 class TaranisJSONProvider(DefaultJSONProvider):
