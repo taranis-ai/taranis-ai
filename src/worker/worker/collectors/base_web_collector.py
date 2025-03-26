@@ -5,7 +5,7 @@ import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from typing import Any, Optional
 import json
 
@@ -194,8 +194,8 @@ class BaseWebCollector(BaseCollector):
 
     def get_urls(self, collector_url: str, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-        urls = [a["href"] for a in soup.find_all("a", href=True)]
-        return [urljoin(collector_url, url) for url in urls]
+        urls = [a["href"] for a in soup.find_all("a", href=True) if isinstance(a, Tag) and a.has_attr("href")]
+        return [urljoin(collector_url, url) for url in urls if isinstance(url, str)]
 
     def parse_digests(self) -> list[NewsItem]:
         news_items = []
