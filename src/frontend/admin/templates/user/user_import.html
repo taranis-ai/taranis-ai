@@ -1,8 +1,7 @@
-<!-- TODO:  THIS IS COMPLETLY NONSENSE UNVERIFIED JUST translated from UserInputForm.vue GPT -->
 
 
 <div class="p-5" x-data="userImport()">
-  <form id="form" hx-trigger="submit" hx-target="#result" @submit.prevent="submitForm">
+  <form id="form" hx-trigger="submit" hx-post="/frontend/import/users" hx-target="#result" enctype="multipart/form-data">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div>
         <label class="label">
@@ -10,9 +9,9 @@
         </label>
         <input
           type="file"
+          name="file"
           accept="application/json"
           class="file-input file-input-bordered w-full"
-          @change="readJSONFile"
           required
         />
       </div>
@@ -21,7 +20,7 @@
         <label class="label">
           <span class="label-text">Organization</span>
         </label>
-        <select class="select select-bordered w-full" x-model="selectedOrganization" required>
+        <select name="organization" class="select select-bordered w-full"  required>
           <option disabled value="">Select Organization</option>
           {% for org in organizations %}
             <option value="{{ org.id }}">{{ org.name }}</option>
@@ -42,7 +41,7 @@
           {% for role in roles %}
             <tr>
               <td>
-                <input type="checkbox" value="{{ role.name }}" x-model="selectedRoles" />
+                <input type="checkbox" name="roles[]" value="{{ role.id }}" />
               </td>
               <td>{{ role.name }}</td>
               <td>{{ role.description }}</td>
@@ -58,48 +57,3 @@
   <div id="result" class="mt-5"></div>
 </div>
 
-<script>
-  function userImport() {
-    return {
-      selectedOrganization: '',
-      selectedRoles: [],
-      userList: [],
-
-      readJSONFile(event) {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const data = JSON.parse(e.target.result);
-          this.userList = data.data;
-          console.log(this.userList);
-        };
-        reader.readAsText(file);
-      },
-
-      submitForm() {
-        if (!this.selectedOrganization || !this.selectedRoles.length || !this.userList.length) {
-          alert('Please complete all required fields and select a valid JSON file.');
-          return;
-        }
-
-        const payload = this.userList.map((user) => ({
-          username: user.username,
-          name: user.name,
-          organization: this.selectedOrganization,
-          roles: this.selectedRoles,
-        }));
-
-        fetch('/frontend/import/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ users: payload }),
-        })
-          .then((res) => res.text())
-          .then((html) => (document.querySelector('#result').innerHTML = html))
-          .catch((err) => alert('An error occurred: ' + err.message));
-      },
-    };
-  }
-</script>

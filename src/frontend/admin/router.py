@@ -242,10 +242,22 @@ class ImportUsers(MethodView):
         return render_template("user/user_import.html", roles=roles, organizations=organizations)
 
     def post(self):
-        data = request.data
+        roles = request.form.get("roles[]")
+        organization = request.form.get("organization")
+        users = request.files.get("file")
+        # read the file content
+        data = users.read()
+        # extend the data with the role and organization
+        data = json.loads(data)
+        for user in data['data']:
+            user["roles"] = [int(roles)]
+            user["organization"] = int(organization)
+        # convert the data back to json
+        data = json.dumps(data['data'])
+
         if not data:
             return {"error": "No JSON data provided"}, 400
-
+        logger.debug(f"Importing users: {data}")
         response = CoreApi().import_users(json.loads(data))
 
         if not response:
