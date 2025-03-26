@@ -67,7 +67,7 @@ jobs:
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
-          retention-days: 30
+          retention-days: 90
           overwrite: true
           name: taranis_core_sbom.json
           path: ${{ runner.temp }}/taranis_core_sbom.json
