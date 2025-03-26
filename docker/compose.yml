@@ -226,7 +226,7 @@ services:
         max-file: "10"
 
 
-  sentiment_bot:
+  sentiment_analysis_bot:
     depends_on:
       workers:
         condition: service_healthy
