@@ -1,7 +1,6 @@
 from swagger_ui import api_doc
 from flask import jsonify
 from pathlib import Path
-from flask_caching import Cache
 from flask_cors import CORS
 
 from core.config import Config
@@ -9,7 +8,6 @@ import core.api as core_api
 
 
 def initialize(app):
-    Cache(app)
     CORS(app)
 
     app.url_map.strict_slashes = False

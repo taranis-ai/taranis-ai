@@ -54,6 +54,13 @@ jobs:
             docker buildx imagetools create --tag ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG} ghcr.io/${REPOSITORY_OWNER}/${image}:latest
           done
 
+      - name: Download latest SBOM artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh run list --workflow "build core" --status success --commit "${{ github.sha }}" --limit 1 --json databaseId --jq '.[0].databaseId')
+          gh run download $run_id -n taranis_core_sbom.json -D ${{ runner.temp }}
+
       - name: Release
         uses: softprops/action-gh-release@v2.0.6
         with:
@@ -63,3 +70,4 @@ jobs:
           files: |
             docker/compose.yml
             ${{ runner.temp }}/env.sample
+            ${{ runner.temp }}/taranis_core_sbom.json
