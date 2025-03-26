@@ -242,11 +242,11 @@ class ImportUsers(MethodView):
         return render_template("user/user_import.html", roles=roles, organizations=organizations)
 
     def post(self):
-        file = request.files.get("file")
-        if not file:
-            return {"error": "No file provided"}, 400
+        data = request.data
+        if not data:
+            return {"error": "No JSON data provided"}, 400
 
-        response = CoreApi().import_users(json.loads(file.read()))
+        response = CoreApi().import_users(json.loads(data))
 
         if not response:
             logger.debug(f"Failed to import users to: {Config.TARANIS_CORE_URL}")
