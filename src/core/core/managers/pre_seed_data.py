@@ -251,6 +251,7 @@ workers = [
         "parameters": [
             {"parameter": "URL", "rules": "required"},
             {"parameter": "API_KEY"},
+            {"parameter": "ORGANISATION_ID", "rules": "required"},
             {"parameter": "SSL_CHECK", "type": "switch"},
             {"parameter": "REQUEST_TIMEOUT", "type": "number"},
             {"parameter": "USER_AGENT"},

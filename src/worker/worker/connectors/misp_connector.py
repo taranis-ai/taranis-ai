@@ -20,6 +20,7 @@ class MISPConnector:
 
         self.url: str = ""
         self.api_key: str = ""
+        self.org_id: str = ""
         self.ssl: bool = False
         self.request_timeout: int = 5
         self.sharing_group_id: str = ""
@@ -29,6 +30,7 @@ class MISPConnector:
         logger.debug(f"{parameters=}")
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
+        self.org_id = parameters.get("ORGANISATION_ID", "")
         self.ssl = parameters.get("SSL", False)
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES")
@@ -306,7 +308,7 @@ class MISPConnector:
                 return obj
         return None
 
-    def preprocess_story(self, story: dict, ids_in_misp: set) -> dict | None:
+    def drop_existing_news_items(self, story: dict, ids_in_misp: set) -> dict | None:
         """
         Drop news items from 'story' that already exist in the MISP event
         (to avoid adding duplicates).
@@ -321,11 +323,16 @@ class MISPConnector:
 
     def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | None:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
-            self.remove_missing_objects_from_misp(misp, event, story)
+            event_dict = event.to_dict()
+            orgc_id = event_dict.get("orgc_id", None)
+            if orgc_id == self.org_id:
+                self.remove_missing_objects_from_misp(misp, event, story)
+                ids_in_misp = self.get_event_object_ids(event)
+                if story_prepared := self.drop_existing_news_items(story, ids_in_misp):
+                    return self._update_event(story_prepared, misp_event_uuid, event, misp)
+            else:
+                self._add_proposal_to_event(story, misp_event_uuid, event, misp)
 
-            ids_in_misp = self.get_event_object_ids(event)
-            if story_prepared := self.preprocess_story(story, ids_in_misp):
-                return self._update_event_with_story(story_prepared, misp_event_uuid, event, misp)
         return None
 
     def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> None:
@@ -391,17 +398,8 @@ class MISPConnector:
     #     with open("tests/mispevent_testfiles/proposals.json") as f:
     #         ref_json = json.load(f)
     #     self.assertEqual(self.mispevent.to_json(sort_keys=True, indent=2), json.dumps(ref_json, sort_keys=True, indent=2))
-    def _update_event_with_story(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP):
-        event_to_add = self.create_misp_event(story_prepared)
-        event_to_add.uuid = misp_event_uuid
-
-        existing_report_uuid = None
-        if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
-            existing_report_uuid = existing_event.EventReport[0].uuid
-
-        new_report = self.create_event_report(story_prepared, existing_report_uuid)
-        event_to_add.EventReport = [new_report]
-
+    def _update_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP):
+        event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
         updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=existing_event.id, pythonify=True)
         if isinstance(updated_event, dict):
             if "errors" in updated_event:
@@ -409,21 +407,29 @@ class MISPConnector:
                 http_code, error_data = error_tuple[0], error_tuple[1]
 
                 logger.error(f"MISP returned an error. HTTP code: {http_code}. Details: {error_data}")
-                if http_code == 403:
-                    logger.error("MISP returned a permission error, you should create a proposal.")
-                    misp = PyMISP(
-                        url=self.url,
-                        key=self.api_key,
-                        ssl=self.ssl,
-                        proxies=self.proxies,
-                        http_headers=self.headers,
-                    )
-                    self.add_proposal(existing_event, event_to_add, misp)
-                return None
 
             logger.error(f"Returned a dict instead of a MISPEvent: {updated_event}")
             return None
         return updated_event
+
+    def _add_proposal_to_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP) -> None:
+        logger.info(
+            f"Event with UUID: {misp_event_uuid} is not editable by the organisation with ID: {self.org_id}. A proposal will be attempted instead."
+        )
+        event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
+        self.add_proposal(existing_event, event_to_add, misp)
+
+        return None
+
+    def _create_event(self, story_prepared, misp_event_uuid, existing_event):
+        result = self.create_misp_event(story_prepared)
+        result.uuid = misp_event_uuid
+        existing_report_uuid = None
+        if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
+            existing_report_uuid = existing_event.EventReport[0].uuid
+        new_report = self.create_event_report(story_prepared, existing_report_uuid)
+        result.EventReport = [new_report]
+        return result
 
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> str | None:
         """
@@ -485,8 +491,8 @@ def sending():
         "parameters": {
             "ADDITIONAL_HEADERS": "",
             # "API_KEY": "bXSZEtpNQL6somSCz08x3IzEnDx1bkM6wwZRd0uZ", # org original
-            # org2@test.com:8tZ*QDdSE5jdJ*^a
-            "API_KEY": "58S2a80sLd89pNAfWRPIVpmnLUsjRjsn1JuspqNZ",  # org another one
+            # test@test.com
+            "API_KEY": "Q3XI3zQaTQN35Qrx3wvG1iUoQqzwb8m0cd2XcOzK",  # org another one
             "PROXY_SERVER": "",
             "REFRESH_INTERVAL": "",
             "URL": "https://localhost",
