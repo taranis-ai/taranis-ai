@@ -245,19 +245,15 @@ class ImportUsers(MethodView):
         roles = [int(role) for role in request.form.getlist("roles[]")]
         organization = int(request.form.get("organization"))
         users = request.files.get("file")
-        # read the file content
         data = users.read()
-        # extend the data with the role and organization
         data = json.loads(data)
         for user in data['data']:
             user["roles"] =  roles
-            user["organization"] = int(organization)
-        # convert the data back to json
+            user["organization"] = organization
         data = json.dumps(data['data'])
 
         if not data:
             return {"error": "No JSON data provided"}, 400
-        logger.debug(f"Importing users: {data}")
         response = CoreApi().import_users(json.loads(data))
 
         if not response:
