@@ -261,12 +261,12 @@ class Organizations(MethodView):
 class UsersImport(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
     def post(self):
-        logger.debug("Importing users")
         user_list = request.json
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
             invalidate_cache("users")
+            logger.debug("invalidated users cache")
             return {"users": users, "count": len(users), "message": "Successfully imported users"}
         return {"error": "Unable to import"}, 400
 

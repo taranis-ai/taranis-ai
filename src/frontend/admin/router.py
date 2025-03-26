@@ -167,6 +167,7 @@ class InvalidateCache(MethodView):
         for key in keys_to_delete:
             cache.delete(key)
 
+        logger.debug(f"Deleted keys: {keys_to_delete}")
         return "Cache invalidated"
 
 
