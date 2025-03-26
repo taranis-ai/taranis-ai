@@ -28,17 +28,6 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
-      - name: TEST TEST TEST Create SBOM
-        run: uvx cyclonedx-py environment '.venv' -o ${{ runner.temp }}/sbom.json
-
-      - name: TEST TEST TEST Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          retention-days: 1
-          overwrite: true
-          name: taranis_core_sbom_test.json
-          path: ${{ runner.temp }}/sbom.json
-
       - name: Run tests and capture output
         run: |
           {
