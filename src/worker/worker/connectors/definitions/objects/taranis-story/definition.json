@@ -48,7 +48,7 @@
             "ui-priority": 0
         },
         "relevance": {
-            "description": "Relevance score or level",
+            "description": "Relevance score or level (integer)",
             "misp-attribute": "text",
             "ui-priority": 0
         },

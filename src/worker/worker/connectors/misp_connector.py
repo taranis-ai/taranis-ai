@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Callable
-from pymisp import MISPEventReport, MISPObject, PyMISP, MISPEvent, MISPShadowAttribute, exceptions
+from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.core_api import CoreApi
@@ -128,8 +128,8 @@ class MISPConnector:
         object_data: dict = self.get_story_object_dict()
         object_data |= story
         object_data["attributes"] = []
-        object_data["links"] = []
-        object_data["tags"] = []
+        object_data["links"] = self._process_items(story, "links", self._process_link)
+        object_data["tags"] = self._process_items(story, "tags", self._process_tags)
 
         story_object = BaseMispObject(
             parameters=object_data,
@@ -137,12 +137,12 @@ class MISPConnector:
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
         attribute_list = self.add_attributes_from_story(story)
-        link_list = self._process_items(story, "links", self._process_link)
-        tag_list = self._process_items(story, "tags", self._process_tags)
+        # link_list = self._process_items(story, "links", self._process_link)
+        # tag_list = self._process_items(story, "tags", self._process_tags)
 
         story_object.add_attributes("attributes", *attribute_list)
-        story_object.add_attributes("links", *link_list)
-        story_object.add_attributes("tags", *tag_list)
+        # story_object.add_attributes("links", *link_list)
+        # story_object.add_attributes("tags", *tag_list)
 
         event.add_object(story_object)
 
@@ -336,7 +336,6 @@ class MISPConnector:
         return None
 
     def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> None:
-        # Get the Taranis story object from the existing event
         existing_object = self.get_taranis_story_object(existing_event)
         new_object = self.get_taranis_story_object(event_to_add)
 
@@ -344,60 +343,53 @@ class MISPConnector:
             logger.warning("No Taranis story object found in one of the events.")
             return
 
-        # Map existing attributes for quick lookup
         existing_attributes = {attr.object_relation: attr for attr in existing_object.attributes}
 
         for new_attr in new_object.attributes:
             logger.debug(f"Processing new attribute: {new_attr.to_dict()}")
+            if not (existing_attr := existing_attributes.get(new_attr.object_relation)):
+                logger.error(f"No existing attribute found for {new_attr.object_relation}; cannot add proposal.")
+                continue
 
-            # Check if the attribute exists in the existing object
-            existing_attr = existing_attributes.get(new_attr.object_relation)
-
-            if existing_attr and existing_attr.value == new_attr.value:
+            if existing_attr.value == new_attr.value:
                 logger.info(f"No changes detected for {new_attr.object_relation}. Skipping proposal.")
                 continue
 
-            # Prepare the proposal
-            proposal = MISPShadowAttribute()
-            proposal.event_id = existing_event.id
-            proposal.object_id = existing_object.id
-            proposal.object_relation = new_attr.object_relation
-            proposal.value = new_attr.value  # Proposed new value
-            proposal.type = getattr(new_attr, "type", "text")
-            # proposal.category = getattr(new_attr, "category", "Other")
-            # proposal.to_ids = getattr(new_attr, "to_ids", False)
-            proposal.comment = (
-                f"Proposed change for {new_attr.object_relation}: "
-                f"Current value: {existing_attr.value if existing_attr else 'None'}, "
-                f"New value: {new_attr.value}"
-            )
+            proposal = self._create_proposal(existing_event, existing_object, existing_attr, new_attr)
 
             try:
-                # Add the proposal to the event
                 logger.debug(f"Adding proposal for {new_attr.object_relation} with value: {new_attr.value}")
                 logger.debug(f"{proposal.to_dict()=}")
-                response = existing_event.add_proposal(proposal, strict=True)
-                logger.debug(f"{response.to_dict()=}")
 
-                # Validate response
+                response = misp.update_attribute_proposal(existing_attr.id, proposal)
+
                 if isinstance(response, dict) and "errors" in response:
                     logger.error(f"Failed to add proposal for {new_attr.object_relation}: {response['errors']}")
                 else:
                     logger.info(f"Proposal successfully added for {new_attr.object_relation}.")
+            except exceptions.PyMISPError as e:
+                logger.error(f"PyMISP error while adding proposal for {new_attr.object_relation}: {e}")
             except Exception as e:
                 logger.error(f"Error while adding proposal for {new_attr.object_relation}: {e}")
 
-    # def test_shadow_attributes(self) -> None:
-    #     self.mispevent = MISPEvent()
-    #     p = self.mispevent.add_proposal(type="filename", value="baz.jpg")
-    #     del p.uuid
-    #     a: MISPAttribute = self.mispevent.add_attribute("filename", "bar.exe")  # type: ignore[assignment]
-    #     del a.uuid
-    #     p = self.mispevent.attributes[0].add_proposal(type="filename", value="bar.pdf")
-    #     del p.uuid
-    #     with open("tests/mispevent_testfiles/proposals.json") as f:
-    #         ref_json = json.load(f)
-    #     self.assertEqual(self.mispevent.to_json(sort_keys=True, indent=2), json.dumps(ref_json, sort_keys=True, indent=2))
+    def _create_proposal(
+        self, existing_event: MISPEvent, existing_object: MISPObject, existing_attr: MISPAttribute, new_attr: MISPObjectAttribute
+    ) -> MISPAttribute:
+        proposal = MISPAttribute()
+        proposal.event_id = existing_event.id
+        proposal.object_id = existing_object.id
+        proposal.object_relation = new_attr.object_relation
+        proposal.value = new_attr.value
+        proposal.type = getattr(new_attr, "type", "text")
+        # proposal.category = getattr(new_attr, "category", "Other")
+        # proposal.to_ids = getattr(new_attr, "to_ids", False)
+        proposal.comment = (
+            f"Proposed change for {new_attr.object_relation}: "
+            f"Current value: {existing_attr.value if existing_attr else 'None'}, "
+            f"New value: {new_attr.value}"
+        )
+        return proposal
+
     def _update_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP):
         event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
         updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=existing_event.id, pythonify=True)
