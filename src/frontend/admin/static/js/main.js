@@ -26,5 +26,8 @@ function toggleDetails(jobId) {
 // hide debug menu if loaded inside iframe
 
 if (window.self !== window.top) {
-  document.getElementById('debug_menu').style.display = 'none';
+  const debugMenu = document.getElementById('debug_menu');
+  if (debugMenu) {
+    debugMenu.remove();
+  }
 }
