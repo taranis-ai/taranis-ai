@@ -34,7 +34,6 @@ dependencies = [
     "pymisp",
     "paramiko",
     "python-gnupg",
-    "tweepy",
 
     # Presenters
     "weasyprint",

@@ -18,7 +18,6 @@ class PublisherTask(Task):
         self.core_api = CoreApi()
         self.publishers = {
             "email_publisher": worker.publishers.EMAILPublisher(),
-            "twitter_publisher": worker.publishers.TWITTERPublisher(),
             "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
             "ftp_publisher": worker.publishers.FTPPublisher(),
             "sftp_publisher": worker.publishers.SFTPPublisher(),

@@ -1,5 +1,6 @@
 {% set error = error | default({}) %}
 {% set create = request.path[-1:] == '0' | default('true') %}
+{% from "macros/table.html" import table with context %}
 
 {% set role = role
     | default({
@@ -32,30 +33,17 @@
 
         <label class="floating-label mb-5">
             <span>Description</span>
-            <input type="text" placeholder="Description class="input input-md validator" name="description" required value="{{ role.description }}" id="description" />
+            <input type="text" placeholder="Description" class="input input-md validator" name="description" required value="{{ role.description }}" id="description" />
         </label>
 
-        <div class="overflow-x-auto mt-5">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for permission in permissions %}
-                <tr>
-                  <td>
-                    <input type="checkbox" name="permissions[]" value="{{ permission.id }}" />
-                  </td>
-                  <td>{{ permission.name }}</td>
-                  <td>{{ permission.description }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        <label class="floating-label mb-5">
+          <span>Permissions</span>
+          {% set columns = [
+            {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+            {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+          ] %}
+          {{ table('permissions-table', permissions, columns) }}
+          </label>
 
         <div class="flex flex-wrap -mx-3 mb-6">
             <div class="w-full px-3">

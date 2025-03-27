@@ -1,6 +1,6 @@
 {% macro table(table_id, data, columns, actions, selectable=True) %}
 {% from "macros/table.html" import table_header with context %}
-{% set item_ids = data | map(attribute='id') | list | tojson %}
+{% set item_ids = data | map(attribute='id') | list %}
 
 <table class="table" id="{{ table_id }}" x-data="{ selectedItems: [] }">
     <thead>
@@ -9,8 +9,8 @@
             <th>
                 <input type="checkbox"
                        class="checkbox"
-                       :checked="selectedItems.length === {{ item_ids }}.length"
-                       @change="selectedItems = selectedItems.length === {{ item_ids }}.length ? [] : {{ item_ids }}"
+                       :checked="selectedItems.length === {{ item_ids | length }}"
+                       @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
                 />
             </th>
             {% endif %}
