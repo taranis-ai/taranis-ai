@@ -28,15 +28,6 @@ class Dashboard(MethodView):
         return render_template("index.html", data=result)
 
 
-class RolesAPI(MethodView):
-    def get(self):
-        result = DataPersistenceLayer().get_objects(Role)
-        if result is None:
-            return f"Failed to fetch roles from: {Config.TARANIS_CORE_URL}", 500
-
-        return render_template("roles.html", roles=result)
-
-
 class ScheduleAPI(MethodView):
     @jwt_required()
     def get(self):
@@ -137,14 +128,6 @@ class UpdateUser(MethodView):
         return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
 
 
-class NewUser(MethodView):
-    @jwt_required()
-    def get(self):
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-        return render_template("user/user_form.html", organizations=organizations, roles=roles, action="new")
-
-
 class OrganizationsAPI(MethodView):
     @jwt_required()
     def get(self):
@@ -152,12 +135,65 @@ class OrganizationsAPI(MethodView):
         if result is None:
             return f"Failed to fetch organization from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("organization/organizations.html", organizations=result)
+        return render_template("organization/index.html", organizations=result)
 
 
-class NewOrganization(MethodView):
+class UpdateOrganization(MethodView):
+    @jwt_required()
+    def get(self, organization_id: int):
+        if organization_id == 0:
+            return render_template("organization/organization_form.html", action="new")
+        organization = DataPersistenceLayer().get_object(Organization, organization_id)
+        return render_template("organization/organization_form.html", organization=organization)
+
+    @jwt_required()
+    def put(self, organization_id):
+        organization = Organization(**parse_formdata(request.form))
+        result = DataPersistenceLayer().update_object(organization, organization_id)
+        if not result.ok:
+            response = render_template("organization/organization_form.html", organization=organization, action="edit")
+            return response, 200
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @jwt_required()
+    def delete(self, organization_id):
+        result = DataPersistenceLayer().delete_object(Organization, organization_id)
+        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
+
+
+class RolesAPI(MethodView):
+    @jwt_required()
     def get(self):
-        return render_template("new_organization.html")
+        result = DataPersistenceLayer().get_objects(Role)
+        if result is None:
+            return f"Failed to fetch role from: {Config.TARANIS_CORE_URL}", 500
+
+        return render_template("role/index.html", roles=result)
+
+
+class UpdateRole(MethodView):
+    @jwt_required()
+    def get(self, role_id: int):
+        if role_id == 0:
+            return render_template("role/role_form.html", action="new")
+        role = DataPersistenceLayer().get_object(Role, role_id)
+        return render_template("role/role_form.html", role=role)
+
+    @jwt_required()
+    def put(self, role_id):
+        role = Role(**parse_formdata(request.form))
+        result = DataPersistenceLayer().update_object(role, role_id)
+        if not result.ok:
+            response = render_template("role/role_form.html", role=role, action="edit")
+            return response, 200
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @jwt_required()
+    def delete(self, role_id):
+        result = DataPersistenceLayer().delete_object(Role, role_id)
+        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class InvalidateCache(MethodView):
@@ -244,14 +280,16 @@ class ImportUsers(MethodView):
 
     def post(self):
         roles = [int(role) for role in request.form.getlist("roles[]")]
-        organization = int(request.form.get("organization"))
+        organization = int(request.form.get("organization", "0"))
         users = request.files.get("file")
+        if not users or organization == 0:
+            return {"error": "No file or organization provided"}, 400
         data = users.read()
         data = json.loads(data)
-        for user in data['data']:
-            user["roles"] =  roles
+        for user in data["data"]:
+            user["roles"] = roles
             user["organization"] = organization
-        data = json.dumps(data['data'])
+        data = json.dumps(data["data"])
 
         if not data:
             return {"error": "No JSON data provided"}, 400
@@ -274,6 +312,8 @@ def init(app: Flask):
 
     app.url_map.strict_slashes = False
     app.jinja_env.filters["human_readable"] = human_readable_trigger
+    app.jinja_env.trim_blocks = True
+    app.jinja_env.lstrip_blocks = True
 
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
@@ -287,8 +327,11 @@ def init(app: Flask):
     admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
     admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
 
-    admin_bp.add_url_rule("/organizations/", view_func=OrganizationsAPI.as_view("organizations"))
-    admin_bp.add_url_rule("/organizations/new", view_func=NewOrganization.as_view("new_organization"))
+    admin_bp.add_url_rule("/organizations", view_func=OrganizationsAPI.as_view("organizations"))
+    admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=UpdateOrganization.as_view("edit_organization"))
+
+    admin_bp.add_url_rule("/roles/", view_func=RolesAPI.as_view("roles"))
+    admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
 
     admin_bp.add_url_rule("/login", view_func=UserCache.as_view("login"))
     admin_bp.add_url_rule("/logout", view_func=UserCache.as_view("logout"))

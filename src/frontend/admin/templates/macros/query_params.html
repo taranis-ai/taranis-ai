@@ -6,5 +6,5 @@
     {% for key, value in new_params.items() %}
         {% set _ = params.update({key: value}) %}
     {% endfor %}
-    ?{{ params|urlencode }}
+?{{ params|urlencode }}
 {% endmacro %}

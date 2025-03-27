@@ -22,3 +22,9 @@ function toggleDetails(jobId) {
         jobRow.setAttribute('data-expanded', 'true');
     }
 }
+
+// hide debug menu if loaded inside iframe
+
+if (window.self !== window.top) {
+  document.getElementById('debug_menu').style.display = 'none';
+}

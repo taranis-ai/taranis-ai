@@ -1,0 +1,29 @@
+{% from "macros/table.html" import table with context %}
+
+{% set columns = [
+    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+] %}
+
+{% set actions = [
+    {
+        'label': 'Edit',
+        'class': 'btn-primary',
+        'method': 'get',
+        'url': '/frontend/organizations',
+        'hx_target': '#organizations-form-container',
+        'hx_swap': 'innerHTML',
+        'confirm': None
+    },
+    {
+        'label': 'Delete',
+        'class': 'btn-danger',
+        'method': 'delete',
+        'url': '/frontend/organizations',
+        'hx_target': None,
+        'hx_swap': None,
+        'confirm': 'Are you sure?'
+    }
+] %}
+
+{{ table('organizations-table', organizations, columns, actions) }}

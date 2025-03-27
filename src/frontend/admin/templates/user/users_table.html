@@ -1,59 +1,39 @@
+{% macro roles_count(item) %}
+    {{ item.roles | length }}
+{% endmacro %}
 
-{% from "macros/table.html" import table_header with context %}
+{% macro permissions_count(item) %}
+    {{ item.permissions | length }}
+{% endmacro %}
 
-{% set user_ids = users | map(attribute='id') | list | tojson %}
-{% set table_id = 'users-table' %}
+{% from "macros/table.html" import table with context %}
 
+{% set columns = [
+    {'title': 'username', 'field': 'username', 'sortable': True, 'renderer': None},
+    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+    {'title': 'roles', 'field': 'roles', 'sortable': False, 'renderer': roles_count},
+    {'title': 'permissions', 'field': 'permissions', 'sortable': False, 'renderer': permissions_count},
+] %}
 
-<table class="table" id="{{ table_id }}" x-data="{ selectedusers: [] }">
-    <thead>
-        <tr>
-            <th>
-              <input
-                type="checkbox"
-                class="checkbox"
-                :checked="selectedusers.length === {{ user_ids }}.length"
-                @change="selectedusers = selectedusers.length === {{ user_ids }}.length ? [] : {{ user_ids }}"
-              />
-            </th>
-          {{ table_header('username', True) }}
-          {{ table_header('name', True) }}
-          {{ table_header('roles', False) }}
-          {{ table_header('permissions', False) }}
-          <th class="text-right">Actions</th>
-        </tr>
-    </thead>
-    <tbody >
-        {% for user in users %}
-        <tr>
-            <td>
-                <input type="checkbox" class="checkbox checkbox-sm"
-                    value="{{ user.id }}" name="cb[]"
-                    x-model="selectedusers" />
-            </td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.roles|length }}</td>
-            <td>{{ user.permissions|length }}</td>
-            <td class="text-right" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure?">
-                <button href="/frontend/users/{{ user.id }}" hx-get="/frontend/users/{{ user.id }}" class="btn btn-primary" hx-swap="innerHTML" hx-confirm="unset" hx-target="#user-form-container">
-                    Edit
-                </button>
-                <button class="btn btn-danger"  hx-delete="/frontend/users/{{ user.id }}" hx-disabled-elt="this">Delete</button>
-            </td>
-        </tr>
-        {% endfor %}
+{% set actions = [
+    {
+        'label': 'Edit',
+        'class': 'btn-primary',
+        'method': 'get',
+        'url': '/frontend/users',
+        'hx_target': '#user-form-container',
+        'hx_swap': 'innerHTML',
+        'confirm': None
+    },
+    {
+        'label': 'Delete',
+        'class': 'btn-danger',
+        'method': 'delete',
+        'url': '/frontend/users',
+        'hx_target': None,
+        'hx_swap': None,
+        'confirm': 'Are you sure?'
+    }
+] %}
 
-    </tbody>
-    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-    <tr>
-        <td colspan="6">
-            <div class="flex justify-center">
-                {% with data=users %}
-                    {% include 'partials/datatable_controls.html' %}
-                {% endwith %}
-            </div>
-        </td>
-    </tr>
-    </tfoot>
-</table>
+{{ table('users-table', users, columns, actions) }}

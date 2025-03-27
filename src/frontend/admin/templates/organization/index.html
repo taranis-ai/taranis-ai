@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="text-3xl font-bold mb-4">Organizations</div>
+<div class="bg-white rounded-sm p-4 shadow-lg" >
+    {% include 'organization/organizations_table.html' %}
+</div>
+
+<div id="organization-form-container"></div>
+{% endblock %}
