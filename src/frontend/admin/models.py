@@ -60,6 +60,13 @@ class User(TaranisBaseModel):
     password: str | None = None
 
 
+class Permissions(TaranisBaseModel):
+    _core_endpoint = "/config/permissions"
+    id: str
+    name: str
+    description: str
+
+
 class PagingData(BaseModel):
     page: int | None = None
     limit: int | None = None

@@ -11,7 +11,7 @@ from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
-from admin.models import Role, User, Organization, PagingData, Job
+from admin.models import Role, User, Organization, PagingData, Job, Permissions
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
@@ -88,7 +88,6 @@ class UsersAPI(MethodView):
                 "user/user_form.html",
                 organizations=organizations,
                 roles=roles,
-                action="new",
                 user=user,
                 error=result.json(),
                 form_error={},
@@ -99,11 +98,11 @@ class UsersAPI(MethodView):
 
 class UpdateUser(MethodView):
     @jwt_required()
-    def get(self, user_id: int):
+    def get(self, user_id: int = 0):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         if user_id == 0:
-            return render_template("user/user_form.html", organizations=organizations, roles=roles, action="new")
+            return render_template("user/user_form.html", organizations=organizations, roles=roles)
         user = DataPersistenceLayer().get_object(User, user_id)
         current_user = get_jwt_identity()
         return render_template("user/user_form.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
@@ -116,7 +115,7 @@ class UpdateUser(MethodView):
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
             response = render_template(
-                "user/user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles, action="edit"
+                "user/user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles
             )
             return response, 200
 
@@ -142,7 +141,7 @@ class UpdateOrganization(MethodView):
     @jwt_required()
     def get(self, organization_id: int):
         if organization_id == 0:
-            return render_template("organization/organization_form.html", action="new")
+            return render_template("organization/organization_form.html")
         organization = DataPersistenceLayer().get_object(Organization, organization_id)
         return render_template("organization/organization_form.html", organization=organization)
 
@@ -151,7 +150,7 @@ class UpdateOrganization(MethodView):
         organization = Organization(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(organization, organization_id)
         if not result.ok:
-            response = render_template("organization/organization_form.html", organization=organization, action="edit")
+            response = render_template("organization/organization_form.html", organization=organization)
             return response, 200
 
         return Response(status=200, headers={"HX-Refresh": "true"})
@@ -174,18 +173,20 @@ class RolesAPI(MethodView):
 
 class UpdateRole(MethodView):
     @jwt_required()
-    def get(self, role_id: int):
+    def get(self, role_id: int = 0):
+        permissions = DataPersistenceLayer().get_objects(Permissions)
+
         if role_id == 0:
-            return render_template("role/role_form.html", action="new")
+            return render_template("role/role_form.html", permissions=permissions)
         role = DataPersistenceLayer().get_object(Role, role_id)
-        return render_template("role/role_form.html", role=role)
+        return render_template("role/role_form.html", permissions=permissions, role=role)
 
     @jwt_required()
     def put(self, role_id):
         role = Role(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(role, role_id)
         if not result.ok:
-            response = render_template("role/role_form.html", role=role, action="edit")
+            response = render_template("role/role_form.html", role=role)
             return response, 200
 
         return Response(status=200, headers={"HX-Refresh": "true"})

@@ -1,5 +1,5 @@
 {% set error = error | default({}) %}
-{% set new_user = action == 'new' | default(true) %}
+{% set create = request.path[-1:] == '0' | default('true') %}
 
 {% set user = user
     | default({
@@ -16,13 +16,13 @@
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
 <div class="bg-base-100 rounded-sm p-4 shadow-lg mt-4">
-    {% if new_user -%}
+    {% if create -%}
         <h1 class="text-3xl font-bold mb-5">Create User</h1>
     {% else -%}
         {% include "user/edit_user.html" %}
     {% endif -%}
 
-    <form id="user-form" {% if new_user %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#user-form-container" hx-target-error="#user-form-container" class="w-full max-w-lg">
+    <form id="user-form" {% if create %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full max-w-lg">
         {% if error.globalerror -%}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
         {% endif -%}
@@ -40,7 +40,7 @@
         <label class="floating-label mb-5">
             <span>Password</span>
                 <input id="user-password" type="password" placeholder="Password" class="input input-md validator {% if form_error.password %}input-error{% endif %}" name="password"
-                {% if new_user %}required hx-preserve{% endif %}/>
+                {% if create %}required hx-preserve{% endif %}/>
         </label>
 
         <label class="">
@@ -65,7 +65,7 @@
         </label>
         <div class="flex flex-wrap -mx-3 mb-6">
             <div class="w-full px-3">
-                <input type="submit" class="btn btn-primary" value="{% if new_user %}Create{% else %}Update{% endif %} User" />
+                <input type="submit" class="btn btn-primary" value="{% if create %}Create{% else %}Update{% endif %} User" />
             </div>
         </div>
     </form>
@@ -97,7 +97,7 @@
 		}};
 
   htmx.onLoad(function(elt) {
-   
+
     var elt = document.getElementById('user-role-select');
     if (elt && elt.classList.contains('tomselected')) return;
     new TomSelect('#user-role-select', settings);

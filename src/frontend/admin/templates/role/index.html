@@ -2,8 +2,13 @@
 {% block content %}
 <div class="text-3xl font-bold mb-4">Roles</div>
 <div class="bg-white rounded-sm p-4 shadow-lg" >
+  <div class="grow-0">
+    <button hx-get={{ url_for('admin.edit_role', role_id=0) }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
+      New Role
+    </button>
+    </div>
     {% include 'role/roles_table.html' %}
 </div>
 
-<div id="role-form-container"></div>
+<div id="form-container"></div>
 {% endblock %}
