@@ -46,10 +46,10 @@
 
             {% if actions %}
             <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-              {% if actions == 'default' %}
+              {% if actions is string %}
                 {% from "macros/table.html" import default_table_actions %}
                 {% set ns = namespace(actions=[]) %}
-                {{ default_table_actions(ns, '/frontend/users') }}
+                {{ default_table_actions(ns, actions) }}
                 {% set actions = ns.actions %}
               {% endif %}
               {% for action in actions %}
