@@ -118,14 +118,14 @@ class UpdateUser(MethodView):
             response = render_template(
                 "user/user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles
             )
-            return response, 200
+            return response, result.status_code
 
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
     @auth_required()
     def delete(self, user_id):
         result = DataPersistenceLayer().delete_object(User, user_id)
-        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
+        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class OrganizationsAPI(MethodView):
