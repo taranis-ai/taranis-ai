@@ -57,12 +57,22 @@ class DataPersistenceLayer:
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()
         logger.info(f"Storing object: {store_object}")
-        return self.api.api_post(object._core_endpoint, json_data=store_object)
+        response = self.api.api_post(object._core_endpoint, json_data=store_object)
+        if response.ok:
+            logger.debug(f"deleting cache {object._core_endpoint.removeprefix('/config/')}")
+            self.invalidate_cache(object._core_endpoint.removeprefix('/config/'))
+        return response
 
     def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):
         endpoint = self.get_endpoint(object_model)
-        return self.api.api_delete(f"{endpoint}/{object_id}")
+        response = self.api.api_delete(f"{endpoint}/{object_id}")
+        if response.ok:
+            self.invalidate_cache(object._core_endpoint.removeprefix('/config'))
+        return response
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object)
-        return self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
+        response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
+        if response.ok:
+            self.invalidate_cache(object._core_endpoint.removeprefix('/config'))
+        return response
