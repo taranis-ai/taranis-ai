@@ -17,7 +17,7 @@ import { useMainStore } from '@/stores/MainStore'
 export default {
   name: 'SchedulerView',
   setup() {
-    const iframeSrc = `${import.meta.env.BASE_URL}scheduler`
+    const iframeSrc = `${import.meta.env.BASE_URL}frontend/schedule`
     useMainStore().resetItemCount()
 
     return { iframeSrc }

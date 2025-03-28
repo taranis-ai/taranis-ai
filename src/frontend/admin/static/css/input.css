@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "../js/daisyui.js" {
+    themes: light --default, dark --prefersdark;
+}
+
+.input:focus {
+    outline-offset: 0;
+    outline-color: var(--color-primary);
+}
