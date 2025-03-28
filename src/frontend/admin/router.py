@@ -65,6 +65,7 @@ class UsersAPI(MethodView):
         result = DataPersistenceLayer().get_objects(User, q)
 
         if result is None:
+            # TODO: return a proper error template
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         if is_htmx_request():
@@ -130,11 +131,38 @@ class UpdateUser(MethodView):
 class OrganizationsAPI(MethodView):
     @jwt_required()
     def get(self):
-        result = DataPersistenceLayer().get_objects(Organization)
+        query_params = convert_query_params(request.args, PagingData)
+        try:
+            q = PagingData(**query_params)
+        except ValidationError as ve:
+            return {"error": str(ve)}
+        result = DataPersistenceLayer().get_objects(Organization, q)
+
         if result is None:
-            return f"Failed to fetch organization from: {Config.TARANIS_CORE_URL}", 500
+            # TODO: return a proper error template
+            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+
+        if is_htmx_request():
+            return render_template("organization/organizations_table.html", organizations=result)
 
         return render_template("organization/index.html", organizations=result)
+
+    @auth_required()
+    def post(self):
+        organization = Organization(**parse_formdata(request.form))
+        result = DataPersistenceLayer().store_object(organization)
+        if not result.ok:
+            _error = result.json().get("error")
+            logger.warning(f"Failed to store organization: {_error}")
+
+            return render_template(
+                "organization/organization_form.html",
+                organization=organization,
+                error=_error,
+                form_error={},
+            ), result.status_code
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class UpdateOrganization(MethodView):
@@ -164,11 +192,40 @@ class UpdateOrganization(MethodView):
 class RolesAPI(MethodView):
     @jwt_required()
     def get(self):
-        result = DataPersistenceLayer().get_objects(Role)
-        if result is None:
-            return f"Failed to fetch role from: {Config.TARANIS_CORE_URL}", 500
+        query_params = convert_query_params(request.args, PagingData)
+        try:
+            q = PagingData(**query_params)
+        except ValidationError as ve:
+            return {"error": str(ve)}
+        result = DataPersistenceLayer().get_objects(Role, q)
 
+        if result is None:
+            # TODO: return a proper error template
+            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+
+        if is_htmx_request():
+            return render_template("role/roles_table.html", roles=result)
         return render_template("role/index.html", roles=result)
+
+    @auth_required()
+    def post(self):
+        role = Role(**parse_formdata(request.form))
+        result = DataPersistenceLayer().store_object(role)
+        if not result.ok:
+            permissions = DataPersistenceLayer().get_objects(Permissions)
+
+            _error = result.json().get("error")
+            logger.warning(f"Failed to store role: {_error}")
+
+            return render_template(
+                "role/role_form.html",
+                role=role,
+                permissions=permissions,
+                error=_error,
+                form_error={},
+            ), result.status_code
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class UpdateRole(MethodView):

@@ -198,16 +198,19 @@ class Roles(MethodView):
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
         new_role = role.Role.add(request.json)
+        invalidate_cache("roles")
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
         if data := request.json:
             return role.Role.update(role_id, data)
+        invalidate_cache("roles")
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
+        invalidate_cache("roles")
         return role.Role.delete(role_id)
 
 
@@ -247,14 +250,17 @@ class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
         org = organization.Organization.add(request.json)
+        invalidate_cache("organizations")
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id):
+        invalidate_cache("organizations")
         return organization.Organization.update(organization_id, request.json)
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
     def delete(self, organization_id):
+        invalidate_cache("organizations")
         return organization.Organization.delete(organization_id)
 
 

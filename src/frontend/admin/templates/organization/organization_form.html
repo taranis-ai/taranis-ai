@@ -1,5 +1,6 @@
 {% set error = error | default({}) %}
 {% set create = request.path[-1:] == '0' | default('true') %}
+{% set form_title = 'Organization' %}
 
 {% set organization = organization
     | default({
@@ -13,11 +14,7 @@
 
 {% set form_error = form_error | default({}) %}
 <div class="bg-base-100 rounded-sm p-4 shadow-lg mt-4">
-    {% if create %}
-        <h1 class="text-3xl font-bold mb-5">Create Organization</h1>
-    {% else %}
-        <h1 class="text-3xl font-bold mb-5">Edit Organization</h1>
-    {% endif %}
+    <h1 class="text-3xl font-bold mb-5">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
 
     <form id="role-form" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full max-w-lg">
         {% if error.globalerror %}
@@ -31,16 +28,31 @@
 
         <label class="floating-label mb-5">
             <span>Description</span>
-            <input type="text" placeholder="Description class="input input-md validator" name="description" required value="{{ organization.description }}" id="description" />
+            <input type="text" placeholder="Description" class="input input-md validator" name="description" value="{{ organization.description }}" id="description" />
         </label>
 
         <label class="floating-label mb-5">
-            <span>address</span>
-            {{ organization.address }}
+            <span>Street</span>
+            <input type="text" placeholder="Street" class="input input-md validator" name="address[street]" value="{{ organization.address.street }}" id="street" />
+        </label>
+
+        <label class="floating-label mb-5">
+            <span>City</span>
+            <input type="text" placeholder="City" class="input input-md validator" name="address[city]" value="{{ organization.address.city }}" id="city" />
+        </label>
+
+        <label class="floating-label mb-5">
+            <span>Country</span>
+            <input type="text" placeholder="Country" class="input input-md validator" name="address[country]" value="{{ organization.address.country }}" id="country" />
+        </label>
+
+        <label class="floating-label mb-5">
+            <span>ZIP</span>
+            <input type="text" placeholder="ZIP" class="input input-md validator" name="address[zip]" value="{{ organization.address.zip }}" id="zip" />
         </label>
         <div class="flex flex-wrap -mx-3 mb-6">
             <div class="w-full px-3">
-                <input type="submit" class="btn btn-primary" value="{% if create %}Create{% else %}Update{% endif %} Role" />
+              <input type="submit" class="btn btn-primary" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
             </div>
         </div>
     </form>

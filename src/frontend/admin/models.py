@@ -14,10 +14,10 @@ class TaranisBaseModel(BaseModel):
 
 
 class Address(TaranisBaseModel):
-    city: str
-    country: str
-    street: str
-    zip: str
+    city: str | None = None
+    country: str | None = None
+    street: str | None = None
+    zip: str | None = None
 
 
 class Job(TaranisBaseModel):
@@ -30,7 +30,7 @@ class Job(TaranisBaseModel):
 
 class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
-    id: int
+    id: int | None = None
     name: str
     description: str | None = None
     address: Address | None = None
@@ -38,10 +38,10 @@ class Organization(TaranisBaseModel):
 
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
-    id: int
+    id: int | None = None
     name: str
-    description: str
-    permissions: list[str]
+    description: str | None = None
+    permissions: list[str] | None = None
     tlp_level: int | None = None
 
 

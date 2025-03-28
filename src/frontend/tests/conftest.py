@@ -31,5 +31,25 @@ def client(app):
 def dashboard_get_mock(requests_mock):
     from admin.config import Config
 
-    yield requests_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json={"latest_collected":"2025-01-14T21:16:42.699574+01:00","report_items_completed":5,"report_items_in_progress":1,"schedule_length":2,"total_database_items":308,"total_news_items":306,"total_products":1}
-)
+    mock_data = {
+        "latest_collected": "2025-01-14T21:16:42.699574+01:00",
+        "report_items_completed": 5,
+        "report_items_in_progress": 1,
+        "schedule_length": 2,
+        "total_database_items": 308,
+        "total_news_items": 306,
+        "total_products": 1,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def users_get_mock(requests_mock):
+    from admin.config import Config
+
+    mock_data = [{"id": 1, "name": "admin", "username": "Admin"}]
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/users", json=mock_data)
+    yield mock_data

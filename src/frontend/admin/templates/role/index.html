@@ -6,8 +6,8 @@
     <button hx-get={{ url_for('admin.edit_role', role_id=0) }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
       New Role
     </button>
-    </div>
-    {% include 'role/roles_table.html' %}
+  </div>
+  {% include 'role/roles_table.html' %}
 </div>
 
 <div id="form-container"></div>
