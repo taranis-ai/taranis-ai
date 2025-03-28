@@ -5,25 +5,4 @@
     {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ] %}
 
-{% set actions = [
-    {
-        'label': 'Edit',
-        'class': 'btn-primary',
-        'method': 'get',
-        'url': '/frontend/roles',
-        'hx_target': '#form-container',
-        'hx_swap': 'innerHTML',
-        'confirm': None
-    },
-    {
-        'label': 'Delete',
-        'class': 'btn-danger',
-        'method': 'delete',
-        'url': '/frontend/roles',
-        'hx_target': None,
-        'hx_swap': None,
-        'confirm': 'Are you sure?'
-    }
-] %}
-
-{{ table('roles-table', roles, columns, actions) }}
+{{ table('roles-table', roles, columns, 'default') }}

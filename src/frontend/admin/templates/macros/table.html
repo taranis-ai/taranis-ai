@@ -1,7 +1,7 @@
 {% macro table(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items") %}
 {% from "macros/table.html" import table_header with context %}
+{% from "macros/buttons.html" import action_button with context %}
 {% set item_ids = data | map(attribute='id') | list %}
-
 
 <table class="table" id="{{ table_id }}" x-data="{ selectedItems: [] }">
     <thead>
@@ -46,15 +46,15 @@
 
             {% if actions %}
             <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-                {% for action in actions %}
-                    <button class="btn {{ action.class }}"
-                            hx-{{ action.method }}="{{ action.url }}/{{ item.id }}"
-                            {% if action.hx_target %} hx-target="{{ action.hx_target }}" {% endif %}
-                            {% if action.hx_swap %} hx-swap="{{ action.hx_swap }}" {% endif %}
-                            {% if action.confirm %} hx-confirm="{{ action.confirm }}" {% endif %}>
-                        {{ action.label }}
-                    </button>
-                {% endfor %}
+              {% if actions == 'default' %}
+                {% from "macros/table.html" import default_table_actions %}
+                {% set ns = namespace(actions=[]) %}
+                {{ default_table_actions(ns, '/frontend/users') }}
+                {% set actions = ns.actions %}
+              {% endif %}
+              {% for action in actions %}
+              {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
+              {% endfor %}
             </td>
             {% endif %}
         </tr>
@@ -72,6 +72,28 @@
 </table>
 {% endmacro %}
 
+{% macro default_table_actions(ns, base_url) %}
+    {% set ns.actions = [
+        {
+            'label': 'Edit',
+            'class': 'btn-primary',
+            'method': 'get',
+            'url': base_url,
+            'hx_target': '#form-container',
+            'hx_swap': 'innerHTML',
+            'confirm': None
+        },
+        {
+            'label': 'Delete',
+            'class': 'btn-danger',
+            'method': 'delete',
+            'url': base_url,
+            'hx_target': None,
+            'hx_swap': None,
+            'confirm': 'Are you sure?'
+        }
+    ] %}
+{% endmacro %}
 
 {% macro table_header(title, sortable) %}
 {% from "macros/query_params.html" import update_query_params with context %}

@@ -22,3 +22,13 @@
   </label>
 </form>
 {% endmacro %}
+
+{% macro action_button(action) %}
+        <button class="btn {{ action.class }}"
+                hx-{{ action.method }}="{{ action.url }}"
+                {% if action.hx_target %} hx-target="{{ action.hx_target }}" {% endif %}
+                {% if action.hx_swap %} hx-swap="{{ action.hx_swap }}" {% endif %}
+                {% if action.confirm %} hx-confirm="{{ action.confirm }}" {% endif %}>
+            {{ action.label }}
+        </button>
+{% endmacro %}

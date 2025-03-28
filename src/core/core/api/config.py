@@ -309,7 +309,7 @@ class Users(MethodView):
             invalidate_cache("users")
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except IntegrityError as e:
-            return convert_integrity_error(e), 400
+            return {"error": convert_integrity_error(e)}, 400
         except Exception:
             logger.exception()
             return {"error": "Could not create user"}, 400

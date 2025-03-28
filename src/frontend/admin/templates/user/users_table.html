@@ -15,25 +15,4 @@
     {'title': 'permissions', 'field': 'permissions', 'sortable': False, 'renderer': permissions_count},
 ] %}
 
-{% set actions = [
-    {
-        'label': 'Edit',
-        'class': 'btn-primary',
-        'method': 'get',
-        'url': '/frontend/users',
-        'hx_target': '#form-container',
-        'hx_swap': 'innerHTML',
-        'confirm': None
-    },
-    {
-        'label': 'Delete',
-        'class': 'btn-danger',
-        'method': 'delete',
-        'url': '/frontend/users',
-        'hx_target': None,
-        'hx_swap': None,
-        'confirm': 'Are you sure?'
-    }
-] %}
-
-{{ table('users-table', users, columns, actions) }}
+{{ table('users-table', users, columns, 'default') }}

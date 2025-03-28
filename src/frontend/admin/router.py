@@ -78,18 +78,18 @@ class UsersAPI(MethodView):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(user)
         if not result.ok:
-            logger.debug(f"User back: {user.__dict__}")
             organizations = DataPersistenceLayer().get_objects(Organization)
             roles = DataPersistenceLayer().get_objects(Role)
-            # add a static error message as test
-            # user._errors['username'] = "Username already exists"
+
+            _error = result.json().get("error")
+            logger.warning(f"Failed to store user: {_error}")
 
             return render_template(
                 "user/user_form.html",
                 organizations=organizations,
                 roles=roles,
                 user=user,
-                error=result.json(),
+                error=_error,
                 form_error={},
             ), result.status_code
 
