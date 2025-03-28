@@ -1,11 +1,11 @@
 import contextlib
 import datetime
+import requests
 import hashlib
 import uuid
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import quote
-import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -43,6 +43,18 @@ class BaseCollector:
             return response
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed for URL {url}: {e}")
+            raise
+
+    def head_with_retry(self, url: str, **kwargs) -> requests.Response:
+        """
+        HEAD a URL using a session that automatically retries on transient errors.
+        """
+        try:
+            response = self.session.head(url, **kwargs)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            logger.error(f"HEAD request failed for URL {url}: {e}")
             raise
 
     def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
