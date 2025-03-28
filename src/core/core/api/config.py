@@ -198,19 +198,16 @@ class Roles(MethodView):
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
         new_role = role.Role.add(request.json)
-        invalidate_cache("roles")
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
         if data := request.json:
             return role.Role.update(role_id, data)
-        invalidate_cache("roles")
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
-        invalidate_cache("roles")
         return role.Role.delete(role_id)
 
 
@@ -250,17 +247,14 @@ class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
         org = organization.Organization.add(request.json)
-        invalidate_cache("organizations")
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id):
-        invalidate_cache("organizations")
         return organization.Organization.update(organization_id, request.json)
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
     def delete(self, organization_id):
-        invalidate_cache("organizations")
         return organization.Organization.delete(organization_id)
 
 
@@ -271,8 +265,6 @@ class UsersImport(MethodView):
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
-            invalidate_cache("users")
-            logger.debug("invalidated users cache")
             return {"users": users, "count": len(users), "message": "Successfully imported users"}
         return {"error": "Unable to import"}, 400
 
@@ -291,15 +283,6 @@ class UsersExport(MethodView):
             as_attachment=True,
         )
 
-
-# temp method to test frontend cache invalidation
-# ideally, this should be sent asynchronously
-def invalidate_cache(suffix: str):
-    # request to URL with suffix
-    frontend_url = f"http://local.taranis.ai/frontend/invalidate_cache/{suffix}"
-    requests.get(frontend_url)
-
-
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search")
@@ -312,7 +295,6 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
-            invalidate_cache("users")
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
@@ -323,10 +305,7 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
         try:
-            result = user.User.update(user_id, request.json)
-            # send request to frontend to invalidate cache
-            invalidate_cache("users")
-            return result
+            return user.User.update(user_id, request.json)
         except Exception:
             logger.exception()
             return {"error": "Could not update user"}, 400
@@ -334,10 +313,7 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
         try:
-            result = user.User.delete(user_id)
-            # send request to frontend to invalidate cache
-            invalidate_cache("users")
-            return result
+            return user.User.delete(user_id)
         except Exception:
             logger.exception()
             return {"error": "Could not delete user"}, 400
