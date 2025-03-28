@@ -208,18 +208,6 @@ wheels = [
 ]
 
 [[package]]
-name = "html-form-to-dict"
-version = "2022.10.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lxml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/cd/80203077f6afaaead328eaaa8c1c8e393b019e85dbc3007432aba02662ac/html_form_to_dict-2022.10.1.tar.gz", hash = "sha256:974dbf0481a0b11ac3d8c4ae73b792a0d509a94d4a0b526cb6d9a779fa30da6a", size = 5681 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/d5/4159d93df599d14ac7899225243cdeb50d8966e1c21049e61b3e3ed3e541/html_form_to_dict-2022.10.1-py3-none-any.whl", hash = "sha256:7d447930da03659d52e4b4994faf270ed749c5184cb10c9b17986845c83456e2", size = 6510 },
-]
-
-[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -617,7 +605,7 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "build" },
-    { name = "html-form-to-dict" },
+    { name = "lxml" },
     { name = "pytest" },
     { name = "pytest-flask" },
     { name = "requests-mock" },
@@ -636,7 +624,7 @@ requires-dist = [
     { name = "flask-htmx" },
     { name = "flask-jwt-extended" },
     { name = "granian" },
-    { name = "html-form-to-dict", marker = "extra == 'dev'" },
+    { name = "lxml", marker = "extra == 'dev'" },
     { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-flask", marker = "extra == 'dev'" },

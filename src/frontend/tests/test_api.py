@@ -1,15 +1,15 @@
-from admin.config import Config
+from flask import url_for
 
 
-def test_dashboard(dashboard_get_mock, client):
-    response = client.get(f"{Config.APPLICATION_ROOT}/")
+def test_dashboard(dashboard_get_mock, authenticated_client):
+    response = authenticated_client.get(url_for("admin.dashboard"))
     assert response.status_code == 200
     response_text = response.text
     assert dashboard_get_mock.get("latest_collected") in response_text
 
 
-def test_users(users_get_mock, client):
-    response = client.get(f"{Config.APPLICATION_ROOT}/users")
+def test_users(users_get_mock, authenticated_client):
+    response = authenticated_client.get(url_for("admin.users"))
     assert response.status_code == 200
     response_text = response.text
-    assert users_get_mock[0].get("username") in response_text
+    assert "admin" in response_text
