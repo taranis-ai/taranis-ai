@@ -3,7 +3,6 @@ from flask import Flask, render_template, Blueprint, request, Response, jsonify,
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
 from flask_htmx import HTMX
-from flask_jwt_extended import jwt_required
 from swagger_ui import api_doc
 import json
 
@@ -19,6 +18,7 @@ from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_
 
 
 class Dashboard(MethodView):
+    @auth_required()
     def get(self):
         result = CoreApi().get_dashboard()
 
@@ -29,7 +29,7 @@ class Dashboard(MethodView):
 
 
 class ScheduleAPI(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
         try:
@@ -45,7 +45,7 @@ class ScheduleAPI(MethodView):
 
 
 class ScheduleJobDetailsAPI(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self, job_id: str):
         job = DataPersistenceLayer().get_object(Job, job_id)
         if job is None:
@@ -55,7 +55,7 @@ class ScheduleJobDetailsAPI(MethodView):
 
 # create a users index view
 class UsersAPI(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
         try:
@@ -98,7 +98,7 @@ class UsersAPI(MethodView):
 
 
 class UpdateUser(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self, user_id: int = 0):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
@@ -108,7 +108,7 @@ class UpdateUser(MethodView):
         current_user = get_jwt_identity()
         return render_template("user/user_form.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
 
-    @jwt_required()
+    @auth_required()
     def put(self, user_id):
         user = User(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(user, user_id)
@@ -122,14 +122,14 @@ class UpdateUser(MethodView):
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 
-    @jwt_required()
+    @auth_required()
     def delete(self, user_id):
         result = DataPersistenceLayer().delete_object(User, user_id)
         return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class OrganizationsAPI(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
         try:
@@ -166,14 +166,14 @@ class OrganizationsAPI(MethodView):
 
 
 class UpdateOrganization(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self, organization_id: int):
         if organization_id == 0:
             return render_template("organization/organization_form.html")
         organization = DataPersistenceLayer().get_object(Organization, organization_id)
         return render_template("organization/organization_form.html", organization=organization)
 
-    @jwt_required()
+    @auth_required()
     def put(self, organization_id):
         organization = Organization(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(organization, organization_id)
@@ -183,14 +183,14 @@ class UpdateOrganization(MethodView):
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 
-    @jwt_required()
+    @auth_required()
     def delete(self, organization_id):
         result = DataPersistenceLayer().delete_object(Organization, organization_id)
         return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
 
 
 class RolesAPI(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
         try:
@@ -229,7 +229,7 @@ class RolesAPI(MethodView):
 
 
 class UpdateRole(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self, role_id: int = 0):
         permissions = DataPersistenceLayer().get_objects(Permissions)
 
@@ -238,7 +238,7 @@ class UpdateRole(MethodView):
         role = DataPersistenceLayer().get_object(Role, role_id)
         return render_template("role/role_form.html", permissions=permissions, role=role)
 
-    @jwt_required()
+    @auth_required()
     def put(self, role_id):
         role = Role(**parse_formdata(request.form))
         result = DataPersistenceLayer().update_object(role, role_id)
@@ -248,7 +248,7 @@ class UpdateRole(MethodView):
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 
-    @jwt_required()
+    @auth_required()
     def delete(self, role_id):
         result = DataPersistenceLayer().delete_object(Role, role_id)
         return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
@@ -310,7 +310,7 @@ def handle_unauthorized(e):
 
 
 class ExportUsers(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         user_ids = request.args.getlist("ids")
 
@@ -329,7 +329,7 @@ class ExportUsers(MethodView):
 
 
 class ImportUsers(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)

@@ -23,6 +23,40 @@ def app():
 
 
 @pytest.fixture(scope="session")
+def auth_user():
+    from admin.cache import add_user_to_cache
+
+    debug_user = {
+        "id": 1,
+        "name": "Arthur Dent",
+        "organization": {"id": 1, "name": "The Earth"},
+        "permissions": [],
+        "profile": {},
+        "roles": [{"id": 1, "name": "Admin"}],
+        "username": "admin",
+    }
+
+    yield add_user_to_cache(debug_user)
+
+
+@pytest.fixture(scope="session")
+def access_token(app, auth_user):
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        yield create_access_token(identity=auth_user)
+
+
+@pytest.fixture
+def authenticated_client(client, access_token):
+    client.set_cookie(
+        key="access_token_cookie",
+        value=access_token,
+    )
+    return client
+
+
+@pytest.fixture(scope="session")
 def client(app):
     yield app.test_client()
 
@@ -49,7 +83,55 @@ def dashboard_get_mock(requests_mock):
 def users_get_mock(requests_mock):
     from admin.config import Config
 
-    mock_data = [{"id": 1, "name": "admin", "username": "Admin"}]
+    mock_data = {
+        "items": [
+            {
+                "id": 1,
+                "name": "Arthur Dent",
+                "organization": 1,
+                "permissions": [
+                    "ASSESS_ACCESS",
+                    "ANALYZE_ACCESS",
+                    "PUBLISH_PRODUCT",
+                    "PUBLISH_ACCESS",
+                    "PUBLISH_CREATE",
+                    "ASSESS_DELETE",
+                    "BOT_EXECUTE",
+                    "ANALYZE_DELETE",
+                    "ANALYZE_UPDATE",
+                    "ASSESS_CREATE",
+                ],
+                "profile": {},
+                "roles": [1],
+                "username": "admin",
+            },
+            {
+                "id": 6,
+                "name": "ccc",
+                "organization": 2,
+                "permissions": [
+                    "PUBLISH_DELETE",
+                    "ASSESS_UPDATE",
+                    "ANALYZE_CREATE",
+                    "PUBLISH_UPDATE",
+                    "ASSESS_ACCESS",
+                    "ANALYZE_ACCESS",
+                    "PUBLISH_PRODUCT",
+                    "PUBLISH_ACCESS",
+                    "PUBLISH_CREATE",
+                    "ASSESS_DELETE",
+                    "BOT_EXECUTE",
+                    "ANALYZE_DELETE",
+                    "ANALYZE_UPDATE",
+                    "ASSESS_CREATE",
+                ],
+                "profile": {},
+                "roles": [2],
+                "username": "ccc",
+            },
+        ],
+        "total_count": 2,
+    }
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/users", json=mock_data)
     yield mock_data
