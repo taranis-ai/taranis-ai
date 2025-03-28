@@ -197,7 +197,7 @@ class RTCollector(BaseWebCollector):
 
     def update_rt_favicon(self, osint_source_id):
         icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
+        r = self.get_with_retry(icon_url, headers=self.headers, proxies=self.proxies)
         if not r.ok:
             return None
 

@@ -5,6 +5,9 @@ import uuid
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import quote
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from worker.log import logger
 from worker.core_api import CoreApi
@@ -18,6 +21,29 @@ class BaseCollector:
         self.description = "Base abstract type for all collectors"
 
         self.core_api = CoreApi()
+        self.session = self._create_retry_session()
+
+    def _create_retry_session(self, total: int = 5, backoff_factor: float = 1, status_forcelist: list[int] | None = None) -> requests.Session:
+        if status_forcelist is None:
+            status_forcelist = [500, 502, 503, 504]
+        session = requests.Session()
+        retry = Retry(total=total, backoff_factor=backoff_factor, status_forcelist=status_forcelist, allowed_methods=["GET", "HEAD"])
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
+    def get_with_retry(self, url: str, **kwargs) -> requests.Response:
+        """
+        GET a URL using a session that automatically retries on transient errors.
+        """
+        try:
+            response = self.session.get(url, **kwargs)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request failed for URL {url}: {e}")
+            raise
 
     def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
         if not word_lists:
