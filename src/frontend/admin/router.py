@@ -9,7 +9,7 @@ import json
 from admin.filters import human_readable_trigger
 from admin.core_api import CoreApi
 from admin.config import Config
-from admin.cache import cache, add_user_to_cache, remove_user_from_cache, get_cached_users
+from admin.cache import add_user_to_cache, remove_user_from_cache, get_cached_users, list_cache_keys
 from admin.models import Role, User, Organization, PagingData, Job, Permissions
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
@@ -179,14 +179,14 @@ class UpdateOrganization(MethodView):
         result = DataPersistenceLayer().update_object(organization, organization_id)
         if not result.ok:
             response = render_template("organization/organization_form.html", organization=organization)
-            return response, 200
+            return response, result.status_code
 
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
     @auth_required()
     def delete(self, organization_id):
         result = DataPersistenceLayer().delete_object(Organization, organization_id)
-        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
+        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class RolesAPI(MethodView):
@@ -244,34 +244,31 @@ class UpdateRole(MethodView):
         result = DataPersistenceLayer().update_object(role, role_id)
         if not result.ok:
             response = render_template("role/role_form.html", role=role)
-            return response, 200
+            return response, result.status_code
 
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
     @auth_required()
     def delete(self, role_id):
         result = DataPersistenceLayer().delete_object(Role, role_id)
-        return "error" if result == "error" else Response(status=200, headers={"HX-Refresh": "true"})
+        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class InvalidateCache(MethodView):
     def get(self, suffix: str):
-        keys = list(cache.cache._cache.keys())
-        keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
-        for key in keys_to_delete:
-            cache.delete(key)
-
-        logger.debug(f"Deleted keys: {keys_to_delete}")
+        if not suffix:
+            return {"error": "No suffix provided"}, 400
+        DataPersistenceLayer().invalidate_cache(suffix)
         return "Cache invalidated"
 
 
 class ListCacheKeys(MethodView):
     def get(self):
-        keys = cache.cache._cache.keys()
-        return Response("<br>".join(keys))
+        return Response("<br>".join(list_cache_keys()))
 
 
 class ListUserCache(MethodView):
+    @auth_required()
     def get(self):
         return jsonify(get_cached_users())
 

@@ -24,6 +24,10 @@ def remove_user_from_cache(username: str):
     cache.delete(f"user_cache_{username}")
 
 
+def list_cache_keys():
+    return cache.cache._cache.keys()
+
+
 def get_cached_users() -> list[User]:
     prefix = "user_cache_"
     users = []
