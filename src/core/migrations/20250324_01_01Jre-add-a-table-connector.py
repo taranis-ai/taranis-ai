@@ -6,11 +6,10 @@ from yoyo import step
 
 __depends__ = {"20250228_01_Pnb5c-refactor-organization"}
 
-
 steps = [
     step(
         """
-        CREATE TABLE connector (
+        CREATE TABLE IF NOT EXISTS connector (
             id VARCHAR(64) PRIMARY KEY,
             name VARCHAR NOT NULL,
             description VARCHAR,
@@ -23,7 +22,7 @@ steps = [
         );
         """,
         """
-        DROP TABLE connector;
+        DROP TABLE IF EXISTS connector;
         """,
     )
 ]
