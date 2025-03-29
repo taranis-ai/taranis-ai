@@ -68,11 +68,6 @@
             "misp-attribute": "text",
             "ui-priority": 0
         },
-        "updated": {
-            "description": "Last update date/time of the story",
-            "misp-attribute": "datetime",
-            "ui-priority": 0
-        },
         "attributes":{
             "description": "Attributes of the story",
             "misp-attribute": "text",

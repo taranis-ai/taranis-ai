@@ -76,7 +76,6 @@ class MISPConnector:
             "review": "",
             "source": "",
             "story_id": "",
-            "updated": "",
         }
 
     @staticmethod
@@ -90,17 +89,16 @@ class MISPConnector:
             "comments": "",
             "created": "",
             "description": "",
-            "dislikes": 0,
+            "dislikes": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "id": "",
-            "important": False,
-            "likes": 0,
+            "important": "",  # TODO: misp is converting bool to int, so we use 0/1 as string
+            "likes": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "links": {},
-            "read": False,
-            "relevance": 0,
+            "read": "0",  # TODO: misp is converting bool to int, so we use 0/1 as string
+            "relevance": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "summary": "",
             "tags": {},
             "title": "",
-            "updated": "",
         }
 
     def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
@@ -110,7 +108,8 @@ class MISPConnector:
         for news_item in news_items:
             news_item.pop("last_change", None)  # key intended for internal use only
             object_data = self.get_news_item_object_dict()
-            object_data.update(news_item)
+            # sourcery skip: dict-assign-update-to-union
+            object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
 
             news_item_object = BaseMispObject(
                 parameters=object_data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
@@ -126,7 +125,9 @@ class MISPConnector:
         story.pop("last_change", None)
 
         object_data: dict = self.get_story_object_dict()
-        object_data |= story
+        # sourcery skip: dict-assign-update-to-union
+        object_data.update({k: story[k] for k in object_data if k in story})  # only keep keys that are in the object_data dict
+        self._convert_types_to_misp_representation(object_data)
         object_data["attributes"] = []
         object_data["links"] = self._process_items(story, "links", self._process_link)
         object_data["tags"] = self._process_items(story, "tags", self._process_tags)
@@ -143,8 +144,19 @@ class MISPConnector:
         story_object.add_attributes("attributes", *attribute_list)
         # story_object.add_attributes("links", *link_list)
         # story_object.add_attributes("tags", *tag_list)
-
         event.add_object(story_object)
+
+    def _convert_types_to_misp_representation(self, object_data) -> None:
+        """
+        Convert types in the object_data dictionary to MISP representations.
+        This step is not necessary but useful in case of comparisons of existing events, because the data comes in that format.
+        For example, convert boolean values to integers (0/1).
+        """
+        object_data["important"] = str(int(object_data.get("important", 0)))
+        object_data["read"] = str(int(object_data.get("read", 0)))
+        object_data["likes"] = str(object_data.get("likes", 0))
+        object_data["dislikes"] = str(object_data.get("dislikes", 0))
+        object_data["relevance"] = str(object_data.get("relevance", 0))
 
     def set_misp_event_uuid_attribute(self, story: dict) -> None:
         """
@@ -346,6 +358,10 @@ class MISPConnector:
         existing_attributes = {attr.object_relation: attr for attr in existing_object.attributes}
 
         for new_attr in new_object.attributes:
+            if new_attr.object_relation in ["links", "tags", "attributes"]:
+                logger.info(f"Skipping proposal for {new_attr.object_relation} as it is not supported.")
+                continue
+
             logger.debug(f"Processing new attribute: {new_attr.to_dict()}")
             if not (existing_attr := existing_attributes.get(new_attr.object_relation)):
                 logger.error(f"No existing attribute found for {new_attr.object_relation}; cannot add proposal.")

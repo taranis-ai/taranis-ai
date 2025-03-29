@@ -66,11 +66,6 @@
             "description": "Unique identifier for the story",
             "misp-attribute": "text",
             "ui-priority": 0
-        },
-        "updated": {
-            "description": "Last update date of the Taranis news item",
-            "misp-attribute": "datetime",
-            "ui-priority": 0
         }
     },
     "description": "An object describing a news item from Taranis AI",

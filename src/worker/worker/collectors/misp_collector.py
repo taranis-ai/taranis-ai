@@ -110,7 +110,6 @@ class MISPCollector(BaseCollector):
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict | None:
         story_properties["news_items"] = news_items_list
-        story_properties["attributes"].append({"key": "misp_event_uuid", "value": event_uuid})
         return story_properties
 
     def get_story_properties_from_story_object(self, event: dict) -> dict:
@@ -130,7 +129,6 @@ class MISPCollector(BaseCollector):
             "read": False,
             "important": False,
             "created": None,
-            "updated": None,
             "links": [],
             "tags": [],
             "attributes": [],
