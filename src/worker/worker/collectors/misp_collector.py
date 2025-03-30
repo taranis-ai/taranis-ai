@@ -2,6 +2,7 @@ import ast
 import datetime
 from pymisp import PyMISP, MISPObject
 
+from worker.core_api import CoreApi
 from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
 from worker.log import logger
@@ -10,6 +11,7 @@ from worker.log import logger
 class MISPCollector(BaseCollector):
     def __init__(self):
         super().__init__()
+        self.core_api = CoreApi()
         self.type = "MISP_CONNECTOR"
         self.name = "MISP Connector"
         self.description = "Connector for MISP"
@@ -71,6 +73,13 @@ class MISPCollector(BaseCollector):
         content = ""
         link = ""
         news_item_id = ""
+        osint_source_id = ""
+        orig_source = ""
+        story_id = ""
+        hash_value = ""
+        language = ""
+        collected_str = ""
+        review = ""
         news_items_properties = event.pop("Attribute", [])
         for item in news_items_properties:
             match item.get("object_relation", ""):
@@ -95,9 +104,22 @@ class MISPCollector(BaseCollector):
                 # the same news item from same/different sources and create different hashes.
                 case "hash":
                     hash_value = item.get("value", "")
+                case "source":
+                    orig_source = item.get("value", "")
+                case "osint_source_id":
+                    osint_source_id = item.get("value", "")
+                case "story_id":
+                    story_id = item.get("value", "")
+                case "language":
+                    language = item.get("value", "")
+                case "collected":
+                    collected_str = item.get("value")
+                case "review":
+                    review = item.get("value")
+
+        internal_source_id = self.get_internal_osint_source_id(osint_source_id)
         return NewsItem(
-            osint_source_id=source["id"],
-            source=self.url,
+            source=orig_source,
             id=news_item_id,
             hash=hash_value,
             author=author,
@@ -105,7 +127,19 @@ class MISPCollector(BaseCollector):
             content=content,
             web_url=link,
             published_date=published,
+            story_id=story_id,
+            language=language,
+            review=review,
+            osint_source_id=internal_source_id or source.get("id", ""),
+            collected_date=datetime.datetime.strptime(collected_str, "%Y-%m-%dT%H:%M:%S.%f%z"),
         )
+
+    def get_internal_osint_source_id(self, osint_source_id: str) -> str:
+        osint_source = self.core_api.get_osint_source(osint_source_id)
+        if osint_source is not None and osint_source.get("id", ""):
+            return osint_source_id
+        else:
+            return ""
 
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict | None:
@@ -162,7 +196,7 @@ class MISPCollector(BaseCollector):
                     value = item.get("value", "")
                     story_properties["attributes"].append(ast.literal_eval(value))
                 case "relevance":
-                    story_properties["relevance"] = item.get("value", 0)
+                    story_properties["relevance"] = int(item.get("value", 0))
                 case "updated":
                     story_properties["updated"] = item.get("value", None)
                 case "likes":
