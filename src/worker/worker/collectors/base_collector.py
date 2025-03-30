@@ -78,16 +78,18 @@ class BaseCollector:
         return datetime.datetime.now()
 
     def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
+        if not item.id:
+            item.id = str(uuid.uuid4())
         if not item.osint_source_id:
-            item.osint_source_id = str(uuid.uuid4())
+            if source.get("id"):
+                item.osint_source_id = source.get("id", "")
+            else:
+                raise ValueError("osint_source_id is required")
         item.published_date = self.sanitize_date(item.published_date)
         item.collected_date = self.sanitize_date(item.collected_date)
-        item.osint_source_id = source.get("id", item.osint_source_id)
         item.attributes = item.attributes or []
         item.title = self.sanitize_html(item.title)
         item.content = self.sanitize_html(item.content)
-        item.review = item.review or ""
-        item.author = item.author or ""
         item.web_url = self.sanitize_url(item.web_url)
         item.hash = item.hash or hashlib.sha256((item.author + item.title + item.web_url).encode()).hexdigest()
         return item
@@ -127,14 +129,20 @@ class BaseCollector:
             return self.publish(news_items, source)
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
-        for story in stories_for_publishing:
-            if "news_items" in story:
-                story["news_items"] = [item.to_dict() for item in story["news_items"]]
 
-        if story_lists[0].get("id"):
-            self.publish_misp_stories(story_lists, story_attribute_key, source)
-
+        processed_stories = []
         for story in stories_for_publishing:
+            new_story = story.copy()
+            if news_items := new_story.get("news_items"):
+                processed_news_items = self.process_news_items(news_items, source)
+                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
+                logger.debug(f"{new_story['news_items']=}")
+            processed_stories.append(new_story)
+
+        if processed_stories[0].get("id"):
+            self.publish_misp_stories(processed_stories, story_attribute_key, source)
+
+        for story in processed_stories:
             self.core_api.add_or_update_story(story)
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
