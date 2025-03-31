@@ -34,7 +34,6 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
@@ -45,7 +44,8 @@ jobs:
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if tests failed
-        run: exit ${{ steps.run-tests.outputs.exit_code }}
+        run: |
+          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
 
   test_frontend:
     name: pytest frontend
@@ -76,7 +76,6 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
@@ -87,7 +86,8 @@ jobs:
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if tests failed
-        run: exit ${{ steps.run-tests.outputs.exit_code }}
+        run: |
+          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
 
   test_gui:
     name: test gui
@@ -220,7 +220,6 @@ jobs:
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
@@ -231,4 +230,4 @@ jobs:
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if tests failed
-        run: exit ${{ steps.run-tests.outputs.exit_code }}
+          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
