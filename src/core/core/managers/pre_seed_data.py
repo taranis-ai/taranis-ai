@@ -180,7 +180,7 @@ workers = [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
-        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity relevant",
+        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
     },
     {
         "type": "PDF_PRESENTER",
@@ -315,7 +315,7 @@ bots = [
     },
     {
         "name": "Cybersecurity Classifier Bot",
-        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity relevant",
+        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
         "type": "CYBERSEC_CLASSIFIER_BOT",
     },
 ]
