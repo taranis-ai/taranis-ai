@@ -69,6 +69,13 @@
         v-if="detailView && story.news_items.length === 1"
         :news-item="story.news_items[0]"
       />
+
+      <tr>
+        <td>
+          <cyber-security-indicator :news-item-array="story.news_items" />
+        </td>
+      </tr>
+
       <v-dialog v-model="showTagDialog" width="auto">
         <popup-edit-tags
           :tags="story.tags"
@@ -94,6 +101,7 @@ import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
+import CyberSecurityIndicator from '@/components/assess/card/CyberSecurityIndicator.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -103,7 +111,8 @@ export default {
     AuthorInfo,
     StoryVotes,
     TagList,
-    RelevanceIndicator
+    RelevanceIndicator,
+    CyberSecurityIndicator
   },
   props: {
     story: {
