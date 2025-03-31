@@ -34,6 +34,18 @@
         </label>
 
         <label class="floating-label mb-5">
+            <span>TLP Level</span>
+            <select name="tlp_level" required class="validator select">
+                <option value="" disabled {% if role.tlp_level is none %}selected{% endif %}>Select TLP Level</option>
+                <option value="clear" {% if role.tlp_level == 'clear' %}selected{% endif %}>Clear</option>
+                <option value="green" {% if role.tlp_level == 'green' %}selected{% endif %}>Green</option>
+                <option value="amber" {% if role.tlp_level == 'amber' %}selected{% endif %}>Amber</option>
+                <option value="amber+strict" {% if role.tlp_level == 'amber+strict' %}selected{% endif %}>Amber+Strict</option>
+                <option value="red" {% if role.tlp_level == 'red' %}selected{% endif %}>Red</option>
+            </select>
+        </label>
+
+        <label class="floating-label mb-5">
           <span>Permissions</span>
           {% set columns = [
             {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},

@@ -120,6 +120,7 @@
 {% endmacro %}
 
 {% macro table_search_bar(table_id) %}
+{% set current_search = request.args.get('search', '') %}
 <div class="grow">
   <form
     hx-get="{{ request.path }}"
@@ -132,6 +133,7 @@
       name="search"
       class="input w-full"
       placeholder="Search..."
+      value="{{ current_search }}"
     />
   </form>
 </div>

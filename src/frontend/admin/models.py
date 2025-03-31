@@ -1,8 +1,17 @@
+from enum import StrEnum
 from pydantic import BaseModel
 from typing import ClassVar, TypeVar
 
 
 T = TypeVar("T", bound="TaranisBaseModel")
+
+
+class TLPLevel(StrEnum):
+    CLEAR = "clear"
+    GREEN = "green"
+    AMBER_STRICT = "amber+strict"
+    AMBER = "amber"
+    RED = "red"
 
 
 class TaranisBaseModel(BaseModel):
@@ -30,6 +39,8 @@ class Job(TaranisBaseModel):
 
 class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
+    _search_fields = ["name", "description"]
+
     id: int | None = None
     name: str
     description: str | None = None
@@ -38,11 +49,13 @@ class Organization(TaranisBaseModel):
 
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
+    _search_fields = ["name", "description"]
+
     id: int | None = None
     name: str
     description: str | None = None
     permissions: list[str] | None = None
-    tlp_level: int | None = None
+    tlp_level: TLPLevel | None = None
 
 
 class User(TaranisBaseModel):
