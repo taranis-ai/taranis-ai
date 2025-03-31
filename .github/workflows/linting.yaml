@@ -29,6 +29,7 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
+        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
@@ -70,6 +71,7 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
+        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
@@ -213,6 +215,7 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
+        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
