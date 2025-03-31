@@ -75,12 +75,9 @@ jobs:
       - name: Run tests and capture output
         id: run-tests
         run: |
-          {
-            echo "pytest_output<<EOF"
-            uv run pytest | tee pytest_output.txt
-            echo "EOF"
-          } >> $GITHUB_ENV
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          set -o pipefail
+          uv run pytest | tee pytest_output.txt
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
