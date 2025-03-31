@@ -1473,20 +1473,6 @@ wheels = [
 ]
 
 [[package]]
-name = "swagger-ui-py-x"
-version = "25.1.23"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "jinja2" },
-    { name = "packaging" },
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/45/4f/85d4b6b18275d629fe441c364fcd16b77d33796b0dca39904c6ab8ca74c2/swagger_ui_py_x-25.1.23.tar.gz", hash = "sha256:08d651c57f9511d17ce2e56d29ddbe46bfb1837030041d6dae72259f75a14f7d", size = 8642079 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/42/1e91cf617931fa763ee2bf7f572778aadc44a2491a393189960f7bb91461/swagger_ui_py_x-25.1.23-py3-none-any.whl", hash = "sha256:e74eff1748a0e99892ae7833062d71edf371d15bf9ade7136372408559655efd", size = 8724872 },
-]
-
-[[package]]
 name = "tabulate"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1497,6 +1483,7 @@ wheels = [
 
 [[package]]
 name = "taranis-core"
+version = "1.1.2.dev62+g4914ba4.d20250320"
 source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
@@ -1516,7 +1503,6 @@ dependencies = [
     { name = "sentry-sdk", extra = ["flask", "sqlalchemy"] },
     { name = "setuptools" },
     { name = "sqlalchemy" },
-    { name = "swagger-ui-py-x" },
     { name = "yoyo-migrations" },
 ]
 
@@ -1563,7 +1549,6 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
-    { name = "swagger-ui-py-x" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
 ]
