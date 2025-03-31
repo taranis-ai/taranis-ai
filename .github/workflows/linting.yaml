@@ -37,7 +37,7 @@ jobs:
 
       - name: Extract and Post Test Summary
         run: |
-          echo "### ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
@@ -79,7 +79,7 @@ jobs:
 
       - name: Extract and Post Test Summary
         run: |
-          echo "### ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
@@ -223,7 +223,7 @@ jobs:
 
       - name: Extract and Post Test Summary
         run: |
-          echo "### ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
