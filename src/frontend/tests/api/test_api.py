@@ -13,4 +13,3 @@ def test_users(users_get_mock, authenticated_client):
     assert response.status_code == 200
     response_text = response.text
     assert "admin" in response_text
-    assert False  # I WANT TO FAIL THIS TEST TO TEST THE CI/CD PIPELINE
