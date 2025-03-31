@@ -230,6 +230,26 @@ def roles_get_mock(requests_mock):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/roles", json=mock_data)
     yield mock_data
 
+@pytest.fixture
+def permissions_get_mock(requests_mock):
+    mock_data = {
+        "items": [
+            {
+                "description": "Access to the assessment module",
+                "id": "ASSESS_ACCESS",
+                "name": "ASSESS_ACCESS",
+            },
+            {
+                "description": "Create new assessments",
+                "id": "ASSESS_CREATE",
+                "name": "ASSESS_CREATE",
+            },
+        ],
+        "total_count": 2,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/permissions", json=mock_data)
+    yield mock_data
 
 @pytest.fixture
 def users_delete_mock(requests_mock):
@@ -239,3 +259,19 @@ def users_delete_mock(requests_mock):
 @pytest.fixture
 def users_put_mock(requests_mock):
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/1", json={"message": "Success"})
+
+@pytest.fixture
+def organizations_delete_mock(requests_mock):
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json={"message": "Success"})
+
+@pytest.fixture
+def organizations_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
+
+@pytest.fixture
+def roles_delete_mock(requests_mock):
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json={"message": "Success"})
+
+@pytest.fixture
+def roles_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})
