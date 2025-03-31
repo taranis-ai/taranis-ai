@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
+    JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True
     JWT_CSRF_METHODS: list = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True

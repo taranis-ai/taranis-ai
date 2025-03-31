@@ -255,6 +255,7 @@ class UpdateRole(MethodView):
 
 
 class InvalidateCache(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
     def get(self, suffix: str):
         if not suffix:
             return {"error": "No suffix provided"}, 400
@@ -263,12 +264,13 @@ class InvalidateCache(MethodView):
 
 
 class ListCacheKeys(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
     def get(self):
         return Response("<br>".join(list_cache_keys()))
 
 
 class ListUserCache(MethodView):
-    @auth_required()
+    @auth_required("ADMIN_OPERATIONS")
     def get(self):
         return jsonify(get_cached_users())
 

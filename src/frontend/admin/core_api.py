@@ -27,24 +27,21 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def api_put(self, url, json_data=None) -> requests.Response:
-        url = f"{self.api_url}{url}"
+    def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        return requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        return requests.put(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
-    def api_post(self, url, json_data=None) -> requests.Response:
-        url = f"{self.api_url}{url}"
+    def api_post(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        return requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        return requests.post(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
-    def api_delete(self, url) -> requests.Response:
-        url = f"{self.api_url}{url}"
-        return requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+    def api_delete(self, endpoint: str) -> requests.Response:
+        return requests.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, timeout=self.timeout)
 
-    def api_get(self, url, params: dict | None = None):
-        url = f"{self.api_url}{url}"
+    def api_get(self, endpoint: str, params: dict | None = None):
+        url = f"{self.api_url}{endpoint}"
         try:
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params)
         except Exception as e:
@@ -52,8 +49,8 @@ class CoreApi:
             return None
         return self.check_response(response, url)
 
-    def api_download(self, url, params: dict | None = None):
-        url = f"{self.api_url}{url}"
+    def api_download(self, endpoint: str, params: dict | None = None):
+        url = f"{self.api_url}{endpoint}"
         try:
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params, stream=True)
         except Exception as e:

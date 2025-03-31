@@ -8,7 +8,7 @@ def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
 
 
-def parse_formdata(formdata: ImmutableMultiDict):
+def parse_formdata(formdata: ImmutableMultiDict) -> dict:
     parsed_data = {}
     for key in formdata.keys():
         if key.endswith("[]"):
