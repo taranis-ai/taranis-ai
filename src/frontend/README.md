@@ -1,6 +1,6 @@
 # Taranis AI Frontend
 
-This service provides the Frontend for Taranis AI. In the first iteration it will only support Administration Part of the Admin Frontend with plans to Add "Asssess", "Analyze" and "Publish" later on. It is based on a Flask web interface, utilizing **HTMX** for dynamic updates.
+This service provides the Frontend for Taranis AI. In the first iteration it will only support Administration Part of the Admin Frontend with plans to Add "Assess", "Analyze" and "Publish" later on. It is based on a Flask web interface, utilizing **HTMX** for dynamic updates.
 
 ---
 
@@ -36,7 +36,7 @@ chmod +x tailwindcss
 Run **Tailwind CSS** in watch mode to automatically build the CSS files as you modify the styles:
 
 ```bash
-./tailwindcss -i scheduler/static/css/input.css -o scheduler/static/css/tailwind.css --watch
+./tailwindcss -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch
 ```
 
 This will generate the `tailwind.css` file based on the input CSS and keep it updated as you develop.
@@ -49,5 +49,5 @@ Run the Flask development server:
 flask run
 ```
 
-This will start the Flask server and run the scheduler service at `http://localhost:5000`.
+This will start the Flask server and run the admin frontend service at `http://localhost:5000`.
 

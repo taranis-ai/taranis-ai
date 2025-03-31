@@ -29,12 +29,14 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
+        id: run-tests
         run: |
           {
             echo "pytest_output<<EOF"
-            uv run pytest || true
+            uv run pytest | tee pytest_output.txt
             echo "EOF"
           } >> $GITHUB_ENV
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
@@ -44,7 +46,8 @@ jobs:
           echo "- **⚠️ Skipped:** $(echo "$pytest_output" | grep -oP '\d+(?= skipped)' || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(echo "$pytest_output" | grep -oP '\d+(?= error)' || echo 0)" >> $GITHUB_STEP_SUMMARY
 
-
+      - name: Fail if tests failed
+        run: exit ${{ steps.run-tests.outputs.exit_code }}
 
   test_frontend:
     name: pytest frontend
@@ -216,12 +219,14 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
+        id: run-tests
         run: |
           {
             echo "pytest_output<<EOF"
-            uv run pytest || true
+            uv run pytest | tee pytest_output.txt
             echo "EOF"
           } >> $GITHUB_ENV
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Extract and Post Test Summary
         run: |
@@ -230,3 +235,6 @@ jobs:
           echo "- **❌ Failed:** $(echo "$pytest_output" | grep -oP '\d+(?= failed)' || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(echo "$pytest_output" | grep -oP '\d+(?= skipped)' || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(echo "$pytest_output" | grep -oP '\d+(?= error)' || echo 0)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if tests failed
+        run: exit ${{ steps.run-tests.outputs.exit_code }}
