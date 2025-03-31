@@ -31,7 +31,6 @@ def auth_required(permissions: list | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            error = ({"error": "not authorized"}, 401)
             if permissions is None:
                 permissions_set = set()
             elif isinstance(permissions, list):
@@ -43,12 +42,12 @@ def auth_required(permissions: list | str | None = None):
                 verify_jwt_in_request()
             except Exception as ex:
                 logger.exception(str(ex))
-                return error
+                return redirect("/login", code=302)
 
             identity = get_jwt_identity()
             if not identity:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return error
+                return redirect("/login", code=302)
 
             permission_claims = current_user.permissions
 
@@ -57,7 +56,7 @@ def auth_required(permissions: list | str | None = None):
                 logger.error(
                     f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
                 )
-                return {"error": "forbidden"}, 403
+                return redirect("/forbidden", code=403)
 
             return fn(*args, **kwargs)
 

@@ -1,15 +1,5 @@
 <template>
-  <v-container fluid class="d-flex" style="height: 95vh">
-    <v-row no-gutters class="flex-grow-1">
-      <iframe
-        :src="iframeSrc"
-        width="100%"
-        height="100%"
-        class="no-style"
-        style="border: none"
-      />
-    </v-row>
-  </v-container>
+  <iframe :src="iframeSrc" class="frontend-iframe" />
 </template>
 
 <script>
@@ -22,11 +12,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.no-style * {
-  all: unset;
-  display: revert;
-  box-sizing: border-box;
-}
-</style>
