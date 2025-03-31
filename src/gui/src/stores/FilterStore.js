@@ -25,7 +25,8 @@ export const useFilterStore = defineStore(
       source: undefined,
       in_report: undefined,
       relevant: undefined,
-      important: undefined
+      important: undefined,
+      is_cybersecurity: undefined
     })
 
     const storyPage = ref(0)
@@ -255,7 +256,8 @@ export const useFilterStore = defineStore(
         source: undefined,
         in_report: undefined,
         relevant: undefined,
-        important: undefined
+        important: undefined,
+        is_cybersecurity: undefined
       }
       storyPage.value = 0
       assetFilter.value = {

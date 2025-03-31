@@ -20,6 +20,11 @@
       label="relevant"
       icon="mdi-bullseye-arrow"
     />
+    <filter-button
+      v-model="storyFilter['is_cybersecurity']"
+      label="cybersecurity-related"
+      icon="mdi-shield-outline"
+    />
   </div>
 </template>
 

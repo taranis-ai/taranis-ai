@@ -85,6 +85,7 @@ class Stories(MethodView):
                 "read",
                 "unread",
                 "important",
+                "is_cybersecurity",
                 "relevant",
                 "in_report",
                 "range",
