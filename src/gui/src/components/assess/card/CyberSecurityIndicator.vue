@@ -18,6 +18,10 @@ export default {
     newsItemArray: {
       type: Array,
       required: true
+    },
+    story: {
+      type: Object,
+      required: false
     }
   },
   setup(props) {
@@ -31,6 +35,8 @@ export default {
     })
 
     const is_cybersecurity = computed(() => {
+      if (props.story) return props.story.is_cybersecurity
+
       if (cybersecurity_scores.value.every((score) => isNaN(score))) return null
 
       const valid_scores = cybersecurity_scores.value.filter(
@@ -56,8 +62,8 @@ export default {
     })
 
     const tooltipMessage = computed(() => {
-      if (is_cybersecurity.value === true) return 'Cybersecurity relevant'
-      else return 'Not cybersecurity relevant'
+      if (is_cybersecurity.value === true) return 'Cybersecurity-related'
+      else return 'Not cybersecurity-related'
     })
 
     return {

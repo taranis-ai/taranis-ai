@@ -72,7 +72,10 @@
 
       <tr>
         <td>
-          <cyber-security-indicator :news-item-array="story.news_items" />
+          <cyber-security-indicator
+            :news-item-array="story.news_items"
+            :story="story"
+          />
         </td>
       </tr>
 
