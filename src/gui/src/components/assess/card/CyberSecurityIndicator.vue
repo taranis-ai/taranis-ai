@@ -35,7 +35,10 @@ export default {
     })
 
     const is_cybersecurity = computed(() => {
-      if (props.story) return props.story.is_cybersecurity
+      if (props.story) {
+        if (props.story.is_cybersecurity === true) return true
+        else if (props.story.is_cybersecurity === false) return false
+      }
 
       if (cybersecurity_scores.value.every((score) => isNaN(score))) return null
 
