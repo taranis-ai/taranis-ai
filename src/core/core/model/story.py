@@ -390,6 +390,7 @@ class Story(BaseModel):
             db.session.commit()
             StorySearchIndex.prepare(story)
             story.update_tlp()
+            story.update_cybersecurity_status()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -776,6 +777,7 @@ class Story(BaseModel):
                 cls.create_from_item(news_item)
             db.session.commit()
             cls.update_stories(processed_stories)
+            story.update_cybersecurity_status()
             return {"message": "success"}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
@@ -803,6 +805,13 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
+    def update_cybersecurity_status(self):
+        cybersecurity_list = []
+        for news_item in self.news_items:
+            if cybersecurity_score := news_item.get_cybersecurity_score():
+                cybersecurity_list.append(cybersecurity_score)
+        self.is_cybersecurity = sum(cybersecurity_list) / len(cybersecurity_list) > 0.5
+
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
         for news_item in self.news_items:
@@ -826,6 +835,7 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
+        self.update_cybersecurity_status()
 
     def update_timestamps(self):
         self.updated = datetime.now()

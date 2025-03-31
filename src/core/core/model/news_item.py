@@ -118,6 +118,9 @@ class NewsItem(BaseModel):
     def get_sentiment(self) -> str:
         return next((attr.value for attr in self.attributes if attr.key == "sentiment_category"), "")
 
+    def get_cybersecurity_score(self) -> bool:
+        return next((float(attr.value) for attr in self.attributes if attr.key == "cybersecurity"), 0.0)
+
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""
         if db.engine.dialect.name == "postgresql":
