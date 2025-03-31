@@ -22,6 +22,7 @@ class CyberSecClassifierBot(BaseBot):
 
         num_news_items = 0
         for story in data:
+            story_class_list = []
             for news_item in story.get("news_items", []):
                 news_item_content = news_item.get("content", "")
                 news_item_id = news_item.get("id", "")
@@ -38,7 +39,12 @@ class CyberSecClassifierBot(BaseBot):
                     logger.debug(f"Successfully updated news item {news_item_id} with cybersecurity attributes.")
                 else:
                     logger.error(f"Failed to update news item {news_item_id} with cybersecurity attributes.")
+
+                story_class_list.append(class_result.get("cybersecurity", 0.0))
                 num_news_items += 1
+
+                story_cybersecurity_status = sum(story_class_list) / len(story_class_list) >= 0.5
+                self.core_api.add_or_update_story({"id": story.get("id", ""), "is_cybersecurity": story_cybersecurity_status})
 
         return {"message": f"Classified {num_news_items} news_items"}
 
