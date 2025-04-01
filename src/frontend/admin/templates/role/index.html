@@ -1,10 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="text-3xl font-bold mb-4">Roles</div>
-<div class="bg-white rounded-sm p-4 shadow-lg" >
+<div class="bg-white rounded-sm p-4 form-container" >
   {% include 'role/roles_table_header.html' %}
   {% include 'role/roles_table.html' %}
 </div>
 
-<div id="form-container"></div>
 {% endblock %}

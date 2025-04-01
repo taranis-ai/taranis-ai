@@ -16,48 +16,62 @@
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
-<div class="bg-base-100 rounded-sm p-4 shadow-lg mt-4">
+<div class="bg-base-100 rounded-sm p-4 mt-4 wx-4/5 mx-auto">
+    <div class="w-4/5 mx-auto">
     {% if create -%}
         <h1 class="text-3xl font-bold mb-5">Create {{ form_title }}</h1>
     {% else -%}
         {% include "user/edit_user.html" %}
     {% endif -%}
+    </div>
 
-    <form id="user-form" {% if create %}hx-post="/frontend/users"{% else %} hx-put="/frontend/users/{{ user.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full max-w-lg">
+    <form id="user-form" class="w-4/5 mx-auto" {% if create %}hx-post="/frontend/users"{% else %}hx-put="/frontend/users/{{ user.id }}"{% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error.globalerror -%}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
         {% endif -%}
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>Username</span>
-            <input id="username" type="text" placeholder="Username" class="input input-md  validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
+            <input id="username" type="text" placeholder="Username" class="input w-3/5 validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
         </label>
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>Name</span>
-            <input type="text" placeholder="Name" class="input input-md validator" name="name" required value="{{ user.name }}" id="userform_name" />
+            <input type="text" placeholder="Name" class="input w-3/5 validator" name="name" required value="{{ user.name }}" id="userform_name" />
         </label>
 
-        <label class="floating-label mb-5">
-            <span>Password</span>
-                <input id="user-password" type="password" placeholder="Password" class="input input-md validator {% if form_error.password %}input-error{% endif %}" name="password"
-                {% if create %}required hx-preserve{% endif %}/>
-        </label>
+        <div x-data="{ showPassword: false }" class="join gap-1 w-3/5">
+          <label class="floating-label mb-5 input validator w-3/5">
+              <span>Password</span>
+                  <input
+                      id="user-password"
+                      :type="showPassword ? 'text' : 'password'"
+                      placeholder="Password"
+                      class="input input-md validator {% if form_error.password %}input-error{% endif %}"
+                      name="password"
+                      {% if create %}required hx-preserve{% endif %}
+                  />
+                  <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
+                  <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+            </label>
+          <button type="button" class="btn btn-primary" id="generate-password" onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
+        </div>
 
+        <div class="w-3/5">
         <label class="">
             <span>Roles</span>
         </label>
         <select name="roles[]" multiple required type="number" id="user-role-select">
             {% for role in roles %}
-                <option value="{{ role.id }}" {% if role.id in user.roles %}selected{% endif %}>{{ role.name }} - {{ role.description | truncate(50, true) }}</option>
+                <option value="{{ role.id }}" {% if role.id in user.roles %}selected{% endif %}>{{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}</option>
             {% endfor %}
         </select>
         <p class="validator-hint mb-5">Required</p>
-
+        </div>
         <!-- organization -->
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>Organization</span>
-            <select name="organization" required type="number" class="validator select">
+            <select name="organization" required type="number" class="validator select w-full">
                 {% for organization in organizations -%}
                 <option value="{{ organization.id }}" {% if organization.id == user.organization %}selected{% endif %}>{{ organization.name }}</option>
                 {% endfor -%}
@@ -103,4 +117,13 @@
     if (elt && elt.classList.contains('tomselected')) return;
     new TomSelect('#user-role-select', settings);
   });
+
+  function generatePassword(
+      length = 20,
+      characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
+    ) {
+      return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+        .map((x) => characters[x % characters.length])
+        .join('')
+    }
 </script>

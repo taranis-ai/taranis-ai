@@ -6,7 +6,7 @@ from flask_htmx import HTMX
 from swagger_ui import api_doc
 import json
 
-from admin.filters import human_readable_trigger
+from admin.jinja_setup import jinja_setup
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import add_user_to_cache, remove_user_from_cache, get_cached_users, list_cache_keys
@@ -100,13 +100,14 @@ class UsersAPI(MethodView):
 class UpdateUser(MethodView):
     @auth_required()
     def get(self, user_id: int = 0):
+        template = "user/user_form.html" if is_htmx_request() else "user/user_edit.html"
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
         if user_id == 0:
-            return render_template("user/user_form.html", organizations=organizations, roles=roles)
+            return render_template(template, organizations=organizations, roles=roles)
         user = DataPersistenceLayer().get_object(User, user_id)
         current_user = get_jwt_identity()
-        return render_template("user/user_form.html", organizations=organizations, roles=roles, user=user, current_user=current_user)
+        return render_template(template, organizations=organizations, roles=roles, user=user, current_user=current_user)
 
     @auth_required()
     def put(self, user_id):
@@ -168,10 +169,11 @@ class OrganizationsAPI(MethodView):
 class UpdateOrganization(MethodView):
     @auth_required()
     def get(self, organization_id: int):
+        template = "organization/organization_form.html" if is_htmx_request() else "organization/organization_edit.html"
         if organization_id == 0:
-            return render_template("organization/organization_form.html")
+            return render_template(template)
         organization = DataPersistenceLayer().get_object(Organization, organization_id)
-        return render_template("organization/organization_form.html", organization=organization)
+        return render_template(template, organization=organization)
 
     @auth_required()
     def put(self, organization_id):
@@ -231,12 +233,13 @@ class RolesAPI(MethodView):
 class UpdateRole(MethodView):
     @auth_required()
     def get(self, role_id: int = 0):
+        template = "role/role_form.html" if is_htmx_request() else "role/role_edit.html"
         permissions = DataPersistenceLayer().get_objects(Permissions)
 
         if role_id == 0:
-            return render_template("role/role_form.html", permissions=permissions)
+            return render_template(template, permissions=permissions)
         role = DataPersistenceLayer().get_object(Role, role_id)
-        return render_template("role/role_form.html", permissions=permissions, role=role)
+        return render_template(template, permissions=permissions, role=role)
 
     @auth_required()
     def put(self, role_id):
@@ -368,9 +371,7 @@ def init(app: Flask):
     api_doc(app, config_url=f"{Config.TARANIS_CORE_URL}/static/openapi3_1.yaml", url_prefix=f"{Config.APPLICATION_ROOT}/doc", editor=False)
 
     app.url_map.strict_slashes = False
-    app.jinja_env.filters["human_readable"] = human_readable_trigger
-    app.jinja_env.trim_blocks = True
-    app.jinja_env.lstrip_blocks = True
+    jinja_setup(app)
 
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 

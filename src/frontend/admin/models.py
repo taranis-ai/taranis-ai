@@ -88,7 +88,7 @@ class PagingData(BaseModel):
 
 
 class CacheObject(list):
-    def __init__(self, iterable=None, page: int = 1, limit: int = 5, order: str = "", length: int | None = None):
+    def __init__(self, iterable=None, page: int = 1, limit: int = 20, order: str = "", length: int | None = None):
         iterable = iterable or []
         super().__init__(iterable)
         self.page = page

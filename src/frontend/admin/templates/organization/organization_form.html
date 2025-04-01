@@ -16,7 +16,7 @@
 <div class="bg-base-100 rounded-sm p-4 shadow-lg mt-4">
     <h1 class="text-3xl font-bold mb-5">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
 
-    <form id="role-form" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full max-w-lg">
+    <form id="role-form" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full">
         {% if error.globalerror %}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
         {% endif %}

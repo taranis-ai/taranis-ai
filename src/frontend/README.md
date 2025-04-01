@@ -22,6 +22,13 @@ uv pip install -Ue .[dev]
 
 ## Development Setup
 
+### 0. Read the documentation
+
+* [DaisyUI](https://daisyui.com/docs/intro/)
+* [tailwindCSS](https://tailwindcss.com/docs)
+* [Jinja](https://jinja.palletsprojects.com/en/stable/templates/)
+* [HTMX](https://htmx.org/docs/)
+
 ### 1. Download and Setup Tailwind CSS
 
 We use Tailwind CSS for styling the frontend. First, download the Tailwind CSS CLI tool:
@@ -50,4 +57,3 @@ flask run
 ```
 
 This will start the Flask server and run the admin frontend service at `http://localhost:5000`.
-
