@@ -22,7 +22,7 @@
     />
     <filter-button
       v-model="storyFilter['is_cybersecurity']"
-      label="cybersecurity-related"
+      label="cybersecurity"
       icon="mdi-shield-outline"
     />
   </div>

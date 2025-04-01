@@ -15,13 +15,6 @@
       </tr>
       <article-info :news-item="newsItem" />
       <author-info :news-item="newsItem" />
-
-      <tr>
-        <td>
-          <cyber-security-indicator :news-item-array="[newsItem]" />
-        </td>
-      </tr>
-
       <sentiment-info :news-item="newsItem" />
     </tbody>
   </table>
@@ -35,14 +28,12 @@ import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import SentimentInfo from '@/components/assess/card/SentimentInfo.vue'
 import { storeToRefs } from 'pinia'
 import { useFilterStore } from '@/stores/FilterStore'
-import CyberSecurityIndicator from '@/components/assess/card/CyberSecurityIndicator.vue'
 
 export default {
   name: 'NewsMetaInfo',
   components: {
     ArticleInfo,
     AuthorInfo,
-    CyberSecurityIndicator,
     SentimentInfo
   },
   props: {
