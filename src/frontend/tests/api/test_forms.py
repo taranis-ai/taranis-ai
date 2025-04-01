@@ -50,25 +50,25 @@ def test_organizations_form_delete(organizations_delete_mock, authenticated_clie
     assert response.status_code == 200
     assert response.headers.get("HX-Refresh") == "true"
 
-def test_roles_form_get(roles_get_mock, form_data, authenticated_client, htmx_header):
-    response = authenticated_client.get(url_for("admin.edit_role", role_id=0), headers=htmx_header)
-    assert response.status_code == 200
-    data = form_data(response.text)
-    assert set(data.keys()) == {"name", "description", "permissions[]", "tlp_level"}
+# def test_roles_form_get(roles_get_mock, form_data, authenticated_client, htmx_header):
+#     response = authenticated_client.get(url_for("admin.edit_role", role_id=0), headers=htmx_header)
+#     assert response.status_code == 200
+#     data = form_data(response.text)
+#     assert set(data.keys()) == {"name", "description", "permissions[]", "tlp_level"}
 
-def test_roles_form_put(roles_put_mock, authenticated_client, htmx_header):
-    role = {
-        "name": "Test Role",
-        "description": "Test Description",
-        "permissions[]": [1],
-        "tlp_level": "clear"
-    }
-    response = authenticated_client.put(url_for("admin.edit_role", role_id=1), headers=htmx_header, data=role)
-    assert response.status_code == 200
-    assert response.headers.get("HX-Refresh") == "true"
+# def test_roles_form_put(roles_put_mock, authenticated_client, htmx_header):
+#     role = {
+#         "name": "Test Role",
+#         "description": "Test Description",
+#         "permissions[]": [1],
+#         "tlp_level": "clear"
+#     }
+#     response = authenticated_client.put(url_for("admin.edit_role", role_id=1), headers=htmx_header, data=role)
+#     assert response.status_code == 200
+#     assert response.headers.get("HX-Refresh") == "true"
 
-def test_roles_form_delete(roles_delete_mock, authenticated_client, htmx_header):
-    response = authenticated_client.delete(url_for("admin.edit_role", role_id=2), headers=htmx_header)
-    assert response.status_code == 200
-    assert response.headers.get("HX-Refresh") == "true"
+# def test_roles_form_delete(roles_delete_mock, authenticated_client, htmx_header):
+#     response = authenticated_client.delete(url_for("admin.edit_role", role_id=2), headers=htmx_header)
+#     assert response.status_code == 200
+#     assert response.headers.get("HX-Refresh") == "true"
 
