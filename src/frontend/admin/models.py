@@ -2,6 +2,7 @@ from enum import StrEnum
 from pydantic import BaseModel
 from typing import ClassVar, TypeVar
 
+from admin.config import Config
 
 T = TypeVar("T", bound="TaranisBaseModel")
 
@@ -16,6 +17,7 @@ class TLPLevel(StrEnum):
 
 class TaranisBaseModel(BaseModel):
     _core_endpoint: ClassVar[str]
+    _cache_timeout: ClassVar[int] = Config.CACHE_DEFAULT_TIMEOUT
 
     def model_dump(self, *args, **kwargs):
         kwargs.setdefault("exclude_none", True)
@@ -82,7 +84,7 @@ class Permissions(TaranisBaseModel):
 
 class Dashboard(TaranisBaseModel):
     _core_endpoint = "/dashboard"
-    _cache_timeout = 10
+    _cache_timeout = 30
     total_news_items: int | None = None
     total_products: int | None = None
     report_items_completed: int | None = None

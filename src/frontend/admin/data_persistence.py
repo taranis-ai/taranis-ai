@@ -46,7 +46,7 @@ class DataPersistenceLayer:
         for key in keys_to_delete:
             cache.delete(key)
 
-    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None, timeout=Config.CACHE_DEFAULT_TIMEOUT) -> list[T]:
+    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> list[T]:
         endpoint = self.get_endpoint(object_model)
         cache_object: CacheObject | None
         if cache_object := cache.get(key=self.make_user_key(endpoint)):
@@ -55,7 +55,8 @@ class DataPersistenceLayer:
         if result := self.api.api_get(endpoint):
             result_object = [object_model(**object) for object in result["items"]]
             cache_object = CacheObject(result_object)
-            cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=timeout)
+            logger.debug(f"Adding {endpoint} to cache with timeout: {result_object[0]._cache_timeout}")
+            cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=result_object[0]._cache_timeout)
             return cache_object.search_and_paginate(paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
