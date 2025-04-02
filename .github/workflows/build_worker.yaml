@@ -40,17 +40,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: src/gui/pnpm-lock.yaml
-
       - name: Install Playwright dependencies
         run: uv run playwright install --with-deps chromium
 
