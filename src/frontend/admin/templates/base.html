@@ -24,7 +24,7 @@
               <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
               <a href="{{ url_for('admin.schedule') }}" class="text-blue-500 underline">Schedule</a>
             </div>
-            <section id="toast-container"></section>
+            {% include 'error.html' %}
         </div>
         {% block content %}{% endblock %}
         <section id="status-msg"></section>

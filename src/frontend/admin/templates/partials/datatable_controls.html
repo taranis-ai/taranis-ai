@@ -1,4 +1,5 @@
 {% from "macros/query_params.html" import update_query_params with context %}
+{% if data %}
 <div class="flex items-center justify-between gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
     <!-- Items per Page -->
     <div class="flex items-center gap-2">
@@ -46,3 +47,4 @@
       </a>
     </div>
   </div>
+{% endif %}

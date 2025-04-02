@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
 from flask.json.provider import DefaultJSONProvider
 from flask.views import MethodView
@@ -25,8 +25,6 @@ class DashboardAPI(MethodView):
         if result is None:
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
 
-        logger.debug(f"Dashboard data: {result[0]}")
-        logger.debug(f"Dashboard data: {result[0].total_news_items}")
         return render_template("dashboard/index.html", data=result[0])
 
 
@@ -34,16 +32,15 @@ class ScheduleAPI(MethodView):
     @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
+        error = None
+        result = None
         try:
             q = PagingData(**query_params)
-        except ValidationError as ve:
-            return {"error": str(ve)}
-        result = DataPersistenceLayer().get_objects(Job, q)
+            result = DataPersistenceLayer().get_objects(Job, q)
+        except Exception as ve:
+            error = str(ve)
 
-        if result is None:
-            return f"Failed to fetch jobs from: {Config.TARANIS_CORE_URL}", 500
-
-        return render_template("schedule/index.html", jobs=result)
+        return render_template("schedule/index.html", jobs=result, error=error)
 
 
 class ScheduleJobDetailsAPI(MethodView):
@@ -55,24 +52,21 @@ class ScheduleJobDetailsAPI(MethodView):
         return render_template("schedule/job_details.html", job=job)
 
 
-# create a users index view
 class UsersAPI(MethodView):
     @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
+        error = None
+        result = None
         try:
             q = PagingData(**query_params)
-        except ValidationError as ve:
-            return {"error": str(ve)}
-        result = DataPersistenceLayer().get_objects(User, q)
-
-        if result is None:
-            # TODO: return a proper error template
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+            result = DataPersistenceLayer().get_objects(User, q)
+        except Exception as ve:
+            error = str(ve)
 
         if is_htmx_request():
-            return render_template("user/users_table.html", users=result)
-        return render_template("user/index.html", users=result)
+            return render_template("user/users_table.html", users=result, error=error)
+        return render_template("user/index.html", users=result, error=error)
 
     @auth_required()
     def post(self):
@@ -135,20 +129,18 @@ class OrganizationsAPI(MethodView):
     @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
+        error = None
+        result = None
         try:
             q = PagingData(**query_params)
-        except ValidationError as ve:
-            return {"error": str(ve)}
-        result = DataPersistenceLayer().get_objects(Organization, q)
-
-        if result is None:
-            # TODO: return a proper error template
-            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+            result = DataPersistenceLayer().get_objects(Organization, q)
+        except Exception as ve:
+            error = str(ve)
 
         if is_htmx_request():
-            return render_template("organization/organizations_table.html", organizations=result)
+            return render_template("organization/organizations_table.html", organizations=result, error=error)
 
-        return render_template("organization/index.html", organizations=result)
+        return render_template("organization/index.html", organizations=result, error=error)
 
     @auth_required()
     def post(self):
@@ -197,19 +189,17 @@ class RolesAPI(MethodView):
     @auth_required()
     def get(self):
         query_params = convert_query_params(request.args, PagingData)
+        error = None
+        result = None
         try:
             q = PagingData(**query_params)
-        except ValidationError as ve:
-            return {"error": str(ve)}
-        result = DataPersistenceLayer().get_objects(Role, q)
-
-        if result is None:
-            # TODO: return a proper error template
-            return f"Failed to fetch organizations from: {Config.TARANIS_CORE_URL}", 500
+            result = DataPersistenceLayer().get_objects(Role, q)
+        except Exception as ve:
+            error = str(ve)
 
         if is_htmx_request():
-            return render_template("role/roles_table.html", roles=result)
-        return render_template("role/index.html", roles=result)
+            return render_template("role/roles_table.html", roles=result, error=error)
+        return render_template("role/index.html", roles=result, error=error)
 
     @auth_required()
     def post(self):

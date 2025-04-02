@@ -26,6 +26,7 @@
         </tr>
     </thead>
     <tbody>
+        {% if data %}
         {% for item in data %}
         <tr>
             {% if selectable %}
@@ -59,6 +60,15 @@
             {% endif %}
         </tr>
         {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+                <div class="text-center">
+                    <p class="text-gray-500">No data available</p>
+                </div>
+            </td>
+        </tr>
+        {% endif %}
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
