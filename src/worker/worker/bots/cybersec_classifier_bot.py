@@ -33,18 +33,32 @@ class CyberSecClassifierBot(BaseBot):
                 if not class_result:
                     continue
 
+                news_item_cybersecurity_status = (
+                    "yes" if class_result.get("cybersecurity", 0.0) > Config.CYBERSEC_CLASSIFIER_THRESHOLD else "no"
+                )
+
                 if self.core_api.update_news_item_attributes(
-                    news_item_id, [{"key": "cybersecurity", "value": str(class_result.get("cybersecurity", "N/A"))}]
+                    news_item_id,
+                    [
+                        {"key": "cybersecurity", "value": news_item_cybersecurity_status},
+                        {"key": "cybersecurity_score", "value": str(class_result.get("cybersecurity", "N/A"))},
+                    ],
                 ):
                     logger.debug(f"Successfully updated news item {news_item_id} with cybersecurity attributes.")
                 else:
                     logger.error(f"Failed to update news item {news_item_id} with cybersecurity attributes.")
 
-                story_class_list.append(class_result.get("cybersecurity", 0.0))
+                story_class_list.append(news_item_cybersecurity_status == "yes")
+
                 num_news_items += 1
 
-                story_cybersecurity_status = sum(story_class_list) / len(story_class_list) >= 0.5
-                self.core_api.add_or_update_story({"id": story.get("id", ""), "is_cybersecurity": story_cybersecurity_status})
+            if all(story_class_list):
+                story_cybersecurity_status = "yes"
+            elif len(set(story_class_list)) != 1:
+                story_cybersecurity_status = "mixed"
+            else:
+                story_cybersecurity_status = "no"
+            self.core_api.add_or_update_story({"id": story.get("id", ""), "cybersecurity": story_cybersecurity_status})
 
         return {"message": f"Classified {num_news_items} news_items"}
 
