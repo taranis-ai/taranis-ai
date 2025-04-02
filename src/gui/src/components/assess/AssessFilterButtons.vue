@@ -20,23 +20,26 @@
       label="relevant"
       icon="mdi-bullseye-arrow"
     />
-    <filter-button
-      v-model="storyFilter['is_cybersecurity']"
+    <multi-state-filter-button
+      v-model="storyFilter['cybersecurity']"
       label="cybersecurity"
       icon="mdi-shield-outline"
+      :values="['yes', 'no', 'mixed']"
     />
   </div>
 </template>
 
 <script>
 import filterButton from '@/components/common/filter/filterButton.vue'
+import multiStateFilterButton from '@/components/common/filter/multiStateFilterButton.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { storeToRefs } from 'pinia'
 
 export default {
   name: 'AssessFilterButtons',
   components: {
-    filterButton
+    filterButton,
+    multiStateFilterButton
   },
   props: {},
   setup() {
