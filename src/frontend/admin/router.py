@@ -20,7 +20,7 @@ from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_
 class DashboardAPI(MethodView):
     @auth_required()
     def get(self):
-        result = DataPersistenceLayer().get_objects(Dashboard)
+        result = DataPersistenceLayer().get_objects(Dashboard, timeout=10)
 
         if result is None:
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500

@@ -82,6 +82,7 @@ class Permissions(TaranisBaseModel):
 
 class Dashboard(TaranisBaseModel):
     _core_endpoint = "/dashboard"
+    _cache_timeout = 10
     total_news_items: int | None = None
     total_products: int | None = None
     report_items_completed: int | None = None
