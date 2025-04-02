@@ -208,6 +208,20 @@ wheels = [
 ]
 
 [[package]]
+name = "heroicons"
+version = "2.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/1a/c0fdcfc83a94337a8518d571d30bcac73b3f36f95dbd40eaed13c6155921/heroicons-2.11.0.tar.gz", hash = "sha256:36fed4e7a2fc134f70fd22597a73012b74904cec19968f85a5bad8ae97fb7cc2", size = 420258 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/ea/c080dd9cb1074fbc2334d7bec99eed22305cdf0b74c7b6a479bfb2c1505d/heroicons-2.11.0-py3-none-any.whl", hash = "sha256:68d8c754076b0c12f7f60157bcc47fb89135ccb4f0f7d3ac53791546132bf92d", size = 414894 },
+]
+
+[package.optional-dependencies]
+jinja = [
+    { name = "jinja2" },
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -595,6 +609,7 @@ dependencies = [
     { name = "flask-htmx" },
     { name = "flask-jwt-extended" },
     { name = "granian" },
+    { name = "heroicons", extra = ["jinja"] },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "requests" },
@@ -624,6 +639,7 @@ requires-dist = [
     { name = "flask-htmx" },
     { name = "flask-jwt-extended" },
     { name = "granian" },
+    { name = "heroicons", extras = ["jinja"], specifier = ">=2.11.0" },
     { name = "lxml", marker = "extra == 'dev'" },
     { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'dev'" },
