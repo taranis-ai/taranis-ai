@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     STORY_API_ENDPOINT: str = "http://story_bot:8000"
     SENTIMENT_ANALYSIS_API_ENDPOINT: str = "http://sentiment_analysis_bot:8000"
     CYBERSEC_CLASSIFIER_API_ENDPOINT: str = "http://cybersec_classifier_bot:8000"
+    CYBERSEC_CLASSIFIER_THRESHOLD: float = 0.65
 
     @model_validator(mode="after")
     def set_celery(self):

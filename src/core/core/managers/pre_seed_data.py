@@ -177,6 +177,7 @@ workers = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://cybersec_classifier_bot:8000"},
+            {"parameter": "CLASSIFICATION_THRESHOLD", "value": "0.65"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
