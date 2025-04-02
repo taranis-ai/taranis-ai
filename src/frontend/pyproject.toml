@@ -26,6 +26,7 @@ dependencies = [
     "granian",
     "requests",
     "setuptools",
+    "heroicons[jinja]>=2.11.0",
 ]
 dynamic = ["version"]
 
