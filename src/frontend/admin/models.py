@@ -80,6 +80,17 @@ class Permissions(TaranisBaseModel):
     description: str
 
 
+class Dashboard(TaranisBaseModel):
+    _core_endpoint = "/dashboard"
+    total_news_items: int | None = None
+    total_products: int | None = None
+    report_items_completed: int | None = None
+    report_items_in_progress: int | None = None
+    total_database_items: int | None = None
+    latest_collected: str | None = None
+    schedule_length: int | None = None
+
+
 class PagingData(BaseModel):
     page: int | None = None
     limit: int | None = None
@@ -138,7 +149,7 @@ class CacheObject(list):
 
     def search_and_paginate(self, paging: PagingData | None) -> "CacheObject":
         if not paging:
-            return self[self.offset : self.offset + self.limit]
+            return self
         if paging.search:
             return self.search(paging.search).paginate(paging)
         return self.paginate(paging)

@@ -10,22 +10,24 @@ from admin.jinja_setup import jinja_setup
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import add_user_to_cache, remove_user_from_cache, get_cached_users, list_cache_keys
-from admin.models import Role, User, Organization, PagingData, Job, Permissions
+from admin.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
 from admin.auth import get_jwt_identity, auth_required
 from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_params
 
 
-class Dashboard(MethodView):
+class DashboardAPI(MethodView):
     @auth_required()
     def get(self):
-        result = CoreApi().get_dashboard()
+        result = DataPersistenceLayer().get_objects(Dashboard)
 
         if result is None:
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("index.html", data=result)
+        logger.debug(f"Dashboard data: {result[0]}")
+        logger.debug(f"Dashboard data: {result[0].total_news_items}")
+        return render_template("dashboard/index.html", data=result[0])
 
 
 class ScheduleAPI(MethodView):
@@ -375,7 +377,7 @@ def init(app: Flask):
 
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
-    admin_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
+    admin_bp.add_url_rule("/", view_func=DashboardAPI.as_view("dashboard"))
 
     admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))

@@ -58,9 +58,6 @@ class CoreApi:
             return None
         return response
 
-    def get_dashboard(self, query_params=None):
-        return self.api_get("/dashboard", params=query_params)
-
     def get_users(self, query_params=None):
         return self.api_get("/config/users", params=query_params)
 
@@ -71,5 +68,4 @@ class CoreApi:
         return self.api_download("/config/users-export", params=user_ids)
 
     def import_users(self, users):
-        response = self.api_post("/config/users-import", json_data=users)
-        return response
+        return self.api_post("/config/users-import", json_data=users)
