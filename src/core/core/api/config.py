@@ -282,6 +282,7 @@ class UsersExport(MethodView):
             as_attachment=True,
         )
 
+
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search")

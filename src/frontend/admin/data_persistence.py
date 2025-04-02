@@ -46,6 +46,10 @@ class DataPersistenceLayer:
         for key in keys_to_delete:
             cache.delete(key)
 
+    def invalidate_cache_by_object(self, object: TaranisBaseModel | Type[TaranisBaseModel]):
+        suffix = self.make_key(object._core_endpoint)
+        self.invalidate_cache(suffix)
+
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> list[T]:
         endpoint = self.get_endpoint(object_model)
         cache_object: CacheObject | None
@@ -65,19 +69,19 @@ class DataPersistenceLayer:
         logger.info(f"Storing object: {store_object}")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
-            self.invalidate_cache(self.make_key(object._core_endpoint))
+            self.invalidate_cache_by_object(object)
         return response
 
     def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):
         endpoint = self.get_endpoint(object_model)
         response = self.api.api_delete(f"{endpoint}/{object_id}")
         if response.ok:
-            self.invalidate_cache(self.make_key(object_model._core_endpoint))
+            self.invalidate_cache_by_object(object_model)
         return response
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object)
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
         if response.ok:
-            self.invalidate_cache(self.make_key(object._core_endpoint))
+            self.invalidate_cache_by_object(object)
         return response

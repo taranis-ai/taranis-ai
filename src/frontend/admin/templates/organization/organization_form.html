@@ -1,4 +1,3 @@
-{% set error = error | default({}) %}
 {% set create = request.path[-1:] == '0' | default('true') %}
 {% set form_title = 'Organization' %}
 
@@ -7,18 +6,22 @@
         'id': '',
         'name': '',
         'description': '',
-        'address': {},
-        '_errors': {}
+        'address': {
+            'street': '',
+            'city': '',
+            'country': '',
+            'zip': ''
+        }
     })
 %}
 
 {% set form_error = form_error | default({}) %}
-<div class="bg-base-100 rounded-sm p-4 wx-4/5 mx-auto">
+<div class="bg-base-100 rounded-sm p-4 w-4/5 mx-auto">
     <h1 class="text-3xl font-bold mb-5 w-4/5 mx-auto">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
 
-    <form id="role-form" class="w-4/5 mx-auto" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-        {% if error.globalerror %}
-        <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
+    <form id="organization-form" class="w-4/5 mx-auto" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+        {% if error %}
+        <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif %}
 
         <label class="floating-label mb-5 w-3/5">

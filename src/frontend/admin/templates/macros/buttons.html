@@ -11,12 +11,10 @@
 
 
 {% macro import_button(import_url) %}
-<form hx-post="{{ import_url }}" hx-encoding="multipart/form-data" hx-trigger="input">
-  <label class="btn btn-accent join-item cursor-pointer btn-outline col-start-3">
-    {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
-    Import
-  </label>
-</form>
+<button hx-get="{{ import_url }}" class="btn btn-outline btn-accent">
+  {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
+  Import
+</button>
 {% endmacro %}
 
 {% macro action_button(action) %}

@@ -1,20 +1,16 @@
-from pydantic import BaseModel
-from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
-from flask.json.provider import DefaultJSONProvider
+from flask import Flask, render_template, Blueprint, request, Response, jsonify
 from flask.views import MethodView
-from flask_htmx import HTMX
 from swagger_ui import api_doc
-import json
 
-from admin.jinja_setup import jinja_setup
 from admin.core_api import CoreApi
 from admin.config import Config
 from admin.cache import add_user_to_cache, remove_user_from_cache, get_cached_users, list_cache_keys
 from admin.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
-from admin.auth import get_jwt_identity, auth_required
+from admin.auth import auth_required
 from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_params
+from admin.views.user_views import import_users_view, import_users_post_view, edit_user_view
 
 
 class DashboardAPI(MethodView):
@@ -70,52 +66,46 @@ class UsersAPI(MethodView):
 
     @auth_required()
     def post(self):
-        if is_htmx_request():
-            logger.debug("Received htmx request")
-        user = User(**parse_formdata(request.form))
-        result = DataPersistenceLayer().store_object(user)
-        if not result.ok:
-            organizations = DataPersistenceLayer().get_objects(Organization)
-            roles = DataPersistenceLayer().get_objects(Role)
+        error = None
+        result = None
+        try:
+            user = User(**parse_formdata(request.form))
+            result = DataPersistenceLayer().store_object(user)
+        except Exception as ve:
+            error = str(ve)
+        if not result:
+            error = "Failed to store user"
+        elif not result.ok:
+            error = result.json().get("error")
 
-            _error = result.json().get("error")
-            logger.warning(f"Failed to store user: {_error}")
+        if error or not result:
+            return edit_user_view(user_id=0, error=error)
 
-            return render_template(
-                "user/user_form.html",
-                organizations=organizations,
-                roles=roles,
-                user=user,
-                error=_error,
-                form_error={},
-            ), result.status_code
-
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class UpdateUser(MethodView):
     @auth_required()
     def get(self, user_id: int = 0):
-        template = "user/user_form.html" if is_htmx_request() else "user/user_edit.html"
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-        if user_id == 0:
-            return render_template(template, organizations=organizations, roles=roles)
-        user = DataPersistenceLayer().get_object(User, user_id)
-        current_user = get_jwt_identity()
-        return render_template(template, organizations=organizations, roles=roles, user=user, current_user=current_user)
+        return edit_user_view(user_id=user_id)
 
     @auth_required()
     def put(self, user_id):
-        user = User(**parse_formdata(request.form))
-        result = DataPersistenceLayer().update_object(user, user_id)
-        if not result.ok:
-            organizations = DataPersistenceLayer().get_objects(Organization)
-            roles = DataPersistenceLayer().get_objects(Role)
-            response = render_template(
-                "user/user_form.html", user=user, error=result.content.decode(), organizations=organizations, roles=roles
-            )
-            return response, result.status_code
+        error = None
+        form_error = None
+        result = None
+        try:
+            user = User(**parse_formdata(request.form))
+            result = DataPersistenceLayer().update_object(user, user_id)
+        except Exception as ve:
+            error = str(ve)
+        if not result:
+            error = "Failed to store user"
+        elif not result.ok:
+            form_error = result.json().get("error")
+
+        if error or form_error or not result:
+            return edit_user_view(user_id=user_id, error=error, form_error=form_error)
 
         return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
@@ -284,25 +274,6 @@ class UserCache(MethodView):
             return {"error": "No data provided"}, 400
 
 
-class TaranisJSONProvider(DefaultJSONProvider):
-    def dumps(self, obj, **kwargs):
-        transformed_obj = self._transform(obj)
-        return super().dumps(transformed_obj, **kwargs)
-
-    def _transform(self, obj):
-        if isinstance(obj, BaseModel):
-            return obj.model_dump(exclude_none=True)
-        elif isinstance(obj, list):
-            return [self._transform(item) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: self._transform(value) for key, value in obj.items()}
-        return obj
-
-
-def handle_unauthorized(e):
-    return redirect("/login", code=302)
-
-
 class ExportUsers(MethodView):
     @auth_required()
     def get(self):
@@ -325,45 +296,14 @@ class ExportUsers(MethodView):
 class ImportUsers(MethodView):
     @auth_required()
     def get(self):
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-
-        return render_template("user/user_import.html", roles=roles, organizations=organizations)
+        return import_users_view()
 
     def post(self):
-        roles = [int(role) for role in request.form.getlist("roles[]")]
-        organization = int(request.form.get("organization", "0"))
-        users = request.files.get("file")
-        if not users or organization == 0:
-            return {"error": "No file or organization provided"}, 400
-        data = users.read()
-        data = json.loads(data)
-        for user in data["data"]:
-            user["roles"] = roles
-            user["organization"] = organization
-        data = json.dumps(data["data"])
-
-        if not data:
-            return {"error": "No JSON data provided"}, 400
-        response = CoreApi().import_users(json.loads(data))
-
-        if not response:
-            logger.debug(f"Failed to import users to: {Config.TARANIS_CORE_URL}")
-            return f"Failed to import users to: {Config.TARANIS_CORE_URL}", 500
-
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return import_users_post_view()
 
 
 def init(app: Flask):
-    app.json_provider_class = TaranisJSONProvider
-    app.json = app.json_provider_class(app)
-    HTMX(app)
-    app.register_error_handler(401, handle_unauthorized)
-
     api_doc(app, config_url=f"{Config.TARANIS_CORE_URL}/static/openapi3_1.yaml", url_prefix=f"{Config.APPLICATION_ROOT}/doc", editor=False)
-
-    app.url_map.strict_slashes = False
-    jinja_setup(app)
 
     admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 

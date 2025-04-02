@@ -62,7 +62,6 @@ class Role(TaranisBaseModel):
 
 class User(TaranisBaseModel):
     _core_endpoint = "/config/users"
-    _errors = {}
     _search_fields = ["name", "username"]
 
     id: int | None = None

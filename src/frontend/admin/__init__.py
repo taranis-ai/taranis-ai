@@ -3,6 +3,7 @@ from admin import router
 from admin.config import Config
 from admin import auth
 from admin import cache
+from admin import setup
 
 
 def create_app():
@@ -18,4 +19,5 @@ def create_app():
 def init(app: Flask):
     cache.init(app)
     auth.init(app)
+    setup.init(app)
     router.init(app)
