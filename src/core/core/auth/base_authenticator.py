@@ -40,8 +40,6 @@ class BaseAuthenticator:
             response = jsonify({"access_token": access_token})
             response.status_code = 200
             set_access_cookies(response, access_token)
-            # frontend_api_user = user.to_dict() + {"access_token": access_token}
-            # frontend_api.login(frontend_api_user)
             return response
 
         logger.store_auth_error_activity(f"User doesn't exists: {username}")

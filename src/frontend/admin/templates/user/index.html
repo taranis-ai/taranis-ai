@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="text-3xl font-bold mb-4">Users</div>
+<div class="text-3xl font-bold mb-4">
+  <a href="{{ request.path }}" class="text-blue-500 hover:underline">Users</a>
+</div>
 <div class="bg-white rounded-sm p-4" id="form-container">
     {% include 'user/users_table_header.html' %}
     {% include 'user/users_table.html' %}
