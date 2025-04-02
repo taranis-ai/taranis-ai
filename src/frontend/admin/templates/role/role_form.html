@@ -1,5 +1,6 @@
-{% set create = request.path[-1:] == '0' | default('true') %}
+{% from "macros/forms.html" import form_input %}
 {% from "macros/table.html" import table with context %}
+{% set create = request.path[-1:] == '0' | default('true') %}
 {% set form_title = 'Role' %}
 
 {% set role = role
@@ -21,15 +22,9 @@
         <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif %}
 
-        <label class="floating-label mb-5 w-3/5">
-            <span>Name</span>
-            <input id="name" type="text" placeholder="Name" class="w-3/5 input input-md  validator {% if form_error.name %}input-error{% endif %}" name="name" required value="{{ role.name }}"/>
-        </label>
 
-        <label class="floating-label mb-5 w-3/5">
-            <span>Description</span>
-            <input type="text" placeholder="Description" class="w-3/5 input input-md validator" name="description" value="{{ role.description }}" id="description" />
-        </label>
+        {{ form_input('Name', 'name', role.name, form_error.name) }}
+        {{ form_input('Description', 'description', role.description, form_error.description) }}
 
         <label class="floating-label mb-5 w-3/5">
             <span>TLP Level</span>

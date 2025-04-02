@@ -1,3 +1,5 @@
+{% from "macros/forms.html" import form_input %}
+
 {% set create = request.path[-1:] == '0' | default('true') %}
 {% set form_title = 'User' %}
 
@@ -33,25 +35,8 @@
         <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif -%}
 
-        <div class="mb-5 w-3/5 flex flex-row">
-          <label class="floating-label w-3/5 flex-none">
-              <span>Username</span>
-              <input id="username" type="text" placeholder="Username" class="input w-full validator {% if form_error.username %}input-error{% endif %}" name="username" required value="{{ user.username }}"/>
-          </label>
-          {% if form_error.username %}
-            <div role="alert" class="alert alert-error alert-soft w-2/5 flex-initial">{{ form_error.username }}</div>
-          {% endif %}
-        </div>
-
-        <div class="mb-5 w-3/5 flex flex-row">
-        <label class="floating-label w-3/5 flex-none">
-            <span>Name</span>
-            <input type="text" placeholder="Name" class="input w-full validator {% if form_error.name %}input-error{% endif %}" name="name" required value="{{ user.name }}" id="userform_name" />
-        </label>
-        {% if form_error.name %}
-        <div role="alert" class="alert alert-error alert-soft w-2/5 flex-initial">{{ form_error.username }}</div>
-        {% endif %}
-        </div>
+        {{ form_input('Username', 'username', user.username, form_error.username) }}
+        {{ form_input('Name', 'name', user.name, form_error.name) }}
 
         <div x-data="{ showPassword: false }" class="join gap-1 w-3/5">
           <label class="floating-label mb-5 input validator w-3/5">
