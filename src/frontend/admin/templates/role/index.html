@@ -3,7 +3,7 @@
 <div class="text-3xl font-bold mb-4">
   <a href="{{ request.path }}" class="text-blue-500 hover:underline">Roles</a>
 </div>
-<div class="bg-white rounded-sm p-4 form-container" >
+<div class="bg-white rounded-sm p-4" id="form-container" >
   {% include 'role/roles_table_header.html' %}
   {% include 'role/roles_table.html' %}
 </div>

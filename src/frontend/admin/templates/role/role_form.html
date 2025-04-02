@@ -15,27 +15,27 @@
 
 {% set form_error = form_error | default({}) %}
 {% set permissions = permissions | default([]) %}
-<div class="bg-base-100 rounded-sm p-4 shadow-lg mt-4">
-    <h1 class="text-3xl font-bold mb-5">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+<div class="bg-base-100 rounded-sm p-4 w-4/5 mx-auto mt-4">
+    <h1 class="text-3xl font-bold mb-5 w-4/5 mx-auto">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
 
-    <form id="role-form" {% if create %}hx-post="/frontend/roles"{% else %} hx-put="/frontend/roles/{{ role.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-full">
+    <form id="role-form" {% if create %}hx-post="/frontend/roles"{% else %} hx-put="/frontend/roles/{{ role.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-4/5 mx-auto">
         {% if error.globalerror %}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error.globalerror }}</p>
         {% endif %}
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>Name</span>
-            <input id="name" type="text" placeholder="Name" class="input input-md  validator {% if form_error.name %}input-error{% endif %}" name="name" required value="{{ role.name }}"/>
+            <input id="name" type="text" placeholder="Name" class="w-3/5 input input-md  validator {% if form_error.name %}input-error{% endif %}" name="name" required value="{{ role.name }}"/>
         </label>
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>Description</span>
-            <input type="text" placeholder="Description" class="input input-md validator" name="description" value="{{ role.description }}" id="description" />
+            <input type="text" placeholder="Description" class="w-3/5 input input-md validator" name="description" value="{{ role.description }}" id="description" />
         </label>
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
             <span>TLP Level</span>
-            <select name="tlp_level" required class="validator select">
+            <select name="tlp_level" required class="validator select w-3/5">
                 <option value="" disabled {% if role.tlp_level is none %}selected{% endif %}>Select TLP Level</option>
                 <option value="clear" {% if role.tlp_level == 'clear' %}selected{% endif %}>Clear</option>
                 <option value="green" {% if role.tlp_level == 'green' %}selected{% endif %}>Green</option>
@@ -45,7 +45,7 @@
             </select>
         </label>
 
-        <label class="floating-label mb-5">
+        <label class="floating-label mb-5 w-3/5">
           <span>Permissions</span>
           {% set columns = [
             {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
