@@ -1,7 +1,7 @@
 from sqlalchemy.engine import Engine
-from sqlalchemy import text
 from core.log import logger
 from core.config import Config
+from core.managers.db_enum_manager import sync_enum_with_db
 
 
 def pre_seed():
@@ -38,19 +38,6 @@ def pre_seed():
         logger.critical("Pre Seed failed")
 
 
-def sync_enum_with_db(enum_type, connection):
-    enum_name = enum_type.__name__.lower()
-    existing_enum_values = connection.execute(text(f"SELECT unnest(enum_range(NULL::{enum_name}))")).fetchall()
-
-    existing_values = {val[0] for val in existing_enum_values}
-    new_values = {e.name for e in enum_type}
-
-    if missing_values := new_values - existing_values:
-        for value in missing_values:
-            connection.execute(text(f"ALTER TYPE {enum_name} ADD VALUE '{value}'"))
-        connection.commit()
-
-
 def pre_seed_update(db_engine: Engine):
     from core.managers.pre_seed_data import workers, bots
     from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
@@ -64,13 +51,13 @@ def pre_seed_update(db_engine: Engine):
     with db_engine.connect() as connection:
         if connection.dialect.name == "sqlite":
             return
-        sync_enum_with_db(WORKER_CATEGORY, connection)
-        sync_enum_with_db(WORKER_TYPES, connection)
-        sync_enum_with_db(BOT_TYPES, connection)
-        sync_enum_with_db(COLLECTOR_TYPES, connection)
-        sync_enum_with_db(PRESENTER_TYPES, connection)
-        sync_enum_with_db(PUBLISHER_TYPES, connection)
-        sync_enum_with_db(PARAMETER_TYPES, connection)
+        sync_enum_with_db(enum_type=WORKER_CATEGORY, connection=connection, table_column="worker.category")
+        sync_enum_with_db(enum_type=WORKER_TYPES, connection=connection, table_column="worker.type")
+        sync_enum_with_db(enum_type=BOT_TYPES, connection=connection, table_column="bot.type")
+        sync_enum_with_db(enum_type=COLLECTOR_TYPES, connection=connection, table_column="osint_source.type")
+        sync_enum_with_db(enum_type=PRESENTER_TYPES, connection=connection, table_column="product_type.type")
+        sync_enum_with_db(enum_type=PUBLISHER_TYPES, connection=connection, table_column="publisher_preset.type")
+        sync_enum_with_db(enum_type=PARAMETER_TYPES, connection=connection, table_column="parameter_value.type")
         migrate_refresh_intervals(connection)
 
     for w in workers:

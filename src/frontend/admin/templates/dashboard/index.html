@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="text-3xl font-bold mb-4">Admin Dashboard</div>
+
+<div class="grid grid-flow-row-dense grid-cols-2 gap-4 pb-4">
+    <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/assess" class="underline text-xl">Assess</a>
+        <div class="divider"></div>
+        <span class="inline-flex">
+            {{ heroicon_solid('inbox-stack') }}
+
+            <span class="caption">
+                There are <strong>{{ data.total_news_items }}</strong> total Assess items.
+            </span>
+        </span>
+    </div>
+    <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/publish" class="underline text-xl">Publish</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.total_products }}</b> products ready for publications.
+        </span>
+    </div>
+</div>
+
+<div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
+    <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/analyze" class="underline text-xl">Analyze</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.report_items_completed }}</b> completed analyses.
+        </span>
+        <br/>
+        <span class="caption">
+            There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
+        </span>
+    </div>
+    <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/config/workers" class="underline text-xl">Workers</a>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.schedule_length }}</b> tasks scheduled.
+        </span>
+
+        <span class="caption">
+            Last successful run <b>{{ data.latest_collected }}</b>
+        </span>
+    </div>
+    <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <span class="text-xl">Database</span>
+        <div class="divider"></div>
+        <span class="caption">
+            There are <b>{{ data.total_database_items }}</b> live items.
+        </span><br/>
+
+        <span class="caption">There are <b>0</b> archived items.</span>
+    </div>
+</div>
+<!--
+<div class="card w-96 bg-base-100 card-xs shadow-sm">
+    <div class="card-body">
+      <h2 class="card-title">Xsmall Card</h2>
+      <p>A card component has a figure, a body part, and inside body there are title and actions parts</p>
+      <div class="justify-end card-actions">
+        <button class="btn btn-primary">Buy Now</button>
+      </div>
+    </div>
+</div> -->
+
+{% endblock %}

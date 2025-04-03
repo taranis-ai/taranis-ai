@@ -1,9 +1,6 @@
-from swagger_ui import api_doc
 from flask import jsonify
-from pathlib import Path
 from flask_cors import CORS
 
-from core.config import Config
 import core.api as core_api
 
 
@@ -14,9 +11,6 @@ def initialize(app):
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
-
-    openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_1.yaml"
-    api_doc(app, config_path=openapi_yaml, url_prefix=f"{Config.APPLICATION_ROOT}api/doc", editor=False)
 
     core_api.admin.initialize(app)
     core_api.analyze.initialize(app)

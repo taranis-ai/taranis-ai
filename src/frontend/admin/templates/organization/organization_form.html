@@ -1,0 +1,41 @@
+{% from "macros/forms.html" import form_input %}
+{% set create = request.path[-1:] == '0' | default('true') %}
+{% set form_title = 'Organization' %}
+
+{% set organization = organization
+    | default({
+        'id': '',
+        'name': '',
+        'description': '',
+        'address': {
+            'street': '',
+            'city': '',
+            'country': '',
+            'zip': ''
+        }
+    })
+%}
+
+{% set form_error = form_error | default({}) %}
+<div class="bg-base-100 rounded-sm p-4 w-4/5 mx-auto">
+    <h1 class="text-3xl font-bold mb-5 w-4/5 mx-auto">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+
+    <form id="organization-form" class="w-4/5 mx-auto" {% if create %}hx-post="/frontend/organizations"{% else %} hx-put="/frontend/organizations/{{ organization.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+        {% if error %}
+        <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+        {% endif %}
+
+        {{ form_input('Name', 'name', organization.name, form_error.name) }}
+        {{ form_input('Description', 'description', organization.description, form_error.description) }}
+        {{ form_input('Street', 'address[street]', organization.address.street, form_error.street) }}
+        {{ form_input('City', 'address[city]', organization.address.city, form_error.city) }}
+        {{ form_input('Country', 'address[country]', organization.address.country, form_error.country) }}
+        {{ form_input('ZIP', 'address[zip]', organization.address.zip, form_error.zip) }}
+
+        <div class="flex flex-wrap mb-6">
+            <div class="w-full px-3">
+              <input type="submit" class="btn btn-primary" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+            </div>
+        </div>
+    </form>
+</div>

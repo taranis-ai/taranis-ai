@@ -27,7 +27,6 @@ dependencies = [
     "python-dotenv",
     "granian",
     "psycopg",
-    "swagger-ui-py-x",
     "requests",
     "authlib",
     "setuptools",

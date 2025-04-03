@@ -1,0 +1,271 @@
+{% macro datatable(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items") %}
+{% from "macros/datatable.html" import datatable_header with context %}
+{% from "macros/buttons.html" import action_button with context %}
+{% set item_ids = data | map(attribute='id') | list %}
+
+<table class="table" id="{{ table_id }}" x-data="{ selectedItems: [] }">
+    <thead>
+        <tr>
+            {% if selectable %}
+            <th>
+                <input type="checkbox"
+                       class="checkbox"
+                       :checked="selectedItems.length === {{ item_ids | length }}"
+                       @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+                />
+            </th>
+            {% endif %}
+
+            {% for col in columns %}
+                {{ datatable_header(col.title, col.sortable) }}
+            {% endfor %}
+
+            {% if actions %}
+                <th class="text-right">Actions</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% if data %}
+        {% for item in data %}
+        <tr>
+            {% if selectable %}
+            <td>
+                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
+            </td>
+            {% endif %}
+
+            {% for col in columns %}
+                <td>
+                    {% if col.renderer %}
+                        {{ col.renderer(item) }}
+                    {% else %}
+                        {{ item[col.field] }}
+                    {% endif %}
+                </td>
+            {% endfor %}
+
+            {% if actions %}
+            <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
+              {% if actions is string %}
+                {% from "macros/table.html" import default_table_actions %}
+                {% set ns = namespace(actions=[]) %}
+                {{ default_table_actions(ns, actions) }}
+                {% set actions = ns.actions %}
+              {% endif %}
+              {% for action in actions %}
+              {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
+              {% endfor %}
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+                <div class="text-center">
+                    <p class="text-gray-500">No data available</p>
+                </div>
+            </td>
+        </tr>
+        {% endif %}
+    </tbody>
+    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+        <tr>
+            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+                <div class="flex justify-center">
+                  <div class="flex items-center justify-between gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
+                    <div class="items-center gap-2">
+                      <span class="text-sm font-medium">Items per page:</span>
+                      <select name="limit" class="select select-bordered select-sm h-8">
+                        {% for option in [5, 20, 50, 100] %}
+                        <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
+                          {{ option }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <!-- Pagination Buttons & Current Page -->
+                    <div class="flex items-center gap-2">
+                      <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
+
+                      <a class="btn btn-sm h-8" @click="changePage(currentPage - 1)">‹</a>
+
+                      <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold">
+                        Page {{ data.current_page }} of {{ data.total_pages }}
+                      </span>
+
+                      <a class="btn btn-sm h-8" @click="changePage(currentPage + 1)">›</a>
+
+                      <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
+                    </div>
+                  </div>
+                </div>
+            </td>
+        </tr>
+    </tfoot>
+</table>
+
+<script>
+
+window.dataTable = function () {
+  return {
+    items: [],
+    view: 5,
+    searchInput: '',
+    pages: [],
+    offset: 5,
+    pagination: {
+      total: data.length,
+      lastPage: Math.ceil(data.length / 5),
+      perPage: 5,
+      currentPage: 1,
+      from: 1,
+      to: 1 * 5
+    },
+    currentPage: 1,
+    sorted: {
+      field: 'name',
+      rule: 'asc'
+    },
+    initData() {
+      this.items = data.sort(this.compareOnKey('name', 'asc'))
+      this.showPages()
+    },
+    compareOnKey(key, rule) {
+      return function(a, b) {
+          let comparison = 0
+          const fieldA = a[key].toUpperCase()
+          const fieldB = b[key].toUpperCase()
+          if (rule === 'asc') {
+            if (fieldA > fieldB) {
+              comparison = 1;
+            } else if (fieldA < fieldB) {
+              comparison = -1;
+            }
+          } else {
+            if (fieldA < fieldB) {
+              comparison = 1;
+            } else if (fieldA > fieldB) {
+              comparison = -1;
+            }
+          }
+          return comparison
+      }
+    },
+    checkView(index) {
+      return index > this.pagination.to || index < this.pagination.from ? false : true
+    },
+    checkPage(item) {
+      if (item <= this.currentPage + 5) {
+        return true
+      }
+      return false
+    },
+    search(value) {
+      if (value.length > 1) {
+        const options = {
+          shouldSort: true,
+          keys: ['name', 'job'],
+          threshold: 0
+        }
+        const fuse = new Fuse(data, options)
+        this.items = fuse.search(value).map(elem => elem.item)
+      } else {
+        this.items = data
+      }
+      // console.log(this.items.length)
+
+      this.changePage(1)
+      this.showPages()
+    },
+    sort(field, rule) {
+      this.items = this.items.sort(this.compareOnKey(field, rule))
+      this.sorted.field = field
+      this.sorted.rule = rule
+    },
+    changePage(page) {
+      if (page >= 1 && page <= this.pagination.lastPage) {
+        this.currentPage = page
+        const total = this.items.length
+        const lastPage = Math.ceil(total / this.view) || 1
+        const from = (page - 1) * this.view + 1
+        let to = page * this.view
+        if (page === lastPage) {
+          to = total
+        }
+        this.pagination.total = total
+        this.pagination.lastPage = lastPage
+        this.pagination.perPage = this.view
+        this.pagination.currentPage = page
+        this.pagination.from = from
+        this.pagination.to = to
+        this.showPages()
+      }
+    },
+    showPages() {
+      const pages = []
+      let from = this.pagination.currentPage - Math.ceil(this.offset / 2)
+      if (from < 1) {
+        from = 1
+      }
+      let to = from + this.offset - 1
+      if (to > this.pagination.lastPage) {
+        to = this.pagination.lastPage
+      }
+      while (from <= to) {
+        pages.push(from)
+        from++
+      }
+      this.pages = pages
+    },
+    changeView() {
+      this.changePage(1)
+      this.showPages()
+    },
+    isEmpty() {
+      return this.pagination.total ? false : true
+    }
+  }
+}
+</script>
+{% endmacro %}
+
+{% macro datatable_header(title, sortable) %}
+{% from "macros/query_params.html" import update_query_params with context %}
+{% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
+{% set order = title ~ '_' ~ order_direction %}
+{% set order_params = {'order': order, 'page': 1} %}
+{% set order_url = update_query_params(order_params) %}
+{% if sortable %}
+<th>
+  <a  @click="sort('{{ title }}', '{{ order_direction }}')"
+      class="link link-hover">
+      {{ title|capitalize }}
+  </a>
+</th>
+{% else %}
+  <th>{{ title|capitalize }}</th>
+{% endif %}
+{% endmacro %}
+
+{% macro datatable_search_bar(table_id) %}
+{% set current_search = request.args.get('search', '') %}
+<div class="grow">
+  <form
+    hx-get="{{ request.path }}"
+    hx-push-url="true"
+    hx-target="#{{ table_id }}"
+    hx-trigger="input delay:500ms"
+  >
+    <input
+      type="search"
+      name="search"
+      class="input w-full"
+      placeholder="Search..."
+      value="{{ current_search }}"
+    />
+  </form>
+</div>
+{% endmacro %}

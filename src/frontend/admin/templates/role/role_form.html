@@ -1,0 +1,56 @@
+{% from "macros/forms.html" import form_input %}
+{% from "macros/table.html" import table with context %}
+{% set create = request.path[-1:] == '0' | default('true') %}
+{% set form_title = 'Role' %}
+
+{% set role = role
+    | default({
+        'id': '',
+        'name': '',
+        'description': '',
+        'permissions': []
+    })
+%}
+
+{% set form_error = form_error | default({}) %}
+{% set permissions = permissions | default([]) %}
+<div class="bg-base-100 rounded-sm p-4 w-4/5 mx-auto mt-4">
+    <h1 class="text-3xl font-bold mb-5 w-4/5 mx-auto">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+
+    <form id="role-form" {% if create %}hx-post="/frontend/roles"{% else %} hx-put="/frontend/roles/{{ role.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container" class="w-4/5 mx-auto">
+        {% if error %}
+        <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+        {% endif %}
+
+
+        {{ form_input('Name', 'name', role.name, form_error.name) }}
+        {{ form_input('Description', 'description', role.description, form_error.description) }}
+
+        <label class="floating-label mb-5 w-3/5">
+            <span>TLP Level</span>
+            <select name="tlp_level" required class="validator select w-3/5">
+                <option value="" disabled {% if role.tlp_level is none %}selected{% endif %}>Select TLP Level</option>
+                <option value="clear" {% if role.tlp_level == 'clear' %}selected{% endif %}>Clear</option>
+                <option value="green" {% if role.tlp_level == 'green' %}selected{% endif %}>Green</option>
+                <option value="amber" {% if role.tlp_level == 'amber' %}selected{% endif %}>Amber</option>
+                <option value="amber+strict" {% if role.tlp_level == 'amber+strict' %}selected{% endif %}>Amber+Strict</option>
+                <option value="red" {% if role.tlp_level == 'red' %}selected{% endif %}>Red</option>
+            </select>
+        </label>
+
+        <label class="floating-label mb-5 w-3/5">
+          <span>Permissions</span>
+          {% set columns = [
+            {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+            {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+          ] %}
+          {{ table('permissions-table', permissions, columns, none, role.permissions, selectable=true, input_name="permissions") }}
+        </label>
+
+        <div class="flex flex-wrap -mx-3 mb-6">
+            <div class="w-full px-3">
+                <input type="submit" class="btn btn-primary" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+            </div>
+        </div>
+    </form>
+</div>
