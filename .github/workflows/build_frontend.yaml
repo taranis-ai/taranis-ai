@@ -123,8 +123,6 @@ jobs:
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
-          cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest
-          cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest,mode=max
           outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true,compression=zstd
 
       - name: Export digest
