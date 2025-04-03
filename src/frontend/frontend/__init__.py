@@ -1,14 +1,14 @@
 from flask import Flask
-from admin import router
-from admin.config import Config
-from admin import auth
-from admin import cache
-from admin import setup
+from frontend import router
+from frontend.config import Config
+from frontend import auth
+from frontend import cache
+from frontend import setup
 
 
 def create_app():
     app = Flask(__name__, static_url_path=f"{Config.APPLICATION_ROOT}/static")
-    app.config.from_object("admin.config.Config")
+    app.config.from_object("frontend.config.Config")
 
     with app.app_context():
         init(app)

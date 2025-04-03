@@ -2,7 +2,7 @@ import pytest
 import lxml.html
 from lxml.html import CheckboxValues, MultipleSelectOptions, InputElement
 
-from admin.config import Config
+from frontend.config import Config
 
 
 class FormData(dict):

@@ -7,7 +7,7 @@ from typing import Optional
 
 from flask import request
 
-from admin.config import Config
+from frontend.config import Config
 
 
 class TaranisLogger:

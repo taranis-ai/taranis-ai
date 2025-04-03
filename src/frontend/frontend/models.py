@@ -2,7 +2,7 @@ from enum import StrEnum
 from pydantic import BaseModel
 from typing import ClassVar, TypeVar
 
-from admin.config import Config
+from frontend.config import Config
 
 T = TypeVar("T", bound="TaranisBaseModel")
 

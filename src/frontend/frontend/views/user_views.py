@@ -2,11 +2,11 @@ from flask import render_template, request, Response
 from flask_jwt_extended import get_jwt_identity
 import json
 
-from admin.core_api import CoreApi
-from admin.models import Role, Organization
-from admin.data_persistence import DataPersistenceLayer
-from admin.models import User
-from admin.router_helpers import is_htmx_request
+from frontend.core_api import CoreApi
+from frontend.models import Role, Organization
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.models import User
+from frontend.router_helpers import is_htmx_request
 
 
 def import_users_view(error=None):

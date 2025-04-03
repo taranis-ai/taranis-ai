@@ -2,11 +2,11 @@ from functools import wraps
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 from flask import redirect
 
-from admin.config import Config
-from admin.log import logger
-from admin.cache import add_user_to_cache, get_user_from_cache
-from admin.core_api import CoreApi
-from admin.models import User
+from frontend.config import Config
+from frontend.log import logger
+from frontend.cache import add_user_to_cache, get_user_from_cache
+from frontend.core_api import CoreApi
+from frontend.models import User
 
 jwt = JWTManager()
 

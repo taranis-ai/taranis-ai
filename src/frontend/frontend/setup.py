@@ -2,7 +2,7 @@ from flask import Flask, redirect
 from flask_htmx import HTMX
 from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
-from admin.filters import human_readable_trigger
+from frontend.filters import human_readable_trigger
 
 from heroicons.jinja import (
     heroicon_micro,

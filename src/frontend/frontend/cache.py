@@ -1,7 +1,7 @@
 from flask_caching import Cache
-from admin.config import Config
-from admin.models import User
-from admin.log import logger
+from frontend.config import Config
+from frontend.models import User
+from frontend.log import logger
 
 cache = Cache()
 

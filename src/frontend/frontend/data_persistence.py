@@ -2,11 +2,11 @@ from flask import request
 from flask_jwt_extended import get_jwt_identity
 from typing import Type
 
-from admin.core_api import CoreApi
-from admin.config import Config
-from admin.cache import cache
-from admin.models import TaranisBaseModel, T, CacheObject, PagingData
-from admin.log import logger
+from frontend.core_api import CoreApi
+from frontend.config import Config
+from frontend.cache import cache
+from frontend.models import TaranisBaseModel, T, CacheObject, PagingData
+from frontend.log import logger
 
 
 class DataPersistenceLayer:

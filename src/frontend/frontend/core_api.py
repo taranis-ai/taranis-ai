@@ -1,7 +1,7 @@
 import requests
 from flask import request
-from admin.log import logger
-from admin.config import Config
+from frontend.log import logger
+from frontend.config import Config
 
 
 class CoreApi:

@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=env_file, override=True)
 
 @pytest.fixture(scope="session")
 def app():
-    from admin.__init__ import create_app
+    from frontend.__init__ import create_app
 
     app = create_app()
     app.config.update(
@@ -24,7 +24,7 @@ def app():
 
 @pytest.fixture(scope="session")
 def auth_user():
-    from admin.cache import add_user_to_cache
+    from frontend.cache import add_user_to_cache
 
     debug_user = {
         "id": 1,

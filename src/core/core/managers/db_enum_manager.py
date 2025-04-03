@@ -40,18 +40,12 @@ def _fetch_existing_enum_values(connection, enum_name: str) -> set[str]:
 
 
 def _handle_invalid_rows(connection, table: str, column: str, invalid_values: set[str]) -> None:
-    nullable = table != "worker"
-
     if not invalid_values:
         return
 
     values_sql = ", ".join(f"'{v}'" for v in invalid_values)
-    if nullable:
-        logger.debug(f"Setting {table}.{column} = NULL for values: {sorted(invalid_values)}")
-        connection.execute(text(f"UPDATE {table} SET {column} = NULL WHERE {column} IN ({values_sql})"))
-    else:
-        logger.debug(f"Deleting rows from {table} where {column} in {sorted(invalid_values)}")
-        connection.execute(text(f"DELETE FROM {table} WHERE {column} IN ({values_sql})"))
+    logger.debug(f"Deleting rows from {table} where {column} in {sorted(invalid_values)}")
+    connection.execute(text(f"DELETE FROM {table} WHERE {column} IN ({values_sql})"))
 
 
 def _replace_enum_type(connection, enum_name: str, new_values: set[str]) -> None:

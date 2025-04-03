@@ -7,5 +7,5 @@ if [ ! -d tailwindcss ]; then
     chmod +x tailwindcss
 fi
 
-./tailwindcss -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch
+./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
 

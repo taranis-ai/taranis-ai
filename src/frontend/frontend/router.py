@@ -2,15 +2,15 @@ from flask import Flask, render_template, Blueprint, request, Response, jsonify,
 from flask.views import MethodView
 from swagger_ui import api_doc
 
-from admin.core_api import CoreApi
-from admin.config import Config
-from admin.cache import get_cached_users, list_cache_keys
-from admin.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
-from admin.data_persistence import DataPersistenceLayer
-from admin.log import logger
-from admin.auth import auth_required
-from admin.router_helpers import is_htmx_request, parse_formdata, convert_query_params
-from admin.views.user_views import import_users_view, import_users_post_view, edit_user_view
+from frontend.core_api import CoreApi
+from frontend.config import Config
+from frontend.cache import get_cached_users, list_cache_keys
+from frontend.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
+from frontend.auth import auth_required
+from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
+from frontend.views.user_views import import_users_view, import_users_post_view, edit_user_view
 
 
 class DashboardAPI(MethodView):

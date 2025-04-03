@@ -6,8 +6,8 @@ upstream sseupstream {
   server ${TARANIS_SSE_UPSTREAM};
 }
 
-upstream schedulerupstream {
-  server ${TARANIS_SCHEDULER_UPSTREAM};
+upstream frontendupstream {
+  server ${TARANIS_FRONTEND_UPSTREAM};
 }
 
 server {
@@ -48,8 +48,8 @@ server {
         proxy_buffering off;
     }
 
-    location ${TARANIS_BASE_PATH}scheduler {
-        proxy_pass http://schedulerupstream;
+    location ${TARANIS_BASE_PATH}frontend {
+        proxy_pass http://frontendupstream;
     }
 
 

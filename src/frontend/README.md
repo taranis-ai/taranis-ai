@@ -43,7 +43,7 @@ chmod +x tailwindcss
 Run **Tailwind CSS** in watch mode to automatically build the CSS files as you modify the styles:
 
 ```bash
-./tailwindcss -i admin/static/css/input.css -o admin/static/css/tailwind.css --watch
+./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
 ```
 
 This will generate the `tailwind.css` file based on the input CSS and keep it updated as you develop.
@@ -56,4 +56,4 @@ Run the Flask development server:
 flask run
 ```
 
-This will start the Flask server and run the admin frontend service at `http://localhost:5000`.
+This will start the Flask server and run the frontend service at `http://localhost:5000`.
