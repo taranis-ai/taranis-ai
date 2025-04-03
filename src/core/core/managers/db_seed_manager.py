@@ -38,15 +38,9 @@ def pre_seed():
         logger.critical("Pre Seed failed")
 
 
-def pre_seed_update(db_engine: Engine):
-    from core.managers.pre_seed_data import workers, bots
-    from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+def sync_enums(db_engine: Engine):
+    from core.model.worker import WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
     from core.model.parameter_value import PARAMETER_TYPES
-    from core.model.bot import Bot
-    from core.model.settings import Settings
-
-    pre_seed_source_groups()
-    pre_seed_manual_source()
 
     with db_engine.connect() as connection:
         if connection.dialect.name == "sqlite":
@@ -58,7 +52,18 @@ def pre_seed_update(db_engine: Engine):
         sync_enum_with_db(enum_type=PRESENTER_TYPES, connection=connection, table_column="product_type.type")
         sync_enum_with_db(enum_type=PUBLISHER_TYPES, connection=connection, table_column="publisher_preset.type")
         sync_enum_with_db(enum_type=PARAMETER_TYPES, connection=connection, table_column="parameter_value.type")
-        migrate_refresh_intervals(connection)
+
+
+def pre_seed_update(db_engine: Engine):
+    from core.managers.pre_seed_data import workers, bots
+    from core.model.worker import Worker
+    from core.model.bot import Bot
+    from core.model.settings import Settings
+
+    pre_seed_source_groups()
+    pre_seed_manual_source()
+    sync_enums(db_engine)
+    migrate_refresh_intervals()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -74,7 +79,7 @@ def pre_seed_update(db_engine: Engine):
     Settings.initialize()
 
 
-def migrate_refresh_intervals(connection):
+def migrate_refresh_intervals():
     from core.model.osint_source import OSINTSource
 
     sources = OSINTSource.get_all_for_collector()
