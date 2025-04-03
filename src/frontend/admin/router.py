@@ -1,10 +1,10 @@
-from flask import Flask, render_template, Blueprint, request, Response, jsonify
+from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
 from flask.views import MethodView
 from swagger_ui import api_doc
 
 from admin.core_api import CoreApi
 from admin.config import Config
-from admin.cache import add_user_to_cache, remove_user_from_cache, get_cached_users, list_cache_keys
+from admin.cache import get_cached_users, list_cache_keys
 from admin.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
 from admin.data_persistence import DataPersistenceLayer
 from admin.log import logger
@@ -260,18 +260,10 @@ class ListUserCache(MethodView):
         return jsonify(get_cached_users())
 
 
-class UserCache(MethodView):
-    def post(self):
-        if user := request.json:
-            add_user_to_cache(user)
-        else:
-            return {"error": "No data provided"}, 400
-
-    def delete(self):
-        if body := request.json:
-            remove_user_from_cache(body["username"])
-        else:
-            return {"error": "No data provided"}, 400
+class LoginView(MethodView):
+    def get(self):
+        return redirect(location=f"{Config.TARANIS_CORE_HOST}/login", code=302)
+        # return render_template("login.html")
 
 
 class ExportUsers(MethodView):
@@ -323,8 +315,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/roles/", view_func=RolesAPI.as_view("roles"))
     admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
 
-    admin_bp.add_url_rule("/login", view_func=UserCache.as_view("login"))
-    admin_bp.add_url_rule("/logout", view_func=UserCache.as_view("logout"))
+    admin_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     # add a new route to invalidate cache specific to users
     admin_bp.add_url_rule("/invalidate_cache/<suffix>", view_func=InvalidateCache.as_view("invalidate_cache"))
     admin_bp.add_url_rule("/list_cache_keys", view_func=ListCacheKeys.as_view("list_cache_keys"))
