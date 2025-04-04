@@ -159,6 +159,27 @@
             >{{ news_item.content }}</router-link
           >
         </template>
+        <v-row class="mt-4" align="center">
+          <v-col cols="12" md="4">
+            <span>Cybersecurity related?</span>
+          </v-col>
+          <v-col cols="6" md="4">
+            <v-btn
+              color="success"
+              @click="setCyberSecurityStatus(news_item, 'yes')"
+            >
+              Yes
+            </v-btn>
+          </v-col>
+          <v-col cols="6" md="4">
+            <v-btn
+              color="error"
+              @click="setCyberSecurityStatus(news_item, 'no')"
+            >
+              No
+            </v-btn>
+          </v-col>
+        </v-row>
       </v-expansion-panel>
     </v-expansion-panels>
   </v-container>
@@ -166,7 +187,12 @@
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
-import { patchStory, triggerBot, getStory } from '@/api/assess'
+import {
+  patchStory,
+  updateNewsItemAttributes,
+  triggerBot,
+  getStory
+} from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -373,6 +399,42 @@ export default {
       }
     }
 
+    async function setCyberSecurityStatus(news_item, status) {
+      const { valid } = await form.value.validate()
+
+      if (!valid) {
+        return
+      }
+
+      let score
+      if (status == 'yes') score = 1.0
+      else score = 0.0
+
+      const new_attributes = [
+        { key: 'cybersecurity', value: status },
+        { key: 'cybersecurity_score', value: score }
+      ]
+
+      try {
+        news_item.attributes.forEach((attr) => {
+          if (attr.key === 'cybersecurity') {
+            attr.value = status
+          }
+          if (attr.key === 'cybersecurity_score') {
+            attr.value = score
+          }
+        })
+
+        const result = await updateNewsItemAttributes(
+          news_item.id,
+          new_attributes
+        )
+        notifySuccess(result)
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
+
     onMounted(() => {
       fetchStoryData(props.storyProp.id)
     })
@@ -401,7 +463,8 @@ export default {
       cybersecurityStatus,
       getCybersecurityColor,
       filteredStoryAttributes,
-      showallattributes
+      showallattributes,
+      setCyberSecurityStatus
     }
   }
 }
