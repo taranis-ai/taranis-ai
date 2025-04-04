@@ -1,16 +1,18 @@
-from flask import Flask, render_template, Blueprint, request, Response, jsonify, redirect
+from flask import Flask, render_template, Blueprint, request, Response, jsonify
 from flask.views import MethodView
 from swagger_ui import api_doc
+from flask_jwt_extended import set_access_cookies
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
-from frontend.models import Role, User, Organization, PagingData, Job, Permissions, Dashboard
+from frontend.models import Role, User, Organization, PagingData, Job, Dashboard
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required
 from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
-from frontend.views.user_views import import_users_view, import_users_post_view, edit_user_view
+from frontend.views.user_views import import_users_view, import_users_post_view, edit_user_view, update_user_view
+from frontend.views.role_views import edit_role_view, update_role_view
 
 
 class DashboardAPI(MethodView):
@@ -66,22 +68,7 @@ class UsersAPI(MethodView):
 
     @auth_required()
     def post(self):
-        error = None
-        result = None
-        try:
-            user = User(**parse_formdata(request.form))
-            result = DataPersistenceLayer().store_object(user)
-        except Exception as ve:
-            error = str(ve)
-        if not result:
-            error = "Failed to store user"
-        elif not result.ok:
-            error = result.json().get("error")
-
-        if error or not result:
-            return edit_user_view(user_id=0, error=error)
-
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return update_user_view(user_id=0)
 
 
 class UpdateUser(MethodView):
@@ -91,23 +78,7 @@ class UpdateUser(MethodView):
 
     @auth_required()
     def put(self, user_id):
-        error = None
-        form_error = None
-        result = None
-        try:
-            user = User(**parse_formdata(request.form))
-            result = DataPersistenceLayer().update_object(user, user_id)
-        except Exception as ve:
-            error = str(ve)
-        if not result:
-            error = "Failed to store user"
-        elif not result.ok:
-            form_error = result.json().get("error")
-
-        if error or form_error or not result:
-            return edit_user_view(user_id=user_id, error=error, form_error=form_error)
-
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return update_user_view(user_id=user_id)
 
     @auth_required()
     def delete(self, user_id):
@@ -172,7 +143,7 @@ class UpdateOrganization(MethodView):
     @auth_required()
     def delete(self, organization_id):
         result = DataPersistenceLayer().delete_object(Organization, organization_id)
-        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class RolesAPI(MethodView):
@@ -193,50 +164,22 @@ class RolesAPI(MethodView):
 
     @auth_required()
     def post(self):
-        role = Role(**parse_formdata(request.form))
-        result = DataPersistenceLayer().store_object(role)
-        if not result.ok:
-            permissions = DataPersistenceLayer().get_objects(Permissions)
-
-            _error = result.json().get("error")
-            logger.warning(f"Failed to store role: {_error}")
-
-            return render_template(
-                "role/role_form.html",
-                role=role,
-                permissions=permissions,
-                error=_error,
-                form_error={},
-            ), result.status_code
-
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return update_role_view(role_id=0)
 
 
 class UpdateRole(MethodView):
     @auth_required()
     def get(self, role_id: int = 0):
-        template = "role/role_form.html" if is_htmx_request() else "role/role_edit.html"
-        permissions = DataPersistenceLayer().get_objects(Permissions)
-
-        if role_id == 0:
-            return render_template(template, permissions=permissions)
-        role = DataPersistenceLayer().get_object(Role, role_id)
-        return render_template(template, permissions=permissions, role=role)
+        return edit_role_view(role_id=role_id)
 
     @auth_required()
     def put(self, role_id):
-        role = Role(**parse_formdata(request.form))
-        result = DataPersistenceLayer().update_object(role, role_id)
-        if not result.ok:
-            response = render_template("role/role_form.html", role=role)
-            return response, result.status_code
-
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return update_role_view(role_id=role_id)
 
     @auth_required()
     def delete(self, role_id):
         result = DataPersistenceLayer().delete_object(Role, role_id)
-        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 class InvalidateCache(MethodView):
@@ -262,8 +205,28 @@ class ListUserCache(MethodView):
 
 class LoginView(MethodView):
     def get(self):
-        return redirect(location=f"{Config.TARANIS_CORE_HOST}/login", code=302)
-        # return render_template("login.html")
+        return render_template("login/index.html")
+
+    def post(self):
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if not username or not password:
+            return render_template("login/index.html", error="Username and password are required"), 400
+
+        core_response = CoreApi().login(username, password)
+
+        jwt_token = core_response.json().get("access_token")
+
+        logger.debug(f"Login response: {jwt_token}")
+
+        if not core_response.ok:
+            return render_template("login/index.html", error=core_response.json().get("error")), core_response.status_code
+
+        response = Response(status=core_response.status_code, headers={"HX-Redirect": "/frontend/"})
+        set_access_cookies(response, jwt_token)
+
+        return response
 
 
 class ExportUsers(MethodView):

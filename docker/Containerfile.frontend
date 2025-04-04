@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 COPY ./src/frontend/. /app/
 COPY ./.git /.git
 
-RUN curl -sLo /tmp/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 && \
+RUN arch=$(uname -m) && \
+    arch_short=$([ "$arch" = "x86_64" ] && echo "x64" || echo "arm64") && \
+    curl -sLo /tmp/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.2/tailwindcss-linux-${arch_short} && \
     chmod +x /tmp/tailwindcss && \
     /tmp/tailwindcss -i /app/frontend/static/css/input.css -o /app/frontend/static/css/tailwind.css
 
@@ -33,6 +35,7 @@ RUN install -d -o user -g user /app/data
 
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/frontend/. /app/
+COPY --from=builder --chown=user:user /app/frontend/static/css/tailwind.css /app/frontend/static/css/tailwind.css
 
 USER user
 

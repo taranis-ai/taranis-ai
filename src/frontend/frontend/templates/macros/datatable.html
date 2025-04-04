@@ -3,15 +3,13 @@
 {% from "macros/buttons.html" import action_button with context %}
 {% set item_ids = data | map(attribute='id') | list %}
 
-<table class="table" id="{{ table_id }}" x-data="{ selectedItems: [] }">
+<table class="table" id="{{ table_id }}" x-data="dataTable()" x-init="initData()">
     <thead>
         <tr>
             {% if selectable %}
             <th>
                 <input type="checkbox"
                        class="checkbox"
-                       :checked="selectedItems.length === {{ item_ids | length }}"
-                       @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
                 />
             </th>
             {% endif %}
@@ -26,60 +24,35 @@
         </tr>
     </thead>
     <tbody>
-        {% if data %}
-        {% for item in data %}
-        <tr>
-            {% if selectable %}
-            <td>
-                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
-            </td>
-            {% endif %}
-
-            {% for col in columns %}
-                <td>
-                    {% if col.renderer %}
-                        {{ col.renderer(item) }}
-                    {% else %}
-                        {{ item[col.field] }}
-                    {% endif %}
-                </td>
-            {% endfor %}
-
-            {% if actions %}
-            <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-              {% if actions is string %}
-                {% from "macros/table.html" import default_table_actions %}
-                {% set ns = namespace(actions=[]) %}
-                {{ default_table_actions(ns, actions) }}
-                {% set actions = ns.actions %}
-              {% endif %}
-              {% for action in actions %}
-              {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
-              {% endfor %}
-            </td>
-            {% endif %}
-        </tr>
-        {% endfor %}
-        {% else %}
-        <tr>
-            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-                <div class="text-center">
-                    <p class="text-gray-500">No data available</p>
-                </div>
-            </td>
-        </tr>
+      <template x-for="(item, index) in items" :key="index">
+        <tr x-show="checkView(index + 1)" class="hover:bg-gray-200 text-gray-900 text-xs">
+        {% if selectable %}
+        <td>
+            <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" x-model="selectedItems" />
+        </td>
         {% endif %}
+
+        {% for col in columns %}
+        <td>
+            <span x-text="item.{{ col.field }}"></span>
+        </td>
+        {% endfor %}
+      </template>
+      <tr x-show="isEmpty()">
+        <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+      </tr>
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
             <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
                 <div class="flex justify-center">
-                  <div class="flex items-center justify-between gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
+                  <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
                     <div class="items-center gap-2">
                       <span class="text-sm font-medium">Items per page:</span>
-                      <select name="limit" class="select select-bordered select-sm h-8">
+                      <select name="limit" x-model="view" @change="changeView()" class="select select-bordered w-18">
+                        {% set current_limit = request.args.get('limit', 5) %}
                         {% for option in [5, 20, 50, 100] %}
-                        <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>
+                        <option value="{{ option }}">
                           {{ option }}
                         </option>
                         {% endfor %}
@@ -109,9 +82,18 @@
 
 <script>
 
+let data = [
+  {% for p in data %}
+  {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
+
+  {% endfor %}
+]
+
 window.dataTable = function () {
   return {
     items: [],
+    selectedItems: [],
+    selectedItemsCount: 0,
     view: 5,
     searchInput: '',
     pages: [],

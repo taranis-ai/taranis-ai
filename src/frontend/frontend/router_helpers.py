@@ -12,9 +12,15 @@ def parse_formdata(formdata: ImmutableMultiDict) -> dict:
     parsed_data = {}
     for key in formdata.keys():
         if key.endswith("[]"):
-            parsed_data[key[:-2]] = request.form.getlist(key)
+            parsed_data[key[:-2]] = formdata.getlist(key)
+        elif "[" in key and key.endswith("]"):
+            main_key, sub_key = key.split("[", 1)
+            sub_key = sub_key.rstrip("]")
+            if main_key not in parsed_data:
+                parsed_data[main_key] = {}
+            parsed_data[main_key][sub_key] = formdata.get(key)
         else:
-            parsed_data[key] = request.form.get(key)
+            parsed_data[key] = formdata.get(key)
     return parsed_data
 
 

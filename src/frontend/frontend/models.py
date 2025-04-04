@@ -24,19 +24,19 @@ class TaranisBaseModel(BaseModel):
         return super().model_dump(*args, **kwargs)
 
 
-class Address(TaranisBaseModel):
-    city: str | None = None
-    country: str | None = None
-    street: str | None = None
-    zip: str | None = None
-
-
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
     id: str
     name: str
     trigger: str
     next_run_time: str
+
+
+class Address(TaranisBaseModel):
+    city: str | None = None
+    country: str | None = None
+    street: str | None = None
+    zip: str | None = None
 
 
 class Organization(TaranisBaseModel):

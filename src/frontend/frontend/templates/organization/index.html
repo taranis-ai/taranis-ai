@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="text-3xl font-bold mb-4">
-  <a href="{{ request.path }}" class="text-blue-500 hover:underline">Organizations</a>
+<div class="p-8" id="organizations">
+  <div class="text-3xl font-bold mb-4">
+    <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 hover:underline">Organizations</a>
+  </div>
+  <div class="bg-white rounded-sm p-4" id="form-container">
+    {% include 'organization/organizations_table_header.html' %}
+    {% include 'organization/organizations_table.html' %}
+  </div>
 </div>
-<div class="bg-white rounded-sm p-4" id="form-container">
-  {% include 'organization/organizations_table_header.html' %}
-  {% include 'organization/organizations_table.html' %}
-</div>
-
 {% endblock %}

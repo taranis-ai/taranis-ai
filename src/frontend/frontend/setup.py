@@ -1,8 +1,9 @@
-from flask import Flask, redirect
+from flask import Flask, redirect, url_for
 from flask_htmx import HTMX
 from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
 from frontend.filters import human_readable_trigger
+from frontend.config import Config
 
 from heroicons.jinja import (
     heroicon_micro,
@@ -13,7 +14,7 @@ from heroicons.jinja import (
 
 
 def handle_unauthorized(e):
-    return redirect("/login", code=302)
+    return redirect(url_for("admin.login"), code=302)
 
 
 class TaranisJSONProvider(DefaultJSONProvider):
@@ -31,6 +32,10 @@ class TaranisJSONProvider(DefaultJSONProvider):
         return obj
 
 
+def index_redirect():
+    return redirect(Config.APPLICATION_ROOT, code=302)
+
+
 def jinja_setup(app: Flask):
     app.jinja_env.filters["human_readable"] = human_readable_trigger
     app.jinja_env.trim_blocks = True
@@ -43,6 +48,9 @@ def jinja_setup(app: Flask):
             "heroicon_solid": heroicon_solid,
         }
     )
+
+    if Config.APPLICATION_ROOT != "/":
+        app.add_url_rule("/", view_func=index_redirect)
 
 
 def init(app: Flask):

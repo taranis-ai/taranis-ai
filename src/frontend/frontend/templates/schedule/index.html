@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<table id="scheduleTable">
+<div class="p-8" id="schedule">
+<table id="scheduleTable" class="p-8">
     <thead>
         <tr>
             <th class="w-2/6 px-6 py-3 border-b-2 border-gray-300 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase">Job ID</th>
@@ -14,4 +15,5 @@
         {% include "schedule/job.html" %}
     </tbody>
 </table>
+</div>
 {% endblock %}
