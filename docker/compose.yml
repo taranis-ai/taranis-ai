@@ -107,6 +107,7 @@ services:
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
