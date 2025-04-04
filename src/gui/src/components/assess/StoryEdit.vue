@@ -99,12 +99,45 @@
           <v-chip
             v-for="(count, sentiment) in sentimentCounts"
             :key="sentiment"
-            :color="getColor(sentiment)"
+            :color="getSentimentColor(sentiment)"
             text-color="white"
             label
           >
             {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
             {{ count }}
+          </v-chip>
+        </div>
+      </v-col>
+    </v-row>
+    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
+        <v-btn
+          prepend-icon="mdi-shield-outline"
+          @click="triggerCyberSecClassifierBot"
+          class="text-truncate"
+          style="
+            width: 100%;
+            max-width: 240px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          "
+        >
+          Classify Cybersecurity
+        </v-btn>
+      </v-col>
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
+        <div class="d-flex flex-wrap" style="gap: 8px">
+          <v-chip
+            :key="cybersecurityStatus"
+            :color="getCybersecurityColor(cybersecurityStatus)"
+            text-color="black"
+            label
+          >
+            {{
+              cybersecurityStatus.charAt(0).toUpperCase() +
+              cybersecurityStatus.slice(1)
+            }}
           </v-chip>
         </div>
       </v-col>
@@ -126,6 +159,27 @@
             >{{ news_item.content }}</router-link
           >
         </template>
+        <v-row class="mt-4" align="center">
+          <v-col cols="12" md="4">
+            <span>Cybersecurity related?</span>
+          </v-col>
+          <v-col cols="6" md="4">
+            <v-btn
+              color="success"
+              @click="setCyberSecurityStatus(news_item, 'yes')"
+            >
+              Yes
+            </v-btn>
+          </v-col>
+          <v-col cols="6" md="4">
+            <v-btn
+              color="error"
+              @click="setCyberSecurityStatus(news_item, 'no')"
+            >
+              No
+            </v-btn>
+          </v-col>
+        </v-row>
       </v-expansion-panel>
     </v-expansion-panels>
   </v-container>
@@ -133,7 +187,12 @@
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
-import { patchStory, triggerBot, getStory } from '@/api/assess'
+import {
+  patchStory,
+  updateNewsItemAttributes,
+  triggerBot,
+  getStory
+} from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -195,7 +254,7 @@ export default {
       )
     })
 
-    const getColor = (sentiment) => {
+    const getSentimentColor = (sentiment) => {
       switch (sentiment) {
         case 'positive':
           return 'green'
@@ -205,6 +264,40 @@ export default {
           return 'gray'
         default:
           return 'blue'
+      }
+    }
+
+    const cybersecurityStatus = computed(() => {
+      if (!story.value?.news_items) return {}
+
+      const counts = story.value.news_items.reduce(
+        (acc, newsItem) => {
+          const cybersecurity_status = newsItem.attributes
+            ?.find((attr) => attr.key === 'cybersecurity')
+            ?.value.toLowerCase()
+
+          if (cybersecurity_status === 'yes' || cybersecurity_status === 'no') {
+            acc[cybersecurity_status]++
+          }
+          return acc
+        },
+        { yes: 0, no: 0 }
+      )
+
+      if (counts.yes && counts.no) return 'mixed'
+      if (counts.yes) return 'yes'
+      if (counts.no) return 'no'
+      return 'not classifed'
+    })
+
+    const getCybersecurityColor = (cybersecurity_status) => {
+      switch (cybersecurity_status) {
+        case 'yes':
+          return 'rgba(30, 144, 255, 1)'
+        case 'no':
+          return 'rgba(255, 69, 0, 1)'
+        default:
+          return 'rgba(128, 128, 128, 1)'
       }
     }
 
@@ -293,6 +386,55 @@ export default {
       }
     }
 
+    async function triggerCyberSecClassifierBot() {
+      try {
+        const result = await triggerBot(
+          'cybersec_classifier_bot',
+          props.storyProp.id
+        )
+        notifySuccess(result.data.message)
+        await fetchStoryData(props.storyProp.id)
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
+
+    async function setCyberSecurityStatus(news_item, status) {
+      const { valid } = await form.value.validate()
+
+      if (!valid) {
+        return
+      }
+
+      let score
+      if (status == 'yes') score = 1.0
+      else score = 0.0
+
+      const new_attributes = [
+        { key: 'cybersecurity', value: status },
+        { key: 'cybersecurity_score', value: score }
+      ]
+
+      try {
+        news_item.attributes.forEach((attr) => {
+          if (attr.key === 'cybersecurity') {
+            attr.value = status
+          }
+          if (attr.key === 'cybersecurity_score') {
+            attr.value = score
+          }
+        })
+
+        const result = await updateNewsItemAttributes(
+          news_item.id,
+          new_attributes
+        )
+        notifySuccess(result)
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
+
     onMounted(() => {
       fetchStoryData(props.storyProp.id)
     })
@@ -315,10 +457,14 @@ export default {
       submit,
       triggerSummaryBot,
       triggerSentimentAnalysisBot,
+      triggerCyberSecClassifierBot,
       sentimentCounts,
-      getColor,
+      getSentimentColor,
+      cybersecurityStatus,
+      getCybersecurityColor,
       filteredStoryAttributes,
-      showallattributes
+      showallattributes,
+      setCyberSecurityStatus
     }
   }
 }

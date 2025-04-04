@@ -32,6 +32,7 @@ class Story(BaseModel):
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
+    cybersecurity: Mapped[str] = db.Column(db.String(), default=None)
 
     likes: Mapped[int] = db.Column(db.Integer, default=0)
     dislikes: Mapped[int] = db.Column(db.Integer, default=0)
@@ -51,6 +52,7 @@ class Story(BaseModel):
         created: datetime | str = datetime.now(),
         read: bool = False,
         important: bool = False,
+        cybersecurity: str = None,
         summary: str = "",
         comments: str = "",
         links=None,
@@ -64,6 +66,7 @@ class Story(BaseModel):
         self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
+        self.cybersecurity = cybersecurity
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
@@ -103,6 +106,7 @@ class Story(BaseModel):
         total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()
         read_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.read == true()).scalar_subquery()
         important_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.important == true()).scalar_subquery()
+        cybersecurity_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.cybersecurity == "yes").scalar_subquery()
         in_reports_count_subquery = (
             db.select(func.count())
             .select_from(subquery)
@@ -114,6 +118,7 @@ class Story(BaseModel):
         count_query = db.select(
             read_count_subquery.label("read_count"),
             important_count_subquery.label("important_count"),
+            cybersecurity_subquery.label("cybersecurity_count"),
             total_count_subquery.label("total_count"),
             in_reports_count_subquery.label("in_reports_count"),
         )
@@ -168,6 +173,9 @@ class Story(BaseModel):
             query = query.filter(Story.important)
         if important == "false":
             query = query.filter(Story.important == false())
+
+        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
+            query = query.filter(Story.cybersecurity == cybersecurity_status)
 
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
@@ -334,6 +342,7 @@ class Story(BaseModel):
             "total_count": additional_counts.total_count,
             "read_count": additional_counts.read_count,
             "important_count": additional_counts.important_count,
+            "cybersecurity_count": additional_counts.cybersecurity_count,
             "in_reports_count": additional_counts.in_reports_count,
             "biggest_story": biggest_story,
         }
@@ -376,6 +385,7 @@ class Story(BaseModel):
             db.session.commit()
             StorySearchIndex.prepare(story)
             story.update_tlp()
+            story.update_cybersecurity_status()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -474,6 +484,9 @@ class Story(BaseModel):
 
         if "read" in data:
             story.read = data["read"]
+
+        if "cybersecurity" in data:
+            story.cybersecurity = data["cybersecurity"]
 
         if "title" in data:
             story.title = data["title"]
@@ -764,6 +777,7 @@ class Story(BaseModel):
                 cls.create_from_item(news_item)
             db.session.commit()
             cls.update_stories(processed_stories)
+            story.update_cybersecurity_status()
             return {"message": "success"}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
@@ -791,6 +805,16 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
+    def update_cybersecurity_status(self):
+        cybersecurity_status_list = [news_item.get_cybersecurity_status() == "yes" for news_item in self.news_items]
+
+        if all(cybersecurity_status_list):
+            self.cybersecurity = "yes"
+        elif len(set(cybersecurity_status_list)) != 1:
+            self.cybersecurity = "mixed"
+        else:
+            self.cybersecurity = "no"
+
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
         for news_item in self.news_items:
@@ -814,6 +838,7 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
+        self.update_cybersecurity_status()
 
     def update_timestamps(self):
         self.updated = datetime.now()
@@ -833,7 +858,7 @@ class Story(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 
