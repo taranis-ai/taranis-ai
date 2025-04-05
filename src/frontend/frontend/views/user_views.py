@@ -49,17 +49,18 @@ def process_form_data(user_id: int):
 
 
 def select_template() -> str:
-    return "user/user_form.html" if is_htmx_request() else "user/user_edit.html"
+    return "user/user_form.html" if is_htmx_request() else "user/index.html"
 
 
 def get_context(
     user_id: int,
     error: str | None = None,
     form_error: str | None = None,
-    user_obj: User | None = None,
+    data_obj: User | None = None,
 ):
     dpl = DataPersistenceLayer()
     context = {
+        "user_id": user_id,
         "organizations": dpl.get_objects(Organization),
         "roles": dpl.get_objects(Role),
         "error": error,
@@ -67,7 +68,7 @@ def get_context(
     }
     if user_id != 0:
         context["current_user"] = get_jwt_identity()
-        context["user"] = user_obj or dpl.get_object(User, user_id)
+        context["user"] = data_obj or dpl.get_object(User, user_id)
     return context
 
 
@@ -82,5 +83,5 @@ def update_user_view(user_id: int = 0):
     if user_obj:
         return Response(status=200, headers={"HX-Refresh": "true"})
     template = select_template()
-    context = get_context(user_id, error=error, user_obj=user_obj)
+    context = get_context(user_id, error=error, data_obj=user_obj)
     return render_template(template, **context)

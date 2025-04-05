@@ -1,16 +1,20 @@
 from flask import render_template, request
 from flask import Response
 
-from frontend.models import Role, Permissions
+from frontend.models import Organization
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.router_helpers import is_htmx_request, parse_formdata
 
 
-def process_form_data(role_id: int):
+def process_form_data(organization_id: int):
     try:
-        role = Role(**parse_formdata(request.form))
-        result = DataPersistenceLayer().store_object(role) if role_id == 0 else DataPersistenceLayer().update_object(role, role_id)
-        return (role, None) if result.ok else (None, result.json().get("error"))
+        organization = Organization(**parse_formdata(request.form))
+        result = (
+            DataPersistenceLayer().store_object(organization)
+            if organization_id == 0
+            else DataPersistenceLayer().update_object(organization, organization_id)
+        )
+        return (organization, None) if result.ok else (None, result.json().get("error"))
     except Exception as exc:
         return None, str(exc)
 
@@ -20,20 +24,19 @@ def select_template() -> str:
 
 
 def get_context(
-    role_id: int,
+    organization_id: int,
     error: str | None = None,
     form_error: str | None = None,
-    data_obj: Role | None = None,
+    data_obj: Organization | None = None,
 ):
     dpl = DataPersistenceLayer()
     context = {
-        "role_id": role_id,
-        "permissions": [p.model_dump() for p in DataPersistenceLayer().get_objects(Permissions)],
+        "organization_id": organization_id,
         "error": error,
         "form_error": form_error,
     }
-    if role_id != 0:
-        context["role"] = data_obj or dpl.get_object(Role, role_id)
+    if organization_id != 0:
+        context["organization"] = data_obj or dpl.get_object(Organization, organization_id)
     return context
 
 
