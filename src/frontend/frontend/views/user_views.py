@@ -6,7 +6,35 @@ from frontend.core_api import CoreApi
 from frontend.models import Role, Organization
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.models import User
-from frontend.router_helpers import is_htmx_request, parse_formdata
+
+from frontend.views.base_view import BaseView
+
+
+class UserView(BaseView):
+    model = User
+    id_key = "user"
+    htmx_template = "user/user_form.html"
+    default_template = "user/index.html"
+
+    @classmethod
+    def get_context(
+        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
+    ):
+        dpl = DataPersistenceLayer()
+        extra_context = {"organizations": dpl.get_objects(Organization), "roles": dpl.get_objects(Role)}
+        if object_id != 0:
+            extra_context["current_user"] = get_jwt_identity()
+        return super().get_context(object_id, error, form_error, data_obj, extra_context)
+
+
+def edit_user_view(user_id: int = 0):
+    template = UserView.select_template()
+    context = UserView.get_context(user_id)
+    return render_template(template, **context)
+
+
+def update_user_view(user_id: int = 0):
+    return UserView.update_view(user_id)
 
 
 def import_users_view(error=None):
@@ -37,51 +65,3 @@ def import_users_post_view():
 
     DataPersistenceLayer().invalidate_cache_by_object(User)
     return Response(status=200, headers={"HX-Refresh": "true"})
-
-
-def process_form_data(user_id: int):
-    try:
-        user = User(**parse_formdata(request.form))
-        result = DataPersistenceLayer().store_object(user) if user_id == 0 else DataPersistenceLayer().update_object(user, user_id)
-        return (user, None) if result.ok else (None, result.json().get("error"))
-    except Exception as exc:
-        return None, str(exc)
-
-
-def select_template() -> str:
-    return "user/user_form.html" if is_htmx_request() else "user/index.html"
-
-
-def get_context(
-    user_id: int,
-    error: str | None = None,
-    form_error: str | None = None,
-    data_obj: User | None = None,
-):
-    dpl = DataPersistenceLayer()
-    context = {
-        "user_id": user_id,
-        "organizations": dpl.get_objects(Organization),
-        "roles": dpl.get_objects(Role),
-        "error": error,
-        "form_error": form_error,
-    }
-    if user_id != 0:
-        context["current_user"] = get_jwt_identity()
-        context["user"] = data_obj or dpl.get_object(User, user_id)
-    return context
-
-
-def edit_user_view(user_id: int = 0):
-    template = select_template()
-    context = get_context(user_id)
-    return render_template(template, **context)
-
-
-def update_user_view(user_id: int = 0):
-    user_obj, error = process_form_data(user_id)
-    if user_obj:
-        return Response(status=200, headers={"HX-Refresh": "true"})
-    template = select_template()
-    context = get_context(user_id, error=error, data_obj=user_obj)
-    return render_template(template, **context)

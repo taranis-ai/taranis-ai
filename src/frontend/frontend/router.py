@@ -269,8 +269,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
-    admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
-    admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
+    admin_bp.add_url_rule("/scheduler", view_func=ScheduleAPI.as_view("scheduler"))
+    admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("scheduler_job_details"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=UpdateOrganization.as_view("edit_organization"))

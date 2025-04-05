@@ -1,52 +1,30 @@
-from flask import render_template, request
-from flask import Response
-
+# role_views.py
+from flask import render_template
 from frontend.models import Role, Permissions
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import is_htmx_request, parse_formdata
+from frontend.views.base_view import BaseView
 
 
-def process_form_data(role_id: int):
-    try:
-        role = Role(**parse_formdata(request.form))
-        result = DataPersistenceLayer().store_object(role) if role_id == 0 else DataPersistenceLayer().update_object(role, role_id)
-        return (role, None) if result.ok else (None, result.json().get("error"))
-    except Exception as exc:
-        return None, str(exc)
+class RoleView(BaseView):
+    model = Role
+    id_key = "role"
+    htmx_template = "role/role_form.html"
+    default_template = "role/index.html"
 
-
-def select_template() -> str:
-    return "role/role_form.html" if is_htmx_request() else "role/index.html"
-
-
-def get_context(
-    role_id: int,
-    error: str | None = None,
-    form_error: str | None = None,
-    data_obj: Role | None = None,
-):
-    dpl = DataPersistenceLayer()
-    context = {
-        "role_id": role_id,
-        "permissions": [p.model_dump() for p in DataPersistenceLayer().get_objects(Permissions)],
-        "error": error,
-        "form_error": form_error,
-    }
-    if role_id != 0:
-        context["role"] = data_obj or dpl.get_object(Role, role_id)
-    return context
+    @classmethod
+    def get_context(
+        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
+    ):
+        dpl = DataPersistenceLayer()
+        extra_context = {"permissions": [p.model_dump() for p in dpl.get_objects(Permissions)]}
+        return super().get_context(object_id, error, form_error, data_obj, extra_context)
 
 
 def edit_role_view(role_id: int = 0):
-    template = select_template()
-    context = get_context(role_id)
+    template = RoleView.select_template()
+    context = RoleView.get_context(role_id)
     return render_template(template, **context)
 
 
 def update_role_view(role_id: int = 0):
-    data_obj, error = process_form_data(role_id)
-    if data_obj:
-        return Response(status=200, headers={"HX-Refresh": "true"})
-    template = select_template()
-    context = get_context(role_id, error=error, data_obj=data_obj)
-    return render_template(template, **context)
+    return RoleView.update_view(role_id)
