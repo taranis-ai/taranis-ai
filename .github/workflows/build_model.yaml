@@ -7,7 +7,6 @@ on:
     - '.github/workflows/build_model.yaml'
     branches:
     - master
-    - feature/shared_models
 
 permissions:
   packages: write
@@ -49,6 +48,7 @@ jobs:
             src/models/dist/taranis_models-*.tar.gz
 
       - name: Publish package to pypi
+        if: startsWith(github.ref, 'refs/tags/')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: src/models/dist
