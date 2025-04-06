@@ -2,7 +2,7 @@
 {% from "macros/datatable.html" import datatable_header with context %}
 {% set item_ids = data | map(attribute='id') | list %}
 
-<div x-data="dataTable" x-init="init()">
+<div x-data="dataTable">
 <div>
   <h4 class="text-l font-bold mb-4">{{ table_id }}</h4>
   <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..."/>
@@ -26,7 +26,7 @@
     </thead>
     <tbody>
       <template x-for="(item, index) in items" :key="index">
-        <tr x-show="checkView(index + 1)" class="hover:bg-gray-200 text-gray-900 text-xs">
+        <tr class="hover:bg-gray-200 text-gray-900 text-xs">
         {% if selectable %}
         <td>
             <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" x-model="selectedItems" />
@@ -38,6 +38,7 @@
             <span x-text="item.{{ col.field }}"></span>
         </td>
         {% endfor %}
+        </tr>
       </template>
       <tr x-show="isEmpty()">
         <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
@@ -45,43 +46,47 @@
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
-            <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
-                <div class="flex justify-center">
-                  <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
-                    <div class="items-center gap-2">
-                      <span class="text-sm font-medium">Items per page:</span>
-                      <select name="limit" x-model="view" @change="changePage(1)" class="select select-bordered w-18">
-                        {% set current_limit = request.args.get('limit', 5) %}
-                        {% for option in [5, 20, 50, 100] %}
-                        <option value="{{ option }}">
-                          {{ option }}
-                        </option>
-                        {% endfor %}
-                      </select>
-                    </div>
-
-                    <!-- Pagination Buttons & Current Page -->
-                    <div class="flex items-center gap-2">
-                      <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
-
-                      <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
-
-                      <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold">
-                        Page {{ data.current_page }} of {{ data.total_pages }}
-                      </span>
-
-                      <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
-
-                      <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
-                    </div>
-                  </div>
+          <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
+            <div class="flex justify-center">
+              <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
+                <div class="items-center gap-2">
+                  <span class="text-sm font-medium">Items per page:</span>
+                  <select x-model="view" @change="changePage(1)" class="select select-bordered w-18">
+                    {% set current_limit = request.args.get('limit', 5) %}
+                    {% for option in [5, 20, 50, 100] %}
+                    <option value="{{ option }}">
+                      {{ option }}
+                    </option>
+                    {% endfor %}
+                  </select>
                 </div>
-            </td>
+
+                <div class="flex items-center gap-2">
+                  <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
+                  <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
+
+                  <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold" x-text="'Page ' + pagination.currentPage + ' of ' + pagination.lastPage" ></span>
+
+                  <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
+                  <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
+                </div>
+              </div>
+            </div>
+          </td>
         </tr>
     </tfoot>
 </table>
+<template x-for="item in selectedItems" :key="item">
+  <input type="hidden" name="{{ input_name }}" :value="item" />
+</template>
 </div>
+
+
 <script>
+document.addEventListener('htmx:afterSwap', (e) => {
+  console.debug('htmx:afterSwap', e);
+});
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('dataTable', () => ({
     data: [
@@ -91,8 +96,12 @@ document.addEventListener('alpine:init', () => {
     ],
 
     items: [],
-    selectedItems: [],
-    selectedItemsCount: 0,
+    filteredItems: [],
+    selectedItems: [
+      {% for p in selected_items %}
+      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
     view: 5,
     searchInput: '',
     pagination: {},
@@ -100,7 +109,8 @@ document.addEventListener('alpine:init', () => {
     searchKeys: {{ columns | selectattr('searchable') | map(attribute='field') | list | tojson }},
 
     init() {
-      this.items = this.data
+      console.debug('Initializing dataTable: ', this.selectedItems);
+      this.filteredItems = this.data
       this.pagination = {
         total: this.data.length,
         lastPage: Math.ceil(this.data.length / this.view),
@@ -109,49 +119,43 @@ document.addEventListener('alpine:init', () => {
         from: 1,
         to: this.view
       };
-      this.fuse = new Fuse(this.data, { keys: this.searchKeys });
+      this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
       this.$watch('searchInput', value => this.search(value));
       this.changePage(1)
     },
     search(value) {
       if (value.length > 1) {
-        const result = this.fuse.search(value)
-        this.items = result.map(elem => elem.item)
+        const result = this.fuse.search(value);
+        this.filteredItems = result.map(r => r.item);
       } else {
-        this.items = this.data
+        this.filteredItems = this.data;
       }
+
+      this.pagination.total = this.filteredItems.length;
+      this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
       this.changePage(1)
     },
-    checkView(index) {
-      return index > this.pagination.to || index < this.pagination.from ? false : true
-    },
-    checkPage(item) {
-      if (item <= this.pagination.currentPage + 5) {
-        return true
-      }
-      return false
-    },
     changePage(page) {
-      if (page >= 1 && page <= this.pagination.lastPage) {
-        const total = this.items.length
-        const lastPage = Math.ceil(total / this.view) || 1
-        const from = (page - 1) * this.view + 1
-        let to = page * this.view
-        if (page === lastPage) {
-          to = total
-        }
-        this.pagination.total = total
-        this.pagination.lastPage = lastPage
-        this.pagination.perPage = this.view
-        this.pagination.currentPage = page
-        this.pagination.from = from
-        this.pagination.to = to
-      }
+      page = Math.max(1, Math.min(page, this.pagination.lastPage));
+      const from = (page - 1) * this.view;
+      const to = from + this.view;
+
+      this.items = this.filteredItems.slice(from, to);
+
+      this.pagination.currentPage = page;
+      this.pagination.from = from + 1;
+      this.pagination.to = Math.min(to, this.pagination.total);
     },
     isEmpty() {
       return this.pagination.total ? false : true
+    },
+    toggleSelectAll() {
+      if (this.selectedItems.length === this.items.length) {
+        this.selectedItems = []
+      } else {
+        this.selectedItems = this.items.map(item => item.id)
+      }
     }
-
   }));
 });
 </script>

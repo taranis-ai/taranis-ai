@@ -4,6 +4,7 @@ from typing import Type
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.router_helpers import is_htmx_request, parse_formdata
 from frontend.models import TaranisBaseModel
+from frontend.log import logger
 
 
 class BaseView:
@@ -45,6 +46,8 @@ class BaseView:
     def update_view(cls, object_id: int = 0, extra_context: dict | None = None):
         """Generic update view handling form submission."""
         data_obj, error = cls.process_form_data(object_id)
+        if error:
+            logger.error(f"Error processing form data: {error}")
         if data_obj:
             return Response(status=200, headers={"HX-Refresh": "true"})
         template = cls.select_template()
