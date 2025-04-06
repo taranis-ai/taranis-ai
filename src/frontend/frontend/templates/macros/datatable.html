@@ -1,15 +1,20 @@
-{% macro datatable(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items") %}
+{% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items") %}
 {% from "macros/datatable.html" import datatable_header with context %}
-{% from "macros/buttons.html" import action_button with context %}
 {% set item_ids = data | map(attribute='id') | list %}
 
-<table class="table" id="{{ table_id }}" x-data="dataTable()" x-init="initData()">
+<div x-data="dataTable" x-init="init()">
+<div>
+  <h4 class="text-l font-bold mb-4">{{ table_id }}</h4>
+  <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..."/>
+</div>
+<table class="table table-sm" id="{{ table_id }}" >
     <thead>
         <tr>
             {% if selectable %}
             <th>
                 <input type="checkbox"
                        class="checkbox"
+                       @click="toggleSelectAll"
                 />
             </th>
             {% endif %}
@@ -17,10 +22,6 @@
             {% for col in columns %}
                 {{ datatable_header(col.title, col.sortable) }}
             {% endfor %}
-
-            {% if actions %}
-                <th class="text-right">Actions</th>
-            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -44,12 +45,12 @@
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
-            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+            <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
                 <div class="flex justify-center">
                   <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
                     <div class="items-center gap-2">
                       <span class="text-sm font-medium">Items per page:</span>
-                      <select name="limit" x-model="view" @change="changeView()" class="select select-bordered w-18">
+                      <select name="limit" x-model="view" @change="changePage(1)" class="select select-bordered w-18">
                         {% set current_limit = request.args.get('limit', 5) %}
                         {% for option in [5, 20, 50, 100] %}
                         <option value="{{ option }}">
@@ -63,13 +64,13 @@
                     <div class="flex items-center gap-2">
                       <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
 
-                      <a class="btn btn-sm h-8" @click="changePage(currentPage - 1)">‹</a>
+                      <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
 
                       <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold">
                         Page {{ data.current_page }} of {{ data.total_pages }}
                       </span>
 
-                      <a class="btn btn-sm h-8" @click="changePage(currentPage + 1)">›</a>
+                      <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
 
                       <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
                     </div>
@@ -79,97 +80,59 @@
         </tr>
     </tfoot>
 </table>
-
+</div>
 <script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('dataTable', () => ({
+    data: [
+      {% for p in data %}
+      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
 
-let data = [
-  {% for p in data %}
-  {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
-
-  {% endfor %}
-]
-
-window.dataTable = function () {
-  return {
     items: [],
     selectedItems: [],
     selectedItemsCount: 0,
     view: 5,
     searchInput: '',
-    pages: [],
-    offset: 5,
-    pagination: {
-      total: data.length,
-      lastPage: Math.ceil(data.length / 5),
-      perPage: 5,
-      currentPage: 1,
-      from: 1,
-      to: 1 * 5
+    pagination: {},
+    fuse: null,
+    searchKeys: {{ columns | selectattr('searchable') | map(attribute='field') | list | tojson }},
+
+    init() {
+      this.items = this.data
+      this.pagination = {
+        total: this.data.length,
+        lastPage: Math.ceil(this.data.length / this.view),
+        perPage: this.view,
+        currentPage: 1,
+        from: 1,
+        to: this.view
+      };
+      this.fuse = new Fuse(this.data, { keys: this.searchKeys });
+      this.$watch('searchInput', value => this.search(value));
+      this.changePage(1)
     },
-    currentPage: 1,
-    sorted: {
-      field: 'name',
-      rule: 'asc'
-    },
-    initData() {
-      this.items = data.sort(this.compareOnKey('name', 'asc'))
-      this.showPages()
-    },
-    compareOnKey(key, rule) {
-      return function(a, b) {
-          let comparison = 0
-          const fieldA = a[key].toUpperCase()
-          const fieldB = b[key].toUpperCase()
-          if (rule === 'asc') {
-            if (fieldA > fieldB) {
-              comparison = 1;
-            } else if (fieldA < fieldB) {
-              comparison = -1;
-            }
-          } else {
-            if (fieldA < fieldB) {
-              comparison = 1;
-            } else if (fieldA > fieldB) {
-              comparison = -1;
-            }
-          }
-          return comparison
+    search(value) {
+      if (value.length > 1) {
+        const result = this.fuse.search(value)
+        this.items = result.map(elem => elem.item)
+      } else {
+        this.items = this.data
       }
+      this.changePage(1)
     },
     checkView(index) {
       return index > this.pagination.to || index < this.pagination.from ? false : true
     },
     checkPage(item) {
-      if (item <= this.currentPage + 5) {
+      if (item <= this.pagination.currentPage + 5) {
         return true
       }
       return false
     },
-    search(value) {
-      if (value.length > 1) {
-        const options = {
-          shouldSort: true,
-          keys: ['name', 'job'],
-          threshold: 0
-        }
-        const fuse = new Fuse(data, options)
-        this.items = fuse.search(value).map(elem => elem.item)
-      } else {
-        this.items = data
-      }
-      // console.log(this.items.length)
-
-      this.changePage(1)
-      this.showPages()
-    },
-    sort(field, rule) {
-      this.items = this.items.sort(this.compareOnKey(field, rule))
-      this.sorted.field = field
-      this.sorted.rule = rule
-    },
     changePage(page) {
       if (page >= 1 && page <= this.pagination.lastPage) {
-        this.currentPage = page
         const total = this.items.length
         const lastPage = Math.ceil(total / this.view) || 1
         const from = (page - 1) * this.view + 1
@@ -183,34 +146,14 @@ window.dataTable = function () {
         this.pagination.currentPage = page
         this.pagination.from = from
         this.pagination.to = to
-        this.showPages()
       }
-    },
-    showPages() {
-      const pages = []
-      let from = this.pagination.currentPage - Math.ceil(this.offset / 2)
-      if (from < 1) {
-        from = 1
-      }
-      let to = from + this.offset - 1
-      if (to > this.pagination.lastPage) {
-        to = this.pagination.lastPage
-      }
-      while (from <= to) {
-        pages.push(from)
-        from++
-      }
-      this.pages = pages
-    },
-    changeView() {
-      this.changePage(1)
-      this.showPages()
     },
     isEmpty() {
       return this.pagination.total ? false : true
     }
-  }
-}
+
+  }));
+});
 </script>
 {% endmacro %}
 

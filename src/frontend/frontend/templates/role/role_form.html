@@ -36,14 +36,11 @@
 
         {{ form_select('TLP Level', 'tlp_level', role.tlp_level, tlp_levels) }}
 
-        <label class="floating-label mb-5 w-4/5">
-          <span>Permissions</span>
-          {% set columns = [
-            {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-            {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
-          ] %}
-          {{ datatable('permissions-table', permissions, columns, none, role.permissions, selectable=true, input_name="permissions") }}
-        </label>
+        {% set columns = [
+          {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
+          {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
+        ] %}
+        {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions") }}
 
         <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
     </form>

@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+{% block head %}
+  <script src="{{ url_for('static', filename='js/fuse.js') }}"></script>
+{% endblock %}
 {% block content %}
 {% set show_form = role_id is defined %}
 <div class="p-8" id="roles">
