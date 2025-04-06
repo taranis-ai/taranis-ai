@@ -14,7 +14,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "click",
+    "pydantic",
     "pydantic-settings",
     "python-dotenv",
 ]
@@ -58,11 +58,3 @@ disable = """
     missing-class-docstring,
     missing-function-docstring
 """
-
-[tool.mypy]
-explicit_package_bases = true
-namespace-packages = true
-exclude = [
-    '__main__.py',
-    'tests/'
-]
