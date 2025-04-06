@@ -1,10 +1,10 @@
 # Taranis AI Models
 
-This folder provides models for validation of data sent between Taranis AI services and offerd to third party clients.
+This folder provides models for validation of data sent between Taranis AI services and offered to third party clients.
 
 ## Installation
 
-It's recommended to use a uv to setup an virtual environment.
+It's recommended to use a uv to set up a virtual environment.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
