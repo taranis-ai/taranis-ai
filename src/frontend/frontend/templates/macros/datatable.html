@@ -2,7 +2,86 @@
 {% from "macros/datatable.html" import datatable_header with context %}
 {% set item_ids = data | map(attribute='id') | list %}
 
-<div x-data="dataTable">
+
+<script type="text/javascript">
+htmx.onLoad(function(elt) {
+  console.debug('DataTable initialized from htmx');
+});
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('dataTable', () => ({
+    data: [
+      {% for p in data %}
+      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+
+    items: [],
+    filteredItems: [],
+    selectedItems: [
+      {% for p in selected_items %}
+      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    view: 5,
+    searchInput: '',
+    pagination: {},
+    fuse: null,
+    searchKeys: {{ columns | selectattr('searchable') | map(attribute='field') | list | tojson }},
+
+    init() {
+      console.debug('Initializing dataTable: ', this.selectedItems);
+      this.filteredItems = this.data
+      this.pagination = {
+        total: this.data.length,
+        lastPage: Math.ceil(this.data.length / this.view),
+        perPage: this.view,
+        currentPage: 1,
+        from: 1,
+        to: this.view
+      };
+      this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
+      this.$watch('searchInput', value => this.search(value));
+      this.changePage(1)
+    },
+    search(value) {
+      if (value.length > 1) {
+        const result = this.fuse.search(value);
+        this.filteredItems = result.map(r => r.item);
+      } else {
+        this.filteredItems = this.data;
+      }
+
+      this.pagination.total = this.filteredItems.length;
+      this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
+      this.changePage(1)
+    },
+    changePage(page) {
+      page = Math.max(1, Math.min(page, this.pagination.lastPage));
+      const from = (page - 1) * this.view;
+      const to = from + this.view;
+
+      this.items = this.filteredItems.slice(from, to);
+
+      this.pagination.currentPage = page;
+      this.pagination.from = from + 1;
+      this.pagination.to = Math.min(to, this.pagination.total);
+    },
+    isEmpty() {
+      return this.pagination.total ? false : true
+    },
+    toggleSelectAll() {
+      if (this.selectedItems.length === this.items.length) {
+        this.selectedItems = []
+      } else {
+        this.selectedItems = this.items.map(item => item.id)
+      }
+    }
+  }));
+});
+</script>
+
+<div x-data="dataTable" id="dataTableDiv" x-init="$dispatch('datatable-ready')">
 <div>
   <h4 class="text-l font-bold mb-4">{{ table_id }}</h4>
   <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..."/>
@@ -82,83 +161,6 @@
 </div>
 
 
-<script>
-document.addEventListener('htmx:afterSwap', (e) => {
-  console.debug('htmx:afterSwap', e);
-});
-
-document.addEventListener('alpine:init', () => {
-    Alpine.data('dataTable', () => ({
-    data: [
-      {% for p in data %}
-      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
-      {% endfor %}
-    ],
-
-    items: [],
-    filteredItems: [],
-    selectedItems: [
-      {% for p in selected_items %}
-      {{ p| tojson(indent=2) | safe }}{% if not loop.last %},{% endif %}
-      {% endfor %}
-    ],
-    view: 5,
-    searchInput: '',
-    pagination: {},
-    fuse: null,
-    searchKeys: {{ columns | selectattr('searchable') | map(attribute='field') | list | tojson }},
-
-    init() {
-      console.debug('Initializing dataTable: ', this.selectedItems);
-      this.filteredItems = this.data
-      this.pagination = {
-        total: this.data.length,
-        lastPage: Math.ceil(this.data.length / this.view),
-        perPage: this.view,
-        currentPage: 1,
-        from: 1,
-        to: this.view
-      };
-      this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
-      this.$watch('searchInput', value => this.search(value));
-      this.changePage(1)
-    },
-    search(value) {
-      if (value.length > 1) {
-        const result = this.fuse.search(value);
-        this.filteredItems = result.map(r => r.item);
-      } else {
-        this.filteredItems = this.data;
-      }
-
-      this.pagination.total = this.filteredItems.length;
-      this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
-      this.changePage(1)
-    },
-    changePage(page) {
-      page = Math.max(1, Math.min(page, this.pagination.lastPage));
-      const from = (page - 1) * this.view;
-      const to = from + this.view;
-
-      this.items = this.filteredItems.slice(from, to);
-
-      this.pagination.currentPage = page;
-      this.pagination.from = from + 1;
-      this.pagination.to = Math.min(to, this.pagination.total);
-    },
-    isEmpty() {
-      return this.pagination.total ? false : true
-    },
-    toggleSelectAll() {
-      if (this.selectedItems.length === this.items.length) {
-        this.selectedItems = []
-      } else {
-        this.selectedItems = this.items.map(item => item.id)
-      }
-    }
-  }));
-});
-</script>
 {% endmacro %}
 
 {% macro datatable_header(title, sortable) %}
