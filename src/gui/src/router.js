@@ -178,7 +178,7 @@ export const router = createRouter({
       props: {
         default: {
           title: 'Dashboard',
-          targetUrl: `${import.meta.env.BASE_URL}frontend`
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin`
         }
       },
       meta: {
@@ -196,7 +196,7 @@ export const router = createRouter({
       props: {
         default: {
           title: 'Organizations',
-          targetUrl: `${import.meta.env.BASE_URL}frontend/organizations`
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/organizations`
         }
       },
       meta: {
@@ -208,8 +208,14 @@ export const router = createRouter({
       path: '/config/roles',
       name: 'roles',
       components: {
-        default: () => import('@/views/admin/RolesView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Roles',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/roles`
+        }
       },
       meta: {
         requiresAuth: true,
@@ -238,7 +244,7 @@ export const router = createRouter({
       props: {
         default: {
           title: 'Users',
-          targetUrl: `${import.meta.env.BASE_URL}frontend/users`
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/users`
         }
       },
       meta: {
@@ -268,7 +274,7 @@ export const router = createRouter({
       props: {
         default: {
           title: 'Scheduler',
-          targetUrl: `${import.meta.env.BASE_URL}frontend/scheduler`
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/scheduler`
         }
       },
       meta: {

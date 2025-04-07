@@ -38,7 +38,6 @@
     {{ form_select('TLP Level', 'tlp_level', role.tlp_level, tlp_levels) }}
 
     {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
-
     <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
   </form>
 </div>

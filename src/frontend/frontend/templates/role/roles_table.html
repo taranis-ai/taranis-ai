@@ -10,4 +10,4 @@
     {'title': 'permissions', 'field': 'permissions', 'sortable': False, 'renderer': permissions_count }
 ] %}
 
-{{ table('roles-table', roles, columns, '/frontend/roles') }}
+{{ table('roles-table', roles, columns, url_for('admin.roles')) }}
