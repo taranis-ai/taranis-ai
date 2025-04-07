@@ -29,9 +29,10 @@ class BaseBot:
         if "story_id" in filter_dict:
             return filter_dict
 
-        if "timefrom" not in filter_dict:
-            limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-            filter_dict["timefrom"] = limit
+        if timefrom := parameters.get("timefrom"):
+            filter_dict["timefrom"] = timefrom
+        else:
+            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type

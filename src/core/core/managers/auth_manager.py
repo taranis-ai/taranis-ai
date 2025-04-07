@@ -14,7 +14,6 @@ from core.model.user import User
 from core.config import Config
 
 current_authenticator = DatabaseAuthenticator()
-api_key = Config.API_KEY
 jwt = JWTManager()
 
 

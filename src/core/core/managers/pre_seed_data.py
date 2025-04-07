@@ -222,17 +222,6 @@ workers = [
         ],
     },
     {
-        "type": "TWITTER_PUBLISHER",
-        "name": "Twitter Publisher",
-        "description": "Publisher for publishing to Twitter account",
-        "parameters": [
-            {"parameter": "TWITTER_API_KEY"},
-            {"parameter": "TWITTER_API_KEY_SECRET"},
-            {"parameter": "TWITTER_ACCESS_TOKEN"},
-            {"parameter": "TWITTER_ACCESS_TOKEN_SECRET"},
-        ],
-    },
-    {
         "type": "WORDPRESS_PUBLISHER",
         "name": "Wordpress Publisher",
         "description": "Publisher for publishing on Wordpress webpage",

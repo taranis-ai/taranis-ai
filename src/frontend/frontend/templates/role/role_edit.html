@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="p-8" id="roles">
+  <div class="text-3xl font-bold mb-4">
+    <a href="{{ url_for('admin.roles') }}" class="text-blue-500 hover:underline">Roles</a>
+  </div>
+  <div class="bg-white rounded-sm p-4" id="form-container">
+    {% include 'role/role_form.html' %}
+  </div>
+</div>
+{% endblock %}
