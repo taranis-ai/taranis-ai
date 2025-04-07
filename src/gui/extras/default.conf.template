@@ -14,16 +14,16 @@ server {
     listen       80;
     server_name  _;
 
-    root   /usr/share/nginx/html;
+    root   /usr/share/nginx/html/taranis;
     client_max_body_size 50m;
 
     location ${TARANIS_BASE_PATH}assets {
-        alias /usr/share/nginx/html/assets/;
+        alias /usr/share/nginx/html/taranis/assets/;
         add_header Cache-Control "max-age=300, must-revalidate, s-maxage=300";
     }
 
     location ${TARANIS_BASE_PATH} {
-        alias /usr/share/nginx/html/;
+        alias /usr/share/nginx/html/taranis;
         expires -1;
         add_header Pragma "no-cache";
         add_header Cache-Control "no-store, no-cache, must-revalidate, post-check=0, pre-check=0";
@@ -55,6 +55,6 @@ server {
 
     error_page   500 502 503 504  /50x.html;
     location = /50x.html {
-        root   /usr/share/nginx/html;
+        root   /usr/share/nginx/html/taranis;
     }
 }
