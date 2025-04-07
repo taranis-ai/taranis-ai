@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONFIG_FILE="/usr/share/nginx/html/config.json"
+CONFIG_FILE="/usr/share/nginx/html/taranis/config.json"
 
 perl_script() {
 perl - "$CONFIG_FILE" <<'END_OF_PERL'
