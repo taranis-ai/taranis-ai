@@ -72,41 +72,6 @@ function loadCSS(href) {
   })
 }
 
-function removeKeysDeep(obj, keysToRemove = ['updated', 'last_change']) {
-  if (Array.isArray(obj)) {
-    return obj.map((item) => removeKeysDeep(item, keysToRemove))
-  } else if (obj && typeof obj === 'object') {
-    const newObj = {}
-    for (const key in obj) {
-      if (!keysToRemove.includes(key)) {
-        newObj[key] = removeKeysDeep(obj[key], keysToRemove)
-      }
-    }
-    return newObj
-  }
-  return obj
-}
-
-function stableStringify(obj, indent = 2) {
-  if (obj === null || typeof obj !== 'object') {
-    return JSON.stringify(obj)
-  }
-  if (Array.isArray(obj)) {
-    const arrayItems = obj.map((item) => stableStringify(item, indent))
-    return '[\n' + arrayItems.join(',\n') + '\n]'
-  }
-  const keys = Object.keys(obj).sort()
-  const keyValues = keys.map((key) => {
-    return (
-      ' '.repeat(indent) +
-      JSON.stringify(key) +
-      ': ' +
-      stableStringify(obj[key], indent + 2)
-    )
-  })
-  return '{\n' + keyValues.join(',\n') + '\n' + ' '.repeat(indent - 2) + '}'
-}
-
 const conflictsStore = useConflictsStore()
 const mergedContents = ref({})
 
@@ -125,9 +90,10 @@ function initMergelyForConflict(conflict) {
   const containerId = `#mergely-editor-${conflict.storyId}`
   const doc = new Mergely(containerId)
   doc.once('updated', () => {
-    // Remove keys "updated" and "last_change" before stringifying.
-    const lhsContent = stableStringify(removeKeysDeep(conflict.original), 2)
-    const rhsContent = stableStringify(removeKeysDeep(conflict.updated), 2)
+    const lhsContent = conflict.original
+    console.log('LHS Content:', lhsContent)
+    const rhsContent = conflict.updated
+    console.log('RHS Content:', rhsContent)
     doc.lhs(lhsContent)
     doc.rhs(rhsContent)
     doc.once('updated', () => {

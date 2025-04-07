@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
+from flask import json
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
@@ -547,7 +548,8 @@ class Story(BaseModel):
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
             current_data_dict = current_data.to_detail_dict()
-            conflict = StoryConflict(story_id=id, original=current_data_dict, updated=data)
+            current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
+            conflict = StoryConflict(story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized)
             logger.warning(f"Conflict detected for story {id}")
             StoryConflict.conflict_store[id] = conflict
             return {
@@ -1027,8 +1029,8 @@ class ReportItemStory(BaseModel):
 @dataclass
 class StoryConflict:
     story_id: str
-    original: dict[str, Any]
-    updated: dict[str, Any]
+    original: str
+    updated: str
     # A class-level store to hold conflicts
     conflict_store = {}
 
@@ -1038,6 +1040,46 @@ class StoryConflict:
         This example simply updates the updated dict with the resolution.
         Customize this logic as needed.
         """
-        resolved = self.updated.copy()
-        resolved.update(resolution)
-        return resolved
+        pass
+
+    @classmethod
+    def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
+        if keys_to_remove is None:
+            keys_to_remove = {"updated", "last_change"}
+        if isinstance(obj, list):
+            return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: cls.remove_keys_deep(value, keys_to_remove) for key, value in obj.items() if key not in keys_to_remove}
+        return obj
+
+    @classmethod
+    def stable_stringify(cls, obj: Any, indent: int = 2, level: int = 0) -> str:
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return json.dumps(obj)
+
+        elif isinstance(obj, list):
+            if not obj:
+                return "[]"
+            items = [cls.stable_stringify(item, indent, level + 1) for item in obj]
+            ind = " " * (indent * (level + 1))
+            return "[\n" + ",\n".join(f"{ind}{item}" for item in items) + "\n" + " " * (indent * level) + "]"
+
+        elif isinstance(obj, dict):
+            if not obj:
+                return "{}"
+            items = []
+            for key in sorted(obj.keys()):
+                value = cls.stable_stringify(obj[key], indent, level + 1)
+                ind = " " * (indent * (level + 1))
+                items.append(f"{ind}{json.dumps(key)}: {value}")
+            return "{\n" + ",\n".join(items) + "\n" + " " * (indent * level) + "}"
+
+        return json.dumps(obj)
+
+    @classmethod
+    def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
+        normalized_current = cls.remove_keys_deep(current_data)
+        logger.debug(f"{normalized_current=}")
+        normalized_new = cls.remove_keys_deep(new_data)
+        logger.debug(f"{normalized_new=}")
+        return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)

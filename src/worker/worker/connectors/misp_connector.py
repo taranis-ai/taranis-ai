@@ -456,11 +456,22 @@ class MISPConnector:
             if misp_event_uuid:
                 if result := self.update_misp_event(misp, story, misp_event_uuid):
                     logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
+                    # TODO: Add validation whether all the objects was fully accepted:
+                    # Can happen that an attribute is neglected due to size limitations and we don't know about it.
+                    # logger.debug(f"{result.to_dict()=}")
+                    # for object in result.objects:
+                    #     logger.debug(f"{object.to_dict()=}")
+
                     return result.uuid
                 return None
 
             if created_event := self.add_misp_event(misp, story):
                 logger.info(f"Event was created in MISP with UUID: {created_event.uuid}")
+                # TODO: Add validation whether all the objects was fully accepted:
+                # Can happen that an attribute is neglected due to size limitations and we don't know about it.
+                # logger.debug(f"{created_event.to_dict()=}")
+                # for object in created_event.objects:
+                #     logger.debug(f"{object.to_dict()=}")
                 return created_event.uuid
 
             logger.error("Failed to create event in MISP")
