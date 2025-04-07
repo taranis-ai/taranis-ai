@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
-    <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
-    <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='js/alpinejs.min.js') }}"></script>
-    {% block head %}{% endblock %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+  <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
+  <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/alpinejs.min.js') }}"></script>
+  {% block head %}{% endblock %}
 </head>
 <body class="bg-base-300 min-h-screen" hx-ext="response-targets">
-    <div class="container mx-auto w-full max-w-full">
-        <div>
-            <div id="debug_menu">
-              <!-- debug menu -->
-              <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
-              <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
-              <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
-              <a href="{{ url_for('admin.scheduler') }}" class="text-blue-500 underline">Scheduler</a>
-              <a href="{{ url_for('admin.roles') }}" class="text-blue-500 underline">Roles</a>
-            </div>
-            {% include 'error.html' %}
-        </div>
-        {% block content %}{% endblock %}
-        <section id="status-msg"></section>
+  <div class="container mx-auto w-full max-w-full">
+    <div>
+      <div id="debug_menu">
+        <!-- debug menu -->
+        <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
+        <a href="{{ url_for('admin.users') }}" class="text-blue-500 underline">Users</a>
+        <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
+        <a href="{{ url_for('admin.scheduler') }}" class="text-blue-500 underline">Scheduler</a>
+        <a href="{{ url_for('admin.roles') }}" class="text-blue-500 underline">Roles</a>
+      </div>
+      {% include 'error.html' %}
     </div>
+    {% block content %}{% endblock %}
+    <section id="status-msg"></section>
+  </div>
 </body>
 </html>

@@ -19,29 +19,26 @@
   {'id': 'amber+strict', 'name': 'Amber+Strict'},
   {'id': 'red', 'name': 'Red'}
 ] %}
+{% set columns = [
+  {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
+  {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
+] %}
 
 {% set form_error = form_error | default({}) %}
 {% set permissions = permissions | default([]) %}
 <div class="bg-base-100 rounded-sm p-4">
-    <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+  <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+  <form id="role-form" class="w-1/2 ml-[10%]" {% if create %}hx-post="/frontend/roles"{% else %}hx-put="/frontend/roles/{{ role.id }}"{% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    {% if error %}
+    <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+    {% endif %}
 
-    <form id="role-form" class="w-1/2 ml-[10%]" {% if create %}hx-post="/frontend/roles"{% else %} hx-put="/frontend/roles/{{ role.id }}" {% endif %} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-        {% if error %}
-        <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
-        {% endif %}
+    {{ form_input('Name', 'name', role.name, form_error.name) }}
+    {{ form_input('Description', 'description', role.description, form_error.description) }}
+    {{ form_select('TLP Level', 'tlp_level', role.tlp_level, tlp_levels) }}
 
+    {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
 
-        {{ form_input('Name', 'name', role.name, form_error.name) }}
-        {{ form_input('Description', 'description', role.description, form_error.description) }}
-
-        {{ form_select('TLP Level', 'tlp_level', role.tlp_level, tlp_levels) }}
-
-        {% set columns = [
-          {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
-          {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
-        ] %}
-        {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
-
-        <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
-    </form>
+    <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+  </form>
 </div>
