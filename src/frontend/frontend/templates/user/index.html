@@ -1,12 +1,21 @@
 {% extends 'base.html' %}
+{% block head %}
+<link href="{{ url_for('static', filename='css/tom-select.css') }}" rel="stylesheet">
+<script src="{{ url_for('static', filename='js/tom-select.complete.min.js') }}"></script>
+{% endblock %}
+{% set show_form = user_id is defined %}
 {% block content %}
 <div class="p-8" id="users">
   <div class="text-3xl font-bold mb-4">
     <a href="{{ url_for('admin.users') }}" class="text-blue-500 hover:underline">Users</a>
   </div>
   <div class="bg-white p-4" id="form-container">
-      {% include 'user/users_table_header.html' %}
-      {% include 'user/users_table.html' %}
+    {% if show_form %}
+    {% include 'user/user_form.html' %}
+    {% else %}
+    {% include 'user/users_table_header.html' %}
+    {% include 'user/users_table.html' %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}

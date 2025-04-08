@@ -5,4 +5,4 @@
     {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ] %}
 
-{{ table('organizations-table', organizations, columns, '/frontend/organizations') }}
+{{ table('organizations-table', organizations, columns, url_for('admin.organizations')) }}

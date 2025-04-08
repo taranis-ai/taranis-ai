@@ -1,8 +1,13 @@
 {% from "macros/table.html" import table with context %}
 
+{% macro permissions_count(item) %}
+    {{ item.permissions | length }}
+{% endmacro %}
+
 {% set columns = [
     {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None},
+    {'title': 'permissions', 'field': 'permissions', 'sortable': False, 'renderer': permissions_count }
 ] %}
 
-{{ table('roles-table', roles, columns, '/frontend/roles') }}
+{{ table('roles-table', roles, columns, url_for('admin.roles')) }}

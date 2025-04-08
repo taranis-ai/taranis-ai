@@ -1,11 +1,8 @@
-from flask import Flask, render_template, Blueprint, request, Response, jsonify
+from flask import Flask, render_template, Blueprint, request, Response
 from flask.views import MethodView
-from swagger_ui import api_doc
-from flask_jwt_extended import set_access_cookies
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
-from frontend.cache import get_cached_users, list_cache_keys
 from frontend.models import Role, User, Organization, PagingData, Job, Dashboard
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
@@ -15,7 +12,7 @@ from frontend.views.user_views import import_users_view, import_users_post_view,
 from frontend.views.role_views import edit_role_view, update_role_view
 
 
-class DashboardAPI(MethodView):
+class AdminDashboardAPI(MethodView):
     @auth_required()
     def get(self):
         result = DataPersistenceLayer().get_objects(Dashboard)
@@ -182,53 +179,6 @@ class UpdateRole(MethodView):
         return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
-class InvalidateCache(MethodView):
-    @auth_required("ADMIN_OPERATIONS")
-    def get(self, suffix: str):
-        if not suffix:
-            return {"error": "No suffix provided"}, 400
-        DataPersistenceLayer().invalidate_cache(suffix)
-        return "Cache invalidated"
-
-
-class ListCacheKeys(MethodView):
-    @auth_required("ADMIN_OPERATIONS")
-    def get(self):
-        return Response("<br>".join(list_cache_keys()))
-
-
-class ListUserCache(MethodView):
-    @auth_required("ADMIN_OPERATIONS")
-    def get(self):
-        return jsonify(get_cached_users())
-
-
-class LoginView(MethodView):
-    def get(self):
-        return render_template("login/index.html")
-
-    def post(self):
-        username = request.form.get("username")
-        password = request.form.get("password")
-
-        if not username or not password:
-            return render_template("login/index.html", error="Username and password are required"), 400
-
-        core_response = CoreApi().login(username, password)
-
-        jwt_token = core_response.json().get("access_token")
-
-        logger.debug(f"Login response: {jwt_token}")
-
-        if not core_response.ok:
-            return render_template("login/index.html", error=core_response.json().get("error")), core_response.status_code
-
-        response = Response(status=core_response.status_code, headers={"HX-Redirect": "/frontend/"})
-        set_access_cookies(response, jwt_token)
-
-        return response
-
-
 class ExportUsers(MethodView):
     @auth_required()
     def get(self):
@@ -258,30 +208,22 @@ class ImportUsers(MethodView):
 
 
 def init(app: Flask):
-    api_doc(app, config_url=f"{Config.TARANIS_CORE_URL}/static/openapi3_1.yaml", url_prefix=f"{Config.APPLICATION_ROOT}/doc", editor=False)
+    admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
-    admin_bp = Blueprint("admin", __name__, url_prefix=app.config["APPLICATION_ROOT"])
-
-    admin_bp.add_url_rule("/", view_func=DashboardAPI.as_view("dashboard"))
+    admin_bp.add_url_rule("/", view_func=AdminDashboardAPI.as_view("dashboard"))
 
     admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
     admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
-    admin_bp.add_url_rule("/schedule", view_func=ScheduleAPI.as_view("schedule"))
-    admin_bp.add_url_rule("/schedule/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("schedule_job_details"))
+    admin_bp.add_url_rule("/scheduler", view_func=ScheduleAPI.as_view("scheduler"))
+    admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("scheduler_job_details"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=UpdateOrganization.as_view("edit_organization"))
 
     admin_bp.add_url_rule("/roles/", view_func=RolesAPI.as_view("roles"))
     admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
-
-    admin_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
-    # add a new route to invalidate cache specific to users
-    admin_bp.add_url_rule("/invalidate_cache/<suffix>", view_func=InvalidateCache.as_view("invalidate_cache"))
-    admin_bp.add_url_rule("/list_cache_keys", view_func=ListCacheKeys.as_view("list_cache_keys"))
-    admin_bp.add_url_rule("/list_user_cache", view_func=ListUserCache.as_view("list_user_cache"))
 
     app.register_blueprint(admin_bp)
