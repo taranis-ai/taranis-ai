@@ -485,9 +485,6 @@ class Story(BaseModel):
         if "read" in data:
             story.read = data["read"]
 
-        if "cybersecurity" in data:
-            story.cybersecurity = data["cybersecurity"]
-
         if "title" in data:
             story.title = data["title"]
 
@@ -801,14 +798,16 @@ class Story(BaseModel):
         new_story.update_status()
 
     def update_cybersecurity_status(self):
-        cybersecurity_status_list = [news_item.get_cybersecurity_status() == "yes" for news_item in self.news_items]
+        cybersecurity_status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
 
-        if all(cybersecurity_status_list):
+        if set(cybersecurity_status_list) == {"yes"}:
             self.cybersecurity = "yes"
         elif len(set(cybersecurity_status_list)) != 1:
             self.cybersecurity = "mixed"
-        else:
+        elif set(cybersecurity_status_list) == {"no"}:
             self.cybersecurity = "no"
+        else:
+            self.cybersecurity = None
 
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
