@@ -3,8 +3,7 @@
 {% set create = request.path[-1:] == '0' | default('true') %}
 {% set form_title = 'User' %}
 
-{% set user = user
-    | default({
+{% set user = user | default({
         'id': 0,
         'username': '',
         'name': '',
