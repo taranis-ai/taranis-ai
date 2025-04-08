@@ -2,7 +2,7 @@
 name = "taranis-core"
 description = "Taranis Core"
 readme = "README.md"
-license = { file = "LICENSE.md" }
+license = "EUPL-1.2"
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 
 classifiers = [

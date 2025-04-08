@@ -15,8 +15,10 @@ from core.managers.db_seed_manager import sync_enums
 from core.managers.db_manager import is_db_empty
 
 loglevel = LogLevels.info
+log_access = False
 if os.getenv("DEBUG", "false").lower() == "true":
     loglevel = LogLevels.debug
+    log_access = True
 
 workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
 address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
@@ -62,7 +64,7 @@ def app_loader(target):
 def main():
     wait_for_db()
     create_app(db_setup=True)
-    Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(
+    Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers, log_access=log_access).serve(
         target_loader=app_loader
     )
 

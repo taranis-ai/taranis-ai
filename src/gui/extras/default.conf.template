@@ -11,10 +11,10 @@ upstream frontendupstream {
 }
 
 server {
-    listen       80;
+    listen       8080;
     server_name  _;
 
-    root   /usr/share/nginx/html/taranis;
+    root   /usr/share/nginx/html/taranis/;
     client_max_body_size 50m;
 
     location ${TARANIS_BASE_PATH}assets {
@@ -23,7 +23,7 @@ server {
     }
 
     location ${TARANIS_BASE_PATH} {
-        alias /usr/share/nginx/html/taranis;
+        alias /usr/share/nginx/html/taranis/;
         expires -1;
         add_header Pragma "no-cache";
         add_header Cache-Control "no-store, no-cache, must-revalidate, post-check=0, pre-check=0";
