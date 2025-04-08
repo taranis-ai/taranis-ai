@@ -2,7 +2,7 @@ services:
   gui:
     # This is the entrypoint for all requests
     ports:
-    - "${TARANIS_PORT:-8080}:80"
+    - "${TARANIS_PORT:-8080}:8080"
     depends_on:
       - core
     deploy:
