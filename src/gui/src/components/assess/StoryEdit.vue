@@ -77,7 +77,13 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row v-if="story" class="mt-4 px-4" align="center" justify="start" wrap>
+    <v-row
+      v-if="story && userStore.advanced_story_options"
+      class="mt-4 px-4"
+      align="center"
+      justify="start"
+      wrap
+    >
       <v-col
         cols="12"
         sm="6"
@@ -114,7 +120,13 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="story" class="mb-4 px-4" align="center" justify="start" wrap>
+    <v-row
+      v-if="story && userStore.advanced_story_options"
+      class="mb-4 px-4"
+      align="center"
+      justify="start"
+      wrap
+    >
       <v-col
         cols="12"
         sm="6"
@@ -169,7 +181,11 @@
         <v-row class="mb-2" align="center">
           <v-col cols="2" md="2">
             <div class="d-flex justify-center pt-2">
-              <v-btn-toggle class="d-flex justify-center" mandatory>
+              <v-btn-toggle
+                v-if="userStore.advanced_story_options"
+                class="d-flex justify-center"
+                mandatory
+              >
                 <v-btn
                   value="yes"
                   :class="
@@ -219,6 +235,7 @@ import EditTags from '@/components/assess/EditTags.vue'
 import AttributesTable from '@/components/common/AttributesTable.vue'
 import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/UserStore'
 
 export default {
   name: 'StoryEdit',
@@ -236,6 +253,7 @@ export default {
     }
   },
   setup(props) {
+    const userStore = useUserStore()
     const form = ref(null)
     const router = useRouter()
     const story = ref(props.storyProp)
@@ -496,6 +514,7 @@ export default {
 
     onMounted(() => {
       fetchStoryData(props.storyProp.id)
+      userStore.loadUserProfile()
     })
 
     watch(
@@ -508,6 +527,7 @@ export default {
     )
 
     return {
+      userStore,
       panels,
       story,
       hasRtId,
