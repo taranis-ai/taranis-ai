@@ -2,9 +2,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
+from prefect import task, flow
+from prefect.schedules import Cron
 from datetime import datetime, timedelta
 
-from core.managers import queue_manager
 from core.log import logger
 from core.managers.db_manager import db
 from core.config import Config
@@ -40,14 +41,12 @@ class Scheduler:
         self._scheduler.start()
 
     def add_celery_task(self, task: dict):
-        celery_options = task.get("celery", {})
-        self.add_job(
-            func=queue_manager.queue_manager.celery.send_task,
-            id=task["id"],
-            name=task["name"],
-            kwargs=celery_options,
-            **task["jobs_params"],
-            replace_existing=True,
+        debug_flow.deploy(
+            name="debug_flow",
+            work_pool_name="docker-pool",
+            image="",
+            push=False,
+            build=False,
         )
 
     @property
@@ -113,9 +112,29 @@ class Scheduler:
         return fire_times
 
 
-def initialize():
-    global schedule
-    schedule = Scheduler()
+@task(task_run_name="debug_task", log_prints=True)
+async def debug_task(name: str) -> None:
+    logger.debug(f"Debug task executed: {name}")
 
-    schedule.add_celery_task(cleanup_blacklist_periodic_task)
-    logger.debug("Scheduler initialized")
+
+@flow(log_prints=True, flow_run_name="debug_flow")
+async def debug_flow(names: list[str]) -> None:
+    for name in names:
+        await debug_task(name=name)
+
+
+def initialize():
+    #    global schedule
+    #    schedule = Scheduler()
+
+    #    schedule.add_celery_task(cleanup_blacklist_periodic_task)
+    #    logger.debug("Scheduler initialized")
+
+    debug_flow.deploy(
+        name="debug_flow",
+        work_pool_name="docker-pool",
+        image="",
+        schedule=Cron("0 0 * * *"),
+        push=False,
+        build=False,
+    )
