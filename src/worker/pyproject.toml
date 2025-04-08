@@ -2,7 +2,7 @@
 name = "taranis-worker"
 description = "Taranis Queue Worker"
 readme = "README.md"
-license = {file = "LICENSE.md"}
+license = "EUPL-1.2"
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
@@ -34,7 +34,6 @@ dependencies = [
     "pymisp",
     "paramiko",
     "python-gnupg",
-    "tweepy",
 
     # Presenters
     "weasyprint",

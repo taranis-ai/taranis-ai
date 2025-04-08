@@ -9,7 +9,12 @@
     }"
     @click="toggleSelection"
   >
-    <v-container fluid style="min-height: 100px" class="pa-0 pl-0" :data-testid="`news-item-card-${newsItem.id}`">
+    <v-container
+      fluid
+      style="min-height: 100px"
+      class="pa-0 pl-0"
+      :data-testid="`news-item-card-${newsItem.id}`"
+    >
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">

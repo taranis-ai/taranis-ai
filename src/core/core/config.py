@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URI: str = ""
     SQLALCHEMY_DATABASE_URI_MASK: str | None = None
     SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
+    SQLALCHEMY_CONNECT_TIMEOUT: int = 10
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -57,7 +58,9 @@ class Settings(BaseSettings):
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
             self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
-            self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
+            self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
+        elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql:"):
+            self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 

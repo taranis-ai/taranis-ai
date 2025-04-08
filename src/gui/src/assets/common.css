@@ -59,3 +59,9 @@
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
 }
+
+.frontend-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}

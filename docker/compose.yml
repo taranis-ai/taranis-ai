@@ -2,7 +2,7 @@ services:
   gui:
     # This is the entrypoint for all requests
     ports:
-    - "${TARANIS_PORT:-8080}:80"
+    - "${TARANIS_PORT:-8080}:8080"
     depends_on:
       - core
     deploy:
@@ -14,6 +14,7 @@ services:
       NGINX_CONNECTIONS: "16"
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
+      TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
     logging:
@@ -96,17 +97,17 @@ services:
         max-file: "10"
 
 
-  scheduler:
+  frontend:
     deploy:
       restart_policy:
         condition: always
     # ports:
     #   - "8000:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-frontend:${TARANIS_TAG:-latest}"
     environment:
-      FLASK_APP: "${SCHEDULER_APP:-scheduler}"
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
-      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}scheduler"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -227,7 +228,7 @@ services:
         max-file: "10"
 
 
-  sentiment_bot:
+  sentiment_analysis_bot:
     depends_on:
       workers:
         condition: service_healthy

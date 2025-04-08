@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.log import logger
 
 
 class Organization(BaseModel):
@@ -53,6 +54,7 @@ class Organization(BaseModel):
 
     @classmethod
     def update(cls, organization_id, data) -> tuple[dict, int]:
+        logger.debug(f"Updating organization {organization_id} with data: {data}")
         organization = cls.get(organization_id)
         if organization is None:
             return {"error": f"Organization {organization_id} not found"}, 404

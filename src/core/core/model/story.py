@@ -721,8 +721,10 @@ class Story(BaseModel):
     @classmethod
     def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
         results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
-        if any(result[1] == 500 for result in results):
-            return {"error": "grouping failed"}, 400
+        if errors := [res[0].get("error") for res in results if res[1] != 200 and res[0].get("error") is not None]:
+            error_message = "; ".join(filter(None, errors))
+            logger.error(f"Errors ungrouping stories: {error_message}")
+            return {"error": error_message}, 400
         return {"message": "success"}, 200
 
     @classmethod
@@ -731,6 +733,9 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
+            for tag in story.tags:
+                if tag.to_dict().get("tag_type", "").startswith("report"):
+                    return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)

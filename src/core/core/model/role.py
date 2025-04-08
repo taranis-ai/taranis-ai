@@ -8,6 +8,7 @@ from enum import StrEnum
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.permission import Permission
+from core.log import logger
 
 
 class TLPLevel(StrEnum):
@@ -78,6 +79,7 @@ class Role(BaseModel):
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
+        logger.debug(f"Updating role with ID {role_id} with data: {data}")
         role = cls.get(role_id)
         if not role:
             return {"error": "Role not found"}, 404
