@@ -25,3 +25,7 @@
   <div class="validator-hint">Required</div>
 </label>
 {% endmacro %}
+
+{% macro form_action(endpoint, item_name, item_id=0) %}
+hx-{{ "post" if item_id == 0 else "put" }}="{{ url_for(endpoint, **{ item_name: item_id }) }}"
+{% endmacro %}
