@@ -77,12 +77,18 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
+    <v-row v-if="story" class="mt-4 px-4" align="center" justify="start" wrap>
+      <v-col
+        cols="12"
+        sm="6"
+        md="4"
+        class="d-flex align-center"
+        style="gap: 24px"
+      >
         <v-btn
           prepend-icon="mdi-pulse"
           @click="triggerSentimentAnalysisBot"
-          class="text-truncate"
+          class="text-truncate mb-2"
           style="
             width: 100%;
             max-width: 240px;
@@ -93,9 +99,7 @@
         >
           AI Based Sentiment Analysis
         </v-btn>
-      </v-col>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
-        <div class="d-flex flex-wrap" style="gap: 8px">
+        <div class="d-flex flex-wrap" style="gap: 24px">
           <v-chip
             v-for="(count, sentiment) in sentimentCounts"
             :key="sentiment"
@@ -109,8 +113,15 @@
         </div>
       </v-col>
     </v-row>
-    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
+
+    <v-row v-if="story" class="mb-4 px-4" align="center" justify="start" wrap>
+      <v-col
+        cols="12"
+        sm="6"
+        md="6"
+        class="d-flex align-center"
+        style="gap: 24px"
+      >
         <v-btn
           prepend-icon="mdi-shield-outline"
           @click="triggerCyberSecClassifierBot"
@@ -125,23 +136,19 @@
         >
           Classify Cybersecurity
         </v-btn>
-      </v-col>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
-        <div class="d-flex flex-wrap" style="gap: 8px">
-          <v-chip
-            :key="cybersecurityStatus"
-            :color="getCybersecurityColor(cybersecurityStatus)"
-            text-color="black"
-            label
-          >
-            {{
-              cybersecurityStatus.charAt(0).toUpperCase() +
-              cybersecurityStatus.slice(1)
-            }}
-          </v-chip>
-        </div>
+        <v-chip
+          :key="cybersecurityStatus"
+          :class="getCybersecurityClass(cybersecurityStatus)"
+          label
+        >
+          {{
+            cybersecurityStatus.charAt(0).toUpperCase() +
+            cybersecurityStatus.slice(1)
+          }}
+        </v-chip>
       </v-col>
     </v-row>
+
     <v-expansion-panels v-if="story" v-model="panels" multiple>
       <v-expansion-panel
         v-for="news_item in story.news_items"
@@ -159,25 +166,37 @@
             >{{ news_item.content }}</router-link
           >
         </template>
-        <v-row class="mt-4" align="center">
-          <v-col cols="12" md="4">
-            <span>Cybersecurity related?</span>
-          </v-col>
-          <v-col cols="6" md="4">
-            <v-btn
-              color="success"
-              @click="setCyberSecurityStatus(news_item, 'yes')"
-            >
-              Yes
-            </v-btn>
-          </v-col>
-          <v-col cols="6" md="4">
-            <v-btn
-              color="error"
-              @click="setCyberSecurityStatus(news_item, 'no')"
-            >
-              No
-            </v-btn>
+        <v-row class="mb-2" align="center">
+          <v-col cols="2" md="2">
+            <div class="d-flex justify-center pt-2">
+              <v-btn-toggle class="d-flex justify-center" mandatory>
+                <v-btn
+                  value="yes"
+                  :class="
+                    news_item?.attributes &&
+                    getCybersecurityStatus(news_item) === 'yes'
+                      ? 'cybersecurity-active-btn'
+                      : 'inactive-btn'
+                  "
+                  @click="setCyberSecurityStatus(news_item, 'yes')"
+                >
+                  Cybersecurity
+                </v-btn>
+
+                <v-btn
+                  value="no"
+                  :class="
+                    news_item?.attributes &&
+                    getCybersecurityStatus(news_item) === 'no'
+                      ? 'non-cybersecurity-active-btn'
+                      : 'inactive-btn'
+                  "
+                  @click="setCyberSecurityStatus(news_item, 'no')"
+                >
+                  Not Cybersecurity
+                </v-btn>
+              </v-btn-toggle>
+            </div>
           </v-col>
         </v-row>
       </v-expansion-panel>
@@ -190,6 +209,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   patchStory,
   updateNewsItemAttributes,
+  updateStory,
   triggerBot,
   getStory
 } from '@/api/assess'
@@ -290,14 +310,16 @@ export default {
       return 'not classifed'
     })
 
-    const getCybersecurityColor = (cybersecurity_status) => {
+    const getCybersecurityClass = (cybersecurity_status) => {
       switch (cybersecurity_status) {
         case 'yes':
-          return 'rgba(30, 144, 255, 1)'
+          return 'cyber-chip-yes'
         case 'no':
-          return 'rgba(255, 69, 0, 1)'
+          return 'cyber-chip-no'
+        case 'not classified':
+          return 'cyber-chip-not-classified'
         default:
-          return 'rgba(128, 128, 128, 1)'
+          return ''
       }
     }
 
@@ -406,9 +428,7 @@ export default {
         return
       }
 
-      let score
-      if (status == 'yes') score = 1.0
-      else score = 0.0
+      let score = status === 'yes' ? 1.0 : 0.0
 
       const new_attributes = [
         { key: 'cybersecurity', value: status },
@@ -416,14 +436,32 @@ export default {
       ]
 
       try {
+        if (!Array.isArray(news_item.attributes)) {
+          news_item.attributes = []
+        }
+
+        const updatedKeys = new Set()
+
         news_item.attributes.forEach((attr) => {
           if (attr.key === 'cybersecurity') {
             attr.value = status
+            updatedKeys.add('cybersecurity')
           }
           if (attr.key === 'cybersecurity_score') {
             attr.value = score
+            updatedKeys.add('cybersecurity_score')
           }
         })
+
+        if (!updatedKeys.has('cybersecurity')) {
+          news_item.attributes.push({ key: 'cybersecurity', value: status })
+        }
+        if (!updatedKeys.has('cybersecurity_score')) {
+          news_item.attributes.push({
+            key: 'cybersecurity_score',
+            value: score
+          })
+        }
 
         const result = await updateNewsItemAttributes(
           news_item.id,
@@ -432,6 +470,27 @@ export default {
         notifySuccess(result)
       } catch (e) {
         notifyFailure(e)
+      }
+      try {
+        updateStory(story.value.id, {}, null)
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
+
+    function getCybersecurityStatus(news_item) {
+      try {
+        if (!news_item || !Array.isArray(news_item.attributes)) {
+          return null
+        }
+
+        const match = news_item.attributes.find(
+          (attr) => attr.key === 'cybersecurity'
+        )
+        return match?.value ?? null
+      } catch (err) {
+        console.error('Error in getCybersecurityStatus:', err)
+        return null
       }
     }
 
@@ -461,11 +520,44 @@ export default {
       sentimentCounts,
       getSentimentColor,
       cybersecurityStatus,
-      getCybersecurityColor,
+      getCybersecurityClass,
       filteredStoryAttributes,
       showallattributes,
-      setCyberSecurityStatus
+      setCyberSecurityStatus,
+      getCybersecurityStatus
     }
   }
 }
 </script>
+
+<style scoped>
+.cybersecurity-active-btn {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+
+.non-cybersecurity-active-btn {
+  background-color: #e42e2e !important;
+  color: white !important;
+}
+
+.inactive-btn {
+  background-color: #f3f3f3 !important;
+  color: #424242 !important;
+}
+
+.cyber-chip-yes {
+  background-color: #4caf50;
+  color: white;
+}
+
+.cyber-chip-no {
+  background-color: #e42e2e;
+  color: white;
+}
+
+.cyber-chip-not-classified {
+  background-color: #f3f3f3;
+  color: black;
+}
+</style>
