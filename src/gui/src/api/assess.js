@@ -61,6 +61,10 @@ export function updateNewsItemAttributes(news_item_id, attributes) {
   )
 }
 
+export function updateStory(story_id, data, user) {
+  return apiService.put(`/assess/story/${story_id}`, data, user)
+}
+
 export function patchStory(story_id, data) {
   return apiService.patch(`/assess/story/${story_id}`, data)
 }
