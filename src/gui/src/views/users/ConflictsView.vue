@@ -46,60 +46,30 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { useConflictsStore } from '@/stores/ConnectorStore'
-
-// Helper functions to dynamically load external assets
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = src
-    s.async = true
-    s.type = 'text/javascript'
-    s.onload = resolve
-    s.onerror = () => reject(new Error(`Failed to load script: ${src}`))
-    document.head.appendChild(s)
-  })
-}
-
-function loadCSS(href) {
-  return new Promise((resolve, reject) => {
-    const l = document.createElement('link')
-    l.rel = 'stylesheet'
-    l.type = 'text/css'
-    l.href = href
-    l.onload = resolve
-    l.onerror = () => reject(new Error(`Failed to load CSS: ${href}`))
-    document.head.appendChild(l)
-  })
-}
+import Mergely from 'mergely'
+import 'mergely/lib/mergely.css'
 
 const conflictsStore = useConflictsStore()
 const mergedContents = ref({})
 
-async function initMergelyGlobally() {
-  if (!window.jQuery) {
-    await loadScript(
-      'https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.min.js'
-    )
-  }
-  await loadCSS(
-    'https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.css'
-  )
-}
-
 function initMergelyForConflict(conflict) {
   const containerId = `#mergely-editor-${conflict.storyId}`
   const doc = new Mergely(containerId)
+
   doc.once('updated', () => {
     const lhsContent = conflict.original
     console.log('LHS Content:', lhsContent)
     const rhsContent = conflict.updated
     console.log('RHS Content:', rhsContent)
+
     doc.lhs(lhsContent)
     doc.rhs(rhsContent)
+
     doc.once('updated', () => {
       doc.scrollToDiff('next')
     })
   })
+
   conflict.mergelyInstance = doc
 }
 
@@ -129,7 +99,6 @@ async function submitResolution(storyId) {
 
 onMounted(async () => {
   try {
-    await initMergelyGlobally()
     await conflictsStore.loadConflicts()
     await nextTick()
     conflictsStore.conflicts.forEach((conflict) => {
