@@ -51,7 +51,7 @@ jobs:
           # Loop through images, pull, tag, and push
           for image in "${images[@]}"; do
             docker pull ghcr.io/${REPOSITORY_OWNER}/${image}:latest
-            docker buildx imagetools create --tag ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG} --tag ghcr.io/${REPOSITORY_OWNER}/${image}:release ghcr.io/${REPOSITORY_OWNER}/${image}:latest
+            docker buildx imagetools create --tag ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG} --tag ghcr.io/${REPOSITORY_OWNER}/${image}:stable ghcr.io/${REPOSITORY_OWNER}/${image}:latest
           done
 
       - name: Download latest SBOM artifact
