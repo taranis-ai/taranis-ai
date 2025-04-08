@@ -62,7 +62,6 @@ def pre_seed_update(db_engine: Engine):
 
     pre_seed_source_groups()
     pre_seed_manual_source()
-    sync_enums(db_engine)
     migrate_refresh_intervals()
 
     for w in workers:
