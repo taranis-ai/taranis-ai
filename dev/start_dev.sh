@@ -28,7 +28,7 @@ if [ ! -f "src/gui/.env" ]; then
 fi
 
 if [ ! -f "src/frontend/.env" ]; then
-    cp dev/env.dev src/frontend/.env
+    cp src/frontend/env.sample src/frontend/.env
 fi
 
 echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
