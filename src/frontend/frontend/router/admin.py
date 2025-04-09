@@ -64,7 +64,7 @@ class UsersAPI(MethodView):
         return render_template("user/index.html", users=result, error=error)
 
     @auth_required()
-    def post(self):
+    def post(self, user_id: None):
         return update_user_view(user_id=0)
 
 
@@ -101,7 +101,7 @@ class OrganizationsAPI(MethodView):
         return render_template("organization/index.html", organizations=result, error=error)
 
     @auth_required()
-    def post(self):
+    def post(self, organization_id: None):
         organization = Organization(**parse_formdata(request.form))
         result = DataPersistenceLayer().store_object(organization)
         if not result.ok:
@@ -160,7 +160,7 @@ class RolesAPI(MethodView):
         return render_template("role/index.html", roles=result, error=error)
 
     @auth_required()
-    def post(self):
+    def post(self, role_id: None):
         return update_role_view(role_id=0)
 
 
@@ -213,6 +213,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/", view_func=AdminDashboardAPI.as_view("dashboard"))
 
     admin_bp.add_url_rule("/users", view_func=UsersAPI.as_view("users"))
+    admin_bp.add_url_rule("/users/<int:user_id>", view_func=UsersAPI.as_view("create_user"), methods=["POST"])
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UpdateUser.as_view("edit_user"))
     admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
@@ -221,9 +222,11 @@ def init(app: Flask):
     admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("scheduler_job_details"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationsAPI.as_view("organizations"))
+    admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationsAPI.as_view("create_organization"), methods=["POST"])
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=UpdateOrganization.as_view("edit_organization"))
 
     admin_bp.add_url_rule("/roles/", view_func=RolesAPI.as_view("roles"))
+    admin_bp.add_url_rule("/roles/<int:role_id>", view_func=RolesAPI.as_view("create_role"), methods=["POST"])
     admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
 
     app.register_blueprint(admin_bp)
