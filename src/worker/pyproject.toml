@@ -39,7 +39,7 @@ dependencies = [
     "jinja2",
 
     # Connectors
-    "pymisp==2.5.7.1",
+    "pymisp",
 
     # Bots
     "ioc-finder",
