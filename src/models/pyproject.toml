@@ -1,6 +1,6 @@
 [project]
-name = "taranis-frontend"
-description = "Taranis AI Frontend"
+name = "taranis-models"
+description = "Taranis AI Models"
 readme = "README.md"
 license = "EUPL-1.2"
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
@@ -14,24 +14,15 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "Flask",
-    "Flask-Caching",
-    "Flask-JWT-Extended",
-    "flask-htmx",
-    "flask-cors",
-    "click",
+    "pydantic",
     "pydantic-settings",
-    "swagger-ui-py-x",
     "python-dotenv",
-    "granian",
-    "requests",
-    "setuptools",
-    "heroicons[jinja]>=2.11.0",
+    "langcodes"
 ]
 dynamic = ["version"]
 
 [tool.setuptools]
-packages = ["frontend"]
+packages = ["models"]
 
 [build-system]
 requires = [
@@ -46,7 +37,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock"]
+dev = ["ruff", "pytest", "wheel"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -68,11 +59,3 @@ disable = """
     missing-class-docstring,
     missing-function-docstring
 """
-
-[tool.mypy]
-explicit_package_bases = true
-namespace-packages = true
-exclude = [
-    '__main__.py',
-    'tests/'
-]

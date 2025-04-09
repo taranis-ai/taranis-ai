@@ -134,13 +134,6 @@ pnpm install
 pnpm run dev
 ```
 
-## Optionally start scheduler frontend ([another repository](https://github.com/taranis-ai/taranis-scheduler)) in tmux
-
-```bash
-cd /path/to/taranis-scheduler # your taranis-scheduler directory
-./start_dev.sh
-```
-
 Taranis AI should be reachable on _local.taranis.ai_.
 
 
@@ -148,14 +141,14 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ### Backend
 
-* Python: Used for the core backend services including REST API.
-* Celery: For managing asynchronous tasks and worker processes.
+* Python: Used for the core backend services including [REST API](../src/core/README.md).
+* Celery: For managing asynchronous tasks and [worker processes](../src/worker/README.md).
 
 ### Frontend
 
-* Vue.js: As the primary frontend framework.
-* Vuetify: As a UI library for Vue.js.
-* Vite: For the frontend build tool and development server.
+The admininstration part is served by the [Flask & HTMX REST frontend](../src/frontend/README.md).
+
+The assess & analyze part is served by the [vuejs frontend](../src/gui/README.md).
 
 ### Support Services
 
