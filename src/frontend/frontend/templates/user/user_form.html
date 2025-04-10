@@ -56,7 +56,7 @@
     {% endif -%}
     </div>
 
-    <form id="user-form" class="w-1/2 ml-[10%]" {{ form_action(endpoint="admin.edit_user", item_name="user_id", item_id=user.id) }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    <form id="user-form" class="w-1/2 ml-[10%]" {{ form_action(endpoint= ("admin.users" if create else "admin.edit_user"), item_name="user_id", item_id=user.id) }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error -%}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif -%}
