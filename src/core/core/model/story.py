@@ -32,7 +32,7 @@ class Story(BaseModel):
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
-    cybersecurity: Mapped[str] = db.Column(db.String(), default=None)
+    cybersecurity: Mapped[str] = db.Column(db.String(10), default=None)
 
     likes: Mapped[int] = db.Column(db.Integer, default=0)
     dislikes: Mapped[int] = db.Column(db.Integer, default=0)
