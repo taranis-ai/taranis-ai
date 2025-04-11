@@ -122,7 +122,9 @@ class NewsItem(BaseModel):
         return next((attr.value for attr in self.attributes if attr.key == "sentiment_category"), "")
 
     def get_cybersecurity_status(self) -> bool:
-        return next((attr.value for attr in self.attributes if attr.key == "cybersecurity"), "")
+        return next((attr.value for attr in self.attributes if attr.key == "cybersecurity_human"), None) or next(
+            (attr.value for attr in self.attributes if attr.key == "cybersecurity_bot"), ""
+        )
 
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""
@@ -182,7 +184,7 @@ class NewsItem(BaseModel):
                 attr_index = [attr.key for attr in news_item.attributes].index(attribute.key)
                 news_item.attributes[attr_index] = attribute
         db.session.commit()
-        return {"message": "Attributes updated"}, 200
+        return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def get_tlp(self) -> str | None:
         return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
