@@ -44,6 +44,7 @@ class User(BaseModel):
             "compact_view": False,
             "show_charts": False,
             "infinite_scroll": True,
+            "advanced_story_options": False,
             "end_of_shift": {"hours": 18, "minutes": 0},
             "language": "en",
         }
