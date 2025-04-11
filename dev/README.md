@@ -47,6 +47,11 @@ cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
 ```
 
+Copy env.sample to frontend
+```bash
+cp src/frontend/env.sample src/frontend/.env
+```
+
 Create a correct `config.local.json` file for gui
 
 ```bash
