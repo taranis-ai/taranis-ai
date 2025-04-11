@@ -802,7 +802,7 @@ class Story(BaseModel):
 
         if set(cybersecurity_status_list) == {"yes"}:
             self.cybersecurity = "yes"
-        elif len(set(cybersecurity_status_list)) != 1:
+        elif set(cybersecurity_status_list) == {"yes", "no"}:
             self.cybersecurity = "mixed"
         elif set(cybersecurity_status_list) == {"no"}:
             self.cybersecurity = "no"
