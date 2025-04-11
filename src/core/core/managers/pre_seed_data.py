@@ -326,6 +326,8 @@ bots = [
     },
 ]
 
+# ADD NEW REPORT TYPE AT THE END OF THE LIST.
+# At the moment, the report types are implicitly referenced by the product types.
 report_types = [
     {
         "title": "OSINT Report",
