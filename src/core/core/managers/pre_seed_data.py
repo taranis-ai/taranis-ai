@@ -330,7 +330,6 @@ bots = [
 # At the moment, the report types are implicitly referenced by the product types.
 report_types = [
     {
-        "id": 1,
         "title": "OSINT Report",
         "description": "Example OSINT Report provided by Taranis AI",
         "attribute_groups": [
@@ -362,7 +361,6 @@ report_types = [
         ],
     },
     {
-        "id": 2,
         "title": "Disinformation",
         "description": "Example Disinformation Report provided by Taranis AI",
         "attribute_groups": [
@@ -392,7 +390,6 @@ report_types = [
         ],
     },
     {
-        "id": 3,
         "title": "Vulnerability Report",
         "description": "Example Vulnerability Report provided by Taranis AI",
         "attribute_groups": [
@@ -485,7 +482,6 @@ report_types = [
         ],
     },
     {
-        "id": 4,
         "title": "CERT Report",
         "description": "Example CERT Report provided by Taranis AI",
         "attribute_groups": [
