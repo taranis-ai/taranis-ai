@@ -40,8 +40,8 @@ class CyberSecClassifierBot(BaseBot):
                 if self.core_api.update_news_item_attributes(
                     news_item_id,
                     [
-                        {"key": "cybersecurity", "value": news_item_cybersecurity_status},
-                        {"key": "cybersecurity_score", "value": str(class_result.get("cybersecurity", "N/A"))},
+                        {"key": "cybersecurity_bot", "value": news_item_cybersecurity_status},
+                        {"key": "cybersecurity_bot_score", "value": str(class_result.get("cybersecurity", "N/A"))},
                     ],
                 ):
                     logger.debug(f"Successfully updated news item {news_item_id} with cybersecurity attributes.")
