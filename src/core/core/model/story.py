@@ -32,7 +32,7 @@ class Story(BaseModel):
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
-    cybersecurity: Mapped[str] = db.Column(db.String(10), default=None)
+    cybersecurity: Mapped[str] = db.Column(db.String(10), default="none")
 
     likes: Mapped[int] = db.Column(db.Integer, default=0)
     dislikes: Mapped[int] = db.Column(db.Integer, default=0)
@@ -807,7 +807,7 @@ class Story(BaseModel):
         elif set(cybersecurity_status_list) == {"no"}:
             self.cybersecurity = "no"
         else:
-            self.cybersecurity = None
+            self.cybersecurity = "none"
 
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
