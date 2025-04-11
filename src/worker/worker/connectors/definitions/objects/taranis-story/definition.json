@@ -1,0 +1,83 @@
+{
+
+    "attributes": {
+        "comments": {
+            "description": "User comments for the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "created": {
+            "description": "Creation date/time of the story",
+            "misp-attribute": "datetime",
+            "ui-priority": 0
+        },
+        "description": {
+            "description": "Longer descriptive text of the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "dislikes": {
+            "description": "Count of dislikes (integer)",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "id": {
+            "description": "Unique identifier of the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "important": {
+            "description": "Flag indicating importance",
+            "misp-attribute": "boolean",
+            "ui-priority": 0
+        },
+        "likes": {
+            "description": "Count of likes (integer)",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "links": {
+            "description": "One or more links associated with the story",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        },
+        "read": {
+            "description": "Flag indicating if the story was read",
+            "misp-attribute": "boolean",
+            "ui-priority": 0
+        },
+        "relevance": {
+            "description": "Relevance score or level (integer)",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "summary": {
+            "description": "Short summary of the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "tags": {
+            "description": "Tags or labels for the story",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        },
+        "title": {
+            "description": "Title of the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "attributes":{
+            "description": "Attributes of the story",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        }
+    },
+    "name": "Taranis AI Story",
+    "uuid": "a2716df6-920b-4c4e-85f7-79a009476f3d",
+    "description": "An object describing a story item from Taranis or similar source",
+    "meta-category": "misc",
+    "version": 1
+}

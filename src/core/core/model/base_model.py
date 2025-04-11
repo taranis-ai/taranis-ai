@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime
 from enum import Enum
@@ -160,3 +161,9 @@ class BaseModel(db.Model):
     def get_count(cls: Type[T]) -> int:
         count_query = db.select(func.count()).select_from(cls)
         return db.session.execute(count_query).scalar() or 0
+
+    def is_valid_base64(self, s) -> bytes | None:
+        try:
+            return base64.b64decode(s, validate=True)
+        except Exception:
+            return None

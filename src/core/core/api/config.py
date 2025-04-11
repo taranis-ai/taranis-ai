@@ -16,6 +16,7 @@ from core.model import (
     publisher_preset,
     organization,
     osint_source,
+    connector,
     report_item_type,
     role,
     role_based_access,
@@ -398,6 +399,60 @@ class RefreshInterval(MethodView):
             return jsonify({"error": "Failed to compute schedule"}), 500
 
 
+class Connectors(MethodView):
+    @auth_required("CONFIG_CONNECTOR_ACCESS")
+    @extract_args("search")
+    def get(self, connector_id=None, filter_args=None):
+        if connector_id:
+            return connector.Connector.get_for_api(connector_id)
+        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+
+    @auth_required("CONFIG_CONNECTOR_CREATE")
+    def post(self):
+        if source := connector.Connector.add(request.json):
+            return {"id": source.id, "message": "Connector created successfully"}, 201
+        return {"error": "Connector could not be created"}, 400
+
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def put(self, connector_id: str):
+        if not (update_data := request.json):
+            return {"error": "No update data passed"}, 400
+        try:
+            if source := connector.Connector.update(connector_id, update_data):
+                return {"message": f"OSINT Source {source.name} updated", "id": f"{connector_id}"}, 200
+        except ValueError as e:
+            return {"error": str(e)}, 500
+        return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
+
+    @auth_required("CONFIG_CONNECTOR_DELETE")
+    def delete(self, connector_id: str):
+        force = request.args.get("force", default=False, type=bool)
+        if not force and NewsItemService.has_related_news_items(connector_id):
+            return {
+                "error": f"""OSINT Source with ID: {connector_id} has related News Items.
+                To delete this item and all related News Items, set the 'force' flag."""
+            }, 409
+
+        return osint_source.OSINTSource.delete(connector_id, force=force)
+
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def patch(self, source_id: str):
+        state = request.args.get("state", default="enabled", type=str)
+        return osint_source.OSINTSource.toggle_state(source_id, state)
+
+
+class ConnectorsPull(MethodView):
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def post(self, connector_id):
+        """Trigger collection of stories from the external system."""
+        try:
+            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
+
+            return {"message": "Stories successfully collected.", "data": collected_stories}, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search")
@@ -687,5 +742,8 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
     config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
+    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))
 
     app.register_blueprint(config_bp)

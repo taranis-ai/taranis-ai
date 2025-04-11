@@ -77,7 +77,7 @@
             :prepend-icon="button.icon"
             class="main-menu-btn"
           >
-            <span class="main-menu-item"> {{ $t(button.title) }} </span>
+            <span class="main-menu-item">{{ $t(button.title) }}</span>
           </v-btn>
         </div>
         <user-menu />

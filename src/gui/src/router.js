@@ -142,6 +142,17 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
+      path: '/connectors',
+      name: 'connector-user-access',
+      components: {
+        default: () => import('@/views/users/ConflictsView.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONNECTOR_USER_ACCESS
+      }
+    },
+    {
       path: '/cluster/:cluster',
       name: 'cluster',
       props: true,
@@ -292,6 +303,18 @@ export const router = createRouter({
       meta: {
         requiresAuth: true,
         requiresPerm: Permissions.CONFIG_BOT_ACCESS
+      }
+    },
+    {
+      path: '/config/connectors',
+      name: 'connectors',
+      components: {
+        default: () => import('@/views/admin/ConnectorsView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_CONNECTOR_ACCESS
       }
     },
     {
