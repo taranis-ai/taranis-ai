@@ -149,14 +149,11 @@
           Classify Cybersecurity
         </v-btn>
         <v-chip
-          :key="cybersecurityStatus"
-          :class="getCybersecurityClass(cybersecurityStatus)"
+          :key="storyCyberSecStatus"
+          :class="getChipCybersecurityClass(storyCyberSecStatus)"
           label
         >
-          {{
-            cybersecurityStatus.charAt(0).toUpperCase() +
-            cybersecurityStatus.slice(1)
-          }}
+          {{ storyCyberSecStatus }}
         </v-chip>
       </v-col>
     </v-row>
@@ -178,7 +175,7 @@
             >{{ news_item.content }}</router-link
           >
         </template>
-        <v-row class="mb-2" align="center">
+        <v-row class="mb-2 px-4" align="center">
           <v-col cols="2" md="2">
             <div class="d-flex justify-center pt-2">
               <v-btn-toggle
@@ -188,26 +185,16 @@
               >
                 <v-btn
                   value="yes"
-                  :class="
-                    news_item?.attributes &&
-                    getCybersecurityStatus(news_item) === 'yes'
-                      ? 'cybersecurity-active-btn'
-                      : 'inactive-btn'
-                  "
-                  @click="setCyberSecurityStatus(news_item, 'yes')"
+                  :class="getButtonCybersecurityClass(news_item, 'yes')"
+                  @click="setNewsItemCyberSecStatus(news_item, 'yes')"
                 >
                   Cybersecurity
                 </v-btn>
 
                 <v-btn
                   value="no"
-                  :class="
-                    news_item?.attributes &&
-                    getCybersecurityStatus(news_item) === 'no'
-                      ? 'non-cybersecurity-active-btn'
-                      : 'inactive-btn'
-                  "
-                  @click="setCyberSecurityStatus(news_item, 'no')"
+                  :class="getButtonCybersecurityClass(news_item, 'no')"
+                  @click="setNewsItemCyberSecStatus(news_item, 'no')"
                 >
                   Not Cybersecurity
                 </v-btn>
@@ -305,39 +292,61 @@ export default {
       }
     }
 
-    const cybersecurityStatus = computed(() => {
+    function getStoryCyberSecStatus(story) {
       if (!story.value?.news_items) return {}
 
       const counts = story.value.news_items.reduce(
         (acc, newsItem) => {
-          const cybersecurity_status = newsItem.attributes
-            ?.find((attr) => attr.key === 'cybersecurity')
-            ?.value.toLowerCase()
-
-          if (cybersecurity_status === 'yes' || cybersecurity_status === 'no') {
-            acc[cybersecurity_status]++
+          const news_item_status = getNewsItemCyberSecStatus(newsItem)
+          if (['yes_human', 'yes_bot'].includes(news_item_status)) {
+            acc['yes']++
+          } else if (['no_human', 'no_bot'].includes(news_item_status)) {
+            acc['no']++
           }
           return acc
         },
         { yes: 0, no: 0 }
       )
+      if (counts.yes && counts.no) return 'Mixed'
+      if (counts.yes) return 'Yes'
+      if (counts.no) return 'No'
+      return 'Not Classifed'
+    }
 
-      if (counts.yes && counts.no) return 'mixed'
-      if (counts.yes) return 'yes'
-      if (counts.no) return 'no'
-      return 'not classifed'
+    const storyCyberSecStatus = computed(() => {
+      return getStoryCyberSecStatus(story)
     })
 
-    const getCybersecurityClass = (cybersecurity_status) => {
+    const getChipCybersecurityClass = (cybersecurity_status) => {
       switch (cybersecurity_status) {
-        case 'yes':
+        case 'Yes':
           return 'cyber-chip-yes'
-        case 'no':
+        case 'No':
           return 'cyber-chip-no'
-        case 'not classified':
+        case 'Not Classified':
           return 'cyber-chip-not-classified'
         default:
           return ''
+      }
+    }
+
+    const getButtonCybersecurityClass = (news_item, button_type) => {
+      const news_item_status = getNewsItemCyberSecStatus(news_item)
+
+      if (button_type === 'yes') {
+        if (news_item_status === 'yes_human') {
+          return 'cybersecurity-human-btn'
+        } else if (news_item_status === 'yes_bot') {
+          return 'cybersecurity-bot-btn'
+        } else return 'inactive-yes-btn'
+      }
+
+      if (button_type === 'no') {
+        if (news_item_status === 'no_human') {
+          return 'non-cybersecurity-human-btn'
+        } else if (news_item_status === 'no_bot') {
+          return 'non-cybersecurity-bot-btn'
+        } else return 'inactive-no-btn'
       }
     }
 
@@ -439,19 +448,24 @@ export default {
       }
     }
 
-    async function setCyberSecurityStatus(news_item, status) {
+    async function setNewsItemCyberSecStatus(news_item, status) {
       const { valid } = await form.value.validate()
 
       if (!valid) {
         return
       }
 
-      let score = status === 'yes' ? 1.0 : 0.0
+      // check if button should be clickable at all
+      if (
+        news_item?.attributes !== undefined &&
+        news_item.attributes.some(
+          (obj) => obj.key === 'cybersecurity_human' && obj.value === status
+        )
+      ) {
+        return
+      }
 
-      const new_attributes = [
-        { key: 'cybersecurity', value: status },
-        { key: 'cybersecurity_score', value: score }
-      ]
+      const new_attributes = [{ key: 'cybersecurity_human', value: status }]
 
       try {
         if (!Array.isArray(news_item.attributes)) {
@@ -460,27 +474,22 @@ export default {
 
         const updatedKeys = new Set()
 
+        // update attributes directly in browser
         news_item.attributes.forEach((attr) => {
-          if (attr.key === 'cybersecurity') {
+          if (attr.key === 'cybersecurity_human') {
             attr.value = status
-            updatedKeys.add('cybersecurity')
-          }
-          if (attr.key === 'cybersecurity_score') {
-            attr.value = score
-            updatedKeys.add('cybersecurity_score')
+            updatedKeys.add('cybersecurity_human')
           }
         })
 
-        if (!updatedKeys.has('cybersecurity')) {
-          news_item.attributes.push({ key: 'cybersecurity', value: status })
-        }
-        if (!updatedKeys.has('cybersecurity_score')) {
+        if (!updatedKeys.has('cybersecurity_human')) {
           news_item.attributes.push({
-            key: 'cybersecurity_score',
-            value: score
+            key: 'cybersecurity_human',
+            value: status
           })
         }
 
+        // update attributes in DB
         const result = await updateNewsItemAttributes(
           news_item.id,
           new_attributes
@@ -496,18 +505,24 @@ export default {
       }
     }
 
-    function getCybersecurityStatus(news_item) {
+    function getNewsItemCyberSecStatus(news_item) {
       try {
         if (!news_item || !Array.isArray(news_item.attributes)) {
           return null
         }
 
-        const match = news_item.attributes.find(
-          (attr) => attr.key === 'cybersecurity'
+        const human_class = news_item.attributes.find(
+          (attr) => attr.key === 'cybersecurity_human'
         )
-        return match?.value ?? null
+        if (human_class?.value !== undefined)
+          return human_class.value + '_human'
+
+        const bot_class = news_item.attributes.find(
+          (attr) => attr.key === 'cybersecurity_bot'
+        )
+        return bot_class?.value + '_bot' ?? null
       } catch (err) {
-        console.error('Error in getCybersecurityStatus:', err)
+        console.error('Error in getNewsItemCyberSecStatus:', err)
         return null
       }
     }
@@ -539,30 +554,64 @@ export default {
       triggerCyberSecClassifierBot,
       sentimentCounts,
       getSentimentColor,
-      cybersecurityStatus,
-      getCybersecurityClass,
+      getStoryCyberSecStatus,
+      storyCyberSecStatus,
+      getChipCybersecurityClass,
+      getButtonCybersecurityClass,
       filteredStoryAttributes,
       showallattributes,
-      setCyberSecurityStatus,
-      getCybersecurityStatus
+      setNewsItemCyberSecStatus,
+      getNewsItemCyberSecStatus
     }
   }
 }
 </script>
 
 <style scoped>
-.cybersecurity-active-btn {
+.cybersecurity-human-btn {
   background-color: #4caf50 !important;
   color: white !important;
 }
 
-.non-cybersecurity-active-btn {
+.cybersecurity-bot-btn {
+  background-color: #b1f3b3 !important;
+  color: white !important;
+}
+.cybersecurity-bot-btn:hover {
+  background-color: #67c46a !important;
+  color: white !important;
+}
+
+.non-cybersecurity-human-btn {
   background-color: #e42e2e !important;
   color: white !important;
 }
 
-.inactive-btn {
+.non-cybersecurity-bot-btn {
+  background-color: #faaeae !important;
+  color: white !important;
+}
+
+.non-cybersecurity-bot-btn:hover {
+  background-color: #e66363 !important;
+  color: white !important;
+}
+
+.inactive-yes-btn {
   background-color: #f3f3f3 !important;
+  color: #424242 !important;
+}
+.inactive-yes-btn:hover {
+  background-color: #b1f3b3 !important;
+  color: #424242 !important;
+}
+
+.inactive-no-btn {
+  background-color: #f3f3f3 !important;
+  color: #424242 !important;
+}
+.inactive-no-btn:hover {
+  background-color: #faaeae !important;
   color: #424242 !important;
 }
 
