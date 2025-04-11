@@ -14,7 +14,7 @@ from heroicons.jinja import (
 
 
 def handle_unauthorized(e):
-    return redirect(url_for("admin.login"), code=302)
+    return redirect(url_for("base.login"), code=302)
 
 
 class TaranisJSONProvider(DefaultJSONProvider):
