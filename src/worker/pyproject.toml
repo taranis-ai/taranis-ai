@@ -31,13 +31,15 @@ dependencies = [
     "langcodes",
 
     # Publisher
-    "pymisp",
     "paramiko",
     "python-gnupg",
 
     # Presenters
     "weasyprint",
     "jinja2",
+
+    # Connectors
+    "pymisp",
 
     # Bots
     "ioc-finder",

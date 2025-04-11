@@ -39,7 +39,7 @@ def pre_seed():
 
 
 def sync_enums(db_engine: Engine):
-    from core.model.worker import WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from core.model.worker import WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES, CONNECTOR_TYPES
     from core.model.parameter_value import PARAMETER_TYPES
 
     with db_engine.connect() as connection:
@@ -52,6 +52,7 @@ def sync_enums(db_engine: Engine):
         sync_enum_with_db(enum_type=PRESENTER_TYPES, connection=connection, table_column="product_type.type")
         sync_enum_with_db(enum_type=PUBLISHER_TYPES, connection=connection, table_column="publisher_preset.type")
         sync_enum_with_db(enum_type=PARAMETER_TYPES, connection=connection, table_column="parameter_value.type")
+        sync_enum_with_db(enum_type=CONNECTOR_TYPES, connection=connection, table_column="connector.type")
 
 
 def pre_seed_update(db_engine: Engine):
@@ -62,7 +63,6 @@ def pre_seed_update(db_engine: Engine):
 
     pre_seed_source_groups()
     pre_seed_manual_source()
-    sync_enums(db_engine)
     migrate_refresh_intervals()
 
     for w in workers:

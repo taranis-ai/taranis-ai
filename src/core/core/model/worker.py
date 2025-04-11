@@ -15,6 +15,7 @@ class COLLECTOR_TYPES(StrEnum):
     TWITTER_COLLECTOR = auto()
     SIMPLE_WEB_COLLECTOR = auto()
     RT_COLLECTOR = auto()
+    MISP_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
 
 
@@ -52,6 +53,7 @@ class WORKER_TYPES(StrEnum):
     SIMPLE_WEB_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
     RT_COLLECTOR = auto()
+    MISP_COLLECTOR = auto()
     ANALYST_BOT = auto()
     GROUPING_BOT = auto()
     NLP_BOT = auto()
@@ -70,6 +72,11 @@ class WORKER_TYPES(StrEnum):
     EMAIL_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
+    MISP_CONNECTOR = auto()
+
+
+class CONNECTOR_TYPES(StrEnum):
+    MISP_CONNECTOR = auto()
 
 
 class WORKER_CATEGORY(StrEnum):
@@ -77,6 +84,7 @@ class WORKER_CATEGORY(StrEnum):
     BOT = auto()
     PRESENTER = auto()
     PUBLISHER = auto()
+    CONNECTOR = auto()
 
 
 class Worker(BaseModel):

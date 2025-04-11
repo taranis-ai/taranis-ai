@@ -95,7 +95,7 @@
           </v-col>
         </v-row>
         <v-dialog v-model="sharingDialog" width="auto">
-          <popup-share-items
+          <popup-share-to-report
             :item-ids="storySelection"
             @close="sharingDialog = false"
           />
@@ -141,7 +141,8 @@
 
 <script>
 import { unGroupNewsItems } from '@/api/assess'
-import PopupShareItems from '@/components/popups/PopupShareItems.vue'
+import PopupShareToReport from '@/components/popups/PopupShareToReport.vue'
+import PopupShareToConnector from '../popups/PopupShareToConnector.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
 import { storeToRefs } from 'pinia'
@@ -150,7 +151,8 @@ import { ref, computed } from 'vue'
 export default {
   name: 'AssessSelectionToolbar',
   components: {
-    PopupShareItems
+    PopupShareToReport,
+    PopupShareToConnector
   },
   setup() {
     const assessStore = useAssessStore()
