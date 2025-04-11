@@ -27,5 +27,10 @@
 {% endmacro %}
 
 {% macro form_action(endpoint, item_name, item_id=0) %}
-hx-{{ "post" if item_id == 0 else "put" }}="{{ url_for(endpoint, **{ item_name: item_id }) }}"
+{% if item_id == 0 %}
+hx-post="{{ url_for(endpoint) }}"
+{% else %}
+hx-put="{{ url_for(endpoint, **{ item_name: item_id }) }}"
+{% endif %}
 {% endmacro %}
+
