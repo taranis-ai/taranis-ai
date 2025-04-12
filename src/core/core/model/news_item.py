@@ -61,6 +61,7 @@ class NewsItem(BaseModel):
         attributes=None,
         id=None,
         last_change="internal",
+        story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
         self.title = title
@@ -78,6 +79,7 @@ class NewsItem(BaseModel):
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
+        self.story_id = story_id
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
