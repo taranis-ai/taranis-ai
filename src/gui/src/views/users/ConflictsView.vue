@@ -54,29 +54,23 @@ const mergedContents = ref({})
 
 function initMergelyForConflict(conflict) {
   const containerId = `#mergely-editor-${conflict.storyId}`
-  const doc = new Mergely(containerId)
+  const doc = new Mergely(containerId, {
+    license: 'gpl',
+    lhs: conflict.original,
+    rhs: conflict.updated
+  })
 
   doc.once('updated', () => {
-    const lhsContent = conflict.original
-    console.log('LHS Content:', lhsContent)
-    const rhsContent = conflict.updated
-    console.log('RHS Content:', rhsContent)
-
-    doc.lhs(lhsContent)
-    doc.rhs(rhsContent)
-
-    doc.once('updated', () => {
-      doc.scrollToDiff('next')
-    })
+    doc.scrollToDiff('next')
   })
 
   conflict.mergelyInstance = doc
 }
-
-function getMergedContentForConflict(storyId) {
+async function getMergedContentForConflict(storyId) {
   const conflict = conflictsStore.conflicts.find((c) => c.storyId === storyId)
   if (conflict && conflict.mergelyInstance) {
-    const merged = conflict.mergelyInstance.get('merged')
+    await nextTick()
+    const merged = conflict.mergelyInstance.get('rhs')
     mergedContents.value[storyId] = merged
   } else {
     console.error(`Mergely instance for story ${storyId} not available`)
@@ -89,10 +83,24 @@ async function submitResolution(storyId) {
     alert('Please get the merged content first.')
     return
   }
+
+  let resolutionData
   try {
-    await conflictsStore.resolveConflictById(storyId, JSON.parse(merged))
+    resolutionData = JSON.parse(merged)
+  } catch (jsonError) {
+    console.error(
+      `Invalid JSON for merged content for story ${storyId}:`,
+      jsonError
+    )
+    alert(`Merged content is not valid JSON for story ${storyId}.`)
+    return
+  }
+
+  try {
+    await conflictsStore.resolveConflictById(storyId, resolutionData)
     alert(`Conflict for story ${storyId} resolved successfully!`)
   } catch (error) {
+    console.error(`Error resolving conflict for story ${storyId}:`, error)
     alert(`Error resolving conflict for story ${storyId}`)
   }
 }

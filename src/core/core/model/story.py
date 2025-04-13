@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 from flask import json
+import json as std_json
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
@@ -1036,16 +1037,24 @@ class StoryConflict:
     story_id: str
     original: str
     updated: str
-    # A class-level store to hold conflicts
     conflict_store = {}
 
-    def resolve(self, resolution: dict[str, Any]) -> dict[str, Any]:
-        """
-        Applies the resolution changes to the updated data.
-        This example simply updates the updated dict with the resolution.
-        Customize this logic as needed.
-        """
-        pass
+    def resolve(self, resolution: dict[str, Any], user: User) -> tuple[dict, int]:
+        try:
+            updated_data = std_json.loads(self.updated)
+        except std_json.JSONDecodeError as e:
+            logger.error(f"Failed to parse updated data for story {self.story_id}: {e}")
+            return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400
+
+        updated_data.update(resolution)
+
+        response, code = Story.update(self.story_id, updated_data, user=user, external=True)
+
+        if code == 200:
+            StoryConflict.conflict_store.pop(self.story_id, None)
+            logger.debug(f"Removed conflict for story {self.story_id} after successful update.")
+
+        return response, code
 
     @classmethod
     def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
