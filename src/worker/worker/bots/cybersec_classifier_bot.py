@@ -53,7 +53,7 @@ class CyberSecClassifierBot(BaseBot):
                 else:
                     logger.error(f"Failed to update news item {news_item_id} with cybersecurity attributes.")
 
-                story_class_list.append(news_item_cybersecurity_status == "yes")
+                story_class_list.append(news_item_cybersecurity_status)
 
                 num_news_items += 1
 
