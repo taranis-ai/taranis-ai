@@ -69,6 +69,9 @@ class CoreApi:
     def get_osint_source(self, source_id: str) -> dict | None:
         return self.api_get(f"/worker/osint-sources/{source_id}")
 
+    def get_connector_config(self, connector_id: str) -> dict | None:
+        return self.api_get(f"/worker/connectors/{connector_id}")
+
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
@@ -213,11 +216,15 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
-    def add_or_update_story(self, stories):
+    def add_or_update_story(self, story: dict):
+        """
+        Add or update a story.
+        If a story has a conflict flag, you might route it to a separate endpoint.
+        """
         try:
             return self.api_post(
                 url="/worker/stories",
-                json_data=stories,
+                json_data=story,
             )
         except Exception:
             return None

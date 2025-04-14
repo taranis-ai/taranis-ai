@@ -32,6 +32,7 @@ class NewsItem(BaseModel):
     language: Mapped[str] = db.Column(db.String())
     content: Mapped[str] = db.Column(db.String())
     collected: Mapped[datetime] = db.Column(db.DateTime)
+    last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
     updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
 
@@ -59,6 +60,7 @@ class NewsItem(BaseModel):
         hash: str | None = None,
         attributes=None,
         id=None,
+        last_change="internal",
     ):
         self.id = id or str(uuid.uuid4())
         self.title = title
@@ -72,6 +74,7 @@ class NewsItem(BaseModel):
         self.link = link
         self.author = author
         self.language = language
+        self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
@@ -164,6 +167,7 @@ class NewsItem(BaseModel):
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
+        news_item.last_change = "internal"
         db.session.commit()
         return {"message": "Language updated"}, 200
 
@@ -183,6 +187,8 @@ class NewsItem(BaseModel):
             else:
                 attr_index = [attr.key for attr in news_item.attributes].index(attribute.key)
                 news_item.attributes[attr_index] = attribute
+
+        news_item.last_change = "internal"
         db.session.commit()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
@@ -211,6 +217,7 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
+        self.last_change = "internal"
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 

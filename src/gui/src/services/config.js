@@ -12,7 +12,7 @@ export async function getLocalConfig() {
     const response = await axios.get(configJson, {
       baseURL: import.meta.env.BASE_URL
     })
-    return response.data
+    return JSON.parse(JSON.stringify(response.data))
   } catch (error) {
     if (error.response && error.response.status === 404) {
       console.error('Config file not found')

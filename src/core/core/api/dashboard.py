@@ -23,13 +23,17 @@ class Dashboard(MethodView):
         latest_collected = NewsItem.latest_collected()
         schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
         return {
-            "total_news_items": total_news_items,
-            "total_products": total_products,
-            "report_items_completed": report_items_completed,
-            "report_items_in_progress": report_items_in_progress,
-            "total_database_items": total_database_items,
-            "latest_collected": latest_collected,
-            "schedule_length": schedule_length,
+            "items": [
+                {
+                    "total_news_items": total_news_items,
+                    "total_products": total_products,
+                    "report_items_completed": report_items_completed,
+                    "report_items_in_progress": report_items_in_progress,
+                    "total_database_items": total_database_items,
+                    "latest_collected": latest_collected,
+                    "schedule_length": schedule_length,
+                }
+            ]
         }, 200
 
 

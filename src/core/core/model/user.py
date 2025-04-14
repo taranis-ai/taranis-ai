@@ -175,7 +175,6 @@ class User(BaseModel):
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:
-        logger.debug(f"Exporting users: {user_ids}")
         query = db.select(cls)
         if user_ids:
             query = query.filter(cls.id.in_(user_ids))
@@ -186,7 +185,6 @@ class User(BaseModel):
 
     @classmethod
     def import_users(cls, user_list: list) -> list:
-        logger.debug(f"Importing users: {user_list}")
         result = []
         for user in user_list:
             if cls.find_by_name(user["username"]):

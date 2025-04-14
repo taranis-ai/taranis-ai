@@ -25,11 +25,12 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 ## Services
 
-| Type      | Name      | Description                           |
-| :-------- | :-------- | :------------------------------------ |
-| Backend   | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
-| Frontend  | gui       | Vuejs3 based Frontend |
-| Worker    | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
+| Type       | Name      | Description                           |
+| :--------- | :-------- | :------------------------------------ |
+| Entrypoint | gui       | Nginx serving static assets and Vuejs3 based Frontend |
+| Frontend   | frontend  | Flask, HTMX & tailwindcss based REST frontend |
+| Backend    | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
+| Worker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
 
 ### Support services
 
@@ -38,7 +39,6 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
 | SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
-| Scheduler       | scheduler            | [taranis-scheduler](https://github.com/taranis-ai/taranis-scheduler) |
 
 ## Features
 
@@ -64,7 +64,9 @@ Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
 
 * src/ - Taranis AI source code:
   * [core](src/core/) is the REST API, the central component of Taranis AI
-  * [gui](src/gui/) is the web user interface
+  * [gui](src/gui/) vuejs part of the web user interface
+  * [frontend](src/frontend/) flask & htmx part of the web user interface
+  * [models](src/models/) pydantic models for validating inputs and outputs
   * [worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
 * [docker/](docker/) - Support files for Docker image creation and example docker-compose file
 

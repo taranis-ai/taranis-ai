@@ -1,0 +1,59 @@
+
+
+<div class="p-5">
+  <form id="form" hx-trigger="submit" hx-post="{{ url_for('admin.import_users') }}" hx-target="#result" enctype="multipart/form-data">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="label">
+          <span class="label-text">Select JSON File</span>
+        </label>
+        <input
+          type="file"
+          name="file"
+          accept="application/json"
+          class="file-input file-input-bordered w-full"
+          required
+        />
+      </div>
+
+      <div>
+        <label class="label">
+          <span class="label-text">Organization</span>
+        </label>
+        <select name="organization" class="select select-bordered w-full"  required>
+          <option disabled value="">Select Organization</option>
+          {% for org in organizations %}
+            <option value="{{ org.id }}">{{ org.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto mt-5">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for role in roles %}
+            <tr>
+              <td>
+                <input type="checkbox" name="roles[]" value="{{ role.id }}" />
+              </td>
+              <td>{{ role.name }}</td>
+              <td>{{ role.description }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <button type="submit" class="btn btn-success w-full mt-5">Submit</button>
+  </form>
+
+  <div id="result" class="mt-5"></div>
+</div>
+

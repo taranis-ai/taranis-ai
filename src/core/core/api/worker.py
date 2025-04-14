@@ -5,6 +5,7 @@ from werkzeug.datastructures import FileStorage
 from core.managers.auth_manager import api_key_required
 from core.log import logger
 from core.managers import queue_manager
+from core.model.connector import Connector
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
 from core.model.product_type import ProductType
@@ -222,6 +223,14 @@ class WordLists(MethodView):
         return {"error": "Unable to import"}, 400
 
 
+class Connectors(MethodView):
+    @api_key_required
+    def get(self, connector_id: str):
+        if connector := Connector.get(connector_id):
+            return connector.to_dict(), 200
+        return {"error": f"Connector with id {connector_id} not found"}, 404
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
@@ -231,6 +240,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
+    worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))

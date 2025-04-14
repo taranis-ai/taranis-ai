@@ -1,0 +1,76 @@
+{
+    "attributes": {
+        "title": {
+            "description": "Title of the Taranis news item",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "link": {
+            "description": "URL address to the Taranis news item source.",
+            "misp-attribute": "link",
+            "ui-priority": 0
+        },
+        "content": {
+            "description": "Content of the Taranis news item",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        },
+        "published": {
+            "description": "Publish date of the Taranis news item",
+            "misp-attribute": "datetime",
+            "ui-priority": 0
+        },
+        "author": {
+            "description": "Author(s) of the news item",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        },
+        "collected": {
+            "description": "Date and time when the news item was collected",
+            "misp-attribute": "datetime",
+            "ui-priority": 0
+        },
+        "hash": {
+            "description": "Hash of the news item",
+            "misp-attribute": "sha256",
+            "ui-priority": 0
+        },
+        "id": {
+            "description": "Unique identifier of the Taranis item",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "language": {
+            "description": "Language of the news item",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "osint_source_id": {
+            "description": "OSINT source unique identifier",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "review": {
+            "description": "Review or analysis notes of the news item",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "source": {
+            "description": "Source feed or page that provided the news item",
+            "misp-attribute": "link",
+            "ui-priority": 0
+        },
+        "story_id": {
+            "description": "Unique identifier for the story",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        }
+    },
+    "description": "An object describing a news item from Taranis AI",
+    "meta-category": "misc",
+    "name": "Taranis AI News Item",
+    "uuid": "e4b7e5e3-2c4c-4edf-b9a3-2c2a32844e62",
+    "version": 2
+}
