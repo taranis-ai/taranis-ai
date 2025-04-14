@@ -175,8 +175,8 @@
             >{{ news_item.content }}</router-link
           >
         </template>
-        <v-row class="mb-2 px-4" align="center">
-          <v-col cols="6" md="2">
+        <v-row class="mb-4 px-4" align="center" justify="start" wrap>
+          <v-col cols="2" class="d-flex align-center">
             <div class="d-flex justify-center pt-2">
               <v-btn-toggle
                 v-if="userStore.advanced_story_options"
