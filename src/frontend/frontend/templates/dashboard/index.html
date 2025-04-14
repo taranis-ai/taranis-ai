@@ -4,7 +4,7 @@
 <div class="p-8" id="dashboard">
   <div class="text-3xl font-bold mb-4">Admin Dashboard</div>
 
-  <div class="grid grid-flow-row-dense grid-cols-2 gap-4 pb-4">
+  <div class="grid grid-flow-row-dense grid-cols-3 gap-4 pb-4">
       <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
           <a href="{{ config.TARANIS_CORE_HOST }}/assess" class="underline text-xl">Assess</a>
           <div class="divider"></div>
@@ -23,6 +23,13 @@
               There are <b>{{ data.total_products }}</b> products ready for publications.
           </span>
       </div>
+      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+        <a href="{{ config.TARANIS_CORE_HOST }}/connectors" class="underline text-xl">Connectors</a>
+        <div class="divider"></div>
+        <span class="caption">
+            Here you can find all connectors management tools.
+        </span><br/>
+    </div>
   </div>
 
   <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
