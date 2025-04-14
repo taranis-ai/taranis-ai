@@ -225,7 +225,8 @@ class CoreApi:
                 url="/worker/stories",
                 json_data=story,
             )
-        except Exception:
+        except Exception as e:
+            logger.exception(f"Cannot add or update story. Exception: {e}")
             return None
 
     def store_task_result(self, data) -> dict | None:

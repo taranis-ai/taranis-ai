@@ -22,7 +22,7 @@
               class="mt-2"
               @click="getMergedContentForConflict(conflict.storyId)"
             >
-              Get Merged Content
+              Get Right Side
             </v-btn>
             <v-btn
               color="success"

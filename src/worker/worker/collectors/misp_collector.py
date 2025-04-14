@@ -185,7 +185,9 @@ class MISPCollector(BaseCollector):
                 case "read":
                     story_properties["read"] = bool(int(item.get("value", 0)))
                 case "created":
-                    story_properties["created"] = item.get("value", None)
+                    created_str = item.get("value", "")
+                    created = datetime.datetime.strptime(created_str, "%Y-%m-%dT%H:%M:%S.%f%z") if created_str else datetime.datetime.now()
+                    story_properties["created"] = created.isoformat()
                 case "links":
                     if value := item.get("value", None):
                         story_properties["links"].append(ast.literal_eval(value))
