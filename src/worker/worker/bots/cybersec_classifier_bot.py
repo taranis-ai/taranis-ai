@@ -57,12 +57,14 @@ class CyberSecClassifierBot(BaseBot):
 
                 num_news_items += 1
 
-            if all(story_class_list):
+            if set(story_class_list) == {"yes"}:
                 story_cybersecurity_status = "yes"
-            elif len(set(story_class_list)) != 1:
+            elif set(story_class_list) == {"yes", "no"}:
                 story_cybersecurity_status = "mixed"
-            else:
+            elif set(story_class_list) == {"no"}:
                 story_cybersecurity_status = "no"
+            else:
+                story_cybersecurity_status = "none"
             self.core_api.add_or_update_story({"id": story.get("id", ""), "cybersecurity": story_cybersecurity_status})
 
         return {"message": f"Classified {num_news_items} news_items"}
