@@ -1,5 +1,4 @@
 import { apiService } from '@/main'
-import { parseJsonSourceFileConfigFileContent } from 'typescript'
 
 export function getConflict(storyId) {
   return apiService.get(`/connectors/conflicts/compare/${storyId}`)
