@@ -9,6 +9,5 @@ export function getAllConflicts() {
 }
 
 export function updateStory(storyId, resolutionData) {
-  console.log(resolutionData)
   return apiService.patch(`/assess/connectors/story/${storyId}`, resolutionData)
 }
