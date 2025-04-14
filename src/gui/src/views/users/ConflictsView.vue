@@ -80,7 +80,7 @@ async function getMergedContentForConflict(storyId) {
 async function submitResolution(storyId) {
   const merged = mergedContents.value[storyId]
   if (!merged) {
-    alert('Please get the merged content first.')
+    alert('Please get right side first.')
     return
   }
 

@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
-from flask import json
 import json as std_json
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
@@ -1039,7 +1038,7 @@ class StoryConflict:
     updated: str
     conflict_store = {}
 
-    def resolve(self, resolution: dict[str, Any], user: User) -> tuple[dict, int]:
+    def resolve(self, resolution: dict, user: User) -> tuple[dict, int]:
         try:
             updated_data = std_json.loads(self.updated)
         except std_json.JSONDecodeError as e:
@@ -1069,15 +1068,13 @@ class StoryConflict:
     @classmethod
     def stable_stringify(cls, obj: Any, indent: int = 2, level: int = 0) -> str:
         if obj is None or isinstance(obj, (str, int, float, bool)):
-            return json.dumps(obj)
-
+            return std_json.dumps(obj)
         elif isinstance(obj, list):
             if not obj:
                 return "[]"
             items = [cls.stable_stringify(item, indent, level + 1) for item in obj]
             ind = " " * (indent * (level + 1))
             return "[\n" + ",\n".join(f"{ind}{item}" for item in items) + "\n" + " " * (indent * level) + "]"
-
         elif isinstance(obj, dict):
             if not obj:
                 return "{}"
@@ -1085,10 +1082,9 @@ class StoryConflict:
             for key in sorted(obj.keys()):
                 value = cls.stable_stringify(obj[key], indent, level + 1)
                 ind = " " * (indent * (level + 1))
-                items.append(f"{ind}{json.dumps(key)}: {value}")
+                items.append(f"{ind}{std_json.dumps(key)}: {value}")
             return "{\n" + ",\n".join(items) + "\n" + " " * (indent * level) + "}"
-
-        return json.dumps(obj)
+        return std_json.dumps(obj)
 
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:

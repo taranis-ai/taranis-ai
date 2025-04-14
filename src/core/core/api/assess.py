@@ -243,7 +243,13 @@ class Connectors(MethodView):
             return {"error": "Invalid JSON payload"}, 400
         if not story_id:
             return {"error": "No story_id provided"}, 400
-        response, code = story.StoryConflict.resolve(story_id, request.json, user=current_user)
+
+        conflict = story.StoryConflict.conflict_store.get(story_id)
+        if conflict is None:
+            logger.error(f"No conflict found for story {story_id}")
+            return {"error": "No conflict found", "id": story_id}, 404
+
+        response, code = conflict.resolve(request.json, user=current_user)
         return response, code
 
 
@@ -263,7 +269,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
-    assess_bp.add_url_rule("/connectors/story/<string:item_id>", view_func=Connectors.as_view("connectors"))
+    assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)
