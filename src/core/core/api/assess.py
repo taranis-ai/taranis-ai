@@ -219,7 +219,7 @@ class BotActions(MethodView):
 
 
 class Connectors(MethodView):
-    @auth_required("ASSESS_UPDATE")
+    @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
     def post(self, connector_id):
         """Send stories to an external system."""

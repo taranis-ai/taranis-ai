@@ -203,7 +203,7 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip text="share story to connector">
+      <v-tooltip v-if="hasConnectorPermissions" text="share story to connector">
         <template #activator="{ props }">
           <v-btn
             v-ripple="false"
@@ -352,7 +352,10 @@
             text="create news item and attach to this story"
           />
         </v-list-item>
-        <v-list-item @click.stop="shareToConnectorDialog = true">
+        <v-list-item
+          v-if="hasConnectorPermissions"
+          @click.stop="shareToConnectorDialog = true"
+        >
           <v-icon icon="mdi-monitor-share" />
           <v-tooltip
             activator="parent"
@@ -382,7 +385,11 @@
         @close="sharingToReportDialog = false"
       />
     </v-dialog>
-    <v-dialog v-model="shareToConnectorDialog" width="auto">
+    <v-dialog
+      v-if="hasConnectorPermissions"
+      v-model="shareToConnectorDialog"
+      width="auto"
+    >
       <popup-share-to-connector
         :item-ids="[story.id]"
         @close="shareToConnectorDialog = false"
@@ -398,6 +405,8 @@ import PopupShareToConnector from '@/components/popups/PopupShareToConnector.vue
 import { ref, computed, onDeactivated, onActivated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useUserStore } from '@/stores/UserStore'
+import Permissions from '@/services/auth/permissions'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -428,6 +437,7 @@ export default {
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
     const { newsItemSelection } = storeToRefs(assessStore)
+    const userStore = useUserStore()
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)
     )
@@ -444,6 +454,10 @@ export default {
 
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
+    )
+
+    const hasConnectorPermissions = userStore.hasPermission(
+      Permissions.CONNECTOR_USER_ACCESS
     )
 
     function openCard() {
@@ -505,7 +519,8 @@ export default {
       markAsRead,
       markAsImportant,
       deleteNewsItem,
-      moveSelection
+      moveSelection,
+      hasConnectorPermissions
     }
   }
 }
