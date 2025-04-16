@@ -86,12 +86,14 @@ class Role(BaseModel):
         if name := data.get("name"):
             role.name = name
         role.description = str(data.get("description"))
-        if tlp_level := data.get("tlp_level"):
+        if data.get('tlp_level') == '':
+            role.tlp_level = None
+        elif tlp_level := data.get("tlp_level"):
             role.tlp_level = role.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
         role.permissions = Permission.get_bulk(permissions)
         db.session.commit()
-        return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
+        return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
 
 
 class RolePermission(BaseModel):
