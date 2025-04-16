@@ -5,6 +5,7 @@
     :label="title"
     :items="report_item_stories[reportItemId]"
     :multiple="multiple"
+    :rules="rules"
     closable-chips
     chips
     center-affix
@@ -49,10 +50,12 @@ export default {
       required: true
     },
     readOnly: { type: Boolean, default: false },
-    multiple: { type: Boolean, default: true }
+    multiple: { type: Boolean, default: true },
+    required: { type: Boolean, default: false }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
+    const rules = [(v) => v.length > 0 || 'Required']
     const store = useAnalyzeStore()
 
     const { report_item_stories } = storeToRefs(store)
@@ -74,7 +77,8 @@ export default {
         get: () => selected.value,
         set: updateSelected
       }),
-      report_item_stories
+      report_item_stories,
+      rules
     }
   }
 }
