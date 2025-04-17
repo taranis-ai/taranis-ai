@@ -217,7 +217,6 @@ def report_items(app, test_user):
         report_item3, _ = ReportItem.add(report_item3_data, test_user)
 
         clear_tlp_attr = ReportItemAttribute(attribute_type=AttributeType.TLP, group_title="Summary", value=TLPLevel.CLEAR.value)
-
         red_tlp_attr = ReportItemAttribute(attribute_type=AttributeType.TLP, group_title="Summary", value=TLPLevel.AMBER.value)
 
         report_item1.attributes.append(clear_tlp_attr)

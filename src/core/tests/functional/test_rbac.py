@@ -76,7 +76,7 @@ class TestRBAC:
         assert stories_with_tlp[1] in result_ids
 
         # User has no TLP level -> should see all stories
-        mock_user.get_highest_tlp.return_value = TLPLevel.RED
+        mock_user.get_highest_tlp.return_value = None
         results = RoleBasedAccessService.filter_query_with_tlp(Story.query, mock_user).all()
         result_ids = {story.id for story in results}
         assert stories_with_tlp[0] in result_ids
