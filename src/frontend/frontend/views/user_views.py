@@ -15,26 +15,29 @@ class UserView(BaseView):
     id_key = "user"
     htmx_template = "user/user_form.html"
     default_template = "user/index.html"
+    base_route = "admin.users"
+    edit_route = "admin.edit_user"
 
     @classmethod
-    def get_context(
-        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
-    ):
+    def get_extra_context(cls, user_id: int):
         dpl = DataPersistenceLayer()
-        extra_context = {"organizations": dpl.get_objects(Organization), "roles": dpl.get_objects(Role)}
-        if object_id != 0:
-            extra_context["current_user"] = get_jwt_identity()
-        return super().get_context(object_id, error, form_error, data_obj, extra_context)
+        return {
+            "organizations": dpl.get_objects(Organization),
+            "roles": dpl.get_objects(Role),
+            "current_user": get_jwt_identity(),
+        }
 
 
 def edit_user_view(user_id: int = 0):
     template = UserView.select_template()
-    context = UserView.get_context(user_id)
+    extra_context = UserView.get_extra_context(user_id)
+    context = UserView.get_context(user_id, extra_context=extra_context)
     return render_template(template, **context)
 
 
 def update_user_view(user_id: int = 0):
-    return UserView.update_view(user_id)
+    extra_context = UserView.get_extra_context(user_id)
+    return UserView.update_view(user_id, extra_context=extra_context)
 
 
 def import_users_view(error=None):

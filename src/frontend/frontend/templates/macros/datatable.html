@@ -58,11 +58,24 @@
       return this.pagination.total ? false : true
     },
     toggleSelectAll() {
-      if (this.selectedItems.length === this.items.length) {
-        this.selectedItems = []
+      const allSelected = this.items.every(item => this.selectedItems.includes(item.id));
+      if (allSelected) {
+        this.selectedItems = this.selectedItems.filter(id => !this.items.find(item => item.id === id));
       } else {
-        this.selectedItems = this.items.map(item => item.id)
+        const newIds = this.items.map(item => item.id);
+        this.selectedItems = [...new Set([...this.selectedItems, ...newIds])];
       }
+    },
+    toggleItem(id) {
+      if (this.selectedItems.includes(id)) {
+        this.selectedItems = this.selectedItems.filter(item => item !== id)
+      } else {
+        this.selectedItems.push(id)
+      }
+    },
+    checkAllSelected() {
+      if (this.items.length === 0) return false;
+      return this.items.every(item => this.selectedItems.includes(item.id));
     }
   }">
 <div>
@@ -74,7 +87,7 @@
       <tr>
         {% if selectable %}
         <th>
-          <input type="checkbox" class="checkbox" @click="toggleSelectAll"/>
+          <input type="checkbox" class="checkbox" @click="toggleSelectAll" :checked="checkAllSelected()"/>
         </th>
         {% endif %}
         {% for col in columns %}
@@ -87,7 +100,7 @@
       <tr class="hover:bg-gray-200 text-gray-900 text-xs">
       {% if selectable %}
       <td>
-        <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" x-model="selectedItems" />
+        <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
       </td>
       {% endif %}
 

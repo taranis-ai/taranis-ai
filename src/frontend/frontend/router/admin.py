@@ -74,11 +74,11 @@ class UpdateUser(MethodView):
         return edit_user_view(user_id=user_id)
 
     @auth_required()
-    def put(self, user_id):
+    def put(self, user_id: int):
         return update_user_view(user_id=user_id)
 
     @auth_required()
-    def delete(self, user_id):
+    def delete(self, user_id: int):
         result = DataPersistenceLayer().delete_object(User, user_id)
         return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
 

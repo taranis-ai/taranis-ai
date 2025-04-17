@@ -10,21 +10,22 @@ class RoleView(BaseView):
     id_key = "role"
     htmx_template = "role/role_form.html"
     default_template = "role/index.html"
+    base_route = "admin.roles"
+    edit_route = "admin.edit_role"
 
     @classmethod
-    def get_context(
-        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
-    ):
+    def get_extra_context(cls, object_id: int):
         dpl = DataPersistenceLayer()
-        extra_context = {"permissions": [p.model_dump() for p in dpl.get_objects(Permissions)]}
-        return super().get_context(object_id, error, form_error, data_obj, extra_context)
+        return {"permissions": [p.model_dump() for p in dpl.get_objects(Permissions)]}
 
 
 def edit_role_view(role_id: int = 0):
     template = RoleView.select_template()
-    context = RoleView.get_context(role_id)
+    extra_context = RoleView.get_extra_context(role_id)
+    context = RoleView.get_context(role_id, extra_context=extra_context)
     return render_template(template, **context)
 
 
 def update_role_view(role_id: int = 0):
-    return RoleView.update_view(role_id)
+    extra_context = RoleView.get_extra_context(role_id)
+    return RoleView.update_view(role_id, extra_context=extra_context)
