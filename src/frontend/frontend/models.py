@@ -8,6 +8,7 @@ T = TypeVar("T", bound="TaranisBaseModel")
 
 
 class TLPLevel(StrEnum):
+    EMPTY = ""
     CLEAR = "clear"
     GREEN = "green"
     AMBER_STRICT = "amber+strict"
