@@ -18,6 +18,20 @@ class TLPLevel(StrEnum):
     AMBER = "amber"
     RED = "red"
 
+    def __lt__(self, other):
+        if not isinstance(other, TLPLevel):
+            return NotImplemented
+        return self._sort_order_ < other._sort_order_
+
+    def __le__(self, other):
+        return self == other or self < other
+
+    def __gt__(self, other):
+        return not self <= other
+
+    def __ge__(self, other):
+        return not self < other
+
 
 class Role(BaseModel):
     __tablename__ = "role"
