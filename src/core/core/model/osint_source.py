@@ -111,8 +111,7 @@ class OSINTSource(BaseModel):
         return cls(**data)
 
     def get_tlp_level(self) -> TLPLevel:
-        tlp_level = ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL")
-        if tlp_level:
+        if tlp_level := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
             return TLPLevel(tlp_level)
         return Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
 

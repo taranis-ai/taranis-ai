@@ -16,6 +16,7 @@ from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.osint_source import OSINTSource
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.role import TLPLevel
 
 
 class NewsItem(BaseModel):
@@ -83,7 +84,7 @@ class NewsItem(BaseModel):
         self.attributes = self.load_attributes(attributes or [])
 
     def load_attributes(self, attributes: list[dict]) -> list["NewsItemAttribute"]:
-        if any("TLP" in attribute for attribute in attributes):
+        if any("TLP" in attribute.get("key", "") for attribute in attributes):
             return NewsItemAttribute.load_multiple(attributes)
         attributes.append({"key": "TLP", "value": self.osint_source.get_tlp_level()})
         return NewsItemAttribute.load_multiple(attributes)
@@ -187,8 +188,11 @@ class NewsItem(BaseModel):
         db.session.commit()
         return {"message": "Attributes updated"}, 200
 
-    def get_tlp(self) -> str | None:
-        return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
+    def get_tlp(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.get_tlp_level())
+
+    def get_tlp_level(self) -> str:
+        return self.get_tlp().value
 
     def update_item(self, data) -> tuple[dict, int]:
         if self.source != "manual":

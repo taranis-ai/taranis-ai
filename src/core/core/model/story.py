@@ -887,15 +887,16 @@ class Story(BaseModel):
     def update_tlp(self):
         highest_tlp = self.get_tlp() or TLPLevel.CLEAR
 
-        for news_item in self.news_items:
-            if tlp_level := news_item.get_tlp():
-                highest_tlp = TLPLevel.get_highest_tlp([highest_tlp, TLPLevel(tlp_level)])
+        tlp_levels = [news_item.get_tlp() for news_item in self.news_items]
+        tlp_levels += [self.get_tlp()]
 
-        logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
+        highest_tlp = TLPLevel.get_highest_tlp(tlp_levels)
+
+        logger.debug(f"Updating TLP for Story {self.id} to {highest_tlp}")
         NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
 
     def get_tlp(self) -> TLPLevel:
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

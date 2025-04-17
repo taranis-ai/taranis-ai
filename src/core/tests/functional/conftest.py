@@ -228,7 +228,7 @@ def stories_with_tlp(app, fake_source):
 
         news_items = [
             {
-                "id": "tlp-news-001",
+                "id": "tlp-news-green",
                 "title": "TLP News Item",
                 "content": "This is TLP-related content.",
                 "source": "https://example.com/news/tlp",
@@ -240,7 +240,7 @@ def stories_with_tlp(app, fake_source):
                 "attributes": [{"key": "TLP", "value": TLPLevel.GREEN.value}],
             },
             {
-                "id": "plain-news-002",
+                "id": "tlp-news-clear",
                 "title": "Plain News Item",
                 "content": "This is just a regular news item.",
                 "source": "https://example.com/news/plain",
@@ -250,10 +250,22 @@ def stories_with_tlp(app, fake_source):
                 "review": "Another review",
                 "hash": "plain-news-hash",
             },
+            {
+                "id": "tlp-news-red",
+                "title": "Another TLP News Item",
+                "content": "This is another TLP-related content.",
+                "source": "https://example.com/news/tlp2",
+                "osint_source_id": fake_source,
+                "collected": "2024-01-01T02:00:00",
+                "published": "2024-01-01T02:00:00",
+                "review": "Yet another review",
+                "hash": "tlp-news-hash-2",
+                "attributes": [{"key": "TLP", "value": TLPLevel.RED.value}],
+            },
         ]
 
         result, _ = Story.add_news_items(news_items)
-        yield result.get("story_ids")
+        yield result
 
         StoryNewsItemAttribute.delete_all()
         NewsItemAttribute.delete_all()

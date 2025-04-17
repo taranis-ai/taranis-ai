@@ -46,10 +46,10 @@ class NewsItemAttribute(BaseModel):
 
     @classmethod
     def set_or_update(cls, attributes: list["NewsItemAttribute"], key: str, value: str) -> list["NewsItemAttribute"]:
-        if not (attribute := cls.get_by_key(attributes, key)):
-            attributes.append(cls(key=key, value=value))
-        else:
+        if attribute := cls.get_by_key(attributes, key):
             attribute.value = value
+        else:
+            attributes.append(cls(key=key, value=value))
         return attributes
 
     @classmethod

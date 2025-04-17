@@ -39,11 +39,17 @@ class TLPLevel(StrEnum):
     def get_highest_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
         """
         Get the highest TLP level from a list of TLP levels.
+        If the list is empty, return the default TLP level (CLEAR).
         """
         if not tlp_levels:
             return cls.CLEAR
-        highest_tlp = max(tlp_levels, key=lambda tlp: cls._ACCESSIBLE_NAMES[tlp.name][0])
-        return cls[highest_tlp.name] if highest_tlp in cls._ACCESSIBLE_NAMES else cls.CLEAR
+
+        provided = {tlp.name for tlp in tlp_levels}
+
+        return next(
+            (cls[level_name] for level_name in cls._ACCESSIBLE_NAMES.keys() if level_name in provided),
+            cls.CLEAR,
+        )
 
 
 class Role(BaseModel):
