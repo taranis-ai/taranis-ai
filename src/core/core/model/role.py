@@ -24,13 +24,19 @@ class TLPLevel(StrEnum):
         return self._sort_order_ < other._sort_order_
 
     def __le__(self, other):
-        return self == other or self < other
+        if not isinstance(other, TLPLevel):
+            return NotImplemented
+        return self._sort_order_ <= other._sort_order_
 
     def __gt__(self, other):
-        return not self <= other
+        if not isinstance(other, TLPLevel):
+            return NotImplemented
+        return self._sort_order_ > other._sort_order_
 
     def __ge__(self, other):
-        return not self < other
+        if not isinstance(other, TLPLevel):
+            return NotImplemented
+        return self._sort_order_ >= other._sort_order_
 
 
 class Role(BaseModel):
