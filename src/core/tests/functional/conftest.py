@@ -262,9 +262,7 @@ def stories_with_tlp(app, fake_source):
         ]
 
         result, _ = Story.add_news_items(news_items)
-        story_ids = result.get("story_ids")
-
-        yield story_ids
+        yield result.get("story_ids")
 
         StoryNewsItemAttribute.delete_all()
         NewsItem.delete_all()
