@@ -14,7 +14,9 @@ from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
+from core.model.settings import Settings
 from core.model.worker import COLLECTOR_TYPES, Worker
+from core.model.role import TLPLevel
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 from apscheduler.triggers.cron import CronTrigger
 
@@ -51,7 +53,20 @@ class OSINTSource(BaseModel):
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
 
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = self.load_parameters(parameters)
+
+    def load_parameters(self, parameters) -> list["ParameterValue"]:
+        parsed_parameters = Worker.parse_parameters(self.type, parameters)
+        tlp_level = ParameterValue.find_value_by_parameter(parsed_parameters, "TLP_LEVEL")
+        if not tlp_level:
+            tlp_level = Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
+            # find the TLP_LEVEL parameter and set it to the default value
+            for parameter in parsed_parameters:
+                if parameter.parameter == "TLP_LEVEL":
+                    parameter.value = tlp_level
+                    break
+
+        return parsed_parameters
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -97,6 +112,12 @@ class OSINTSource(BaseModel):
         drop_keys = ["last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
+
+    def get_tlp_level(self) -> TLPLevel:
+        tlp_level = ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL")
+        if tlp_level:
+            return TLPLevel(tlp_level)
+        return Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -152,7 +173,6 @@ class OSINTSource(BaseModel):
     def add(cls, data):
         osint_source = cls.from_dict(data)
         db.session.add(osint_source)
-        OSINTSourceGroup.add_source_to_default(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -421,12 +441,8 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def add_source_to_default(cls, osint_source: OSINTSource):
-        default_group = cls.get_default()
-        if not default_group:
-            default_group = cls(name="Default", default=True)
-            db.session.add(default_group)
-            db.session.commit()
-        default_group.osint_sources.append(osint_source)
+        if default_group := cls.get_default():
+            default_group.osint_sources.append(osint_source)
         db.session.commit()
 
     def to_export_dict(self, source_mapping: dict) -> dict[str, Any]:

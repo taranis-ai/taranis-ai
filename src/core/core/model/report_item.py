@@ -159,7 +159,8 @@ class ReportItem(BaseModel):
         if not report_item.allowed_with_acl(user, True):
             return report_item, 403
 
-        report_item.user_id = user.id
+        if user:
+            report_item.user_id = user.id
         report_item.add_attributes()
 
         db.session.add(report_item)
@@ -190,6 +191,8 @@ class ReportItem(BaseModel):
                     attr["render_data"]["attribute_enums"] = attribute_enum_data
                 if default_value := attribute_group_item.attribute.default_value:
                     attr["render_data"]["default_value"] = default_value
+                if attribute_group_item.attribute.type == AttributeType.TLP:
+                    attr["value"] = "clear"
                 self.attributes.append(ReportItemAttribute(**attr))
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
@@ -342,7 +345,7 @@ class ReportItem(BaseModel):
             report_item.completed = completed
 
         if attributes_data := data.pop("attributes", None):
-            ReportItemAttribute.update_values_from_report(attributes_data)
+            report_item.update_attributes(attributes_data)
 
         story_ids = data.get("story_ids")
         if story_ids is not None:
@@ -356,6 +359,14 @@ class ReportItem(BaseModel):
         logger.debug(f"Updated Report Item {report_item.id}")
 
         return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
+
+    def update_attributes(self, attributes_data: dict, commit=False):
+        for attribute in self.attributes:
+            update_value = attributes_data.get(str(attribute.id), {}).get("value", attribute.value)
+            attribute.value = update_value
+
+        if commit:
+            db.session.commit()
 
     @classmethod
     def delete(cls, report_id: str) -> tuple[dict[str, Any], int]:
@@ -416,13 +427,9 @@ class ReportItemAttribute(BaseModel):
         self.group_title = group_title or ""
 
     @classmethod
-    def update_values_from_report(cls, attribute_data):
-        for attribute_dicts in attribute_data.values():
-            for attribute_id, data in attribute_dicts.items():
-                if report_item_attribute := cls.get(attribute_id):
-                    report_item_attribute.value = data["value"]
-
-        db.session.commit()
+    def find_attribute_by_title(cls, report_item_id, title: str) -> "ReportItemAttribute | None":
+        query = db.select(cls).filter_by(report_item_id=report_item_id, title=title)
+        return cls.get_first(query)
 
     @staticmethod
     def sort(report_item_attribute):

@@ -3,7 +3,7 @@ from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped, relationship
 import contextlib
 from typing import Optional
-from enum import StrEnum
+from enum import StrEnum, nonmember
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -18,25 +18,22 @@ class TLPLevel(StrEnum):
     AMBER = "amber"
     RED = "red"
 
-    def __lt__(self, other):
-        if not isinstance(other, TLPLevel):
-            return NotImplemented
-        return self._sort_order_ < other._sort_order_
+    _ACCESSIBLE_NAMES = nonmember(
+        {
+            "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER": ["AMBER", "GREEN", "CLEAR"],
+            "GREEN": ["GREEN", "CLEAR"],
+            "CLEAR": ["CLEAR"],
+        }
+    )
 
-    def __le__(self, other):
-        if not isinstance(other, TLPLevel):
-            return NotImplemented
-        return self._sort_order_ <= other._sort_order_
-
-    def __gt__(self, other):
-        if not isinstance(other, TLPLevel):
-            return NotImplemented
-        return self._sort_order_ > other._sort_order_
-
-    def __ge__(self, other):
-        if not isinstance(other, TLPLevel):
-            return NotImplemented
-        return self._sort_order_ >= other._sort_order_
+    def get_accessible_levels(self) -> list[str]:
+        """
+        Return the list of TLPLevel members this level can access.
+        """
+        names = type(self)._ACCESSIBLE_NAMES.get(self.name, [])
+        return [type(self)[nm].value for nm in names]
 
 
 class Role(BaseModel):
@@ -45,7 +42,7 @@ class Role(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=True)
+    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=False, default=TLPLevel.CLEAR)
     permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="role_permission", back_populates="roles")
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 

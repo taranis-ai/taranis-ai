@@ -7,7 +7,7 @@ from sqlalchemy.sql.expression import true
 from core.managers.db_manager import db
 from core.model.user import User
 from core.model.role_based_access import RoleBasedAccess, RBACRole
-from core.model.role import TLPLevel
+from core.log import logger
 
 
 @dataclass
@@ -42,16 +42,17 @@ class RoleBasedAccessService:
         from core.model.news_item_attribute import NewsItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
-        if not user_tlp_level or user_tlp_level.value == "red":
+        if user_tlp_level.value == "red":
             return query
+
+        accessible_tlps = user_tlp_level.get_accessible_levels()
+
+        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
 
         tlp_attribute_subquery = (
             select(StoryNewsItemAttribute.story_id)
             .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
-            .filter(
-                NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level])
-            )
-            .subquery()
+            .filter(NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_(accessible_tlps))
         )
 
         return query.filter(Story.id.in_(tlp_attribute_subquery))  # type: ignore
@@ -64,13 +65,13 @@ class RoleBasedAccessService:
         if not user_tlp_level or user_tlp_level.value == "red":
             return query
 
-        tlp_attribute_subquery = (
-            select(ReportItemAttribute.report_item_id)
-            .filter(
-                ReportItemAttribute.attribute_type == AttributeType.TLP,
-                ReportItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level]),
-            )
-            .subquery()
+        accessible_tlps = user_tlp_level.get_accessible_levels()
+
+        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
+
+        tlp_attribute_subquery = select(ReportItemAttribute.report_item_id).filter(
+            ReportItemAttribute.attribute_type == AttributeType.TLP,
+            ReportItemAttribute.value.in_(accessible_tlps),
         )
 
         return query.filter(ReportItem.id.in_(tlp_attribute_subquery))  # type: ignore

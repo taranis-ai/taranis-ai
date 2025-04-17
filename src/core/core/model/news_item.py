@@ -81,7 +81,13 @@ class NewsItem(BaseModel):
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
         self.story_id = story_id
         if attributes:
-            self.attributes = NewsItemAttribute.load_multiple(attributes)
+            self.attributes = self.load_attributes(attributes)
+
+    def load_attributes(self, attributes: list[dict]) -> list["NewsItemAttribute"]:
+        if all(attribute.get("key") != "TLP" for attribute in attributes):
+            # if not, add a default TLP attribute
+            attributes.append({"key": "TLP", "value": self.osint_source.get_tlp_level()})
+        return NewsItemAttribute.load_multiple(attributes)
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
