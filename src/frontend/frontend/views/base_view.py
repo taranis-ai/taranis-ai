@@ -32,9 +32,12 @@ class BaseView:
         return cls.htmx_template if is_htmx_request() else cls.default_template
 
     @classmethod
-    def get_context(
-        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
-    ):
+    def get_extra_context(cls, object_id: int):
+        """Returns any extra context needed for rendering the template."""
+        return {}
+
+    @classmethod
+    def get_context(cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None):
         """Builds the context dictionary, merging in any extra context."""
         dpl = DataPersistenceLayer()
         if object_id == 0:
@@ -45,14 +48,13 @@ class BaseView:
 
         context = {f"{cls.id_key}_id": object_id, "error": error, "form_error": form_error, "form_action": form_action}
 
-        if extra_context:
-            context |= extra_context
+        context |= cls.get_extra_context(object_id)
         if object_id != 0:
             context[cls.id_key] = data_obj or dpl.get_object(cls.model, object_id)
         return context
 
     @classmethod
-    def update_view(cls, object_id: int = 0, extra_context: dict | None = None):
+    def update_view(cls, object_id: int = 0):
         """Generic update view handling form submission."""
         data_obj, error = cls.process_form_data(object_id)
         if error:
@@ -60,5 +62,5 @@ class BaseView:
         if data_obj and not error:
             return Response(status=200, headers={"HX-Redirect": url_for(cls.base_route)})
         template = cls.select_template()
-        context = cls.get_context(object_id, error=error, data_obj=data_obj, extra_context=extra_context)
+        context = cls.get_context(object_id, error=error, data_obj=data_obj)
         return render_template(template, **context)

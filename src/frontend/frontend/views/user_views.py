@@ -19,7 +19,7 @@ class UserView(BaseView):
     edit_route = "admin.edit_user"
 
     @classmethod
-    def get_extra_context(cls, user_id: int):
+    def get_extra_context(cls, object_id: int):
         dpl = DataPersistenceLayer()
         return {
             "organizations": dpl.get_objects(Organization),
@@ -30,14 +30,12 @@ class UserView(BaseView):
 
 def edit_user_view(user_id: int = 0):
     template = UserView.select_template()
-    extra_context = UserView.get_extra_context(user_id)
-    context = UserView.get_context(user_id, extra_context=extra_context)
+    context = UserView.get_context(user_id)
     return render_template(template, **context)
 
 
 def update_user_view(user_id: int = 0):
-    extra_context = UserView.get_extra_context(user_id)
-    return UserView.update_view(user_id, extra_context=extra_context)
+    return UserView.update_view(user_id)
 
 
 def import_users_view(error=None):

@@ -13,7 +13,7 @@ class OrganizationView(BaseView):
 
     @classmethod
     def get_extra_context(cls, object_id: int):
-        pass
+        return {}
 
 
 def edit_organization_view(organization_id: int = 0):
