@@ -80,13 +80,12 @@ class NewsItem(BaseModel):
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
         self.story_id = story_id
-        if attributes:
-            self.attributes = self.load_attributes(attributes)
+        self.attributes = self.load_attributes(attributes or [])
 
     def load_attributes(self, attributes: list[dict]) -> list["NewsItemAttribute"]:
-        if all(attribute.get("key") != "TLP" for attribute in attributes):
-            # if not, add a default TLP attribute
-            attributes.append({"key": "TLP", "value": self.osint_source.get_tlp_level()})
+        if any("TLP" in attribute for attribute in attributes):
+            return NewsItemAttribute.load_multiple(attributes)
+        attributes.append({"key": "TLP", "value": self.osint_source.get_tlp_level()})
         return NewsItemAttribute.load_multiple(attributes)
 
     @classmethod

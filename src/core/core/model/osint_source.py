@@ -57,14 +57,11 @@ class OSINTSource(BaseModel):
 
     def load_parameters(self, parameters) -> list["ParameterValue"]:
         parsed_parameters = Worker.parse_parameters(self.type, parameters)
-        tlp_level = ParameterValue.find_value_by_parameter(parsed_parameters, "TLP_LEVEL")
+        tlp_level = ParameterValue.find_by_parameter(parsed_parameters, "TLP_LEVEL")
         if not tlp_level:
-            tlp_level = Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
-            # find the TLP_LEVEL parameter and set it to the default value
-            for parameter in parsed_parameters:
-                if parameter.parameter == "TLP_LEVEL":
-                    parameter.value = tlp_level
-                    break
+            default_tlp_level = Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
+            tlp_level = ParameterValue("TLP_LEVEL", default_tlp_level, "text")
+            parsed_parameters.append(tlp_level)
 
         return parsed_parameters
 

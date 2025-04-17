@@ -885,16 +885,17 @@ class Story(BaseModel):
         self.created = min(news_item.published for news_item in self.news_items)
 
     def update_tlp(self):
-        highest_tlp = None
+        highest_tlp = self.get_tlp() or TLPLevel.CLEAR
+
         for news_item in self.news_items:
             if tlp_level := news_item.get_tlp():
-                tlp_level_enum = TLPLevel(tlp_level)
-                if highest_tlp is None or tlp_level_enum > highest_tlp:
-                    highest_tlp = tlp_level_enum
+                highest_tlp = TLPLevel.get_highest_tlp([highest_tlp, TLPLevel(tlp_level)])
 
-        if highest_tlp:
-            logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
-            NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+        logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
+        NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+
+    def get_tlp(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -1010,7 +1011,7 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
@@ -1039,7 +1040,7 @@ class StoryConflict:
     # A class-level store to hold conflicts
     conflict_store = {}
 
-    def resolve(self, resolution: dict[str, Any]) -> dict[str, Any]:
+    def resolve(self, resolution: dict[str, Any]):
         """
         Applies the resolution changes to the updated data.
         This example simply updates the updated dict with the resolution.
