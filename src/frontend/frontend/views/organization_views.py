@@ -8,12 +8,12 @@ class OrganizationView(BaseView):
     id_key = "organization"
     htmx_template = "organization/organization_form.html"
     default_template = "organization/index.html"
+    base_route = "admin.organizations"
+    edit_route = "admin.edit_organization"
 
     @classmethod
-    def get_context(
-        cls, object_id: int, error: str | None = None, form_error: str | None = None, data_obj=None, extra_context: dict | None = None
-    ):
-        return super().get_context(object_id, error, form_error, data_obj)
+    def get_extra_context(cls, object_id: int):
+        return {}
 
 
 def edit_organization_view(organization_id: int = 0):
