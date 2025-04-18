@@ -9,58 +9,82 @@
       </v-card-title>
 
       <v-card-text>
-        <div v-if="conflicts.length === 0">
-          <p>No conflicts to resolve.</p>
-        </div>
-        <div v-else>
-          <div
+        <v-alert v-if="!conflicts.length" type="info" outlined elevation="2">
+          No conflicts to resolve.
+        </v-alert>
+
+        <v-expansion-panels
+          v-model="openPanels"
+          multiple
+          @update:modelValue="onPanelsUpdated"
+        >
+          <v-expansion-panel
             v-for="conflict in conflicts"
             :key="conflict.storyId"
-            class="mb-6"
           >
-            <h3>Conflict for Story: {{ conflict.storyId }}</h3>
-            <p>
-              This story has a proposal:
-
-              <strong v-if="conflict.hasProposals">
-                <a
-                  :href="conflict.hasProposals"
-                  target="_blank"
-                  rel="noopener noreferrer"
+            <v-expansion-panel-title>
+              <div class="d-flex justify-space-between align-center w-100">
+                <span>Story ID: {{ conflict.storyId }}</span>
+                <v-chip
+                  v-if="conflict.hasProposals"
+                  small
+                  color="orange"
+                  text-color="white"
+                  outlined
                 >
-                  {{ conflict.hasProposals }}
-                </a>
-              </strong>
-              <span v-else>No</span> <span v-else>No</span>
-            </p>
+                  <a
+                    :href="conflict.hasProposals"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="proposal-link"
+                  >
+                    View Proposal
+                  </a>
+                </v-chip>
+                <v-chip v-else small color="grey" text-color="white" outlined>
+                  No Proposal
+                </v-chip>
+              </div>
+            </v-expansion-panel-title>
 
-            <div
-              :id="'mergely-editor-' + conflict.storyId"
-              style="height: 300px"
-            ></div>
+            <v-expansion-panel-text>
+              <div
+                :id="`mergely-editor-${conflict.storyId}`"
+                class="mergely-editor"
+                style="height: 300px"
+              ></div>
 
-            <v-btn
-              color="primary"
-              class="mt-2"
-              @click="getMergedContentForConflict(conflict.storyId)"
-            >
-              Get Right Side
-            </v-btn>
-            <v-btn
-              color="success"
-              class="mt-2 ml-2"
-              @click="submitResolution(conflict.storyId)"
-            >
-              Submit Resolution
-            </v-btn>
+              <div class="mt-4 d-flex">
+                <v-btn
+                  color="primary"
+                  @click="getMergedContentForConflict(conflict.storyId)"
+                >
+                  Get Right Side
+                </v-btn>
+                <v-spacer />
+                <v-btn
+                  color="success"
+                  @click="submitResolution(conflict.storyId)"
+                >
+                  Submit Resolution
+                </v-btn>
+              </div>
 
-            <div v-if="mergedContents[conflict.storyId]">
-              <h4>Merged Content:</h4>
-              <pre>{{ mergedContents[conflict.storyId] }}</pre>
-            </div>
-            <v-divider class="my-4"></v-divider>
-          </div>
-        </div>
+              <v-card
+                v-if="mergedContents[conflict.storyId]"
+                class="mt-4"
+                outlined
+              >
+                <v-card-subtitle>Merged Content</v-card-subtitle>
+                <v-card-text>
+                  <pre class="merged-pre">{{
+                    mergedContents[conflict.storyId]
+                  }}</pre>
+                </v-card-text>
+              </v-card>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
       </v-card-text>
     </v-card>
 
@@ -85,8 +109,10 @@ import 'mergely/lib/mergely.css'
 
 const store = useConflictsStore()
 const { conflicts, proposalCount } = storeToRefs(store)
-const mergedContents = ref({})
 
+const openPanels = ref([])
+const prevPanels = ref([])
+const mergedContents = ref({})
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 const snackbarColor = ref('error')
@@ -99,17 +125,39 @@ function showToast(message, color = 'error') {
 
 function initMergelyForConflict(conflict) {
   const containerId = `#mergely-editor-${conflict.storyId}`
-  const doc = new Mergely(containerId, {
-    license: 'gpl',
-    lhs: conflict.original,
-    rhs: conflict.updated
-  })
+  const el = document.querySelector(containerId)
 
-  doc.once('updated', () => {
-    doc.scrollToDiff('next')
-  })
+  if (!el) {
+    console.warn(`Mergely container not found for ${conflict.storyId}`)
+    return
+  }
 
-  conflict.mergelyInstance = doc
+  try {
+    const doc = new Mergely(containerId, {
+      license: 'gpl',
+      lhs: conflict.original,
+      rhs: conflict.updated
+    })
+
+    doc.once('updated', () => {
+      doc.scrollToDiff('next')
+    })
+
+    conflict.mergelyInstance = doc
+  } catch (err) {
+    console.error(`Failed to init Mergely for ${conflict.storyId}`, err)
+  }
+}
+
+function destroyMergely(conflict) {
+  if (conflict?.mergelyInstance?.remove) {
+    try {
+      conflict.mergelyInstance.remove()
+    } catch (err) {
+      console.warn(`Failed to remove Mergely for ${conflict.storyId}`, err)
+    }
+    conflict.mergelyInstance = null
+  }
 }
 
 async function getMergedContentForConflict(storyId) {
@@ -137,10 +185,42 @@ async function submitResolution(storyId) {
   }
 }
 
+function onPanelsUpdated(panels) {
+  prevPanels.value
+    .filter((i) => !panels.includes(i))
+    .forEach((index) => {
+      const conflict = conflicts.value[index]
+      if (conflict) destroyMergely(conflict)
+    })
+
+  panels
+    .filter((i) => !prevPanels.value.includes(i))
+    .forEach((index) => {
+      const conflict = conflicts.value[index]
+      if (conflict) {
+        nextTick(() => initMergelyForConflict(conflict))
+      }
+    })
+
+  prevPanels.value = [...panels]
+}
+
 onMounted(async () => {
   await store.loadConflicts()
   await store.fetchProposalCount()
-  await nextTick()
-  conflicts.value.forEach(initMergelyForConflict)
 })
 </script>
+
+<style scoped>
+.mergely-editor {
+  border: 1px solid #ccc;
+}
+.merged-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.proposal-link {
+  color: inherit;
+  text-decoration: none;
+}
+</style>
