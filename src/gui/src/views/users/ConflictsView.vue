@@ -40,6 +40,16 @@
         </div>
       </v-card-text>
     </v-card>
+
+    <v-snackbar
+      v-model="snackbar"
+      :timeout="3000"
+      :color="snackbarColor"
+      top
+      right
+    >
+      {{ snackbarMessage }}
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -51,6 +61,16 @@ import 'mergely/lib/mergely.css'
 
 const conflictsStore = useConflictsStore()
 const mergedContents = ref({})
+
+const snackbar = ref(false)
+const snackbarMessage = ref('')
+const snackbarColor = ref('error')
+
+function showToast(message, color = 'error') {
+  snackbarMessage.value = message
+  snackbarColor.value = color
+  snackbar.value = true
+}
 
 function initMergelyForConflict(conflict) {
   const containerId = `#mergely-editor-${conflict.storyId}`
@@ -66,6 +86,7 @@ function initMergelyForConflict(conflict) {
 
   conflict.mergelyInstance = doc
 }
+
 async function getMergedContentForConflict(storyId) {
   const conflict = conflictsStore.conflicts.find((c) => c.storyId === storyId)
   if (conflict && conflict.mergelyInstance) {
@@ -74,13 +95,14 @@ async function getMergedContentForConflict(storyId) {
     mergedContents.value[storyId] = merged
   } else {
     console.error(`Mergely instance for story ${storyId} not available`)
+    showToast(`Editor not loaded for story ${storyId}.`, 'error')
   }
 }
 
 async function submitResolution(storyId) {
   const merged = mergedContents.value[storyId]
   if (!merged) {
-    alert('Please get right side first.')
+    showToast('Please get the right side first.', 'error')
     return
   }
 
@@ -92,16 +114,16 @@ async function submitResolution(storyId) {
       `Invalid JSON for merged content for story ${storyId}:`,
       jsonError
     )
-    alert(`Merged content is not valid JSON for story ${storyId}.`)
+    showToast(`Merged content is not valid JSON for story ${storyId}.`, 'error')
     return
   }
 
   try {
     await conflictsStore.resolveConflictById(storyId, resolutionData)
-    alert(`Conflict for story ${storyId} resolved successfully!`)
+    showToast(`Conflict for story ${storyId} resolved successfully!`, 'success')
   } catch (error) {
     console.error(`Error resolving conflict for story ${storyId}:`, error)
-    alert(`Error resolving conflict for story ${storyId}`)
+    showToast(`Error resolving conflict for story ${storyId}.`, 'error')
   }
 }
 
@@ -114,10 +136,7 @@ onMounted(async () => {
     })
   } catch (err) {
     console.error('Initialization error:', err)
+    showToast('Failed to load conflicts.', 'error')
   }
 })
 </script>
-
-<style scoped>
-/* Component-specific styling if needed */
-</style>
