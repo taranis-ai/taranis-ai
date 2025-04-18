@@ -174,12 +174,13 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def check_attributes_table(table_locator: Locator, expected_rows: list[list[str]]):
             rows = table_locator.locator("table tbody tr")
-            count = rows.count()
+            actual_rows = []
 
-            actual_rows = [
-                [(rows.nth(i).locator("td").nth(j).locator("input").get_attribute("value") or "").strip() for j in range(2)]
-                for i in range(count)
-            ]
+            for i in range(rows.count()):
+                row = rows.nth(i)
+                cells = row.locator("td")
+                actual_row = [(cells.nth(j).locator("input").get_attribute("value") or "").strip() for j in range(2)]
+                actual_rows.append(actual_row)
 
             assert sorted(actual_rows) == sorted(expected_rows)
 
