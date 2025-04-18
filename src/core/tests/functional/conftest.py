@@ -268,3 +268,17 @@ def stories_with_tlp(app, fake_source):
         NewsItem.delete_all()
         NewsItemAttribute.delete_all()
         Story.delete_all()
+
+
+@pytest.fixture(scope="class")
+def full_story(fake_source):
+    import os
+    import json
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    story_json = os.path.join(dir_path, "../test_data/story_list.json")
+    with open(story_json) as f:
+        story = json.load(f)
+        story[0].get("news_items")[0].pop("updated")
+        story[0].get("news_items")[0]["osint_source_id"] = fake_source
+        yield story

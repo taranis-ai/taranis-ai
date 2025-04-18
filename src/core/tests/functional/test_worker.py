@@ -1,6 +1,19 @@
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_worker_create_full_story(self, client, full_story: list[dict], api_header):
+        response = client.post(
+            f"{self.base_uri}/stories",
+            json=full_story[0],
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        result = response.get_json()
+        assert result.get("message") == "Story added successfully"
+        assert result.get("news_item_ids")[0] == full_story[0].get("news_items", [])[0].get("id", "<news_item_id>")
+        assert result.get("story_id", "t<story_id>") == full_story[0].get("id")
+
     def test_worker_story_update(self, client, stories, cleanup_story_update_data, api_header):
         """
         This test queries the story update authenticated.
