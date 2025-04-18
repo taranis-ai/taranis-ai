@@ -87,7 +87,11 @@ class BaseWebCollector(BaseCollector):
         self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
-        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
+        self.proxies = {
+            "http": proxy_server,
+            "https": proxy_server,
+            "ftp": proxy_server,
+        }
 
     def update_headers(self, headers: str):
         try:
@@ -187,10 +191,24 @@ class BaseWebCollector(BaseCollector):
             content = extract(web_content, url=web_url)
 
         if not content or not web_content:
-            return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
+            return {
+                "author": "",
+                "title": "",
+                "content": "",
+                "published_date": None,
+                "language": "",
+                "review": "",
+            }
 
         author, title = self.extract_meta(web_content, web_url)
-        return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
+        return {
+            "author": author,
+            "title": title,
+            "content": content,
+            "published_date": published_date,
+            "language": "",
+            "review": "",
+        }
 
     def get_urls(self, collector_url: str, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
