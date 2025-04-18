@@ -62,7 +62,7 @@ class RoleBasedAccessService:
         from core.model.report_item import ReportItem, ReportItemAttribute, AttributeType
 
         user_tlp_level = user.get_highest_tlp()
-        if not user_tlp_level or user_tlp_level.value == "red":
+        if user_tlp_level.value == "red":
             return query
 
         accessible_tlps = user_tlp_level.get_accessible_levels()

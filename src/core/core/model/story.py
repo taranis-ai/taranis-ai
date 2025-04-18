@@ -542,7 +542,7 @@ class Story(BaseModel):
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        story.update_status(external)
+        story.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
@@ -872,7 +872,7 @@ class Story(BaseModel):
             return None
         return sentiment
 
-    def update_status(self, external=False):
+    def update_status(self):
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
@@ -882,7 +882,6 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
-        self.last_change = "external" if external else "internal"
 
     def update_timestamps(self):
         self.updated = datetime.now()

@@ -46,6 +46,8 @@
           <edit-tags v-model="story.tags" class="mt-3" />
           <story-links v-model="story.links" :news-items="story.news_items" />
 
+          <!-- TODO: SHOW META INFO LIKE SENTIMENT AND TLP -->
+
           <attributes-table
             v-model="filteredStoryAttributes"
             :disabled="hasRtId"
@@ -117,16 +119,13 @@
             :title="news_item.title"
             :value="news_item.id"
           >
-            <template #text>
+            <v-expansion-panel-text>
               <router-link
-                :to="{
-                  name: 'newsitem',
-                  params: { itemId: news_item.id }
-                }"
-                class="d-flex fill-height align-center text-decoration-none"
-                >{{ news_item.content }}</router-link
+                :to="{ name: 'newsitem', params: { itemId: news_item.id } }"
               >
-            </template>
+                {{ news_item.content || news_item.title }}
+              </router-link>
+            </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
       </v-card-text>
@@ -226,7 +225,8 @@ export default {
           return (
             Object.prototype.hasOwnProperty.call(attr, 'key') &&
             attr.key !== 'sentiment' &&
-            !attr.key.includes('_BOT_')
+            !attr.key.includes('_BOT_') &&
+            !attr.key === 'TLP'
           )
         })
       },

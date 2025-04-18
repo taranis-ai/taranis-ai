@@ -172,15 +172,14 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.keyboard.press("Control+I")
             self.short_sleep(duration=1)
 
-        def check_attributes_table(table_locator: Locator, expected_rows: list[list]):
+        def check_attributes_table(table_locator: Locator, expected_rows: list[list[str]]):
             rows = table_locator.locator("table tbody tr")
-            actual_rows = []
+            count = rows.count()
 
-            for i in range(rows.count()):
-                row = rows.nth(i)
-                cells = row.locator("td")
-                actual_row = [cells.nth(j).locator("input").get_attribute("value").strip() for j in [0, 1]]
-                actual_rows.append(actual_row)
+            actual_rows = [
+                [(rows.nth(i).locator("td").nth(j).locator("input").get_attribute("value") or "").strip() for j in range(2)]
+                for i in range(count)
+            ]
 
             assert sorted(actual_rows) == sorted(expected_rows)
 
