@@ -53,17 +53,13 @@ class OSINTSource(BaseModel):
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
 
-        self.parameters = self.load_parameters(parameters)
+        self.parameters = Worker.parse_parameters(self.type, parameters)
 
-    def load_parameters(self, parameters) -> list["ParameterValue"]:
-        parsed_parameters = Worker.parse_parameters(self.type, parameters)
-        tlp_level = ParameterValue.find_by_parameter(parsed_parameters, "TLP_LEVEL")
-        if not tlp_level:
-            default_tlp_level = Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
-            tlp_level = ParameterValue("TLP_LEVEL", default_tlp_level, "text")
-            parsed_parameters.append(tlp_level)
-
-        return parsed_parameters
+    @property
+    def tlp_level(self) -> TLPLevel:
+        if value := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
+            return TLPLevel(value)
+        return TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -109,11 +105,6 @@ class OSINTSource(BaseModel):
         drop_keys = ["last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
-
-    def get_tlp_level(self) -> TLPLevel:
-        if tlp_level := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
-            return TLPLevel(tlp_level)
-        return Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

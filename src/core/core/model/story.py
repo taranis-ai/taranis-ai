@@ -44,7 +44,9 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
-    attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    attributes: Mapped[list["NewsItemAttribute"]] = relationship(
+        "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
+    )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
@@ -574,7 +576,7 @@ class Story(BaseModel):
 
         self.attributes = []
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
 
     def patch_attributes(self, attributes: list[dict]):
         """
@@ -584,15 +586,17 @@ class Story(BaseModel):
             attributes (list[dict]): [{"key": "key1", "value": "value1"}].
         """
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
+
+    def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
+        if existing_attribute := self.find_attribute_by_key(attribute.key):
+            existing_attribute.value = attribute.value
+        else:
+            self.attributes.append(attribute)
         db.session.commit()
 
-    def set_atrribute_by_key(self, key, value):
-        if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):
-            attribute = NewsItemAttribute(key=key, value=value)
-            self.attributes.append(attribute)
-        else:
-            attribute.value = value
+    def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
+        return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
@@ -885,17 +889,22 @@ class Story(BaseModel):
         self.created = min(news_item.published for news_item in self.news_items)
 
     def update_tlp(self):
-        highest_tlp = self.get_tlp() or TLPLevel.CLEAR
+        highest_tlp = self.tlp_level or TLPLevel.CLEAR
 
-        tlp_levels = [news_item.get_tlp() for news_item in self.news_items]
-        tlp_levels += [self.get_tlp()]
+        tlp_levels: list[TLPLevel] = []
+        for news_item in self.news_items:
+            if not news_item.tlp_level:
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+            tlp_levels.append(news_item.tlp_level)
+        tlp_levels += [self.tlp_level]
 
         highest_tlp = TLPLevel.get_highest_tlp(tlp_levels)
 
         logger.debug(f"Updating TLP for Story {self.id} to {highest_tlp}")
-        NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+        self.upsert_attribute(NewsItemAttribute(key="TLP", value=highest_tlp))
 
-    def get_tlp(self) -> TLPLevel:
+    @property
+    def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     def to_dict(self) -> dict[str, Any]:
@@ -1012,7 +1021,9 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
+    __tablename__ = "story_news_item_attribute"
+
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )

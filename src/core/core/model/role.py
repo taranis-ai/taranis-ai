@@ -51,6 +51,12 @@ class TLPLevel(StrEnum):
             cls.CLEAR,
         )
 
+    @classmethod
+    def get_tlp_level(cls, tlp_level: str) -> "TLPLevel | None":
+        with contextlib.suppress(ValueError):
+            return TLPLevel(tlp_level)
+        return None
+
 
 class Role(BaseModel):
     __tablename__ = "role"
@@ -105,11 +111,6 @@ class Role(BaseModel):
     def get_permissions(self):
         return [permission.id for permission in self.permissions if permission]
 
-    def get_tlp_level(self, tlp_level: str) -> TLPLevel | None:
-        with contextlib.suppress(ValueError):
-            return TLPLevel(tlp_level)
-        return None
-
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
         logger.debug(f"Updating role with ID {role_id} with data: {data}")
@@ -120,11 +121,11 @@ class Role(BaseModel):
             role.name = name
         role.description = str(data.get("description"))
         if tlp_level := data.get("tlp_level"):
-            role.tlp_level = role.get_tlp_level(tlp_level)
+            role.tlp_level = TLPLevel.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
         role.permissions = Permission.get_bulk(permissions)
         db.session.commit()
-        return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
+        return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
 
 
 class RolePermission(BaseModel):

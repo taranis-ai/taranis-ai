@@ -52,6 +52,10 @@ class NewsItemAttribute(BaseModel):
             attributes.append(cls(key=key, value=value))
         return attributes
 
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return TLPLevel(self.value) if self.key == "TLP" else TLPLevel.CLEAR
+
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
         return TLPLevel(cls.get_by_key(attributes, "TLP"))
