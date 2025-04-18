@@ -89,7 +89,7 @@ class Scheduler:
                 "args": str(job.args),
                 "kwargs": str(job.kwargs),
                 "name": job.name,
-                "next_run_time": job.next_run_time,
+                "next_run_time": job.next_run_time if hasattr(job, "next_run_time") else None,
             }
         except Exception:
             logger.exception("Failed to serialize job")

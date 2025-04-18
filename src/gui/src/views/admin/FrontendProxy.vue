@@ -3,6 +3,8 @@
 </template>
 
 <script>
+import { useMainStore } from '@/stores/MainStore'
+
 export default {
   name: 'FrontendProxy',
   props: {
@@ -14,6 +16,11 @@ export default {
       type: String,
       required: true
     }
+  },
+  setup() {
+    const mainStore = useMainStore()
+
+    mainStore.resetItemCount()
   }
 }
 </script>

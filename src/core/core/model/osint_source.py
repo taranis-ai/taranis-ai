@@ -335,7 +335,7 @@ class OSINTSource(BaseModel):
             data = json_data["data"]
         elif json_data["version"] == 3:
             data = json_data["sources"]
-            groups = json_data["groups"]
+            groups = json_data.get("groups", [])
         else:
             raise ValueError("Unsupported version")
 

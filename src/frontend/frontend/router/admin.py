@@ -3,7 +3,7 @@ from flask.views import MethodView
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
-from frontend.models import Role, User, Organization, PagingData, Job, Dashboard
+from frontend.models import Role, User, Organization, PagingData, Job, Dashboard, Settings
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required
@@ -207,6 +207,31 @@ class ImportUsers(MethodView):
         return import_users_post_view()
 
 
+class SettingsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        settings = DataPersistenceLayer().get_objects(Settings)
+        if settings is None:
+            return f"Failed to fetch settings from: {Config.TARANIS_CORE_URL}", 500
+        return render_template("settings/index.html", settings=settings)
+
+    @auth_required()
+    def put(self):
+        data = Settings(**parse_formdata(request.form))
+        if not data:
+            error = "No data provided"
+            logger.warning(error)
+            return render_template("settings/index.html", settings=data, error=error), 400
+
+        result = DataPersistenceLayer().store_object(data)
+        if not result.ok:
+            error = result.json().get("error")
+            logger.warning(f"Failed to store settings: {error}")
+            return render_template("settings/index.html", settings=data, error=error), result.status_code
+
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
+
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
@@ -223,7 +248,9 @@ def init(app: Flask):
     admin_bp.add_url_rule("/organizations", view_func=OrganizationsAPI.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=UpdateOrganization.as_view("edit_organization"))
 
-    admin_bp.add_url_rule("/roles/", view_func=RolesAPI.as_view("roles"))
+    admin_bp.add_url_rule("/roles", view_func=RolesAPI.as_view("roles"))
     admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
+
+    admin_bp.add_url_rule("/settings", view_func=SettingsAPI.as_view("settings"))
 
     app.register_blueprint(admin_bp)

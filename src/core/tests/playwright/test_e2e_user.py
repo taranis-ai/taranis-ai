@@ -211,10 +211,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
             expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
             ).to_have_value("test_key")
             expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
             ).to_have_value("dangerous")
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
@@ -251,10 +251,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
             expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
             ).to_have_value("test_key")
             expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
             ).to_have_value("dangerous")
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
