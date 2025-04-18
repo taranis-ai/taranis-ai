@@ -2,7 +2,7 @@
 
 import pytest
 import time
-from playwright.sync_api import expect, Page
+from playwright.sync_api import expect, Page, Locator
 from playwright_helpers import PlaywrightHelpers
 
 
@@ -172,6 +172,18 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.keyboard.press("Control+I")
             self.short_sleep(duration=1)
 
+        def check_attributes_table(table_locator: Locator, expected_rows: list[list]):
+            rows = table_locator.locator("table tbody tr")
+            actual_rows = []
+
+            for i in range(rows.count()):
+                row = rows.nth(i)
+                cells = row.locator("td")
+                actual_row = [cells.nth(j).locator("input").get_attribute("value").strip() for j in [0, 1]]
+                actual_rows.append(actual_row)
+
+            assert sorted(actual_rows) == sorted(expected_rows)
+
         def interact_with_story(story_ids):
             self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("show story-actions-menu")).click()
             time.sleep(0.5)
@@ -207,18 +219,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).click()
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("TLP")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("clear")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("test_key")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("dangerous")
+
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
 
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
@@ -254,18 +256,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(6)).to_have_text("APT80")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("test_key")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("dangerous")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("TLP")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("clear")
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
 
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
@@ -478,7 +469,6 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
 
-    @pytest.mark.skip()
     @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
