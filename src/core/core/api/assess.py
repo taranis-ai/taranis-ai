@@ -76,6 +76,12 @@ class NewsItem(MethodView):
         return response, code
 
 
+class UpdateNewsItemAttributes(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    def put(self, news_item_id):
+        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+
+
 class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -85,6 +91,7 @@ class Stories(MethodView):
                 "read",
                 "unread",
                 "important",
+                "cybersecurity",
                 "relevant",
                 "in_report",
                 "range",
@@ -249,6 +256,9 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule(
+        "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
+    )
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))

@@ -31,7 +31,11 @@ import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'NewsMetaInfo',
-  components: { ArticleInfo, AuthorInfo, SentimentInfo },
+  components: {
+    ArticleInfo,
+    AuthorInfo,
+    SentimentInfo
+  },
   props: {
     newsItem: {
       type: Object,

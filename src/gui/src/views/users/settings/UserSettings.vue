@@ -73,6 +73,16 @@
           </v-col>
         </v-row>
         <v-row>
+          <v-col>
+            <v-switch
+              v-model="advanced_story_options"
+              inset
+              color="success"
+              :label="$t('settings.advanced_story_options')"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
           <v-col cols="4">
             <v-autocomplete
               v-model="language"
@@ -125,6 +135,7 @@ export default {
       show_charts,
       sseConnectionState,
       infinite_scroll,
+      advanced_story_options,
       end_of_shift
     } = storeToRefs(userStore)
 
@@ -170,6 +181,7 @@ export default {
         hotkeys: hotkeys.value,
         language: language.value,
         infinite_scroll: infinite_scroll.value,
+        advanced_story_options: advanced_story_options.value,
         end_of_shift: end_of_shift.value
       })
     }
@@ -188,6 +200,7 @@ export default {
       compact_view,
       show_charts,
       infinite_scroll,
+      advanced_story_options,
       end_of_shift,
       hotkeys,
       sseConnectionState,
