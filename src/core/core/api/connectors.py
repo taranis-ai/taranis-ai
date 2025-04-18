@@ -3,7 +3,7 @@ from flask.views import MethodView
 
 from core.config import Config
 from core.managers.auth_manager import auth_required
-from core.model.story import StoryConflict
+from core.model.story_conflict import StoryConflict
 from core.audit import audit_logger
 
 
@@ -12,13 +12,18 @@ class Connectors(MethodView):
     def get(self, story_id=None):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
-                return conflict.to_dict(), 200
-            return {"error": f"Conflict with story id {story_id} not found"}, 404
+                return {
+                    "storyId": conflict.story_id,
+                    "original": conflict.original,
+                    "updated": conflict.updated,
+                    "hasProposals": conflict.has_proposals,
+                }, 200
         conflicts = [
             {
                 "storyId": conflict.story_id,
                 "original": conflict.original,
                 "updated": conflict.updated,
+                "hasProposals": conflict.has_proposals,
             }
             for conflict in StoryConflict.conflict_store.values()
         ]

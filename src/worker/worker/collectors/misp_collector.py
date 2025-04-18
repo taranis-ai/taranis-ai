@@ -35,6 +35,7 @@ class MISPCollector(BaseCollector):
         self.proxies = parameters.get("PROXIES", "")
         self.headers = parameters.get("HEADERS", "")
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
+        self.org_id = parameters.get("ORGANISATION_ID", "")
 
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
@@ -61,9 +62,22 @@ class MISPCollector(BaseCollector):
             for event in events
             if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
         ]
-        story_dicts = [s for s in story_dicts if s is not None]
+        story_dicts: list[dict] = [s for s in story_dicts if s is not None]
+
+        for story in story_dicts:
+            if self.check_for_proposal_existence(misp, story.get("id", "")):
+                story["has_proposals"] = f"{self.url}/events/view/{story.get('id')}"
         logger.debug(f"{story_dicts=}")
         self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
+
+    def check_for_proposal_existence(self, misp, event_uuid) -> bool:
+        resp = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
+        data: list = misp._check_json_response(resp)
+        logger.debug(f"{data=}")
+        if data and data[0].get("ShadowAttribute").get("org_id") == self.org_id:
+            logger.debug(f"Proposal found for your organisation's event {event_uuid}")
+            return True
+        return False
 
     def create_news_item(self, event: dict, source: dict) -> NewsItem:
         logger.debug("Creating news item from MISP event ")
@@ -142,7 +156,7 @@ class MISPCollector(BaseCollector):
             return ""
 
     @staticmethod
-    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict | None:
+    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict:
         story_properties["news_items"] = news_items_list
         return story_properties
 
@@ -207,7 +221,7 @@ class MISPCollector(BaseCollector):
                     story_properties["dislikes"] = int(item.get("value", 0))
         return story_properties
 
-    def get_story(self, event: dict, source: dict) -> dict | None:
+    def get_story(self, event: dict, source: dict) -> dict:
         story_news_items = []
         story_properties = {}
         if event_objects := event.get("Event", {}).get("Object", {}):

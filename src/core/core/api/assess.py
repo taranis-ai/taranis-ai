@@ -12,6 +12,7 @@ from core.managers import queue_manager
 from core.service.news_item import NewsItemService
 from core.audit import audit_logger
 from core.config import Config
+from core.model.story_conflict import StoryConflict
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -244,13 +245,19 @@ class Connectors(MethodView):
         if not story_id:
             return {"error": "No story_id provided"}, 400
 
-        conflict = story.StoryConflict.conflict_store.get(story_id)
+        conflict = StoryConflict.conflict_store.get(story_id)
         if conflict is None:
             logger.error(f"No conflict found for story {story_id}")
             return {"error": "No conflict found", "id": story_id}, 404
 
         response, code = conflict.resolve(request.json, user=current_user)
         return response, code
+
+
+class Proposals(MethodView):
+    @auth_required("CONNECTOR_USER_ACCESS")
+    def get(self):
+        return {"count": StoryConflict.get_proposal_count()}, 200
 
 
 def initialize(app: Flask):
@@ -270,6 +277,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
     assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
+    assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)

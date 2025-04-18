@@ -553,9 +553,12 @@ class Story(BaseModel):
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
+            has_proposals = data.pop("has_proposals", False)
             current_data_dict = current_data.to_detail_dict()
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-            conflict = StoryConflict(story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized)
+            conflict = StoryConflict(
+                story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
+            )
             logger.warning(f"Conflict detected for story {id}")
             StoryConflict.conflict_store[id] = conflict
             return {
@@ -565,9 +568,6 @@ class Story(BaseModel):
                     "updated": data,
                 },
             }, 409
-
-        # Proceed with update if there is no conflict (or no existing story).
-        # For example: db_update_story(id, data)
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):

@@ -1,22 +1,44 @@
 <template>
   <v-container>
     <v-card outlined>
-      <v-card-title>Resolve Conflicts</v-card-title>
+      <v-card-title>
+        Resolve Conflicts
+        <v-chip class="ml-2" color="primary" small>
+          You should resolve {{ proposalCount }} proposal(s) before proceeding.
+        </v-chip>
+      </v-card-title>
+
       <v-card-text>
-        <div v-if="conflictsStore.conflicts.length === 0">
+        <div v-if="conflicts.length === 0">
           <p>No conflicts to resolve.</p>
         </div>
         <div v-else>
           <div
-            v-for="conflict in conflictsStore.conflicts"
+            v-for="conflict in conflicts"
             :key="conflict.storyId"
             class="mb-6"
           >
             <h3>Conflict for Story: {{ conflict.storyId }}</h3>
+            <p>
+              This story has a proposal:
+
+              <strong v-if="conflict.hasProposals">
+                <a
+                  :href="conflict.hasProposals"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ conflict.hasProposals }}
+                </a>
+              </strong>
+              <span v-else>No</span> <span v-else>No</span>
+            </p>
+
             <div
               :id="'mergely-editor-' + conflict.storyId"
               style="height: 300px"
             ></div>
+
             <v-btn
               color="primary"
               class="mt-2"
@@ -31,6 +53,7 @@
             >
               Submit Resolution
             </v-btn>
+
             <div v-if="mergedContents[conflict.storyId]">
               <h4>Merged Content:</h4>
               <pre>{{ mergedContents[conflict.storyId] }}</pre>
@@ -55,11 +78,13 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useConflictsStore } from '@/stores/ConnectorStore'
 import Mergely from 'mergely'
 import 'mergely/lib/mergely.css'
 
-const conflictsStore = useConflictsStore()
+const store = useConflictsStore()
+const { conflicts, proposalCount } = storeToRefs(store)
 const mergedContents = ref({})
 
 const snackbar = ref(false)
@@ -88,55 +113,34 @@ function initMergelyForConflict(conflict) {
 }
 
 async function getMergedContentForConflict(storyId) {
-  const conflict = conflictsStore.conflicts.find((c) => c.storyId === storyId)
-  if (conflict && conflict.mergelyInstance) {
+  const conflict = conflicts.value.find((c) => c.storyId === storyId)
+  if (conflict?.mergelyInstance) {
     await nextTick()
-    const merged = conflict.mergelyInstance.get('rhs')
-    mergedContents.value[storyId] = merged
+    mergedContents.value[storyId] = conflict.mergelyInstance.get('rhs')
   } else {
-    console.error(`Mergely instance for story ${storyId} not available`)
-    showToast(`Editor not loaded for story ${storyId}.`, 'error')
+    console.error(`Editor not ready for story ${storyId}`)
+    showToast(`Editor not loaded for ${storyId}`, 'error')
   }
 }
 
 async function submitResolution(storyId) {
   const merged = mergedContents.value[storyId]
-  if (!merged) {
-    showToast('Please get the right side first.', 'error')
-    return
-  }
-
-  let resolutionData
-  try {
-    resolutionData = JSON.parse(merged)
-  } catch (jsonError) {
-    console.error(
-      `Invalid JSON for merged content for story ${storyId}:`,
-      jsonError
-    )
-    showToast(`Merged content is not valid JSON for story ${storyId}.`, 'error')
-    return
-  }
+  if (!merged) return showToast('Get the right side first.')
 
   try {
-    await conflictsStore.resolveConflictById(storyId, resolutionData)
-    showToast(`Conflict for story ${storyId} resolved successfully!`, 'success')
-  } catch (error) {
-    console.error(`Error resolving conflict for story ${storyId}:`, error)
-    showToast(`Error resolving conflict for story ${storyId}.`, 'error')
+    const resolutionData = JSON.parse(merged)
+    await store.resolveConflictById(storyId, resolutionData)
+    showToast(`Story ${storyId} resolved!`, 'success')
+  } catch (err) {
+    console.error(`Resolution failed for ${storyId}`, err)
+    showToast(`Resolution failed for ${storyId}`, 'error')
   }
 }
 
 onMounted(async () => {
-  try {
-    await conflictsStore.loadConflicts()
-    await nextTick()
-    conflictsStore.conflicts.forEach((conflict) => {
-      initMergelyForConflict(conflict)
-    })
-  } catch (err) {
-    console.error('Initialization error:', err)
-    showToast('Failed to load conflicts.', 'error')
-  }
+  await store.loadConflicts()
+  await store.fetchProposalCount()
+  await nextTick()
+  conflicts.value.forEach(initMergelyForConflict)
 })
 </script>
