@@ -52,18 +52,25 @@ class Story(BaseModel):
         title: str,
         description: str = "",
         created: datetime | str = datetime.now(),
+        id: str | None = None,
+        likes: int = 0,
+        dislikes: int = 0,
+        relevance: int = 0,
         read: bool = False,
         important: bool = False,
         summary: str = "",
         comments: str = "",
         links=None,
         attributes=None,
-        # tags=None,
+        tags=None,
         news_items=None,
-        id=None,
         last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
+        self.likes = likes
+        self.dislikes = dislikes
+        self.relevance = relevance
+        self.created = datetime.now()
         self.title = title
         self.description = description
         self.created = self.get_creation_date(created)
@@ -76,8 +83,8 @@ class Story(BaseModel):
         self.last_change = last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
-        # if tags:
-        #     self.tags = NewsItemTag.load_multiple(tags)
+        if tags:
+            self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created):
         if isinstance(created, datetime):
