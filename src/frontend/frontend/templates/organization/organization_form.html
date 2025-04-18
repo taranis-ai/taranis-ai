@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_action %}
+{% from "macros/forms.html" import form_input %}
 {% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
 {% set form_title = 'Organization' %}
 
@@ -20,7 +20,7 @@
 <div class="bg-base-100 rounded-sm p-4">
     <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
 
-    <form id="organization-form" class="w-1/2 ml-[10%]" {{ form_action(endpoint=("admin.organizations" if create else "admin.edit_organization"), item_name="organization_id", item_id=organization.id) }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    <form id="organization-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error %}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif %}

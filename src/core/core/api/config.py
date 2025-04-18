@@ -307,6 +307,8 @@ class Users(MethodView):
     def put(self, user_id):
         try:
             return user.User.update(user_id, request.json)
+        except IntegrityError as e:
+            return {"error": convert_integrity_error(e)}, 400
         except Exception:
             logger.exception()
             return {"error": "Could not update user"}, 400
