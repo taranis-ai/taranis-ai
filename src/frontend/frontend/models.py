@@ -93,6 +93,12 @@ class Dashboard(TaranisBaseModel):
     schedule_length: int | None = None
 
 
+class Settings(TaranisBaseModel):
+    _core_endpoint = "/admin/settings"
+    _cache_timeout = 30
+    settings: dict | None = None
+
+
 class PagingData(BaseModel):
     page: int | None = None
     limit: int | None = None

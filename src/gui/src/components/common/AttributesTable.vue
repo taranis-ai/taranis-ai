@@ -1,69 +1,51 @@
 <template>
-  <v-container class="d-flex mx-0 my-0">
+  <div class="my-4 w-50">
     <v-data-table
       :headers="headers"
       :items="modelValue"
       :items-per-page="5"
       :hide-default-footer="modelValue.length < 5"
       class="elevation-1"
+      density="compact"
       data-testid="attributes-table"
     >
       <template #top>
         <v-row class="justify-center">
           <h4>Attributes</h4>
         </v-row>
-        <v-row class="justify-center">
+        <v-row class="justify-space-between">
           <v-btn
             color="primary"
+            density="compact"
+            class="ml-5"
             text="Add New Key-Value"
-            max-width="50%"
-            class=""
             @click="showDialog = true"
             :disabled="disabled"
           />
+          <slot name="top"></slot>
         </v-row>
-        <slot name="top"></slot>
       </template>
       <template #item="{ item, index }">
         <tr>
           <td v-for="field in fields" :key="field">
             <v-text-field
               v-model="item[field]"
-              dense
-              solo
-              flat
-              hide-details
+              density="compact"
+              variant="outlined"
               @change="updateValue()"
               :disabled="disabled"
             ></v-text-field>
           </td>
           <td>
-            <v-tooltip left text="Delete">
-              <template #activator="{ props: tprops }">
-                <v-icon
-                  v-bind="tprops"
-                  color="red"
-                  icon="mdi-delete"
-                  @click.stop="deleteItem(index)"
-                />
-              </template>
-            </v-tooltip>
-          </td>
-          <td v-if="order">
             <v-btn
+              prepend-icon="mdi-delete"
+              color="red"
               density="compact"
-              variant="flat"
-              icon="mdi-arrow-up"
-              :disabled="index === 0"
-              @click="setIndex(item, index - 1)"
-            />
-            <v-btn
-              density="compact"
-              variant="flat"
-              icon="mdi-arrow-down"
-              :disabled="index === modelValue.length - 1"
-              @click="setIndex(item, index + 1)"
-            />
+              class="mb-4"
+              text="Delete"
+              @click.stop="deleteItem(index)"
+              :disabled="disabled"
+            ></v-btn>
           </td>
         </tr>
       </template>
@@ -86,7 +68,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-container>
+  </div>
 </template>
 
 <script setup>

@@ -14,7 +14,9 @@ from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
+from core.model.settings import Settings
 from core.model.worker import COLLECTOR_TYPES, Worker
+from core.model.role import TLPLevel
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 from apscheduler.triggers.cron import CronTrigger
 
@@ -51,7 +53,13 @@ class OSINTSource(BaseModel):
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
 
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = Worker.parse_parameters(self.type, parameters)
+
+    @property
+    def tlp_level(self) -> TLPLevel:
+        if value := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
+            return TLPLevel(value)
+        return TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -152,7 +160,6 @@ class OSINTSource(BaseModel):
     def add(cls, data):
         osint_source = cls.from_dict(data)
         db.session.add(osint_source)
-        OSINTSourceGroup.add_source_to_default(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -328,7 +335,7 @@ class OSINTSource(BaseModel):
             data = json_data["data"]
         elif json_data["version"] == 3:
             data = json_data["sources"]
-            groups = json_data["groups"]
+            groups = json_data.get("groups", [])
         else:
             raise ValueError("Unsupported version")
 
@@ -421,12 +428,8 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def add_source_to_default(cls, osint_source: OSINTSource):
-        default_group = cls.get_default()
-        if not default_group:
-            default_group = cls(name="Default", default=True)
-            db.session.add(default_group)
-            db.session.commit()
-        default_group.osint_sources.append(osint_source)
+        if default_group := cls.get_default():
+            default_group.osint_sources.append(osint_source)
         db.session.commit()
 
     def to_export_dict(self, source_mapping: dict) -> dict[str, Any]:

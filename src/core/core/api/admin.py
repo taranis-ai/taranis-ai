@@ -12,16 +12,6 @@ from core.managers import queue_manager
 from core.config import Config
 
 
-class AdminSettings(MethodView):
-    @auth_required("ADMIN_OPERATIONS")
-    def get(self):
-        return {}, 200
-
-    @auth_required("ADMIN_OPERATIONS")
-    def put(self):
-        return {"error": "TODO IMPLEMENT"}, 501
-
-
 class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
@@ -83,11 +73,16 @@ class SettingsView(MethodView):
             return Settings.update(data)
         return {"error": "No data provided"}, 400
 
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self):
+        if data := request.json:
+            return Settings.update(data)
+        return {"error": "No data provided"}, 400
+
 
 def initialize(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
 
-    admin_bp.add_url_rule("/", view_func=AdminSettings.as_view("admin_settings"))
     admin_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
     admin_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
     admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))

@@ -1,23 +1,25 @@
 <template>
-  <v-combobox
-    v-model="links"
-    :items="modelValue"
-    chips
-    density="compact"
-    closable-chips
-    clearable
-    variant="outlined"
-    no-data-text="No links sets"
-    hint="Press 'Enter' to add a new link"
-    persistent-hint
-    item-value="news_item_id"
-    item-title="link"
-    label="Links"
-    multiple
-  />
-  <v-btn class="mt-5" color="primary" @click="updateLinksFromNewsItems">
-    {{ $t('enter.updatelinks') }}
-  </v-btn>
+  <div class="d-flex">
+    <v-combobox
+      v-model="links"
+      :items="modelValue"
+      chips
+      density="compact"
+      closable-chips
+      clearable
+      variant="outlined"
+      no-data-text="No links sets"
+      hint="Press 'Enter' to add a new link"
+      persistent-hint
+      item-value="news_item_id"
+      item-title="link"
+      label="Links"
+      multiple
+    />
+    <v-btn class="ml-3" color="primary" @click="updateLinksFromNewsItems">
+      {{ $t('enter.updatelinks') }}
+    </v-btn>
+  </div>
 </template>
 
 <script>
