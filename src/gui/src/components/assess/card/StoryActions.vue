@@ -61,7 +61,7 @@
       density="compact"
       color="#919191"
       icon="mdi-google-circles-communities"
-      @click.stop="sharingDialog = true"
+      @click.stop="sharingToReportDialog = true"
       data-testid="add to report"
     >
       <v-tooltip activator="parent" text="add to report" />
@@ -203,6 +203,21 @@
           />
         </template>
       </v-tooltip>
+      <v-tooltip text="share story to connector">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-monitor-share"
+            @click.stop="shareToConnectorDialog = true"
+            data-testid="share story to connector"
+          />
+        </template>
+      </v-tooltip>
       <v-tooltip text="delete">
         <template #activator="{ props }">
           <v-btn
@@ -250,7 +265,7 @@
         </v-list-item>
         <v-list-item
           v-if="compactView && !reportView"
-          @click.stop="sharingDialog = true"
+          @click.stop="sharingToReportDialog = true"
         >
           <v-tooltip activator="parent" text="add to report" location="start" />
           <v-icon
@@ -322,7 +337,7 @@
           v-if="allow_edit"
           :to="`/newsitem/${story.news_items[0].id}/edit`"
         >
-          <v-icon icon="mdi-pencil-outline" title="edit news item" />
+          <v-icon icon="mdi-pencil-outline" />
           <v-tooltip
             activator="parent"
             location="start"
@@ -330,15 +345,23 @@
           />
         </v-list-item>
         <v-list-item :to="`/enter/${story.id}`">
-          <v-icon icon="mdi-pencil-outline" title="create news item" />
+          <v-icon icon="mdi-pencil-outline" />
           <v-tooltip
             activator="parent"
             location="start"
             text="create news item and attach to this story"
           />
         </v-list-item>
+        <v-list-item @click.stop="shareToConnectorDialog = true">
+          <v-icon icon="mdi-monitor-share" />
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="share story to connector"
+          />
+        </v-list-item>
         <v-list-item @click.stop="deleteDialog = true">
-          <v-icon icon="mdi-delete-outline" title="delete" />
+          <v-icon icon="mdi-delete-outline" />
           <v-tooltip activator="parent" location="start" text="delete" />
         </v-list-item>
       </v-list>
@@ -353,10 +376,16 @@
         @close="deleteDialog = false"
       />
     </v-dialog>
-    <v-dialog v-model="sharingDialog" width="auto">
-      <popup-share-items
+    <v-dialog v-model="sharingToReportDialog" width="auto">
+      <popup-share-to-report
         :item-ids="[story.id]"
-        @close="sharingDialog = false"
+        @close="sharingToReportDialog = false"
+      />
+    </v-dialog>
+    <v-dialog v-model="shareToConnectorDialog" width="auto">
+      <popup-share-to-connector
+        :item-ids="[story.id]"
+        @close="shareToConnectorDialog = false"
       />
     </v-dialog>
   </div>
@@ -364,7 +393,8 @@
 
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
-import PopupShareItems from '@/components/popups/PopupShareItems.vue'
+import PopupShareToReport from '@/components/popups/PopupShareToReport.vue'
+import PopupShareToConnector from '@/components/popups/PopupShareToConnector.vue'
 import { ref, computed, onDeactivated, onActivated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -374,7 +404,8 @@ export default {
   name: 'StoryActions',
   components: {
     PopupDeleteItem,
-    PopupShareItems
+    PopupShareToReport,
+    PopupShareToConnector
   },
   props: {
     story: {
@@ -392,7 +423,8 @@ export default {
     const active = ref(true)
 
     const viewDetails = ref(false)
-    const sharingDialog = ref(false)
+    const sharingToReportDialog = ref(false)
+    const shareToConnectorDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
     const { newsItemSelection } = storeToRefs(assessStore)
@@ -447,7 +479,8 @@ export default {
 
     onDeactivated(() => {
       deleteDialog.value = false
-      sharingDialog.value = false
+      sharingToReportDialog.value = false
+      shareToConnectorDialog.value = false
       active.value = false
     })
 
@@ -461,7 +494,8 @@ export default {
       selected,
       allow_edit,
       compactView,
-      sharingDialog,
+      sharingToReportDialog,
+      shareToConnectorDialog,
       deleteDialog,
       news_item_length,
       newsItemSelection,

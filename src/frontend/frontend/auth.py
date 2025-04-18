@@ -42,12 +42,12 @@ def auth_required(permissions: list | str | None = None):
                 verify_jwt_in_request()
             except Exception as ex:
                 logger.exception(str(ex))
-                return redirect(url_for("admin.login"), code=302)
+                return redirect(url_for("base.login"), code=302)
 
             identity = get_jwt_identity()
             if not identity:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return redirect(url_for("admin.login"), code=302)
+                return redirect(url_for("base.login"), code=302)
 
             permission_claims = current_user.permissions
 
@@ -95,9 +95,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return redirect(url_for("admin.login"), code=302)
+    return redirect(url_for("base.login"), code=302)
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return redirect(url_for("admin.login"), code=302)
+    return redirect(url_for("base.login"), code=302)

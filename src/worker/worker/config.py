@@ -19,11 +19,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers"]] = [
+    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors"]] = [
         "Bots",
         "Collectors",
         "Presenters",
         "Publishers",
+        "Connectors",
     ]
     SUMMARY_API_ENDPOINT: str = "http://summary_bot:8000"
     NLP_API_ENDPOINT: str = "http://nlp_bot:8000"

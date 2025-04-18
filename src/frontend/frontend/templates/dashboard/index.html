@@ -6,7 +6,7 @@
 
   <div class="grid grid-flow-row-dense grid-cols-2 gap-4 pb-4">
       <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="{{ config.TARANIS_CORE_HOST }}/assess" class="underline text-xl">Assess</a>
+          <a href="/assess" class="underline text-xl" target="_top">Assess</a>
           <div class="divider"></div>
           <span class="inline-flex">
               {{ heroicon_solid('inbox-stack') }}
@@ -17,7 +17,7 @@
           </span>
       </div>
       <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="{{ config.TARANIS_CORE_HOST }}/publish" class="underline text-xl">Publish</a>
+          <a href="/publish" class="underline text-xl" target="_top">Publish</a>
           <div class="divider"></div>
           <span class="caption">
               There are <b>{{ data.total_products }}</b> products ready for publications.
@@ -27,7 +27,7 @@
 
   <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
       <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="{{ config.TARANIS_CORE_HOST }}/analyze" class="underline text-xl">Analyze</a>
+          <a href="/analyze" class="underline text-xl" target="_top">Analyze</a>
           <div class="divider"></div>
           <span class="caption">
               There are <b>{{ data.report_items_completed }}</b> completed analyses.
@@ -38,7 +38,7 @@
           </span>
       </div>
       <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="{{ config.TARANIS_CORE_HOST }}/config/workers" class="underline text-xl">Workers</a>
+          <a href="/config/workers" class="underline text-xl" target="_top">Workers</a>
           <div class="divider"></div>
           <span class="caption">
               There are <b>{{ data.schedule_length }}</b> tasks scheduled.

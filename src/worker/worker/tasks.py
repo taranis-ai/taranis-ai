@@ -19,3 +19,6 @@ def setup_tasks():
 
     if "Publishers" in Config.WORKER_TYPES:
         import worker.publishers.publisher_tasks  # noqa: F401
+
+    if "Connectors" in Config.WORKER_TYPES:
+        import worker.connectors.connector_tasks  # noqa: F401

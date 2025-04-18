@@ -233,6 +233,40 @@ workers = [
         "description": "Publisher for publishing in MISP",
         "parameters": [{"parameter": "MISP_URL"}, {"parameter": "MISP_API_KEY"}],
     },
+    {
+        "type": "MISP_CONNECTOR",
+        "name": "MISP Connector",
+        "description": "Connetor for MISP",
+        "parameters": [
+            {"parameter": "URL", "rules": "required"},
+            {"parameter": "API_KEY"},
+            {"parameter": "ORGANISATION_ID", "rules": "required"},
+            {"parameter": "SSL_CHECK", "type": "switch"},
+            {"parameter": "REQUEST_TIMEOUT", "type": "number"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
+            {"parameter": "REFRESH_INTERVAL"},
+            {"parameter": "SHARING_GROUP_ID"},
+            {"parameter": "DISTRIBUTION"},
+        ],
+    },
+    {
+        "type": "MISP_COLLECTOR",
+        "name": "MISP Collector",
+        "description": "Colletor for MISP",
+        "parameters": [
+            {"parameter": "URL", "rules": "required"},
+            {"parameter": "API_KEY"},
+            {"parameter": "SSL_CHECK", "type": "switch"},
+            {"parameter": "REQUEST_TIMEOUT", "type": "number"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
+            {"parameter": "REFRESH_INTERVAL"},
+            {"parameter": "SHARING_GROUP_ID"},
+        ],
+    },
 ]
 
 
@@ -292,9 +326,10 @@ bots = [
     },
 ]
 
+# ADD NEW REPORT TYPE AT THE END OF THE LIST.
+# At the moment, the report types are implicitly referenced by the product types.
 report_types = [
     {
-        "id": 1,
         "title": "OSINT Report",
         "description": "Example OSINT Report provided by Taranis AI",
         "attribute_groups": [
@@ -326,7 +361,6 @@ report_types = [
         ],
     },
     {
-        "id": 2,
         "title": "Disinformation",
         "description": "Example Disinformation Report provided by Taranis AI",
         "attribute_groups": [
@@ -356,7 +390,6 @@ report_types = [
         ],
     },
     {
-        "id": 3,
         "title": "Vulnerability Report",
         "description": "Example Vulnerability Report provided by Taranis AI",
         "attribute_groups": [
@@ -449,7 +482,6 @@ report_types = [
         ],
     },
     {
-        "id": 4,
         "title": "CERT Report",
         "description": "Example CERT Report provided by Taranis AI",
         "attribute_groups": [
@@ -571,6 +603,11 @@ permissions: list[dict] = [
     {"id": "ASSETS_CONFIG", "name": "My Assets config", "description": "Configuration of access and groups"},
     {"id": "CONFIG_WORKER_ACCESS", "name": "Access to workers", "description": "Access to workers configuration"},
     {"id": "CONFIG_API_ACCESS", "name": "Config API access", "description": "Access to API configuration"},
+    {"id": "CONFIG_CONNECTOR_ACCESS", "name": "Config connector access", "description": "Access to connector configuration"},
+    {"id": "CONFIG_CONNECTOR_CREATE", "name": "Config connector create", "description": "Create to connector configuration"},
+    {"id": "CONFIG_CONNECTOR_UPDATE", "name": "Config connector update", "description": "Update to connector configuration"},
+    {"id": "CONFIG_CONNECTOR_DELETE", "name": "Config connector delete", "description": "Delete to connector configuration"},
+    {"id": "CONNECTOR_USER_ACCESS", "name": "Connector user access", "description": "Access to connector management"},
 ]
 
 

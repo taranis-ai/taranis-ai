@@ -46,7 +46,7 @@ import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { ref, onMounted, computed } from 'vue'
 
 export default {
-  name: 'PopupShareItems',
+  name: 'PopupShareToReport',
   props: {
     itemIds: {
       type: Array,

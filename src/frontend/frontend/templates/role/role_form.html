@@ -1,6 +1,6 @@
-{% from "macros/forms.html" import form_input, form_select, form_action %}
+{% from "macros/forms.html" import form_input, form_select %}
 {% from "macros/datatable.html" import datatable with context %}
-{% set create = request.path[-1:] == '0' | default('true') %}
+{% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
 {% set form_title = 'Role' %}
 
 {% set role = role
@@ -28,7 +28,7 @@
 {% set permissions = permissions | default([]) %}
 <div class="bg-base-100 rounded-sm p-4">
   <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
-  <form id="role-form" class="w-1/2 ml-[10%]" {{ form_action("admin.edit_role", "role_id", role.id) }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="role-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
     {% endif %}

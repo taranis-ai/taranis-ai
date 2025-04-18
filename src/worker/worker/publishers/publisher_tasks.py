@@ -48,6 +48,8 @@ class PublisherTask(Task):
         product = self.get_product(product_id)
         publisher = self.get_publisher(publisher_id)
         rendered_product = self.get_rendered_product(product_id)
+        if rendered_product is None:
+            raise ValueError("Rendered product is None")
 
         logger.debug(f"Publishing to {publisher}")
         logger.debug(f"Product: {product}")
