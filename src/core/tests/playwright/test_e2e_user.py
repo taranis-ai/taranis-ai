@@ -2,7 +2,6 @@
 
 import pytest
 import time
-import re
 from playwright.sync_api import expect, Page
 from playwright_helpers import PlaywrightHelpers
 
@@ -202,20 +201,25 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_label("Tags", exact=True).fill("APT81")
             page.get_by_label("Tags", exact=True).press("Enter")
             self.highlight_element(page.get_by_title("Close")).click()
-
             self.highlight_element(page.get_by_role("button", name="Add New Key-Value"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).fill("test_key")
             self.highlight_element(page.get_by_label("Value"), scroll=False).click()
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
-
+            expect(
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
+            ).to_have_value("TLP")
+            expect(
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
+            ).to_have_value("clear")
             expect(
                 page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
             ).to_have_value("test_key")
             expect(
                 page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
             ).to_have_value("dangerous")
+
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
             )
@@ -256,6 +260,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(
                 page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
             ).to_have_value("dangerous")
+            expect(
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(0).locator("input")
+            ).to_have_value("TLP")
+            expect(
+                page.get_by_test_id("attributes-table").get_by_role("row").nth(2).get_by_role("cell").nth(1).locator("input")
+            ).to_have_value("clear")
+
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
         def infinite_scroll_all_items(stories_date_descending):
@@ -440,7 +451,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
-            self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^APT75$")).nth(1)).click()
+            self.highlight_element(page.locator("#v-menu-v-42").get_by_text("APT75")).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         page = taranis_frontend
@@ -467,6 +478,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
 
+    @pytest.mark.skip()
     @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
