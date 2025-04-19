@@ -69,7 +69,6 @@ class Story(BaseModel):
         self.likes = likes
         self.dislikes = dislikes
         self.relevance = relevance
-        self.created = datetime.now()
         self.title = title
         self.description = description
         self.created = self.get_creation_date(created)
