@@ -3,7 +3,7 @@
     <v-card outlined>
       <v-card-title>
         Resolve Conflicts
-        <v-chip class="ml-2" color="primary" small>
+        <v-chip v-if="proposalCount" class="ml-2" color="primary" small>
           You should resolve {{ proposalCount }} proposal(s) before proceeding.
         </v-chip>
       </v-card-title>
@@ -124,29 +124,45 @@ function showToast(message, color = 'error') {
 }
 
 function initMergelyForConflict(conflict) {
-  const containerId = `#mergely-editor-${conflict.storyId}`
-  const el = document.querySelector(containerId)
+  const containerId = `mergely-editor-${conflict.storyId}`
+  const el = document.getElementById(containerId)
 
-  if (!el) {
-    console.warn(`Mergely container not found for ${conflict.storyId}`)
-    return
+  if (!el) return
+
+  const waitUntilVisible = (cb) => {
+    const isVisible = () => {
+      const rect = el.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0 && el.offsetParent !== null
+    }
+
+    const check = () => {
+      if (isVisible()) {
+        cb()
+      } else {
+        requestAnimationFrame(check)
+      }
+    }
+
+    requestAnimationFrame(check)
   }
 
-  try {
-    const doc = new Mergely(containerId, {
-      license: 'gpl',
-      lhs: conflict.original,
-      rhs: conflict.updated
-    })
+  waitUntilVisible(() => {
+    try {
+      const doc = new Mergely(`#${containerId}`, {
+        license: 'gpl',
+        lhs: conflict.original,
+        rhs: conflict.updated
+      })
 
-    doc.once('updated', () => {
-      doc.scrollToDiff('next')
-    })
+      doc.once('updated', () => {
+        doc.scrollToDiff('next')
+      })
 
-    conflict.mergelyInstance = doc
-  } catch (err) {
-    console.error(`Failed to init Mergely for ${conflict.storyId}`, err)
-  }
+      conflict.mergelyInstance = doc
+    } catch (err) {
+      console.error(`Failed to init Mergely for ${conflict.storyId}:`, err)
+    }
+  })
 }
 
 function destroyMergely(conflict) {
@@ -163,7 +179,6 @@ function destroyMergely(conflict) {
 async function getMergedContentForConflict(storyId) {
   const conflict = conflicts.value.find((c) => c.storyId === storyId)
   if (!conflict?.mergelyInstance) {
-    console.error(`Editor not ready for story ${storyId}`)
     showToast(`Editor not loaded for ${storyId}`, 'error')
     return
   }
@@ -176,7 +191,6 @@ async function getMergedContentForConflict(storyId) {
     mergedContents.value[storyId] = content
     showToast(`Valid JSON extracted from story ${storyId}`, 'success')
   } catch (err) {
-    console.error(`Invalid JSON in right-side content for ${storyId}:`, err)
     showToast(
       `Right-side content is not valid JSON for story ${storyId}`,
       'error'
@@ -191,9 +205,19 @@ async function submitResolution(storyId) {
   try {
     const resolutionData = JSON.parse(merged)
     await store.resolveConflictById(storyId, resolutionData)
+
+    const index = conflicts.value.findIndex((c) => c.storyId === storyId)
+    if (index !== -1) {
+      destroyMergely(conflicts.value[index])
+      conflicts.value.splice(index, 1)
+      openPanels.value = []
+      await nextTick()
+      prevPanels.value = []
+      delete mergedContents.value[storyId]
+    }
+
     showToast(`Story ${storyId} resolved!`, 'success')
   } catch (err) {
-    console.error(`Resolution failed for ${storyId}`, err)
     showToast(`Resolution failed for ${storyId}`, 'error')
   }
 }
@@ -201,15 +225,15 @@ async function submitResolution(storyId) {
 function onPanelsUpdated(panels) {
   prevPanels.value
     .filter((i) => !panels.includes(i))
-    .forEach((index) => {
-      const conflict = conflicts.value[index]
+    .forEach((i) => {
+      const conflict = conflicts.value[i]
       if (conflict) destroyMergely(conflict)
     })
 
   panels
     .filter((i) => !prevPanels.value.includes(i))
-    .forEach((index) => {
-      const conflict = conflicts.value[index]
+    .forEach((i) => {
+      const conflict = conflicts.value[i]
       if (conflict) {
         nextTick(() => initMergelyForConflict(conflict))
       }

@@ -35,6 +35,11 @@ class StoryConflict:
         return response, code
 
     @classmethod
+    def flush_store(cls):
+        cls.conflict_store.clear()
+        logger.debug("Conflict store flushed")
+
+    @classmethod
     def get_proposal_count(cls):
         logger.debug(f"with count {len(cls.conflict_store.values())}")
         for conflict in cls.conflict_store.values():

@@ -36,6 +36,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
 
   return {
     conflicts,
+    proposalCount,
     loadConflicts,
     fetchProposalCount,
     resolveConflictById
