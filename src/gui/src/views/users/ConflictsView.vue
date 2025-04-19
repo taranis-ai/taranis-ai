@@ -162,12 +162,25 @@ function destroyMergely(conflict) {
 
 async function getMergedContentForConflict(storyId) {
   const conflict = conflicts.value.find((c) => c.storyId === storyId)
-  if (conflict?.mergelyInstance) {
-    await nextTick()
-    mergedContents.value[storyId] = conflict.mergelyInstance.get('rhs')
-  } else {
+  if (!conflict?.mergelyInstance) {
     console.error(`Editor not ready for story ${storyId}`)
     showToast(`Editor not loaded for ${storyId}`, 'error')
+    return
+  }
+
+  await nextTick()
+  const content = conflict.mergelyInstance.get('rhs')
+
+  try {
+    JSON.parse(content)
+    mergedContents.value[storyId] = content
+    showToast(`Valid JSON extracted from story ${storyId}`, 'success')
+  } catch (err) {
+    console.error(`Invalid JSON in right-side content for ${storyId}:`, err)
+    showToast(
+      `Right-side content is not valid JSON for story ${storyId}`,
+      'error'
+    )
   }
 }
 
