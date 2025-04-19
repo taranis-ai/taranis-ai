@@ -75,7 +75,7 @@
         <template #content>
           <v-icon class="mr-2"> mdi-tools </v-icon>
           <span class="caption">
-            Here you will find all connectors management tools.
+            Here you can find all connectors management tools.
           </span>
         </template>
       </dash-board-card>

@@ -1,0 +1,38 @@
+[
+    {
+        "id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
+        "title": "Test Aggregate",
+        "description": "Test Aggregate",
+        "created": "2023-08-01T17:01:04.801870",
+        "read": false,
+        "important": false,
+        "likes": 0,
+        "dislikes": 0,
+        "relevance": 0,
+        "comments": "",
+        "summary": "",
+        "news_items": [
+        {
+            "review": "",
+            "author": "",
+            "source": "https://url/",
+            "link": "https://url/",
+            "language": null,
+            "osint_source_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e2",
+            "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebq",
+            "story_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
+            "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c82",
+            "title": "Test News Item 13",
+            "content": "Microsoft announced a security update addressing CVE-2020-1234. Experts at Google found vulnerabilities impacting Linux systems. Cisco advises users to update their security protocols to prevent potential breaches. The security community is on alert for new threats.",
+            "collected": "2023-08-01T17:01:04.802015",
+            "published": "2023-08-01T17:01:04.801998",
+            "updated": "2023-08-01T17:00:39.893435"
+        }
+        ],
+        "tags": [
+            { "name": "this", "tag_type": "misc" },
+            { "name": "is", "tag_type": "misc" },
+            { "name": "tag", "tag_type": "misc" }
+        ]
+    }
+]

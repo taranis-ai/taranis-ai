@@ -49,7 +49,7 @@ class NewsItem:
         self.story_id = story_id
 
     def to_dict(self):
-        return {
+        result = {
             "id": self.id,
             "hash": self.hash,
             "title": self.title,
@@ -60,12 +60,14 @@ class NewsItem:
             "collected": self.collected_date.isoformat(),
             "content": self.content,
             "osint_source_id": self.osint_source_id,
-            "attributes": self.attributes,
             "last_change": self.last_change,
             "story_id": self.story_id,
             "review": self.review,
             "language": self.language,
         }
+        if self.attributes:
+            result["attributes"] = self.attributes
+        return result
 
     def normalize_language_code(self, input_code: str) -> str | None:
         try:

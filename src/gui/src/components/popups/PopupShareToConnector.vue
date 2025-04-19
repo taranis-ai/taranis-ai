@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card v-if="hasConnectorPermissions">
     <v-card-title> Share to a connected instance </v-card-title>
     <v-card-text>
       Select a connector:
@@ -39,6 +39,8 @@
 <script>
 import { shareToConnector } from '@/api/assess'
 import { useConfigStore } from '@/stores/ConfigStore'
+import { useUserStore } from '@/stores/UserStore'
+import Permissions from '@/services/auth/permissions'
 import { ref, onMounted } from 'vue'
 export default {
   name: 'PopupShareToConnector',
@@ -52,9 +54,13 @@ export default {
   emits: ['close'],
   setup(props, { emit }) {
     const configStore = useConfigStore()
+    const userStore = useUserStore()
     const connectors = ref([])
     const connectorSelection = ref(null)
 
+    const hasConnectorPermissions = userStore.hasPermission(
+      Permissions.CONNECTOR_USER_ACCESS
+    )
     const share = () => {
       if (connectorSelection.value && props.itemIds.length > 0) {
         shareToConnector(connectorSelection.value, props.itemIds)
@@ -73,6 +79,7 @@ export default {
     })
 
     return {
+      hasConnectorPermissions,
       connectorSelection,
       connectors,
       share,
