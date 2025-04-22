@@ -50,11 +50,18 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     num_stories = len(stories)
     num_news_items = sum(len(story.get("news_items", [])) for story in stories)
 
+    # setup classifier mock
+    cybersec_classifier_mock.post(
+        f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
+        json={"cybersecurity": 0.6, "non-cybersecurity": 0.05},
+    )
+
+    # threshold 0.65 -> all news items classified as no
     cybersec_class_bot = bots.CyberSecClassifierBot()
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.65
 
     result_msg = cybersec_class_bot.execute()
-    assert result_msg == {"message": f"Classified {num_news_items} news_items"}
+    assert result_msg == {"message": f"Classified {num_news_items} news items"}
     assert story_get_mock.call_count == 1
     assert news_item_attribute_update_mock.call_count == num_news_items
     assert add_or_update_story_mock.call_count == num_stories
@@ -64,9 +71,24 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     ]
     assert set(cybersec_status_list) == {"no"}
 
+    # threshold 0.5 -> all news items classified as yes
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.5
     _ = cybersec_class_bot.execute()
     cybersec_status_list = [req.json()["cybersecurity"] for req in add_or_update_story_mock.request_history if req.method == "POST"][
-        num_stories:
+        num_stories : 2 * num_stories
     ]
     assert set(cybersec_status_list) == {"yes"}
+
+    # bot API not reachable -> all news items classified as none
+    cybersec_classifier_mock.post(
+        f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
+        json={"error": f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT} not reachable"},
+        status_code=404,
+    )
+    result_msg = cybersec_class_bot.execute()
+
+    assert result_msg == {"message": "Classified 0 news items"}
+    cybersec_status_list = [req.json()["cybersecurity"] for req in add_or_update_story_mock.request_history if req.method == "POST"][
+        2 * num_stories :
+    ]
+    assert set(cybersec_status_list) == {"none"}

@@ -61,7 +61,4 @@ def add_or_update_story_mock(requests_mock):
 @pytest.fixture
 def cybersec_classifier_mock(requests_mock):
     print(f"Mocking: {Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/")
-    yield requests_mock.post(
-        f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/",
-        json={"cybersecurity": 0.6, "non-cybersecurity": 0.05},
-    )
+    yield requests_mock
