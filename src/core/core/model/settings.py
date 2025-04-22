@@ -29,9 +29,13 @@ class Settings(BaseModel):
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
 
-        settings.settings = data
+        if update_data := data.get("settings"):
+            logger.debug(f"Settings update data: {update_data}")
+            logger.debug(f"Settings before update: {settings.settings}")
+            settings.settings = {**settings.settings, **update_data}
         db.session.commit()
-        return {"message": "Successfully updated settings", "settings": data}, 200
+        logger.debug(f"Settings after update: {settings.settings}")
+        return {"message": "Successfully updated settings", "setting": settings.settings}, 200
 
     @classmethod
     def initialize(cls):

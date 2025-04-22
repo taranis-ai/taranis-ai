@@ -39,12 +39,11 @@ class DataPersistenceLayer:
 
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
-    def invalidate_cache(self, suffix: str):
-        logger.debug(f"Invalidating cache with suffix: {suffix}")
+    def invalidate_cache(self, suffix: str | None = None) -> None:
         keys = list(cache.cache._cache.keys())
-        keys_to_delete = [key for key in keys if key.endswith(f"_{suffix}")]
-        for key in keys_to_delete:
-            cache.delete(key)
+        for key in keys:
+            if suffix is None or key.endswith(f"_{suffix}"):
+                cache.delete(key)
 
     def invalidate_cache_by_object(self, object: TaranisBaseModel | Type[TaranisBaseModel]):
         suffix = self.make_key(object._core_endpoint)
@@ -57,12 +56,22 @@ class DataPersistenceLayer:
             logger.debug(f"Cache hit for {endpoint}")
             return cache_object.search_and_paginate(paging_data)
         if result := self.api.api_get(endpoint):
-            result_object = [object_model(**object) for object in result["items"]]
-            cache_object = CacheObject(result_object)
-            logger.debug(f"Adding {endpoint} to cache with timeout: {result_object[0]._cache_timeout}")
-            cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=result_object[0]._cache_timeout)
-            return cache_object.search_and_paginate(paging_data)
+            return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
+
+    # TODO Rename this here and in `get_objects`
+    def _cache_and_paginate_objects(self, result, object_model, endpoint, paging_data):
+        result_object = [object_model(**object) for object in result.get("items", [])]
+        total_count = result.get("total_count", len(result_object))
+        links = result.get("_links", {})
+        cache_object = CacheObject(
+            result_object,
+            total_count=total_count,
+            links=links,
+        )
+        logger.debug(f"Adding {endpoint} to cache with timeout: {result_object[0]._cache_timeout}")
+        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=result_object[0]._cache_timeout)
+        return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump()

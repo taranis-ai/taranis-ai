@@ -65,7 +65,7 @@ class Scheduler:
 
     def get_periodic_tasks(self) -> dict:
         jobs = self.get_jobs()
-        logger.debug([self.serialize_job(job) for job in jobs])
+        logger.debug([job.id for job in jobs])
         items = [self.serialize_job(job) for job in jobs]
         return {"items": items, "total_count": len(items)}
 

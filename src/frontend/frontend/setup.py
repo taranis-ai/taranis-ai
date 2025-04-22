@@ -2,7 +2,7 @@ from flask import Flask, redirect, url_for
 from flask_htmx import HTMX
 from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
-from frontend.filters import human_readable_trigger
+import frontend.filters as filters_module
 from frontend.config import Config
 
 from heroicons.jinja import (
@@ -37,7 +37,8 @@ def index_redirect():
 
 
 def jinja_setup(app: Flask):
-    app.jinja_env.filters["human_readable"] = human_readable_trigger
+    for name in filters_module.__all__:
+        app.jinja_env.filters[name] = getattr(filters_module, name)
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
     app.jinja_env.globals.update(

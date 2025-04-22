@@ -2,17 +2,7 @@
 {% from "macros/datatable.html" import datatable with context %}
 {% from "macros/variables.html" import tlp_levels %}
 {% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
-{% set form_title = 'Role' %}
-
-{% set role = role
-    | default({
-        'id': 0,
-        'name': '',
-        'description': '',
-        'permissions': []
-    })
-%}
-
+{% set form_title = model_name | capitalize %}
 
 {% set columns = [
   {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},

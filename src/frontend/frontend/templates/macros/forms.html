@@ -15,10 +15,9 @@
 {% endmacro %}
 
 {% macro form_select(label, name, value, options=[], input_id=None, required=True) %}
-
 <label class="floating-label mb-5 w-1/2">
   <span>{{ label }}</span>
-  <select name="{{ name }}" {% if required %} required {% endif %} class="validator select w-full">
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="validator select w-full">
     {% for option in options -%}
     <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
     {% endfor -%}

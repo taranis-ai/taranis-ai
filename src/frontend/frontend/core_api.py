@@ -1,7 +1,9 @@
 import requests
-from flask import request
+from flask import request, Response
 from frontend.log import logger
 from frontend.config import Config
+from werkzeug.wsgi import wrap_file
+from typing import cast, IO
 
 
 class CoreApi:
@@ -50,14 +52,9 @@ class CoreApi:
             return None
         return self.check_response(response, url)
 
-    def api_download(self, endpoint: str, params: dict | None = None):
+    def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
-        try:
-            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params, stream=True)
-        except Exception as e:
-            logger.error(f"Call to {url} failed {e}")
-            return None
-        return response
+        return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params, stream=True)
 
     def get_users(self, query_params=None):
         return self.api_get("/config/users", params=query_params)
@@ -66,7 +63,11 @@ class CoreApi:
         return self.api_get("/config/organizations", params=query_params)
 
     def export_users(self, user_ids=None):
-        return self.api_download("/config/users-export", params=user_ids)
+        try:
+            return self.api_download("/config/users-export", params=user_ids)
+        except Exception as e:
+            logger.error(f"Export users failed: {e}")
+            return None
 
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
@@ -74,3 +75,20 @@ class CoreApi:
     def login(self, username, password):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
+
+    @staticmethod
+    def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
+        disposition = response.headers.get("Content-Disposition", f"attachment; filename={fallback_filename}")
+
+        file_wrapper = wrap_file(
+            request.environ,
+            cast(IO[bytes], response.raw),
+        )
+
+        return Response(
+            file_wrapper,
+            status=response.status_code,
+            content_type=response.headers.get("Content-Type", "application/json"),
+            headers={"Content-Disposition": disposition},
+            direct_passthrough=True,
+        )

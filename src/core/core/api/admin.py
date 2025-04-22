@@ -1,5 +1,5 @@
 import io
-from flask import Blueprint, Flask, request, send_file
+from flask import Blueprint, Flask, request, send_file, url_for
 from flask.views import MethodView
 from datetime import datetime
 
@@ -65,7 +65,18 @@ class ExportStories(MethodView):
 class SettingsView(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        return Settings.get_all_for_api({})
+        settings_data, return_code = Settings.get_all_for_api({})
+        settings_data["_links"] = {
+            "delete_tags": url_for("admin.delete_tags"),
+            "delete_stories": url_for("admin.delete_stories"),
+            "ungroup_stories": url_for("admin.ungroup_all_stories"),
+            "reset_database": url_for("admin.reset_database"),
+            "clear_queues": url_for("admin.clear_queue"),
+            "export_stories": url_for("admin.export_stories"),
+            "update_settings": url_for("admin.settings"),
+        }
+
+        return settings_data, return_code
 
     @auth_required("ADMIN_OPERATIONS")
     def put(self):
