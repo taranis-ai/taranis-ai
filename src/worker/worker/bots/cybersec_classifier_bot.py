@@ -30,8 +30,6 @@ class CyberSecClassifierBot(BaseBot):
             story_class_list = []
             for news_item in story.get("news_items", []):
                 result = self._process_news_item(news_item)
-                if result is None:
-                    continue
                 story_class_list.append(result)
                 num_news_items += 1
 
