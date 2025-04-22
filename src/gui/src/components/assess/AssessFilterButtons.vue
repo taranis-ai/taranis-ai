@@ -4,27 +4,32 @@
       v-model="storyFilter['read']"
       label="read"
       icon="mdi-eye-check-outline"
+      data-testid="filter-read-btn"
     />
     <filter-button
       v-model="storyFilter['important']"
       label="important"
       icon="mdi-star-check-outline"
+      data-testid="filter-important-btn"
     />
     <filter-button
       v-model="storyFilter['in_report']"
       label="in reports"
       icon="mdi-google-circles-communities"
+      data-testid="filter-in-report-btn"
     />
     <filter-button
       v-model="storyFilter['relevant']"
       label="relevant"
       icon="mdi-bullseye-arrow"
+      data-testid="filter-relevance-btn"
     />
     <multi-state-filter-button
       v-model="storyFilter['cybersecurity']"
       label="cybersecurity"
       icon="mdi-shield-outline"
       :values="['yes', 'no', 'mixed']"
+      data-testid="filter-cybersecurity-btn"
     />
   </div>
 </template>
