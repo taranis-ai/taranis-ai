@@ -638,7 +638,7 @@ export default {
 }
 
 .cyber-chip-mixed {
-  background-color: #c09001;
+  background-color: #9066df;
   color: white;
 }
 
