@@ -216,12 +216,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("story-cybersec-status-chip")).to_have_text("No")
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
 
-            # filter yes - no - mixed
+            # filter yes - no - mixed - incomplete
             page.evaluate("window.scrollTo(0, 0)")
             self.highlight_element(page.get_by_test_id("filter-cybersecurity-btn")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{story_ids[1]}"))
             self.highlight_element(page.get_by_test_id("filter-cybersecurity-btn")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{story_ids[2]}"))
+            self.highlight_element(page.get_by_test_id("filter-cybersecurity-btn")).click()
             self.highlight_element(page.get_by_test_id("filter-cybersecurity-btn")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{story_ids[0]}"))
             self.highlight_element(page.get_by_test_id("filter-cybersecurity-btn")).click()
@@ -330,7 +331,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).to_have_value("dangerous")
 
             # check cybersecurity status
-            expect(page.get_by_test_id("story-cybersec-status-chip")).to_have_text("Mixed")
+            expect(page.get_by_test_id("story-cybersec-status-chip")).to_have_text("Incomplete")
 
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
