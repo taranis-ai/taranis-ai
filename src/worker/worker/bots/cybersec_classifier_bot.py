@@ -31,7 +31,8 @@ class CyberSecClassifierBot(BaseBot):
             for news_item in story.get("news_items", []):
                 result = self._process_news_item(news_item)
                 story_class_list.append(result)
-                num_news_items += 1
+                if result != "none":
+                    num_news_items += 1
 
                 status_set = frozenset(story_class_list)
 
@@ -48,7 +49,7 @@ class CyberSecClassifierBot(BaseBot):
 
             self.core_api.add_or_update_story({"id": story.get("id", ""), "cybersecurity": story_cybersecurity_status})
 
-        return {"message": f"Classified {num_news_items} news_items"}
+        return {"message": f"Classified {num_news_items} news items"}
 
     def classify_news_item(self, content: str) -> dict | None:
         class_result = self.bot_api.api_post("/", {"text": content})
