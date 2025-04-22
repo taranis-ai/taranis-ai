@@ -28,7 +28,7 @@
       v-model="storyFilter['cybersecurity']"
       label="cybersecurity"
       icon="mdi-shield-outline"
-      :values="['yes', 'no', 'mixed']"
+      :values="['yes', 'no', 'mixed', 'incomplete']"
       data-testid="filter-cybersecurity-btn"
     />
   </div>
