@@ -128,7 +128,7 @@ class NewsItem(BaseModel):
 
     def get_cybersecurity_status(self) -> str:
         return next((attr.value for attr in self.attributes if attr.key == "cybersecurity_human"), None) or next(
-            (attr.value for attr in self.attributes if attr.key == "cybersecurity_bot"), ""
+            (attr.value for attr in self.attributes if attr.key == "cybersecurity_bot"), "none"
         )
 
     def upsert(self):
