@@ -35,12 +35,19 @@ class CyberSecClassifierBot(BaseBot):
                 story_class_list.append(result)
                 num_news_items += 1
 
-            if all(story_class_list):
-                story_cybersecurity_status = "yes"
-            elif len(set(story_class_list)) != 1:
-                story_cybersecurity_status = "mixed"
-            else:
-                story_cybersecurity_status = "no"
+                status_set = frozenset(story_class_list)
+
+                if "none" in status_set and len(status_set) > 1:
+                    story_cybersecurity_status = "incomplete"
+                else:
+                    status_map = {
+                        frozenset(["yes"]): "yes",
+                        frozenset(["no"]): "no",
+                        frozenset(["yes", "no"]): "mixed",
+                        frozenset(["none"]): "none",
+                    }
+                    story_cybersecurity_status = status_map.get(status_set, "none")
+
             self.core_api.add_or_update_story({"id": story.get("id", ""), "cybersecurity": story_cybersecurity_status})
 
         return {"message": f"Classified {num_news_items} news_items"}
@@ -57,14 +64,14 @@ class CyberSecClassifierBot(BaseBot):
         logger.debug(f"Predicted class: {max(class_result, key=class_result.get)}")
         return class_result
 
-    def _process_news_item(self, news_item: dict) -> bool | None:
+    def _process_news_item(self, news_item: dict) -> str:
         news_item_content = news_item.get("content", "")
         news_item_id = news_item.get("id", "")
 
         logger.debug(f"Classifying news item with id: {news_item_id}.")
         class_result = self.classify_news_item(news_item_content)
         if not class_result:
-            return None
+            return "none"
 
         status = "yes" if class_result.get("cybersecurity", 0.0) > Config.CYBERSEC_CLASSIFIER_THRESHOLD else "no"
 
@@ -79,4 +86,4 @@ class CyberSecClassifierBot(BaseBot):
         else:
             logger.error(f"Failed to update news item {news_item_id} with cybersecurity attributes.")
 
-        return status == "yes"
+        return status

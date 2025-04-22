@@ -297,20 +297,26 @@ export default {
 
       const counts = story.value.news_items.reduce(
         (acc, newsItem) => {
-          const news_item_status = getNewsItemCyberSecStatus(newsItem)
-          if (['yes_human', 'yes_bot'].includes(news_item_status)) {
-            acc['yes']++
-          } else if (['no_human', 'no_bot'].includes(news_item_status)) {
-            acc['no']++
+          const status = getNewsItemCyberSecStatus(newsItem)
+          if (['yes_human', 'yes_bot'].includes(status)) {
+            acc.yes++
+          } else if (['no_human', 'no_bot'].includes(status)) {
+            acc.no++
+          } else {
+            acc.none++
           }
           return acc
         },
-        { yes: 0, no: 0 }
+        { yes: 0, no: 0, none: 0 }
       )
+
+      if (counts.none && (counts.yes || counts.no)) return 'Incomplete'
       if (counts.yes && counts.no) return 'Mixed'
       if (counts.yes) return 'Yes'
       if (counts.no) return 'No'
-      return 'Not Classifed'
+      if (counts.none) return 'None'
+
+      return 'Not Classified'
     }
 
     const storyCyberSecStatus = computed(() => {
@@ -325,6 +331,8 @@ export default {
           return 'cyber-chip-no'
         case 'Not Classified':
           return 'cyber-chip-not-classified'
+        case 'Incomplete':
+          return 'cyber-chip-incomplete'
         default:
           return ''
       }
@@ -627,6 +635,10 @@ export default {
 
 .cyber-chip-not-classified {
   background-color: #f3f3f3;
+  color: black;
+}
+.cyber-chip-incomplete {
+  background-color: #ffc107;
   color: black;
 }
 </style>

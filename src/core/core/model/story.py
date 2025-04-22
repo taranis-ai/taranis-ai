@@ -865,15 +865,18 @@ class Story(BaseModel):
 
     def update_cybersecurity_status(self):
         cybersecurity_status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
+        status_set = frozenset(cybersecurity_status_list)
 
-        if set(cybersecurity_status_list) == {"yes"}:
-            self.cybersecurity = "yes"
-        elif set(cybersecurity_status_list) == {"yes", "no"}:
-            self.cybersecurity = "mixed"
-        elif set(cybersecurity_status_list) == {"no"}:
-            self.cybersecurity = "no"
+        if "none" in status_set and len(status_set) > 1:
+            self.cybersecurity = "incomplete"
         else:
-            self.cybersecurity = "none"
+            status_map = {
+                frozenset(["yes"]): "yes",
+                frozenset(["no"]): "no",
+                frozenset(["yes", "no"]): "mixed",
+                frozenset(["none"]): "none",
+            }
+            self.cybersecurity = status_map.get(status_set, "none")
 
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
