@@ -77,13 +77,7 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row
-      v-if="story && userStore.advanced_story_options"
-      class="mt-4 px-4"
-      align="center"
-      justify="start"
-      wrap
-    >
+    <v-row class="mt-4 px-4" align="center" justify="start" wrap>
       <v-col
         cols="12"
         sm="6"
@@ -92,6 +86,7 @@
         style="gap: 24px"
       >
         <v-btn
+          v-if="story && userStore.advanced_story_options"
           prepend-icon="mdi-pulse"
           @click="triggerSentimentAnalysisBot"
           class="text-truncate mb-2"
@@ -107,6 +102,7 @@
         </v-btn>
         <div class="d-flex flex-wrap" style="gap: 24px">
           <v-chip
+            v-if="story && userStore.advanced_story_options"
             v-for="(count, sentiment) in sentimentCounts"
             :key="sentiment"
             :color="getSentimentColor(sentiment)"
@@ -146,12 +142,13 @@
             text-overflow: ellipsis;
           "
         >
-          Classify Cybersecurity
+          Classify Cybersecurity (Bot)
         </v-btn>
         <v-chip
           :key="storyCyberSecStatus"
           :class="getChipCybersecurityClass(storyCyberSecStatus)"
           label
+          data-testid="story-cybersec-status-chip"
         >
           {{ storyCyberSecStatus }}
         </v-chip>
@@ -185,8 +182,12 @@
               >
                 <v-btn
                   value="yes"
-                  :class="getButtonCybersecurityClass(news_item, 'yes')"
+                  :class="[
+                    getButtonCybersecurityClass(news_item, 'yes'),
+                    'me-2'
+                  ]"
                   @click="setNewsItemCyberSecStatus(news_item, 'yes')"
+                  :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
                 >
                   Cybersecurity
                 </v-btn>
@@ -195,6 +196,7 @@
                   value="no"
                   :class="getButtonCybersecurityClass(news_item, 'no')"
                   @click="setNewsItemCyberSecStatus(news_item, 'no')"
+                  :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
                 >
                   Not Cybersecurity
                 </v-btn>
@@ -329,6 +331,8 @@ export default {
           return 'cyber-chip-yes'
         case 'No':
           return 'cyber-chip-no'
+        case 'Mixed':
+          return 'cyber-chip-mixed'
         case 'Not Classified':
           return 'cyber-chip-not-classified'
         case 'Incomplete':
@@ -630,6 +634,11 @@ export default {
 
 .cyber-chip-no {
   background-color: #e42e2e;
+  color: white;
+}
+
+.cyber-chip-mixed {
+  background-color: #c09001;
   color: white;
 }
 
