@@ -25,7 +25,7 @@
             <v-expansion-panel-title>
               <div class="d-flex justify-space-between align-center w-100">
                 <span>Story ID: {{ conflict.storyId }}</span>
-                <v-chip
+                <v-btn
                   v-if="conflict.hasProposals"
                   small
                   color="orange"
@@ -38,12 +38,12 @@
                     rel="noopener noreferrer"
                     class="proposal-link"
                   >
-                    View Proposal
+                    View Event With Proposal(s)
                   </a>
-                </v-chip>
-                <v-chip v-else small color="grey" text-color="white" outlined>
+                </v-btn>
+                <v-btn v-else small color="grey" text-color="white" outlined>
                   No Proposal
-                </v-chip>
+                </v-btn>
               </div>
             </v-expansion-panel-title>
 
