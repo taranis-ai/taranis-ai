@@ -1,5 +1,6 @@
 import ast
 import datetime
+from dateutil.parser import isoparse
 from pymisp import PyMISP, MISPObject
 
 from worker.core_api import CoreApi
@@ -200,8 +201,7 @@ class MISPCollector(BaseCollector):
                     story_properties["read"] = bool(int(item.get("value", 0)))
                 case "created":
                     created_str = item.get("value", "")
-                    created = datetime.datetime.strptime(created_str, "%Y-%m-%dT%H:%M:%S.%f%z")
-                    story_properties["created"] = created.isoformat()
+                    story_properties["created"] = isoparse(created_str).isoformat()
                 case "links":
                     if value := item.get("value", None):
                         story_properties["links"].append(ast.literal_eval(value))
