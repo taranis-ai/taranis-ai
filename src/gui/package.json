@@ -28,7 +28,6 @@
     "axios": "^1.8.4",
     "chart.js": "^4.4.9",
     "codemirror": "^6.0.1",
-    "jquery": "^3.7.1",
     "js-base64": "^3.7.7",
     "lodash-es": "^4.17.21",
     "mergely": "^5.3.6",
