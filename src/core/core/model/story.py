@@ -252,6 +252,18 @@ class Story(BaseModel):
         return query
 
     @classmethod
+    def _add_cybersecurity_filter_to_query(cls, query: Select, cybersecurity: str) -> Select:
+        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+
+        return (
+            db.select(subquery_story_attribute.story_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == subquery_story_attribute.news_item_attribute_id)
+            .filter(NewsItemAttribute.key == "cybersecurity")
+            .filter(NewsItemAttribute.value == cybersecurity)
+            .distinct()
+        )
+
+    @classmethod
     def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
         subquery_attribute = aliased(NewsItemAttribute)
         subquery_story_attribute = aliased(StoryNewsItemAttribute)
@@ -1032,7 +1044,7 @@ class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):

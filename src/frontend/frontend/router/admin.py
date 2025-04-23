@@ -55,22 +55,22 @@ class UsersAPI(MethodView):
 
     @auth_required()
     def post(self):
-        return UserView.update_user_view(user_id=0)
+        return UserView.update_view(object_id=0)
 
 
 class UpdateUser(MethodView):
     @auth_required()
     def get(self, user_id: int = 0):
-        return UserView.edit_user_view(user_id=user_id)
+        return UserView.edit_view(object_id=user_id)
 
     @auth_required()
     def put(self, user_id: int):
-        return UserView.update_user_view(user_id=user_id)
+        return UserView.update_view(object_id=user_id)
 
     @auth_required()
     def delete(self, user_id: int):
         result = DataPersistenceLayer().delete_object(User, user_id)
-        return "error" if result == "error" else Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"}) if result else "error"
 
 
 class OrganizationsAPI(MethodView):
@@ -80,17 +80,17 @@ class OrganizationsAPI(MethodView):
 
     @auth_required()
     def post(self):
-        return OrganizationView.update_organization_view(organization_id=0)
+        return OrganizationView.update_view(object_id=0)
 
 
 class UpdateOrganization(MethodView):
     @auth_required()
     def get(self, organization_id: int):
-        return OrganizationView.edit_organization_view(organization_id=organization_id)
+        return OrganizationView.edit_view(object_id=organization_id)
 
     @auth_required()
     def put(self, organization_id: int):
-        return OrganizationView.update_organization_view(organization_id=organization_id)
+        return OrganizationView.update_view(object_id=organization_id)
 
     @auth_required()
     def delete(self, organization_id: int):
@@ -105,17 +105,17 @@ class RolesAPI(MethodView):
 
     @auth_required()
     def post(self):
-        return RoleView.update_role_view(role_id=0)
+        return RoleView.update_view(object_id=0)
 
 
 class UpdateRole(MethodView):
     @auth_required()
     def get(self, role_id: int = 0):
-        return RoleView.edit_role_view(role_id=role_id)
+        return RoleView.edit_view(object_id=role_id)
 
     @auth_required()
     def put(self, role_id):
-        return RoleView.update_role_view(role_id=role_id)
+        return RoleView.update_view(object_id=role_id)
 
     @auth_required()
     def delete(self, role_id):

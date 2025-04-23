@@ -53,6 +53,12 @@ class BaseView:
         return {}
 
     @classmethod
+    def edit_view(cls, object_id: int = 0):
+        template = cls.get_update_template()
+        context = cls.get_update_context(object_id)
+        return render_template(template, **context)
+
+    @classmethod
     def get_update_context(cls, object_id: int, error: str | None = None, form_error: str | None = None, resp_obj=None):
         """Builds the context dictionary, merging in any extra context."""
         dpl = DataPersistenceLayer()

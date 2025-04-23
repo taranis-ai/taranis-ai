@@ -28,16 +28,6 @@ class UserView(BaseView):
         }
 
     @classmethod
-    def edit_user_view(cls, user_id: int = 0):
-        template = UserView.get_update_template()
-        context = UserView.get_update_context(user_id)
-        return render_template(template, **context)
-
-    @classmethod
-    def update_user_view(cls, user_id: int = 0):
-        return UserView.update_view(user_id)
-
-    @classmethod
     def import_users_view(cls, error=None):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)

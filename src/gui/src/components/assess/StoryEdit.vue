@@ -231,9 +231,23 @@ export default {
         })
       },
       set(newAttributes) {
+        if (!validateTLP(newAttributes)) {
+          return
+        }
         story.value.attributes = newAttributes
       }
     })
+
+    function validateTLP(attributes) {
+      const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
+      const validTlpValues = ['clear', 'green', 'amber', 'amber+strict', 'red']
+      if (validTlpValues.includes(tlpAttr)) {
+        return true
+      } else {
+        notifyFailure(`Invalid TLP value: ${JSON.stringify(tlpAttr)}`)
+        return false
+      }
+    }
 
     const hasRtId = computed(() => {
       return (
@@ -244,6 +258,10 @@ export default {
       const { valid } = await form.value.validate()
 
       if (!valid) {
+        return
+      }
+
+      if (!validateTLP(story.value.attributes)) {
         return
       }
 
