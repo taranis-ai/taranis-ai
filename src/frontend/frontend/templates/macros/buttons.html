@@ -1,0 +1,29 @@
+{% macro export_button(export_url) %}
+  <a
+    class="btn btn-outline btn-info"
+    href="{{ export_url }}"
+    download
+  >
+    {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
+    Export
+  </a>
+{% endmacro %}
+
+
+{% macro import_button(import_url) %}
+<button hx-get="{{ import_url }}" class="btn btn-outline btn-accent">
+  {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
+  Import
+</button>
+{% endmacro %}
+
+{% macro action_button(action) %}
+        <button class="btn {{ action.class }}"
+                hx-{{ action.method }}="{{ action.url }}"
+                hx-push-url="true"
+                {% if action.hx_target %} hx-target="{{ action.hx_target }}" {% endif %}
+                {% if action.hx_swap %} hx-swap="{{ action.hx_swap }}" {% endif %}
+                {% if action.confirm %} hx-confirm="{{ action.confirm }}" {% endif %}>
+            {{ action.label }}
+        </button>
+{% endmacro %}

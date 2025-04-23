@@ -13,23 +13,27 @@ class NewsItem:
     def __init__(
         self,
         osint_source_id: str,
+        id: str | None = None,
         hash: str = "",
         author: str = "",
         title: str = "",
-        language: str | None = None,
-        review: str | None = None,
+        language: str = "",
+        review: str = "",
         content: str = "",
         web_url: str = "",
         source: str = "",
         published_date: datetime | None = None,
         collected_date: datetime | None = None,
         attributes: list | None = None,
+        last_change: str = "external",
+        story_id: str = "",
     ):
         self.osint_source_id = osint_source_id
+        self.id = id
         self.hash = hash
         self.author = author
         self.title = title
-        self.language = self.normalize_language_code(language) if language else None
+        self.language = self.normalize_language_code(language) if language else ""
         self.review = review
         self.content = content
         self.web_url = web_url
@@ -41,9 +45,12 @@ class NewsItem:
             published_date = collected_date
         self.published_date = published_date
         self.attributes = attributes or []
+        self.last_change = last_change
+        self.story_id = story_id
 
     def to_dict(self):
-        data = {
+        return {
+            "id": self.id,
             "hash": self.hash,
             "title": self.title,
             "source": self.source,
@@ -54,12 +61,11 @@ class NewsItem:
             "content": self.content,
             "osint_source_id": self.osint_source_id,
             "attributes": self.attributes,
+            "last_change": self.last_change,
+            "story_id": self.story_id,
+            "review": self.review,
+            "language": self.language,
         }
-        if self.language:
-            data["language"] = self.language
-        if self.review:
-            data["review"] = self.review
-        return data
 
     def normalize_language_code(self, input_code: str) -> str | None:
         try:

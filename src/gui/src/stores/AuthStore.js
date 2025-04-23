@@ -92,7 +92,6 @@ export const useAuthStore = defineStore(
       }
       return false
     }
-
     function setJwtToken(access_token) {
       localStorage.ACCESS_TOKEN = access_token
       apiService.setHeader()
@@ -105,6 +104,8 @@ export const useAuthStore = defineStore(
 
     function reset() {
       localStorage.ACCESS_TOKEN = ''
+      document.cookie =
+        'access_token_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
       jwt.value = ''
       user.value = {}
       sub.value = ''

@@ -1,0 +1,56 @@
+name: build models
+
+on:
+  push:
+    paths:
+    - 'src/models/**'
+    - '.github/workflows/build_model.yaml'
+    branches:
+    - master
+    tags:
+    - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  packages: write
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build_wheel:
+    name: build wheel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/models
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: build
+        run: uv build
+
+      - name: Upload wheel to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taranis_models
+          overwrite: true
+          path: |
+            src/models/dist/taranis_models-*.whl
+            src/models/dist/taranis_models-*.tar.gz
+
+      - name: Publish package to pypi
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: src/models/dist

@@ -142,6 +142,17 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
+      path: '/connectors',
+      name: 'connector-user-access',
+      components: {
+        default: () => import('@/views/users/ConflictsView.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONNECTOR_USER_ACCESS
+      }
+    },
+    {
       path: '/cluster/:cluster',
       name: 'cluster',
       props: true,
@@ -172,21 +183,32 @@ export const router = createRouter({
       alias: '/config',
       name: 'configDashboard',
       components: {
-        default: () => import('@/views/admin/AdminDashboardView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Dashboard',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin`
+        }
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: Permissions.CONFIG_ACCESS,
-        title: 'Administration'
+        requiresPerm: Permissions.CONFIG_ACCESS
       }
     },
     {
       path: '/config/organizations',
       name: 'organization',
       components: {
-        default: () => import('@/views/admin/OrganizationsView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Organizations',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/organizations`
+        }
       },
       meta: {
         requiresAuth: true,
@@ -197,8 +219,14 @@ export const router = createRouter({
       path: '/config/roles',
       name: 'roles',
       components: {
-        default: () => import('@/views/admin/RolesView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Roles',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/roles`
+        }
       },
       meta: {
         requiresAuth: true,
@@ -221,8 +249,14 @@ export const router = createRouter({
       path: '/config/users',
       name: 'users',
       components: {
-        default: () => import('@/views/admin/UsersView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Users',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/users`
+        }
       },
       meta: {
         requiresAuth: true,
@@ -245,8 +279,14 @@ export const router = createRouter({
       path: '/config/scheduler',
       name: 'scheduler',
       components: {
-        default: () => import('@/views/admin/SchedulerView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Scheduler',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/scheduler`
+        }
       },
       meta: {
         requiresAuth: true,
@@ -263,6 +303,18 @@ export const router = createRouter({
       meta: {
         requiresAuth: true,
         requiresPerm: Permissions.CONFIG_BOT_ACCESS
+      }
+    },
+    {
+      path: '/config/connectors',
+      name: 'connectors',
+      components: {
+        default: () => import('@/views/admin/ConnectorsView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_CONNECTOR_ACCESS
       }
     },
     {
@@ -388,8 +440,14 @@ export const router = createRouter({
       path: '/config/openapi',
       name: 'openapi',
       components: {
-        default: () => import('@/views/admin/OpenAPI.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'OpenAPI',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/doc`
+        }
       },
       meta: {
         requiresAuth: true

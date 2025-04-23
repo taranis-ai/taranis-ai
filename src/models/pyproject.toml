@@ -1,0 +1,61 @@
+[project]
+name = "taranis-models"
+description = "Taranis AI Models"
+readme = "README.md"
+license = "EUPL-1.2"
+maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
+
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Flask",
+    "Topic :: Security",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic",
+    "pydantic-settings",
+    "python-dotenv",
+    "langcodes"
+]
+dynamic = ["version"]
+
+[tool.setuptools]
+packages = ["models"]
+
+[build-system]
+requires = [
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
+root = "../.."
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest", "wheel"]
+
+[project.urls]
+"Source Code" = "https://github.com/taranis-ai/taranis-ai"
+
+[tool.ruff]
+line-length = 142
+target-version = "py312"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
+[tool.coverage.run]
+branch = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""

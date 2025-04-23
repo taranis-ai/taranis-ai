@@ -92,6 +92,7 @@
                   v-model="expand_panel_groups"
                   class="mb-1"
                   multiple
+                  eager
                 >
                   <v-expansion-panel
                     :title="attribute_group"

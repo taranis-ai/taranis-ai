@@ -1,0 +1,10 @@
+<div class="text-3xl font-bold mb-4">Edit User</div>
+
+<!-- check if current_user is edited -->
+{% if user.username == current_user %}
+
+<div role="alert" class="alert alert-warning mb-4 items-center">
+    {{ heroicon_outline('exclamation-triangle') }}
+    <span class="mx-auto">Please be aware, you are editing your own user. You could lock yourself out!</span>
+</div>
+{% endif %}

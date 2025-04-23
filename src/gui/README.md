@@ -4,6 +4,10 @@ The GUI is written in [Vue.js](https://vuejs.org/) with [Vuetify](https://vuetif
 
 Currently, the best way to build and deploy is via Docker. For more information, see [docker/README.md](../../docker/README.md) and the [toplevel README.md file](../../README.md).
 
+* Vue.js: As the primary frontend framework.
+* Vuetify: As a UI library for Vue.js.
+* Vite: For the frontend build tool and development server.
+
 If you wish to develop and build the GUI separately, read on.
 
 ### Project setup

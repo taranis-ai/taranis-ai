@@ -1,0 +1,100 @@
+{% from "macros/forms.html" import form_input, form_select %}
+
+{% set create = user_id == 0 | default('true') %}
+{% set form_title = 'User' %}
+
+{% set user = user | default({
+        'id': 0,
+        'username': '',
+        'name': '',
+        'roles': [],
+        'organization': ''
+    })
+%}
+
+{% set form_error = form_error | default({}) %}
+{% set roles = roles | default([]) %}
+{% set organizations = organizations | default([]) %}
+{% if user.roles[0] is integer %}
+  {% set user_roles = user.roles %}
+{% else %}
+  {% set user_roles = user.roles | map(attribute='id') | list %}
+{% endif %}
+
+
+<script type="text/javascript">
+  var settings = {
+    plugins: ['remove_button'],
+    persist:false,
+    onItemAdd:function(){
+			this.setTextboxValue('');
+			this.refreshOptions();
+		}};
+
+  htmx.onLoad(function(elt) {
+    var elt = document.getElementById('user-role-select');
+    if (elt && elt.classList.contains('tomselected')) return;
+    new TomSelect(elt, settings);
+  });
+
+  function generatePassword(
+      length = 20,
+      characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
+    ) {
+      return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+        .map((x) => characters[x % characters.length])
+        .join('')
+    }
+</script>
+
+<div class="bg-base-100 rounded-sm p-4">
+    <div class="w-1/2 ml-[10%]">
+    {% if create -%}
+        <h1 class="text-3xl font-bold mb-5">Create {{ form_title }}</h1>
+    {% else -%}
+        {% include "user/user_form_warning.html" %}
+    {% endif -%}
+    </div>
+
+    <form id="user-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+        {% if error -%}
+        <div role="alert" class="alert alert-error mb-5 w-3/4">{{ error }}</div>
+        {% endif -%}
+
+        {{ form_input('Username', 'username', user.username, form_error.username) }}
+        {{ form_input('Name', 'name', user.name, form_error.name) }}
+
+        <div x-data="{ showPassword: false }" class="join gap-1 w-full">
+          <label class="floating-label mb-5 input validator w-1/2">
+              <span>Password</span>
+                  <input
+                      id="user-password"
+                      :type="showPassword ? 'text' : 'password'"
+                      placeholder="Password"
+                      class="input input-md validator {% if form_error.password %}input-error{% endif %}"
+                      name="password"
+                      {% if create %}required hx-preserve{% endif %}
+                  />
+                  <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
+                  <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+            </label>
+          <button type="button" class="btn btn-primary" id="generate-password" onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
+        </div>
+
+        <div class="w-1/2">
+          <label>
+              <span>Roles</span>
+          </label>
+          <select name="roles[]" multiple required type="number" id="user-role-select" class="tomselect">
+              {% for role in roles %}
+              <option value="{{ role.id }}" {% if role.id in user_roles %}selected{% endif %}>{{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}</option>
+              {% endfor %}
+          </select>
+          <p class="validator-hint mb-5">Required</p>
+        </div>
+
+        {{ form_select('Organization', 'organization', user.organization, organizations) }}
+
+        <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+    </form>
+</div>

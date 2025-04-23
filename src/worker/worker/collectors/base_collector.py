@@ -116,16 +116,18 @@ class BaseCollector:
         return datetime.datetime.now()
 
     def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
+        if not item.id:
+            item.id = str(uuid.uuid4())
         if not item.osint_source_id:
-            item.osint_source_id = str(uuid.uuid4())
+            if source.get("id"):
+                item.osint_source_id = source.get("id", "")
+            else:
+                raise ValueError("osint_source_id is required")
         item.published_date = self.sanitize_date(item.published_date)
         item.collected_date = self.sanitize_date(item.collected_date)
-        item.osint_source_id = source.get("id", item.osint_source_id)
         item.attributes = item.attributes or []
         item.title = self.sanitize_html(item.title)
         item.content = self.sanitize_html(item.content)
-        item.review = item.review or ""
-        item.author = item.author or ""
         item.web_url = self.sanitize_url(item.web_url)
         item.hash = item.hash or hashlib.sha256((item.author + item.title + item.web_url).encode()).hexdigest()
         return item
@@ -153,16 +155,32 @@ class BaseCollector:
         self.core_api.update_osintsource_status(source["id"], None)
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
-        """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
+        """
+        story_lists example: [{title: str, news_items: list[NewsItem]}]
+        """
+        if not story_lists:
+            logger.info(f"No stories to publish from source {source.get('name')} ({source.get('id')})")
+            return None
+
         if not story_attribute_key:
             news_items = [item for story_list in story_lists for item in story_list["news_items"]]
             return self.publish(news_items, source)
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
+
+        processed_stories = []
         for story in stories_for_publishing:
-            if "news_items" in story:
-                story["news_items"] = [item.to_dict() for item in story["news_items"]]
-        for story in stories_for_publishing:
+            new_story = story.copy()
+            if news_items := new_story.get("news_items"):
+                processed_news_items = self.process_news_items(news_items, source)
+                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
+                logger.debug(f"{new_story['news_items']=}")
+            processed_stories.append(new_story)
+
+        if processed_stories[0].get("id"):
+            self.publish_misp_stories(processed_stories, story_attribute_key, source)
+
+        for story in processed_stories:
             self.core_api.add_or_update_story(story)
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
@@ -192,3 +210,32 @@ class BaseCollector:
                     break
 
         return new_stories
+
+    def publish_misp_stories(self, story_lists: list[dict], story_attribute_key: str, source: dict):
+        for story in story_lists:
+            if existing_story := self.core_api.get_stories({"story_id": story.get("id")}):
+                if len(existing_story) > 1:
+                    logger.warning(f"Multiple stories with the same story_id {story.get('id')} found")
+                    continue
+                if self.check_internal_changes(existing_story[0]):
+                    logger.info(f"Internal changes detected in story {existing_story[0].get('id')}, skipping update")
+                    story["conflict"] = True
+
+                if news_items_to_delete := self.get_news_items_to_delete(story, existing_story[0]):
+                    story["news_items_to_delete"] = news_items_to_delete
+
+                self.core_api.add_or_update_story(story)
+
+    def check_internal_changes(self, existing_story) -> bool:
+        if existing_story.get("last_change") == "internal":
+            return True
+        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items"))
+
+    def get_news_items_to_delete(self, new_story: dict, existing_story: dict) -> list:
+        existing_news_items = existing_story.get("news_items", [])
+        new_news_items = new_story.get("news_items", [])
+
+        existing_ids = {item.get("id") for item in existing_news_items if item.get("id") is not None}
+        new_ids = {item.get("id") for item in new_news_items if item.get("id") is not None}
+
+        return list(existing_ids - new_ids)

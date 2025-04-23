@@ -218,11 +218,31 @@ class BotActions(MethodView):
         return response, code
 
 
+class Connectors(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self, connector_id):
+        """Send stories to an external system."""
+        if not request.json:
+            return {"error": "Invalid JSON payload"}, 400
+
+        story_ids = request.json.get("story_ids")
+        if not story_ids:
+            return {"error": "No story_id provided"}, 400
+
+        try:
+            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
+            return response, code
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+
 def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
+    assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))

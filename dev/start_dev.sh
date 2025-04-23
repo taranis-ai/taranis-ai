@@ -27,6 +27,10 @@ if [ ! -f "src/gui/.env" ]; then
     cp dev/env.dev src/gui/.env
 fi
 
+if [ ! -f "src/frontend/.env" ]; then
+    cp src/frontend/env.sample src/frontend/.env
+fi
+
 echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
 
 docker compose -f dev/compose.yml up -d
