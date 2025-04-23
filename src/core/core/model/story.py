@@ -552,7 +552,7 @@ class Story(BaseModel):
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
-            has_proposals = data.pop("has_proposals", False)
+            has_proposals = data.pop("has_proposals", None)
             current_data_dict = current_data.to_detail_dict()
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
             conflict = StoryConflict(
