@@ -138,12 +138,7 @@ class MISPConnector:
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
         attribute_list = self.add_attributes_from_story(story)
-        # link_list = self._process_items(story, "links", self._process_link)
-        # tag_list = self._process_items(story, "tags", self._process_tags)
-
         story_object.add_attributes("attributes", *attribute_list)
-        # story_object.add_attributes("links", *link_list)
-        # story_object.add_attributes("tags", *tag_list)
         event.add_object(story_object)
 
     def _convert_types_to_misp_representation(self, object_data) -> None:
@@ -486,18 +481,18 @@ class MISPConnector:
             logger.error(f"Unexpected error occurred: {e}")
         return None
 
-    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> None:
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None):
         """
         Creates or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
         """
         if result := self.send_event_to_misp(story, misp_event_uuid):
             # Update the Story with the MISP event UUID
-            self.core_api.api_patch(
-                f"/bots/story/{story.get('id', '')}/attributes",
-                [{"key": "misp_event_uuid", "value": f"{result}"}],
-            )
             # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
-            if result and isinstance(result, MISPEvent):
+            if isinstance(result, MISPEvent):
+                self.core_api.api_patch(
+                    f"/bots/story/{story.get('id', '')}/attributes",
+                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}],
+                )
                 logger.debug(f"Update the story {story.get('id')} to last_change=external")
                 self.core_api.api_post("/worker/stories", story)
 
