@@ -60,6 +60,7 @@
                 density="compact"
                 hide-details
                 color="primary"
+                data-testid="show-all-attributes"
               ></v-switch>
             </template>
           </attributes-table>
@@ -221,14 +222,15 @@ export default {
         if (showAllAttributes.value) {
           return story.value.attributes
         }
-        return story.value.attributes.filter((attr) => {
+        const filtered_attributes = story.value.attributes.filter((attr) => {
           return (
             Object.prototype.hasOwnProperty.call(attr, 'key') &&
             attr.key !== 'sentiment' &&
             !attr.key.includes('_BOT_') &&
-            !attr.key === 'TLP'
+            attr.key !== 'TLP'
           )
         })
+        return filtered_attributes
       },
       set(newAttributes) {
         if (!validateTLP(newAttributes)) {
@@ -240,6 +242,9 @@ export default {
 
     function validateTLP(attributes) {
       const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
+      if (!tlpAttr) {
+        return true
+      }
       const validTlpValues = ['clear', 'green', 'amber', 'amber+strict', 'red']
       if (validTlpValues.includes(tlpAttr)) {
         return true
