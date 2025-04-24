@@ -21,6 +21,7 @@ export const useUserStore = defineStore(
     const show_charts = ref(false)
     const dark_theme = ref(false)
     const infinite_scroll = ref(false)
+    const advanced_story_options = ref(false)
     const end_of_shift = ref({ hours: 18, minutes: 0 })
     const language = ref('en')
     const sseConnectionState = ref('CLOSED')
@@ -51,6 +52,7 @@ export const useUserStore = defineStore(
       show_charts.value = false
       dark_theme.value = false
       infinite_scroll.value = false
+      advanced_story_options.value = false
       end_of_shift.value = { hours: 18, minutes: 0 }
       language.value = 'en'
       sseConnectionState.value = 'CLOSED'
@@ -96,6 +98,7 @@ export const useUserStore = defineStore(
       language.value = profile.language
       end_of_shift.value = profile.end_of_shift || { hours: 18, minutes: 0 }
       infinite_scroll.value = profile.infinite_scroll
+      advanced_story_options.value = profile.advanced_story_options
 
       i18n.global.locale.value = profile.language
       vuetify.theme.global.name.value = profile.dark_theme ? 'dark' : 'light'
@@ -111,6 +114,7 @@ export const useUserStore = defineStore(
       organization,
       sseConnectionState,
       infinite_scroll,
+      advanced_story_options,
       end_of_shift,
       nextEndOfShift,
       hotkeys,

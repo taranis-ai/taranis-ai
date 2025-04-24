@@ -171,6 +171,19 @@ workers = [
         "description": "Bot for analyzing sentiment of news items",
     },
     {
+        "type": "CYBERSEC_CLASSIFIER_BOT",
+        "name": "Cybersecurity classification bot",
+        "parameters": [
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://cybersec_classifier_bot:8000"},
+            {"parameter": "CLASSIFICATION_THRESHOLD", "value": "0.65"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+        ],
+        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
+    },
+    {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
         "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
@@ -282,7 +295,7 @@ bots = [
         ],
     },
     {
-        "name": "IOC BOT",
+        "name": "IOC Bot",
         "description": "Bot for Tagging news items",
         "type": "IOC_BOT",
         "parameters": [
@@ -292,7 +305,7 @@ bots = [
         ],
     },
     {
-        "name": "NLP Tagging BOT",
+        "name": "NLP Tagging Bot",
         "description": "Bot for Tagging Items via NLP",
         "type": "NLP_BOT",
         "parameters": [
@@ -302,7 +315,7 @@ bots = [
         ],
     },
     {
-        "name": "Story BOT",
+        "name": "Story Bot",
         "description": "Bot for story clustering",
         "type": "STORY_BOT",
         "parameters": [
@@ -320,9 +333,14 @@ bots = [
         ],
     },
     {
-        "name": "Summary BOT",
+        "name": "Summary Bot",
         "description": "Bot for summarizing stories",
         "type": "SUMMARY_BOT",
+    },
+    {
+        "name": "Cybersecurity Classifier Bot",
+        "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
+        "type": "CYBERSEC_CLASSIFIER_BOT",
     },
 ]
 

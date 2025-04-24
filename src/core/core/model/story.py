@@ -179,6 +179,9 @@ class Story(BaseModel):
         if important == "false":
             query = query.filter(Story.important == false())
 
+        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
+            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
+
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
             query = query.filter(Story.relevance > 0)
@@ -252,28 +255,24 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_cybersecurity_filter_to_query(cls, query: Select, cybersecurity: str) -> Select:
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
-
-        return (
-            db.select(subquery_story_attribute.story_id)
-            .join(NewsItemAttribute, NewsItemAttribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(NewsItemAttribute.key == "cybersecurity")
-            .filter(NewsItemAttribute.value == cybersecurity)
-            .distinct()
-        )
-
-    @classmethod
-    def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
-        subquery_attribute = aliased(NewsItemAttribute)
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+    def _add_key_value_filter_to_query(cls, query: Select, filter_key: str, filter_value: str) -> Select:
+        nia1 = aliased(NewsItemAttribute)
+        snia1 = aliased(StoryNewsItemAttribute)
 
         subquery = (
-            db.select(subquery_story_attribute.story_id)
-            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(subquery_attribute.key == filter_attribute)
+            db.select(snia1.story_id)
+            .join(nia1, nia1.id == snia1.news_item_attribute_id)
+            .filter((nia1.key == filter_key) & (nia1.value == filter_value))
             .distinct()
         )
+        return query.filter(Story.id.in_(subquery))
+
+    @classmethod
+    def _add_attribute_filter_to_query(cls, query: Select, filter_key: str, exclude: bool = False) -> Select:
+        nia2 = aliased(NewsItemAttribute)
+        snia2 = aliased(StoryNewsItemAttribute)
+
+        subquery = db.select(snia2.story_id).join(nia2, nia2.id == snia2.news_item_attribute_id).filter(nia2.key == filter_key).distinct()
 
         query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
             NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
@@ -421,6 +420,7 @@ class Story(BaseModel):
             db.session.commit()
             StorySearchIndex.prepare(story)
             story.update_tlp()
+            story.update_cybersecurity_status()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -871,6 +871,22 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
+    def update_cybersecurity_status(self):
+        status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
+        status_set = frozenset(status_list)
+
+        if "none" in status_set and len(status_set) > 1:
+            status = "incomplete"
+        else:
+            status_map = {
+                frozenset(["yes"]): "yes",
+                frozenset(["no"]): "no",
+                frozenset(["yes", "no"]): "mixed",
+                frozenset(["none"]): "none",
+            }
+            status = status_map.get(status_set, "none")
+        self.upsert_attribute(NewsItemAttribute(key="cybersecurity", value=status))
+
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
         for news_item in self.news_items:
@@ -894,6 +910,7 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
+        self.update_cybersecurity_status()
 
     def update_timestamps(self):
         self.updated = datetime.now()
@@ -920,7 +937,7 @@ class Story(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 

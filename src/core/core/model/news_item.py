@@ -108,6 +108,9 @@ class NewsItem(BaseModel):
     def has_attribute(self, key) -> bool:
         return any(attribute.key == key for attribute in self.attributes)
 
+    def has_attribute_key(self, key) -> bool:
+        return any(attribute.key == key for attribute in self.attributes)
+
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
@@ -123,6 +126,11 @@ class NewsItem(BaseModel):
 
     def get_sentiment(self) -> str:
         return next((attr.value for attr in self.attributes if attr.key == "sentiment_category"), "")
+
+    def get_cybersecurity_status(self) -> str:
+        return next((attr.value for attr in self.attributes if attr.key == "cybersecurity_human"), None) or next(
+            (attr.value for attr in self.attributes if attr.key == "cybersecurity_bot"), "none"
+        )
 
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""
@@ -180,7 +188,7 @@ class NewsItem(BaseModel):
             news_item.upsert_attribute(attribute)
         news_item.last_change = "internal"
         db.session.commit()
-        return {"message": "Attributes updated"}, 200
+        return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
         if not self.has_attribute(attribute.key):

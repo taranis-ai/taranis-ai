@@ -118,6 +118,7 @@ class Stories(MethodView):
             "exclude_attr",
             "include_attr",
             "story_id",
+            "cybersecurity",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]

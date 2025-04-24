@@ -137,12 +137,13 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_story_attributes(self, story_id: str, attributes: dict) -> dict | None:
+    def update_story_attributes(self, story_id: str, attributes: list[dict]) -> dict | None:
         """Patch story attributes
 
         Example:
 
-        update_story_attributes("story_id", {"attribute1": "value1", "attribute2": "value2"})
+        update_story_attributes("story_id", [{"key": "key1", "value": "value1"}, {"key": "key2", "value": "value2"}])
+
         """
         try:
             return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data=attributes)
