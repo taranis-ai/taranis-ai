@@ -76,7 +76,7 @@ class SimpleWebCollector(BaseWebCollector):
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source, manual: bool = False):
-        response = self.head_with_retry(self.web_url, headers=self.headers, proxies=self.proxies)
+        response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
 
         if response.status_code == 429:
             logger.error("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")

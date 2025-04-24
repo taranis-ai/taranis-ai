@@ -146,7 +146,7 @@ class RSSCollector(BaseWebCollector):
             icon_url = str(icon)
         elif isinstance(icon, list):
             icon_url = str(icon[0].get("href"))
-        r = self.get_with_retry(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not r.ok:
             return None
 
