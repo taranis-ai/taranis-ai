@@ -35,7 +35,7 @@ class Settings(BaseModel):
             settings.settings = {**settings.settings, **update_data}
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")
-        return {"message": "Successfully updated settings", "setting": settings.settings}, 200
+        return {"message": "Successfully updated settings", "settings": settings.settings}, 200
 
     @classmethod
     def initialize(cls):

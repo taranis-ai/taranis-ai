@@ -14,10 +14,16 @@ class TestAdminApi(BaseTest):
         """
         Test updating settings
         """
-        test_settings = {"default_collector_proxy": "http://test_server:1111", "default_collector_interval": "5 5 * * *"}
+        test_settings = {
+            "settings": {
+                "default_collector_proxy": "http://test_server:1111",
+                "default_collector_interval": "5 5 * * *",
+                "default_tlp_level": "clear",
+            }
+        }
 
         response = self.assert_put_ok(client, "settings", test_settings, auth_header)
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        assert response_settings["settings"] == test_settings
+        assert response_settings["settings"] == test_settings["settings"]
