@@ -47,8 +47,9 @@ class CyberSecClassifierBot(BaseBot):
                     }
                     story_cybersecurity_status = status_map.get(status_set, "none")
 
-            self.core_api.add_or_update_story({"id": story.get("id", ""), "cybersecurity": story_cybersecurity_status})
-
+            self.core_api.update_story_attributes(
+                story.get("id", ""), [{"key": "cybersecurity", "value": story_cybersecurity_status}, {"key": self.type, "value": 1}]
+            )
         return {"message": f"Classified {num_news_items} news items"}
 
     def classify_news_item(self, content: str) -> dict | None:
