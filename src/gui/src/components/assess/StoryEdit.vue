@@ -77,75 +77,67 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-card class="my-5">
-      <v-card-title>
-        <h3>AI Actions</h3>
-      </v-card-title>
+    <div class="my-5">
+      <v-card v-if="userStore.advanced_story_options">
+        <v-card-title>
+          <h3>AI Actions</h3>
+        </v-card-title>
 
-      <v-card-text>
-        <!-- Summary row -->
-        <v-row no-gutters align="center" class="mb-4">
-          <v-btn prepend-icon="mdi-auto-fix" text @click="triggerSummaryBot">
-            AI Based Summary
-          </v-btn>
-        </v-row>
+        <v-card-text>
+          <!-- Summary row -->
+          <v-row no-gutters align="center" class="mb-4">
+            <v-btn prepend-icon="mdi-auto-fix" text @click="triggerSummaryBot">
+              AI Based Summary
+            </v-btn>
+          </v-row>
 
-        <!-- Sentiment row -->
-        <v-row
-          no-gutters
-          align="center"
-          class="mb-4"
-          v-if="story && userStore.advanced_story_options"
-        >
-          <v-btn
-            prepend-icon="mdi-pulse"
-            @click="triggerSentimentAnalysisBot"
-            class="text-truncate"
-          >
-            AI Based Sentiment Analysis
-          </v-btn>
-
-          <!-- wrap chips in a flex container with a left margin -->
-          <div class="d-flex flex-wrap ml-4" style="gap: 8px">
-            <v-chip
-              v-for="(count, sentiment) in sentimentCounts"
-              :key="sentiment"
-              :color="getSentimentColor(sentiment)"
-              text-color="white"
-              label
+          <!-- Sentiment row -->
+          <v-row no-gutters align="center" class="mb-4">
+            <v-btn
+              prepend-icon="mdi-pulse"
+              @click="triggerSentimentAnalysisBot"
+              class="text-truncate"
             >
-              {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
-              {{ count }}
+              AI Based Sentiment Analysis
+            </v-btn>
+
+            <!-- wrap chips in a flex container with a left margin -->
+            <div class="d-flex flex-wrap ml-4" style="gap: 8px">
+              <v-chip
+                v-for="(count, sentiment) in sentimentCounts"
+                :key="sentiment"
+                :color="getSentimentColor(sentiment)"
+                text-color="white"
+                label
+              >
+                {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
+                {{ count }}
+              </v-chip>
+            </div>
+          </v-row>
+
+          <!-- Cyber-sec row -->
+          <v-row no-gutters align="center" class="mb-4">
+            <v-btn
+              prepend-icon="mdi-shield-outline"
+              @click="triggerCyberSecClassifierBot"
+              class="text-truncate"
+            >
+              AI Based Cybsersecurity Classification
+            </v-btn>
+
+            <v-chip
+              class="ml-4"
+              :class="getChipCybersecurityClass(storyCyberSecStatus)"
+              label
+              data-testid="story-cybersec-status-chip"
+            >
+              {{ storyCyberSecStatus }}
             </v-chip>
-          </div>
-        </v-row>
-
-        <!-- Cyber-sec row -->
-        <v-row
-          no-gutters
-          align="center"
-          class="mb-4"
-          v-if="story && userStore.advanced_story_options"
-        >
-          <v-btn
-            prepend-icon="mdi-shield-outline"
-            @click="triggerCyberSecClassifierBot"
-            class="text-truncate"
-          >
-            Classify Cybersecurity (Bot)
-          </v-btn>
-
-          <v-chip
-            class="ml-4"
-            :class="getChipCybersecurityClass(storyCyberSecStatus)"
-            label
-            data-testid="story-cybersec-status-chip"
-          >
-            {{ storyCyberSecStatus }}
-          </v-chip>
-        </v-row>
-      </v-card-text>
-    </v-card>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </div>
     <v-card>
       <v-card-title>
         <h3>News Items</h3>
@@ -165,34 +157,38 @@
               >
                 {{ news_item.content || news_item.title }}
               </router-link>
-              <div class="d-flex justify-center pt-2">
-                <v-btn-toggle
-                  v-if="userStore.advanced_story_options"
-                  class="d-flex justify-center"
-                  mandatory
-                >
-                  <v-btn
-                    value="yes"
-                    :class="[
-                      getButtonCybersecurityClass(news_item, 'yes'),
-                      'me-2'
-                    ]"
-                    @click="setNewsItemCyberSecStatus(news_item, 'yes')"
-                    :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
-                  >
-                    Cybersecurity
-                  </v-btn>
+              <v-row class="mb-4 px-4" align="center" justify="start" wrap>
+                <v-col cols="2" class="d-flex align-center">
+                  <div class="d-flex justify-center pt-2">
+                    <v-btn-toggle
+                      v-if="userStore.advanced_story_options"
+                      class="d-flex justify-center"
+                      mandatory
+                    >
+                      <v-btn
+                        value="yes"
+                        :class="[
+                          getButtonCybersecurityClass(news_item, 'yes'),
+                          'me-2'
+                        ]"
+                        @click="setNewsItemCyberSecStatus(news_item, 'yes')"
+                        :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
+                      >
+                        Cybersecurity
+                      </v-btn>
 
-                  <v-btn
-                    value="no"
-                    :class="getButtonCybersecurityClass(news_item, 'no')"
-                    @click="setNewsItemCyberSecStatus(news_item, 'no')"
-                    :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
-                  >
-                    Not Cybersecurity
-                  </v-btn>
-                </v-btn-toggle>
-              </div>
+                      <v-btn
+                        value="no"
+                        :class="getButtonCybersecurityClass(news_item, 'no')"
+                        @click="setNewsItemCyberSecStatus(news_item, 'no')"
+                        :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
+                      >
+                        Not Cybersecurity
+                      </v-btn>
+                    </v-btn-toggle>
+                  </div>
+                </v-col>
+              </v-row>
             </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
@@ -308,7 +304,6 @@ export default {
       if (counts.yes && counts.no) return 'Mixed'
       if (counts.yes) return 'Yes'
       if (counts.no) return 'No'
-      if (counts.none) return 'None'
 
       return 'Not Classified'
     }
