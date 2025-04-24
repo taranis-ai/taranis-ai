@@ -54,8 +54,12 @@ def news_item_attribute_update_mock(requests_mock):
 
 
 @pytest.fixture
-def add_or_update_story_mock(requests_mock):
-    yield requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={"message": "Sucessfully updated stories"})
+def story_attribute_update_mock(requests_mock):
+    def match_callback(request, context):
+        story_id = request.url.split("/")[6]
+        return {"message": f"Successfully updated attributes oif news item with id: '{story_id}'"}
+
+    yield requests_mock.patch(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+/attributes"), json=match_callback)
 
 
 @pytest.fixture
