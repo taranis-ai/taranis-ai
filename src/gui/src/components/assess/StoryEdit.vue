@@ -86,22 +86,31 @@
         <v-card-text>
           <!-- Summary row -->
           <v-row no-gutters align="center" class="mb-4">
-            <v-btn prepend-icon="mdi-auto-fix" text @click="triggerSummaryBot">
-              AI Based Summary
-            </v-btn>
+            <v-col cols="auto">
+              <v-btn
+                class="equal-width-btn"
+                prepend-icon="mdi-auto-fix"
+                text
+                @click="triggerSummaryBot"
+              >
+                AI Based Summary
+              </v-btn>
+            </v-col>
           </v-row>
 
           <!-- Sentiment row -->
           <v-row no-gutters align="center" class="mb-4">
-            <v-btn
-              prepend-icon="mdi-pulse"
-              @click="triggerSentimentAnalysisBot"
-              class="text-truncate"
-            >
-              AI Based Sentiment Analysis
-            </v-btn>
+            <v-col cols="auto">
+              <v-btn
+                class="equal-width-btn"
+                prepend-icon="mdi-pulse"
+                text
+                @click="triggerSentimentAnalysisBot"
+              >
+                AI Based Sentiment Analysis
+              </v-btn>
+            </v-col>
 
-            <!-- wrap chips in a flex container with a left margin -->
             <div class="d-flex flex-wrap ml-4" style="gap: 8px">
               <v-chip
                 v-for="(count, sentiment) in sentimentCounts"
@@ -118,13 +127,16 @@
 
           <!-- Cyber-sec row -->
           <v-row no-gutters align="center" class="mb-4">
-            <v-btn
-              prepend-icon="mdi-shield-outline"
-              @click="triggerCyberSecClassifierBot"
-              class="text-truncate"
-            >
-              AI Based Cybsersecurity Classification
-            </v-btn>
+            <v-col cols="auto">
+              <v-btn
+                class="equal-width-btn"
+                prepend-icon="mdi-shield-outline"
+                text
+                @click="triggerCyberSecClassifierBot"
+              >
+                AI Based Cybersecurity Classification
+              </v-btn>
+            </v-col>
 
             <v-chip
               class="ml-4"
@@ -157,7 +169,7 @@
               >
                 {{ news_item.content || news_item.title }}
               </router-link>
-              <v-row class="mb-4 px-4" align="center" justify="start" wrap>
+              <v-row class="ms-4 px-4" align="center" justify="start" wrap>
                 <v-col cols="2" class="d-flex align-center">
                   <div class="d-flex justify-center pt-2">
                     <v-btn-toggle
@@ -664,5 +676,11 @@ export default {
 .cyber-chip-incomplete {
   background-color: #ffc107;
   color: black;
+}
+
+.equal-width-btn {
+  width: 350px;
+  white-space: normal;
+  text-align: center;
 }
 </style>
