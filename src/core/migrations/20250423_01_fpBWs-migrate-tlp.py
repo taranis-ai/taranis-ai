@@ -15,8 +15,8 @@ steps = [
           FOREIGN KEY (story_id) REFERENCES story(id) ON DELETE CASCADE;
 
         ALTER TABLE role ALTER COLUMN tlp_level SET DEFAULT 'CLEAR';
+        UPDATE role SET tlp_level = 'RED' WHERE tlp_level IS NULL AND name = 'admin';
         UPDATE role SET tlp_level = 'CLEAR' WHERE tlp_level IS NULL;
-        UPDATE role SET tlp_level = 'RED' WHERE tlp_level IS NULL AND id = 'admin';
         ALTER TABLE role ALTER COLUMN tlp_level SET NOT NULL;
     """)
 ]

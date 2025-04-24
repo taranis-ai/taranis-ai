@@ -844,7 +844,6 @@ class Story(BaseModel):
                 cls.create_from_item(news_item)
             db.session.commit()
             cls.update_stories(processed_stories)
-            story.update_cybersecurity_status()
             return {"message": "success"}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
