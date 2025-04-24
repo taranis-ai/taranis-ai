@@ -377,7 +377,8 @@ export default {
           return (
             Object.prototype.hasOwnProperty.call(attr, 'key') &&
             attr.key !== 'sentiment' &&
-            !attr.key.includes('_BOT_')
+            attr.key !== 'cybersecurity' &&
+            !attr.key.includes('BOT')
           )
         })
       },
