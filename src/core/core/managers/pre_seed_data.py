@@ -252,7 +252,7 @@ workers = [
         "description": "Connetor for MISP",
         "parameters": [
             {"parameter": "URL", "rules": "required"},
-            {"parameter": "API_KEY"},
+            {"parameter": "API_KEY", "rules": "required"},
             {"parameter": "ORGANISATION_ID", "rules": "required"},
             {"parameter": "SSL_CHECK", "type": "switch"},
             {"parameter": "REQUEST_TIMEOUT", "type": "number"},
@@ -270,7 +270,8 @@ workers = [
         "description": "Colletor for MISP",
         "parameters": [
             {"parameter": "URL", "rules": "required"},
-            {"parameter": "API_KEY"},
+            {"parameter": "API_KEY", "rules": "required"},
+            {"parameter": "ORGANISATION_ID", "rules": "required"},
             {"parameter": "SSL_CHECK", "type": "switch"},
             {"parameter": "REQUEST_TIMEOUT", "type": "number"},
             {"parameter": "USER_AGENT"},

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getAllConflicts, resolveConflict } from '@/api/connectors'
+import { getAllConflicts, updateStory, getProposals } from '@/api/connectors'
 
 export const useConflictsStore = defineStore('conflicts', () => {
   const conflicts = ref([])
+  const proposalCount = ref(0)
 
   async function loadConflicts() {
     try {
@@ -16,10 +17,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
 
   async function resolveConflictById(storyId, resolutionData) {
     try {
-      const response = await resolveConflict(storyId, resolutionData)
-      conflicts.value = conflicts.value.filter(
-        (conflict) => conflict.storyId !== storyId
-      )
+      const response = await updateStory(storyId, resolutionData)
       return response.data
     } catch (error) {
       console.error(`Error resolving conflict for story ${storyId}:`, error)
@@ -27,9 +25,20 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
   }
 
+  async function fetchProposalCount() {
+    try {
+      const response = await getProposals()
+      proposalCount.value = response.data.count
+    } catch (error) {
+      console.error('Error getting proposal count:', error)
+    }
+  }
+
   return {
     conflicts,
+    proposalCount,
     loadConflicts,
+    fetchProposalCount,
     resolveConflictById
   }
 })

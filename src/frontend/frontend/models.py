@@ -97,6 +97,7 @@ class Dashboard(TaranisBaseModel):
     total_database_items: int | None = None
     latest_collected: str | None = None
     schedule_length: int | None = None
+    conflict_count: int | None = None
 
 
 class TaranisConfig(TaranisBaseModel):

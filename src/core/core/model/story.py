@@ -1,14 +1,12 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
-from flask import json
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
-from dataclasses import dataclass
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -21,6 +19,7 @@ from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGr
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.story_conflict import StoryConflict
 
 
 class Story(BaseModel):
@@ -54,18 +53,24 @@ class Story(BaseModel):
         title: str,
         description: str = "",
         created: datetime | str = datetime.now(),
+        id: str | None = None,
+        likes: int = 0,
+        dislikes: int = 0,
+        relevance: int = 0,
         read: bool = False,
         important: bool = False,
         summary: str = "",
         comments: str = "",
         links=None,
         attributes=None,
-        # tags=None,
+        tags=None,
         news_items=None,
-        id=None,
         last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
+        self.likes = likes
+        self.dislikes = dislikes
+        self.relevance = relevance
         self.title = title
         self.description = description
         self.created = self.get_creation_date(created)
@@ -78,8 +83,8 @@ class Story(BaseModel):
         self.last_change = last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
-        # if tags:
-        #     self.tags = NewsItemTag.load_multiple(tags)
+        if tags:
+            self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created):
         if isinstance(created, datetime):
@@ -561,9 +566,12 @@ class Story(BaseModel):
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
+            has_proposals = data.pop("has_proposals", None)
             current_data_dict = current_data.to_detail_dict()
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-            conflict = StoryConflict(story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized)
+            conflict = StoryConflict(
+                story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
+            )
             logger.warning(f"Conflict detected for story {id}")
             StoryConflict.conflict_store[id] = conflict
             return {
@@ -573,9 +581,6 @@ class Story(BaseModel):
                     "updated": data,
                 },
             }, 409
-
-        # Proceed with update if there is no conflict (or no existing story).
-        # For example: db_update_story(id, data)
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
@@ -1070,62 +1075,3 @@ class ReportItemStory(BaseModel):
     @classmethod
     def count(cls, story_id):
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))
-
-
-@dataclass
-class StoryConflict:
-    story_id: str
-    original: str
-    updated: str
-    # A class-level store to hold conflicts
-    conflict_store = {}
-
-    def resolve(self, resolution: dict[str, Any]):
-        """
-        Applies the resolution changes to the updated data.
-        This example simply updates the updated dict with the resolution.
-        Customize this logic as needed.
-        """
-        pass
-
-    @classmethod
-    def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
-        if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change"}
-        if isinstance(obj, list):
-            return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: cls.remove_keys_deep(value, keys_to_remove) for key, value in obj.items() if key not in keys_to_remove}
-        return obj
-
-    @classmethod
-    def stable_stringify(cls, obj: Any, indent: int = 2, level: int = 0) -> str:
-        if obj is None or isinstance(obj, (str, int, float, bool)):
-            return json.dumps(obj)
-
-        elif isinstance(obj, list):
-            if not obj:
-                return "[]"
-            items = [cls.stable_stringify(item, indent, level + 1) for item in obj]
-            ind = " " * (indent * (level + 1))
-            return "[\n" + ",\n".join(f"{ind}{item}" for item in items) + "\n" + " " * (indent * level) + "]"
-
-        elif isinstance(obj, dict):
-            if not obj:
-                return "{}"
-            items = []
-            for key in sorted(obj.keys()):
-                value = cls.stable_stringify(obj[key], indent, level + 1)
-                ind = " " * (indent * (level + 1))
-                items.append(f"{ind}{json.dumps(key)}: {value}")
-            return "{\n" + ",\n".join(items) + "\n" + " " * (indent * level) + "}"
-
-        return json.dumps(obj)
-
-    @classmethod
-    def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
-        normalized_current = cls.remove_keys_deep(current_data)
-        logger.debug(f"{normalized_current=}")
-        normalized_new = cls.remove_keys_deep(new_data)
-        logger.debug(f"{normalized_new=}")
-        return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)

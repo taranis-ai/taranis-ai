@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Callable
-from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
+from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.core_api import CoreApi
@@ -138,12 +138,7 @@ class MISPConnector:
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
         attribute_list = self.add_attributes_from_story(story)
-        # link_list = self._process_items(story, "links", self._process_link)
-        # tag_list = self._process_items(story, "tags", self._process_tags)
-
         story_object.add_attributes("attributes", *attribute_list)
-        # story_object.add_attributes("links", *link_list)
-        # story_object.add_attributes("tags", *tag_list)
         event.add_object(story_object)
 
     def _convert_types_to_misp_representation(self, object_data) -> None:
@@ -333,21 +328,20 @@ class MISPConnector:
             return story
         return None
 
-    def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | None:
+    def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | MISPShadowAttribute | None:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
             event_dict = event.to_dict()
             orgc_id = event_dict.get("orgc_id", None)
-            if orgc_id == self.org_id:
-                self.remove_missing_objects_from_misp(misp, event, story)
-                ids_in_misp = self.get_event_object_ids(event)
-                if story_prepared := self.drop_existing_news_items(story, ids_in_misp):
-                    return self._update_event(story_prepared, misp_event_uuid, event, misp)
-            else:
-                self._add_proposal_to_event(story, misp_event_uuid, event, misp)
+            if orgc_id != self.org_id:
+                return self._add_proposal_to_event(story, misp_event_uuid, event, misp)
 
+            self.remove_missing_objects_from_misp(misp, event, story)
+            ids_in_misp = self.get_event_object_ids(event)
+            if story_prepared := self.drop_existing_news_items(story, ids_in_misp):
+                return self._update_event(story_prepared, misp_event_uuid, event, misp)
         return None
 
-    def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> None:
+    def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> MISPShadowAttribute | None:
         existing_object = self.get_taranis_story_object(existing_event)
         new_object = self.get_taranis_story_object(event_to_add)
 
@@ -377,12 +371,14 @@ class MISPConnector:
                 logger.debug(f"Adding proposal for {new_attr.object_relation} with value: {new_attr.value}")
                 logger.debug(f"{proposal.to_dict()=}")
 
-                response = misp.update_attribute_proposal(existing_attr.id, proposal)
+                shadow_attribute: MISPShadowAttribute | dict = misp.update_attribute_proposal(existing_attr.id, proposal, pythonify=True)
 
-                if isinstance(response, dict) and "errors" in response:
-                    logger.error(f"Failed to add proposal for {new_attr.object_relation}: {response['errors']}")
-                else:
+                if isinstance(shadow_attribute, dict) and "errors" in shadow_attribute:
+                    logger.error(f"Failed to add proposal for {new_attr.object_relation}: {shadow_attribute['errors']}")
+                    return None
+                elif isinstance(shadow_attribute, MISPShadowAttribute):
                     logger.info(f"Proposal successfully added for {new_attr.object_relation}.")
+                    return shadow_attribute
             except exceptions.PyMISPError as e:
                 logger.error(f"PyMISP error while adding proposal for {new_attr.object_relation}: {e}")
             except Exception as e:
@@ -406,7 +402,7 @@ class MISPConnector:
         )
         return proposal
 
-    def _update_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP):
+    def _update_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP) -> MISPEvent | None:
         event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
         updated_event: MISPEvent | dict = misp.update_event(event_to_add, event_id=existing_event.id, pythonify=True)
         if isinstance(updated_event, dict):
@@ -420,14 +416,16 @@ class MISPConnector:
             return None
         return updated_event
 
-    def _add_proposal_to_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP) -> None:
+    def _add_proposal_to_event(
+        self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP
+    ) -> MISPShadowAttribute | None:
         logger.info(
             f"Event with UUID: {misp_event_uuid} is not editable by the organisation with ID: {self.org_id}. A proposal will be attempted instead."
         )
         event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
-        self.add_proposal(existing_event, event_to_add, misp)
-
-        return None
+        shadow_attribute: MISPShadowAttribute | None = self.add_proposal(existing_event, event_to_add, misp)
+        logger.debug(f"{shadow_attribute=}")
+        return shadow_attribute
 
     def _create_event(self, story_prepared, misp_event_uuid, existing_event):
         result = self.create_misp_event(story_prepared)
@@ -439,7 +437,7 @@ class MISPConnector:
         result.EventReport = [new_report]
         return result
 
-    def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> str | None:
+    def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | MISPShadowAttribute | None:
         """
         Either update an existing event (if 'misp_event_uuid' is provided)
         or create a new event if no UUID is provided.
@@ -462,7 +460,7 @@ class MISPConnector:
                     # for object in result.objects:
                     #     logger.debug(f"{object.to_dict()=}")
 
-                    return result.uuid
+                    return result
                 return None
 
             if created_event := self.add_misp_event(misp, story):
@@ -472,7 +470,7 @@ class MISPConnector:
                 # logger.debug(f"{created_event.to_dict()=}")
                 # for object in created_event.objects:
                 #     logger.debug(f"{object.to_dict()=}")
-                return created_event.uuid
+                return created_event
 
             logger.error("Failed to create event in MISP")
             return None
@@ -483,18 +481,20 @@ class MISPConnector:
             logger.error(f"Unexpected error occurred: {e}")
         return None
 
-    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> None:
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None):
         """
         Creates or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
         """
-        if event_uuid := self.send_event_to_misp(story, misp_event_uuid):
+        if result := self.send_event_to_misp(story, misp_event_uuid):
             # Update the Story with the MISP event UUID
-            self.core_api.api_patch(
-                f"/bots/story/{story.get('id', '')}/attributes",
-                [{"key": "misp_event_uuid", "value": f"{event_uuid}"}],
-            )
-            # Update the Story with so the last change is set to "external"
-            self.core_api.api_post("/worker/stories", story)
+            # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
+            if isinstance(result, MISPEvent):
+                self.core_api.api_patch(
+                    f"/bots/story/{story.get('id', '')}/attributes",
+                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}],
+                )
+                logger.debug(f"Update the story {story.get('id')} to last_change=external")
+                self.core_api.api_post("/worker/stories", story)
 
 
 def sending():

@@ -75,7 +75,14 @@
         <template #content>
           <v-icon class="mr-2"> mdi-tools </v-icon>
           <span class="caption">
-            Here you will find all connectors management tools.
+            There are <b>{{ dashboard_data.conflict_count }}</b> conflicts
+            detected.
+          </span>
+          <v-divider inset></v-divider>
+          <v-icon class="mr-2"> mdi-tools </v-icon>
+          <span class="caption">
+            Here you can find all connectors management tools. There are
+            <b>{{ dashboard_data.conflict_count }}</b> conflicts detected.
           </span>
         </template>
       </dash-board-card>
