@@ -22,11 +22,11 @@
         <a href="{{ url_for('admin.organizations') }}" class="text-blue-500 underline">Organizations</a>
         <a href="{{ url_for('admin.scheduler') }}" class="text-blue-500 underline">Scheduler</a>
         <a href="{{ url_for('admin.roles') }}" class="text-blue-500 underline">Roles</a>
+        <a href="{{ url_for('admin_settings.settings') }}" class="text-blue-500 underline">Settings</a>
       </div>
       {% include 'error.html' %}
     </div>
     {% block content %}{% endblock %}
-    <section id="status-msg"></section>
   </div>
 </body>
 </html>

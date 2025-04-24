@@ -457,8 +457,14 @@ export const router = createRouter({
       path: '/config/settings',
       name: 'admin-settings',
       components: {
-        default: () => import('@/views/admin/Settings.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Settings',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/settings`
+        }
       },
       meta: {
         requiresAuth: true,

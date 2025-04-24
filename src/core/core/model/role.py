@@ -3,7 +3,7 @@ from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped, relationship
 import contextlib
 from typing import Optional
-from enum import StrEnum
+from enum import StrEnum, nonmember
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -18,6 +18,45 @@ class TLPLevel(StrEnum):
     AMBER = "amber"
     RED = "red"
 
+    _ACCESSIBLE_NAMES = nonmember(
+        {
+            "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER": ["AMBER", "GREEN", "CLEAR"],
+            "GREEN": ["GREEN", "CLEAR"],
+            "CLEAR": ["CLEAR"],
+        }
+    )
+
+    def get_accessible_levels(self) -> list[str]:
+        """
+        Return the list of TLPLevel members this level can access.
+        """
+        names = type(self)._ACCESSIBLE_NAMES.get(self.name, [])
+        return [type(self)[nm].value for nm in names]
+
+    @classmethod
+    def get_highest_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
+        """
+        Get the highest TLP level from a list of TLP levels.
+        If the list is empty, return the default TLP level (CLEAR).
+        """
+        if not tlp_levels:
+            return cls.CLEAR
+
+        provided = {tlp.name for tlp in tlp_levels}
+
+        return next(
+            (cls[level_name] for level_name in cls._ACCESSIBLE_NAMES.keys() if level_name in provided),
+            cls.CLEAR,
+        )
+
+    @classmethod
+    def get_tlp_level(cls, tlp_level: str) -> "TLPLevel | None":
+        with contextlib.suppress(ValueError):
+            return TLPLevel(tlp_level)
+        return None
+
 
 class Role(BaseModel):
     __tablename__ = "role"
@@ -25,7 +64,7 @@ class Role(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=True)
+    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=False, default=TLPLevel.CLEAR)
     permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="role_permission", back_populates="roles")
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
@@ -72,11 +111,6 @@ class Role(BaseModel):
     def get_permissions(self):
         return [permission.id for permission in self.permissions if permission]
 
-    def get_tlp_level(self, tlp_level: str) -> TLPLevel | None:
-        with contextlib.suppress(ValueError):
-            return TLPLevel(tlp_level)
-        return None
-
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
         logger.debug(f"Updating role with ID {role_id} with data: {data}")
@@ -87,11 +121,11 @@ class Role(BaseModel):
             role.name = name
         role.description = str(data.get("description"))
         if tlp_level := data.get("tlp_level"):
-            role.tlp_level = role.get_tlp_level(tlp_level)
+            role.tlp_level = TLPLevel.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
         role.permissions = Permission.get_bulk(permissions)
         db.session.commit()
-        return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
+        return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
 
 
 class RolePermission(BaseModel):

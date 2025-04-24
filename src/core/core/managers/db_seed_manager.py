@@ -156,7 +156,7 @@ def pre_seed_permissions():
 
 
 def pre_seed_roles():
-    from core.model.role import Role
+    from core.model.role import Role, TLPLevel
     from core.model.permission import Permission
 
     admin_permissions = Permission.get_all_ids()
@@ -166,6 +166,7 @@ def pre_seed_roles():
                 "name": "Admin",
                 "description": "Administrator role",
                 "permissions": admin_permissions,
+                "tlp_level": TLPLevel.RED,
             }
         )
     if not Role.filter_by_name("User"):

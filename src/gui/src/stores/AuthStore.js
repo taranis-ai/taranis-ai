@@ -94,7 +94,6 @@ export const useAuthStore = defineStore(
     }
     function setJwtToken(access_token) {
       localStorage.ACCESS_TOKEN = access_token
-      document.cookie = `access_token_cookie=${access_token}; path=/; SameSite=Strict`
       apiService.setHeader()
       jwt.value = access_token
       const data = JSON.parse(Base64.decode(access_token.split('.')[1]))

@@ -1,5 +1,5 @@
 import io
-from flask import Blueprint, Flask, request, send_file
+from flask import Blueprint, Flask, request, send_file, url_for
 from flask.views import MethodView
 from datetime import datetime
 
@@ -10,16 +10,6 @@ from core.service.story import StoryService
 from core.model.settings import Settings
 from core.managers import queue_manager
 from core.config import Config
-
-
-class AdminSettings(MethodView):
-    @auth_required("ADMIN_OPERATIONS")
-    def get(self):
-        return {}, 200
-
-    @auth_required("ADMIN_OPERATIONS")
-    def put(self):
-        return {"error": "TODO IMPLEMENT"}, 501
 
 
 class DeleteTags(MethodView):
@@ -75,10 +65,27 @@ class ExportStories(MethodView):
 class SettingsView(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        return Settings.get_all_for_api({})
+        settings_data, return_code = Settings.get_all_for_api({})
+        settings_data["_links"] = {
+            "delete_tags": url_for("admin.delete_tags"),
+            "delete_stories": url_for("admin.delete_stories"),
+            "ungroup_stories": url_for("admin.ungroup_all_stories"),
+            "reset_database": url_for("admin.reset_database"),
+            "clear_queues": url_for("admin.clear_queue"),
+            "export_stories": url_for("admin.export_stories"),
+            "update_settings": url_for("admin.settings"),
+        }
+
+        return settings_data, return_code
 
     @auth_required("ADMIN_OPERATIONS")
     def put(self):
+        if data := request.json:
+            return Settings.update(data)
+        return {"error": "No data provided"}, 400
+
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self):
         if data := request.json:
             return Settings.update(data)
         return {"error": "No data provided"}, 400
@@ -87,7 +94,6 @@ class SettingsView(MethodView):
 def initialize(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
 
-    admin_bp.add_url_rule("/", view_func=AdminSettings.as_view("admin_settings"))
     admin_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
     admin_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
     admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))

@@ -10,6 +10,9 @@
       </span>
     </div>
     <v-card>
+      <v-card-title>
+        <h3>Story - {{ story.id }}</h3>
+      </v-card-title>
       <v-card-text>
         <v-form
           id="form"
@@ -23,6 +26,7 @@
             :label="$t('enter.title')"
             name="title"
             type="text"
+            variant="outlined"
             :rules="[rules.required]"
             :disabled="hasRtId"
           />
@@ -32,15 +36,6 @@
             :placeholder="$t('enter.summary_placeholder')"
             name="summary"
           />
-          <v-row>
-            <v-col cols="auto">
-              <v-btn
-                prepend-icon="mdi-auto-fix"
-                text="AI based summary"
-                @click="triggerSummaryBot"
-              />
-            </v-col>
-          </v-row>
           <code-editor
             v-model:content="story.comments"
             :header="$t('enter.comment')"
@@ -48,22 +43,27 @@
             name="comment"
           />
 
-          <edit-tags v-model="story.tags" />
+          <edit-tags v-model="story.tags" class="mt-3" />
+          <story-links v-model="story.links" :news-items="story.news_items" />
+
+          <!-- TODO: SHOW META INFO LIKE SENTIMENT AND TLP -->
 
           <attributes-table
             v-model="filteredStoryAttributes"
             :disabled="hasRtId"
           >
             <template #top>
-              <v-btn
-                class="mt-4"
+              <v-switch
+                class="mr-4"
+                label="show all attributes"
+                v-model="showAllAttributes"
                 density="compact"
-                text="show all attributes"
-                @click="showallattributes = true"
-              />
+                hide-details
+                color="primary"
+                data-testid="show-all-attributes"
+              ></v-switch>
             </template>
           </attributes-table>
-          <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
           <v-btn
@@ -77,135 +77,151 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row class="mt-4 px-4" align="center" justify="start" wrap>
-      <v-col
-        cols="12"
-        sm="6"
-        md="4"
-        class="d-flex align-center"
-        style="gap: 24px"
-      >
-        <v-btn
-          v-if="story && userStore.advanced_story_options"
-          prepend-icon="mdi-pulse"
-          @click="triggerSentimentAnalysisBot"
-          class="text-truncate mb-2"
-          style="
-            width: 100%;
-            max-width: 240px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          "
-        >
-          AI Based Sentiment Analysis
-        </v-btn>
-        <div class="d-flex flex-wrap" style="gap: 24px">
-          <v-chip
-            v-if="story && userStore.advanced_story_options"
-            v-for="(count, sentiment) in sentimentCounts"
-            :key="sentiment"
-            :color="getSentimentColor(sentiment)"
-            text-color="white"
-            label
-          >
-            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
-            {{ count }}
-          </v-chip>
-        </div>
-      </v-col>
-    </v-row>
+    <v-card class="my-5">
+      <v-card-title>
+        <h3>AI Actions</h3>
+      </v-card-title>
 
-    <v-row
-      v-if="story && userStore.advanced_story_options"
-      class="mb-4 px-4"
-      align="center"
-      justify="start"
-      wrap
-    >
-      <v-col
-        cols="12"
-        sm="6"
-        md="6"
-        class="d-flex align-center"
-        style="gap: 24px"
-      >
-        <v-btn
-          prepend-icon="mdi-shield-outline"
-          @click="triggerCyberSecClassifierBot"
-          class="text-truncate"
-          style="
-            width: 100%;
-            max-width: 240px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          "
-        >
-          Classify Cybersecurity (Bot)
-        </v-btn>
-        <v-chip
-          :key="storyCyberSecStatus"
-          :class="getChipCybersecurityClass(storyCyberSecStatus)"
-          label
-          data-testid="story-cybersec-status-chip"
-        >
-          {{ storyCyberSecStatus }}
-        </v-chip>
-      </v-col>
-    </v-row>
+      <v-card-text class="d-flex">
+        <v-row>
+          <v-btn
+            class="ml-4"
+            prepend-icon="mdi-auto-fix"
+            text="AI Based Summary"
+            @click="triggerSummaryBot"
+          />
+        </v-row>
 
-    <v-expansion-panels v-if="story" v-model="panels" multiple>
-      <v-expansion-panel
-        v-for="news_item in story.news_items"
-        :key="news_item.id"
-        :title="news_item.title"
-        :value="news_item.id"
-      >
-        <template #text>
-          <router-link
-            :to="{
-              name: 'newsitem',
-              params: { itemId: news_item.id }
-            }"
-            class="d-flex fill-height align-center text-decoration-none"
-            >{{ news_item.content }}</router-link
+        <v-row class="mt-4 px-4" align="center" justify="start" wrap>
+          <v-col
+            cols="12"
+            sm="6"
+            md="4"
+            class="d-flex align-center"
+            style="gap: 24px"
           >
-        </template>
-        <v-row class="mb-4 px-4" align="center" justify="start" wrap>
-          <v-col cols="2" class="d-flex align-center">
-            <div class="d-flex justify-center pt-2">
-              <v-btn-toggle
-                v-if="userStore.advanced_story_options"
-                class="d-flex justify-center"
-                mandatory
+            <v-btn
+              v-if="story && userStore.advanced_story_options"
+              prepend-icon="mdi-pulse"
+              @click="triggerSentimentAnalysisBot"
+              class="text-truncate mb-2"
+              style="
+                width: 100%;
+                max-width: 240px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              "
+            >
+              AI Based Sentiment Analysis
+            </v-btn>
+            <div class="d-flex flex-wrap" style="gap: 24px">
+              <v-chip
+                v-if="story && userStore.advanced_story_options"
+                v-for="(count, sentiment) in sentimentCounts"
+                :key="sentiment"
+                :color="getSentimentColor(sentiment)"
+                text-color="white"
+                label
               >
-                <v-btn
-                  value="yes"
-                  :class="[
-                    getButtonCybersecurityClass(news_item, 'yes'),
-                    'me-2'
-                  ]"
-                  @click="setNewsItemCyberSecStatus(news_item, 'yes')"
-                  :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
-                >
-                  Cybersecurity
-                </v-btn>
-
-                <v-btn
-                  value="no"
-                  :class="getButtonCybersecurityClass(news_item, 'no')"
-                  @click="setNewsItemCyberSecStatus(news_item, 'no')"
-                  :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
-                >
-                  Not Cybersecurity
-                </v-btn>
-              </v-btn-toggle>
+                {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
+                {{ count }}
+              </v-chip>
             </div>
           </v-col>
         </v-row>
-      </v-expansion-panel>
-    </v-expansion-panels>
+        <v-row
+          v-if="story && userStore.advanced_story_options"
+          class="mb-4 px-4"
+          align="center"
+          justify="start"
+          wrap
+        >
+          <v-col
+            cols="12"
+            sm="6"
+            md="6"
+            class="d-flex align-center"
+            style="gap: 24px"
+          >
+            <v-btn
+              prepend-icon="mdi-shield-outline"
+              @click="triggerCyberSecClassifierBot"
+              class="text-truncate"
+              style="
+                width: 100%;
+                max-width: 240px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              "
+            >
+              Classify Cybersecurity (Bot)
+            </v-btn>
+            <v-chip
+              :key="storyCyberSecStatus"
+              :class="getChipCybersecurityClass(storyCyberSecStatus)"
+              label
+              data-testid="story-cybersec-status-chip"
+            >
+              {{ storyCyberSecStatus }}
+            </v-chip>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+    <v-card>
+      <v-card-title>
+        <h3>News Items</h3>
+      </v-card-title>
+
+      <v-card-text>
+        <v-expansion-panels v-if="story" v-model="panels" multiple>
+          <v-expansion-panel
+            v-for="news_item in story.news_items"
+            :key="news_item.id"
+            :title="news_item.title"
+            :value="news_item.id"
+          >
+            <v-expansion-panel-text>
+              <router-link
+                :to="{ name: 'newsitem', params: { itemId: news_item.id } }"
+              >
+                {{ news_item.content || news_item.title }}
+              </router-link>
+              <div class="d-flex justify-center pt-2">
+                <v-btn-toggle
+                  v-if="userStore.advanced_story_options"
+                  class="d-flex justify-center"
+                  mandatory
+                >
+                  <v-btn
+                    value="yes"
+                    :class="[
+                      getButtonCybersecurityClass(news_item, 'yes'),
+                      'me-2'
+                    ]"
+                    @click="setNewsItemCyberSecStatus(news_item, 'yes')"
+                    :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
+                  >
+                    Cybersecurity
+                  </v-btn>
+
+                  <v-btn
+                    value="no"
+                    :class="getButtonCybersecurityClass(news_item, 'no')"
+                    @click="setNewsItemCyberSecStatus(news_item, 'no')"
+                    :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
+                  >
+                    Not Cybersecurity
+                  </v-btn>
+                </v-btn-toggle>
+              </div>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card-text>
+    </v-card>
   </v-container>
 </template>
 
@@ -251,7 +267,7 @@ export default {
         ? story.value.news_items.map((item) => item.id)
         : []
     )
-    const showallattributes = ref(false)
+    const showAllAttributes = ref(false)
 
     const sentimentCounts = computed(() => {
       if (!story.value || !story.value.news_items) {
@@ -370,22 +386,41 @@ export default {
         if (!story.value || !story.value.attributes) {
           return []
         }
-        if (showallattributes.value) {
+        if (showAllAttributes.value) {
           return story.value.attributes
         }
-        return story.value.attributes.filter((attr) => {
+        const filtered_attributes = story.value.attributes.filter((attr) => {
           return (
             Object.prototype.hasOwnProperty.call(attr, 'key') &&
             attr.key !== 'sentiment' &&
             attr.key !== 'cybersecurity' &&
-            !attr.key.includes('BOT')
+            attr.key !== 'TLP' &&
+            !attr.key.includes('_BOT')
           )
         })
+        return filtered_attributes
       },
       set(newAttributes) {
+        if (!validateTLP(newAttributes)) {
+          return
+        }
         story.value.attributes = newAttributes
       }
     })
+
+    function validateTLP(attributes) {
+      const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
+      if (!tlpAttr) {
+        return true
+      }
+      const validTlpValues = ['clear', 'green', 'amber', 'amber+strict', 'red']
+      if (validTlpValues.includes(tlpAttr)) {
+        return true
+      } else {
+        notifyFailure(`Invalid TLP value: ${JSON.stringify(tlpAttr)}`)
+        return false
+      }
+    }
 
     const hasRtId = computed(() => {
       return (
@@ -396,6 +431,10 @@ export default {
       const { valid } = await form.value.validate()
 
       if (!valid) {
+        return
+      }
+
+      if (!validateTLP(story.value.attributes)) {
         return
       }
 
@@ -572,9 +611,9 @@ export default {
       getChipCybersecurityClass,
       getButtonCybersecurityClass,
       filteredStoryAttributes,
-      showallattributes,
       setNewsItemCyberSecStatus,
-      getNewsItemCyberSecStatus
+      getNewsItemCyberSecStatus,
+      showAllAttributes
     }
   }
 }
@@ -590,6 +629,7 @@ export default {
   background-color: #b1f3b3 !important;
   color: white !important;
 }
+
 .cybersecurity-bot-btn:hover {
   background-color: #67c46a !important;
   color: white !important;
@@ -614,6 +654,7 @@ export default {
   background-color: #f3f3f3 !important;
   color: #424242 !important;
 }
+
 .inactive-yes-btn:hover {
   background-color: #b1f3b3 !important;
   color: #424242 !important;
@@ -623,6 +664,7 @@ export default {
   background-color: #f3f3f3 !important;
   color: #424242 !important;
 }
+
 .inactive-no-btn:hover {
   background-color: #faaeae !important;
   color: #424242 !important;
@@ -647,6 +689,7 @@ export default {
   background-color: #f3f3f3;
   color: black;
 }
+
 .cyber-chip-incomplete {
   background-color: #ffc107;
   color: black;

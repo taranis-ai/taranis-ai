@@ -52,6 +52,10 @@ class ParameterValue(BaseModel):
         return next((parameter.value for parameter in parameters if parameter.parameter == parameter_key), "")
 
     @classmethod
+    def find_by_parameter(cls, parameters: list["ParameterValue"], parameter_key: str) -> "ParameterValue | None":
+        return next((parameter for parameter in parameters if parameter.parameter == parameter_key), None)
+
+    @classmethod
     def get_or_create(cls, data: dict[str, Any]) -> "ParameterValue":
         if "parameter" in data:
             return cls.from_dict(data)

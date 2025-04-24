@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any
 import uuid
-from base64 import b64encode, b64decode
+from base64 import b64decode
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.sql import Select
 
@@ -95,19 +95,30 @@ class Product(BaseModel):
             "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
         }
 
-    def update_render(self, render_result: bytes):
+    @classmethod
+    def test_if_valid_render_result(cls, render_result: str) -> bool:
+        """
+        Test if render_result is a valid base64 string
+        :return: True if valid, False otherwise
+        """
         try:
-            self.last_rendered = datetime.now()
-            self.render_result = b64encode(render_result).decode("ascii")
-            db.session.commit()
+            b64decode(render_result)
             return True
         except Exception:
             logger.exception()
-            db.session.rollback()
             return False
 
+    def update_render(self, render_result: str) -> bool:
+        if self.test_if_valid_render_result(render_result):
+            self.last_rendered = datetime.now()
+            self.render_result = render_result
+            db.session.commit()
+            return True
+
+        return False
+
     @classmethod
-    def update_render_for_id(cls, product_id: str, render_result):
+    def update_render_for_id(cls, product_id: str, render_result: str):
         if not (product := cls.get(product_id)):
             return {"error": f"Product {product_id} not found"}, 404
         if product.update_render(render_result):
@@ -123,8 +134,8 @@ class Product(BaseModel):
                 if mime_type == "application/pdf":
                     blob = product.render_result
                 else:
-                    blob = b64decode(product.render_result).decode("utf-8")  # type: ignore
-                return {"mime_type": product.product_type.get_mimetype(), "blob": blob}
+                    blob = b64decode(product.render_result).decode("utf-8")
+                return {"mime_type": mime_type, "blob": blob}
         return None
 
     @classmethod

@@ -121,13 +121,11 @@ class User(BaseModel):
     def get_roles(self):
         return [role.id for role in self.roles]
 
-    def get_highest_tlp(self) -> TLPLevel | None:
-        highest_tlp = None
+    def get_highest_tlp(self) -> TLPLevel:
+        highest_tlp = TLPLevel.CLEAR
         for role in self.roles:
             if tlp_level := role.tlp_level:
-                tlp_level_enum = TLPLevel(tlp_level)
-                if highest_tlp is None or tlp_level_enum > highest_tlp:
-                    highest_tlp = tlp_level_enum
+                highest_tlp = TLPLevel.get_highest_tlp([highest_tlp, tlp_level])
         return highest_tlp
 
     def get_current_organization_name(self):

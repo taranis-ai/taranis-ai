@@ -1,11 +1,11 @@
-{% macro export_button(export_url) %}
+{% macro export_button(export_url, text="Export") %}
   <a
     class="btn btn-outline btn-info"
     href="{{ export_url }}"
     download
   >
     {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
-    Export
+    {{ text }}
   </a>
 {% endmacro %}
 

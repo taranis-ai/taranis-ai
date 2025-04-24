@@ -95,14 +95,6 @@ class CoreApi:
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
-    def upload_rendered_product(self, product_id, product) -> dict | None:
-        url = f"{self.api_url}/worker/products/{product_id}"
-        headers = self.headers.copy()
-        headers["Content-type"] = product["mime_type"]
-        return self.check_response(
-            requests.put(url=url, data=product["data"], headers=headers, verify=self.verify, timeout=self.timeout), url
-        )
-
     def get_word_list(self, word_list_id: int) -> dict | None:
         return self.api_get(
             url=f"/worker/word-list/{word_list_id}",

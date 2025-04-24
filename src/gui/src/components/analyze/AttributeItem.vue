@@ -128,6 +128,7 @@
       :readonly="readOnly"
       :title="attributeItem.title"
       :report-item-id="reportItemId"
+      :required="attributeItem.required"
     />
     <AttributeAttachment
       v-if="attributeItem.type === 'ATTACHMENT'"

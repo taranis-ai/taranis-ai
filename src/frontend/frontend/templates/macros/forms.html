@@ -1,10 +1,11 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True) %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True) %}
 
 <div class="mb-5 w-full flex flex-row">
   <label class="floating-label w-1/2">
     <span>{{ label }}</span>
-    <input {% if input_id %} id="{{ input_id }}" {% else %} id="{{ name }}" {% endif %} type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
+    <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
       class="input w-full validator {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
+      {% if preserve %}hx-preserve{% endif %}
     />
   </label>
   {% if error -%}
@@ -14,10 +15,9 @@
 {% endmacro %}
 
 {% macro form_select(label, name, value, options=[], input_id=None, required=True) %}
-
 <label class="floating-label mb-5 w-1/2">
   <span>{{ label }}</span>
-  <select name="{{ name }}" {% if required %} required {% endif %} class="validator select w-full">
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="validator select w-full">
     {% for option in options -%}
     <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
     {% endfor -%}
@@ -25,12 +25,3 @@
   <div class="validator-hint">Required</div>
 </label>
 {% endmacro %}
-
-{% macro form_action(endpoint, item_name, item_id=0) %}
-{% if item_id == 0 %}
-hx-post="{{ url_for(endpoint) }}"
-{% else %}
-hx-put="{{ url_for(endpoint, **{ item_name: item_id }) }}"
-{% endif %}
-{% endmacro %}
-
