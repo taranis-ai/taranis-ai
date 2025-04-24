@@ -10,6 +10,9 @@
       </span>
     </div>
     <v-card>
+      <v-card-title>
+        <h3>Story - {{ story.id }}</h3>
+      </v-card-title>
       <v-card-text>
         <v-form
           id="form"
@@ -23,6 +26,7 @@
             :label="$t('enter.title')"
             name="title"
             type="text"
+            variant="outlined"
             :rules="[rules.required]"
             :disabled="hasRtId"
           />
@@ -32,15 +36,6 @@
             :placeholder="$t('enter.summary_placeholder')"
             name="summary"
           />
-          <v-row>
-            <v-col cols="auto">
-              <v-btn
-                prepend-icon="mdi-auto-fix"
-                text="AI based summary"
-                @click="triggerSummaryBot"
-              />
-            </v-col>
-          </v-row>
           <code-editor
             v-model:content="story.comments"
             :header="$t('enter.comment')"
@@ -48,22 +43,27 @@
             name="comment"
           />
 
-          <edit-tags v-model="story.tags" />
+          <edit-tags v-model="story.tags" class="mt-3" />
+          <story-links v-model="story.links" :news-items="story.news_items" />
+
+          <!-- TODO: SHOW META INFO LIKE SENTIMENT AND TLP -->
 
           <attributes-table
             v-model="filteredStoryAttributes"
             :disabled="hasRtId"
           >
             <template #top>
-              <v-btn
-                class="mt-4"
+              <v-switch
+                class="mr-4"
+                label="show all attributes"
+                v-model="showAllAttributes"
                 density="compact"
-                text="show all attributes"
-                @click="showallattributes = true"
-              />
+                hide-details
+                color="primary"
+                data-testid="show-all-attributes"
+              ></v-switch>
             </template>
           </attributes-table>
-          <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
           <v-btn
@@ -77,57 +77,60 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
+    <v-card class="my-5">
+      <v-card-title>
+        <h3>AI Actions</h3>
+      </v-card-title>
+
+      <v-card-text class="d-flex">
         <v-btn
           prepend-icon="mdi-pulse"
           @click="triggerSentimentAnalysisBot"
-          class="text-truncate"
-          style="
-            width: 100%;
-            max-width: 240px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          "
+          text="AI Based Sentiment Analysis"
         >
-          AI Based Sentiment Analysis
         </v-btn>
-      </v-col>
-      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
-        <div class="d-flex flex-wrap" style="gap: 8px">
-          <v-chip
-            v-for="(count, sentiment) in sentimentCounts"
-            :key="sentiment"
-            :color="getColor(sentiment)"
-            text-color="white"
-            label
+        <v-chip
+          v-for="(count, sentiment) in sentimentCounts"
+          :key="sentiment"
+          :color="getColor(sentiment)"
+          text-color="white"
+          label
+        >
+          {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
+          {{ count }}
+        </v-chip>
+        <v-btn
+          class="ml-4"
+          prepend-icon="mdi-auto-fix"
+          text="AI Based Summary"
+          @click="triggerSummaryBot"
+        />
+      </v-card-text>
+    </v-card>
+    <v-card>
+      <v-card-title>
+        <h3>News Items</h3>
+      </v-card-title>
+
+      <v-card-text>
+        <v-expansion-panels v-if="story" v-model="panels" multiple>
+          <v-expansion-panel
+            v-for="news_item in story.news_items"
+            :key="news_item.id"
+            :title="news_item.title"
+            :value="news_item.id"
           >
-            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
-            {{ count }}
-          </v-chip>
-        </div>
-      </v-col>
-    </v-row>
-    <v-expansion-panels v-if="story" v-model="panels" multiple>
-      <v-expansion-panel
-        v-for="news_item in story.news_items"
-        :key="news_item.id"
-        :title="news_item.title"
-        :value="news_item.id"
-      >
-        <template #text>
-          <router-link
-            :to="{
-              name: 'newsitem',
-              params: { itemId: news_item.id }
-            }"
-            class="d-flex fill-height align-center text-decoration-none"
-            >{{ news_item.content }}</router-link
-          >
-        </template>
-      </v-expansion-panel>
-    </v-expansion-panels>
+            <v-expansion-panel-text>
+              <router-link
+                :to="{ name: 'newsitem', params: { itemId: news_item.id } }"
+              >
+                {{ news_item.content || news_item.title }}
+              </router-link>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card-text>
+    </v-card>
   </v-container>
 </template>
 
@@ -165,7 +168,7 @@ export default {
         ? story.value.news_items.map((item) => item.id)
         : []
     )
-    const showallattributes = ref(false)
+    const showAllAttributes = ref(false)
 
     const sentimentCounts = computed(() => {
       if (!story.value || !story.value.news_items) {
@@ -216,21 +219,40 @@ export default {
         if (!story.value || !story.value.attributes) {
           return []
         }
-        if (showallattributes.value) {
+        if (showAllAttributes.value) {
           return story.value.attributes
         }
-        return story.value.attributes.filter((attr) => {
+        const filtered_attributes = story.value.attributes.filter((attr) => {
           return (
             Object.prototype.hasOwnProperty.call(attr, 'key') &&
             attr.key !== 'sentiment' &&
-            !attr.key.includes('_BOT_')
+            !attr.key.includes('_BOT_') &&
+            attr.key !== 'TLP'
           )
         })
+        return filtered_attributes
       },
       set(newAttributes) {
+        if (!validateTLP(newAttributes)) {
+          return
+        }
         story.value.attributes = newAttributes
       }
     })
+
+    function validateTLP(attributes) {
+      const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
+      if (!tlpAttr) {
+        return true
+      }
+      const validTlpValues = ['clear', 'green', 'amber', 'amber+strict', 'red']
+      if (validTlpValues.includes(tlpAttr)) {
+        return true
+      } else {
+        notifyFailure(`Invalid TLP value: ${JSON.stringify(tlpAttr)}`)
+        return false
+      }
+    }
 
     const hasRtId = computed(() => {
       return (
@@ -241,6 +263,10 @@ export default {
       const { valid } = await form.value.validate()
 
       if (!valid) {
+        return
+      }
+
+      if (!validateTLP(story.value.attributes)) {
         return
       }
 
@@ -318,7 +344,7 @@ export default {
       sentimentCounts,
       getColor,
       filteredStoryAttributes,
-      showallattributes
+      showAllAttributes
     }
   }
 }

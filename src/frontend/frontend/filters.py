@@ -1,3 +1,8 @@
+from flask import url_for
+
+__all__ = ["human_readable_trigger", "last_path_segment", "admin_action"]
+
+
 def human_readable_trigger(trigger):
     if not trigger.startswith("interval"):
         return trigger
@@ -12,3 +17,11 @@ def human_readable_trigger(trigger):
     if seconds > 0:
         parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
     return "every " + ", ".join(parts)
+
+
+def last_path_segment(value):
+    return value.strip("/").split("/")[-1]
+
+
+def admin_action(value):
+    return url_for("admin_settings.settings_action", action=last_path_segment(value))

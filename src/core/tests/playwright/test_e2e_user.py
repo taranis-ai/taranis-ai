@@ -2,8 +2,7 @@
 
 import pytest
 import time
-import re
-from playwright.sync_api import expect, Page
+from playwright.sync_api import expect, Page, Locator
 from playwright_helpers import PlaywrightHelpers
 
 
@@ -173,6 +172,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.keyboard.press("Control+I")
             self.short_sleep(duration=1)
 
+        def check_attributes_table(table_locator: Locator, expected_rows: list[list[str]]):
+            rows = table_locator.locator("table tbody tr")
+            count = rows.count()
+
+            actual_rows = [
+                [(rows.nth(i).locator("td").nth(j).locator("input").get_attribute("value") or "").strip() for j in range(2)]
+                for i in range(count)
+            ]
+
+            assert sorted(actual_rows) == sorted(expected_rows)
+
         def interact_with_story(story_ids):
             self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("show story-actions-menu")).click()
             time.sleep(0.5)
@@ -202,7 +212,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_label("Tags", exact=True).fill("APT81")
             page.get_by_label("Tags", exact=True).press("Enter")
             self.highlight_element(page.get_by_title("Close")).click()
-
             self.highlight_element(page.get_by_role("button", name="Add New Key-Value"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).fill("test_key")
@@ -210,12 +219,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("test_key")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("dangerous")
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["test_key", "dangerous"]])
+
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
             )
@@ -250,12 +255,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(6)).to_have_text("APT80")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(0).locator("input")
-            ).to_have_value("test_key")
-            expect(
-                page.get_by_test_id("attributes-table").get_by_role("row").nth(1).get_by_role("cell").nth(1).locator("input")
-            ).to_have_value("dangerous")
+            page.get_by_test_id("show-all-attributes").click()
+
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
+
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 
         def infinite_scroll_all_items(stories_date_descending):
@@ -440,7 +443,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
-            self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^APT75$")).nth(1)).click()
+            self.highlight_element(page.locator("#v-menu-v-42").get_by_text("APT75")).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         page = taranis_frontend

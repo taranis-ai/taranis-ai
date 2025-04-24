@@ -42,5 +42,5 @@ class TestBotsApi(BaseTest):
 
         attributes = response.get_json().get("attributes")
 
-        assert len(attributes) == (len(cleanup_story_update_data["attributes"]) + 1)
+        assert len(attributes) == (len(cleanup_story_update_data["attributes"]) + 2)
         assert {"key": "priority", "value": "high"} in attributes

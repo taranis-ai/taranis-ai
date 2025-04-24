@@ -44,13 +44,9 @@ class NewsItemAttribute(BaseModel):
     def get_by_key(cls, attributes: list["NewsItemAttribute"], key: str) -> "NewsItemAttribute | None":
         return next((attribute for attribute in attributes if attribute.key == key), None)  # type: ignore
 
-    @classmethod
-    def set_or_update(cls, attributes: list["NewsItemAttribute"], key: str, value: str) -> list["NewsItemAttribute"]:
-        if not (attribute := cls.get_by_key(attributes, key)):
-            attributes.append(cls(key=key, value=value))
-        else:
-            attribute.value = value
-        return attributes
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return TLPLevel(self.value) if self.key == "TLP" else TLPLevel.CLEAR
 
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:

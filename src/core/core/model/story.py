@@ -44,7 +44,9 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
-    attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    attributes: Mapped[list["NewsItemAttribute"]] = relationship(
+        "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
+    )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
@@ -248,6 +250,18 @@ class Story(BaseModel):
                 query = query.order_by(db.asc(cls.updated), db.asc(cls.title))
 
         return query
+
+    @classmethod
+    def _add_cybersecurity_filter_to_query(cls, query: Select, cybersecurity: str) -> Select:
+        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+
+        return (
+            db.select(subquery_story_attribute.story_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == subquery_story_attribute.news_item_attribute_id)
+            .filter(NewsItemAttribute.key == "cybersecurity")
+            .filter(NewsItemAttribute.value == cybersecurity)
+            .distinct()
+        )
 
     @classmethod
     def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
@@ -540,7 +554,7 @@ class Story(BaseModel):
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        story.update_status(external)
+        story.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
@@ -574,7 +588,7 @@ class Story(BaseModel):
 
         self.attributes = []
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
 
     def patch_attributes(self, attributes: list[dict]):
         """
@@ -584,15 +598,17 @@ class Story(BaseModel):
             attributes (list[dict]): [{"key": "key1", "value": "value1"}].
         """
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
+
+    def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
+        if existing_attribute := self.find_attribute_by_key(attribute.key):
+            existing_attribute.value = attribute.value
+        else:
+            self.attributes.append(attribute)
         db.session.commit()
 
-    def set_atrribute_by_key(self, key, value):
-        if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):
-            attribute = NewsItemAttribute(key=key, value=value)
-            self.attributes.append(attribute)
-        else:
-            attribute.value = value
+    def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
+        return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
@@ -868,7 +884,7 @@ class Story(BaseModel):
             return None
         return sentiment
 
-    def update_status(self, external=False):
+    def update_status(self):
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
@@ -878,23 +894,29 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
-        self.last_change = "external" if external else "internal"
 
     def update_timestamps(self):
         self.updated = datetime.now()
         self.created = min(news_item.published for news_item in self.news_items)
 
     def update_tlp(self):
-        highest_tlp = None
-        for news_item in self.news_items:
-            if tlp_level := news_item.get_tlp():
-                tlp_level_enum = TLPLevel(tlp_level)
-                if highest_tlp is None or tlp_level_enum > highest_tlp:
-                    highest_tlp = tlp_level_enum
+        highest_tlp = self.tlp_level or TLPLevel.CLEAR
 
-        if highest_tlp:
-            logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
-            NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+        tlp_levels: list[TLPLevel] = []
+        for news_item in self.news_items:
+            if not news_item.tlp_level:
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+            tlp_levels.append(news_item.tlp_level)
+        tlp_levels += [self.tlp_level]
+
+        highest_tlp = TLPLevel.get_highest_tlp(tlp_levels)
+
+        logger.debug(f"Updating TLP for Story {self.id} to {highest_tlp}")
+        self.upsert_attribute(NewsItemAttribute(key="TLP", value=highest_tlp))
+
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -1010,7 +1032,9 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    __tablename__ = "story_news_item_attribute"
+
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
@@ -1020,7 +1044,7 @@ class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):
@@ -1039,7 +1063,7 @@ class StoryConflict:
     # A class-level store to hold conflicts
     conflict_store = {}
 
-    def resolve(self, resolution: dict[str, Any]) -> dict[str, Any]:
+    def resolve(self, resolution: dict[str, Any]):
         """
         Applies the resolution changes to the updated data.
         This example simply updates the updated dict with the resolution.

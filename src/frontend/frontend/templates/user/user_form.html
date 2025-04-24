@@ -3,15 +3,6 @@
 {% set create = user_id == 0 | default('true') %}
 {% set form_title = 'User' %}
 
-{% set user = user | default({
-        'id': 0,
-        'username': '',
-        'name': '',
-        'roles': [],
-        'organization': ''
-    })
-%}
-
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}

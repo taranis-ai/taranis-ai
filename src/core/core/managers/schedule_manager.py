@@ -65,7 +65,7 @@ class Scheduler:
 
     def get_periodic_tasks(self) -> dict:
         jobs = self.get_jobs()
-        logger.debug([self.serialize_job(job) for job in jobs])
+        logger.debug([job.id for job in jobs])
         items = [self.serialize_job(job) for job in jobs]
         return {"items": items, "total_count": len(items)}
 
@@ -89,7 +89,7 @@ class Scheduler:
                 "args": str(job.args),
                 "kwargs": str(job.kwargs),
                 "name": job.name,
-                "next_run_time": job.next_run_time,
+                "next_run_time": job.next_run_time if hasattr(job, "next_run_time") else None,
             }
         except Exception:
             logger.exception("Failed to serialize job")

@@ -16,6 +16,7 @@ from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.osint_source import OSINTSource
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.role import TLPLevel
 
 
 class NewsItem(BaseModel):
@@ -68,7 +69,8 @@ class NewsItem(BaseModel):
         self.review = review
         self.content = content
         if osint_source := OSINTSource.get(osint_source_id):
-            self.osint_source = osint_source
+            with db.session.no_autoflush:
+                self.osint_source = osint_source
         else:
             raise ValueError(f"OSINT Source {osint_source_id} not found")
         self.source = source
@@ -80,8 +82,7 @@ class NewsItem(BaseModel):
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
         self.story_id = story_id
-        if attributes:
-            self.attributes = NewsItemAttribute.load_multiple(attributes)
+        self.attributes = NewsItemAttribute.load_multiple(attributes or [])
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
@@ -104,8 +105,8 @@ class NewsItem(BaseModel):
             return news_item.collected.astimezone().isoformat()
         return ""
 
-    def has_attribute_value(self, value) -> bool:
-        return any(attribute.value == value for attribute in self.attributes)
+    def has_attribute(self, key) -> bool:
+        return any(attribute.key == key for attribute in self.attributes)
 
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
@@ -176,14 +177,29 @@ class NewsItem(BaseModel):
             return {"error": "Invalid attributes"}, 400
 
         for attribute in attributes:
-            if not news_item.has_attribute_value(attribute.value):
-                news_item.attributes.append(attribute)
+            news_item.upsert_attribute(attribute)
         news_item.last_change = "internal"
         db.session.commit()
         return {"message": "Attributes updated"}, 200
 
-    def get_tlp(self) -> str | None:
-        return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
+    def add_attribute(self, attribute: NewsItemAttribute) -> None:
+        if not self.has_attribute(attribute.key):
+            self.attributes.append(attribute)
+            db.session.commit()
+
+    def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
+        return next((attribute for attribute in self.attributes if attribute.key == key), None)
+
+    def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
+        if existing_attribute := self.find_attribute_by_key(attribute.key):
+            existing_attribute.value = attribute.value
+        else:
+            self.attributes.append(attribute)
+        db.session.commit()
+
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data) -> tuple[dict, int]:
         if self.source != "manual":
