@@ -4,7 +4,7 @@ Add Connector permissions
 
 from yoyo import step
 
-__depends__ = {"20250410_01_fquYo-add-cybersecurity-column-to-story"}
+__depends__ = {"20250324_02_vL3hN-add-last-change-column"}
 
 steps = [
     step(
