@@ -886,7 +886,7 @@ class Story(BaseModel):
                 frozenset(["none"]): "none",
             }
             status = status_map.get(status_set, "none")
-        NewsItemAttribute.set_or_update(self.attributes, "cybersecurity", status)
+        self.upsert_attribute(NewsItemAttribute(key="cybersecurity", value=status))
 
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
