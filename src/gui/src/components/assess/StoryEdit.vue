@@ -82,91 +82,67 @@
         <h3>AI Actions</h3>
       </v-card-title>
 
-      <v-card-text class="d-flex">
-        <v-row>
-          <v-btn
-            class="ml-4"
-            prepend-icon="mdi-auto-fix"
-            text="AI Based Summary"
-            @click="triggerSummaryBot"
-          />
+      <v-card-text>
+        <!-- Summary row -->
+        <v-row no-gutters align="center" class="mb-4">
+          <v-btn prepend-icon="mdi-auto-fix" text @click="triggerSummaryBot">
+            AI Based Summary
+          </v-btn>
         </v-row>
 
-        <v-row class="mt-4 px-4" align="center" justify="start" wrap>
-          <v-col
-            cols="12"
-            sm="6"
-            md="4"
-            class="d-flex align-center"
-            style="gap: 24px"
-          >
-            <v-btn
-              v-if="story && userStore.advanced_story_options"
-              prepend-icon="mdi-pulse"
-              @click="triggerSentimentAnalysisBot"
-              class="text-truncate mb-2"
-              style="
-                width: 100%;
-                max-width: 240px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              "
-            >
-              AI Based Sentiment Analysis
-            </v-btn>
-            <div class="d-flex flex-wrap" style="gap: 24px">
-              <v-chip
-                v-if="story && userStore.advanced_story_options"
-                v-for="(count, sentiment) in sentimentCounts"
-                :key="sentiment"
-                :color="getSentimentColor(sentiment)"
-                text-color="white"
-                label
-              >
-                {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
-                {{ count }}
-              </v-chip>
-            </div>
-          </v-col>
-        </v-row>
+        <!-- Sentiment row -->
         <v-row
-          v-if="story && userStore.advanced_story_options"
-          class="mb-4 px-4"
+          no-gutters
           align="center"
-          justify="start"
-          wrap
+          class="mb-4"
+          v-if="story && userStore.advanced_story_options"
         >
-          <v-col
-            cols="12"
-            sm="6"
-            md="6"
-            class="d-flex align-center"
-            style="gap: 24px"
+          <v-btn
+            prepend-icon="mdi-pulse"
+            @click="triggerSentimentAnalysisBot"
+            class="text-truncate"
           >
-            <v-btn
-              prepend-icon="mdi-shield-outline"
-              @click="triggerCyberSecClassifierBot"
-              class="text-truncate"
-              style="
-                width: 100%;
-                max-width: 240px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              "
-            >
-              Classify Cybersecurity (Bot)
-            </v-btn>
+            AI Based Sentiment Analysis
+          </v-btn>
+
+          <!-- wrap chips in a flex container with a left margin -->
+          <div class="d-flex flex-wrap ml-4" style="gap: 8px">
             <v-chip
-              :key="storyCyberSecStatus"
-              :class="getChipCybersecurityClass(storyCyberSecStatus)"
+              v-for="(count, sentiment) in sentimentCounts"
+              :key="sentiment"
+              :color="getSentimentColor(sentiment)"
+              text-color="white"
               label
-              data-testid="story-cybersec-status-chip"
             >
-              {{ storyCyberSecStatus }}
+              {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}:
+              {{ count }}
             </v-chip>
-          </v-col>
+          </div>
+        </v-row>
+
+        <!-- Cyber-sec row -->
+        <v-row
+          no-gutters
+          align="center"
+          class="mb-4"
+          v-if="story && userStore.advanced_story_options"
+        >
+          <v-btn
+            prepend-icon="mdi-shield-outline"
+            @click="triggerCyberSecClassifierBot"
+            class="text-truncate"
+          >
+            Classify Cybersecurity (Bot)
+          </v-btn>
+
+          <v-chip
+            class="ml-4"
+            :class="getChipCybersecurityClass(storyCyberSecStatus)"
+            label
+            data-testid="story-cybersec-status-chip"
+          >
+            {{ storyCyberSecStatus }}
+          </v-chip>
         </v-row>
       </v-card-text>
     </v-card>
