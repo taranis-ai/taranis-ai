@@ -34,7 +34,6 @@ class Story(BaseModel):
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
-    cybersecurity: Mapped[str] = db.Column(db.String(10), default="none")
 
     likes: Mapped[int] = db.Column(db.Integer, default=0)
     dislikes: Mapped[int] = db.Column(db.Integer, default=0)
@@ -55,7 +54,6 @@ class Story(BaseModel):
         created: datetime | str = datetime.now(),
         read: bool = False,
         important: bool = False,
-        cybersecurity: str = None,
         summary: str = "",
         comments: str = "",
         links=None,
@@ -71,7 +69,6 @@ class Story(BaseModel):
         self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
-        self.cybersecurity = cybersecurity
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
@@ -181,7 +178,7 @@ class Story(BaseModel):
             query = query.filter(Story.important == false())
 
         if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
-            query = query.filter(Story.cybersecurity == cybersecurity_status)
+            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
 
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
@@ -256,16 +253,24 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
-        subquery_attribute = aliased(NewsItemAttribute)
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+    def _add_key_value_filter_to_query(cls, query: Select, filter_key: str, filter_value: str) -> Select:
+        nia1 = aliased(NewsItemAttribute)
+        snia1 = aliased(StoryNewsItemAttribute)
 
         subquery = (
-            db.select(subquery_story_attribute.story_id)
-            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(subquery_attribute.key == filter_attribute)
+            db.select(snia1.story_id)
+            .join(nia1, nia1.id == snia1.news_item_attribute_id)
+            .filter((nia1.key == filter_key) & (nia1.value == filter_value))
             .distinct()
         )
+        return query.filter(Story.id.in_(subquery))
+
+    @classmethod
+    def _add_attribute_filter_to_query(cls, query: Select, filter_key: str, exclude: bool = False) -> Select:
+        nia2 = aliased(NewsItemAttribute)
+        snia2 = aliased(StoryNewsItemAttribute)
+
+        subquery = db.select(snia2.story_id).join(nia2, nia2.id == snia2.news_item_attribute_id).filter(nia2.key == filter_key).distinct()
 
         query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
             NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
@@ -864,11 +869,11 @@ class Story(BaseModel):
         new_story.update_status()
 
     def update_cybersecurity_status(self):
-        cybersecurity_status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
-        status_set = frozenset(cybersecurity_status_list)
+        status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
+        status_set = frozenset(status_list)
 
         if "none" in status_set and len(status_set) > 1:
-            self.cybersecurity = "incomplete"
+            status = "incomplete"
         else:
             status_map = {
                 frozenset(["yes"]): "yes",
@@ -876,7 +881,8 @@ class Story(BaseModel):
                 frozenset(["yes", "no"]): "mixed",
                 frozenset(["none"]): "none",
             }
-            self.cybersecurity = status_map.get(status_set, "none")
+            status = status_map.get(status_set, "none")
+        NewsItemAttribute.set_or_update(self.attributes, "cybersecurity", status)
 
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
