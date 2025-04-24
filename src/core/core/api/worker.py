@@ -35,14 +35,6 @@ class Products(MethodView):
     def get(self, product_id: str):
         return Product.get_for_worker(product_id)
 
-    @api_key_required
-    def put(self, product_id: str):
-        if render_result := request.data:
-            sse_manager.product_rendered(product_id)
-            return Product.update_render_for_id(product_id, render_result)
-
-        return {"error": "Error reading file"}, 400
-
 
 class ProductsRender(MethodView):
     @api_key_required
@@ -126,6 +118,7 @@ class Stories(MethodView):
             "exclude_attr",
             "include_attr",
             "story_id",
+            "cybersecurity",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]

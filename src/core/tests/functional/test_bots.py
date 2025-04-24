@@ -41,6 +41,5 @@ class TestBotsApi(BaseTest):
         assert all(link in cleanup_story_update_data["links"] for link in response.get_json().get("links"))
 
         attributes = response.get_json().get("attributes")
-
-        assert len(attributes) == (len(cleanup_story_update_data["attributes"]) + 1)
+        assert len(attributes) == (len(cleanup_story_update_data["attributes"]) + 3)
         assert {"key": "priority", "value": "high"} in attributes

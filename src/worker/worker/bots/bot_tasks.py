@@ -24,17 +24,15 @@ class BotTask(Task):
             "ioc_bot": worker.bots.IOCBot(),
             "summary_bot": worker.bots.SummaryBot(),
             "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
+            "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
         }
 
     def run(self, bot_id: str, filter: dict | None = None):
         logger.info(f"Starting bot task {self.name}")
-        bot_config = self.core_api.get_bot_config(bot_id)
-        if not bot_config:
-            logger.error(f"Bot with id {bot_id} not found")
-            return
+        if bot_config := self.core_api.get_bot_config(bot_id):
+            return self.execute_by_config(bot_config, filter)
 
-        self.execute_by_config(bot_config, filter)
-        return
+        raise ValueError(f"Bot with id {bot_id} not found")
 
     def execute_by_config(self, bot_config: dict, filter: dict | None = None):
         bot_type = bot_config.get("type")

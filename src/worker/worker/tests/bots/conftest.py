@@ -1,7 +1,17 @@
 import os
 import pytest
+import re
+import json
 
 from worker.config import Config
+
+
+@pytest.fixture(scope="session")
+def stories():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    story_json = os.path.join(dir_path, "test_stories.json")
+    with open(story_json) as f:
+        yield json.load(f)
 
 
 @pytest.fixture(autouse=True)
@@ -32,3 +42,27 @@ def ner_bot_mock(requests_mock):
             {"entity": "B-LOC", "index": 7, "score": 0.9996286630630492, "word": "Paris"},
         ],
     )
+
+
+@pytest.fixture
+def news_item_attribute_update_mock(requests_mock):
+    def match_callback(request, context):
+        news_item_id = request.url.split("/")[6]
+        return {"message": f"Successfully updated attributes oif news item with id: '{news_item_id}'"}
+
+    yield requests_mock.put(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/news-item/.+/attributes"), json=match_callback)
+
+
+@pytest.fixture
+def story_attribute_update_mock(requests_mock):
+    def match_callback(request, context):
+        story_id = request.url.split("/")[6]
+        return {"message": f"Successfully updated attributes oif news item with id: '{story_id}'"}
+
+    yield requests_mock.patch(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+/attributes"), json=match_callback)
+
+
+@pytest.fixture
+def cybersec_classifier_mock(requests_mock):
+    print(f"Mocking: {Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/")
+    yield requests_mock

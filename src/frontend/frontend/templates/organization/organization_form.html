@@ -2,20 +2,6 @@
 {% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
 {% set form_title = 'Organization' %}
 
-{% set organization = organization
-    | default({
-        'id': 0,
-        'name': '',
-        'description': '',
-        'address': {
-            'street': '',
-            'city': '',
-            'country': '',
-            'zip': ''
-        }
-    })
-%}
-
 {% set form_error = form_error | default({}) %}
 <div class="bg-base-100 rounded-sm p-4">
     <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>

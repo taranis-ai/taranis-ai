@@ -237,10 +237,18 @@ export default {
         return
       }
       if (props.edit) {
+        const flattened_attributes = {}
+
+        for (const group of Object.values(report_item.value.attributes)) {
+          for (const [key, obj] of Object.entries(group)) {
+            flattened_attributes[key] = { value: obj.value }
+          }
+        }
+
         const update_report_item = {
           title: report_item.value.title,
           completed: report_item.value.completed,
-          attributes: report_item.value.attributes
+          attributes: flattened_attributes
         }
         try {
           store.patchReportItem(report_item.value.id, update_report_item)

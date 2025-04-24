@@ -43,7 +43,9 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
-    attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    attributes: Mapped[list["NewsItemAttribute"]] = relationship(
+        "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
+    )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
@@ -182,6 +184,9 @@ class Story(BaseModel):
         if important == "false":
             query = query.filter(Story.important == false())
 
+        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
+            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
+
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
             query = query.filter(Story.relevance > 0)
@@ -255,16 +260,24 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
-        subquery_attribute = aliased(NewsItemAttribute)
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+    def _add_key_value_filter_to_query(cls, query: Select, filter_key: str, filter_value: str) -> Select:
+        nia1 = aliased(NewsItemAttribute)
+        snia1 = aliased(StoryNewsItemAttribute)
 
         subquery = (
-            db.select(subquery_story_attribute.story_id)
-            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(subquery_attribute.key == filter_attribute)
+            db.select(snia1.story_id)
+            .join(nia1, nia1.id == snia1.news_item_attribute_id)
+            .filter((nia1.key == filter_key) & (nia1.value == filter_value))
             .distinct()
         )
+        return query.filter(Story.id.in_(subquery))
+
+    @classmethod
+    def _add_attribute_filter_to_query(cls, query: Select, filter_key: str, exclude: bool = False) -> Select:
+        nia2 = aliased(NewsItemAttribute)
+        snia2 = aliased(StoryNewsItemAttribute)
+
+        subquery = db.select(snia2.story_id).join(nia2, nia2.id == snia2.news_item_attribute_id).filter(nia2.key == filter_key).distinct()
 
         query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
             NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
@@ -412,6 +425,7 @@ class Story(BaseModel):
             db.session.commit()
             StorySearchIndex.prepare(story)
             story.update_tlp()
+            story.update_cybersecurity_status()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -545,7 +559,7 @@ class Story(BaseModel):
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        story.update_status(external)
+        story.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
@@ -579,7 +593,7 @@ class Story(BaseModel):
 
         self.attributes = []
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
 
     def patch_attributes(self, attributes: list[dict]):
         """
@@ -589,15 +603,17 @@ class Story(BaseModel):
             attributes (list[dict]): [{"key": "key1", "value": "value1"}].
         """
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
+
+    def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
+        if existing_attribute := self.find_attribute_by_key(attribute.key):
+            existing_attribute.value = attribute.value
+        else:
+            self.attributes.append(attribute)
         db.session.commit()
 
-    def set_atrribute_by_key(self, key, value):
-        if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):
-            attribute = NewsItemAttribute(key=key, value=value)
-            self.attributes.append(attribute)
-        else:
-            attribute.value = value
+    def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
+        return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
@@ -860,6 +876,22 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
+    def update_cybersecurity_status(self):
+        status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
+        status_set = frozenset(status_list)
+
+        if "none" in status_set and len(status_set) > 1:
+            status = "incomplete"
+        else:
+            status_map = {
+                frozenset(["yes"]): "yes",
+                frozenset(["no"]): "no",
+                frozenset(["yes", "no"]): "mixed",
+                frozenset(["none"]): "none",
+            }
+            status = status_map.get(status_set, "none")
+        self.upsert_attribute(NewsItemAttribute(key="cybersecurity", value=status))
+
     def get_story_sentiment(self) -> dict | None:
         sentiment = {"positive": 0, "negative": 0, "neutral": 0}
         for news_item in self.news_items:
@@ -873,7 +905,7 @@ class Story(BaseModel):
             return None
         return sentiment
 
-    def update_status(self, external=False):
+    def update_status(self):
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
@@ -883,27 +915,34 @@ class Story(BaseModel):
 
         self.update_tlp()
         self.update_timestamps()
-        self.last_change = "external" if external else "internal"
+        self.update_cybersecurity_status()
 
     def update_timestamps(self):
         self.updated = datetime.now()
         self.created = min(news_item.published for news_item in self.news_items)
 
     def update_tlp(self):
-        highest_tlp = None
-        for news_item in self.news_items:
-            if tlp_level := news_item.get_tlp():
-                tlp_level_enum = TLPLevel(tlp_level)
-                if highest_tlp is None or tlp_level_enum > highest_tlp:
-                    highest_tlp = tlp_level_enum
+        highest_tlp = self.tlp_level or TLPLevel.CLEAR
 
-        if highest_tlp:
-            logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
-            NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+        tlp_levels: list[TLPLevel] = []
+        for news_item in self.news_items:
+            if not news_item.tlp_level:
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+            tlp_levels.append(news_item.tlp_level)
+        tlp_levels += [self.tlp_level]
+
+        highest_tlp = TLPLevel.get_highest_tlp(tlp_levels)
+
+        logger.debug(f"Updating TLP for Story {self.id} to {highest_tlp}")
+        self.upsert_attribute(NewsItemAttribute(key="TLP", value=highest_tlp))
+
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 
@@ -1015,7 +1054,9 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    __tablename__ = "story_news_item_attribute"
+
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
@@ -1025,7 +1066,7 @@ class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):

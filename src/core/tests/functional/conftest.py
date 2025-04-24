@@ -166,61 +166,52 @@ def cleanup_story_update_data(rt_id_attribute):
 
 
 @pytest.fixture(scope="class")
-def test_user(app):
-    with app.app_context():
-        from core.model.user import User
-
-        user_data = {"id": 222, "name": "Test User", "username": "Test User", "organization": "Test Org", "roles": ["role1", "role2"]}
-        yield User.add(user_data)
-
-        User.delete(user_data["id"])
-
-
-@pytest.fixture(scope="class")
-def report_items(app, test_user):
+def report_items(app):
     with app.app_context():
         from core.model.report_item import ReportItem, ReportItemAttribute
         from core.model.report_item_type import ReportItemType
-        from core.model.report_item import AttributeType
         from core.model.role import TLPLevel
 
-        report_types = ReportItemType.get_all_for_collector()
-        if not report_types:
-            raise ValueError("No report types found")
-        report_title_ids = {rt.title: rt.id for rt in report_types}
-        osint_repot_id = report_title_ids.get("OSINT Report")
-        cert_repot_id = report_title_ids.get("CERT Report")
+        if osint_report_type := ReportItemType.get_by_title("OSINT Report"):
+            osint_report_type_id = osint_report_type.id
+        else:
+            raise ValueError("OSINT Report type not found")
+
+        if vulnerability_report_type := ReportItemType.get_by_title("Vulnerability Report"):
+            vulnerability_report_type_id = vulnerability_report_type.id
+        else:
+            raise ValueError("Vulnerability Report type not found")
 
         report_item1_data = {
             "id": "c285fe34-474d-4197-8b1a-564ee46e13f5",
             "title": "OSINT report Item with TLP:Clear",
             "completed": False,
-            "report_item_type_id": osint_repot_id,
+            "report_item_type_id": osint_report_type_id,
         }
 
         report_item2_data = {
             "id": "3f98a483-ede6-4614-b329-76f85163d810",
             "title": "OSINT report Item with TLP:Red",
             "completed": False,
-            "report_item_type_id": osint_repot_id,
+            "report_item_type_id": osint_report_type_id,
         }
 
         report_item3_data = {
             "id": "4f61e069-bbd0-4fdc-b719-db2a801cb7de",
             "title": "CERT Report Item without TLP level",
             "completed": False,
-            "report_item_type_id": cert_repot_id,
+            "report_item_type_id": vulnerability_report_type_id,
         }
 
-        report_item1, _ = ReportItem.add(report_item1_data, test_user)
-        report_item2, _ = ReportItem.add(report_item2_data, test_user)
-        report_item3, _ = ReportItem.add(report_item3_data, test_user)
+        report_item1, _ = ReportItem.add(report_item1_data, None)
+        report_item2, _ = ReportItem.add(report_item2_data, None)
+        report_item3, _ = ReportItem.add(report_item3_data, None)
 
-        clear_tlp_attr = ReportItemAttribute(attribute_type=AttributeType.TLP, group_title="Summary", value=TLPLevel.CLEAR.value)
-        red_tlp_attr = ReportItemAttribute(attribute_type=AttributeType.TLP, group_title="Summary", value=TLPLevel.AMBER.value)
+        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item2.id, "TLP"):
+            report_item2.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.AMBER.value}}, True)
 
-        report_item1.attributes.append(clear_tlp_attr)
-        report_item2.attributes.append(red_tlp_attr)
+        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item3.id, "TLP"):
+            report_item3.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.RED.value}}, True)
 
         yield report_item1, report_item2, report_item3
 
@@ -237,7 +228,7 @@ def stories_with_tlp(app, fake_source):
 
         news_items = [
             {
-                "id": "tlp-news-001",
+                "id": "tlp-news-green",
                 "title": "TLP News Item",
                 "content": "This is TLP-related content.",
                 "source": "https://example.com/news/tlp",
@@ -249,7 +240,7 @@ def stories_with_tlp(app, fake_source):
                 "attributes": [{"key": "TLP", "value": TLPLevel.GREEN.value}],
             },
             {
-                "id": "plain-news-002",
+                "id": "tlp-news-clear",
                 "title": "Plain News Item",
                 "content": "This is just a regular news item.",
                 "source": "https://example.com/news/plain",
@@ -259,14 +250,26 @@ def stories_with_tlp(app, fake_source):
                 "review": "Another review",
                 "hash": "plain-news-hash",
             },
+            {
+                "id": "tlp-news-red",
+                "title": "Another TLP News Item",
+                "content": "This is another TLP-related content.",
+                "source": "https://example.com/news/tlp2",
+                "osint_source_id": fake_source,
+                "collected": "2024-01-01T02:00:00",
+                "published": "2024-01-01T02:00:00",
+                "review": "Yet another review",
+                "hash": "tlp-news-hash-2",
+                "attributes": [{"key": "TLP", "value": TLPLevel.RED.value}],
+            },
         ]
 
         result, _ = Story.add_news_items(news_items)
-        yield result.get("story_ids")
+        yield result
 
         StoryNewsItemAttribute.delete_all()
-        NewsItem.delete_all()
         NewsItemAttribute.delete_all()
+        NewsItem.delete_all()
         Story.delete_all()
 
 

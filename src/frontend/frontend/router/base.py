@@ -24,9 +24,9 @@ class DashboardAPI(MethodView):
 
 class InvalidateCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
-    def get(self, suffix: str):
+    def get(self, suffix: str | None = None):
         if not suffix:
-            return {"error": "No suffix provided"}, 400
+            DataPersistenceLayer().invalidate_cache(None)
         DataPersistenceLayer().invalidate_cache(suffix)
         return "Cache invalidated"
 
@@ -76,7 +76,8 @@ def init(app: Flask):
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
 
-    base_bp.add_url_rule("/invalidate_cache/<suffix>", view_func=InvalidateCache.as_view("invalidate_cache"))
+    base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
+    base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))
     base_bp.add_url_rule("/list_cache_keys", view_func=ListCacheKeys.as_view("list_cache_keys"))
     base_bp.add_url_rule("/list_user_cache", view_func=ListUserCache.as_view("list_user_cache"))
 
