@@ -21,7 +21,7 @@ class AdminDashboardAPI(MethodView):
         if result is None:
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
 
-        return render_template("dashboard/index.html", data=result[0])
+        return render_template("admin_dashboard/index.html", data=result[0])
 
 
 class ScheduleAPI(MethodView):

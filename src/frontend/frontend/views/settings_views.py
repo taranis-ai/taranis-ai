@@ -44,8 +44,7 @@ class SettingsView(BaseView):
         if not response or not response.ok:
             error = "Failed to call settings action: "
             error += response.json().get("error", action_url)
-            logger.debug(error)
-            return render_template("error.html", error=error), response.status_code if response else 500
+            return render_template("partials/error.html", error=error), response.status_code if response else 500
 
         if method == "post":
             return Response(status=200, headers={"HX-Refresh": "true"})

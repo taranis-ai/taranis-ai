@@ -1,5 +1,5 @@
 from enum import StrEnum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AnyUrl
 from typing import ClassVar, TypeVar
 
 from frontend.config import Config
@@ -100,8 +100,28 @@ class Dashboard(TaranisBaseModel):
     conflict_count: int | None = None
 
 
+class StoryTag(TaranisBaseModel):
+    name: str
+    size: int
+    type: str | None = None
+
+
+class TrendingTag(TaranisBaseModel):
+    _core_endpoint = "/dashboard/cluster"
+    _model_name = "trending_tags"
+    name: str
+    tags: list[StoryTag] = Field(default_factory=list)
+    size: int | None = None
+
+
+class TrendingClusters(TaranisBaseModel):
+    _core_endpoint = "/dashboard/trending-clusters"
+    _model_name = "trending_clusters"
+    root: list[TrendingTag] = Field(default_factory=list)
+
+
 class TaranisConfig(TaranisBaseModel):
-    default_collector_proxy: str | None = None
+    default_collector_proxy: AnyUrl | None = None
     default_collector_interval: str | None = None
     default_tlp_level: TLPLevel | None = None
 

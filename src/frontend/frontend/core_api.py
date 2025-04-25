@@ -76,6 +76,9 @@ class CoreApi:
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
 
+    def logout(self):
+        return self.api_delete("/auth/logout")
+
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
         disposition = response.headers.get("Content-Disposition", f"attachment; filename={fallback_filename}")

@@ -122,5 +122,8 @@ class BaseView:
             items = None
             error = str(exc)
 
+        if not items:
+            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
+            return render_template("errors/404.html", error="No Dashboard items found")
         template = cls.get_list_template()
         return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})

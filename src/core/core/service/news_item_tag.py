@@ -78,13 +78,13 @@ class NewsItemTagService:
         return [row[0] for row in items] if items else []
 
     @classmethod
-    def get_largest_tag_types(cls, days: int) -> list:
+    def get_largest_tag_types(cls, days: int) -> dict:
         tag_types = cls.get_tag_types()
-        largest_tag_types = []
+        largest_tag_types = {}
         for tag_type in tag_types:
             if tags := cls.get_n_biggest_tags_by_type(tag_type, 5, days=days):
                 cluster_size = sum(tag["size"] for tag in tags)
-                largest_tag_types.append({"size": cluster_size, "name": tag_type, "tags": tags})
+                largest_tag_types[tag_type] = {"size": cluster_size, "tags": tags, "name": tag_type}
 
         logger.debug(f"Found {len(largest_tag_types)} tag clusters")
         return largest_tag_types
