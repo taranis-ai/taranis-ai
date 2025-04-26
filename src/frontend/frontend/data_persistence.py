@@ -59,12 +59,11 @@ class DataPersistenceLayer:
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    # TODO Rename this here and in `get_objects`
     def _cache_and_paginate_objects(self, result, object_model, endpoint, paging_data):
-        logger.debug(result)
         result_object = [object_model(**object) for object in result.get("items", [])]
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")
+            return []
         total_count = result.get("total_count", len(result_object))
         links = result.get("_links", {})
         cache_object = CacheObject(

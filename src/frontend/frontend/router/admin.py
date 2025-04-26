@@ -3,7 +3,7 @@ from flask.views import MethodView
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
-from frontend.models import Role, User, Organization, PagingData, Job, Dashboard
+from frontend.models import Role, User, Organization, PagingData, Job, Dashboard, ACL
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required
@@ -11,6 +11,7 @@ from frontend.router_helpers import convert_query_params
 from frontend.views.user_views import UserView
 from frontend.views.organization_views import OrganizationView
 from frontend.views.role_views import RoleView
+from frontend.views.acl_views import ACLView
 
 
 class AdminDashboardAPI(MethodView):
@@ -73,6 +74,29 @@ class UpdateUser(MethodView):
         return Response(status=result.status_code, headers={"HX-Refresh": "true"}) if result else "error"
 
 
+class ExportUsers(MethodView):
+    @auth_required()
+    def get(self):
+        user_ids = request.args.getlist("ids")
+
+        core_resp = CoreApi().export_users(user_ids)
+
+        if not core_resp:
+            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+
+        return CoreApi.stream_proxy(core_resp, "users_export.json")
+
+
+class ImportUsers(MethodView):
+    @auth_required()
+    def get(self):
+        return UserView.import_users_view()
+
+    def post(self):
+        return UserView.import_users_post_view()
+
+
 class OrganizationsAPI(MethodView):
     @auth_required()
     def get(self):
@@ -123,27 +147,29 @@ class UpdateRole(MethodView):
         return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
-class ExportUsers(MethodView):
+class ACLsAPI(MethodView):
     @auth_required()
     def get(self):
-        user_ids = request.args.getlist("ids")
+        return ACLView.list_view()
 
-        core_resp = CoreApi().export_users(user_ids)
-
-        if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
-
-        return CoreApi.stream_proxy(core_resp, "users_export.json")
-
-
-class ImportUsers(MethodView):
     @auth_required()
-    def get(self):
-        return UserView.import_users_view()
-
     def post(self):
-        return UserView.import_users_post_view()
+        return ACLView.update_view(object_id=0)
+
+
+class UpdateACL(MethodView):
+    @auth_required()
+    def get(self, acl_id: int = 0):
+        return ACLView.edit_view(object_id=acl_id)
+
+    @auth_required()
+    def put(self, acl_id):
+        return ACLView.update_view(object_id=acl_id)
+
+    @auth_required()
+    def delete(self, acl_id):
+        result = DataPersistenceLayer().delete_object(ACL, acl_id)
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
 def init(app: Flask):
@@ -164,5 +190,8 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/roles", view_func=RolesAPI.as_view("roles"))
     admin_bp.add_url_rule("/roles/<int:role_id>", view_func=UpdateRole.as_view("edit_role"))
+
+    admin_bp.add_url_rule("/acls", view_func=ACLsAPI.as_view("acls"))
+    admin_bp.add_url_rule("/acls/<int:acl_id>", view_func=UpdateACL.as_view("edit_acl"))
 
     app.register_blueprint(admin_bp)

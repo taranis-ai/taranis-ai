@@ -14,6 +14,11 @@ class BaseView:
     default_template = ""
     base_route = ""
     edit_route = ""
+    _registry = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        BaseView._registry[cls.model_name().capitalize()] = cls
 
     @classmethod
     def model_name(cls) -> str:

@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import StrEnum, auto
 from pydantic import BaseModel, Field, AnyUrl
 from typing import ClassVar, TypeVar
 
@@ -13,6 +13,14 @@ class TLPLevel(StrEnum):
     AMBER_STRICT = "amber+strict"
     AMBER = "amber"
     RED = "red"
+
+
+class ItemType(StrEnum):
+    OSINT_SOURCE = auto()
+    OSINT_SOURCE_GROUP = auto()
+    WORD_LIST = auto()
+    REPORT_ITEM_TYPE = auto()
+    PRODUCT_TYPE = auto()
 
 
 class TaranisBaseModel(BaseModel):
@@ -57,6 +65,22 @@ class Permissions(TaranisBaseModel):
     id: str
     name: str
     description: str
+
+
+class ACL(TaranisBaseModel):
+    _core_endpoint = "/config/acls"
+    _model_name = "acl"
+    _search_fields = ["name", "description"]
+
+    id: int | None = None
+    name: str = ""
+    description: str | None = ""
+    item_type: ItemType | None = None
+
+    roles: list["Role"] = Field(default_factory=list["Role"])
+
+    read_only: bool = True
+    enabled: bool = True
 
 
 class Role(TaranisBaseModel):
