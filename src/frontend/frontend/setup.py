@@ -4,6 +4,7 @@ from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
 import frontend.filters as filters_module
 from frontend.config import Config
+from frontend.views.base_view import BaseView
 
 from heroicons.jinja import (
     heroicon_micro,
@@ -47,6 +48,7 @@ def jinja_setup(app: Flask):
             "heroicon_mini": heroicon_mini,
             "heroicon_outline": heroicon_outline,
             "heroicon_solid": heroicon_solid,
+            "views": BaseView._registry,
         }
     )
 

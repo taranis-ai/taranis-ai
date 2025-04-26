@@ -12,11 +12,6 @@ from frontend.views.base_view import BaseView
 
 class UserView(BaseView):
     model = User
-    htmx_update_template = "user/user_form.html"
-    htmx_list_template = "user/users_table.html"
-    default_template = "user/index.html"
-    base_route = "admin.users"
-    edit_route = "admin.edit_user"
 
     @classmethod
     def get_extra_context(cls, object_id: int):

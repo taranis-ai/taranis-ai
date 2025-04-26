@@ -83,6 +83,25 @@ class ACL(TaranisBaseModel):
     enabled: bool = True
 
 
+class ParameterValue(TaranisBaseModel):
+    _core_endpoint = "/config/parameter-values"
+    _model_name = "parameter_value"
+    id: int | None = None
+    parameter: str = ""
+    value: str | None = ""
+
+
+class Worker(TaranisBaseModel):
+    _core_endpoint = "/config/workers"
+    _model_name = "worker"
+    id: str
+    name: str
+    description: str | None = ""
+    type: str | None = ""
+    category: str | None = ""
+    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+
+
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
     _model_name = "role"

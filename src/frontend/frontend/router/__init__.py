@@ -2,7 +2,7 @@ from flask import Flask
 from swagger_ui import api_doc
 
 from frontend.config import Config
-from frontend.router import base, admin, admin_settings, globals
+from frontend.router import base, admin, admin_settings
 
 
 def init(app: Flask):
@@ -10,4 +10,3 @@ def init(app: Flask):
     base.init(app)
     admin.init(app)
     admin_settings.init(app)
-    globals.init(app)

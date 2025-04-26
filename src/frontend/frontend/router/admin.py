@@ -172,6 +172,246 @@ class UpdateACL(MethodView):
         return Response(status=result.status_code, headers={"HX-Refresh": "true"})
 
 
+class WorkersAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("workers/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("workers/index.html")
+
+
+class UpdateWorker(MethodView):
+    @auth_required()
+    def get(self, worker_id: int = 0):
+        return render_template("workers/index.html")
+
+    @auth_required()
+    def put(self, worker_id):
+        return render_template("workers/index.html")
+
+    @auth_required()
+    def delete(self, worker_id):
+        return render_template("workers/index.html")
+
+
+class WorkerTypesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("worker_types/index.html")
+
+
+class UpdateWorkerType(MethodView):
+    @auth_required()
+    def get(self, worker_type_id: int = 0):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def put(self, worker_type_id):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def delete(self, worker_type_id):
+        return render_template("worker_types/index.html")
+
+
+class SourceGroupsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("source_groups/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("source_groups/index.html")
+
+
+class UpdateSourceGroup(MethodView):
+    @auth_required()
+    def get(self, source_group_id: int = 0):
+        return render_template("source_groups/index.html")
+
+    @auth_required()
+    def put(self, source_group_id):
+        return render_template("source_groups/index.html")
+
+    @auth_required()
+    def delete(self, source_group_id):
+        return render_template("source_groups/index.html")
+
+
+class BotsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("bots/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("bots/index.html")
+
+
+class UpdateBot(MethodView):
+    @auth_required()
+    def get(self, bot_id: int = 0):
+        return render_template("bots/index.html")
+
+    @auth_required()
+    def put(self, bot_id):
+        return render_template("bots/index.html")
+
+    @auth_required()
+    def delete(self, bot_id):
+        return render_template("bots/index.html")
+
+
+class ReportTypesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("report_types/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("report_types/index.html")
+
+
+class UpdateReportType(MethodView):
+    @auth_required()
+    def get(self, report_type_id: int = 0):
+        return render_template("report_types/index.html")
+
+    @auth_required()
+    def put(self, report_type_id):
+        return render_template("report_types/index.html")
+
+    @auth_required()
+    def delete(self, report_type_id):
+        return render_template("report_types/index.html")
+
+
+class AttributesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("attributes/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("attributes/index.html")
+
+
+class UpdateAttribute(MethodView):
+    @auth_required()
+    def get(self, attribute_id: int = 0):
+        return render_template("attributes/index.html")
+
+    @auth_required()
+    def put(self, attribute_id):
+        return render_template("attributes/index.html")
+
+    @auth_required()
+    def delete(self, attribute_id):
+        return render_template("attributes/index.html")
+
+
+class ProductTypesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("product_types/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("product_types/index.html")
+
+
+class UpdateProductType(MethodView):
+    @auth_required()
+    def get(self, product_type_id: int = 0):
+        return render_template("product_types/index.html")
+
+    @auth_required()
+    def put(self, product_type_id):
+        return render_template("product_types/index.html")
+
+    @auth_required()
+    def delete(self, product_type_id):
+        return render_template("product_types/index.html")
+
+
+class TemplatesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("templates/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("templates/index.html")
+
+
+class UpdateTemplate(MethodView):
+    @auth_required()
+    def get(self, template_id: int = 0):
+        return render_template("templates/index.html")
+
+    @auth_required()
+    def put(self, template_id):
+        return render_template("templates/index.html")
+
+    @auth_required()
+    def delete(self, template_id):
+        return render_template("templates/index.html")
+
+
+class PublishersAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("publishers/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("publishers/index.html")
+
+
+class UpdatePublisher(MethodView):
+    @auth_required()
+    def get(self, publisher_id: int = 0):
+        return render_template("publishers/index.html")
+
+    @auth_required()
+    def put(self, publisher_id):
+        return render_template("publishers/index.html")
+
+    @auth_required()
+    def delete(self, publisher_id):
+        return render_template("publishers/index.html")
+
+
+class WordListsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("word_lists/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("word_lists/index.html")
+
+
+class UpdateWordList(MethodView):
+    @auth_required()
+    def get(self, word_list_id: int = 0):
+        return render_template("word_lists/index.html")
+
+    @auth_required()
+    def put(self, word_list_id):
+        return render_template("word_lists/index.html")
+
+    @auth_required()
+    def delete(self, word_list_id):
+        return render_template("word_lists/index.html")
+
+
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
@@ -193,5 +433,35 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/acls", view_func=ACLsAPI.as_view("acls"))
     admin_bp.add_url_rule("/acls/<int:acl_id>", view_func=UpdateACL.as_view("edit_acl"))
+
+    admin_bp.add_url_rule("/workers", view_func=WorkersAPI.as_view("workers"))
+    admin_bp.add_url_rule("/workers/<int:worker_id>", view_func=UpdateWorker.as_view("edit_worker"))
+
+    admin_bp.add_url_rule("/worker_types", view_func=WorkerTypesAPI.as_view("worker_types"))
+    admin_bp.add_url_rule("/worker_types/<int:worker_type_id>", view_func=UpdateWorkerType.as_view("edit_worker_type"))
+
+    admin_bp.add_url_rule("/source_groups", view_func=SourceGroupsAPI.as_view("source_groups"))
+    admin_bp.add_url_rule("/source_groups/<int:source_group_id>", view_func=UpdateSourceGroup.as_view("edit_source_group"))
+
+    admin_bp.add_url_rule("/bots", view_func=BotsAPI.as_view("bots"))
+    admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=UpdateBot.as_view("edit_bot"))
+
+    admin_bp.add_url_rule("/report_types", view_func=ReportTypesAPI.as_view("report_types"))
+    admin_bp.add_url_rule("/report_types/<int:report_type_id>", view_func=UpdateReportType.as_view("edit_report_type"))
+
+    admin_bp.add_url_rule("/attributes", view_func=AttributesAPI.as_view("attributes"))
+    admin_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=UpdateAttribute.as_view("edit_attribute"))
+
+    admin_bp.add_url_rule("/product_types", view_func=ProductTypesAPI.as_view("product_types"))
+    admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=UpdateProductType.as_view("edit_product_type"))
+
+    admin_bp.add_url_rule("/templates", view_func=TemplatesAPI.as_view("templates"))
+    admin_bp.add_url_rule("/templates/<int:template_id>", view_func=UpdateTemplate.as_view("edit_template"))
+
+    admin_bp.add_url_rule("/publishers", view_func=PublishersAPI.as_view("publishers"))
+    admin_bp.add_url_rule("/publishers/<int:publisher_id>", view_func=UpdatePublisher.as_view("edit_publisher"))
+
+    admin_bp.add_url_rule("/word_lists", view_func=WordListsAPI.as_view("word_lists"))
+    admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=UpdateWordList.as_view("edit_word_list"))
 
     app.register_blueprint(admin_bp)

@@ -6,11 +6,6 @@ from frontend.views.base_view import BaseView
 
 class ACLView(BaseView):
     model = ACL
-    htmx_list_template = "acl/acl_table.html"
-    htmx_update_template = "acl/acl_form.html"
-    default_template = "acl/index.html"
-    base_route = "admin.acls"
-    edit_route = "admin.edit_acl"
 
     @classmethod
     def get_extra_context(cls, object_id: int):
