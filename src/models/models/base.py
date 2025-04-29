@@ -11,4 +11,6 @@ class TaranisBaseModel(BaseModel):
 
     def model_dump(self, *args, **kwargs):
         kwargs.setdefault("exclude_none", True)
+        kwargs.setdefault("exclude_defaults", False)
+        kwargs.setdefault("exclude_unset", False)
         return super().model_dump(*args, **kwargs)

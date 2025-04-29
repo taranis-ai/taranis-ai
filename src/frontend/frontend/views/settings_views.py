@@ -5,7 +5,6 @@ from frontend.views.base_view import BaseView
 from frontend.log import logger
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import parse_formdata
 
 
 class SettingsView(BaseView):
@@ -33,8 +32,6 @@ class SettingsView(BaseView):
 
         if method == "post":
             if request.form:
-                logger.debug(f"Form data: {request.form}")
-                logger.debug(f"Parsed form data: {parse_formdata(request.form)}")
                 return cls.update_view(object_id=0)
             else:
                 response = CoreApi().api_post(action_url)

@@ -1,8 +1,9 @@
 from pydantic import Field, AnyUrl
 from typing import Literal
+from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType
+from models.types import TLPLevel, ItemType, COLLECTOR_TYPES
 from models.assess import StoryTag
 
 
@@ -28,7 +29,7 @@ class Organization(TaranisBaseModel):
 
     id: int | None = None
     name: str = ""
-    description: str = ""
+    description: str | None = ""
     address: Address = Field(default_factory=Address)
 
 
@@ -131,9 +132,9 @@ class TrendingClusters(TaranisBaseModel):
 
 
 class TaranisConfig(TaranisBaseModel):
-    default_collector_proxy: AnyUrl | None | Literal[""] = None
-    default_collector_interval: str | None = None
-    default_tlp_level: TLPLevel | None = None
+    default_collector_proxy: AnyUrl | Literal[""] = ""
+    default_collector_interval: str = ""
+    default_tlp_level: TLPLevel = TLPLevel.CLEAR
 
 
 class Settings(TaranisBaseModel):
@@ -141,4 +142,56 @@ class Settings(TaranisBaseModel):
     _model_name = "settings"
     _cache_timeout = 30
     id: int = Field(default=1, frozen=True, exclude=True)
-    settings: TaranisConfig | None = None
+    settings: TaranisConfig | None = Field(default_factory=TaranisConfig)
+
+
+class WordListEntry(TaranisBaseModel):
+    value: str
+    category: str | None = None
+    description: str | None = None
+
+
+class WordList(TaranisBaseModel):
+    _core_endpoint = "/config/word-lists"
+    _model_name = "word_list"
+    _search_fields = ["name", "description"]
+
+    id: int
+    name: str
+    description: str | None = None
+    usage: int = 0
+    link: str | None = None
+    entries: list[WordListEntry] = Field(default_factory=list)
+
+
+class OSINTSource(TaranisBaseModel):
+    _core_endpoint = "/config/osint-sources"
+    _model_name = "osint_source"
+    _search_fields = ["name", "description"]
+
+    id: str
+    name: str
+    description: str = ""
+    type: COLLECTOR_TYPES | str = ""
+    parameters: list[ParameterValue] = Field(default_factory=list)
+    groups: list["OSINTSourceGroup"] = Field(default_factory=list)
+
+    icon: str | None = None  # We'll assume it can be a base64 string
+    state: int = -1
+    last_collected: datetime | None = None
+    last_attempted: datetime | None = None
+    last_error_message: str | None = None
+
+
+class OSINTSourceGroup(TaranisBaseModel):
+    _core_endpoint = "/config/osint-source-groups"
+    _model_name = "osint_source_group"
+    _search_fields = ["name", "description"]
+
+    id: str
+    name: str
+    description: str = ""
+    default: bool = False
+
+    osint_sources: list[OSINTSource] = Field(default_factory=list)
+    word_lists: list[WordList] = Field(default_factory=list)

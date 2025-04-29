@@ -2,6 +2,8 @@
 {% from "macros/forms.html" import form_input %}
 {% from "macros/buttons.html" import export_button %}
 
+{% set settings = settings | default([{}]) %}
+
 {% set current_settings = settings[0].settings | default({}) %}
 
 <div class="container mx-auto p-2" id="settings-container" hx-target="#settings-container" hx-target-error="#error-msg" hx-swap="innerHTML" hx-ext="response-targets">
@@ -23,7 +25,7 @@
           >
           <p class="mb-5">Set the default TLP Level for new Sources, Roles, and Reports.</p>
           {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level') }}
-          {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy) }}
+          {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False) }}
           {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval) }}
           <input type="submit" class="btn btn-primary w-1/2" value="Update Settings" />
           </form>

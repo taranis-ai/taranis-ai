@@ -77,7 +77,7 @@ class DataPersistenceLayer:
         return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):
-        store_object = object.model_dump()
+        store_object = object.model_dump(mode="json")
         logger.info(f"Storing object: {store_object}")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
@@ -93,7 +93,7 @@ class DataPersistenceLayer:
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object)
-        response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
+        response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
         return response

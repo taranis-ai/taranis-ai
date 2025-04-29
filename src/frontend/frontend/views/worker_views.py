@@ -1,4 +1,3 @@
-# role_views.py
 from models.admin import Worker
 from frontend.views.base_view import BaseView
 

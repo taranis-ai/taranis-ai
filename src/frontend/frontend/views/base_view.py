@@ -1,9 +1,10 @@
 from flask import render_template, request, Response, url_for
 from typing import Type, Any
+from models.admin import TaranisBaseModel
+from pydantic import ValidationError
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
-from models.admin import TaranisBaseModel
 from frontend.cache_models import PagingData
 from frontend.log import logger
 
@@ -76,6 +77,7 @@ class BaseView:
     def edit_view(cls, object_id: int = 0):
         template = cls.get_update_template()
         context = cls.get_update_context(object_id)
+        logger.debug(f"Rendering template: {template} with context: {context}")
         return render_template(template, **context)
 
     @classmethod
@@ -95,15 +97,13 @@ class BaseView:
             "model_name": cls.model_name(),
         }
 
-        context |= cls.get_extra_context(object_id)
         if resp_obj:
             context[cls.model_name()] = resp_obj.get(cls.model_name())
             if message := resp_obj.get("message"):
                 context["message"] = message
-        if object_id != 0 and not resp_obj:
-            context[cls.model_name()] = dpl.get_object(cls.model, object_id)
-        if object_id == 0 and not resp_obj:
-            context[cls.model_name()] = cls.model()
+        else:
+            context[cls.model_name()] = cls.model().model_dump(mode="json") if object_id == 0 else dpl.get_object(cls.model, object_id)
+        context |= cls.get_extra_context(object_id)
         return context
 
     @classmethod
@@ -124,11 +124,16 @@ class BaseView:
             page = PagingData(**params)
             items = DataPersistenceLayer().get_objects(cls.model, page)
             error = None
+        except ValidationError as exc:
+            logger.exception(f"Error validating {cls.model_name()}")
+            items = None
+            error = exc.errors()[0]["msg"]
         except Exception as exc:
             items = None
             error = str(exc)
 
         template = cls.get_list_template()
+        logger.debug(f"Rendering template: {template} with items: {items} and error: {error}")
         return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})
 
     @classmethod
@@ -145,3 +150,8 @@ class BaseView:
             return render_template("errors/404.html", error=f"No {cls.model_name()} items found")
         template = cls.get_list_template()
         return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})
+
+    @classmethod
+    def delete_view(cls, object_id):
+        result = DataPersistenceLayer().delete_object(cls.model, object_id)
+        return Response(status=result.status_code, headers={"HX-Refresh": "true"}) if result else "error"

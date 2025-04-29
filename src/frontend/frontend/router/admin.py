@@ -1,6 +1,6 @@
 from flask import Flask, render_template, Blueprint, request, Response
 from flask.views import MethodView
-from models.admin import Role, User, Organization, Job, Dashboard, ACL
+from models.admin import Role, Job, Dashboard
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
@@ -13,6 +13,9 @@ from frontend.views.user_views import UserView
 from frontend.views.organization_views import OrganizationView
 from frontend.views.role_views import RoleView
 from frontend.views.acl_views import ACLView
+from frontend.views.worker_views import WorkerView
+from frontend.views.word_list_views import WordListView
+from frontend.views.source_groups_views import SourceGroupView
 
 
 class AdminDashboardAPI(MethodView):
@@ -71,8 +74,7 @@ class UpdateUser(MethodView):
 
     @auth_required()
     def delete(self, user_id: int):
-        result = DataPersistenceLayer().delete_object(User, user_id)
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"}) if result else "error"
+        return UserView.delete_view(object_id=user_id)
 
 
 class ExportUsers(MethodView):
@@ -119,8 +121,7 @@ class UpdateOrganization(MethodView):
 
     @auth_required()
     def delete(self, organization_id: int):
-        result = DataPersistenceLayer().delete_object(Organization, organization_id)
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return OrganizationView.delete_view(object_id=organization_id)
 
 
 class RolesAPI(MethodView):
@@ -169,80 +170,55 @@ class UpdateACL(MethodView):
 
     @auth_required()
     def delete(self, acl_id):
-        result = DataPersistenceLayer().delete_object(ACL, acl_id)
-        return Response(status=result.status_code, headers={"HX-Refresh": "true"})
+        return ACLView.delete_view(object_id=acl_id)
 
 
 class WorkersAPI(MethodView):
     @auth_required()
     def get(self):
-        return render_template("workers/index.html")
+        return WorkerView.list_view()
 
     @auth_required()
     def post(self):
-        return render_template("workers/index.html")
+        return WorkerView.update_view(object_id=0)
 
 
 class UpdateWorker(MethodView):
     @auth_required()
     def get(self, worker_id: int = 0):
-        return render_template("workers/index.html")
+        return WorkerView.edit_view(object_id=worker_id)
 
     @auth_required()
     def put(self, worker_id):
-        return render_template("workers/index.html")
+        return WorkerView.update_view(object_id=worker_id)
 
     @auth_required()
     def delete(self, worker_id):
-        return render_template("workers/index.html")
-
-
-class WorkerTypesAPI(MethodView):
-    @auth_required()
-    def get(self):
-        return render_template("worker_types/index.html")
-
-    @auth_required()
-    def post(self):
-        return render_template("worker_types/index.html")
-
-
-class UpdateWorkerType(MethodView):
-    @auth_required()
-    def get(self, worker_type_id: int = 0):
-        return render_template("worker_types/index.html")
-
-    @auth_required()
-    def put(self, worker_type_id):
-        return render_template("worker_types/index.html")
-
-    @auth_required()
-    def delete(self, worker_type_id):
-        return render_template("worker_types/index.html")
+        return WorkerView.delete_view(object_id=worker_id)
 
 
 class SourceGroupsAPI(MethodView):
     @auth_required()
     def get(self):
-        return render_template("source_groups/index.html")
+        return SourceGroupView.list_view()
 
     @auth_required()
     def post(self):
-        return render_template("source_groups/index.html")
+        return SourceGroupView.update_view(object_id=0)
 
 
 class UpdateSourceGroup(MethodView):
     @auth_required()
     def get(self, source_group_id: int = 0):
-        return render_template("source_groups/index.html")
+        return SourceGroupView.edit_view(object_id=source_group_id)
 
     @auth_required()
     def put(self, source_group_id):
-        return render_template("source_groups/index.html")
+        return SourceGroupView.update_view(object_id=source_group_id)
 
     @auth_required()
     def delete(self, source_group_id):
-        return render_template("source_groups/index.html")
+        return SourceGroupView.delete_view(object_id=source_group_id)
 
 
 class BotsAPI(MethodView):
@@ -392,25 +368,49 @@ class UpdatePublisher(MethodView):
 class WordListsAPI(MethodView):
     @auth_required()
     def get(self):
-        return render_template("word_lists/index.html")
+        return WordListView.list_view()
 
     @auth_required()
     def post(self):
-        return render_template("word_lists/index.html")
+        return WordListView.update_view(object_id=0)
 
 
 class UpdateWordList(MethodView):
     @auth_required()
     def get(self, word_list_id: int = 0):
-        return render_template("word_lists/index.html")
+        return WordListView.edit_view(object_id=word_list_id)
 
     @auth_required()
     def put(self, word_list_id):
-        return render_template("word_lists/index.html")
+        return WordListView.update_view(object_id=word_list_id)
 
     @auth_required()
     def delete(self, word_list_id):
-        return render_template("word_lists/index.html")
+        return WordListView.delete_view(object_id=word_list_id)
+
+
+class WorkerTypesAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def post(self):
+        return render_template("worker_types/index.html")
+
+
+class UpdateWorkerType(MethodView):
+    @auth_required()
+    def get(self, worker_type_id: int = 0):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def put(self, worker_type_id):
+        return render_template("worker_types/index.html")
+
+    @auth_required()
+    def delete(self, worker_type_id):
+        return render_template("worker_types/index.html")
 
 
 def init(app: Flask):
@@ -441,8 +441,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/worker_types", view_func=WorkerTypesAPI.as_view("worker_types"))
     admin_bp.add_url_rule("/worker_types/<int:worker_type_id>", view_func=UpdateWorkerType.as_view("edit_worker_type"))
 
-    admin_bp.add_url_rule("/source_groups", view_func=SourceGroupsAPI.as_view("source_groups"))
-    admin_bp.add_url_rule("/source_groups/<int:source_group_id>", view_func=UpdateSourceGroup.as_view("edit_source_group"))
+    admin_bp.add_url_rule("/source_groups", view_func=SourceGroupsAPI.as_view("osint_source_groups"))
+    admin_bp.add_url_rule("/source_groups/<int:source_group_id>", view_func=UpdateSourceGroup.as_view("edit_osint_source_group"))
 
     admin_bp.add_url_rule("/bots", view_func=BotsAPI.as_view("bots"))
     admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=UpdateBot.as_view("edit_bot"))
