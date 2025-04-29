@@ -26,7 +26,7 @@ class CacheObject(list):
         self.page = page
         self.limit = limit
         self.order = order
-        self.timeout = iterable[0]._cache_timeout if iterable else Config.CACHE_DEFAULT_TIMEOUT
+        self.timeout = iterable[0]._cache_timeout if hasattr(iterable[0], "_cache_timeout") else Config.CACHE_DEFAULT_TIMEOUT
         self._total_count = total_count or len(iterable)
         self._links: dict = links or {}
 
