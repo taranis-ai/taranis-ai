@@ -5,7 +5,7 @@ from flask_jwt_extended import set_access_cookies
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
-from frontend.models import Dashboard
+from models.admin import Dashboard
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required

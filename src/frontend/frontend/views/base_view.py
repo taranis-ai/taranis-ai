@@ -3,7 +3,8 @@ from typing import Type, Any
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
-from frontend.models import TaranisBaseModel, PagingData
+from models.admin import TaranisBaseModel
+from frontend.cache_models import PagingData
 from frontend.log import logger
 
 
@@ -41,12 +42,14 @@ class BaseView:
         return cls.default_template or f"{cls.model_name().lower()}/index.html"
 
     @classmethod
-    def get_base_route(cls) -> str:
-        return cls.base_route or f"admin.{cls.model_plural_name().lower()}"
+    def get_base_route(cls, **kwargs) -> str:
+        route = cls.base_route or f"admin.{cls.model_plural_name().lower()}"
+        return url_for(route, **kwargs)
 
     @classmethod
-    def get_edit_route(cls) -> str:
-        return cls.edit_route or f"admin.edit_{cls.model_name().lower()}"
+    def get_edit_route(cls, **kwargs) -> str:
+        route = cls.edit_route or f"admin.edit_{cls.model_name().lower()}"
+        return url_for(route, **kwargs)
 
     @classmethod
     def process_form_data(cls, object_id: int):
@@ -79,10 +82,10 @@ class BaseView:
     def get_update_context(cls, object_id: int, error: str | None = None, form_error: str | None = None, resp_obj=None):
         dpl = DataPersistenceLayer()
         if object_id == 0:
-            form_action = f"hx-post={url_for(cls.get_base_route())}"
+            form_action = f"hx-post={cls.get_base_route()}"
         else:
             route_args: dict[str, Any] = {f"{cls.model_name()}_id": object_id}
-            form_action = f"hx-put={url_for(cls.get_edit_route(), **route_args)}"
+            form_action = f"hx-put={cls.get_edit_route(**route_args)}"
 
         context = {
             f"{cls.model_name()}_id": object_id,
@@ -109,7 +112,7 @@ class BaseView:
         if error:
             logger.error(f"Error processing form data: {error}")
         if resp_obj and not error:
-            return Response(status=200, headers={"HX-Redirect": url_for(cls.get_base_route())})
+            return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
         template = cls.get_update_template()
         context = cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
         return render_template(template, **context)
@@ -139,6 +142,6 @@ class BaseView:
 
         if not items:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error="No Dashboard items found")
+            return render_template("errors/404.html", error=f"No {cls.model_name()} items found")
         template = cls.get_list_template()
         return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})

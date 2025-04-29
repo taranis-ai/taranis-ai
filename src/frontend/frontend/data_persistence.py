@@ -5,7 +5,8 @@ from typing import Type
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import cache
-from frontend.models import TaranisBaseModel, T, CacheObject, PagingData
+from models.base import TaranisBaseModel, T
+from frontend.cache_models import CacheObject, PagingData
 from frontend.log import logger
 
 
@@ -71,8 +72,8 @@ class DataPersistenceLayer:
             total_count=total_count,
             links=links,
         )
-        logger.debug(f"Adding {endpoint} to cache with timeout: {result_object[0]._cache_timeout}")
-        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=result_object[0]._cache_timeout)
+        logger.debug(f"Adding {endpoint} to cache with timeout: {cache_object.timeout}")
+        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):

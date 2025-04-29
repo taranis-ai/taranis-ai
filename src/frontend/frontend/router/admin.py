@@ -1,9 +1,10 @@
 from flask import Flask, render_template, Blueprint, request, Response
 from flask.views import MethodView
+from models.admin import Role, User, Organization, Job, Dashboard, ACL
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
-from frontend.models import Role, User, Organization, PagingData, Job, Dashboard, ACL
+from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required

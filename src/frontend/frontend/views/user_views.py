@@ -3,9 +3,9 @@ from flask_jwt_extended import get_jwt_identity
 import json
 
 from frontend.core_api import CoreApi
-from frontend.models import Role, Organization
+from models.admin import Role, Organization
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.models import User
+from models.admin import User
 
 from frontend.views.base_view import BaseView
 

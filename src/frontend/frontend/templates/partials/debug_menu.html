@@ -2,6 +2,6 @@
   <!-- debug menu -->
   <a href="{{ url_for('admin.dashboard') }}" class="text-blue-500 underline">Home</a>
   {% for view_name, view in views.items() %}
-    <a href="{{ url_for(view.base_route) }}" class="text-blue-500 underline">{{ view_name }}</a>
+    <a href="{{ view.get_base_route() }}" class="text-blue-500 underline">{{ view_name }}</a>
   {% endfor %}
 </div>

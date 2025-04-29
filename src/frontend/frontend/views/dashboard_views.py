@@ -1,4 +1,4 @@
-from frontend.models import Dashboard, TrendingClusters
+from models.admin import Dashboard, TrendingClusters
 from frontend.views.base_view import BaseView
 from flask import render_template
 

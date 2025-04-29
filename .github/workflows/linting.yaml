@@ -28,6 +28,9 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
+      - name: Analyze with Pylyzer
+        run: uvx pylyzer
+
       - name: Run tests and capture output
         continue-on-error: true
         id: run-tests
@@ -69,6 +72,9 @@ jobs:
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
+
+      - name: Analyze with Pylyzer
+        run: uvx pylyzer
 
       - name: Run tests and capture output
         continue-on-error: true
@@ -213,6 +219,9 @@ jobs:
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
+
+      - name: Analyze with Pylyzer
+        run: uvx pylyzer
 
       - name: Run tests and capture output
         continue-on-error: true

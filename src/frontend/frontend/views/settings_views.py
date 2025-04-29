@@ -1,6 +1,6 @@
 from flask import request, render_template, Response
 
-from frontend.models import Settings
+from models.admin import Settings
 from frontend.views.base_view import BaseView
 from frontend.log import logger
 from frontend.core_api import CoreApi

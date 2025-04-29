@@ -1,4 +1,4 @@
-from frontend.models import Organization
+from models.admin import Organization
 from frontend.views.base_view import BaseView
 
 

@@ -1,5 +1,5 @@
 # role_views.py
-from frontend.models import ACL, Role
+from models.admin import ACL, Role
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
 
