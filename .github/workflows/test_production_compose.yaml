@@ -1,0 +1,47 @@
+name: Test Production Compose
+
+on:
+  pull_request:
+    # paths:
+      # - '**/expensive/**'
+    # types: [labeled]
+  # workflow_dispatch:
+jobs:
+  compose-static-tag:
+    # if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-expensive')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag 1.1.4
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          ref: 1.1.4
+
+      - name: Compose up tagged version
+        working-directory: docker
+        run: |
+          pwd
+          ls -la
+          cp env.sample .env
+          cat .env
+          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker ps -a
+          docker compose down
+
+      - name: Checkout latest commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - name: Compose up latest version
+        working-directory: docker
+        run: |
+          pwd
+          ls -la
+          cp env.sample .env
+          cat .env
+          docker volume ls
+          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker ps -a
+          docker compose down
+
