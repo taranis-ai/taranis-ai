@@ -20,7 +20,7 @@ class BaseView:
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        BaseView._registry[cls.model_name().capitalize()] = cls
+        BaseView._registry[cls.pretty_name()] = cls
 
     @classmethod
     def model_name(cls) -> str:
@@ -29,6 +29,10 @@ class BaseView:
     @classmethod
     def model_plural_name(cls) -> str:
         return f"{cls.model._model_name}s"
+
+    @classmethod
+    def pretty_name(cls) -> str:
+        return cls.model._pretty_name or cls.model_name().capitalize()
 
     @classmethod
     def get_htmx_list_template(cls) -> str:
@@ -95,6 +99,7 @@ class BaseView:
             "form_error": form_error,
             "form_action": form_action,
             "model_name": cls.model_name(),
+            "name": cls.pretty_name(),
         }
 
         if resp_obj:
@@ -104,6 +109,17 @@ class BaseView:
         else:
             context[cls.model_name()] = cls.model().model_dump(mode="json") if object_id == 0 else dpl.get_object(cls.model, object_id)
         context |= cls.get_extra_context(object_id)
+        return context
+
+    @classmethod
+    def get_view_context(cls, objects: list[TaranisBaseModel] | None = None, error: str | None = None):
+        context = {
+            f"{cls.model_plural_name()}": objects,
+            "error": error,
+            "name": cls.pretty_name(),
+            "model_name": cls.model_name(),
+        }
+        context |= cls.get_extra_context(0)
         return context
 
     @classmethod
@@ -133,8 +149,9 @@ class BaseView:
             error = str(exc)
 
         template = cls.get_list_template()
-        logger.debug(f"Rendering template: {template} with items: {items} and error: {error}")
-        return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})
+        context = cls.get_view_context(items, error)
+        logger.debug(f"Rendering template: {template} with context: {context}")
+        return render_template(template, **context)
 
     @classmethod
     def static_view(cls):

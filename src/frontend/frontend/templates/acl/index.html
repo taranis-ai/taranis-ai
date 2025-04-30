@@ -4,11 +4,11 @@
 {% endblock %}
 {% block content %}
 {% set show_form = role_id is defined %}
-<div class="p-8" id="acls">
+<div class="p-8" id="{{ model_name }}">
   <div class="text-3xl font-bold mb-4">
-    <a href="{{ url_for('admin.acls') }}" class="text-blue-500 hover:underline">ACL Settings</a>
+    <a href="{{ url_for('admin.acls') }}" class="text-blue-500 hover:underline">{{ name }}</a>
   </div>
-  <div class="bg-white rounded-sm p-4" id="form-container" >
+  <div class="bg-base rounded-sm p-4" id="form-container" >
     {% if show_form %}
       {% include 'acl/acl_form.html' %}
     {% else %}

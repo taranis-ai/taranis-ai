@@ -5,11 +5,11 @@
 {% endblock %}
 {% set show_form = user_id is defined %}
 {% block content %}
-<div class="p-8" id="users">
+<div class="p-8" id="{{ model_name }}">
   <div class="text-3xl font-bold mb-4">
-    <a href="{{ url_for('admin.users') }}" class="text-blue-500 hover:underline">Users</a>
+    <a href="{{ url_for('admin.users') }}" class="text-blue-500 hover:underline">{{ name }}</a>
   </div>
-  <div class="bg-white p-4" id="form-container">
+  <div class="bg-base p-4" id="form-container">
     {% if show_form %}
     {% include 'user/user_form.html' %}
     {% else %}

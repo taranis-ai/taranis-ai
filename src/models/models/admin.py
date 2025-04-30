@@ -55,6 +55,7 @@ class ACL(TaranisBaseModel):
 
     read_only: bool = True
     enabled: bool = True
+    _pretty_name = "ACL"
 
 
 class ParameterValue(TaranisBaseModel):
@@ -106,6 +107,7 @@ class User(TaranisBaseModel):
 class Dashboard(TaranisBaseModel):
     _core_endpoint = "/dashboard"
     _model_name = "dashboard"
+    _pretty_name = "Dashboard"
     _cache_timeout = 30
     total_news_items: int | None = None
     total_products: int | None = None
@@ -128,6 +130,7 @@ class TrendingTag(TaranisBaseModel):
 class TrendingClusters(TaranisBaseModel):
     _core_endpoint = "/dashboard/trending-clusters"
     _model_name = "trending_clusters"
+    _pretty_name = "Trending Clusters"
     root: list[TrendingTag] = Field(default_factory=list)
 
 
@@ -140,6 +143,7 @@ class TaranisConfig(TaranisBaseModel):
 class Settings(TaranisBaseModel):
     _core_endpoint = "/admin/settings"
     _model_name = "settings"
+    _pretty_name = "Settings"
     _cache_timeout = 30
     id: int = Field(default=1, frozen=True, exclude=True)
     settings: TaranisConfig | None = Field(default_factory=TaranisConfig)
@@ -154,6 +158,7 @@ class WordListEntry(TaranisBaseModel):
 class WordList(TaranisBaseModel):
     _core_endpoint = "/config/word-lists"
     _model_name = "word_list"
+    _pretty_name = "Word List"
     _search_fields = ["name", "description"]
 
     id: int
@@ -167,12 +172,13 @@ class WordList(TaranisBaseModel):
 class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"
+    _pretty_name = "OSINT Source"
     _search_fields = ["name", "description"]
 
     id: str
     name: str
     description: str = ""
-    type: COLLECTOR_TYPES | str = ""
+    type: COLLECTOR_TYPES | Literal[""] = ""
     parameters: list[ParameterValue] = Field(default_factory=list)
     groups: list["OSINTSourceGroup"] = Field(default_factory=list)
 
@@ -186,6 +192,7 @@ class OSINTSource(TaranisBaseModel):
 class OSINTSourceGroup(TaranisBaseModel):
     _core_endpoint = "/config/osint-source-groups"
     _model_name = "osint_source_group"
+    _pretty_name = "OSINT Source Group"
     _search_fields = ["name", "description"]
 
     id: str
@@ -193,5 +200,5 @@ class OSINTSourceGroup(TaranisBaseModel):
     description: str = ""
     default: bool = False
 
-    osint_sources: list[OSINTSource] = Field(default_factory=list)
-    word_lists: list[WordList] = Field(default_factory=list)
+    osint_sources: list[OSINTSource | str] = Field(default_factory=list)
+    word_lists: list[WordList | str] = Field(default_factory=list)
