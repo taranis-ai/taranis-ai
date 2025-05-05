@@ -128,7 +128,7 @@ export const useAssessStore = defineStore(
     }
 
     function getStoryByID(id) {
-      let story = stories.value.items.filter((item) => item.id === id)[0]
+      let story = stories.value.items.filter((item) => item?.id === id)[0]
       if (!story) {
         const response = getStory(id)
         story = response.data
@@ -138,7 +138,9 @@ export const useAssessStore = defineStore(
     }
     function removeStoryByID(id) {
       deleteStory(id)
-      stories.value.items = stories.value.items.filter((item) => item.id !== id)
+      stories.value.items = stories.value.items.filter(
+        (item) => item?.id !== id
+      )
     }
     async function updateStoryByID(id) {
       const response = await getStory(id)

@@ -559,7 +559,8 @@ class Story(BaseModel):
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        story.update_status()
+
+        story.update_timestamps()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
 
@@ -585,15 +586,17 @@ class Story(BaseModel):
 
     def set_attributes(self, attributes: list[dict]):
         """
-        Replace all existing attributes with the provided list of attributes.
-
-        Args:
-            attributes (list[dict]): [{"key": "key1", "value": "value1"}].
+        Synchronize story attributes to match the provided list.
+        Calls patch_attributes() for add/update,
+        remove_attributes() for deletions.
         """
+        input_keys = {attr["key"] for attr in attributes}
+        existing_keys = {attr.key for attr in self.attributes}
 
-        self.attributes = []
-        for attribute in attributes:
-            self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
+        self.patch_attributes(attributes)
+
+        keys_to_remove = existing_keys - input_keys
+        self.remove_attributes(list(keys_to_remove))
 
     def patch_attributes(self, attributes: list[dict]):
         """
@@ -604,6 +607,15 @@ class Story(BaseModel):
         """
         for attribute in attributes:
             self.upsert_attribute(NewsItemAttribute(key=attribute["key"], value=attribute["value"]))
+
+    def remove_attributes(self, keys: list[str]):
+        """
+        Remove attributes from the story whose keys are in the provided list.
+        """
+        for key in keys:
+            if attr := self.find_attribute_by_key(key):
+                self.attributes.remove(attr)
+                db.session.delete(attr)
 
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):
@@ -905,17 +917,21 @@ class Story(BaseModel):
             return None
         return sentiment
 
-    def update_status(self):
+    def remove_empty_story(self) -> bool:
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
             db.session.delete(self)
             logger.debug(f"Deleting empty Story - 'ID': {self.id}")
-            return
+            return True
+        return False
 
+    def update_status(self):
+        if self.remove_empty_story():
+            return
         self.update_tlp()
-        self.update_timestamps()
         self.update_cybersecurity_status()
+        self.update_timestamps()
 
     def update_timestamps(self):
         self.updated = datetime.now()

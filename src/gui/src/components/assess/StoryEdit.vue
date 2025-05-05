@@ -49,20 +49,10 @@
           <!-- TODO: SHOW META INFO LIKE SENTIMENT AND TLP -->
 
           <attributes-table
-            v-model="filteredStoryAttributes"
+            v-model="story.attributes"
+            :filter-attributes="true"
             :disabled="hasRtId"
           >
-            <template #top>
-              <v-switch
-                class="mr-4"
-                label="show all attributes"
-                v-model="showAllAttributes"
-                density="compact"
-                hide-details
-                color="primary"
-                data-testid="show-all-attributes"
-              ></v-switch>
-            </template>
           </attributes-table>
 
           <v-spacer class="pt-1"></v-spacer>
@@ -251,7 +241,6 @@ export default {
         ? story.value.news_items.map((item) => item.id)
         : []
     )
-    const showAllAttributes = ref(false)
 
     const sentimentCounts = computed(() => {
       if (!story.value || !story.value.news_items) {
@@ -364,32 +353,6 @@ export default {
     const rules = {
       required: (v) => !!v || 'Required'
     }
-    const filteredStoryAttributes = computed({
-      get() {
-        if (!story.value || !story.value.attributes) {
-          return []
-        }
-        if (showAllAttributes.value) {
-          return story.value.attributes
-        }
-        const filtered_attributes = story.value.attributes.filter((attr) => {
-          return (
-            Object.prototype.hasOwnProperty.call(attr, 'key') &&
-            attr.key !== 'sentiment' &&
-            attr.key !== 'cybersecurity' &&
-            attr.key !== 'TLP' &&
-            !attr.key.includes('_BOT')
-          )
-        })
-        return filtered_attributes
-      },
-      set(newAttributes) {
-        if (!validateTLP(newAttributes)) {
-          return
-        }
-        story.value.attributes = newAttributes
-      }
-    })
 
     function validateTLP(attributes) {
       const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
@@ -593,10 +556,8 @@ export default {
       storyCyberSecStatus,
       getChipCybersecurityClass,
       getButtonCybersecurityClass,
-      filteredStoryAttributes,
       setNewsItemCyberSecStatus,
-      getNewsItemCyberSecStatus,
-      showAllAttributes
+      getNewsItemCyberSecStatus
     }
   }
 }
