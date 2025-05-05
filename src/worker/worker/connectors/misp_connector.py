@@ -1,5 +1,7 @@
+import re
+import json
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
@@ -124,9 +126,8 @@ class MISPConnector:
         # Remove internal keys not meant for external processing
         story.pop("last_change", None)
 
-        object_data: dict = self.get_story_object_dict()
-        # sourcery skip: dict-assign-update-to-union
-        object_data.update({k: story[k] for k in object_data if k in story})  # only keep keys that are in the object_data dict
+        object_data = self.get_story_object_dict()
+        object_data.update({k: story[k] for k in object_data if k in story})
         self._convert_types_to_misp_representation(object_data)
         object_data["attributes"] = []
         object_data["links"] = self._process_items(story, "links", self._process_link)
@@ -215,14 +216,14 @@ class MISPConnector:
 
     def _process_tags(self, tag_item: dict) -> str | None:
         """
-        Process a single tag dict into its string representation.
+        Process a single tag dict into its JSON string representation, sanitized.
         """
         name = tag_item.get("name", "")
         tag_type = tag_item.get("tag_type", "")
         if name:
-            tag_value = f"{{'name': '{name}', 'tag_type': '{tag_type}'}}"
-            logger.debug(f"Adding tag: {tag_value}")
-            return tag_value
+            json_str = json.dumps({"name": name, "tag_type": tag_type})
+            logger.debug(f"Adding tag: {json_str}")
+            return json_str
         else:
             logger.warning(f"Skipping tag with missing data: {tag_item}")
             return None
@@ -437,6 +438,24 @@ class MISPConnector:
         result.EventReport = [new_report]
         return result
 
+    def encode_non_bmp_characters(self, data: Any) -> Any:
+        """
+        Recursively traverse a structure and replace all non-BMP (e.g., emoji) characters
+        with a placeholder like [U+1F622] to make the content safe for MISP.
+
+        :param data: dict, list, or string
+        :return: structure with encoded strings
+        """
+        _non_bmp_regex = re.compile(r"[\U00010000-\U0010FFFF]")
+        if isinstance(data, str):
+            return _non_bmp_regex.sub(lambda m: f"[U+{ord(m.group(0)):X}]", data)
+        elif isinstance(data, list):
+            return [self.encode_non_bmp_characters(item) for item in data]
+        elif isinstance(data, dict):
+            return {self.encode_non_bmp_characters(k): self.encode_non_bmp_characters(v) for k, v in data.items()}
+        else:
+            return data
+
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | MISPShadowAttribute | None:
         """
         Either update an existing event (if 'misp_event_uuid' is provided)
@@ -450,6 +469,8 @@ class MISPConnector:
                 proxies=self.proxies,
                 http_headers=self.headers,
             )
+
+            story = self.encode_non_bmp_characters(story)
 
             if misp_event_uuid:
                 if result := self.update_misp_event(misp, story, misp_event_uuid):
@@ -489,12 +510,12 @@ class MISPConnector:
             # Update the Story with the MISP event UUID
             # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
+                logger.debug(f"Update the story {story.get('id')} to last_change=external")
+                self.core_api.api_post("/worker/stories", story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
                     [{"key": "misp_event_uuid", "value": f"{result.uuid}"}],
                 )
-                logger.debug(f"Update the story {story.get('id')} to last_change=external")
-                self.core_api.api_post("/worker/stories", story)
 
 
 def sending():
