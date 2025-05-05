@@ -1,6 +1,7 @@
 import contextlib
 import datetime
 import hashlib
+from typing import Any
 import uuid
 import re
 from bs4 import BeautifulSoup
@@ -139,11 +140,27 @@ class BaseCollector:
                 logger.debug(f"{new_story['news_items']=}")
             processed_stories.append(new_story)
 
-        if processed_stories[0].get("id"):
-            self.publish_misp_stories(processed_stories, story_attribute_key, source)
+        if processed_stories:
+            stories_decoded = [self.decode_ascii_placeholders(story) for story in processed_stories]
 
-        for story in processed_stories:
+        if stories_decoded[0].get("id"):
+            self.publish_misp_stories(stories_decoded, story_attribute_key, source)
+
+        for story in stories_decoded:
             self.core_api.add_or_update_story(story)
+
+    def decode_ascii_placeholders(self, data: Any) -> Any:
+        """
+        Recursively decodes placeholders like [U+1F622] back to actual Unicode characters.
+        """
+        _codepoint_placeholder = re.compile(r"\[U\+([0-9A-Fa-f]{4,6})\]")
+        if isinstance(data, str):
+            return _codepoint_placeholder.sub(lambda m: chr(int(m.group(1), 16)), data)
+        elif isinstance(data, list):
+            return [self.decode_ascii_placeholders(item) for item in data]
+        elif isinstance(data, dict):
+            return {self.decode_ascii_placeholders(k): self.decode_ascii_placeholders(v) for k, v in data.items()}
+        return data
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
         existing_stories = self.core_api.get_stories({"source": source["id"]})
