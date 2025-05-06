@@ -151,7 +151,8 @@ function initMergelyForConflict(conflict) {
       const doc = new Mergely(`#${containerId}`, {
         license: 'gpl',
         lhs: conflict.original,
-        rhs: conflict.updated
+        rhs: conflict.updated,
+        wrap_lines: true
       })
 
       doc.once('updated', () => {
