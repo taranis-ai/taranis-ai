@@ -1,3 +1,4 @@
+import re
 from celery import Task
 import json
 
@@ -30,9 +31,11 @@ class ConnectorTask(Task):
             # and "backslashreplace" to drop surrogate pairs.
             decoded = data.encode("utf-8", "surrogatepass").decode("raw_unicode_escape", "backslashreplace")
         except UnicodeDecodeError:
+            logger.warning("Failed to decode data with surrogatepass")
             decoded = data
 
-        return decoded
+        # TODO: Unfrotunately, we need to drop the surrogate pairs manually
+        return re.sub(r"[\uD800-\uDFFF]", "", decoded)
 
     def get_connector(self, connector_id: str) -> tuple[MISPConnector | None, dict | None]:
         connector_config = self.core_api.get_connector_config(connector_id)

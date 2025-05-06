@@ -439,7 +439,7 @@
         "story_id": "11",
         "hash": "599fafee5eeb098239c57c78bf5cea6ea52b0e92a1abc9e80964150a3773f135",
         "title": "Test News Item 1337",
-        "content": "Following\nsome\n\tutf 16 chars 😢😢",
+        "content": "Following some utf 16 chars 😢😢",
         "collected": "2023-08-01T17:01:04.801886",
         "published": "2023-08-01T17:01:04.801870",
         "updated": "2023-08-01T17:00:39.893435"

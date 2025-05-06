@@ -2,6 +2,8 @@ import pytest
 import json
 import os
 
+from worker.config import Config
+
 
 def file_loader(filename, base_path: str | None = None):
     """
@@ -38,3 +40,9 @@ def story_template():
     template_base_path = "worker/connectors/definitions/objects/taranis-story"
     template_content = file_loader("definition.json", base_path=template_base_path)
     return json.loads(template_content)
+
+
+@pytest.fixture
+def story_get_by_id_mock(requests_mock, stories):
+    # stories_json = json.dumps(stories[10])
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=11", json=[stories[10]])
