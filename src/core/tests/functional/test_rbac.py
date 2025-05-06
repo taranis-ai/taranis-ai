@@ -54,7 +54,7 @@ class TestRBAC:
         mock_user = Mock()
         query = db.select(Story)
 
-        # User has only TLP level Clear -> lowest Story TLP level is Green -> empty set
+        # User has only TLP level Clear -> should see only the TLP Clear story
         mock_user.get_highest_tlp.return_value = TLPLevel.CLEAR
         filter_query = RoleBasedAccessService.filter_query_with_tlp(query, mock_user)
         results = Story.get_filtered(filter_query)
@@ -62,7 +62,7 @@ class TestRBAC:
         result_ids = {n.id for story in results for n in story.news_items}
         assert result_ids == {"tlp-news-clear"}
 
-        # User has TLP level Green -> should see the TLP Green story
+        # User has TLP level Green -> should see the TLP Green and Clear story
         mock_user.get_highest_tlp.return_value = TLPLevel.GREEN
         filter_query = RoleBasedAccessService.filter_query_with_tlp(query, mock_user)
         results = Story.get_filtered(filter_query)

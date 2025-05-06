@@ -125,7 +125,7 @@ class User(BaseModel):
         highest_tlp = TLPLevel.CLEAR
         for role in self.roles:
             if tlp_level := role.tlp_level:
-                highest_tlp = TLPLevel.get_highest_tlp([highest_tlp, tlp_level])
+                highest_tlp = TLPLevel.get_most_restrictive_tlp([highest_tlp, tlp_level])
         return highest_tlp
 
     def get_current_organization_name(self):
