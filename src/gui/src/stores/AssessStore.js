@@ -357,6 +357,17 @@ export const useAssessStore = defineStore(
       }
     }
 
+    function resetFilter() {
+      const filterStore = useFilterStore()
+
+      reset()
+      filterStore.resetFilter()
+      updateOSINTSources()
+      updateOSINTSourceGroupsList()
+      updateStories()
+    }
+
+
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }
@@ -388,6 +399,7 @@ export const useAssessStore = defineStore(
       OSINTSourcesList,
       activeSelection,
       reset,
+      resetFilter,
       updateStories,
       groupStories,
       ungroupStories,
