@@ -1,7 +1,6 @@
-import re
 import json
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Callable
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
@@ -438,24 +437,6 @@ class MISPConnector:
         result.EventReport = [new_report]
         return result
 
-    def encode_non_bmp_characters(self, data: Any) -> Any:
-        """
-        Recursively traverse a structure and replace all non-BMP (e.g., emoji) characters
-        with a placeholder like [U+1F622] to make the content safe for MISP.
-
-        :param data: dict, list, or string
-        :return: structure with encoded strings
-        """
-        _non_bmp_regex = re.compile(r"[\U00010000-\U0010FFFF]")
-        if isinstance(data, str):
-            return _non_bmp_regex.sub(lambda m: f"[U+{ord(m.group(0)):X}]", data)
-        elif isinstance(data, list):
-            return [self.encode_non_bmp_characters(item) for item in data]
-        elif isinstance(data, dict):
-            return {self.encode_non_bmp_characters(k): self.encode_non_bmp_characters(v) for k, v in data.items()}
-        else:
-            return data
-
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | MISPShadowAttribute | None:
         """
         Either update an existing event (if 'misp_event_uuid' is provided)
@@ -469,8 +450,6 @@ class MISPConnector:
                 proxies=self.proxies,
                 http_headers=self.headers,
             )
-
-            story = self.encode_non_bmp_characters(story)
 
             if misp_event_uuid:
                 if result := self.update_misp_event(misp, story, misp_event_uuid):
