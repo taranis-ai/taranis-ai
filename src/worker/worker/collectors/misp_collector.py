@@ -88,7 +88,6 @@ class MISPCollector(BaseCollector):
         content = ""
         link = ""
         news_item_id = ""
-        osint_source_id = ""
         orig_source = ""
         story_id = ""
         hash_value = ""
@@ -121,8 +120,6 @@ class MISPCollector(BaseCollector):
                     hash_value = item.get("value", "")
                 case "source":
                     orig_source = item.get("value", "")
-                case "osint_source_id":
-                    osint_source_id = item.get("value", "")
                 case "story_id":
                     story_id = item.get("value", "")
                 case "language":
@@ -132,7 +129,6 @@ class MISPCollector(BaseCollector):
                 case "review":
                     review = item.get("value")
 
-        internal_source_id = self.get_internal_osint_source_id(osint_source_id)
         return NewsItem(
             source=orig_source,
             id=news_item_id,
@@ -145,7 +141,7 @@ class MISPCollector(BaseCollector):
             story_id=story_id,
             language=language,
             review=review,
-            osint_source_id=internal_source_id or source.get("id", ""),
+            osint_source_id=source.get("id", ""),
             collected_date=datetime.datetime.strptime(collected_str, "%Y-%m-%dT%H:%M:%S.%f%z"),
         )
 
