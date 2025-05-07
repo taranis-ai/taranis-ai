@@ -2,14 +2,19 @@
   <v-container>
     <v-card outlined>
       <v-card-title>
-        Resolve Conflicts
+        Conflicts present of the same stories
         <v-chip v-if="proposalCount" class="ml-2" color="primary" small>
           You should resolve {{ proposalCount }} proposal(s) before proceeding.
         </v-chip>
       </v-card-title>
 
       <v-card-text>
-        <v-alert v-if="!conflicts.length" type="info" outlined elevation="2">
+        <v-alert
+          v-if="!storyConflicts.length"
+          type="info"
+          outlined
+          elevation="2"
+        >
           No conflicts to resolve.
         </v-alert>
 
@@ -19,7 +24,7 @@
           @update:modelValue="onPanelsUpdated"
         >
           <v-expansion-panel
-            v-for="conflict in conflicts"
+            v-for="conflict in storyConflicts"
             :key="conflict.storyId"
           >
             <v-expansion-panel-title>
@@ -88,6 +93,141 @@
       </v-card-text>
     </v-card>
 
+    <v-card outlined class="mt-6">
+      <v-card-title>
+        Conflicting News Items
+        <v-chip
+          v-if="newsItemConflicts.length"
+          class="ml-2"
+          color="warning"
+          small
+        >
+          {{ newsItemConflicts.length }} conflict(s) detected
+        </v-chip>
+      </v-card-title>
+
+      <v-card-text>
+        <v-alert
+          v-if="!newsItemConflicts.length"
+          type="info"
+          outlined
+          elevation="2"
+        >
+          No news item conflicts.
+        </v-alert>
+
+        <div
+          v-for="(group, storyId) in groupedNewsItemConflicts"
+          :key="storyId"
+          class="mb-6"
+        >
+          <v-card outlined>
+            <v-card-title class="d-flex justify-space-between">
+              <div>
+                <div class="text-h6 mb-1">{{ group.title }}</div>
+                <div class="text-caption text-grey-darken-1">
+                  ID: {{ storyId }}
+                </div>
+              </div>
+              <v-btn
+                size="small"
+                variant="text"
+                color="primary"
+                @click="toggleStoryPreview(storyId)"
+              >
+                {{
+                  expandedStories.includes(storyId) ? 'Hide JSON' : 'Show JSON'
+                }}
+              </v-btn>
+            </v-card-title>
+
+            <v-card-text>
+              <v-alert type="warning" variant="outlined" dense text>
+                <strong>{{ group.conflicts.length }}</strong> conflicting news
+                item(s)
+              </v-alert>
+
+              <v-list dense>
+                <v-list-item
+                  v-for="conflict in group.conflicts"
+                  :key="conflict.news_item_id"
+                >
+                  <v-list-item-content>
+                    <v-list-item-title class="d-flex align-center">
+                      <v-chip
+                        v-if="
+                          typeof storySummaries[conflict.existing_story_id]
+                            ?.relevance === 'number'
+                        "
+                        class="mr-2"
+                        color="blue-grey"
+                        size="x-small"
+                        label
+                      >
+                        Relevance:
+                        {{
+                          storySummaries[
+                            conflict.existing_story_id
+                          ].relevance.toFixed(2)
+                        }}
+                      </v-chip>
+                      {{
+                        storySummaries[conflict.existing_story_id]?.title ||
+                        'Loading title…'
+                      }}
+                    </v-list-item-title>
+
+                    <v-list-item-subtitle class="d-flex flex-wrap">
+                      <div class="mr-4">
+                        <strong>News item ID:</strong>
+                        <v-btn
+                          :href="`/story/${conflict.existing_story_id}`"
+                          target="_blank"
+                          variant="text"
+                          size="small"
+                        >
+                          {{ conflict.news_item_id }}
+                        </v-btn>
+                      </div>
+
+                      <div class="mr-4">
+                        {{
+                          storySummaries[conflict.existing_story_id]
+                            ? storySummaries[conflict.existing_story_id]
+                                .news_item_count +
+                              ' ' +
+                              (storySummaries[conflict.existing_story_id]
+                                .news_item_count === 1
+                                ? 'item'
+                                : 'items')
+                            : 'Loading items…'
+                        }}
+                      </div>
+                    </v-list-item-subtitle>
+                  </v-list-item-content>
+                </v-list-item>
+              </v-list>
+
+              <v-expand-transition>
+                <div v-if="expandedStories.includes(storyId)">
+                  <v-card class="mt-4" outlined>
+                    <v-card-title class="text-subtitle-1">
+                      Full Incoming Story (JSON)
+                    </v-card-title>
+                    <v-card-text>
+                      <pre style="white-space: pre-wrap">
+                        {{ JSON.stringify(group.fullStory, null, 2) }}
+                      </pre>
+                    </v-card-text>
+                  </v-card>
+                </div>
+              </v-expand-transition>
+            </v-card-text>
+          </v-card>
+        </div>
+      </v-card-text>
+    </v-card>
+
     <v-snackbar
       v-model="snackbar"
       :timeout="3000"
@@ -101,18 +241,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConflictsStore } from '@/stores/ConnectorStore'
 import Mergely from 'mergely'
 import 'mergely/lib/mergely.css'
 
 const store = useConflictsStore()
-const { conflicts, proposalCount } = storeToRefs(store)
+const { storyConflicts, proposalCount, newsItemConflicts, storySummaries } =
+  storeToRefs(store)
 
 const openPanels = ref([])
 const prevPanels = ref([])
 const mergedContents = ref({})
+const expandedStories = ref([])
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 const snackbarColor = ref('error')
@@ -126,7 +268,6 @@ function showToast(message, color = 'error') {
 function initMergelyForConflict(conflict) {
   const containerId = `mergely-editor-${conflict.storyId}`
   const el = document.getElementById(containerId)
-
   if (!el) return
 
   const waitUntilVisible = (cb) => {
@@ -134,15 +275,10 @@ function initMergelyForConflict(conflict) {
       const rect = el.getBoundingClientRect()
       return rect.width > 0 && rect.height > 0 && el.offsetParent !== null
     }
-
     const check = () => {
-      if (isVisible()) {
-        cb()
-      } else {
-        requestAnimationFrame(check)
-      }
+      if (isVisible()) cb()
+      else requestAnimationFrame(check)
     }
-
     requestAnimationFrame(check)
   }
 
@@ -154,11 +290,7 @@ function initMergelyForConflict(conflict) {
         rhs: conflict.updated,
         wrap_lines: true
       })
-
-      doc.once('updated', () => {
-        doc.scrollToDiff('next')
-      })
-
+      doc.once('updated', () => doc.scrollToDiff('next'))
       conflict.mergelyInstance = doc
     } catch (err) {
       console.error(`Failed to init Mergely for ${conflict.storyId}:`, err)
@@ -178,20 +310,17 @@ function destroyMergely(conflict) {
 }
 
 async function getMergedContentForConflict(storyId) {
-  const conflict = conflicts.value.find((c) => c.storyId === storyId)
-  if (!conflict?.mergelyInstance) {
-    showToast(`Editor not loaded for ${storyId}`, 'error')
-    return
-  }
+  const conflict = storyConflicts.value.find((c) => c.storyId === storyId)
+  if (!conflict?.mergelyInstance)
+    return showToast(`Editor not loaded for ${storyId}`, 'error')
 
   await nextTick()
   const content = conflict.mergelyInstance.get('rhs')
-
   try {
     JSON.parse(content)
     mergedContents.value[storyId] = content
     showToast(`Valid JSON extracted from story ${storyId}`, 'success')
-  } catch (err) {
+  } catch {
     showToast(
       `Right-side content is not valid JSON for story ${storyId}`,
       'error'
@@ -205,20 +334,18 @@ async function submitResolution(storyId) {
 
   try {
     const resolutionData = JSON.parse(merged)
-    await store.resolveConflictById(storyId, resolutionData)
-
-    const index = conflicts.value.findIndex((c) => c.storyId === storyId)
+    await store.resolveStoryConflictById(storyId, resolutionData)
+    const index = storyConflicts.value.findIndex((c) => c.storyId === storyId)
     if (index !== -1) {
-      destroyMergely(conflicts.value[index])
-      conflicts.value.splice(index, 1)
+      destroyMergely(storyConflicts.value[index])
+      storyConflicts.value.splice(index, 1)
       openPanels.value = []
       await nextTick()
       prevPanels.value = []
       delete mergedContents.value[storyId]
     }
-
     showToast(`Story ${storyId} resolved!`, 'success')
-  } catch (err) {
+  } catch {
     showToast(`Resolution failed for ${storyId}`, 'error')
   }
 }
@@ -227,25 +354,58 @@ function onPanelsUpdated(panels) {
   prevPanels.value
     .filter((i) => !panels.includes(i))
     .forEach((i) => {
-      const conflict = conflicts.value[i]
+      const conflict = storyConflicts.value[i]
       if (conflict) destroyMergely(conflict)
     })
-
   panels
     .filter((i) => !prevPanels.value.includes(i))
     .forEach((i) => {
-      const conflict = conflicts.value[i]
-      if (conflict) {
-        nextTick(() => initMergelyForConflict(conflict))
-      }
+      const storyConflict = storyConflicts.value[i]
+      if (storyConflict) nextTick(() => initMergelyForConflict(storyConflict))
     })
-
   prevPanels.value = [...panels]
 }
 
+async function fetchStorySummary(storyId) {
+  try {
+    const res = await fetch(`/api/stories/${storyId}/summary`)
+    if (!res.ok) throw new Error()
+    return await res.json()
+  } catch (e) {
+    console.error(`Failed to load summary for story ${storyId}`)
+    return { news_item_count: '—', relevance: '—', title: 'Unavailable' }
+  }
+}
+
+const groupedNewsItemConflicts = computed(() => {
+  const grouped = {}
+  for (const conflict of newsItemConflicts.value) {
+    const storyId = conflict.incoming_story_id
+    if (!grouped[storyId])
+      grouped[storyId] = {
+        title: conflict.incoming_story?.title || 'Untitled Story',
+        fullStory: conflict.incoming_story,
+        conflicts: []
+      }
+    grouped[storyId].conflicts.push({
+      news_item_id: conflict.news_item_id,
+      existing_story_id: conflict.existing_story_id
+    })
+  }
+  return grouped
+})
+
+function toggleStoryPreview(storyId) {
+  const idx = expandedStories.value.indexOf(storyId)
+  if (idx !== -1) expandedStories.value.splice(idx, 1)
+  else expandedStories.value.push(storyId)
+}
+
 onMounted(async () => {
-  await store.loadConflicts()
+  await store.loadStoryConflicts()
   await store.fetchProposalCount()
+  await store.loadNewsItemConflicts()
+  await store.loadSummariesPerConflict()
 })
 </script>
 
