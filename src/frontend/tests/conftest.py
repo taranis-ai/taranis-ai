@@ -64,3 +64,41 @@ def client(app):
 @pytest.fixture
 def htmx_header():
     return {"HX-Request": True}
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("e2e")
+    group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
+    group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
+    group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
+    group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
+    group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+
+
+def skip_tests(items, keyword, reason):
+    skip_marker = pytest.mark.skip(reason=reason)
+    for item in items:
+        if keyword not in item.keywords:
+            item.add_marker(skip_marker)
+
+
+def pytest_collection_modifyitems(config, items):
+    options = {
+        "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
+        "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
+    }
+
+    config.option.start_live_server = False
+    config.option.headed = True
+
+    for option, (keyword, reason) in options.items():
+        if config.getoption(option):
+            if option == "--e2e-ci":
+                config.option.headed = False
+            skip_tests(items, keyword, reason)
+            return
+
+    skip_all = pytest.mark.skip(reason="need --e2e-ci or --e2e-admin option to run these tests")
+    for item in items:
+        if any(keyword in item.keywords for keyword, _ in options.values()):
+            item.add_marker(skip_all)

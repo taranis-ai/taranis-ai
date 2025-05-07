@@ -4,7 +4,7 @@
 
 ### Run fast tests in headless mode
 
-From `src/core` folder run:
+From `src/frontend` folder run:
 
 ```bash
 pytest --e2e-ci
@@ -12,17 +12,16 @@ pytest --e2e-ci
 
 ### Run tests in headful mode
 
-From `src/core` folder run:
+From `src/frontend` folder run:
 
 ```bash
-pytest --e2e-user
+pytest --e2e-admin
 ```
 
 All flags:
 
-- `--e2e-user` - extensive tests of user parts (headful)
 - `--e2e-ci` - e2e tests of user and admin parts (headless)
-- `--e2e-user-workflow` - test of defined user workflow (headful)
+- `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--record-video` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `-s` - see all logs on stdout
@@ -54,4 +53,23 @@ To halt a test at a certain point, use classic breakpoints, or place `page.pause
 
 ## Pictures for documentation
 
-Has been moved to `src/frontend/tests/playwright`
+To generate most of the pictures for documentation, run:
+
+```bash
+pytest --e2e-admin
+```
+
+To copy the pictures to the documentation repository, use [this](https://github.com/taranis-ai/taranis.ai/blob/master/scripts/sync_new_pictures.sh) script.
+
+It takes two arguments:
+
+```bash
+./sync_new_pictures.sh <path/to/screenshot/folder_in_taranis-ai> <path_to_taranis.ai/static/docs>
+```
+
+Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
+
+## DB file for E2E
+
+Defined in `tests/.env`.
+When tests are stopped from command line, remove the database file manually.
