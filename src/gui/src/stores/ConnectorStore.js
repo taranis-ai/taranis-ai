@@ -5,7 +5,8 @@ import {
   updateStory,
   getProposals,
   getAllNewsItemConflicts,
-  fetchStorySummary
+  fetchStorySummary,
+  submitNewsItemConflictResolution
 } from '@/api/connectors'
 
 export const useConflictsStore = defineStore('conflicts', () => {
@@ -70,6 +71,16 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
   }
 
+  async function resolveNewsItemConflict(payload) {
+    try {
+      const response = await submitNewsItemConflictResolution(payload)
+      return response.data
+    } catch (error) {
+      console.error('Error resolving news item conflict:', error)
+      throw error
+    }
+  }
+
   return {
     storyConflicts,
     newsItemConflicts,
@@ -79,6 +90,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     fetchProposalCount,
     resolveStoryConflictById,
     loadNewsItemConflicts,
-    loadSummariesPerConflict
+    loadSummariesPerConflict,
+    resolveNewsItemConflict
   }
 })

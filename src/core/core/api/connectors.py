@@ -1,5 +1,6 @@
-from flask import Blueprint, Flask
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
+
 
 from core.config import Config
 from core.managers.auth_manager import auth_required
@@ -46,6 +47,16 @@ class NewsItemConflicts(MethodView):
         ]
         return {"conflicts": conflicts}, 200
 
+    @auth_required("ASSESS_ACCESS")
+    def post(self):
+        data = request.json
+
+        if not data:
+            return {"error": "resolution is required"}, 400
+
+        response, code = NewsItemConflict.resolve(data)
+        return response, code
+
 
 class StoryInfo(MethodView):
     @auth_required("ASSESS_ACCESS")
@@ -60,6 +71,7 @@ def initialize(app: Flask):
 
     conflicts_bp.add_url_rule("/conflicts/compare", view_func=StoryConflicts.as_view("story_conflicts"))
     conflicts_bp.add_url_rule("/conflicts/newsitem/compare", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
+    conflicts_bp.add_url_rule("/conflict/resolve", view_func=NewsItemConflicts.as_view("news_item_conflict_resolve"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
     conflicts_bp.add_url_rule("/compare/<string:story_id>", view_func=StoryConflicts.as_view("conflict_by_story_id"))
 

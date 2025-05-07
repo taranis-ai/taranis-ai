@@ -2,7 +2,7 @@
   <v-container>
     <v-card outlined>
       <v-card-title>
-        Conflicts present of the same stories
+        Conflicts of the same stories (internal vs external)
         <v-chip v-if="proposalCount" class="ml-2" color="primary" small>
           You should resolve {{ proposalCount }} proposal(s) before proceeding.
         </v-chip>
@@ -59,14 +59,24 @@
                 style="height: 300px"
               ></div>
 
-              <div class="mt-4 d-flex">
+              <div class="mt-4 d-flex align-center">
                 <v-btn
                   color="primary"
                   @click="getMergedContentForConflict(conflict.storyId)"
                 >
                   Get Right Side
                 </v-btn>
+
+                <v-btn
+                  color="secondary"
+                  class="mx-2"
+                  @click="scrollToNextDiff(conflict.storyId)"
+                >
+                  Next Diff
+                </v-btn>
+
                 <v-spacer />
+
                 <v-btn
                   color="success"
                   @click="submitResolution(conflict.storyId)"
@@ -147,13 +157,37 @@
                 item(s)
               </v-alert>
 
+              <v-alert
+                type="info"
+                variant="tonal"
+                density="compact"
+                class="mb-3"
+                icon="mdi-information-outline"
+              >
+                <p class="text-body-2 mb-0">
+                  Check items to <strong>include</strong> in the incoming story.
+                  Uncheck items to <strong>exclude</strong> from the incoming
+                  story and keep them in the existing story.
+                </p>
+              </v-alert>
+
               <v-list dense>
                 <v-list-item
                   v-for="conflict in group.conflicts"
                   :key="conflict.news_item_id"
                 >
-                  <v-list-item-content>
-                    <v-list-item-title class="d-flex align-center">
+                  <template #prepend>
+                    <v-checkbox
+                      v-model="selectedNewsItems[storyId]"
+                      :value="conflict.news_item_id"
+                      hide-details
+                      multiple
+                      density="compact"
+                    />
+                  </template>
+
+                  <div class="d-flex flex-column">
+                    <div class="d-flex align-center">
                       <v-chip
                         v-if="
                           typeof storySummaries[conflict.existing_story_id]
@@ -175,19 +209,18 @@
                         storySummaries[conflict.existing_story_id]?.title ||
                         'Loading title…'
                       }}
-                    </v-list-item-title>
+                    </div>
 
-                    <v-list-item-subtitle class="d-flex flex-wrap">
+                    <div class="d-flex flex-wrap text-body-2 mt-1">
                       <div class="mr-4">
                         <strong>News item ID:</strong>
-                        <v-btn
+                        <a
                           :href="`/story/${conflict.existing_story_id}`"
                           target="_blank"
-                          variant="text"
-                          size="small"
+                          class="text-decoration-none text-primary"
                         >
                           {{ conflict.news_item_id }}
-                        </v-btn>
+                        </a>
                       </div>
 
                       <div class="mr-4">
@@ -198,15 +231,29 @@
                               ' ' +
                               (storySummaries[conflict.existing_story_id]
                                 .news_item_count === 1
-                                ? 'item'
-                                : 'items')
+                                ? 'item contains the story with the conflicting news item'
+                                : 'items contains the story with the conflicting news item')
                             : 'Loading items…'
                         }}
                       </div>
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
+                    </div>
+                  </div>
                 </v-list-item>
               </v-list>
+              <v-btn
+                color="success"
+                class="mt-3"
+                @click="submitNewsItemResolution(storyId)"
+              >
+                Submit Resolved Story
+              </v-btn>
+              <v-btn
+                color="info"
+                class="mt-3 ml-2"
+                @click="submitAndRedirectNewsItemResolution(storyId)"
+              >
+                Submit & View Story
+              </v-btn>
 
               <v-expand-transition>
                 <div v-if="expandedStories.includes(storyId)">
@@ -258,6 +305,7 @@ const expandedStories = ref([])
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 const snackbarColor = ref('error')
+const selectedNewsItems = ref({})
 
 function showToast(message, color = 'error') {
   snackbarMessage.value = message
@@ -366,14 +414,17 @@ function onPanelsUpdated(panels) {
   prevPanels.value = [...panels]
 }
 
-async function fetchStorySummary(storyId) {
-  try {
-    const res = await fetch(`/api/stories/${storyId}/summary`)
-    if (!res.ok) throw new Error()
-    return await res.json()
-  } catch (e) {
-    console.error(`Failed to load summary for story ${storyId}`)
-    return { news_item_count: '—', relevance: '—', title: 'Unavailable' }
+function scrollToNextDiff(storyId) {
+  const conflict = storyConflicts.value.find((c) => c.storyId === storyId)
+  if (conflict?.mergelyInstance) {
+    try {
+      conflict.mergelyInstance.scrollToDiff('next')
+    } catch (err) {
+      showToast(`Failed to scroll diff for ${storyId}`, 'error')
+      console.error(err)
+    }
+  } else {
+    showToast(`Editor not initialized for ${storyId}`, 'error')
   }
 }
 
@@ -394,6 +445,67 @@ const groupedNewsItemConflicts = computed(() => {
   }
   return grouped
 })
+
+async function submitNewsItemResolution(storyId) {
+  const group = groupedNewsItemConflicts.value[storyId]
+  if (!group) return showToast('Story group not found.')
+
+  const selected = selectedNewsItems.value[storyId] || []
+
+  const conflictingIds = group.conflicts.map((c) => c.news_item_id)
+  const unchecked = conflictingIds.filter((id) => !selected.includes(id))
+
+  const payload = {
+    resolution_data: {
+      incoming_story: group.fullStory,
+      checked_news_items: selected,
+      unchecked_news_items: unchecked
+    }
+  }
+
+  try {
+    await store.resolveNewsItemConflict(payload)
+    showToast(`News item conflicts resolved for story ${storyId}`, 'success')
+    delete selectedNewsItems.value[storyId]
+    await store.loadNewsItemConflicts()
+  } catch (err) {
+    showToast('Failed to resolve conflict.')
+    console.error(err)
+  }
+}
+async function submitAndRedirectNewsItemResolution(storyId) {
+  const group = groupedNewsItemConflicts.value[storyId]
+  if (!group) return showToast('Story group not found.')
+
+  const selected = selectedNewsItems.value[storyId] || []
+  const conflictingIds = group.conflicts.map((c) => c.news_item_id)
+  const unchecked = conflictingIds.filter((id) => !selected.includes(id))
+
+  const payload = {
+    resolution_data: {
+      incoming_story: group.fullStory,
+      checked_news_items: selected,
+      unchecked_news_items: unchecked
+    }
+  }
+
+  // Open a blank tab immediately on click
+  const newTab = window.open('about:blank', '_blank')
+
+  try {
+    await store.resolveNewsItemConflict(payload)
+    showToast(`News item conflicts resolved for story ${storyId}`, 'success')
+    delete selectedNewsItems.value[storyId]
+    await store.loadNewsItemConflicts()
+
+    const newStoryId = group.fullStory.id
+    newTab.location.href = `/story/${newStoryId}`
+  } catch (err) {
+    newTab.close() // clean up the blank tab if the call failed
+    showToast('Failed to resolve conflict.')
+    console.error(err)
+  }
+}
 
 function toggleStoryPreview(storyId) {
   const idx = expandedStories.value.indexOf(storyId)
