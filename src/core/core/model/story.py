@@ -402,6 +402,7 @@ class Story(BaseModel):
                 logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
                 cls.handle_conflicting_news_items(data)
                 return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, code
+            return message, code
 
         if not conflict:
             if "news_items_to_delete" in data:
