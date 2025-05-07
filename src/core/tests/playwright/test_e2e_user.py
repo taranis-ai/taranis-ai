@@ -329,9 +329,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
             page.get_by_test_id("show-all-attributes").click()
-            check_attributes_table(
-                page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"], ["cybersecurity", "incomplete"]]
-            )
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
 
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
 

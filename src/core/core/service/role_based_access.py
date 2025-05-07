@@ -7,7 +7,6 @@ from sqlalchemy.sql.expression import true
 from core.managers.db_manager import db
 from core.model.user import User
 from core.model.role_based_access import RoleBasedAccess, RBACRole
-from core.log import logger
 
 
 @dataclass
@@ -47,8 +46,6 @@ class RoleBasedAccessService:
 
         accessible_tlps = user_tlp_level.get_accessible_levels()
 
-        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
-
         tlp_attribute_subquery = (
             select(StoryNewsItemAttribute.story_id)
             .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
@@ -63,8 +60,6 @@ class RoleBasedAccessService:
 
         user_tlp_level = user.get_highest_tlp()
         accessible_tlps = user_tlp_level.get_accessible_levels()
-
-        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
 
         TLPAttr = aliased(ReportItemAttribute)
 

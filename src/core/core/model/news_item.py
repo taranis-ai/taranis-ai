@@ -6,7 +6,7 @@ from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
+from typing import TYPE_CHECKING
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -17,6 +17,9 @@ from core.model.osint_source import OSINTSource
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.model.role import TLPLevel
+
+if TYPE_CHECKING:
+    from core.model.story import Story
 
 
 class NewsItem(BaseModel):
@@ -45,6 +48,7 @@ class NewsItem(BaseModel):
     osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", back_populates="news_items")
 
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
+    story: Mapped["Story"] = relationship("Story", back_populates="news_items")
 
     def __init__(
         self,
@@ -121,7 +125,7 @@ class NewsItem(BaseModel):
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
         if attributes := self.attributes:
-            data["attributes"] = [attribute.to_dict() for attribute in attributes]
+            data["attributes"] = [attribute.to_small_dict() for attribute in attributes]
         return data
 
     def get_sentiment(self) -> str:
@@ -188,6 +192,7 @@ class NewsItem(BaseModel):
             news_item.upsert_attribute(attribute)
         news_item.last_change = "internal"
         db.session.commit()
+        news_item.story.update_status()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
@@ -236,6 +241,7 @@ class NewsItem(BaseModel):
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
+        self.story.update_status()
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod

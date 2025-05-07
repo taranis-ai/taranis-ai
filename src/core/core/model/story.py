@@ -831,8 +831,7 @@ class Story(BaseModel):
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
-            cls.update_stories({story})
-            story.last_change = "internal"
+            story.update_status()
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:

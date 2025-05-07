@@ -31,6 +31,16 @@ def build_gui():
         pytest.fail(str(e))
 
 
+@pytest.fixture(scope="session")
+def run_frontend():
+    # run the flask frontend as a subprocess
+    try:
+        result = subprocess.call(["flask", "run"], cwd="../frontend")
+        assert result == 0, f"Frontend failed to start with status code: {result}"
+    except Exception as e:
+        pytest.fail(str(e))
+
+
 @pytest.fixture(scope="class")
 def e2e_ci(request):
     request.cls.ci_run = request.config.getoption("--e2e-ci") == "e2e_ci"
@@ -91,6 +101,11 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     yield page
     if request.config.getoption("--e2e-ci") == "e2e_ci":
         context.tracing.stop(path="trace.zip")
+
+
+@pytest.fixture(scope="session")
+def taranis_admin_frontend(run_frontend, taranis_frontend):
+    yield taranis_frontend
 
 
 @pytest.fixture(scope="session")
@@ -210,7 +225,8 @@ def stories_date_descending(app, stories):
         creation_timestamps = []
         for story_id in stories:
             try:
-                creation_timestamps.append(Story.get(story_id).created)
+                if s := Story.get(story_id):
+                    creation_timestamps.append(s.created)
             except AttributeError:
                 creation_timestamps.append(datetime.fromtimestamp(0))
         story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
@@ -225,8 +241,9 @@ def stories_date_descending_not_important(app, stories_date_descending):
         story_ids = []
         for story_id in stories_date_descending:
             try:
-                if not Story.get(story_id).important:
-                    story_ids.append(story_id)
+                if s := Story.get(story_id):
+                    if not s.important:
+                        story_ids.append(story_id)
             except AttributeError:
                 continue
     yield story_ids
@@ -240,8 +257,9 @@ def stories_date_descending_important(app, stories_date_descending):
         story_ids = []
         for story_id in stories_date_descending:
             try:
-                if Story.get(story_id).important:
-                    story_ids.append(story_id)
+                if s := Story.get(story_id):
+                    if s.important:
+                        story_ids.append(story_id)
             except AttributeError:
                 continue
     yield story_ids
@@ -255,7 +273,8 @@ def stories_relevance_descending(app, stories):
         relevances = []
         for story_id in stories:
             try:
-                relevances.append(Story.get(story_id).relevance)
+                if s := Story.get(story_id):
+                    relevances.append(s.relevance)
             except AttributeError:
                 relevances.append(0)
         story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
@@ -1026,6 +1045,6 @@ def create_html_render(app):
             # test html for product rendering
             test_html = "Thanks to Cybersecurity experts, the world of IT is now safe."
 
-            Product.update_render_for_id(product_id, test_html.encode("utf-8"))
+            Product.update_render_for_id(product_id, test_html)
 
     return get_product_to_render

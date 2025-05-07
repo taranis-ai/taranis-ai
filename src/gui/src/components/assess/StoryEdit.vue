@@ -283,34 +283,11 @@ export default {
       }
     }
 
-    function getStoryCyberSecStatus(story) {
-      if (!story.value?.news_items) return {}
-
-      const counts = story.value.news_items.reduce(
-        (acc, newsItem) => {
-          const status = getNewsItemCyberSecStatus(newsItem)
-          if (['yes_human', 'yes_bot'].includes(status)) {
-            acc.yes++
-          } else if (['no_human', 'no_bot'].includes(status)) {
-            acc.no++
-          } else {
-            acc.none++
-          }
-          return acc
-        },
-        { yes: 0, no: 0, none: 0 }
-      )
-
-      if (counts.none && (counts.yes || counts.no)) return 'Incomplete'
-      if (counts.yes && counts.no) return 'Mixed'
-      if (counts.yes) return 'Yes'
-      if (counts.no) return 'No'
-
-      return 'Not Classified'
-    }
-
     const storyCyberSecStatus = computed(() => {
-      return getStoryCyberSecStatus(story)
+      const value =
+        story.value.attributes.find((attr) => attr.key === 'cybersecurity')
+          ?.value || 'Not Classified'
+      return value.charAt(0).toUpperCase() + value.slice(1)
     })
 
     const getChipCybersecurityClass = (cybersecurity_status) => {
@@ -492,12 +469,8 @@ export default {
           news_item.id,
           new_attributes
         )
+        fetchStoryData(props.storyProp.id)
         notifySuccess(result)
-      } catch (e) {
-        notifyFailure(e)
-      }
-      try {
-        updateStory(story.value.id, {}, null)
       } catch (e) {
         notifyFailure(e)
       }
@@ -552,7 +525,6 @@ export default {
       triggerCyberSecClassifierBot,
       sentimentCounts,
       getSentimentColor,
-      getStoryCyberSecStatus,
       storyCyberSecStatus,
       getChipCybersecurityClass,
       getButtonCybersecurityClass,

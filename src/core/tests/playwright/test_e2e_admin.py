@@ -12,8 +12,8 @@ from playwright_helpers import PlaywrightHelpers
 class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
-    def test_login(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_login(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
         self.add_keystroke_overlay(page)
 
         expect(page).to_have_title("Taranis AI", timeout=5000)
@@ -25,8 +25,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.locator("role=button")).click()
 
-    def test_enable_infinite_scroll(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_enable_infinite_scroll(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
         page.get_by_test_id("user-menu-button").click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
@@ -34,8 +34,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         expect(page.get_by_text("Profile updated")).to_be_visible()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
-    def test_admin_user_management(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_admin_user_management(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def add_organization():
             page.get_by_role("link", name="Administration").click()
@@ -120,8 +120,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         assert_update_user_2()
         remove_user()
 
-    def test_admin_osint_workflow(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_admin_osint_workflow(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()
@@ -206,11 +206,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         bots()
         osint_sources()
 
-    def test_admin(self, taranis_frontend: Page):
+    def test_admin(self, taranis_admin_frontend: Page):
         pass
 
-    def test_report_types(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_report_types(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def add_attribute():
             page.get_by_role("link", name="Attributes").click()
@@ -255,8 +255,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         add_attribute_group()
         add_attribute_to_group()
 
-    def test_admin_product_types(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_admin_product_types(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def show_product_type():
             page.get_by_role("link", name="Product Types").click()
@@ -266,14 +266,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         show_product_type()
 
-    def test_user_stories(self, taranis_frontend: Page):
+    def test_user_stories(self, taranis_admin_frontend: Page):
         pass
 
-    def test_dashboard(self, taranis_frontend: Page):
+    def test_dashboard(self, taranis_admin_frontend: Page):
         pass
 
-    def test_open_api(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_open_api(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def show_open_api():
             page.get_by_role("link", name="OpenAPI").click()
@@ -282,8 +282,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         show_open_api()
 
-    def test_publish(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_publish(self, taranis_admin_frontend: Page):
+        page = taranis_admin_frontend
 
         def show_publish():
             page.get_by_role("link", name="Publish", exact=True).click()
