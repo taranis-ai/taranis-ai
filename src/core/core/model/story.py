@@ -20,6 +20,7 @@ from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.model.story_conflict import StoryConflict
+from core.model.news_item_conflict import NewsItemConflict
 
 
 class Story(BaseModel):
@@ -396,7 +397,11 @@ class Story(BaseModel):
         conflict = data.pop("conflict", None)
 
         if Story.get(data["id"]) is None:
-            return cls.add(data)
+            message, code = cls.add(data)
+            if code != 200 and message.get("error") == "Story already exists":
+                logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
+                cls.handle_conflicting_news_items(data)
+                return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, code
 
         if not conflict:
             if "news_items_to_delete" in data:
@@ -581,6 +586,40 @@ class Story(BaseModel):
                     "updated": data,
                 },
             }, 409
+        return {"message": "Update successful"}, 200
+
+    @classmethod
+    def handle_conflicting_news_items(cls, data: dict) -> tuple[dict, int]:
+        news_items: list[dict] = data.get("news_items", [])
+        if not news_items:
+            return {"error": "No news items provided"}, 400
+
+        incoming_story_id = data.get("id")
+        if not incoming_story_id:
+            return {"error": "Missing story ID"}, 400
+
+        conflicts = []
+
+        for news_item in news_items:
+            news_item_id = news_item.get("id")
+            if not news_item_id:
+                continue
+
+            if existing_item := NewsItem.get(news_item_id):
+                existing_news_item = existing_item
+                existing_story_id = existing_news_item.story_id
+                logger.debug(f"CONFLICT: incoming {news_item_id} already in story {existing_story_id}")
+                conflict = NewsItemConflict.register(
+                    incoming_story_id=incoming_story_id,
+                    news_item_id=news_item_id,
+                    existing_story_id=existing_story_id,
+                    incoming_story_data=data,
+                )
+                conflicts.append(conflict.to_dict())
+
+        if conflicts:
+            return {"conflicts": conflicts}, 409
+
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
