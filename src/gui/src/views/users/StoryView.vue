@@ -33,13 +33,11 @@ export default {
     storyHotkeys()
 
     const story = computed(() => {
-      return assessStore.stories.items.find((item) => item.id == props.storyId)
+      return assessStore.getStoryByID(props.storyId)
     })
 
     onMounted(async () => {
-      const assessStore = useAssessStore()
       assessStore.updateOSINTSources()
-      assessStore.updateStoryByID(props.storyId)
     })
 
     return {

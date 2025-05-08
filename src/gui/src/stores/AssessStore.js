@@ -129,6 +129,11 @@ export const useAssessStore = defineStore(
 
     function getStoryByID(id) {
       let story = stories.value.items.filter((item) => item?.id === id)[0]
+      // remove the fields 'in_reports_count' and 'user_vote' from the story
+      if (story) {
+        delete story.in_reports_count
+        delete story.user_vote
+      }
       if (!story) {
         const response = getStory(id)
         story = response.data

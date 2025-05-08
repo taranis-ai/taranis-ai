@@ -122,11 +122,9 @@ function headerTransform(key) {
 const showAllAttributes = ref(!props.filterAttributes)
 
 const filteredStoryAttributes = computed(() => {
-  console.debug(`show all attributes: ${showAllAttributes.value}`)
   if (showAllAttributes.value) {
     return props.modelValue
   }
-  console.log('Filtering attributes')
   const filtered_attributes = props.modelValue.filter((attr) => {
     return (
       Object.prototype.hasOwnProperty.call(attr, 'key') &&
@@ -136,7 +134,6 @@ const filteredStoryAttributes = computed(() => {
       !attr.key.includes('_BOT')
     )
   })
-  console.log('Filtered attributes:', filtered_attributes)
   return filtered_attributes
 })
 

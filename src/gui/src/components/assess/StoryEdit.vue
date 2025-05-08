@@ -5,8 +5,8 @@
       <span class="alert-text">
         <strong>
           This is a story from RT, you should not be editing it in this web
-          insterface, but in RT itself.</strong
-        >
+          insterface, but in RT itself.
+        </strong>
       </span>
     </div>
     <v-card>
@@ -28,7 +28,6 @@
             type="text"
             variant="outlined"
             :rules="[rules.required]"
-            :disabled="hasRtId"
           />
           <code-editor
             v-model:content="story.summary"
@@ -46,12 +45,9 @@
           <edit-tags v-model="story.tags" class="mt-3" />
           <story-links v-model="story.links" :news-items="story.news_items" />
 
-          <!-- TODO: SHOW META INFO LIKE SENTIMENT AND TLP -->
-
           <attributes-table
             v-model="story.attributes"
             :filter-attributes="true"
-            :disabled="hasRtId"
           >
           </attributes-table>
 
@@ -60,15 +56,16 @@
             block
             class="mt-5"
             type="submit"
-            :color="hasRtId ? 'error' : 'success'"
-          >
-            {{ $t('button.update') }}
-          </v-btn>
+            :color="submitBtnColor"
+            :disabled="hasRtId"
+            :prepend-icon="submitBtnIcon"
+            :text="$t('button.update')"
+          />
         </v-form>
       </v-card-text>
     </v-card>
     <div class="my-5">
-      <v-card v-if="userStore.advanced_story_options">
+      <v-card v-if="showAdvancedOptions">
         <v-card-title>
           <h3>AI Actions</h3>
         </v-card-title>
@@ -164,7 +161,7 @@
               <v-col cols="2" class="d-flex align-center">
                 <div class="d-flex justify-center pt-2">
                   <v-btn-toggle
-                    v-if="userStore.advanced_story_options"
+                    v-if="showAdvancedOptions"
                     class="d-flex justify-center"
                     mandatory
                   >
@@ -197,13 +194,8 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
-import {
-  patchStory,
-  updateNewsItemAttributes,
-  triggerBot,
-  getStory
-} from '@/api/assess'
+import { ref, computed, onMounted, watch, toRaw } from 'vue'
+import { patchStory, updateNewsItemAttributes, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -211,6 +203,8 @@ import AttributesTable from '@/components/common/AttributesTable.vue'
 import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/UserStore'
+import { useAssessStore } from '@/stores/AssessStore'
+import { isEqual, cloneDeep } from 'lodash-es'
 
 export default {
   name: 'StoryEdit',
@@ -229,13 +223,32 @@ export default {
   },
   setup(props) {
     const userStore = useUserStore()
+    const assessStore = useAssessStore()
     const form = ref(null)
     const router = useRouter()
-    const story = ref(props.storyProp)
+    const story = ref(cloneDeep(props.storyProp))
     const dirty = ref(false)
+
+    const showAdvancedOptions = computed(() => {
+      return userStore.advanced_story_options
+    })
 
     const news_item_ids = computed(() => {
       return story.value.news_items.map((item) => item.id)
+    })
+
+    const submitBtnColor = computed(() => {
+      if (hasRtId.value) {
+        return 'error'
+      }
+      return dirty.value ? 'warning' : 'success'
+    })
+
+    const submitBtnIcon = computed(() => {
+      if (hasRtId.value) {
+        return 'mdi-alert-circle'
+      }
+      return dirty.value ? 'mdi-alert' : 'mdi-check'
     })
 
     const sentimentCounts = computed(() => {
@@ -281,7 +294,7 @@ export default {
 
     const storyCyberSecStatus = computed(() => {
       const value =
-        story.value.attributes.find((attr) => attr.key === 'cybersecurity')
+        story.value.attributes?.find((attr) => attr.key === 'cybersecurity')
           ?.value || 'Not Classified'
       return value.charAt(0).toUpperCase() + value.slice(1)
     })
@@ -384,9 +397,14 @@ export default {
 
     async function fetchStoryData(storyId) {
       try {
-        const response = await getStory(storyId)
-        console.log('Fetched story data:', response.data)
-        story.value = response.data
+        console.log('Fetching story data for ID:', storyId)
+        await assessStore.updateStoryByID(storyId)
+        console.debug(
+          'Story From Store Last updated: ',
+          assessStore.getStoryByID(storyId).updated
+        )
+        console.debug('Story From Prop Last updated: ', props.storyProp.updated)
+        story.value = cloneDeep(props.storyProp)
       } catch (e) {
         console.error('Failed to fetch story data:', e)
         notifyFailure(e)
@@ -467,7 +485,7 @@ export default {
           news_item.id,
           new_attributes
         )
-        fetchStoryData(props.storyProp.id)
+        await fetchStoryData(props.storyProp.id)
         notifySuccess(result)
       } catch (e) {
         notifyFailure(e)
@@ -496,33 +514,41 @@ export default {
       }
     }
 
-    onMounted(() => {
-      fetchStoryData(props.storyProp.id)
-      userStore.loadUserProfile()
-    })
+    function diffObjects(obj1, obj2) {
+      const diffs = {}
+      for (const key in obj1) {
+        if (!isEqual(obj1[key], obj2[key])) {
+          diffs[key] = { new: obj1[key], old: obj2[key] }
+        }
+      }
+      for (const key in obj2) {
+        if (!(key in obj1)) {
+          diffs[key] = { new: undefined, old: obj2[key] }
+        }
+      }
+      return diffs
+    }
 
     watch(
       () => story.value,
       (newStory) => {
-        dirty.value =
-          JSON.stringify(newStory) !== JSON.stringify(props.storyProp)
+        dirty.value = !isEqual(newStory, props.storyProp)
+        if (dirty.value) {
+          console.debug('Story is dirty')
+          const diffs = diffObjects(newStory, props.storyProp)
+          console.debug('Diffs:', diffs)
+        } else {
+          console.debug('Story is clean')
+        }
       },
-      { deep: true }
-    )
-
-    watch(
-      () => props.storyProp,
-      (newStory) => {
-        story.value = newStory
-        dirty.value = false
-      },
-      { deep: true }
+      { deep: true, immediate: true }
     )
 
     return {
-      userStore,
+      showAdvancedOptions,
       news_item_ids,
       story,
+      dirty,
       hasRtId,
       form,
       rules,
@@ -536,7 +562,9 @@ export default {
       getChipCybersecurityClass,
       getButtonCybersecurityClass,
       setNewsItemCyberSecStatus,
-      getNewsItemCyberSecStatus
+      getNewsItemCyberSecStatus,
+      submitBtnColor,
+      submitBtnIcon
     }
   }
 }
