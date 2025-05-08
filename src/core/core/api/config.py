@@ -25,6 +25,7 @@ from core.model import (
     task,
     worker,
 )
+from core.model.news_item_conflict import NewsItemConflict
 from core.model.story_conflict import StoryConflict
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
@@ -502,6 +503,7 @@ class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
         StoryConflict.flush_store()
+        NewsItemConflict.flush_store()
         if source_id:
             return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()
