@@ -222,6 +222,11 @@ export const useAssessStore = defineStore(
         notifyFailure(error)
       }
     }
+
+    const storyByID = computed(() => {
+      return (id) => stories.value.items.find((item) => item?.id === id) ?? null
+    })
+
     async function updateOSINTSources() {
       const response = await getOSINTSourcesList()
       osint_sources.value = response.data
@@ -397,6 +402,7 @@ export const useAssessStore = defineStore(
       OSINTSourceGroupsList,
       OSINTSourcesList,
       activeSelection,
+      storyByID,
       reset,
       updateStories,
       groupStories,

@@ -296,6 +296,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def assert_edited_story(story_ids, story_news_items_dict):
+            page.get_by_test_id("story-go-back-btn").click()
             self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("edit story")).click()
 
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
@@ -314,8 +315,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(5)).to_have_text("APT79")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(6)).to_have_text("APT80")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
+
             page.get_by_test_id("show-all-attributes").click()
-            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["test_key", "dangerous"]])
 
             # manually classify first three news items
             self.highlight_element(

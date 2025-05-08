@@ -53,13 +53,19 @@
 
           <v-spacer class="pt-1"></v-spacer>
           <v-btn
-            block
-            class="mt-5"
+            class="mt-5 w-25"
             type="submit"
             :color="submitBtnColor"
             :disabled="hasRtId"
             :prepend-icon="submitBtnIcon"
             :text="$t('button.update')"
+          />
+          <v-btn
+            class="mt-5 ml-3 w-25"
+            :to="{ name: 'story', params: { itemId: story.id } }"
+            color="error"
+            text="Go Back"
+            data-testid="story-go-back-btn"
           />
         </v-form>
       </v-card-text>
@@ -118,11 +124,9 @@
               <v-btn
                 class="equal-width-btn"
                 prepend-icon="mdi-shield-outline"
-                text
+                text="AI Based Cybersecurity Classification"
                 @click="triggerCyberSecClassifierBot"
-              >
-                AI Based Cybersecurity Classification
-              </v-btn>
+              />
             </v-col>
 
             <v-chip
@@ -194,14 +198,13 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, toRaw } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { patchStory, updateNewsItemAttributes, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
 import AttributesTable from '@/components/common/AttributesTable.vue'
 import StoryLinks from '@/components/assess/StoryLinks.vue'
-import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/UserStore'
 import { useAssessStore } from '@/stores/AssessStore'
 import { isEqual } from 'lodash-es'
@@ -225,7 +228,6 @@ export default {
     const userStore = useUserStore()
     const assessStore = useAssessStore()
     const form = ref(null)
-    const router = useRouter()
     const story = ref(JSON.parse(JSON.stringify(props.storyProp)))
     const dirty = ref(false)
 
@@ -341,6 +343,9 @@ export default {
     }
 
     function validateTLP(attributes) {
+      if (!attributes) {
+        return true
+      }
       const tlpAttr = attributes.find((attr) => attr.key === 'TLP')?.value
       if (!tlpAttr) {
         return true
@@ -360,13 +365,14 @@ export default {
       )
     })
     async function submit() {
+      console.debug(`Submitting story: ${JSON.stringify(story.value)}`)
       const { valid } = await form.value.validate()
 
       if (!valid) {
         return
       }
 
-      if (!validateTLP(story.value.attributes)) {
+      if (!validateTLP(story.value?.attributes)) {
         return
       }
 
