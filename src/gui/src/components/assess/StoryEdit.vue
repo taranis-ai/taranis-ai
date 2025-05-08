@@ -146,54 +146,51 @@
       </v-card-title>
 
       <v-card-text>
-        <v-expansion-panels v-if="story" v-model="panels" multiple>
-          <v-expansion-panel
-            v-for="news_item in story.news_items"
-            :key="news_item.id"
-            :title="news_item.title"
-            :value="news_item.id"
-          >
-            <v-expansion-panel-text>
-              <router-link
-                :to="{ name: 'newsitem', params: { itemId: news_item.id } }"
-              >
-                {{ news_item.content || news_item.title }}
-              </router-link>
-              <v-row class="ms-4 px-4" align="center" justify="start" wrap>
-                <v-col cols="2" class="d-flex align-center">
-                  <div class="d-flex justify-center pt-2">
-                    <v-btn-toggle
-                      v-if="userStore.advanced_story_options"
-                      class="d-flex justify-center"
-                      mandatory
-                    >
-                      <v-btn
-                        value="yes"
-                        :class="[
-                          getButtonCybersecurityClass(news_item, 'yes'),
-                          'me-2'
-                        ]"
-                        @click="setNewsItemCyberSecStatus(news_item, 'yes')"
-                        :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
-                      >
-                        Cybersecurity
-                      </v-btn>
-
-                      <v-btn
-                        value="no"
-                        :class="getButtonCybersecurityClass(news_item, 'no')"
-                        @click="setNewsItemCyberSecStatus(news_item, 'no')"
-                        :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
-                      >
-                        Not Cybersecurity
-                      </v-btn>
-                    </v-btn-toggle>
-                  </div>
-                </v-col>
-              </v-row>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
+        <v-card
+          v-for="news_item in story.news_items"
+          :key="news_item.id"
+          :title="news_item.title"
+          :value="news_item.id"
+        >
+          <v-card-title>
+            <router-link
+              :to="{ name: 'newsitem', params: { itemId: news_item.id } }"
+            >
+              {{ news_item.content || news_item.title }}
+            </router-link>
+          </v-card-title>
+          <v-card-text>
+            <v-row class="ms-4 px-4" align="center" justify="start" wrap>
+              <v-col cols="2" class="d-flex align-center">
+                <div class="d-flex justify-center pt-2">
+                  <v-btn-toggle
+                    v-if="userStore.advanced_story_options"
+                    class="d-flex justify-center"
+                    mandatory
+                  >
+                    <v-btn
+                      value="yes"
+                      :class="[
+                        getButtonCybersecurityClass(news_item, 'yes'),
+                        'me-2'
+                      ]"
+                      @click="setNewsItemCyberSecStatus(news_item, 'yes')"
+                      :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
+                      text="Cybersecurity"
+                    />
+                    <v-btn
+                      value="no"
+                      :class="getButtonCybersecurityClass(news_item, 'no')"
+                      @click="setNewsItemCyberSecStatus(news_item, 'no')"
+                      :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
+                      text="Not Cybersecurity"
+                    />
+                  </v-btn-toggle>
+                </div>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
       </v-card-text>
     </v-card>
   </v-container>
@@ -204,7 +201,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   patchStory,
   updateNewsItemAttributes,
-  updateStory,
   triggerBot,
   getStory
 } from '@/api/assess'
@@ -236,11 +232,11 @@ export default {
     const form = ref(null)
     const router = useRouter()
     const story = ref(props.storyProp)
-    const panels = ref(
-      story.value.news_items
-        ? story.value.news_items.map((item) => item.id)
-        : []
-    )
+    const dirty = ref(false)
+
+    const news_item_ids = computed(() => {
+      return story.value.news_items.map((item) => item.id)
+    })
 
     const sentimentCounts = computed(() => {
       if (!story.value || !story.value.news_items) {
@@ -426,7 +422,9 @@ export default {
     async function setNewsItemCyberSecStatus(news_item, status) {
       const { valid } = await form.value.validate()
 
-      if (!valid) {
+      if (!valid || dirty.value) {
+        // Notify user to save changes before classifying
+        notifyFailure('Please save your changes before classifying.')
         return
       }
 
@@ -506,15 +504,24 @@ export default {
     watch(
       () => story.value,
       (newStory) => {
-        if (newStory && newStory.news_items) {
-          panels.value = newStory.news_items.map((item) => item.id)
-        }
-      }
+        dirty.value =
+          JSON.stringify(newStory) !== JSON.stringify(props.storyProp)
+      },
+      { deep: true }
+    )
+
+    watch(
+      () => props.storyProp,
+      (newStory) => {
+        story.value = newStory
+        dirty.value = false
+      },
+      { deep: true }
     )
 
     return {
       userStore,
-      panels,
+      news_item_ids,
       story,
       hasRtId,
       form,
