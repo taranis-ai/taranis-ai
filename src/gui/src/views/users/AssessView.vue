@@ -133,9 +133,7 @@ export default defineComponent({
     }
 
     function resetFilter() {
-      assessStore.reset()
-      filterStore.resetFilter()
-      assessStore.updateStories()
+      assessStore.resetFilter()
     }
 
     watch(storyFilter.value, () => {
