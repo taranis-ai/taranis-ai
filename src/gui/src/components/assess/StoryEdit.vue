@@ -52,21 +52,23 @@
           </attributes-table>
 
           <v-spacer class="pt-1"></v-spacer>
-          <v-btn
-            class="mt-5 w-25"
-            type="submit"
-            :color="submitBtnColor"
-            :disabled="hasRtId"
-            :prepend-icon="submitBtnIcon"
-            :text="$t('button.update')"
-          />
-          <v-btn
-            class="mt-5 ml-3 w-25"
-            :to="{ name: 'story', params: { itemId: story.id } }"
-            color="error"
-            text="Go Back"
-            data-testid="story-go-back-btn"
-          />
+          <div class="d-flex justify-content-start mt-5">
+            <v-btn
+              class="w-25"
+              type="submit"
+              :color="submitBtnColor"
+              :disabled="hasRtId"
+              :prepend-icon="submitBtnIcon"
+              :text="$t('button.update')"
+            />
+            <v-btn
+              class="ml-3 w-25"
+              :to="{ name: 'story', params: { itemId: story.id } }"
+              color="error"
+              text="Go Back"
+              data-testid="story-go-back-btn"
+            />
+          </div>
         </v-form>
       </v-card-text>
     </v-card>
