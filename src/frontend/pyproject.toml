@@ -27,7 +27,7 @@ dependencies = [
     "requests",
     "setuptools",
     "heroicons[jinja]>=2.11.0",
-    "taranis-models",
+    "taranis-models"
 ]
 dynamic = ["version"]
 
@@ -62,6 +62,14 @@ lines-after-imports = 2
 [tool.coverage.run]
 branch = true
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "e2e_ci: marks tests as to run only when calling with --e2e-ci option",
+    "e2e_timeout: time in milliseconds to wait for the e2e tests to finish",
+    "e2e_admin: marks tests that produce pictures for the documentation",
+]
+
 [tool.pylint.'MESSAGES CONTROL']
 max-line-length = 142
 disable = """
@@ -80,6 +88,3 @@ exclude = [
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
-
-[tool.uv.sources]
-taranis-models = { path = "../models", editable = true }
