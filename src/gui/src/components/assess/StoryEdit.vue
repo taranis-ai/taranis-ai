@@ -440,19 +440,20 @@ export default {
     async function setNewsItemCyberSecStatus(news_item, status) {
       const { valid } = await form.value.validate()
 
-      if (!valid || dirty.value) {
-        // Notify user to save changes before classifying
-        notifyFailure('Please save your changes before classifying.')
-        return
-      }
-
       // check if button should be clickable at all
+      // TODO replace this mechanism by using correct vuetify component
       if (
         news_item?.attributes !== undefined &&
         news_item.attributes.some(
           (obj) => obj.key === 'cybersecurity_human' && obj.value === status
         )
       ) {
+        return
+      }
+
+      if (!valid || dirty.value) {
+        // Notify user to save changes before classifying
+        notifyFailure('Please save your changes before classifying.')
         return
       }
 
@@ -513,6 +514,11 @@ export default {
         return null
       }
     }
+
+    onMounted(() => {
+      fetchStoryData(props.storyProp.id)
+      userStore.loadUserProfile()
+    })
 
     function diffObjects(obj1, obj2) {
       const diffs = {}
