@@ -1,4 +1,6 @@
+import re
 from celery import Task
+import json
 
 from worker.connectors import MISPConnector
 from worker.log import logger
@@ -19,6 +21,22 @@ class ConnectorTask(Task):
             "misp_connector": MISPConnector(),
         }
 
+    def drop_utf16_surrogates(self, data: str) -> str:
+        """
+        Drop any leftover UTF-16 surrogates (U+D800–U+DFFF).
+        (But leave \\n, \\t, \\", etc. intact.)
+        """
+        try:
+            # MISP does not support surrogate pairs. The cleanest way found is to decode with "raw_unicode_escape"
+            # and "backslashreplace" to drop surrogate pairs.
+            decoded = data.encode("utf-8", "surrogatepass").decode("raw_unicode_escape", "backslashreplace")
+        except UnicodeDecodeError:
+            logger.warning("Failed to decode data with surrogatepass")
+            decoded = data
+
+        # TODO: Unfrotunately, we need to drop the surrogate pairs manually
+        return re.sub(r"[\uD800-\uDFFF]", "", decoded)
+
     def get_connector(self, connector_id: str) -> tuple[MISPConnector | None, dict | None]:
         connector_config = self.core_api.get_connector_config(connector_id)
         if not connector_config:
@@ -34,6 +52,9 @@ class ConnectorTask(Task):
         stories = []
         for query in search_queries:
             if story := self.core_api.get_stories(query):
+                storylist = json.dumps(story)
+                storylist = self.drop_utf16_surrogates(storylist)
+                story = json.loads(storylist)
                 stories.extend(story)
         if not stories:
             logger.error(f"Stories {query} not found")

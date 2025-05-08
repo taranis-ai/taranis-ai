@@ -61,6 +61,11 @@ class FormData(dict):
 
         return getattr(client, method)(url, self)
 
+    def get_cleaned_keys(self):
+        keys = set(dict(self).keys())
+        keys.discard(None)
+        return keys
+
 
 def html_form_to_dict(html: str, index: int = 0, name: str | None = None, id: str | None = None) -> FormData:
     """
@@ -114,7 +119,7 @@ def dashboard_get_mock(requests_mock):
 
 
 @pytest.fixture
-def users_get_mock(requests_mock):
+def users_get_mock(requests_mock, organizations_get_mock, roles_get_mock):
     mock_data = {
         "items": [
             {

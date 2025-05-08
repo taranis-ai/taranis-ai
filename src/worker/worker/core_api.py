@@ -95,14 +95,6 @@ class CoreApi:
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
-    def upload_rendered_product(self, product_id, product) -> dict | None:
-        url = f"{self.api_url}/worker/products/{product_id}"
-        headers = self.headers.copy()
-        headers["Content-type"] = product["mime_type"]
-        return self.check_response(
-            requests.put(url=url, data=product["data"], headers=headers, verify=self.verify, timeout=self.timeout), url
-        )
-
     def get_word_list(self, word_list_id: int) -> dict | None:
         return self.api_get(
             url=f"/worker/word-list/{word_list_id}",
@@ -145,12 +137,13 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_story_attributes(self, story_id: str, attributes: dict) -> dict | None:
+    def update_story_attributes(self, story_id: str, attributes: list[dict]) -> dict | None:
         """Patch story attributes
 
         Example:
 
-        update_story_attributes("story_id", {"attribute1": "value1", "attribute2": "value2"})
+        update_story_attributes("story_id", [{"key": "key1", "value": "value1"}, {"key": "key2", "value": "value2"}])
+
         """
         try:
             return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data=attributes)
@@ -226,6 +219,7 @@ class CoreApi:
                 json_data=story,
             )
         except Exception:
+            logger.exception("Cannot add or update story.")
             return None
 
     def store_task_result(self, data) -> dict | None:

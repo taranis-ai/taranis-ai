@@ -1,14 +1,34 @@
 import { apiService } from '@/main'
-import { parseJsonSourceFileConfigFileContent } from 'typescript'
 
 export function getConflict(storyId) {
   return apiService.get(`/connectors/conflicts/compare/${storyId}`)
 }
 
-export function resolveConflict(storyId, resolutionData) {
-  // TODO: implement an update endpoint that would update the internal conflicting stories
+export function getAllStoryConflicts() {
+  return apiService.get(`/connectors/conflicts/compare`)
 }
 
-export function getAllConflicts() {
-  return apiService.get(`/connectors/conflicts/compare`)
+export function getAllNewsItemConflicts() {
+  return apiService.get(`/connectors/conflicts/newsitem/compare`)
+}
+
+export function getProposals() {
+  return apiService.get(`/assess/connectors/proposals`)
+}
+
+export function updateStory(storyId, resolutionData) {
+  return apiService.patch(`/assess/connectors/story/${storyId}`, resolutionData)
+}
+
+export async function fetchStorySummary(storyId) {
+  const res = await apiService.get(`/connectors/story-summary/${storyId}`)
+  return res.data
+}
+
+export async function submitNewsItemConflictResolution(resolutionData) {
+  return apiService.post('/connectors/conflict/resolve', resolutionData, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
 }

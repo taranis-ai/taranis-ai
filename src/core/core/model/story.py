@@ -1,14 +1,13 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
-from flask import json
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
-from dataclasses import dataclass
+from collections import Counter
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -21,6 +20,8 @@ from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGr
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.story_conflict import StoryConflict
+from core.model.news_item_conflict import NewsItemConflict
 
 
 class Story(BaseModel):
@@ -44,7 +45,9 @@ class Story(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
-    attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    attributes: Mapped[list["NewsItemAttribute"]] = relationship(
+        "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
+    )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
 
     def __init__(
@@ -52,18 +55,24 @@ class Story(BaseModel):
         title: str,
         description: str = "",
         created: datetime | str = datetime.now(),
+        id: str | None = None,
+        likes: int = 0,
+        dislikes: int = 0,
+        relevance: int = 0,
         read: bool = False,
         important: bool = False,
         summary: str = "",
         comments: str = "",
         links=None,
-        attributes=None,
-        # tags=None,
+        attributes: list[dict] | None = None,
+        tags=None,
         news_items=None,
-        id=None,
         last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
+        self.likes = likes
+        self.dislikes = dislikes
+        self.relevance = relevance
         self.title = title
         self.description = description
         self.created = self.get_creation_date(created)
@@ -76,8 +85,8 @@ class Story(BaseModel):
         self.last_change = last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
-        # if tags:
-        #     self.tags = NewsItemTag.load_multiple(tags)
+        if tags:
+            self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created):
         if isinstance(created, datetime):
@@ -99,7 +108,7 @@ class Story(BaseModel):
         return []
 
     @classmethod
-    def get_for_api(cls, item_id: str, user: User) -> tuple[dict[str, Any], int]:
+    def get_for_api(cls, item_id: str, user: User | None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
@@ -177,6 +186,9 @@ class Story(BaseModel):
         if important == "false":
             query = query.filter(Story.important == false())
 
+        if cybersecurity_status := filter_args.get("cybersecurity", "").lower():
+            query = cls._add_key_value_filter_to_query(query, "cybersecurity", cybersecurity_status)
+
         relevant = filter_args.get("relevant", "").lower()
         if relevant == "true":
             query = query.filter(Story.relevance > 0)
@@ -250,16 +262,24 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_attribute_filter_to_query(cls, query: Select, filter_attribute: str, exclude: bool = False) -> Select:
-        subquery_attribute = aliased(NewsItemAttribute)
-        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+    def _add_key_value_filter_to_query(cls, query: Select, filter_key: str, filter_value: str) -> Select:
+        nia1 = aliased(NewsItemAttribute)
+        snia1 = aliased(StoryNewsItemAttribute)
 
         subquery = (
-            db.select(subquery_story_attribute.story_id)
-            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
-            .filter(subquery_attribute.key == filter_attribute)
+            db.select(snia1.story_id)
+            .join(nia1, nia1.id == snia1.news_item_attribute_id)
+            .filter((nia1.key == filter_key) & (nia1.value == filter_value))
             .distinct()
         )
+        return query.filter(Story.id.in_(subquery))
+
+    @classmethod
+    def _add_attribute_filter_to_query(cls, query: Select, filter_key: str, exclude: bool = False) -> Select:
+        nia2 = aliased(NewsItemAttribute)
+        snia2 = aliased(StoryNewsItemAttribute)
+
+        subquery = db.select(snia2.story_id).join(nia2, nia2.id == snia2.news_item_attribute_id).filter(nia2.key == filter_key).distinct()
 
         query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
             NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
@@ -378,7 +398,12 @@ class Story(BaseModel):
         conflict = data.pop("conflict", None)
 
         if Story.get(data["id"]) is None:
-            return cls.add(data)
+            message, code = cls.add(data)
+            if code != 200 and message.get("error") == "Story already exists":
+                logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
+                cls.handle_conflicting_news_items(data)
+                return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, code
+            return message, code
 
         if not conflict:
             if "news_items_to_delete" in data:
@@ -406,7 +431,7 @@ class Story(BaseModel):
             db.session.add(story)
             db.session.commit()
             StorySearchIndex.prepare(story)
-            story.update_tlp()
+            story.update_status()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -430,7 +455,6 @@ class Story(BaseModel):
         db.session.commit()
         for item in items:
             StorySearchIndex.prepare(item)
-            item.update_tlp()
         return items
 
     @classmethod
@@ -540,16 +564,20 @@ class Story(BaseModel):
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        story.update_status(external)
+
+        story.update_timestamps()
         db.session.commit()
-        return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
+        return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
 
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
+            has_proposals = data.pop("has_proposals", None)
             current_data_dict = current_data.to_detail_dict()
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-            conflict = StoryConflict(story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized)
+            conflict = StoryConflict(
+                story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
+            )
             logger.warning(f"Conflict detected for story {id}")
             StoryConflict.conflict_store[id] = conflict
             return {
@@ -559,40 +587,82 @@ class Story(BaseModel):
                     "updated": data,
                 },
             }, 409
+        return {"message": "Update successful"}, 200
 
-        # Proceed with update if there is no conflict (or no existing story).
-        # For example: db_update_story(id, data)
+    @classmethod
+    def handle_conflicting_news_items(cls, data: dict) -> tuple[dict, int]:
+        news_items: list[dict] = data.get("news_items", [])
+        if not news_items:
+            return {"error": "No news items provided"}, 400
+
+        incoming_story_id = data.get("id")
+        if not incoming_story_id:
+            return {"error": "Missing story ID"}, 400
+
+        conflicts = []
+
+        for news_item in news_items:
+            news_item_id = news_item.get("id")
+            if not news_item_id:
+                continue
+
+            if existing_item := NewsItem.get(news_item_id):
+                existing_news_item = existing_item
+                existing_story_id = existing_news_item.story_id
+                logger.debug(f"CONFLICT: incoming {news_item_id} already in story {existing_story_id}")
+                conflict = NewsItemConflict.register(
+                    incoming_story_id=incoming_story_id,
+                    news_item_id=news_item_id,
+                    existing_story_id=existing_story_id,
+                    incoming_story_data=data,
+                )
+                conflicts.append(conflict.to_dict())
+
+        if conflicts:
+            return {"conflicts": conflicts}, 409
+
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
         """
-        Replace all existing attributes with the provided list of attributes.
-
-        Args:
-            attributes (list[dict]): [{"key": "key1", "value": "value1"}].
+        Synchronize story attributes to match the provided list.
+        Calls patch_attributes() for add/update,
+        remove_attributes() for deletions.
         """
+        input_keys = {attr["key"] for attr in attributes}
+        existing_keys = {attr.key for attr in self.attributes}
 
-        self.attributes = []
-        for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+        self.patch_attributes(attributes)
+
+        keys_to_remove = existing_keys - input_keys
+        self.remove_attributes(list(keys_to_remove))
 
     def patch_attributes(self, attributes: list[dict]):
-        """
-        Update existing attributes or add new ones without clearing current attributes.
-
-        Args:
-            attributes (list[dict]): [{"key": "key1", "value": "value1"}].
-        """
         for attribute in attributes:
-            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+            attr_key = attribute.get("key")
+            attr_value = attribute.get("value")
+            if attr_key == "TLP":
+                attr_value = self.get_story_tlp(TLPLevel.get_tlp_level(attr_value))  # type: ignore
+            self.upsert_attribute(NewsItemAttribute(key=attr_key, value=attr_value))
+
+    def remove_attributes(self, keys: list[str]):
+        """
+        Remove attributes from the story whose keys are in the provided list.
+        """
+        for key in keys:
+            if attr := self.find_attribute_by_key(key):
+                self.attributes.remove(attr)
+                db.session.delete(attr)
+
+    def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
+        if existing_attribute := self.find_attribute_by_key(attribute.key):
+            existing_attribute.value = attribute.value
+        else:
+            self.attributes.append(attribute)
         db.session.commit()
 
-    def set_atrribute_by_key(self, key, value):
-        if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):
-            attribute = NewsItemAttribute(key=key, value=value)
-            self.attributes.append(attribute)
-        else:
-            attribute.value = value
+    def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
+        return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
@@ -742,7 +812,6 @@ class Story(BaseModel):
                 if user is None or news_item.allowed_with_acl(user, True):
                     story.news_items.append(news_item)
                     story.relevance += 1
-                    story.add(story)
                     story.update_status()
             cls.update_stories({story})
             db.session.commit()
@@ -802,8 +871,7 @@ class Story(BaseModel):
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
-            cls.update_stories({story})
-            story.last_change = "internal"
+            story.update_status()
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:
@@ -855,50 +923,86 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
-    def get_story_sentiment(self) -> dict | None:
-        sentiment = {"positive": 0, "negative": 0, "neutral": 0}
-        for news_item in self.news_items:
-            if news_item.get_sentiment() == "positive":
-                sentiment["positive"] += 1
-            elif news_item.get_sentiment() == "negative":
-                sentiment["negative"] += 1
-            elif news_item.get_sentiment() == "neutral":
-                sentiment["neutral"] += 1
-        if sentiment["positive"] == 0 and sentiment["negative"] == 0 and sentiment["neutral"] == 0:
-            return None
-        return sentiment
+    def get_cybersecurity_status(self) -> str:
+        status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
+        status_set = frozenset(status_list)
 
-    def update_status(self, external=False):
+        if "none" in status_set and len(status_set) > 1:
+            return "incomplete"
+        status_map = {
+            frozenset(["yes"]): "yes",
+            frozenset(["no"]): "no",
+            frozenset(["yes", "no"]): "mixed",
+            frozenset(["none"]): "none",
+        }
+        return status_map.get(status_set, "none")
+
+    def get_story_sentiment(self) -> str:
+        counts = Counter(item.get_sentiment() for item in self.news_items)
+
+        pos = counts.get("positive", 0)
+        neg = counts.get("negative", 0)
+        neu = counts.get("neutral", 0)
+
+        if pos == 0 and neg == 0 and neu == 0:
+            return "none"
+
+        max_count = max(pos, neg, neu)
+        leaders = [label for label, count in (("positive", pos), ("negative", neg), ("neutral", neu)) if count == max_count]
+
+        return leaders[0] if len(leaders) == 1 else "mixed"
+
+    def remove_empty_story(self) -> bool:
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
             db.session.delete(self)
             logger.debug(f"Deleting empty Story - 'ID': {self.id}")
-            return
+            return True
+        return False
 
-        self.update_tlp()
+    def update_status(self):
+        if self.remove_empty_story():
+            return
         self.update_timestamps()
-        self.last_change = "external" if external else "internal"
+        self.update_status_attributes()
+
+    def update_status_attributes(self):
+        attributes = [
+            NewsItemAttribute(key="TLP", value=self.get_story_tlp()),
+            NewsItemAttribute(key="cybersecurity", value=self.get_cybersecurity_status()),
+            NewsItemAttribute(key="sentiment", value=self.get_story_sentiment()),
+        ]
+        for attribute in attributes:
+            if attribute.value != "none":
+                self.upsert_attribute(attribute)
 
     def update_timestamps(self):
         self.updated = datetime.now()
         self.created = min(news_item.published for news_item in self.news_items)
 
-    def update_tlp(self):
-        highest_tlp = None
-        for news_item in self.news_items:
-            if tlp_level := news_item.get_tlp():
-                tlp_level_enum = TLPLevel(tlp_level)
-                if highest_tlp is None or tlp_level_enum > highest_tlp:
-                    highest_tlp = tlp_level_enum
+    def get_story_tlp(self, input_tlp: TLPLevel | None = None) -> TLPLevel:
+        most_restrictive_tlp = input_tlp or TLPLevel.CLEAR
 
-        if highest_tlp:
-            logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
-            NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+        tlp_levels: list[TLPLevel] = []
+        for news_item in self.news_items:
+            if not news_item.tlp_level:
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+            tlp_levels.append(news_item.tlp_level)
+        tlp_levels += [input_tlp] if input_tlp else []
+
+        most_restrictive_tlp = TLPLevel.get_most_restrictive_tlp(tlp_levels)
+
+        logger.debug(f"Updating TLP for Story {self.id} to {most_restrictive_tlp}")
+        return most_restrictive_tlp
+
+    @property
+    def tlp_level(self) -> TLPLevel:
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 
@@ -907,8 +1011,7 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
-        if sentiment := self.get_story_sentiment():
-            data["attributes"].append({"key": "sentiment", "value": sentiment})
+        data["detail_view"] = True
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1010,7 +1113,9 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    __tablename__ = "story_news_item_attribute"
+
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
         db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
@@ -1020,7 +1125,7 @@ class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):
@@ -1029,62 +1134,3 @@ class ReportItemStory(BaseModel):
     @classmethod
     def count(cls, story_id):
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))
-
-
-@dataclass
-class StoryConflict:
-    story_id: str
-    original: str
-    updated: str
-    # A class-level store to hold conflicts
-    conflict_store = {}
-
-    def resolve(self, resolution: dict[str, Any]) -> dict[str, Any]:
-        """
-        Applies the resolution changes to the updated data.
-        This example simply updates the updated dict with the resolution.
-        Customize this logic as needed.
-        """
-        pass
-
-    @classmethod
-    def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
-        if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change"}
-        if isinstance(obj, list):
-            return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: cls.remove_keys_deep(value, keys_to_remove) for key, value in obj.items() if key not in keys_to_remove}
-        return obj
-
-    @classmethod
-    def stable_stringify(cls, obj: Any, indent: int = 2, level: int = 0) -> str:
-        if obj is None or isinstance(obj, (str, int, float, bool)):
-            return json.dumps(obj)
-
-        elif isinstance(obj, list):
-            if not obj:
-                return "[]"
-            items = [cls.stable_stringify(item, indent, level + 1) for item in obj]
-            ind = " " * (indent * (level + 1))
-            return "[\n" + ",\n".join(f"{ind}{item}" for item in items) + "\n" + " " * (indent * level) + "]"
-
-        elif isinstance(obj, dict):
-            if not obj:
-                return "{}"
-            items = []
-            for key in sorted(obj.keys()):
-                value = cls.stable_stringify(obj[key], indent, level + 1)
-                ind = " " * (indent * (level + 1))
-                items.append(f"{ind}{json.dumps(key)}: {value}")
-            return "{\n" + ",\n".join(items) + "\n" + " " * (indent * level) + "}"
-
-        return json.dumps(obj)
-
-    @classmethod
-    def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
-        normalized_current = cls.remove_keys_deep(current_data)
-        logger.debug(f"{normalized_current=}")
-        normalized_new = cls.remove_keys_deep(new_data)
-        logger.debug(f"{normalized_new=}")
-        return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)

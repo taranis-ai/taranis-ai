@@ -110,7 +110,7 @@ def auth_header(access_token):
 
 @pytest.fixture
 def api_header():
-    return {"Authorization": f"Bearer {os.getenv("API_KEY")}", "Content-type": "application/json"}
+    return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
 
 
 @pytest.fixture(scope="session")
@@ -186,7 +186,6 @@ def pytest_addoption(parser):
     group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
-    group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
 
 
@@ -201,7 +200,6 @@ def pytest_collection_modifyitems(config, items):
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-user": ("e2e_user", "skip for --e2e-user test"),
-        "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
         "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
     }
 
@@ -215,7 +213,7 @@ def pytest_collection_modifyitems(config, items):
             skip_tests(items, keyword, reason)
             return
 
-    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
+    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow option to run these tests")
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)

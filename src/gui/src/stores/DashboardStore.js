@@ -15,7 +15,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     report_items_in_progress: 0,
     total_database_items: 0,
     latest_collected: '',
-    tag_cloud: {}
+    tag_cloud: {},
+    conflict_count: 0
   })
 
   const clusters = ref({})
@@ -52,7 +53,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
       report_items_in_progress: 0,
       total_database_items: 0,
       latest_collected: '',
-      tag_cloud: {}
+      tag_cloud: {},
+      conflict_count: 0
     }
     clusters.value = {}
   }

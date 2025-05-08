@@ -29,6 +29,7 @@ class BOT_TYPES(StrEnum):
     SUMMARY_BOT = auto()
     WORDLIST_BOT = auto()
     SENTIMENT_ANALYSIS_BOT = auto()
+    CYBERSEC_CLASSIFIER_BOT = auto()
 
 
 class PRESENTER_TYPES(StrEnum):
@@ -62,6 +63,7 @@ class WORKER_TYPES(StrEnum):
     STORY_BOT = auto()
     SUMMARY_BOT = auto()
     SENTIMENT_ANALYSIS_BOT = auto()
+    CYBERSEC_CLASSIFIER_BOT = auto()
     WORDLIST_BOT = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
@@ -102,7 +104,7 @@ class Worker(BaseModel):
         self.name = name
         self.description = description
         self.type = type
-        self.category = self.type.split("_")[-1]
+        self.category = type.split("_")[-1]
         self.parameters = ParameterValue.get_or_create_from_list(parameters)
 
     @classmethod

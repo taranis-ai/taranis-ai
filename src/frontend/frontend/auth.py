@@ -6,7 +6,7 @@ from frontend.config import Config
 from frontend.log import logger
 from frontend.cache import add_user_to_cache, get_user_from_cache
 from frontend.core_api import CoreApi
-from frontend.models import User
+from models.admin import User
 
 jwt = JWTManager()
 

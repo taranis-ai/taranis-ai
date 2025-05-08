@@ -12,6 +12,7 @@ from core.managers import queue_manager
 from core.service.news_item import NewsItemService
 from core.audit import audit_logger
 from core.config import Config
+from core.model.story_conflict import StoryConflict
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -76,6 +77,12 @@ class NewsItem(MethodView):
         return response, code
 
 
+class UpdateNewsItemAttributes(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    def put(self, news_item_id):
+        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+
+
 class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -85,6 +92,7 @@ class Stories(MethodView):
                 "read",
                 "unread",
                 "important",
+                "cybersecurity",
                 "relevant",
                 "in_report",
                 "range",
@@ -145,7 +153,6 @@ class StoryTagList(MethodView):
 class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
-        logger.debug(f"Getting story {story_id}")
         return story.Story.get_for_api(story_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
@@ -219,7 +226,7 @@ class BotActions(MethodView):
 
 
 class Connectors(MethodView):
-    @auth_required("ASSESS_UPDATE")
+    @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
     def post(self, connector_id):
         """Send stories to an external system."""
@@ -236,6 +243,28 @@ class Connectors(MethodView):
         except Exception as e:
             return {"error": str(e)}, 500
 
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def patch(self, story_id):
+        if not request.json:
+            return {"error": "Invalid JSON payload"}, 400
+        if not story_id:
+            return {"error": "No story_id provided"}, 400
+
+        conflict = StoryConflict.conflict_store.get(story_id)
+        if conflict is None:
+            logger.error(f"No conflict found for story {story_id}")
+            return {"error": "No conflict found", "id": story_id}, 404
+
+        response, code = conflict.resolve(request.json, user=current_user)
+        return response, code
+
+
+class Proposals(MethodView):
+    @auth_required("CONNECTOR_USER_ACCESS")
+    def get(self):
+        return {"count": StoryConflict.get_proposal_count()}, 200
+
 
 def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
@@ -249,10 +278,15 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule(
+        "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
+    )
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+    assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
+    assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)

@@ -8,7 +8,7 @@
   <div class="text-3xl font-bold mb-4">
     <a href="{{ url_for('admin.roles') }}" class="text-blue-500 hover:underline">Roles</a>
   </div>
-  <div class="bg-white rounded-sm p-4" id="form-container" >
+  <div class="bg-base rounded-sm p-4" id="form-container" >
     {% if show_form %}
       {% include 'role/role_form.html' %}
     {% else %}

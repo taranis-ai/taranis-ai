@@ -18,7 +18,7 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         result = response.get_json()
-        assert result.get("message") == "Story updated Successful"
+        assert result.get("message") == "Story updated successfully"
         assert result.get("id") == stories[0]
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": stories[0]})
@@ -59,7 +59,7 @@ class TestWorkerApi:
         )
         assert response.status_code == 200
         result = response.get_json()
-        assert result.get("message") == "Story updated Successful"
+        assert result.get("message") == "Story updated successfully"
         assert result.get("id") == stories[0]
 
         response = client.get(
@@ -85,6 +85,19 @@ class TestWorkerApi:
         assert any(attr.get("key") == "status" and attr.get("value") == "updated" for attr in attributes_in_story), (
             "Updated attribute not found in the story."
         )
+
+    def test_worker_create_full_story(self, client, full_story: list[dict], api_header):
+        response = client.post(
+            f"{self.base_uri}/stories",
+            json=full_story[0],
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        result = response.get_json()
+        assert result.get("message") == "Story added successfully"
+        assert result.get("news_item_ids")[0] == full_story[0].get("news_items", [])[0].get("id", "<news_item_id>")
+        assert result.get("story_id", "t<story_id>") == full_story[0].get("id")
 
 
 class TestWorkerStoryApi:

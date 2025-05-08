@@ -30,6 +30,7 @@ class Collector:
         return source, None
 
     def get_collector(self, source: dict[str, str]) -> tuple[BaseCollector | None, str | None]:
+        logger.info(source)
         collector_type = source.get("type")
         if not collector_type:
             logger.error(f"Source {source['id']} has no collector_type")
@@ -57,7 +58,7 @@ class Collector:
             self.core_api.update_osintsource_status(osint_source_id, {"error": err})
             return err
 
-        return None
+        return "Collection completed successfully"
 
 
 @flow(name="collector_task")

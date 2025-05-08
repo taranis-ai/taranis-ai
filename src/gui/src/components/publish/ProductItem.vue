@@ -428,11 +428,8 @@ export default {
     watch(
       product,
       (newVal) => {
-        if (JSON.stringify(newVal) !== JSON.stringify(originalProduct.value)) {
-          dirty.value = true
-        } else {
-          dirty.value = false
-        }
+        dirty.value =
+          JSON.stringify(newVal) !== JSON.stringify(originalProduct.value)
       },
       { deep: true }
     )

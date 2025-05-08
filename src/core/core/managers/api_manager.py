@@ -2,6 +2,7 @@ from flask import jsonify
 from flask_cors import CORS
 
 import core.api as core_api
+from core.log import logger
 
 
 def initialize(app):
@@ -42,6 +43,7 @@ def handle_unauthorized(e):
 
 
 def handle_not_found(e):
+    logger.debug(f"404 not found: {e}")
     if hasattr(e, "item"):
         return jsonify(error=f"{e.item} not found"), 404
     return jsonify(error="Not found"), 404

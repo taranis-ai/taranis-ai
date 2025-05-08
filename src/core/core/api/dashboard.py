@@ -10,6 +10,7 @@ from core.model.report_item import ReportItem
 from core.managers.auth_manager import auth_required
 from core.managers import schedule_manager
 from core.config import Config
+from core.model.story_conflict import StoryConflict
 
 
 class Dashboard(MethodView):
@@ -32,6 +33,7 @@ class Dashboard(MethodView):
                     "total_database_items": total_database_items,
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
+                    "conflict_count": len(StoryConflict.conflict_store),
                 }
             ]
         }, 200

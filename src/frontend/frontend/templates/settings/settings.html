@@ -1,0 +1,159 @@
+{% from "macros/variables.html" import tlp_levels %}
+{% from "macros/forms.html" import form_input %}
+{% from "macros/buttons.html" import export_button %}
+
+{% set settings = settings | default([{}]) %}
+
+{% set current_settings = settings[0].settings | default({}) %}
+
+<div class="container mx-auto p-2" id="settings-container" hx-target="#settings-container" hx-target-error="#error-msg" hx-swap="innerHTML" hx-ext="response-targets">
+  <!-- Header -->
+  <div class="w-full px-2 mt-2">
+    <h1 class="text-2xl font-bold">Admin Settings</h1>
+  </div>
+
+  <!-- Default TLP Level -->
+  <div class="w-full px-2 mt-2">
+    <div class="card bg-base-100 shadow-xl p-3">
+      <div class="card-body">
+        <h2 class="card-title">Default TLP Level</h2>
+        <div class="card-actions">
+          <form
+            class="form-control w-full"
+            id="default-tlp-level-form"
+            hx-post="{{ settings._links.update_settings | admin_action }}"
+          >
+          <p class="mb-5">Set the default TLP Level for new Sources, Roles, and Reports.</p>
+          {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level') }}
+          {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False) }}
+          {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval) }}
+          <input type="submit" class="btn btn-primary w-1/2" value="Update Settings" />
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Stories -->
+  <div class="w-full px-2 mt-4">
+    <div class="card bg-base-100 shadow-xl p-3">
+      <div class="card-body">
+        <h2 class="card-title">Export Stories</h2>
+        <div class="grid grid-cols-2 gap-2 mt-2 join" hx-boost="false">
+          {% set export_url = settings._links.export_stories | admin_action %}
+          {{ export_button(export_url, "Export all Stories") }}
+          {{ export_button(export_url ~ "?metadata=true", "Export all Stories with metadata") }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="w-full px-2 mt-6">
+    <div
+      tabindex="0"
+      class="collapse collapse-arrow border border-error bg-error/10 rounded-box"
+    >
+      <input type="checkbox" />
+      <div class="collapse-title text-lg font-semibold text-error">
+        <strong>Everything in this section is dangerous. You can break things. Be careful.</strong>
+      </div>
+      <div class="collapse-content p-0">
+        <div class="flex flex-wrap gap-4 p-4">
+          <!-- Clear Worker Queues -->
+          <div class="w-[32%]">
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h3 class="card-title">Clear all Worker Queues</h3>
+                <p>Delete all messages from all worker queues. This action cannot be undone.</p>
+                <div class="card-actions tooltip" data-tip="Delete all Worker Queues">
+                  <button
+                    class="btn btn-error btn-outline w-full"
+                    hx-post="{{ settings._links.clear_queues | admin_action }}"
+                    hx-confirm="Are you sure you want to delete all worker queues?"
+                  >Delete all Worker Queues</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Delete all Tags -->
+          <div class="w-[32%]">
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h3 class="card-title">Delete all Tags</h3>
+                <p>Delete all tags from all Stories in the system. This action cannot be undone.</p>
+                <div class="card-actions tooltip" data-tip="Delete all Tags from all Stories">
+                  <button
+                    class="btn btn-error btn-outline w-full"
+                    hx-post="{{ settings._links.delete_tags | admin_action }}"
+                    hx-confirm="Are you sure you want to delete all tags?"
+                  >Delete all Tags</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ungroup all Stories -->
+          <div class="w-[32%]">
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h3 class="card-title">Ungroup all Stories</h3>
+                <p>Ungroup all Stories in the system. This action cannot be undone.</p>
+                <div class="card-actions tooltip" data-tip="Not yet implemented">
+                  <button
+                    class="btn btn-error btn-outline w-full pointer-events-auto"
+                    hx-post="{{ settings._links.ungroup_stories | admin_action }}"
+                    hx-confirm="Are you sure you want to ungroup all stories?"
+                    title="Not yet implemented"
+                    disabled
+                  >Ungroup all Stories</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <!-- Delete all Stories -->
+        <div class="w-[49%]">
+          <div class="card bg-base-100 shadow h-48">
+            <div class="card-body">
+              <h3 class="card-title">Delete all Stories</h3>
+              <p>Delete all Stories in the system. This action cannot be undone.</p>
+              <div class="card-actions tooltip" data-tip="Not yet implemented">
+                <button
+                  class="btn btn-error btn-outline w-full"
+                  hx-post="{{ settings._links.delete_stories | admin_action }}"
+                  hx-confirm="Are you sure you want to delete all stories?"
+                  disabled
+                >Delete all Stories</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete Everything -->
+        <div class="w-[49%]">
+          <div class="card bg-base-100 shadow h-48">
+            <div class="card-body">
+              <h3 class="card-title">Delete Everything</h3>
+              <p>
+                This may potentially fail and completely break the system.
+                Tries to delete all Report Items, Products, News Items and Stories.
+              </p>
+              <div class="card-actions tooltip" data-tip="Not yet implemented">
+                <button
+                  class="btn btn-error btn-outline w-full"
+                  hx-post="{{ settings._links.reset_database | admin_action }}"
+                  hx-confirm="Are you absolutely sure you want to delete EVERYTHING?"
+                  disabled
+                >Delete Everything</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
