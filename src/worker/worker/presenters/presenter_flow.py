@@ -1,4 +1,4 @@
-from celery import Task
+from prefect import flow
 from base64 import b64encode
 from requests.exceptions import ConnectionError
 
@@ -8,7 +8,7 @@ from worker.log import logger
 from worker.core_api import CoreApi
 
 
-class PresenterTask(Task):
+class PresenterTask:
     name = "presenter_task"
     max_retries = 3
     priority = 8
@@ -75,3 +75,8 @@ class PresenterTask(Task):
             return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": rendered_product}
 
         raise ValueError(f"Presenter {presenter.type} returned no content")
+
+
+@flow(name="presenter_flow", log_prints=True, flow_run_name="presenter_flow")
+def presenter_flow(product_id: int):
+    return PresenterTask().run(product_id)

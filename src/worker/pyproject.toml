@@ -11,7 +11,7 @@ classifiers = [
     "Framework :: Prefect",
     "Topic :: Security",
 ]
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     # Core
     "prefect-client",

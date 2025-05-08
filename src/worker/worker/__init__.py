@@ -1,8 +1,10 @@
+from prefect import serve
 from worker.tasks import setup_tasks
 
 
 def main():
-    setup_tasks()
+    tasks = setup_tasks()
+    serve(*tasks)
 
 
 if __name__ == "worker":

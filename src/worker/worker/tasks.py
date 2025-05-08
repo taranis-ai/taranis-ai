@@ -3,22 +3,30 @@ from worker.log import logger
 
 
 def setup_tasks():
-    import worker.misc.misc_tasks  # noqa: F401
+    flows = []
+    from worker.misc.misc_tasks import debug_flow
 
-    if "Bots" in Config.WORKER_TYPES:
-        import worker.bots.bot_tasks  # noqa: F401
-
-    if "Collectors" in Config.WORKER_TYPES:
-        import worker.collectors.collector_tasks  # noqa: F401
+    flows.append(debug_flow.to_deployment(name="debug_task"))
 
     if "Presenters" in Config.WORKER_TYPES:
         try:
-            import worker.presenters.presenter_tasks  # noqa: F401
+            from worker.presenters.presenter_flow import presenter_flow  # noqa: F401
+
+            flows.append(presenter_flow.to_deployment(name="presenter_flow"))
         except OSError as e:
             logger.critical(f"Failed to load PDFPresenter: {e}. Ensure WeasyPrint and dependencies are installed.")
 
-    if "Publishers" in Config.WORKER_TYPES:
-        import worker.publishers.publisher_tasks  # noqa: F401
+    # TODO: migrate to prefect
+    # if "Bots" in Config.WORKER_TYPES:
+    #     import worker.bots.bot_tasks  # noqa: F401
 
-    if "Connectors" in Config.WORKER_TYPES:
-        import worker.connectors.connector_tasks  # noqa: F401
+    # if "Collectors" in Config.WORKER_TYPES:
+    #     import worker.collectors.collector_tasks  # noqa: F401
+
+    # if "Publishers" in Config.WORKER_TYPES:
+    #     import worker.publishers.publisher_tasks  # noqa: F401
+
+    # if "Connectors" in Config.WORKER_TYPES:
+    #     import worker.connectors.connector_tasks  # noqa: F401
+
+    return flows
