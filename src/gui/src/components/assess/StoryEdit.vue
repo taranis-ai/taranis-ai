@@ -204,7 +204,7 @@ import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/UserStore'
 import { useAssessStore } from '@/stores/AssessStore'
-import { isEqual, cloneDeep } from 'lodash-es'
+import { isEqual } from 'lodash-es'
 
 export default {
   name: 'StoryEdit',
@@ -226,7 +226,7 @@ export default {
     const assessStore = useAssessStore()
     const form = ref(null)
     const router = useRouter()
-    const story = ref(cloneDeep(props.storyProp))
+    const story = ref(JSON.parse(JSON.stringify(props.storyProp)))
     const dirty = ref(false)
 
     const showAdvancedOptions = computed(() => {
@@ -404,7 +404,7 @@ export default {
           assessStore.getStoryByID(storyId).updated
         )
         console.debug('Story From Prop Last updated: ', props.storyProp.updated)
-        story.value = cloneDeep(props.storyProp)
+        story.value = JSON.parse(JSON.stringify(props.storyProp))
       } catch (e) {
         console.error('Failed to fetch story data:', e)
         notifyFailure(e)
@@ -514,11 +514,6 @@ export default {
         return null
       }
     }
-
-    onMounted(() => {
-      fetchStoryData(props.storyProp.id)
-      userStore.loadUserProfile()
-    })
 
     function diffObjects(obj1, obj2) {
       const diffs = {}

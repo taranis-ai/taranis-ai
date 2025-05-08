@@ -129,18 +129,14 @@ export const useAssessStore = defineStore(
 
     function getStoryByID(id) {
       let story = stories.value.items.filter((item) => item?.id === id)[0]
-      // remove the fields 'in_reports_count' and 'user_vote' from the story
-      if (story) {
-        delete story.in_reports_count
-        delete story.user_vote
-      }
-      if (!story) {
-        const response = getStory(id)
-        story = response.data
-        stories.value.items.push(story)
+
+      // if not story is undefined or does not have a key called "detail_view" retrieve it from the API
+      if (!story || !story.detail_view) {
+        story = updateStoryByID(id)
       }
       return story
     }
+
     function removeStoryByID(id) {
       deleteStory(id)
       stories.value.items = stories.value.items.filter(
@@ -153,7 +149,7 @@ export const useAssessStore = defineStore(
       let found = false
 
       stories.value.items = stories.value.items.map((item) => {
-        if (item.id === id) {
+        if (item && item.id === id) {
           found = true
           return { ...item, ...updated_item }
         }
@@ -163,6 +159,8 @@ export const useAssessStore = defineStore(
       if (!found) {
         stories.value.items.push(updated_item)
       }
+      console.debug('Updated Story', updated_item)
+      return updated_item
     }
     async function voteOnStory(id, vote) {
       try {
