@@ -330,6 +330,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][2].id}-cybersec-yes-btn"), scroll=True
             ).click()
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=True).click()
+            page.get_by_test_id("story-go-back-btn").click()
 
         def infinite_scroll_all_items(stories_date_descending):
             self.smooth_scroll(page.get_by_test_id(f"story-card-{stories_date_descending[19]}"))
