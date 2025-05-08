@@ -1,4 +1,4 @@
-FROM prefecthq/prefect:3-python3.12 AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app/
 
@@ -23,7 +23,7 @@ RUN uv venv && \
     playwright install chromium --with-deps
 
 
-FROM prefecthq/prefect:3-python3.12
+FROM python:3.12-slim
 
 LABEL description="Taranis AI prefect worker"
 
@@ -47,3 +47,4 @@ ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
+CMD ["taranis-worker"]
