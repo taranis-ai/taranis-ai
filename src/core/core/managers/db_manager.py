@@ -31,6 +31,7 @@ def initialize(app: Flask, initial_setup: bool = True):
 
     if initial_setup:
         initial_database_setup(db.engine)
+    logger.debug(f"DB Engine created with {db.engine.pool.status()}")
 
 
 def is_db_empty(engine: Engine) -> bool:

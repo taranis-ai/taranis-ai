@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URI_MASK: str | None = None
     SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
     SQLALCHEMY_CONNECT_TIMEOUT: int = 10
+    SQLALCHEMY_MAX_OVERFLOW: int = 10
+    SQLALCHEMY_POOL_SIZE: int = 20
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -61,6 +63,12 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
+        self.SQLALCHEMY_ENGINE_OPTIONS.update(
+            {
+                "pool_size": self.SQLALCHEMY_POOL_SIZE,
+                "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
+            }
+        )
         self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 

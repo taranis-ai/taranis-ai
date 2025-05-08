@@ -7,12 +7,13 @@
 </template>
 
 <script>
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeMount } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
 import { storyHotkeys } from '@/utils/hotkeys'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'StoryView',
@@ -29,17 +30,15 @@ export default {
   },
   setup(props) {
     const assessStore = useAssessStore()
+    const { storyByID } = storeToRefs(assessStore)
 
     storyHotkeys()
 
-    const story = computed(() => {
-      return assessStore.stories.items.find((item) => item.id == props.storyId)
-    })
+    const story = computed(() => storyByID.value(props.storyId))
 
-    onMounted(async () => {
-      const assessStore = useAssessStore()
-      assessStore.updateOSINTSources()
-      assessStore.updateStoryByID(props.storyId)
+    onBeforeMount(async () => {
+      await assessStore.updateOSINTSources()
+      await assessStore.updateStoryByID(props.storyId)
     })
 
     return {

@@ -104,7 +104,7 @@ class Worker(BaseModel):
         self.name = name
         self.description = description
         self.type = type
-        self.category = self.type.split("_")[-1]
+        self.category = type.split("_")[-1]
         self.parameters = ParameterValue.get_or_create_from_list(parameters)
 
     @classmethod

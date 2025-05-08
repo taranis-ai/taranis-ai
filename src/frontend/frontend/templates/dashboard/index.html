@@ -1,73 +1,35 @@
 {% extends 'base.html' %}
+{% from 'macros/cards.html' import dashboard_card %}
 
 {% block content %}
 <div class="p-8" id="dashboard">
-  <div class="text-3xl font-bold mb-4">Admin Dashboard</div>
+  <div class="text-3xl font-bold mb-4">Dashboard</div>
 
   <div class="grid grid-flow-row-dense grid-cols-3 gap-4 pb-4">
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="/assess" class="underline text-xl" target="_top">Assess</a>
-          <div class="divider"></div>
-          <span class="inline-flex">
-              {{ heroicon_solid('inbox-stack') }}
+    {% call dashboard_card('Assess', '/assess', 'inbox-stack') %}
+      There are <strong>{{ data.total_news_items }}</strong> total Assess items.
+    {% endcall %}
+        {% call dashboard_card('Analyze', '/analyze') %}
+      There are <b>{{ data.report_items_completed }}</b> completed analyses.
+      <br/>
+      There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
+    {% endcall %}
 
-              <span class="caption">
-                  There are <strong>{{ data.total_news_items }}</strong> total Assess items.
-              </span>
-          </span>
-      </div>
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="/publish" class="underline text-xl" target="_top">Publish</a>
-          <div class="divider"></div>
-          <span class="caption">
-              There are <b>{{ data.total_products }}</b> products ready for publications.
-          </span>
-      </div>
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-        <a href="/connectors" class="underline text-xl" target="_top">Connectors</a>
-        <div class="divider"></div>
-        <span class="caption">
-            There are <b>{{ data.conflict_count }}</b> conflicts detected.
-        </span>
-        <br/>
-        <span class="caption">
-            Here you can find all connectors management tools.
-        </span>
-    </div>
+    {% call dashboard_card('Publish', '/publish') %}
+      There are <b>{{ data.total_products }}</b> products ready for publications.
+    {% endcall %}
   </div>
+
+  <div class="text-3xl font-bold mb-4">Trending Tags</div>
 
   <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="/analyze" class="underline text-xl" target="_top">Analyze</a>
-          <div class="divider"></div>
-          <span class="caption">
-              There are <b>{{ data.report_items_completed }}</b> completed analyses.
-          </span>
-          <br/>
-          <span class="caption">
-              There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
-          </span>
-      </div>
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <a href="/config/workers" class="underline text-xl" target="_top">Workers</a>
-          <div class="divider"></div>
-          <span class="caption">
-              There are <b>{{ data.schedule_length }}</b> tasks scheduled.
-          </span>
-
-          <span class="caption">
-              Last successful run <b>{{ data.latest_collected }}</b>
-          </span>
-      </div>
-      <div class="bg-base-100 border rounded-sm p-4 shadow-lg">
-          <span class="text-xl">Database</span>
-          <div class="divider"></div>
-          <span class="caption">
-              There are <b>{{ data.total_database_items }}</b> live items.
-          </span><br/>
-
-          <span class="caption">There are <b>0</b> archived items.</span>
-      </div>
+    {% for tag in data.trending_tags %}
+      {% call dashboard_card(tag.name, '/tags/' ~ tag.id) %}
+        <div class="text-2xl font-bold">{{ tag.name }}</div>
+        <div class="text-lg">Count: {{ tag.count }}</div>
+      {% endcall %}
+    {% endfor %}
   </div>
-  </div>
-  {% endblock %}
+
+</div>
+{% endblock %}

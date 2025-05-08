@@ -5,7 +5,8 @@ from typing import Type
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import cache
-from frontend.models import TaranisBaseModel, T, CacheObject, PagingData
+from models.base import TaranisBaseModel, T
+from frontend.cache_models import CacheObject, PagingData
 from frontend.log import logger
 
 
@@ -59,9 +60,11 @@ class DataPersistenceLayer:
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    # TODO Rename this here and in `get_objects`
     def _cache_and_paginate_objects(self, result, object_model, endpoint, paging_data):
         result_object = [object_model(**object) for object in result.get("items", [])]
+        if not result_object:
+            logger.warning(f"Empty result for {endpoint}")
+            return []
         total_count = result.get("total_count", len(result_object))
         links = result.get("_links", {})
         cache_object = CacheObject(
@@ -69,12 +72,12 @@ class DataPersistenceLayer:
             total_count=total_count,
             links=links,
         )
-        logger.debug(f"Adding {endpoint} to cache with timeout: {result_object[0]._cache_timeout}")
-        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=result_object[0]._cache_timeout)
+        logger.debug(f"Adding {endpoint} to cache with timeout: {cache_object.timeout}")
+        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object: TaranisBaseModel):
-        store_object = object.model_dump()
+        store_object = object.model_dump(mode="json")
         logger.info(f"Storing object: {store_object}")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
@@ -90,7 +93,7 @@ class DataPersistenceLayer:
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str):
         endpoint = self.get_endpoint(object)
-        response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump())
+        response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
         return response

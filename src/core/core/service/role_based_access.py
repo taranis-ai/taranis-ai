@@ -7,7 +7,6 @@ from sqlalchemy.sql.expression import true
 from core.managers.db_manager import db
 from core.model.user import User
 from core.model.role_based_access import RoleBasedAccess, RBACRole
-from core.log import logger
 
 
 @dataclass
@@ -47,8 +46,6 @@ class RoleBasedAccessService:
 
         accessible_tlps = user_tlp_level.get_accessible_levels()
 
-        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
-
         tlp_attribute_subquery = (
             select(StoryNewsItemAttribute.story_id)
             .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
@@ -62,19 +59,16 @@ class RoleBasedAccessService:
         from core.model.report_item import ReportItem, ReportItemAttribute, AttributeType
 
         user_tlp_level = user.get_highest_tlp()
-        if user_tlp_level.value == "red":
-            return query
-
         accessible_tlps = user_tlp_level.get_accessible_levels()
 
-        logger.debug(f"User TLP level: {user_tlp_level}, Accessible TLPs: {accessible_tlps}")
+        TLPAttr = aliased(ReportItemAttribute)
 
-        tlp_attribute_subquery = select(ReportItemAttribute.report_item_id).filter(
-            ReportItemAttribute.attribute_type == AttributeType.TLP,
-            ReportItemAttribute.value.in_(accessible_tlps),
+        return query.outerjoin(TLPAttr, db.and_(TLPAttr.report_item_id == ReportItem.id, TLPAttr.attribute_type == AttributeType.TLP)).filter(
+            db.or_(
+                TLPAttr.value.in_(accessible_tlps),
+                TLPAttr.id.is_(None),
+            )
         )
-
-        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))  # type: ignore
 
     @classmethod
     def filter_query_with_acl(cls, query: Select, rbac_query: RBACQuery) -> Select:

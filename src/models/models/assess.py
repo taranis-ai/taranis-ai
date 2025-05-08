@@ -50,3 +50,9 @@ class NewsItem(TaranisBaseModel):
     @field_serializer("published_date", "collected_date", when_used="always")
     def serialize_datetime(self, value: datetime | None) -> str | None:
         return value.isoformat() if value else None
+
+
+class StoryTag(TaranisBaseModel):
+    name: str
+    size: int
+    type: str | None = None

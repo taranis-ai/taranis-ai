@@ -50,6 +50,17 @@ class TestAssessNewsItems(BaseTest):
 class TestAssessStories(BaseTest):
     base_uri = "/api/assess"
 
+    def test_story_creation(self, client, stories, auth_header):
+        """
+        This test queries the stories authenticated.
+        It expects all the fields from the stories fixture to be mapped correctly
+        """
+        response = self.assert_get_ok(client, f"story/{stories[0]}", auth_header)
+        first_story = response.get_json()
+        assert first_story["id"] == stories[0]
+        assert first_story["title"] == "Mobile World Congress 2023"
+        assert first_story["attributes"] == [{"key": "TLP", "value": "clear"}]
+
     def test_get_stories(self, client, stories, auth_header):
         """
         This test queries the stories authenticated.
@@ -57,6 +68,7 @@ class TestAssessStories(BaseTest):
         """
         response = self.assert_get_ok(client, "stories", auth_header)
         assert response.get_json()["counts"]["total_count"] == 2
+        assert response.get_json()["items"][0]["id"] in stories
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
         assert response.status_code == 200

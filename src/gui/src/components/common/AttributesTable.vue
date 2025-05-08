@@ -2,7 +2,7 @@
   <div class="my-4 w-50">
     <v-data-table
       :headers="headers"
-      :items="modelValue"
+      :items="filteredStoryAttributes"
       :items-per-page="5"
       :hide-default-footer="modelValue.length < 5"
       class="elevation-1"
@@ -22,6 +22,16 @@
             @click="showDialog = true"
             :disabled="disabled"
           />
+          <v-switch
+            v-if="filterAttributes"
+            class="mr-4"
+            label="show all attributes"
+            v-model="showAllAttributes"
+            density="compact"
+            hide-details
+            color="primary"
+            data-testid="show-all-attributes"
+          ></v-switch>
           <slot name="top"></slot>
         </v-row>
       </template>
@@ -78,7 +88,8 @@ const props = defineProps({
   modelValue: { type: Array, required: true, default: () => [] },
   headerFilter: { type: Array, default: () => ['key', 'value'] },
   order: { type: Boolean, default: false },
-  disabled: { type: Boolean, default: false }
+  disabled: { type: Boolean, default: false },
+  filterAttributes: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -107,6 +118,24 @@ function headerTransform(key) {
 
   return { title: key, key: key }
 }
+
+const showAllAttributes = ref(!props.filterAttributes)
+
+const filteredStoryAttributes = computed(() => {
+  if (showAllAttributes.value) {
+    return props.modelValue
+  }
+  const filtered_attributes = props.modelValue.filter((attr) => {
+    return (
+      Object.prototype.hasOwnProperty.call(attr, 'key') &&
+      attr.key !== 'sentiment' &&
+      attr.key !== 'cybersecurity' &&
+      attr.key !== 'TLP' &&
+      !attr.key.includes('_BOT')
+    )
+  })
+  return filtered_attributes
+})
 
 const fields = computed(() => {
   return props.headerFilter.filter(
@@ -138,22 +167,6 @@ function deleteItem(index) {
   const updatedItems = [...props.modelValue]
   updatedItems.splice(index, 1)
   emit('update:modelValue', updatedItems)
-}
-
-function setIndex(item, newIndex) {
-  const updatedItems = [...props.modelValue]
-  const currentIndex = updatedItems.indexOf(item)
-  if (currentIndex !== -1 && newIndex >= 0 && newIndex < updatedItems.length) {
-    const itemToSwap = updatedItems[newIndex]
-    updatedItems[newIndex] = item
-    updatedItems[currentIndex] = itemToSwap
-
-    // Update index field
-    updatedItems[newIndex].index = newIndex
-    updatedItems[currentIndex].index = currentIndex
-
-    emit('update:modelValue', updatedItems)
-  }
 }
 
 if (props.headerFilter.length > 0) {

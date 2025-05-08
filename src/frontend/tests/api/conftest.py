@@ -119,7 +119,7 @@ def dashboard_get_mock(requests_mock):
 
 
 @pytest.fixture
-def users_get_mock(requests_mock):
+def users_get_mock(requests_mock, organizations_get_mock, roles_get_mock):
     mock_data = {
         "items": [
             {

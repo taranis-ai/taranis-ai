@@ -182,6 +182,11 @@ def report_items(app):
         else:
             raise ValueError("Vulnerability Report type not found")
 
+        if cert_report_type := ReportItemType.get_by_title("CERT Report"):
+            cert_report_type_id = cert_report_type.id
+        else:
+            raise ValueError("CERT Report type not found")
+
         report_item1_data = {
             "id": "c285fe34-474d-4197-8b1a-564ee46e13f5",
             "title": "OSINT report Item with TLP:Clear",
@@ -191,29 +196,37 @@ def report_items(app):
 
         report_item2_data = {
             "id": "3f98a483-ede6-4614-b329-76f85163d810",
-            "title": "OSINT report Item with TLP:Red",
+            "title": "OSINT report Item with TLP:Amber",
             "completed": False,
             "report_item_type_id": osint_report_type_id,
         }
 
         report_item3_data = {
             "id": "4f61e069-bbd0-4fdc-b719-db2a801cb7de",
-            "title": "CERT Report Item without TLP level",
+            "title": "CERT Report Item with TLP:Red",
             "completed": False,
             "report_item_type_id": vulnerability_report_type_id,
         }
 
-        report_item1, _ = ReportItem.add(report_item1_data, None)
-        report_item2, _ = ReportItem.add(report_item2_data, None)
-        report_item3, _ = ReportItem.add(report_item3_data, None)
+        report_item4_data = {
+            "id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+            "title": "CERT Report without TLP",
+            "completed": False,
+            "report_item_type_id": cert_report_type_id,
+        }
 
-        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item2.id, "TLP"):
-            report_item2.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.AMBER.value}}, True)
+        report_item_clear, _ = ReportItem.add(report_item1_data, None)
+        report_item_amber, _ = ReportItem.add(report_item2_data, None)
+        report_item_red, _ = ReportItem.add(report_item3_data, None)
+        report_item_without_TLP, _ = ReportItem.add(report_item4_data, None)
 
-        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item3.id, "TLP"):
-            report_item3.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.RED.value}}, True)
+        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item_amber.id, "TLP"):
+            report_item_amber.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.AMBER.value}}, True)
 
-        yield report_item1, report_item2, report_item3
+        if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item_red.id, "TLP"):
+            report_item_red.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.RED.value}}, True)
+
+        yield report_item_clear, report_item_amber, report_item_red, report_item_without_TLP
 
         ReportItem.delete_all()
 

@@ -157,14 +157,16 @@ export default {
   setup() {
     const assessStore = useAssessStore()
 
-    const { storySelection, activeSelection, newsItemSelection } =
+    const { storySelection, activeSelection, newsItemSelection, stories } =
       storeToRefs(assessStore)
     const sharingDialog = ref(false)
 
     const showUnGroup = computed(() => {
       if (storySelection.value.length !== 1) return false
 
-      const story = assessStore.getStoryByID(storySelection.value[0])
+      const story = stories.value.items.filter(
+        (item) => item?.id === storySelection.value[0]
+      )[0]
       if (story === undefined || story.news_items.length < 2) return false
 
       return true

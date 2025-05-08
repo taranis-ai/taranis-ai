@@ -27,6 +27,7 @@ dependencies = [
     "requests",
     "setuptools",
     "heroicons[jinja]>=2.11.0",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -46,7 +47,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock"]
+dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock", "pytest-playwright", "playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -76,3 +77,9 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
+
+[tool.uv]
+config-settings = { editable_mode = "compat" }
+
+[tool.uv.sources]
+taranis-models = { path = "../models", editable = true }
