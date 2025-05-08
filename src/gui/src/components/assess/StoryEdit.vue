@@ -380,10 +380,10 @@ export default {
           links: story.value.links
         })
         notifySuccess(result)
+        await fetchStoryData(props.storyProp.id)
       } catch (e) {
         notifyFailure(e)
       }
-      router.push('/story/' + props.storyProp.id)
     }
 
     async function triggerSummaryBot() {
@@ -397,13 +397,7 @@ export default {
 
     async function fetchStoryData(storyId) {
       try {
-        console.log('Fetching story data for ID:', storyId)
         await assessStore.updateStoryByID(storyId)
-        console.debug(
-          'Story From Store Last updated: ',
-          assessStore.getStoryByID(storyId).updated
-        )
-        console.debug('Story From Prop Last updated: ', props.storyProp.updated)
         story.value = JSON.parse(JSON.stringify(props.storyProp))
       } catch (e) {
         console.error('Failed to fetch story data:', e)
@@ -515,32 +509,10 @@ export default {
       }
     }
 
-    function diffObjects(obj1, obj2) {
-      const diffs = {}
-      for (const key in obj1) {
-        if (!isEqual(obj1[key], obj2[key])) {
-          diffs[key] = { new: obj1[key], old: obj2[key] }
-        }
-      }
-      for (const key in obj2) {
-        if (!(key in obj1)) {
-          diffs[key] = { new: undefined, old: obj2[key] }
-        }
-      }
-      return diffs
-    }
-
     watch(
       () => story.value,
       (newStory) => {
         dirty.value = !isEqual(newStory, props.storyProp)
-        if (dirty.value) {
-          console.debug('Story is dirty')
-          const diffs = diffObjects(newStory, props.storyProp)
-          console.debug('Diffs:', diffs)
-        } else {
-          console.debug('Story is clean')
-        }
       },
       { deep: true, immediate: true }
     )

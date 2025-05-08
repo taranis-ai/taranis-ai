@@ -144,24 +144,29 @@ export const useAssessStore = defineStore(
       )
     }
     async function updateStoryByID(id) {
-      const response = await getStory(id)
-      const updated_item = response.data
-      let found = false
+      const { data: updatedItem } = await getStory(id)
 
-      stories.value.items = stories.value.items.map((item) => {
-        if (item && item.id === id) {
-          found = true
-          return { ...item, ...updated_item }
+      // 2. Find the existing index in your reactive array
+      const idx = stories.value.items.findIndex(
+        (item) => item != null && item.id === updatedItem.id
+      )
+
+      if (idx !== -1) {
+        // 3a. If found, splice in an in-place replacement so Vue notices the change
+        const existing = stories.value.items[idx]
+        const merged = {
+          ...existing,
+          ...updatedItem
         }
-        return item
-      })
-
-      if (!found) {
-        stories.value.items.push(updated_item)
+        stories.value.items.splice(idx, 1, merged)
+      } else {
+        stories.value.items.push(updatedItem)
       }
-      console.debug('Updated Story', updated_item)
-      return updated_item
+
+      console.debug('Updated Story', updatedItem)
+      return updatedItem
     }
+
     async function voteOnStory(id, vote) {
       try {
         await voteStory(id, vote)
