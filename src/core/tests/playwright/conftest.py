@@ -201,10 +201,9 @@ def stories_date_descending(app, stories):
     with app.app_context():
         creation_timestamps = []
         for story_id in stories:
-            try:
-                if s := Story.get(story_id):
-                    creation_timestamps.append(s.created)
-            except AttributeError:
+            if s := Story.get(story_id):
+                creation_timestamps.append(s.created)
+            else:
                 creation_timestamps.append(datetime.fromtimestamp(0))
         story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
     yield story_ids
@@ -217,12 +216,9 @@ def stories_date_descending_not_important(app, stories_date_descending):
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
-            try:
-                if s := Story.get(story_id):
-                    if not s.important:
-                        story_ids.append(story_id)
-            except AttributeError:
-                continue
+            if s := Story.get(story_id):
+                if not s.important:
+                    story_ids.append(story_id)
     yield story_ids
 
 
@@ -233,12 +229,9 @@ def stories_date_descending_important(app, stories_date_descending):
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
-            try:
-                if s := Story.get(story_id):
-                    if s.important:
-                        story_ids.append(story_id)
-            except AttributeError:
-                continue
+            if s := Story.get(story_id):
+                if s.important:
+                    story_ids.append(story_id)
     yield story_ids
 
 
@@ -249,10 +242,9 @@ def stories_relevance_descending(app, stories):
     with app.app_context():
         relevances = []
         for story_id in stories:
-            try:
-                if s := Story.get(story_id):
-                    relevances.append(s.relevance)
-            except AttributeError:
+            if s := Story.get(story_id):
+                relevances.append(s.relevance)
+            else:
                 relevances.append(0)
         story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
     yield story_ids
