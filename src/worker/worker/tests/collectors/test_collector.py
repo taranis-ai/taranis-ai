@@ -205,7 +205,7 @@ def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
 
 
 def test_misp_collector_collect(misp_collector_mock, misp_collector):
-    from worker.tests.misp_event_test_data import source
+    from worker.tests.misp_collector_test_data import source
 
     result = misp_collector.collect(source)
 
