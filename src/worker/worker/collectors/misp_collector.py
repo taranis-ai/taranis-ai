@@ -46,33 +46,7 @@ class MISPCollector(BaseCollector):
 
     def collect(self, source: dict, manual: bool = False) -> None:
         self.parse_parameters(source.get("parameters", ""))
-
-        misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
-
-        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
-        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="taranis-news-item", pythonify=True)  # type: ignore
-
-        logger.debug(f"{taranis_objects=}")
-        event_ids = set()
-        for obj in taranis_objects:
-            event_ids.add(obj.event_id)  # type: ignore
-            logger.debug(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
-
-        events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
-        logger.debug(f"{events=}")
-        story_dicts = [
-            self.get_story(event, source)
-            for event in events
-            if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
-        ]
-        story_dicts: list[dict] = [s for s in story_dicts if s is not None]
-
-        for story in story_dicts:
-            if self.check_for_proposal_existence(misp, story.get("id", "")):
-                story["has_proposals"] = f"{self.url}/events/view/{story.get('id')}"
-        logger.debug(f"{story_dicts=}")
-        self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
+        return self.misp_collector(source)
 
     def check_for_proposal_existence(self, misp: PyMISP, event_uuid: str) -> bool:
         resp = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
@@ -236,6 +210,35 @@ class MISPCollector(BaseCollector):
             logger.error(f"The Taranis event is malformed and does not contain the required properties: {story_properties=}")
             raise RuntimeError("The Taranis event is malformed and does not contain the required properties")
         return self.to_story_dict(story_properties, story_news_items, event.get("Event", {}).get("uuid"))
+
+    def misp_collector(self, source: dict) -> None:
+        misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
+
+        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
+        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
+        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="taranis-news-item", pythonify=True)  # type: ignore
+
+        logger.debug(f"{taranis_objects=}")
+        event_ids = set()
+        for obj in taranis_objects:
+            event_ids.add(obj.event_id)  # type: ignore
+            print(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
+
+        events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
+        logger.debug(f"{events=}")
+        story_dicts = [
+            self.get_story(event, source)
+            for event in events
+            if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
+        ]
+        story_dicts: list[dict] = [s for s in story_dicts if s is not None]
+
+        for story in story_dicts:
+            if self.check_for_proposal_existence(misp, story.get("id", "")):
+                story["has_proposals"] = f"{self.url}/events/view/{story.get('id')}"
+        logger.debug(f"{story_dicts=}")
+        self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
+        return None
 
 
 if __name__ == "__main__":

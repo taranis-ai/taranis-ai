@@ -121,6 +121,17 @@ class BaseCollector:
 
         return news_items
 
+    def process_news_items_in_stories(self, stories: list[dict], source: dict, story_attribute_key: str | None = None) -> list[dict]:
+        processed_stories = []
+        for story in stories:
+            new_story = story.copy()
+            if news_items := new_story.get("news_items"):
+                processed_news_items = self.process_news_items(news_items, source)
+                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
+                logger.debug(f"{new_story['news_items']=}")
+            processed_stories.append(new_story)
+        return processed_stories
+
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
@@ -140,21 +151,13 @@ class BaseCollector:
             return self.publish(news_items, source)
 
         stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
+        processed_stories = self.process_news_items_in_stories(stories_for_publishing, source, story_attribute_key)
 
-        processed_stories = []
-        for story in stories_for_publishing:
-            new_story = story.copy()
-            if news_items := new_story.get("news_items"):
-                processed_news_items = self.process_news_items(news_items, source)
-                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
-                logger.debug(f"{new_story['news_items']=}")
-            processed_stories.append(new_story)
-
-        if processed_stories[0].get("id"):
-            self.publish_misp_stories(processed_stories, story_attribute_key, source)
-
+        if story_attribute_key == "misp_event_uuid":
+            processed_stories = self.prepare_misp_stories(processed_stories, story_attribute_key, source)
         for story in processed_stories:
             self.core_api.add_or_update_story(story)
+        self.core_api.update_osintsource_status(source["id"], None)
 
     def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
         existing_stories = self.core_api.get_stories({"source": source["id"]})
@@ -184,7 +187,8 @@ class BaseCollector:
 
         return new_stories
 
-    def publish_misp_stories(self, story_lists: list[dict], story_attribute_key: str, source: dict):
+    def prepare_misp_stories(self, story_lists: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
+        stories = []
         for story in story_lists:
             if existing_story := self.core_api.get_stories({"story_id": story.get("id")}):
                 if len(existing_story) > 1:
@@ -197,7 +201,8 @@ class BaseCollector:
                 if news_items_to_delete := self.get_news_items_to_delete(story, existing_story[0]):
                     story["news_items_to_delete"] = news_items_to_delete
 
-                self.core_api.add_or_update_story(story)
+            stories.append(story)
+        return stories
 
     def check_internal_changes(self, existing_story: dict) -> bool:
         if existing_story.get("last_change") == "internal":

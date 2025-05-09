@@ -79,6 +79,24 @@ workers = [
         "type": "RT_COLLECTOR",
     },
     {
+        "type": "MISP_COLLECTOR",
+        "name": "MISP Collector",
+        "description": "Colletor for MISP",
+        "parameters": [
+            {"parameter": "URL", "rules": "required"},
+            {"parameter": "API_KEY", "rules": "required"},
+            {"parameter": "ORGANISATION_ID", "rules": "required"},
+            {"parameter": "SHARING_GROUP_ID"},
+            {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "SSL_CHECK", "type": "switch"},
+            {"parameter": "REQUEST_TIMEOUT", "type": "number"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+        ],
+    },
+    {
         "type": "ANALYST_BOT",
         "name": "Analyst Bot",
         "parameters": [
@@ -273,23 +291,6 @@ workers = [
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
             {"parameter": "SHARING_GROUP_ID"},
             {"parameter": "DISTRIBUTION"},
-        ],
-    },
-    {
-        "type": "MISP_COLLECTOR",
-        "name": "MISP Collector",
-        "description": "Colletor for MISP",
-        "parameters": [
-            {"parameter": "URL", "rules": "required"},
-            {"parameter": "API_KEY", "rules": "required"},
-            {"parameter": "ORGANISATION_ID", "rules": "required"},
-            {"parameter": "SSL_CHECK", "type": "switch"},
-            {"parameter": "REQUEST_TIMEOUT", "type": "number"},
-            {"parameter": "USER_AGENT"},
-            {"parameter": "PROXY_SERVER"},
-            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
-            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
-            {"parameter": "SHARING_GROUP_ID"},
         ],
     },
 ]
