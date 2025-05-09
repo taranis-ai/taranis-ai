@@ -81,7 +81,7 @@ workers = [
     {
         "type": "MISP_COLLECTOR",
         "name": "MISP Collector",
-        "description": "Colletor for MISP",
+        "description": "Collector for MISP",
         "parameters": [
             {"parameter": "URL", "rules": "required"},
             {"parameter": "API_KEY", "rules": "required"},
