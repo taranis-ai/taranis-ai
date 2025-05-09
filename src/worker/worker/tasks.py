@@ -1,33 +1,32 @@
-from celery import Celery
-
 from worker.config import Config
-import worker.misc.misc_tasks  # noqa: F401
 from worker.log import logger
 
 
-def setup_tasks(app: Celery):
-    if "Bots" in Config.WORKER_TYPES:
-        from worker.bots.bot_tasks import BotTask
+def setup_tasks():
+    flows = []
+    from worker.misc.misc_tasks import debug_flow
 
-        app.register_task(BotTask())
-    if "Collectors" in Config.WORKER_TYPES:
-        from worker.collectors.collector_tasks import CollectorTask
+    flows.append(debug_flow.to_deployment(name="debug_task"))
 
-        app.register_task(CollectorTask())
     if "Presenters" in Config.WORKER_TYPES:
         try:
-            from worker.presenters.presenter_tasks import PresenterTask
+            from worker.presenters.presenter_flow import presenter_flow  # noqa: F401
 
-            app.register_task(PresenterTask())
+            flows.append(presenter_flow.to_deployment(name="presenter_flow"))
         except OSError as e:
             logger.critical(f"Failed to load PDFPresenter: {e}. Ensure WeasyPrint and dependencies are installed.")
 
-    if "Publishers" in Config.WORKER_TYPES:
-        from worker.publishers.publisher_tasks import PublisherTask
+    # TODO: migrate to prefect
+    # if "Bots" in Config.WORKER_TYPES:
+    #     import worker.bots.bot_tasks  # noqa: F401
 
-        app.register_task(PublisherTask())
+    # if "Collectors" in Config.WORKER_TYPES:
+    #     import worker.collectors.collector_tasks  # noqa: F401
 
-    if "Connectors" in Config.WORKER_TYPES:
-        from worker.connectors.connector_tasks import ConnectorTask
+    # if "Publishers" in Config.WORKER_TYPES:
+    #     import worker.publishers.publisher_tasks  # noqa: F401
 
-        app.register_task(ConnectorTask())
+    # if "Connectors" in Config.WORKER_TYPES:
+    #     import worker.connectors.connector_tasks  # noqa: F401
+
+    return flows
