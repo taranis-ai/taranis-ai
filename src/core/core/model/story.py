@@ -407,7 +407,7 @@ class Story(BaseModel):
             if code != 200 and message.get("error") == "Story already exists":
                 logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
                 cls.handle_conflicting_news_items(data)
-                return {"warning": f"Story being added {data['id']} contains existing content. A conflict is raised."}, code
+                return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, 409
             return message, code
 
         if not conflict:
