@@ -58,6 +58,7 @@ class MISPCollector(BaseCollector):
 
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
+        logger.debug(f"{len(events)=}")
         story_dicts = [
             self.get_story(event, source)
             for event in events

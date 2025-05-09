@@ -58,6 +58,7 @@ def serialize_result(result: dict | str | None = None):
 
     if "exc_message" in result:
         if isinstance(result["exc_message"], (list, tuple)):
+            logger.debug(f"{result["exc_message"]=}")
             return " ".join(result["exc_message"])
         return result["exc_message"]
 
