@@ -118,7 +118,7 @@ def rt_mock(requests_mock, collectors_mock):
 
 
 @pytest.fixture
-def misp_collector_mock(requests_mock, collectors_mock):
+def misp_collector_mock(requests_mock):
     from worker.tests.misp_collector_test_data import misp_event, taranis_objects
 
     requests_mock.get("https://test.misp.test", json=misp_event)
