@@ -81,7 +81,6 @@ class BaseView:
     def edit_view(cls, object_id: int = 0):
         template = cls.get_update_template()
         context = cls.get_update_context(object_id)
-        logger.debug(f"Rendering template: {template} with context: {context}")
         return render_template(template, **context)
 
     @classmethod
@@ -139,18 +138,22 @@ class BaseView:
             params = convert_query_params(request.args, PagingData)
             page = PagingData(**params)
             items = DataPersistenceLayer().get_objects(cls.model, page)
-            error = None
+            error = None if items else f"No {cls.model_name()} items found"
         except ValidationError as exc:
             logger.exception(f"Error validating {cls.model_name()}")
             items = None
             error = exc.errors()[0]["msg"]
         except Exception as exc:
+            logger.exception(f"Error retrieving {cls.model_name()} items")
             items = None
             error = str(exc)
 
+        if error:
+            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
+            return render_template("partials/error.html", error=error), 400
+
         template = cls.get_list_template()
         context = cls.get_view_context(items, error)
-        logger.debug(f"Rendering template: {template} with context: {context}")
         return render_template(template, **context)
 
     @classmethod

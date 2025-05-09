@@ -63,7 +63,7 @@ class LoginView(MethodView):
         if not core_response.ok:
             return render_template("login/index.html", error=core_response.json().get("error")), core_response.status_code
 
-        response = Response(status=core_response.status_code, headers={"HX-Redirect": "/frontend/"})
+        response = Response(status=core_response.status_code, headers={"HX-Redirect": url_for("base.dashboard")})
         set_access_cookies(response, jwt_token)
 
         return response
