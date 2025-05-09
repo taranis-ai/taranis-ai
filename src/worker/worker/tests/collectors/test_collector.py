@@ -204,6 +204,14 @@ def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     assert str(exception.value) == error_msg
 
 
+def test_misp_collector_collect(misp_collector_mock, misp_collector):
+    from worker.tests.misp_event_test_data import source
+
+    result = misp_collector.collect(source)
+
+    assert result is None
+
+
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
     emptylist_results = rss_collector.filter_by_word_list(input_news_items, [])
