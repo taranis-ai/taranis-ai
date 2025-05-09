@@ -247,28 +247,3 @@ class MISPCollector(BaseCollector):
 
         self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
         return None
-
-
-if __name__ == "__main__":
-    collector = MISPCollector()
-    source = {
-        "description": "",
-        "icon": None,
-        "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        "last_attempted": None,
-        "last_collected": None,
-        "last_error_message": None,
-        "name": "https",
-        "parameters": {
-            "ADDITIONAL_HEADERS": "",
-            "API_KEY": "bXSZEtpNQL6somSCz08x3IzEnDx1bkM6wwZRd0uZ",
-            "PROXY_SERVER": "",
-            "REFRESH_INTERVAL": "",
-            "URL": "https://localhost",
-            "USER_AGENT": "",
-            # "SHARING_GROUP_ID": "1",
-        },
-        "state": -1,
-        "type": "misp_connector",
-    }
-    collector.collect(source)
