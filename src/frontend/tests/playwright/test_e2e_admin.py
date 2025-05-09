@@ -23,12 +23,16 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        self.highlight_element(page.locator("role=button")).click()
+        self.highlight_element(page.get_by_test_id("login-button")).click()
 
-    def test_admin_user_management(self, taranis_frontend: Page):
+    def test_admin_user_management(self, taranis_frontend: Page, e2e_server):
         page = taranis_frontend
 
+        def check_dashboard():
+            expect(page.locator("#dashboard")).to_be_visible()
+
         def add_organization():
+            page.goto(f"{e2e_server.url()}/admin/organizations")
             page.get_by_role("link", name="Administration").click()
             page.get_by_role("link", name="Organizations").click()
             page.get_by_role("button", name="New Item").click()
@@ -102,6 +106,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def assert_update_user_2():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
+        check_dashboard()
         add_organization()
         add_role()
         add_user()

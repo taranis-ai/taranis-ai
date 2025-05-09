@@ -136,6 +136,7 @@
     hx-get="{{ request.path }}"
     hx-push-url="true"
     hx-target="#{{ table_id }}"
+    hx-target-error="#error-msg"
     hx-trigger="input delay:500ms"
   >
     <input
