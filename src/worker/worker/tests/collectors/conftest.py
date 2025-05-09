@@ -45,6 +45,11 @@ def rt_collector():
 
 
 @pytest.fixture
+def misp_collector():
+    yield collectors.MISPCollector()
+
+
+@pytest.fixture
 def osint_source_update_mock(requests_mock):
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/1", json={})
 
@@ -110,3 +115,27 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
     requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})
+
+
+@pytest.fixture
+def misp_collector_mock(requests_mock, collectors_mock):
+    from worker.tests.misp_event_test_data import misp_event, taranis_objects
+
+    requests_mock.get("https://test.misp.test", json=misp_event)
+    requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
+    requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
+    requests_mock.post("https://test.misp.test/objects/restSearch", json=taranis_objects)
+    requests_mock.get("https://test.misp.test/events/view/49", json=misp_event)
+    requests_mock.get("https://test.misp.test/shadow_attributes/index/a5fd9136-59ee-4178-8139-742130ed50a7", json={})
+    requests_mock.get("http://local.taranis.ai/api/worker/stories?source=b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
+    requests_mock.get("http://local.taranis.ai/api/worker/stories?story_id=a5fd9136-59ee-4178-8139-742130ed50a7", json={})
+    requests_mock.put("http://local.taranis.ai/api/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
+    requests_mock.post("http://local.taranis.ai/api/worker/stories", json={})
+
+    requests_mock.get(
+        "https://test.misp.test/users/view/me",
+        json={
+            "Role": {},
+            "UserSetting": {"items": "test"},
+        },
+    )
