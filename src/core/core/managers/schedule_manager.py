@@ -2,8 +2,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
-from prefect import task, flow
-from prefect.schedules import Cron
 from datetime import datetime, timedelta
 
 from core.log import logger
@@ -41,13 +39,7 @@ class Scheduler:
         self._scheduler.start()
 
     def add_celery_task(self, task: dict):
-        debug_flow.deploy(
-            name="debug_flow",
-            work_pool_name="docker-pool",
-            image="",
-            push=False,
-            build=False,
-        )
+        pass
 
     @property
     def scheduler(self):
@@ -112,29 +104,10 @@ class Scheduler:
         return fire_times
 
 
-@task(task_run_name="debug_task", log_prints=True)
-async def debug_task(name: str) -> None:
-    logger.debug(f"Debug task executed: {name}")
-
-
-@flow(log_prints=True, flow_run_name="debug_flow")
-async def debug_flow(names: list[str]) -> None:
-    for name in names:
-        await debug_task(name=name)
-
-
 def initialize():
+    pass
     #    global schedule
     #    schedule = Scheduler()
 
     #    schedule.add_celery_task(cleanup_blacklist_periodic_task)
     #    logger.debug("Scheduler initialized")
-
-    debug_flow.deploy(
-        name="debug_flow",
-        work_pool_name="docker-pool",
-        image="",
-        schedule=Cron("0 0 * * *"),
-        push=False,
-        build=False,
-    )
