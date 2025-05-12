@@ -2,15 +2,15 @@
 <div class="flex gap-4">
   <div class="grow-0">
     <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
-      New Organization
+      New {{ name }}
     </button>
   </div>
-  {{ table_search_bar('organizations-table') }}
+  {{ table_search_bar('{{ model_name }}-table') }}
 </div>
 
-{% set columns = [
+{% set columns =  columns | default([
     {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
     {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
-] %}
+]) %}
 
-{{ table('organizations-table', organizations, columns, routes.base_route) }}
+{{ table('{{ model_name }}-table', {{ model_name }}s, columns, routes.base_route) }}

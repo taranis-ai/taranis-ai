@@ -14,6 +14,7 @@ class BaseView:
     htmx_update_template: str = ""
     htmx_list_template: str = ""
     default_template: str = ""
+    edit_template: str = ""
     base_route: str = ""
     edit_route: str = ""
     _registry = {}
@@ -21,6 +22,23 @@ class BaseView:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         BaseView._registry[cls.pretty_name()] = cls
+
+    @classmethod
+    def _common_context(cls, error: str | None = None, object_id: int | str = 0):
+        object_ctx = {
+            f"{cls.model_name()}_id": object_id,
+        }
+
+        return {
+            "error": error,
+            "name": cls.pretty_name(),
+            "templates": cls.get_template_urls(),
+            "routes": {
+                "base_route": cls.get_base_route(),
+                "edit_route": cls.get_edit_route(**object_ctx),
+            },
+            "model_name": cls.model_name(),
+        } | object_ctx
 
     @classmethod
     def model_name(cls) -> str:
@@ -43,6 +61,10 @@ class BaseView:
         return cls.htmx_update_template or f"{cls.model_name().lower()}/{cls.model_name().lower()}_form.html"
 
     @classmethod
+    def get_edit_template(cls) -> str:
+        return cls.edit_template or f"{cls.model_name().lower()}/{cls.model_name().lower()}_edit.html"
+
+    @classmethod
     def get_default_template(cls) -> str:
         return cls.default_template or f"{cls.model_name().lower()}/index.html"
 
@@ -57,7 +79,7 @@ class BaseView:
         return url_for(route, **kwargs)
 
     @classmethod
-    def process_form_data(cls, object_id: int):
+    def process_form_data(cls, object_id: int | str):
         try:
             obj = cls.model(**parse_formdata(request.form))
             result = DataPersistenceLayer().store_object(obj) if object_id == 0 else DataPersistenceLayer().update_object(obj, object_id)
@@ -71,20 +93,30 @@ class BaseView:
 
     @classmethod
     def get_update_template(cls):
-        return cls.get_htmx_update_template() if is_htmx_request() else cls.get_default_template()
+        return cls.get_htmx_update_template() if is_htmx_request() else cls.get_edit_template()
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, object_id: int | str):
         return {}
 
     @classmethod
-    def edit_view(cls, object_id: int = 0):
+    def get_template_urls(cls):
+        return {
+            "htmx_update_template": cls.get_htmx_update_template(),
+            "htmx_list_template": cls.get_htmx_list_template(),
+            "update_template": cls.get_update_template(),
+            "list_template": cls.get_list_template(),
+            "default_template": cls.get_default_template(),
+        }
+
+    @classmethod
+    def edit_view(cls, object_id: int | str = 0):
         template = cls.get_update_template()
         context = cls.get_update_context(object_id)
         return render_template(template, **context)
 
     @classmethod
-    def get_update_context(cls, object_id: int, error: str | None = None, form_error: str | None = None, resp_obj=None):
+    def get_update_context(cls, object_id: int | str, error: str | None = None, form_error: str | None = None, resp_obj=None):
         dpl = DataPersistenceLayer()
         if object_id == 0:
             form_action = f"hx-post={cls.get_base_route()}"
@@ -92,13 +124,11 @@ class BaseView:
             route_args: dict[str, Any] = {f"{cls.model_name()}_id": object_id}
             form_action = f"hx-put={cls.get_edit_route(**route_args)}"
 
-        context = {
-            f"{cls.model_name()}_id": object_id,
-            "error": error,
+        context = cls._common_context(error=error, object_id=object_id)
+        context |= {
             "form_error": form_error,
             "form_action": form_action,
-            "model_name": cls.model_name(),
-            "name": cls.pretty_name(),
+            "submit_text": f"Create {cls.pretty_name()}" if object_id == 0 else f"Update {cls.pretty_name()}",
         }
 
         if resp_obj:
@@ -112,17 +142,14 @@ class BaseView:
 
     @classmethod
     def get_view_context(cls, objects: list[TaranisBaseModel] | None = None, error: str | None = None):
-        context = {
-            f"{cls.model_plural_name()}": objects,
-            "error": error,
-            "name": cls.pretty_name(),
-            "model_name": cls.model_name(),
-        }
+        context = cls._common_context(error)
+        if objects:
+            context[f"{cls.model_plural_name()}"] = objects
         context |= cls.get_extra_context(0)
         return context
 
     @classmethod
-    def update_view(cls, object_id: int = 0):
+    def update_view(cls, object_id: int | str = 0):
         resp_obj, error = cls.process_form_data(object_id)
         if error:
             logger.error(f"Error processing form data: {error}")
@@ -172,6 +199,6 @@ class BaseView:
         return render_template(template, **{f"{cls.model_plural_name()}": items, "error": error})
 
     @classmethod
-    def delete_view(cls, object_id):
+    def delete_view(cls, object_id: str | int):
         result = DataPersistenceLayer().delete_object(cls.model, object_id)
         return Response(status=result.status_code, headers={"HX-Refresh": "true"}) if result else "error"

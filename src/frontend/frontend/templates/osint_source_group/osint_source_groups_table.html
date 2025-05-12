@@ -1,8 +1,16 @@
-{% from "macros/table.html" import table with context %}
+{% from "macros/table.html" import table_search_bar, table with context %}
+<div class="flex gap-4">
+  <div class="grow-0">
+    <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
+      New {{ name }}
+    </button>
+  </div>
+  {{ table_search_bar('osint-source-groups-table') }}
+</div>
 
 {% set columns = [
     {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
     {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ] %}
 
-{{ table('organizations-table', organizations, columns, url_for('admin.organizations')) }}
+{{ table('osint-source-groups-table', osint_source_groups, columns, routes.base_route) }}

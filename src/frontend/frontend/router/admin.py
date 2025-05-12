@@ -204,21 +204,21 @@ class SourceGroupsAPI(MethodView):
 
     @auth_required()
     def post(self):
-        return SourceGroupView.update_view(object_id=0)
+        return SourceGroupView.update_view(object_id="0")
 
 
 class UpdateSourceGroup(MethodView):
     @auth_required()
-    def get(self, source_group_id: int = 0):
-        return SourceGroupView.edit_view(object_id=source_group_id)
+    def get(self, osint_source_group_id: str = "0"):
+        return SourceGroupView.edit_view(object_id=osint_source_group_id)
 
     @auth_required()
-    def put(self, source_group_id):
-        return SourceGroupView.update_view(object_id=source_group_id)
+    def put(self, osint_source_group_id: str):
+        return SourceGroupView.update_view(object_id=osint_source_group_id)
 
     @auth_required()
-    def delete(self, source_group_id):
-        return SourceGroupView.delete_view(object_id=source_group_id)
+    def delete(self, osint_source_group_id: str):
+        return SourceGroupView.delete_view(object_id=osint_source_group_id)
 
 
 class BotsAPI(MethodView):
@@ -442,7 +442,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/worker_types/<int:worker_type_id>", view_func=UpdateWorkerType.as_view("edit_worker_type"))
 
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupsAPI.as_view("osint_source_groups"))
-    admin_bp.add_url_rule("/source_groups/<int:source_group_id>", view_func=UpdateSourceGroup.as_view("edit_osint_source_group"))
+    admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=UpdateSourceGroup.as_view("edit_osint_source_group"))
 
     admin_bp.add_url_rule("/bots", view_func=BotsAPI.as_view("bots"))
     admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=UpdateBot.as_view("edit_bot"))

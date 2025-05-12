@@ -8,6 +8,6 @@ class RoleView(BaseView):
     model = Role
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, object_id: int | str):
         dpl = DataPersistenceLayer()
         return {"permissions": [p.model_dump() for p in dpl.get_objects(Permissions)]}

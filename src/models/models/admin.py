@@ -178,11 +178,11 @@ class OSINTSource(TaranisBaseModel):
     id: str
     name: str
     description: str = ""
-    type: COLLECTOR_TYPES | Literal[""] = ""
-    parameters: list[ParameterValue] = Field(default_factory=list)
+    type: COLLECTOR_TYPES | None = None
+    parameters: dict[str, str] = Field(default_factory=dict)
     groups: list["OSINTSourceGroup"] = Field(default_factory=list)
 
-    icon: str | None = None  # We'll assume it can be a base64 string
+    icon: str | None = None
     state: int = -1
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
