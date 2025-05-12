@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+{% block head %}
+  <script src="{{ url_for('static', filename='js/fuse.js') }}"></script>
+{% endblock %}
 {% block content %}
 <div class="p-8" id="{{ model_name }}">
   <div class="text-3xl font-bold mb-4">

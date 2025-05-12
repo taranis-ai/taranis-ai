@@ -161,7 +161,7 @@ class WordList(TaranisBaseModel):
     _pretty_name = "Word List"
     _search_fields = ["name", "description"]
 
-    id: int
+    id: int | None = None
     name: str
     description: str | None = None
     usage: int = 0
@@ -195,7 +195,7 @@ class OSINTSourceGroup(TaranisBaseModel):
     _pretty_name = "OSINT Source Group"
     _search_fields = ["name", "description"]
 
-    id: str
+    id: str | None = None
     name: str
     description: str = ""
     default: bool = False
