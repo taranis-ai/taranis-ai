@@ -134,6 +134,18 @@ class Stories(MethodView):
         return Story.add_or_update(request.json)
 
 
+class MISPStories(MethodView):
+    @api_key_required
+    def post(self):
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        if not isinstance(data, list):
+            return {"error": "Expected a list of stories"}, 400
+        result, status = Story.add_or_update_for_misp(data)
+        sse_manager.news_items_updated()
+        return result, status
+
+
 class Tags(MethodView):
     @api_key_required
     def get(self):
@@ -239,6 +251,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
+    worker_bp.add_url_rule("/stories/misp", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
 

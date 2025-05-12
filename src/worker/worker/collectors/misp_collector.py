@@ -219,13 +219,12 @@ class MISPCollector(BaseCollector):
             event_ids.add(obj_event_id)
         return event_ids
 
+    def is_sharing_group_match(self, event: dict) -> bool:
+        event_sg_id = str(event.get("Event", {}).get("sharing_group_id"))
+        return not self.sharing_group_id or event_sg_id == str(self.sharing_group_id)
+
     def get_taranis_story_dicts(self, events: list[dict], source) -> list[dict]:
-        return [
-            story
-            for event in events
-            if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
-            if (story := self.get_story(event, source)) is not None
-        ]
+        return [story for event in events if self.is_sharing_group_match(event) if (story := self.get_story(event, source)) is not None]
 
     def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
         for story in story_dicts:
