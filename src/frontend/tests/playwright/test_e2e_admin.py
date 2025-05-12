@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import time
+from flask import url_for
 
 from playwright.sync_api import Page, expect
 import pytest
@@ -32,9 +33,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
-            page.goto(f"{e2e_server.url()}/admin/organizations")
-            page.get_by_role("link", name="Administration").click()
-            page.get_by_role("link", name="Organizations").click()
+            page.goto(url_for("admin.organizations"))
+            page.get_by_test_id("new-organization-button").click()
             page.get_by_role("button", name="New Item").click()
             page.get_by_label("Name").click()
             page.get_by_label("Name").fill("Test organizations")

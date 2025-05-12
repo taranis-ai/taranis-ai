@@ -141,7 +141,7 @@ jobs:
     defaults:
       run:
         working-directory: src/core
-    needs: [test_core, test_gui]
+    needs: [test_core, test_gui, test_frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -177,6 +177,15 @@ jobs:
 
       - name: Run e2e tests
         id: run_e2e
+        run: uv run pytest --e2e-ci
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras --dev
+
+      - name: Run e2e tests frontend
+        id: run_e2e_frontend
+        working-directory: src/frontend
         run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace

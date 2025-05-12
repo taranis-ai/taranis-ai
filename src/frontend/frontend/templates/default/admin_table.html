@@ -1,7 +1,7 @@
 {% from "macros/table.html" import table_search_bar, table with context %}
 <div class="flex gap-4">
   <div class="grow-0">
-    <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
+    <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
       New {{ name }}
     </button>
   </div>
