@@ -415,7 +415,6 @@ class Story(BaseModel):
                 cls.delete_news_items(data.pop("news_items_to_delete"))
 
             for news_item in data.get("news_items", []):
-                logger.debug(f"{NewsItem.get(news_item.get('id'))}")
                 if not NewsItem.get(news_item.get("id")):
                     result, _ = cls.add_single_news_item(news_item)
                     story_id = result.get("story_id")
@@ -425,8 +424,7 @@ class Story(BaseModel):
             cls.group_stories(story_ids)
             return cls.update(data["id"], data, external=True)
 
-        result = cls.update_with_conflicts(data["id"], data)
-        return result
+        return cls.update_with_conflicts(data["id"], data)
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
