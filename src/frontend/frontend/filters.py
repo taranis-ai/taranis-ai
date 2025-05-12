@@ -1,7 +1,6 @@
 from jinja2 import pass_context
 from flask import url_for
 
-from frontend.log import logger
 
 __all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var"]
 
@@ -32,6 +31,4 @@ def admin_action(value):
 
 @pass_context
 def get_var(ctx, name):
-    logger.debug(f"get_var: {name}")
-    logger.debug(f"ctx: {ctx.get(name)}")
     return ctx.get(name)
