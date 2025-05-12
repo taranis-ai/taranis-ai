@@ -112,9 +112,8 @@
 {% set order_params = {'order': order, 'page': 1} %}
 {% set order_url = update_query_params(order_params) %}
 {% if sortable %}
-<th>
+<th hx-boost>
   <a  href="{{ order_url }}"
-      hx-get="{{ order_url }}"
       hx-target="closest table"
       hx-push-url="true"
       class="link link-hover">
