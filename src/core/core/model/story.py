@@ -471,6 +471,21 @@ class Story(BaseModel):
         return cls.add(data)
 
     @classmethod
+    def add_or_update_for_misp(cls, data: list) -> "tuple[dict, int]":
+        if not data:
+            return {"error": "No data provided"}, 400
+        prepared_stories = cls.prepare_misp_stories(data)
+        results = []
+        for story in prepared_stories:
+            result, status = cls.add_or_update(story)
+            if status != 200:
+                results.append(result)
+
+        if results:
+            return {"error": "Some stories could not be added", "details": results}, 400
+        return {"message": "Stories added successfully"}, 200
+
+    @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
         title = news_item.get("title", "")
         link = news_item.get("link", "")
@@ -905,6 +920,41 @@ class Story(BaseModel):
                 story.update_status()
             except Exception:
                 logger.exception(f"Update Story: {story.id} Failed")
+
+    @classmethod
+    def prepare_misp_stories(cls, story_lists: list[dict]) -> list[dict]:
+        stories = []
+        for story in story_lists:
+            if existing_story := cls.get(story.get("id", {})):
+                if isinstance(existing_story, list):
+                    if len(existing_story) > 1:
+                        logger.warning(f"Multiple stories with the same story_id {story.get('id')} found")
+                        continue
+                    if cls.check_internal_changes(existing_story[0]):
+                        logger.info(f"Internal changes detected in story {existing_story[0].get('id')}, skipping update")
+                        story["conflict"] = True
+
+                    if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story[0]):
+                        story["news_items_to_delete"] = news_items_to_delete
+
+            stories.append(story)
+        return stories
+
+    @classmethod
+    def check_internal_changes(cls, existing_story: dict) -> bool:
+        if existing_story.get("last_change") == "internal":
+            return True
+        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items", []))
+
+    @classmethod
+    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list:
+        existing_news_items = existing_story.get("news_items", [])
+        new_news_items = new_story.get("news_items", [])
+
+        existing_ids = {item.get("id") for item in existing_news_items if item.get("id") is not None}
+        new_ids = {item.get("id") for item in new_news_items if item.get("id") is not None}
+
+        return list(existing_ids - new_ids)
 
     @classmethod
     def create_from_item(cls, news_item):

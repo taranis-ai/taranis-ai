@@ -222,6 +222,19 @@ class CoreApi:
             logger.exception("Cannot add or update story.")
             return None
 
+    def add_or_update_for_misp(self, stories: list[dict]):
+        """
+        Add or update a story for MISP.
+        """
+        try:
+            return self.api_post(
+                url="/worker/stories/misp",
+                json_data=stories,
+            )
+        except Exception:
+            logger.exception("Cannot add or update story.")
+            return None
+
     def store_task_result(self, data) -> dict | None:
         try:
             return self.api_post(url="/tasks/", json_data=data)
