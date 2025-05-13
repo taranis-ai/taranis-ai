@@ -54,7 +54,7 @@ class LoginView(MethodView):
         password = request.form.get("password")
 
         if not username or not password:
-            return render_template("login/index.html", error="Username and password are required"), 400
+            return render_template("login/index.html", login_error="Username and password are required"), 400
 
         core_response = CoreApi().login(username, password)
 
@@ -63,9 +63,9 @@ class LoginView(MethodView):
         logger.debug(f"Login response: {jwt_token}")
 
         if not core_response.ok:
-            return render_template("login/index.html", error=core_response.json().get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
-        response = Response(status=core_response.status_code, headers={"HX-Redirect": url_for("base.dashboard")})
+        response = Response(status=302, headers={"Location": url_for("base.dashboard")})
         set_access_cookies(response, jwt_token)
 
         return response
@@ -73,7 +73,7 @@ class LoginView(MethodView):
     def delete(self):
         core_response = CoreApi().logout()
         if not core_response.ok:
-            return render_template("login/index.html", error=core_response.json().get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
         response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
         response.delete_cookie("access_token")

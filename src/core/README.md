@@ -40,14 +40,20 @@ taranis-ai
 
 ## Development Setup
 
+It is best to follow the [dev setup guide](../../dev/README.md)
+
+
 ### 0. Read the documentation
 
 * [Flask](https://flask.palletsprojects.com)
 * [SQLAlchemy](https://www.sqlalchemy.org/)
 
 ### 1. Setup Database
+Set SQLAlchemy to use a temporary SQLite database.
 
-
+```bash
+export SQLALCHEMY_DATABASE_URI="sqlite:////tmp/taranis.db"
+```
 
 ### 2. Start Flask
 
@@ -62,10 +68,10 @@ This will start the Flask server and run the frontend service at `http://localho
 
 ### 3. Test
 
-To run the Unittests just call:
+To run the unit tests just call:
 
 ```bash
 pytest
 ```
 
-There are [e2e tests](./tests/playwright/README.md) using playwright
+There are [e2e tests](./tests/playwright/README.md) using Playwright

@@ -1,14 +1,5 @@
 {% from "macros/table.html" import table, table_search_bar with context %}
 
-<div class="flex gap-4">
-  <div class="grow-0">
-    <button hx-get={{ url_for('admin.edit_role', role_id=0) }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
-      New Role
-    </button>
-  </div>
-  {{ table_search_bar('roles-table') }}
-</div>
-
 {% macro permissions_count(item) %}
     {{ item.permissions | length }}
 {% endmacro %}
@@ -19,4 +10,15 @@
     {'title': 'permissions', 'field': 'permissions', 'sortable': False, 'renderer': permissions_count }
 ] %}
 
-{{ table('roles-table', roles, columns, url_for('admin.roles')) }}
+<div id="{{ model_name }}-table-container">
+<div class="flex gap-4">
+  <div class="grow-0">
+    <button hx-get={{ url_for('admin.edit_role', role_id=0) }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
+      New Role
+    </button>
+  </div>
+  {{ table_search_bar(model_name + '-table-container') }}
+</div>
+
+{{ table(model_name + '-table', roles, columns, url_for('admin.roles')) }}
+</div>

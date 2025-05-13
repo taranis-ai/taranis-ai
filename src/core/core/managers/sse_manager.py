@@ -9,7 +9,7 @@ class SSEManager:
     def __init__(self):
         self.report_item_locks: dict = {}
         self.sse_url = Config.SSE_URL
-        self.api_key = Config.API_KEY
+        self.api_key = Config.API_KEY.get_secret_value()
         self.headers = self.get_headers()
         self.timeout = 60
         self.broker_error = 0

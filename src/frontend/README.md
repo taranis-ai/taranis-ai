@@ -62,7 +62,7 @@ This will start the Flask server and run the frontend service at `http://localho
 
 ### 3. Test
 
-To run the Unittests just call:
+To run the unit tests just call:
 
 ```bash
 pytest

@@ -86,6 +86,6 @@
 
         {{ form_select('Organization', 'organization', user.organization, organizations) }}
 
-        <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+        <input type="submit" class="btn btn-primary w-1/2" value="{{ form_action }}" />
     </form>
 </div>

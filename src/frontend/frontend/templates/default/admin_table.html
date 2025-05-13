@@ -1,12 +1,4 @@
 {% from "macros/table.html" import table_search_bar, table with context %}
-<div class="flex gap-4">
-  <div class="grow-0">
-    <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
-      New {{ name }}
-    </button>
-  </div>
-  {{ table_search_bar('{{ model_name }}-table') }}
-</div>
 
 {% set columns =  columns | default([
     {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
@@ -15,4 +7,16 @@
 
 {% set data = model_plural_name | get_var %}
 
-{{ table('{{ model_name }}-table', data, columns, routes.base_route) }}
+
+<div id="{{ model_name }}-table-container">
+<div class="flex gap-4">
+  <div class="grow-0">
+    <button hx-get={{ routes.edit_route }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+      New {{ name }}
+    </button>
+  </div>
+  {{ table_search_bar(model_name + '-table-container') }}
+</div>
+
+{{ table(model_name + '-table', data, columns, routes.base_route) }}
+</div>

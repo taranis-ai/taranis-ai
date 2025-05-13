@@ -28,6 +28,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
+        expect(page.locator("#dashboard")).to_be_visible()
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
