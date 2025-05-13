@@ -71,5 +71,5 @@ Script has variables to influence dest. subdirectories of respective pictures. C
 
 ## DB file for E2E
 
-Defined in `tests/.env`.
+Defined in `src/core/tests/.env`.
 When tests are stopped from command line, remove the database file manually.

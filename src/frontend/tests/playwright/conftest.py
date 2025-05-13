@@ -17,13 +17,7 @@ def run_core():
             env |= config
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
-        process = subprocess.Popen(
-            ["flask", "run"],
-            cwd=core_path,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        process = subprocess.Popen(["flask", "run"], cwd=core_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         yield process
         process.terminate()
         process.wait()

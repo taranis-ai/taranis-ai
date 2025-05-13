@@ -45,7 +45,9 @@ class ListUserCache(MethodView):
 
 class LoginView(MethodView):
     def get(self):
-        return render_template("login/index.html")
+        if CoreApi().check_if_api_connected():
+            return render_template("login/index.html")
+        return render_template("login/index.html", error=f"API is not reachable - {Config.TARANIS_CORE_URL}"), 500
 
     def post(self):
         username = request.form.get("username")
