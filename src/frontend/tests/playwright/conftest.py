@@ -1,13 +1,28 @@
 import os
 import pytest
+import time
 import subprocess
+import requests
 from dotenv import dotenv_values
 
 from playwright.sync_api import Browser
 
 
+def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
+    for _ in range(timeout_seconds):
+        try:
+            response = requests.get(url, timeout=timeout_seconds)
+            response.raise_for_status()
+            return True
+        except requests.exceptions.RequestException:
+            time.sleep(0.5)
+    response = requests.get(url, timeout=timeout_seconds)
+    response.raise_for_status()
+    return True
+
+
 @pytest.fixture(scope="session")
-def run_core():
+def run_core(app):
     # run the flask core as a subprocess in the background
     try:
         core_path = os.path.abspath("../core")
@@ -18,7 +33,7 @@ def run_core():
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
         process = subprocess.Popen(
-            ["flask", "run"],
+            ["flask", "run", "--port", "5000"],
             cwd=core_path,
             env=env,
             stdout=subprocess.PIPE,
@@ -26,25 +41,14 @@ def run_core():
             universal_newlines=True,
         )
 
-        import time
-
-        time.sleep(1)  # wait for the server to start
-
-        # Set non-blocking mode for stdout and stderr
-        os.set_blocking(process.stdout.fileno(), False)
-        os.set_blocking(process.stderr.fileno(), False)
-
         try:
-            output = process.stdout.read()
-        except Exception:
-            output = ""
-        try:
-            error = process.stderr.read()
-        except Exception:
-            error = ""
-
-        print("Output:", output)
-        print("Error:", error)
+            core_url = app.config.get("TARANIS_CORE_URL", "http://127.0.0.1:5000/api")
+            _wait_for_server_to_be_alive(f"{core_url}/isalive")
+        except requests.exceptions.RequestException as e:
+            if process:
+                process.terminate()
+                process.wait()
+            pytest.fail(str(e))
 
         yield
         process.terminate()

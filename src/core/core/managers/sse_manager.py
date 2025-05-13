@@ -50,7 +50,7 @@ class SSEManager:
         return {
             "report_item_id": report_item_id,
             "locked": True,
-            "lock_time": f"{self.report_item_locks[report_item_id]["lock_time"].astimezone().isoformat(timespec="seconds")}",
+            "lock_time": self.report_item_locks[report_item_id]["lock_time"].astimezone().isoformat(timespec="seconds"),
         }
 
     def report_item_lock(self, report_item_id: int, user_id):

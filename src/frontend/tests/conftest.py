@@ -17,7 +17,6 @@ def app():
             "TESTING": True,
             "DEBUG": True,
             "SERVER_NAME": "localhost",
-            "TARANIS_CORE_URL": "http://localhost:5000",
         }
     )
 
