@@ -17,8 +17,36 @@ def run_core():
             env |= config
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
-        process = subprocess.Popen(["flask", "run"], cwd=core_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        yield process
+        process = subprocess.Popen(
+            ["flask", "run"],
+            cwd=core_path,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+
+        import time
+
+        time.sleep(1)  # wait for the server to start
+
+        # Set non-blocking mode for stdout and stderr
+        os.set_blocking(process.stdout.fileno(), False)
+        os.set_blocking(process.stderr.fileno(), False)
+
+        try:
+            output = process.stdout.read()
+        except Exception:
+            output = ""
+        try:
+            error = process.stderr.read()
+        except Exception:
+            error = ""
+
+        print("Output:", output)
+        print("Error:", error)
+
+        yield
         process.terminate()
         process.wait()
     except Exception as e:
