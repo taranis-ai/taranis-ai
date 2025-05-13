@@ -61,6 +61,15 @@ class NewsItemTag(BaseModel):
         return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
 
     @classmethod
+    def find_by_names(cls, tag_names: list[str]) -> dict[str, "NewsItemTag"]:
+        if not tag_names:
+            return {}
+
+        stmt = db.select(cls).filter(func.lower(cls.name).in_([name.lower() for name in tag_names]))
+        results = db.session.execute(stmt).scalars().all()
+        return {tag.name.lower(): tag for tag in results}
+
+    @classmethod
     def apply_sort(cls, query, sort_str: str):
         if sort_str == "size_desc":
             return query.order_by(func.count(cls.name).desc())
