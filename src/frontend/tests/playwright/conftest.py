@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+
 from playwright.sync_api import Browser
 
 
@@ -71,8 +72,6 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     if request.config.getoption("--e2e-ci") == "e2e_ci":
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    page = context.new_page()
-    page.goto(e2e_server.url())
-    yield page
+    yield context.new_page()
     if request.config.getoption("--e2e-ci") == "e2e_ci":
         context.tracing.stop(path="trace.zip")
