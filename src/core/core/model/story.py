@@ -774,13 +774,17 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.assigned(story_id) for story_id in story_ids)
 
-    def set_tags(self, incoming_tags: list | dict, bot_type: str = "") -> None:
-        """
-        Synchronize story tags to match the provided list or dict of tags.
-        Adds new tags, removes obsolete ones.
-        """
+    def set_tags(self, incoming_tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
+        try:
+            return self.sync_tags(incoming_tags, bot_type)
+        except Exception as e:
+            logger.exception(f"Failed to set tags for story {self.id}")
+            db.session.rollback()
+            return {"error": str(e)}, 500
+
+    def sync_tags(self, incoming_tags, bot_type):
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        logger.debug("Parsed tags")
+        logger.debug("tags parsed")
 
         incoming_tag_names = set(parsed_tags.keys())
         existing_tag_names = {tag.name.lower() for tag in self.tags}
@@ -804,6 +808,7 @@ class Story(BaseModel):
             self.attributes.append(NewsItemAttribute(key=bot_type, value=str(len(tags_to_add))))
 
         db.session.commit()
+        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]]):
