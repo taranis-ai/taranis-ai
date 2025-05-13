@@ -233,3 +233,11 @@ class BaseView:
         if result:
             return Response(status=result.status_code, headers={"HX-Refresh": "true"})
         return "error"
+
+    @classmethod
+    def delete_multiple_view(cls, object_ids: list[str]):
+        results = []
+        results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
+        if any(r.ok for r in results):
+            return Response(status=200, headers={"HX-Refresh": "true"})
+        return Response(status=400, headers={"HX-Refresh": "true"})

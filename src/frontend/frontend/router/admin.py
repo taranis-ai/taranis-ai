@@ -109,6 +109,12 @@ class OrganizationsAPI(MethodView):
     def post(self):
         return OrganizationView.update_view(object_id=0)
 
+    @auth_required()
+    def delete(self):
+        if object_ids := request.form.getlist("ids"):
+            return OrganizationView.delete_multiple_view(object_ids=object_ids)
+        return Response(status=400, headers={"HX-Refresh": "true"})
+
 
 class UpdateOrganization(MethodView):
     @auth_required()
