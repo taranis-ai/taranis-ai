@@ -34,6 +34,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def check_dashboard():
             page.goto(url_for("base.dashboard", _external=True))
+            time.sleep(1)
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
