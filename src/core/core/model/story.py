@@ -774,7 +774,7 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.assigned(story_id) for story_id in story_ids)
 
-    def set_tags(self, incoming_tags: list | dict):
+    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
         try:
             parsed_tags = NewsItemTag.parse_tags(incoming_tags)
             incoming_tag_names = set(parsed_tags.keys())
@@ -785,11 +785,11 @@ class Story(BaseModel):
             self.remove_tags(tags_to_remove)
 
             db.session.commit()
-            return {"message": f"Updated tags: {incoming_tag_names}"}, 200
+            return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
         except Exception as e:
-            logger.exception(f"Failed to set tags: {e}")
+            logger.exception("Update News Item Tags Failed")
             db.session.rollback()
-            return {"error": f"Failed to set tags: {e}"}, 400
+            return {"error": str(e)}, 500
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():
