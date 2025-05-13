@@ -769,41 +769,41 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.assigned(story_id) for story_id in story_ids)
 
-    def set_tags(self, incoming_tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict):
         try:
-            return self.sync_tags(incoming_tags, bot_type)
+            parsed_tags = NewsItemTag.parse_tags(incoming_tags)
+            incoming_tag_names = set(parsed_tags.keys())
+            existing_tag_names = {tag.name for tag in self.tags}
+            tags_to_remove = existing_tag_names - incoming_tag_names
+
+            self.patch_tags(parsed_tags)
+            self.remove_tags(tags_to_remove)
+
+            db.session.commit()
+            return {"message": f"Updated tags: {incoming_tag_names}"}, 200
         except Exception as e:
-            logger.exception(f"Failed to set tags for story {self.id}")
+            logger.exception(f"Failed to set tags: {e}")
             db.session.rollback()
-            return {"error": str(e)}, 500
+            return {"error": f"Failed to set tags: {e}"}, 400
 
-    def sync_tags(self, incoming_tags, bot_type):
-        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        logger.debug("tags parsed")
+    def patch_tags(self, tags: dict[str, NewsItemTag]):
+        for tag in tags.values():
+            self.upsert_tag(tag)
 
-        incoming_tag_names = set(parsed_tags.keys())
-        existing_tag_names = {tag.name.lower() for tag in self.tags}
+    def remove_tags(self, keys: set[str]):
+        for key in keys:
+            if tag := self.find_tag_by_name(key):
+                self.tags.remove(tag)
+                db.session.delete(tag)
 
-        tags_to_add = incoming_tag_names - existing_tag_names
-        tags_to_remove = existing_tag_names - incoming_tag_names
+    def upsert_tag(self, tag: NewsItemTag) -> None:
+        if existing_tag := self.find_tag_by_name(tag.name):
+            existing_tag.tag_type = tag.tag_type
+        else:
+            self.tags.append(tag)
 
-        self.tags = [tag for tag in self.tags if tag.name.lower() not in tags_to_remove]
-
-        existing_db_tags = NewsItemTag.find_by_names(list(tags_to_add))
-
-        for tag_name in tags_to_add:
-            logger.debug(f"Adding tag: {tag_name}")
-            new_tag = parsed_tags[tag_name]
-            if existing_tag := existing_db_tags.get(tag_name.lower()):
-                new_tag.name = existing_tag.name
-                new_tag.tag_type = existing_tag.tag_type
-            self.tags.append(new_tag)
-
-        if bot_type:
-            self.attributes.append(NewsItemAttribute(key=bot_type, value=str(len(tags_to_add))))
-
-        db.session.commit()
-        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
+    def find_tag_by_name(self, name: str) -> NewsItemTag | None:
+        return next((tag for tag in self.tags if tag.name == name), None)
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]]):
