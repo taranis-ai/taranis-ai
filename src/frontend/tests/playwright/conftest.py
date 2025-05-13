@@ -74,4 +74,4 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
 
     yield context.new_page()
     if request.config.getoption("--e2e-ci") == "e2e_ci":
-        context.tracing.stop(path="trace.zip")
+        context.tracing.stop(path="taranis_ai_frontend_trace.zip")

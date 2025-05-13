@@ -79,7 +79,7 @@ jobs:
           retention-days: 7
           overwrite: true
           name: playwright-traces-build-core
-          path: src/core/trace.zip
+          path: src/core/taranis_ai_core_trace.zip
 
 
   build_wheel:
