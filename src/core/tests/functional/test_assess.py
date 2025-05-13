@@ -106,9 +106,9 @@ class TestAssessStories(BaseTest):
         assert nia1
         assert nia2
 
-        response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
+        response = nia1.set_tags(["foo", "bar", "baz"])
         assert response[1] == 200
-        response = nia2.update_tags(nia2.id, {"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})
+        response = nia2.set_tags({"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})
         assert response[1] == 200
 
         response = client.get("/api/assess/tags", headers=auth_header)
