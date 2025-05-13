@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+from dotenv import dotenv_values
 
 from playwright.sync_api import Browser
 
@@ -11,6 +12,9 @@ def run_core():
     try:
         core_path = os.path.abspath("../core")
         env = os.environ.copy()
+        if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
+            config = {k: v for k, v in config.items() if v}
+            env |= config
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
         process = subprocess.Popen(

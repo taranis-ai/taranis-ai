@@ -209,6 +209,10 @@ jobs:
         working-directory: src/frontend
         run: uv sync --all-extras --dev
 
+      - name: Build Tailwind CSS
+        working-directory: src/frontend
+        run: ./build_tailwindcss.sh
+
       - name: Run e2e tests frontend
         id: run_e2e_frontend
         working-directory: src/frontend
