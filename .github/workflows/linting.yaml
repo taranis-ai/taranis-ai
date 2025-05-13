@@ -138,9 +138,6 @@ jobs:
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/core
     needs: [test_core, test_gui, test_frontend]
     steps:
       - uses: actions/checkout@v4
@@ -150,20 +147,48 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Set PLAYWRIGHT_BROWSERS_PATH and TRACES_ARTIFACT_NAME
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
+          TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
+          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Check Playwright version consistency in uv.lock files
+        run: |
+          set -euo pipefail
+
+          FRONTEND_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
+          CORE_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
+
+          echo "Frontend playwright version: $FRONTEND_VERSION"
+          echo "Core playwright version:     $CORE_VERSION"
+
+          if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
+            echo "::error ::Mismatch in declared playwright versions!"
+            echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
+            echo "::error ::Please run \`uv pip add playwright==<version>\` and \`uv sync\` in both folders to align."
+            exit 1
+          fi
+
       - name: Set up Python
+        working-directory: src/core
         run: uv python install
 
       - name: Install the project
+        working-directory: src/core
         run: uv sync --all-extras --dev
 
-      - name: Install Playwright dependencies
-        run: uv run playwright install --with-deps chromium
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright
 
-      - name: Set Artifact Name
-        shell: bash
-        run: |
-          TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
-          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+      - name: Install Playwright dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: src/core
+        run: uv run playwright install --with-deps chromium
 
       - name: Download built frontend
         uses: actions/download-artifact@v4
@@ -177,6 +202,7 @@ jobs:
 
       - name: Run e2e tests
         id: run_e2e
+        working-directory: src/core
         run: uv run pytest --e2e-ci
 
       - name: Install frontend dependencies
