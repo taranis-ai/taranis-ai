@@ -166,7 +166,7 @@ jobs:
           if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
             echo "::error ::Mismatch in declared playwright versions!"
             echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
-            echo "::error ::Please run \`uv sync --upgrade --all-extras` in both folders to align."
+            echo "::error ::Please run \`uv sync --upgrade --all-extras\` in both folders to align."
             exit 1
           fi
 
