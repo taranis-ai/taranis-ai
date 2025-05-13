@@ -33,6 +33,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
 
         def check_dashboard():
+            page.goto(url_for("base.dashboard", _external=True))
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():

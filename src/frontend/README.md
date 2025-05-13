@@ -6,7 +6,10 @@ This service provides the Frontend for Taranis AI. In the first iteration it wil
 
 ## Installation
 
-It's recommended to use a uv to setup an virtual environment.
+Use the prebuilt container image from https://github.com/orgs/taranis-ai/packages/container/package/taranis-frontend
+
+
+Or create a local setup for which it's recommended to use a uv to setup an virtual environment.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -17,7 +20,13 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv pip install -Ue .[dev]
+uv sync --frozen
+```
+
+## Usage
+
+```bash
+granian app
 ```
 
 ## Development Setup
@@ -34,26 +43,29 @@ uv pip install -Ue .[dev]
 We use Tailwind CSS for styling the frontend. First, download the Tailwind CSS CLI tool:
 
 ```bash
-curl -sLo tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
-chmod +x tailwindcss
+./install_and_run_tailwind.sh
 ```
 
-### 2. Start Tailwind CSS in Watch Mode
+This will first download the **Tailwind CSS CLI** from https://github.com/tailwindlabs/tailwindcss and
+execute it in watch mode to automatically build the CSS files as you modify the styles:
 
-Run **Tailwind CSS** in watch mode to automatically build the CSS files as you modify the styles:
-
-```bash
-./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
-```
-
-This will generate the `tailwind.css` file based on the input CSS and keep it updated as you develop.
-
-### 3. Start Flask
+### 2. Start Flask
 
 Run the Flask development server:
 
 ```bash
-flask run
+./install_and_run_dev.sh
 ```
 
 This will start the Flask server and run the frontend service at `http://localhost:5000`.
+
+
+### 3. Test
+
+To run the Unittests just call:
+
+```bash
+pytest
+```
+
+There are [e2e tests](./tests/playwright/README.md) using playwright
