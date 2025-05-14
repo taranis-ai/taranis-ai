@@ -96,6 +96,14 @@ class BaseView:
         return url_for(route, **kwargs)
 
     @classmethod
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+        ]
+
+    @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
             obj = cls.model(**parse_formdata(request.form))
