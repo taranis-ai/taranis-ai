@@ -117,8 +117,9 @@ class Settings(BaseSettings):
         return self
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
-    def check_non_empty_string(cls, v: str, info: ValidationInfo) -> str:
-        if not isinstance(v, str) or not v.strip():
+    def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:
+        value = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{info.field_name} must be a non-empty string")
         return v
 
