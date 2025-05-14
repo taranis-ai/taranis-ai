@@ -104,7 +104,7 @@ def api_key_required(fn):
 
         api_key = auth_header.replace("Bearer ", "")
 
-        if Config.API_KEY != api_key:
+        if Config.API_KEY.get_secret_value() != api_key:
             logger.store_auth_error_activity("Incorrect api key")
             return error
 

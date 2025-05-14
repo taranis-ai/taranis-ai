@@ -1,85 +1,122 @@
-{% macro table(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items") %}
+{% macro table(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
 {% from "macros/table.html" import table_header with context %}
 {% from "macros/buttons.html" import action_button with context %}
 {% set item_ids = data | map(attribute='id') | list %}
+{% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
 
-<table class="table" id="{{ table_id }}" x-data="{ selectedItems: [] }">
+<table class="table"
+       id="{{ table_id }}"
+       {% if standalone %}x-data="{ selectedItems: {{ safe_selected_items }} }"{% endif %}
+>
     <thead>
-        <tr>
-            {% if selectable %}
-            <th>
-                <input type="checkbox"
-                       class="checkbox"
-                       :checked="selectedItems.length === {{ item_ids | length }}"
-                       @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
-                />
-            </th>
-            {% endif %}
+      <tr>
+        {% if selectable %}
+        <th>
+          <input type="checkbox"
+                  class="checkbox"
+                  :checked="selectedItems.length === {{ item_ids | length }}"
+                  @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+          />
+        </th>
+        {% endif %}
 
-            {% for col in columns %}
-                {{ table_header(col.title, col.sortable) }}
-            {% endfor %}
+        {% for col in columns %}
+          {{ table_header(col.title, col.sortable) }}
+        {% endfor %}
 
-            {% if actions %}
-                <th class="text-right">Actions</th>
-            {% endif %}
-        </tr>
+        {% if actions %}
+          <th class="text-right">Actions</th>
+        {% endif %}
+      </tr>
     </thead>
     <tbody>
-        {% if data %}
-        {% for item in data %}
-        <tr>
-            {% if selectable %}
-            <td>
-                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
-            </td>
-            {% endif %}
-
-            {% for col in columns %}
-                <td>
-                    {% if col.renderer %}
-                        {{ col.renderer(item) }}
-                    {% else %}
-                        {{ item[col.field] }}
-                    {% endif %}
-                </td>
-            {% endfor %}
-
-            {% if actions %}
-            <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-              {% if actions is string %}
-                {% from "macros/table.html" import default_table_actions %}
-                {% set ns = namespace(actions=[]) %}
-                {{ default_table_actions(ns, actions) }}
-                {% set actions = ns.actions %}
-              {% endif %}
-              {% for action in actions %}
-              {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
-              {% endfor %}
-            </td>
-            {% endif %}
-        </tr>
-        {% endfor %}
-        {% else %}
-        <tr>
-            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-                <div class="text-center">
-                    <p class="text-gray-500">No data available</p>
-                </div>
-            </td>
-        </tr>
+      {% if data %}
+      {% for item in data %}
+      <tr>
+        {% if selectable %}
+        <td>
+            <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
+        </td>
         {% endif %}
+
+        {% for col in columns %}
+          <td>
+            {% if col.renderer %}
+              {{ col.renderer(item) }}
+            {% else %}
+              {{ item[col.field] }}
+            {% endif %}
+          </td>
+        {% endfor %}
+
+        {% if actions %}
+        <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
+          {% if actions is string %}
+            {% from "macros/table.html" import default_table_actions %}
+            {% set ns = namespace(actions=[]) %}
+            {{ default_table_actions(ns, actions) }}
+            {% set actions = ns.actions %}
+          {% endif %}
+          {% for action in actions %}
+          {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
+          {% endfor %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+      {% else %}
+      <tr>
+        <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+          <div class="text-center">
+            <p class="text-gray-500">No data available</p>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
     </tbody>
     <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-        <tr>
-            <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-                <div class="flex justify-center">
-                    {% include 'partials/table_controls.html' %}
-                </div>
-            </td>
-        </tr>
+      <tr>
+        <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+          <div class="flex justify-center">
+            {% include 'partials/table_controls.html' %}
+          </div>
+        </td>
+      </tr>
     </tfoot>
 </table>
+{% endmacro %}
+
+{% macro table_decoration(name, model_name, container_id, add_button=true, searchbar=true, delete_button=true) %}
+<div class="flex gap-4">
+  {% if add_button %}
+  <div class="grow-0">
+    <button hx-get={{ routes.edit_route }} hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+      New {{ name }}
+    </button>
+  </div>
+  {% endif %}
+  {% if searchbar %}
+  {{ table_search_bar(container_id) }}
+  {% endif %}
+  {% if delete_button %}
+  <div class="grow-0">
+      <button
+        type="button"
+        class="btn btn-error"
+        data-testid="delete-{{ model_name }}-button"
+        :hx-vals="JSON.stringify({ ids: selectedItems })"
+        hx-delete="{{ routes.delete_route }}"
+        hx-confirm="Are you sure you want to delete the selected items?"
+        hx-target="#{{ container_id }}"
+        :disabled="selectedItems.length === 0">
+        Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
+      </button>
+  </div>
+  {% endif %}
+  {% if caller is defined %}
+    {{ caller() }}
+  {% endif %}
+</div>
 {% endmacro %}
 
 {% macro default_table_actions(ns, base_url) %}
@@ -112,9 +149,8 @@
 {% set order_params = {'order': order, 'page': 1} %}
 {% set order_url = update_query_params(order_params) %}
 {% if sortable %}
-<th>
+<th hx-boost>
   <a  href="{{ order_url }}"
-      hx-get="{{ order_url }}"
       hx-target="closest table"
       hx-push-url="true"
       class="link link-hover">
@@ -136,6 +172,7 @@
     hx-get="{{ request.path }}"
     hx-push-url="true"
     hx-target="#{{ table_id }}"
+    hx-target-error="#error-msg"
     hx-trigger="input delay:500ms"
   >
     <input

@@ -16,7 +16,7 @@ class SettingsView(BaseView):
     edit_route = "admin_settings.settings"
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, object_id: int | str):
         dpl = DataPersistenceLayer()
         return {"settings": dpl.get_objects(Settings)}
 

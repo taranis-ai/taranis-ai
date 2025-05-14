@@ -1,10 +1,10 @@
 {% from "macros/forms.html" import form_input %}
 {% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
-{% set form_title = 'Organization' %}
-
 {% set form_error = form_error | default({}) %}
+
 <div class="bg-base-100 rounded-sm p-4">
-    <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+    <h1 class="text-3xl font-bold w-1/2 ml-[10%]">{{ submit_text }}</h1>
+    <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ organization.id }}</p>
 
     <form id="organization-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error %}
@@ -18,6 +18,6 @@
         {{ form_input('Country', 'address[country]', organization.address.country, form_error.country, required=False) }}
         {{ form_input('ZIP', 'address[zip]', organization.address.zip, form_error.zip, required=False) }}
 
-        <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+        <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
     </form>
 </div>

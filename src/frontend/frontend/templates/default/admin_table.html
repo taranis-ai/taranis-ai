@@ -1,0 +1,15 @@
+{% from "macros/table.html" import table, table_decoration with context %}
+
+{% set columns =  columns | default([
+    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+]) %}
+
+{% set data = model_plural_name | get_var %}
+
+{% set table_container = model_name + '-table-container' %}
+
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }"}">
+{{ table_decoration(name, model_name, table_container) }}
+{{ table(model_name + '-table', data, columns, routes.base_route, standalone=false) }}
+</div>

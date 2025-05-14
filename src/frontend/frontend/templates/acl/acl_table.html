@@ -1,9 +1,0 @@
-{% from "macros/table.html" import table with context %}
-
-{% set columns = [
-    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-    {'title': 'item type', 'field': 'item_type', 'sortable': False, 'renderer': None},
-    {'title': 'enabled', 'field': 'enabled', 'sortable': False, 'renderer': None }
-] %}
-
-{{ table('acl-table', acls, columns, url_for('admin.roles')) }}

@@ -1,4 +1,4 @@
-from pydantic import model_validator, field_validator, ValidationInfo
+from pydantic import model_validator, field_validator, ValidationInfo, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ def mask_db_uri(uri: str) -> str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    API_KEY: str = "supersecret"
+    API_KEY: SecretStr = SecretStr("supersecret")
     APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
     DB_USER: str = "taranis"
-    DB_PASSWORD: str = "supersecret"
+    DB_PASSWORD: SecretStr = SecretStr("supersecret")
     SQLALCHEMY_SCHEMA: str = "postgresql+psycopg"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
-            self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
+            self.SQLALCHEMY_DATABASE_URI = (
+                f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD.get_secret_value()}@{self.DB_URL}/{self.DB_DATABASE}"
+            )
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql:"):
@@ -89,7 +91,7 @@ class Settings(BaseSettings):
     QUEUE_BROKER_HOST: str = "localhost"
     QUEUE_BROKER_PORT: int = 5672
     QUEUE_BROKER_USER: str = "taranis"
-    QUEUE_BROKER_PASSWORD: str = "supersecret"
+    QUEUE_BROKER_PASSWORD: SecretStr = SecretStr("supersecret")
     QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
@@ -102,7 +104,7 @@ class Settings(BaseSettings):
             broker_url = self.QUEUE_BROKER_URL
         else:
             broker_url = (
-                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}"
+                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD.get_secret_value()}"
                 f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
             )
         self.CELERY = {
