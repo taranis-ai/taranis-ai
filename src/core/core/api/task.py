@@ -28,8 +28,7 @@ class Task(MethodView):
         result = data.get("result")
         status = data.get("status")
 
-        logger.debug(f"Received task result with id {task_id} and status {status}")
-        logger.debug(f"{data=}")
+        logger.debug(f"Received task result with id {task_id} and status {status} with result {result}")
 
         if not result or "error" in result or status == "FAILURE":
             TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
