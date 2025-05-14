@@ -110,6 +110,8 @@ class TestAssessStories(BaseTest):
         assert response[1] == 200
         response = nia2.set_tags([{"name": "foo", "tag_type": "misc"}, {"name": "bar", "tag_type": "misc"}])
         assert response[1] == 200
+        response = nia2.set_tags({"incompatible": {"tag_type": "misc"}, "format": ["misc"]})
+        assert response[1] == 500
 
         response = client.get("/api/assess/tags", headers=auth_header)
         assert len(response.get_json()) == 0
