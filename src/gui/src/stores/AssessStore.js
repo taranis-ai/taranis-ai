@@ -131,10 +131,10 @@ export const useAssessStore = defineStore(
       let story = stories.value.items.filter((item) => item?.id === id)[0]
 
       // if not story is undefined or does not have a key called "detail_view" retrieve it from the API
-      if (!story || !story.detail_view) {
-        story = updateStoryByID(id)
+      if (story && story.detail_view) {
+        return story
       }
-      return story
+      return updateStoryByID(id)
     }
 
     function removeStoryByID(id) {
@@ -381,7 +381,6 @@ export const useAssessStore = defineStore(
       updateOSINTSourceGroupsList()
       updateStories()
     }
-
 
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }

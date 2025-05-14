@@ -6,9 +6,8 @@
 <script>
 import StoryEdit from '@/components/assess/StoryEdit.vue'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
-import { computed, onBeforeMount } from 'vue'
+import { onBeforeMount, ref } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
-import { storeToRefs } from 'pinia'
 
 export default {
   name: 'StoryEditView',
@@ -24,11 +23,10 @@ export default {
   },
   setup(props) {
     const assessStore = useAssessStore()
-    const { storyByID } = storeToRefs(assessStore)
-    const story = computed(() => storyByID.value(props.storyId))
+    const story = ref()
 
     onBeforeMount(async () => {
-      await assessStore.updateStoryByID(props.storyId)
+      story.value = await assessStore.getStoryByID(props.storyId)
     })
 
     return {
