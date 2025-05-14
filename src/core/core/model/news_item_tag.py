@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, relationship
 from typing import Any, TYPE_CHECKING
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.log import logger
 
 if TYPE_CHECKING:
     from core.model.story import Story
@@ -18,8 +19,12 @@ class NewsItemTag(BaseModel):
     story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
     story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
-    def __init__(self, name, tag_type):
+    def __init__(self, name: str, tag_type: str = "misc"):
+        if not isinstance(name, str):
+            raise TypeError(f"Tag name must be a string, got {type(name)}")
         self.name = name
+        if not isinstance(tag_type, str):
+            raise TypeError(f"Tag type must be a string, got {type(tag_type)}")
         self.tag_type = tag_type
 
     @classmethod
