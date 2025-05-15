@@ -1,4 +1,4 @@
-{% macro table(table_id, data, columns, actions, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
+{% macro table(table_id, data, columns, actions, base_url, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
 {% from "macros/table.html" import table_header with context %}
 {% from "macros/buttons.html" import action_button with context %}
 {% set item_ids = data | map(attribute='id') | list %}
@@ -16,6 +16,7 @@
                 class="checkbox"
                 :checked="selectedItems.length === {{ item_ids | length }}"
                 @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+                @click.stop
         />
       </th>
       {% endif %}
@@ -32,10 +33,18 @@
   <tbody>
     {% if data %}
     {% for item in data %}
-    <tr>
+    {% set edit_route = base_url ~ '/' ~ item.id %}
+    <tr
+        hx-get="{{ edit_route }}"
+        hx-push-url="true"
+        hx-target="#form-container"
+        hx-trigger="click"
+        class="cursor-pointer hover:bg-gray-100"
+        data-testid="edit-{{ model_name }}-{{ item.id }}"
+    >
       {% if selectable %}
       <td>
-        <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
+        <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
       </td>
       {% endif %}
 
@@ -51,14 +60,12 @@
 
       {% if actions %}
       <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-        {% if actions is string %}
-          {% from "macros/table.html" import default_table_actions %}
-          {% set ns = namespace(actions=[]) %}
-          {{ default_table_actions(ns, actions) }}
-          {% set actions = ns.actions %}
-        {% endif %}
+        {% from "macros/table.html" import default_table_actions %}
+        {% set ns = namespace(actions=[]) %}
+        {{ default_table_actions(ns, edit_route) }}
+        {% set actions = ns.actions %}
         {% for action in actions %}
-        {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
+        {{ action_button(action) }}
         {% endfor %}
       </td>
       {% endif %}
@@ -90,7 +97,7 @@
 <div class="flex gap-4">
   {% if add_button %}
   <div class="grow-0">
-    <button hx-get={{ routes.edit_route }} hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+    <button hx-get="{{ routes.edit_route }}" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
       New {{ name }}
     </button>
   </div>
@@ -137,7 +144,7 @@
             'url': base_url,
             'hx_target': None,
             'hx_swap': None,
-            'confirm': 'Are you sure?'
+            'confirm': 'Are you sure you want to delete this item?'
         }
     ] %}
 {% endmacro %}
