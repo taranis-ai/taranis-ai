@@ -18,6 +18,9 @@ permissions:
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-worker
   LATEST: ${{ github.ref == 'refs/heads/master' }}
+  UV_NO_SYNC: true
+  UV_FROZEN: true
+
 
 jobs:
   test:
@@ -38,7 +41,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras
 
       - name: Install Playwright dependencies
         run: uv run playwright install --with-deps chromium

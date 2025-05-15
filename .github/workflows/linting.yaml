@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   pull_request:
 
+env:
+  UV_NO_SYNC: true
+  UV_FROZEN: true
+
 jobs:
   test_core:
     name: pytest core
@@ -11,10 +15,6 @@ jobs:
       run:
         working-directory: src/core
     runs-on: ubuntu-latest
-    env:
-      UV_NO_SYNC: true
-      UV_LOCKED: true
-      UV_FROZEN: true
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +27,7 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
@@ -48,10 +48,6 @@ jobs:
     defaults:
       run:
         working-directory: src/frontend
-    env:
-      UV_NO_SYNC: true
-      UV_LOCKED: true
-      UV_FROZEN: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +61,7 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --frozen
+        run: uv sync --all-extras
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
@@ -131,10 +127,6 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     needs: [test_core, test_gui, test_frontend]
-    env:
-      UV_NO_SYNC: true
-      UV_LOCKED: true
-      UV_FROZEN: true
     steps:
       - uses: actions/checkout@v4
 
@@ -172,7 +164,7 @@ jobs:
 
       - name: Install core
         working-directory: src/core
-        run: uv sync --all-extras --frozen
+        run: uv sync --all-extras
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -203,7 +195,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras --frozen
+        run: uv sync --all-extras
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
@@ -241,7 +233,7 @@ jobs:
         run: uv python install
 
       - name: Install worker
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras
 
       - name: Install playwright dependencies
         run: uv run playwright install --with-deps chromium

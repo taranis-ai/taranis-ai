@@ -18,6 +18,8 @@ permissions:
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-frontend
   LATEST: ${{ github.ref == 'refs/heads/master' }}
+  UV_NO_SYNC: true
+  UV_FROZEN: true
 
 jobs:
   test:
@@ -26,10 +28,6 @@ jobs:
       run:
         working-directory: src/frontend
     runs-on: ubuntu-latest
-    env:
-      UV_NO_SYNC: true
-      UV_LOCKED: true
-      UV_FROZEN: true
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -42,7 +40,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --frozen
+        run: uv sync --all-extras
 
       - name: unit tests
         run: uv run pytest
