@@ -22,7 +22,7 @@
       </template>
       <template #loading />
     </v-infinite-scroll>
-    <div v-if="storySelection.length > 0" class="mb-16"></div>
+    <div v-if="infiniteScroll && storySelection.length > 0" class="mb-16"></div>
     <v-container v-else-if="stories.items.length > 0 && !infiniteScroll" fluid>
       <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
@@ -87,7 +87,7 @@ export default defineComponent({
     const { stories, loading, storyCounts, storySelection } =
       storeToRefs(assessStore)
     const { storyFilter, storyPage, infiniteScroll } = storeToRefs(filterStore)
-
+    console.log(storySelection)
     let doneCallback = null
 
     assessHotkeys()
