@@ -412,6 +412,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def go_to_analyze():
             self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
             page.wait_for_url("**/analyze", wait_until="domcontentloaded")
+            page.pause()
             expect(page).to_have_title("Taranis AI | Analyze")
 
         def report_1():
