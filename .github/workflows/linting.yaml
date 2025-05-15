@@ -72,6 +72,9 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
+      - name: DEBUG DEBUG DEBUG
+        run: cat /home/runner/work/taranis-ai/taranis-ai/src/frontend/.venv/lib/python3.13/site-packages/models/admin.py
+
       - name: Run tests and capture output
         continue-on-error: true
         id: run-tests
