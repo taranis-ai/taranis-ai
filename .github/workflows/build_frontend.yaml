@@ -66,8 +66,6 @@ jobs:
 
       - name: build
         run: uv build
-        env:
-          UV_PRERELEASE: allow
 
       - name: Upload wheel to artifacts
         uses: actions/upload-artifact@v4

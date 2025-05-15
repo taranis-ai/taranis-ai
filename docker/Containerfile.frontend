@@ -20,7 +20,6 @@ RUN arch=$(uname -m) && \
     /tmp/tailwindcss -i /app/frontend/static/css/input.css -o /app/frontend/static/css/tailwind.css
 
 ENV UV_COMPILE_BYTECODE=1
-ENV UV_PRERELEASE=allow
 
 RUN uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
