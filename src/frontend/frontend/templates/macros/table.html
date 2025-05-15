@@ -4,85 +4,85 @@
 {% set item_ids = data | map(attribute='id') | list %}
 {% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
 
-<table class="table"
+<table class="table shadow table-zebra table-sm"
        id="{{ table_id }}"
        {% if standalone %}x-data="{ selectedItems: {{ safe_selected_items }} }"{% endif %}
 >
-    <thead>
-      <tr>
-        {% if selectable %}
-        <th>
-          <input type="checkbox"
-                  class="checkbox"
-                  :checked="selectedItems.length === {{ item_ids | length }}"
-                  @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
-          />
-        </th>
-        {% endif %}
-
-        {% for col in columns %}
-          {{ table_header(col.title, col.sortable) }}
-        {% endfor %}
-
-        {% if actions %}
-          <th class="text-right">Actions</th>
-        {% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% if data %}
-      {% for item in data %}
-      <tr>
-        {% if selectable %}
-        <td>
-            <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
-        </td>
-        {% endif %}
-
-        {% for col in columns %}
-          <td>
-            {% if col.renderer %}
-              {{ col.renderer(item) }}
-            {% else %}
-              {{ item[col.field] }}
-            {% endif %}
-          </td>
-        {% endfor %}
-
-        {% if actions %}
-        <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-          {% if actions is string %}
-            {% from "macros/table.html" import default_table_actions %}
-            {% set ns = namespace(actions=[]) %}
-            {{ default_table_actions(ns, actions) }}
-            {% set actions = ns.actions %}
-          {% endif %}
-          {% for action in actions %}
-          {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
-          {% endfor %}
-        </td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-      {% else %}
-      <tr>
-        <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-          <div class="text-center">
-            <p class="text-gray-500">No data available</p>
-          </div>
-        </td>
-      </tr>
+  <thead>
+    <tr>
+      {% if selectable %}
+      <th>
+        <input type="checkbox"
+                class="checkbox"
+                :checked="selectedItems.length === {{ item_ids | length }}"
+                @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+        />
+      </th>
       {% endif %}
-    </tbody>
-    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-      <tr>
-        <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-          <div class="flex justify-center">
-            {% include 'partials/table_controls.html' %}
-          </div>
+
+      {% for col in columns %}
+        {{ table_header(col.title, col.sortable) }}
+      {% endfor %}
+
+      {% if actions %}
+        <th class="text-right">Actions</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% if data %}
+    {% for item in data %}
+    <tr>
+      {% if selectable %}
+      <td>
+        <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" />
+      </td>
+      {% endif %}
+
+      {% for col in columns %}
+        <td>
+          {% if col.renderer %}
+            {{ col.renderer(item) }}
+          {% else %}
+            {{ item[col.field] }}
+          {% endif %}
         </td>
-      </tr>
-    </tfoot>
+      {% endfor %}
+
+      {% if actions %}
+      <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
+        {% if actions is string %}
+          {% from "macros/table.html" import default_table_actions %}
+          {% set ns = namespace(actions=[]) %}
+          {{ default_table_actions(ns, actions) }}
+          {% set actions = ns.actions %}
+        {% endif %}
+        {% for action in actions %}
+        {{ action_button(action.update({'url': action.url ~ '/' ~ item.id}) or action) }}
+        {% endfor %}
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr>
+      <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+        <div class="text-center">
+          <p class="text-gray-500">No data available</p>
+        </div>
+      </td>
+    </tr>
+    {% endif %}
+  </tbody>
+  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+    <tr>
+      <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+        <div class="flex justify-center">
+          {% include 'partials/table_controls.html' %}
+        </div>
+      </td>
+    </tr>
+  </tfoot>
 </table>
 {% endmacro %}
 
