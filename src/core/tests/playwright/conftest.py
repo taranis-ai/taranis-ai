@@ -9,24 +9,21 @@ from playwright.sync_api import Browser
 @pytest.fixture(scope="session")
 def build_gui():
     try:
-        if not os.path.isdir("../gui/dist"):
-            if not os.path.isdir("../gui/node_modules"):
-                print("Building node_modules")
-                print(os.path.isdir("../gui/node_modules"))
-                result = subprocess.call(["pnpm", "install"], cwd="../gui")
-                assert result == 0, f"Install failed with status code: {result}"
+        if not os.path.isdir("../gui/node_modules"):
+            print("Building node_modules")
+            print(os.path.isdir("../gui/node_modules"))
+            result = subprocess.call(["pnpm", "install"], cwd="../gui")
+            assert result == 0, f"Install failed with status code: {result}"
 
-            print("Building GUI")
-            env = os.environ.copy()
-            env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
-            result = subprocess.call(
-                ["pnpm", "run", "build"],
-                cwd="../gui",
-                env=env,
-            )
-            assert result == 0, f"Build failed with status code: {result}"
-        else:
-            print("Reusing existing dist folder, delete it to force a rebuild")
+        print("Building GUI")
+        env = os.environ.copy()
+        env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
+        result = subprocess.call(
+            ["pnpm", "run", "build"],
+            cwd="../gui",
+            env=env,
+        )
+        assert result == 0, f"Build failed with status code: {result}"
     except Exception as e:
         pytest.fail(str(e))
 

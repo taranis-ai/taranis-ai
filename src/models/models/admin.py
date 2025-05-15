@@ -33,12 +33,12 @@ class Organization(TaranisBaseModel):
     address: Address = Field(default_factory=Address)
 
 
-class Permissions(TaranisBaseModel):
+class Permission(TaranisBaseModel):
     _core_endpoint = "/config/permissions"
     _model_name = "permission"
-    id: str
+    id: str | None = None
     name: str
-    description: str
+    description: str = ""
 
 
 class ACL(TaranisBaseModel):
@@ -202,3 +202,104 @@ class OSINTSourceGroup(TaranisBaseModel):
 
     osint_sources: list[OSINTSource | str] = Field(default_factory=list)
     word_lists: list[WordList | str] = Field(default_factory=list)
+
+
+class ProductType(TaranisBaseModel):
+    _core_endpoint = "/config/product-types"
+    _model_name = "product_type"
+    _pretty_name = "Product Type"
+    _search_fields = ["title", "description"]
+
+    id: int | None = None
+    title: str
+    description: str | None = None
+    type: str
+    parameters: dict[str, str] = Field(default_factory=dict)
+    report_types: list[int] = Field(default_factory=list)
+
+
+class PublisherPreset(TaranisBaseModel):
+    _core_endpoint = "/config/publisher-presets"
+    _model_name = "publisher_preset"
+    _pretty_name = "Publisher Preset"
+    _search_fields = ["name", "description"]
+
+    id: str | None = None
+    name: str
+    type: str
+    description: str | None = None
+    parameters: dict[str, str] = Field(default_factory=dict)
+
+
+class ReportItemAttribute(TaranisBaseModel):
+    _core_endpoint = "/config/report-item-attributes"
+    _model_name = "report_item_attribute"
+    _pretty_name = "Report Item Attribute"
+    _search_fields = ["title", "description"]
+
+    id: int | None = None
+    value: str | None = None
+    title: str | None = None
+    description: str | None = None
+    index: int | None = None
+    required: bool | None = None
+    attribute_type: str | None = None
+    group_title: str | None = None
+    render_data: dict | None = None
+
+
+class ReportItemType(TaranisBaseModel):
+    _core_endpoint = "/config/report-item-types"
+    _model_name = "report_item_type"
+    _pretty_name = "Report Item Type"
+    _search_fields = ["title", "description"]
+
+    id: int | None = None
+    title: str
+    description: str | None = None
+    report_item_attributes: list[ReportItemAttribute] = Field(default_factory=list)
+
+
+class Template(TaranisBaseModel):
+    _core_endpoint = "/config/templates"
+    _model_name = "template"
+    _pretty_name = "Template"
+
+    name: str | None = None
+    content: str | None = None
+
+
+class AttributeEnum(TaranisBaseModel):
+    id: int | None = None
+    index: int | None = None
+    value: str | None = None
+    description: str | None = None
+    imported: bool | None = None
+    attribute_id: int | None = None
+
+
+class Attribute(TaranisBaseModel):
+    _core_endpoint = "/config/attributes"
+    _model_name = "attribute"
+    _pretty_name = "Attribute"
+    _search_fields = ["name", "description"]
+
+    id: int | None = None
+    name: str
+    description: str | None = None
+    type: str
+    default_value: str | None = None
+    attribute_enums: list[AttributeEnum] = Field(default_factory=list)
+
+
+class Bot(TaranisBaseModel):
+    _core_endpoint = "/config/bots"
+    _model_name = "bot"
+    _pretty_name = "Bot"
+    _search_fields = ["name", "description"]
+
+    id: int | None = None
+    name: str
+    description: str | None = None
+    type: str
+    parameters: dict[str, str] = Field(default_factory=dict)

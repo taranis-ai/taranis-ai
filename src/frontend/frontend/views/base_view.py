@@ -1,16 +1,18 @@
-from flask import render_template, request, Response, url_for, current_app
+from flask import render_template, request, Response, url_for, current_app, abort
 from jinja2 import TemplateNotFound
 from typing import Type, Any
 from pydantic import ValidationError
+from flask.views import MethodView
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
 from frontend.cache_models import PagingData
 from frontend.log import logger
+from frontend.auth import auth_required
 
 
-class BaseView:
+class BaseView(MethodView):
     model: Type[TaranisBaseModel]
 
     htmx_update_template: str = ""
@@ -249,3 +251,33 @@ class BaseView:
         if any(r.ok for r in results):
             return Response(status=200, headers={"HX-Refresh": "true"})
         return Response(status=400, headers={"HX-Refresh": "true"})
+
+    def _get_object_id(self, kwargs: dict) -> int | str | None:
+        key = f"{self.model_name().lower()}_id"
+        return kwargs.get(key)
+
+    @auth_required()
+    def get(self, **kwargs):
+        object_id = self._get_object_id(kwargs)
+        if object_id is None:
+            return self.list_view()
+        return self.edit_view(object_id=object_id)
+
+    @auth_required()
+    def post(self):
+        return self.update_view(object_id=0)
+
+    @auth_required()
+    def put(self, **kwargs):
+        object_id = self._get_object_id(kwargs)
+        if object_id is None:
+            abort(405)
+        return self.update_view(object_id=object_id)
+
+    @auth_required()
+    def delete(self, **kwargs):
+        object_id = self._get_object_id(kwargs)
+        if object_id is None:
+            ids = request.form.getlist("ids")
+            return self.delete_multiple_view(object_ids=ids)
+        return self.delete_view(object_id=object_id)
