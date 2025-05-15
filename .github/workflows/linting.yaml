@@ -53,6 +53,8 @@ jobs:
       run:
         working-directory: src/frontend
     runs-on: ubuntu-latest
+    env:
+      UV_PRERELEASE: allow
     steps:
       - uses: actions/checkout@v4
 
@@ -66,8 +68,6 @@ jobs:
 
       - name: Install the project
         run: uv sync --all-extras --dev
-        env:
-          UV_PRERELEASE: allow
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
