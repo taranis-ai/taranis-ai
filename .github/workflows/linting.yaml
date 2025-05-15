@@ -66,6 +66,8 @@ jobs:
 
       - name: Install the project
         run: uv sync --all-extras --dev
+        env:
+          UV_PRERELEASE: allow
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
@@ -174,7 +176,7 @@ jobs:
         working-directory: src/core
         run: uv python install
 
-      - name: Install the project
+      - name: Install core
         working-directory: src/core
         run: uv sync --all-extras --dev
 
@@ -208,6 +210,8 @@ jobs:
       - name: Install frontend dependencies
         working-directory: src/frontend
         run: uv sync --all-extras --dev
+        env:
+          UV_PRERELEASE: allow
 
       - name: Build Tailwind CSS
         working-directory: src/frontend

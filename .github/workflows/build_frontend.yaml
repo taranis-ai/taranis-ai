@@ -39,6 +39,8 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
+        env:
+          UV_PRERELEASE: allow
 
       - name: unit tests
         run: uv run pytest
@@ -64,6 +66,8 @@ jobs:
 
       - name: build
         run: uv build
+        env:
+          UV_PRERELEASE: allow
 
       - name: Upload wheel to artifacts
         uses: actions/upload-artifact@v4
