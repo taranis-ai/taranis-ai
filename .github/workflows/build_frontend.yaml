@@ -38,9 +38,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
-        env:
-          UV_PRERELEASE: allow
+        run: uv sync --all-extras --dev --frozen
 
       - name: unit tests
         run: uv run pytest

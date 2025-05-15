@@ -23,7 +23,7 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --frozen
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
@@ -53,8 +53,6 @@ jobs:
       run:
         working-directory: src/frontend
     runs-on: ubuntu-latest
-    env:
-      UV_PRERELEASE: allow
     steps:
       - uses: actions/checkout@v4
 
@@ -67,13 +65,10 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --frozen
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
-
-      - name: DEBUG DEBUG DEBUG
-        run: cat /home/runner/work/taranis-ai/taranis-ai/src/frontend/.venv/lib/python3.13/site-packages/models/admin.py
 
       - name: Run tests and capture output
         continue-on-error: true
@@ -181,7 +176,7 @@ jobs:
 
       - name: Install core
         working-directory: src/core
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --frozen
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -212,9 +207,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras --dev
-        env:
-          UV_PRERELEASE: allow
+        run: uv sync --all-extras --dev --frozen
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
@@ -251,8 +244,8 @@ jobs:
       - name: Set up Python
         run: uv python install
 
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install worker
+        run: uv sync --all-extras --dev --frozen
 
       - name: Install playwright dependencies
         run: uv run playwright install --with-deps chromium
