@@ -11,6 +11,10 @@ jobs:
       run:
         working-directory: src/core
     runs-on: ubuntu-latest
+    env:
+      UV_NO_SYNC: true
+      UV_LOCKED: true
+      UV_FROZEN: true
     steps:
       - uses: actions/checkout@v4
 
@@ -29,29 +33,25 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
-
   test_frontend:
     name: pytest frontend
     defaults:
       run:
         working-directory: src/frontend
+    env:
+      UV_NO_SYNC: true
+      UV_LOCKED: true
+      UV_FROZEN: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,29 +65,21 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras --frozen
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
 
   test_gui:
     name: test gui
@@ -139,6 +131,10 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     needs: [test_core, test_gui, test_frontend]
+    env:
+      UV_NO_SYNC: true
+      UV_LOCKED: true
+      UV_FROZEN: true
     steps:
       - uses: actions/checkout@v4
 
@@ -176,7 +172,7 @@ jobs:
 
       - name: Install core
         working-directory: src/core
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras --frozen
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -207,7 +203,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras --dev --frozen
+        run: uv sync --all-extras --frozen
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
@@ -254,20 +250,12 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
