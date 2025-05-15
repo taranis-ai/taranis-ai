@@ -1,7 +1,7 @@
 from urllib.parse import quote
 from flask import Blueprint, redirect, make_response, request, Flask
 from flask.views import MethodView
-from flask_jwt_extended import jwt_required, get_jwt, current_user, verify_jwt_in_request
+from flask_jwt_extended import jwt_required, get_jwt, current_user
 
 
 from core.auth.external_authenticator import ExternalAuthenticator
@@ -39,11 +39,8 @@ class Refresh(MethodView):
 
 
 class Logout(MethodView):
+    @jwt_required()
     def delete(self):
-        try:
-            verify_jwt_in_request()
-        except Exception:
-            return {"message": "No JWT token found"}, 200
         jti = get_jwt()["jti"]
         auth_manager.logout(jti)
         return {"message": "Successfully logged out"}, 200
