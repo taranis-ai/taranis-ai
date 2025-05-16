@@ -59,6 +59,20 @@ def news_items(fake_source):
             "osint_source_id": fake_source,
             "published": "2023-01-20T19:15:00+01:00",
         },
+        # {
+        #     "id": "0a129597-592d-45cb-9a80-3218108b29a1",
+        #     "content": "TEST CONTENT ZZZZ",
+        #     "source": "manual",
+        #     "title": "Bundesinnenministerin Nancy Faeser wird Claudia Plattner zur neuen BSI-Präsidentin berufen",
+        #     "author": "",
+        #     "collected": "2023-01-20T15:00:14.086285",
+        #     "hash": "e270c3a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da6",
+        #     "review": "Claudia Plattner wird ab 1. Juli 2023 das Bundesamt für Sicherheitin der Informationstechnik (BSI) leiten.",
+        #     "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
+        #     "osint_source_id": "manual",
+        #     "last_change": "internal",
+        #     "published": "2023-01-20T19:15:00+01:00",
+        # },
     ]
 
 
@@ -75,6 +89,29 @@ def cleanup_news_item(fake_source):
         "source": "https://url/13",
         "link": "https://url/13",
         "content": "CVE-2020-1234 - Test Story 1",
+        "collected": "2023-08-01T17:01:04.802015",
+        "published": "2023-08-01T17:01:04.801998",
+        "osint_source_id": fake_source,
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
+@pytest.fixture(scope="class")
+def cleanup_news_item_2(fake_source):
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebt",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c46",
+        "title": "Test News Item 14",
+        "review": "CVE-2020-5678 - Test Story 1 - news item 2",
+        "author": "John Doe",
+        "source": "https://url/13",
+        "link": "https://url/13",
+        "content": "CVE-2020-5678 - Test Story 1",
         "collected": "2023-08-01T17:01:04.802015",
         "published": "2023-08-01T17:01:04.801998",
         "osint_source_id": fake_source,

@@ -32,12 +32,28 @@ class NewsItemConflict:
     def flush_store(cls):
         cls.conflict_store.clear()
 
+    @classmethod
+    def remove_conflict(cls, story_id: str, keep_in_incoming: list, keep_in_existing: list, dissolve: list):
+        for news_item_id in keep_in_incoming + keep_in_existing + dissolve:
+            key = f"{story_id}:{news_item_id}"
+            cls.conflict_store.pop(key, None)
+
     def to_dict(self) -> dict:
+        from core.model.news_item import NewsItem
+
+        title = None
+        news_item = NewsItem.get(self.news_item_id)
+        if news_item:
+            title = news_item.title
+        else:
+            logger.warning(f"News item {self.news_item_id} not found while resolving conflict display")
+
         return {
             "incoming_story_id": self.incoming_story_id,
             "news_item_id": self.news_item_id,
             "existing_story_id": self.existing_story_id,
             "incoming_story": self.incoming_story_data,
+            "title": title or "Unknown",
         }
 
     @classmethod
@@ -47,28 +63,49 @@ class NewsItemConflict:
         return story
 
     @classmethod
+    def remove_dissolve_news_items(cls, dissolve: list):
+        from core.model.story import Story
+
+        for news_item_id in dissolve:
+            news_item = NewsItem.get(news_item_id)
+            if news_item and news_item.story_id:
+                Story.remove_news_items_from_story([news_item.story_id], news_item_id)
+
+    @classmethod
+    def _regroup_story(cls, incoming_story: dict, keep_in_incoming: list):
+        from core.model.story import Story
+
+        news_items_to_regroup = []
+        for news_item_id in keep_in_incoming:
+            news_item = NewsItem.get(news_item_id)
+            if news_item and news_item.story_id:
+                result, _ = Story.remove_news_items_from_story([news_item.story_id], news_item_id)
+                news_items_to_regroup.append(result.get("new_stories_ids", []))
+        Story.group_stories(incoming_story.get("id", "") + news_items_to_regroup)
+
+    @classmethod
+    def regroup_news_items(cls, incoming_story: dict, keep_in_incoming: list, dissolve: list):
+        cls.remove_dissolve_news_items(dissolve)
+        cls._regroup_story(incoming_story, keep_in_incoming)
+
+    @classmethod
     def resolve(cls, resolution_data: dict) -> tuple[dict, int]:
         from core.model.story import Story
 
-        logger.debug(f"Resolving conflict with data: {resolution_data}")
         incoming_story = resolution_data.get("resolution_data", {}).get("incoming_story", {})
-        checked_news_item_ids = resolution_data.get("resolution_data", {}).get("checked_news_items", [])
-        logger.debug(f"Checked news item IDs: {checked_news_item_ids}")
-        unchecked_news_item_ids = resolution_data.get("resolution_data", {}).get("unchecked_news_items", [])
-        logger.debug(f"Unchecked news item IDs: {unchecked_news_item_ids}")
-        conflicting_ids = checked_news_item_ids + unchecked_news_item_ids
-        clean_story = cls.remove_conflicting_items_from_story(incoming_story, conflicting_ids)
-        logger.debug(f"Cleaned story: {clean_story}")
-        result = Story.add(clean_story)
-        if result[1] != 200:
-            return result[0], result[1]
-        story_ids = []
-        for id in checked_news_item_ids:
-            if news_item := NewsItem.get(id):
-                story_ids.append(news_item.story_id)
+        resolution_items = resolution_data.get("resolution_data", {}).get("news_item_resolutions", [])
 
-        result = Story.group_stories([incoming_story.get("id")] + story_ids)
-        for news_item_id in checked_news_item_ids + unchecked_news_item_ids:
-            key = f"{incoming_story.get('id')}:{news_item_id}"
-            cls.conflict_store.pop(key, None)
-        return (result[0], result[1]) if result[1] != 200 else ({"message": "The story was successfully submitted."}, 200)
+        keep_in_incoming = [item["news_item_id"] for item in resolution_items if item["decision"] == "incoming"]
+        keep_in_existing = [item["news_item_id"] for item in resolution_items if item["decision"] == "existing"]
+        dissolve = [item["news_item_id"] for item in resolution_items if item["decision"] == "dissolve"]
+
+        incoming_story = cls.remove_conflicting_items_from_story(incoming_story, keep_in_existing + dissolve + keep_in_incoming)
+
+        result = Story.add(incoming_story)
+        if result[1] == 200:
+            cls.regroup_news_items(incoming_story, keep_in_incoming, dissolve)
+            return result[0], result[1]
+
+        cls.remove_conflict(incoming_story["id"], keep_in_incoming, keep_in_existing, dissolve)
+
+        return {"message": "The story was successfully submitted."}, 200
