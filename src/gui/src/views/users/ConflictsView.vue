@@ -105,7 +105,7 @@
 
     <v-card outlined class="mt-6">
       <v-card-title>
-        Conflicting News Items
+        News Item Conflict Resolution
         <v-chip
           v-if="newsItemConflicts.length"
           class="ml-2"
@@ -152,104 +152,101 @@
             </v-card-title>
 
             <v-card-text>
-              <v-alert type="warning" variant="outlined" dense text>
-                <strong>{{ group.conflicts.length }}</strong> conflicting news
-                item(s)
+              <v-alert type="info" variant="outlined" class="mb-4">
+                <div class="text-subtitle-2 mb-1">
+                  Incoming Story News Items
+                </div>
+                <ul class="pl-4">
+                  <li
+                    v-for="item in group.fullStory.news_items || []"
+                    :key="item.id"
+                  >
+                    {{ item.title || 'Untitled' }}
+                  </li>
+                </ul>
               </v-alert>
 
-              <v-alert
-                type="info"
-                variant="tonal"
-                density="compact"
-                class="mb-3"
-                icon="mdi-information-outline"
-              >
-                <p class="text-body-2 mb-0">
-                  Check items to <strong>include</strong> in the incoming story.
-                  Uncheck items to <strong>exclude</strong> from the incoming
-                  story and keep them in the existing story.
-                </p>
-              </v-alert>
-
-              <v-list dense>
-                <v-list-item
-                  v-for="conflict in group.conflicts"
-                  :key="conflict.news_item_id"
-                >
-                  <template #prepend>
-                    <v-checkbox
-                      v-model="selectedNewsItems[storyId]"
-                      :value="conflict.news_item_id"
-                      hide-details
-                      multiple
-                      density="compact"
-                    />
-                  </template>
-
-                  <div class="d-flex flex-column">
-                    <div class="d-flex align-center">
-                      <v-chip
-                        v-if="
-                          typeof storySummaries[conflict.existing_story_id]
-                            ?.relevance === 'number'
-                        "
-                        class="mr-2"
-                        color="blue-grey"
-                        size="x-small"
-                        label
-                      >
-                        Relevance:
-                        {{
-                          storySummaries[
-                            conflict.existing_story_id
-                          ].relevance.toFixed(2)
-                        }}
-                      </v-chip>
+              <v-table dense>
+                <thead>
+                  <tr>
+                    <th>News Item Title</th>
+                    <th>Existing Story</th>
+                    <th>Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="conflict in group.conflicts"
+                    :key="conflict.news_item_id"
+                  >
+                    <td>
                       {{
-                        storySummaries[conflict.existing_story_id]?.title ||
-                        'Loading title…'
+                        group.fullStory.news_items?.find(
+                          (item) => item.id === conflict.news_item_id
+                        )?.title || 'Untitled'
                       }}
-                    </div>
-
-                    <div class="d-flex flex-wrap text-body-2 mt-1">
-                      <div class="mr-4">
-                        <strong>News item ID:</strong>
+                    </td>
+                    <td>
+                      <div>
                         <a
                           :href="`/story/${conflict.existing_story_id}`"
                           target="_blank"
-                          class="text-decoration-none text-primary"
                         >
-                          {{ conflict.news_item_id }}
+                          {{
+                            storySummaries[conflict.existing_story_id]?.title ||
+                            'Loading…'
+                          }}
                         </a>
+                        <ul class="text-caption text-grey-darken-1 pl-4 mt-1">
+                          <li>
+                            Relevance:
+                            {{
+                              storySummaries[conflict.existing_story_id]
+                                ?.relevance ?? 'N/A'
+                            }}
+                          </li>
+                          <li>
+                            News Items:
+                            {{
+                              storySummaries[conflict.existing_story_id]
+                                ?.news_item_count ?? 'N/A'
+                            }}
+                          </li>
+                          <li
+                            v-for="(t, i) in storySummaries[
+                              conflict.existing_story_id
+                            ]?.news_item_titles || []"
+                            :key="i"
+                          >
+                            {{ t }}
+                          </li>
+                        </ul>
                       </div>
+                    </td>
+                    <td>
+                      <v-radio-group
+                        v-model="newsItemDecisions[conflict.news_item_id]"
+                        row
+                      >
+                        <v-radio label="Keep in Incoming" value="incoming" />
+                        <v-radio label="Keep in Existing" value="existing" />
+                        <v-radio label="Dissolve Story" value="dissolve" />
+                      </v-radio-group>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
 
-                      <div class="mr-4">
-                        {{
-                          storySummaries[conflict.existing_story_id]
-                            ? storySummaries[conflict.existing_story_id]
-                                .news_item_count +
-                              ' ' +
-                              (storySummaries[conflict.existing_story_id]
-                                .news_item_count === 1
-                                ? 'item contains the story with the conflicting news item'
-                                : 'items contains the story with the conflicting news item')
-                            : 'Loading items…'
-                        }}
-                      </div>
-                    </div>
-                  </div>
-                </v-list-item>
-              </v-list>
               <v-btn
                 color="success"
-                class="mt-3"
+                class="mt-4"
                 @click="submitNewsItemResolution(storyId)"
               >
-                Submit Resolved Story
+                Submit Resolution
               </v-btn>
               <v-btn
                 color="info"
-                class="mt-3 ml-2"
+                class="mt-4 ml-2"
                 @click="submitAndRedirectNewsItemResolution(storyId)"
               >
                 Submit & View Story
@@ -258,9 +255,9 @@
               <v-expand-transition>
                 <div v-if="expandedStories.includes(storyId)">
                   <v-card class="mt-4" outlined>
-                    <v-card-title class="text-subtitle-1">
-                      Full Incoming Story (JSON)
-                    </v-card-title>
+                    <v-card-title class="text-subtitle-1"
+                      >Full Incoming Story (JSON)</v-card-title
+                    >
                     <v-card-text>
                       <pre style="white-space: pre-wrap">
                         {{ JSON.stringify(group.fullStory, null, 2) }}
@@ -305,7 +302,7 @@ const expandedStories = ref([])
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 const snackbarColor = ref('error')
-const selectedNewsItems = ref({})
+const newsItemDecisions = ref({})
 
 function showToast(message, color = 'error') {
   snackbarMessage.value = message
@@ -440,7 +437,8 @@ const groupedNewsItemConflicts = computed(() => {
       }
     grouped[storyId].conflicts.push({
       news_item_id: conflict.news_item_id,
-      existing_story_id: conflict.existing_story_id
+      existing_story_id: conflict.existing_story_id,
+      title: conflict.title || 'Untitled'
     })
   }
   return grouped
@@ -450,58 +448,49 @@ async function submitNewsItemResolution(storyId) {
   const group = groupedNewsItemConflicts.value[storyId]
   if (!group) return showToast('Story group not found.')
 
-  const selected = selectedNewsItems.value[storyId] || []
+  const news_item_resolutions = group.conflicts.map((conflict) => ({
+    news_item_id: conflict.news_item_id,
+    decision: newsItemDecisions.value[conflict.news_item_id] || 'incoming'
+  }))
 
-  const conflictingIds = group.conflicts.map((c) => c.news_item_id)
-  const unchecked = conflictingIds.filter((id) => !selected.includes(id))
-
-  const payload = {
-    resolution_data: {
-      incoming_story: group.fullStory,
-      checked_news_items: selected,
-      unchecked_news_items: unchecked
-    }
+  const resolution_data = {
+    incoming_story: group.fullStory,
+    news_item_resolutions
   }
 
   try {
-    await store.resolveNewsItemConflict(payload)
-    showToast(`News item conflicts resolved for story ${storyId}`, 'success')
-    delete selectedNewsItems.value[storyId]
+    await store.resolveNewsItemConflict({ story_id: storyId, resolution_data })
+    showToast(`Resolved news items for story ${storyId}`, 'success')
     await store.loadNewsItemConflicts()
   } catch (err) {
     showToast('Failed to resolve conflict.')
     console.error(err)
   }
 }
+
 async function submitAndRedirectNewsItemResolution(storyId) {
   const group = groupedNewsItemConflicts.value[storyId]
   if (!group) return showToast('Story group not found.')
 
-  const selected = selectedNewsItems.value[storyId] || []
-  const conflictingIds = group.conflicts.map((c) => c.news_item_id)
-  const unchecked = conflictingIds.filter((id) => !selected.includes(id))
+  const news_item_resolutions = group.conflicts.map((conflict) => ({
+    news_item_id: conflict.news_item_id,
+    decision: newsItemDecisions.value[conflict.news_item_id] || 'incoming'
+  }))
 
-  const payload = {
-    resolution_data: {
-      incoming_story: group.fullStory,
-      checked_news_items: selected,
-      unchecked_news_items: unchecked
-    }
+  const resolution_data = {
+    incoming_story: group.fullStory,
+    news_item_resolutions
   }
 
-  // Open a blank tab immediately on click
   const newTab = window.open('about:blank', '_blank')
 
   try {
-    await store.resolveNewsItemConflict(payload)
-    showToast(`News item conflicts resolved for story ${storyId}`, 'success')
-    delete selectedNewsItems.value[storyId]
+    await store.resolveNewsItemConflict({ story_id: storyId, resolution_data })
+    showToast(`Resolved news items for story ${storyId}`, 'success')
     await store.loadNewsItemConflicts()
-
-    const newStoryId = group.fullStory.id
-    newTab.location.href = `/story/${newStoryId}`
+    newTab.location.href = `/story/${group.fullStory.id}`
   } catch (err) {
-    newTab.close() // clean up the blank tab if the call failed
+    newTab.close()
     showToast('Failed to resolve conflict.')
     console.error(err)
   }
@@ -518,6 +507,20 @@ onMounted(async () => {
   await store.fetchProposalCount()
   await store.loadNewsItemConflicts()
   await store.loadSummariesPerConflict()
+
+  for (const conflict of newsItemConflicts.value) {
+    const id = conflict.news_item_id
+    if (!newsItemDecisions.value[id]) {
+      if (
+        conflict.existing_story_id &&
+        storySummaries.value[conflict.existing_story_id]
+      ) {
+        newsItemDecisions.value[id] = 'existing'
+      } else {
+        newsItemDecisions.value[id] = 'incoming'
+      }
+    }
+  }
 })
 </script>
 

@@ -409,12 +409,17 @@ class Story(BaseModel):
             if "news_items_to_delete" in data:
                 cls.delete_news_items(data.pop("news_items_to_delete"))
 
+            existing_news_item_story_ids = []
             for news_item in data.get("news_items", []):
-                result, _ = cls.add_single_news_item(news_item)
+                result, code = cls.add_single_news_item(news_item)
+                existing_news_item_story_ids.append(result.get("news_item_story_id"))
                 logger.debug(f"News item {news_item.get(id), 'no'} added with result: {result}")
                 if story_id := result.get("story_id"):
                     logger.debug(f"News item for story {story_id} will be added.")
                     story_ids.append(story_id)
+            target_id = data.get("id")
+            if any(story_id != target_id for story_id in existing_news_item_story_ids):
+                return cls.handle_conflicting_news_items(data)
 
             cls.group_stories(story_ids)
             return cls.update(data["id"], data, external=True)
@@ -458,7 +463,11 @@ class Story(BaseModel):
     def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
             logger.warning("Identical news item found. Skipping...")
-            return {"error": "Identical news item found. Skipping..."}, 400
+            news_item_obj = NewsItem.get(news_item.get("id", ""))
+            return {
+                "error": "Identical news item found. Skipping...",
+                "news_item_story_id": news_item_obj.story_id if news_item_obj else None,
+            }, 400
 
         data = {
             "title": news_item.get("title"),
@@ -895,6 +904,7 @@ class Story(BaseModel):
     def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
+            new_stories_ids = []
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -906,10 +916,10 @@ class Story(BaseModel):
                     continue
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                cls.create_from_item(news_item)
+                new_stories_ids.append(cls.create_from_item(news_item))
             db.session.commit()
             cls.update_stories(processed_stories)
-            return {"message": "success"}, 200
+            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
@@ -958,7 +968,7 @@ class Story(BaseModel):
         return list(existing_ids - new_ids)
 
     @classmethod
-    def create_from_item(cls, news_item):
+    def create_from_item(cls, news_item) -> str | None:
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -970,6 +980,7 @@ class Story(BaseModel):
 
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
+        return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
         status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
@@ -1066,7 +1077,7 @@ class Story(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [{"name": tag.name, "tag_type": tag.tag_type} for tag in self.tags]
+        data["tags"] = {tag.name: tag.tag_type for tag in self.tags}
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data

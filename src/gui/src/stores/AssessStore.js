@@ -382,7 +382,6 @@ export const useAssessStore = defineStore(
       updateStories()
     }
 
-
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }

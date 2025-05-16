@@ -49,7 +49,7 @@ class StoryConflict:
     @classmethod
     def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
         if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change", "has_proposals"}
+            keys_to_remove = {"updated", "last_change", "has_proposals", "detail_view"}
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
         elif isinstance(obj, dict):
