@@ -72,7 +72,8 @@ export function exportReportTypes(filter) {
 }
 
 export function getAllTemplates(filter_data) {
-  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  let filter = apiService.getQueryStringFromNestedObject(filter_data)
+  filter = `${filter}&list=true`
   return apiService.get(`/config/templates?${filter}`)
 }
 

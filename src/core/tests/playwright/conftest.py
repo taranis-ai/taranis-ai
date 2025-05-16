@@ -9,7 +9,7 @@ from playwright.sync_api import Browser
 @pytest.fixture(scope="session")
 def build_gui():
     try:
-        if not os.path.isdir("../gui/dist"):
+        if os.getenv("E2E_TEST_GUI_REBUILD") == "true" or not os.path.isdir("../gui/dist"):
             if not os.path.isdir("../gui/node_modules"):
                 print("Building node_modules")
                 print(os.path.isdir("../gui/node_modules"))

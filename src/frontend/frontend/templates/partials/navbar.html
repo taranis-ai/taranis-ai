@@ -1,0 +1,29 @@
+<div class="flex items-center space-x-4">
+  <button
+    @click="sidebarOpen = !sidebarOpen"
+    class="btn btn-ghost btn-square mr-4"
+    aria-label="Toggle sidebar"
+  >
+    {{ heroicon_outline('bars-3') }}
+  </button>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-ghost normal-case text-xl">
+    <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="Taranis AI Logo" class="h-8">
+  </a>
+</div>
+
+<nav>
+  <ul class="menu bg-base-200 menu-horizontal rounded-box">
+    <li>
+      <a>
+        {{ heroicon_outline('squares-2x2') }}
+        Dashboard
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('admin.dashboard') }}">
+        {{ heroicon_outline('cog-6-tooth') }}
+        Administration
+      </a>
+    </li>
+  </ul>
+</nav>

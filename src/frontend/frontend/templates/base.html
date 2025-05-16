@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,14 +13,29 @@
   <script defer src="{{ url_for('static', filename='js/alpinejs.min.js') }}"></script>
   {% block head %}{% endblock %}
 </head>
-<body class="bg-base-300 min-h-screen" hx-ext="response-targets">
-  <div class="container mx-auto w-full max-w-full">
-    <div>
-      {% include 'partials/debug_menu.html' %}
-      {% include 'partials/error.html' %}
+
+<body class="flex bg-base-300 min-h-screen" hx-ext="response-targets" x-data="{ sidebarOpen: true }">
+  <!-- Sidebar -->
+  <aside id="admin_menu" x-bind:class="sidebarOpen ? 'w-64' : 'w-0'"
+    class="fixed top-16 left-0 bg-base-200 overflow-hidden transition-all duration-300 z-20 h-screen">
+    {% include 'partials/admin_menu.html' %}
+  </aside>
+
+  <!-- Navigation Bar -->
+  <header id="navbar" class="fixed top-0 left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar">
+    {% include 'partials/navbar.html' %}
+  </header>
+
+  <!-- Main Content -->
+  <main x-bind:class="sidebarOpen ? 'ml-64' : 'ml-0'" class="pt-16 transition-all duration-300 w-full max-w-full">
+    <div class="container mx-auto w-full max-w-full">
+      <div>
+        {% include 'partials/error.html' %}
+      </div>
+      {% block content %}{% endblock %}
+      {% include 'partials/notifications.html' %}
     </div>
-    {% block content %}{% endblock %}
-    {% include 'partials/notifications.html' %}
-  </div>
+  </main>
 </body>
+
 </html>

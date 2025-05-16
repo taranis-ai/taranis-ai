@@ -63,7 +63,7 @@
             />
             <v-btn
               class="ml-3 w-25"
-              :to="{ name: 'story', params: { itemId: story.id } }"
+              :to="{ name: 'story', params: { storyId: story.id } }"
               color="error"
               text="Go Back"
               data-testid="story-go-back-btn"
@@ -163,35 +163,12 @@
             </router-link>
           </v-card-title>
           <v-card-text>
-            <v-row class="ms-4 px-4" align="center" justify="start" wrap>
-              <v-col cols="2" class="d-flex align-center">
-                <div class="d-flex justify-center pt-2">
-                  <v-btn-toggle
-                    v-if="showAdvancedOptions"
-                    class="d-flex justify-center"
-                    mandatory
-                  >
-                    <v-btn
-                      value="yes"
-                      :class="[
-                        getButtonCybersecurityClass(news_item, 'yes'),
-                        'me-2'
-                      ]"
-                      @click="setNewsItemCyberSecStatus(news_item, 'yes')"
-                      :data-testid="`news-item-${news_item.id}-cybersec-yes-btn`"
-                      text="Cybersecurity"
-                    />
-                    <v-btn
-                      value="no"
-                      :class="getButtonCybersecurityClass(news_item, 'no')"
-                      @click="setNewsItemCyberSecStatus(news_item, 'no')"
-                      :data-testid="`news-item-${news_item.id}-cybersec-no-btn`"
-                      text="Not Cybersecurity"
-                    />
-                  </v-btn-toggle>
-                </div>
-              </v-col>
-            </v-row>
+            {{ news_item.attributes }}
+            <cyber-security-buttons
+              :news_item="news_item"
+              :dirty="dirty"
+              @updated="fetchStoryData()"
+            />
           </v-card-text>
         </v-card>
       </v-card-text>
@@ -201,10 +178,11 @@
 
 <script>
 import { ref, computed, watch } from 'vue'
-import { patchStory, updateNewsItemAttributes, triggerBot } from '@/api/assess'
+import { patchStory, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
+import CyberSecurityButtons from '@/components/assess/CyberSecurityButtons.vue'
 import AttributesTable from '@/components/common/AttributesTable.vue'
 import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useUserStore } from '@/stores/UserStore'
@@ -217,7 +195,8 @@ export default {
     CodeEditor,
     EditTags,
     StoryLinks,
-    AttributesTable
+    AttributesTable,
+    CyberSecurityButtons
   },
   props: {
     storyProp: {
@@ -231,6 +210,7 @@ export default {
     const assessStore = useAssessStore()
     const form = ref(null)
     const story = ref(JSON.parse(JSON.stringify(props.storyProp)))
+    const originalStory = ref(JSON.parse(JSON.stringify(props.storyProp)))
     const dirty = ref(false)
 
     const showAdvancedOptions = computed(() => {
@@ -320,26 +300,6 @@ export default {
       }
     }
 
-    const getButtonCybersecurityClass = (news_item, button_type) => {
-      const news_item_status = getNewsItemCyberSecStatus(news_item)
-
-      if (button_type === 'yes') {
-        if (news_item_status === 'yes_human') {
-          return 'cybersecurity-human-btn'
-        } else if (news_item_status === 'yes_bot') {
-          return 'cybersecurity-bot-btn'
-        } else return 'inactive-yes-btn'
-      }
-
-      if (button_type === 'no') {
-        if (news_item_status === 'no_human') {
-          return 'non-cybersecurity-human-btn'
-        } else if (news_item_status === 'no_bot') {
-          return 'non-cybersecurity-bot-btn'
-        } else return 'inactive-no-btn'
-      }
-    }
-
     const rules = {
       required: (v) => !!v || 'Required'
     }
@@ -388,7 +348,7 @@ export default {
           links: story.value.links
         })
         notifySuccess(result)
-        await fetchStoryData(props.storyProp.id)
+        await fetchStoryData()
       } catch (e) {
         notifyFailure(e)
       }
@@ -403,10 +363,11 @@ export default {
       }
     }
 
-    async function fetchStoryData(storyId) {
+    async function fetchStoryData() {
       try {
-        await assessStore.updateStoryByID(storyId)
-        story.value = JSON.parse(JSON.stringify(props.storyProp))
+        const result = await assessStore.updateStoryByID(props.storyProp.id)
+        originalStory.value = JSON.parse(JSON.stringify(result))
+        story.value = JSON.parse(JSON.stringify(result))
       } catch (e) {
         console.error('Failed to fetch story data:', e)
         notifyFailure(e)
@@ -420,7 +381,7 @@ export default {
           props.storyProp.id
         )
         notifySuccess(result.data.message)
-        await fetchStoryData(props.storyProp.id)
+        await fetchStoryData()
       } catch (e) {
         notifyFailure(e)
       }
@@ -433,94 +394,16 @@ export default {
           props.storyProp.id
         )
         notifySuccess(result.data.message)
-        await fetchStoryData(props.storyProp.id)
+        await fetchStoryData()
       } catch (e) {
         notifyFailure(e)
-      }
-    }
-
-    async function setNewsItemCyberSecStatus(news_item, status) {
-      const { valid } = await form.value.validate()
-
-      // check if button should be clickable at all
-      // TODO replace this mechanism by using correct vuetify component
-      if (
-        news_item?.attributes !== undefined &&
-        news_item.attributes.some(
-          (obj) => obj.key === 'cybersecurity_human' && obj.value === status
-        )
-      ) {
-        return
-      }
-
-      if (!valid || dirty.value) {
-        // Notify user to save changes before classifying
-        notifyFailure('Please save your changes before classifying.')
-        return
-      }
-
-      const new_attributes = [{ key: 'cybersecurity_human', value: status }]
-
-      try {
-        if (!Array.isArray(news_item.attributes)) {
-          news_item.attributes = []
-        }
-
-        const updatedKeys = new Set()
-
-        // update attributes directly in browser
-        news_item.attributes.forEach((attr) => {
-          if (attr.key === 'cybersecurity_human') {
-            attr.value = status
-            updatedKeys.add('cybersecurity_human')
-          }
-        })
-
-        if (!updatedKeys.has('cybersecurity_human')) {
-          news_item.attributes.push({
-            key: 'cybersecurity_human',
-            value: status
-          })
-        }
-
-        // update attributes in DB
-        const result = await updateNewsItemAttributes(
-          news_item.id,
-          new_attributes
-        )
-        await fetchStoryData(props.storyProp.id)
-        notifySuccess(result)
-      } catch (e) {
-        notifyFailure(e)
-      }
-    }
-
-    function getNewsItemCyberSecStatus(news_item) {
-      try {
-        if (!news_item || !Array.isArray(news_item.attributes)) {
-          return null
-        }
-
-        const human_class = news_item.attributes.find(
-          (attr) => attr.key === 'cybersecurity_human'
-        )
-        if (human_class?.value !== undefined)
-          return human_class.value + '_human'
-
-        const bot_class = news_item.attributes.find(
-          (attr) => attr.key === 'cybersecurity_bot'
-        )
-        return bot_class?.value + '_bot' ?? null
-      } catch (err) {
-        console.error('Error in getNewsItemCyberSecStatus:', err)
-        return null
       }
     }
 
     watch(
       () => story.value,
       (newStory) => {
-        dirty.value = !isEqual(newStory, props.storyProp)
+        dirty.value = !isEqual(newStory, originalStory.value)
       },
       { deep: true, immediate: true }
     )
@@ -540,10 +423,8 @@ export default {
       sentimentCounts,
       getSentimentColor,
       storyCyberSecStatus,
+      fetchStoryData,
       getChipCybersecurityClass,
-      getButtonCybersecurityClass,
-      setNewsItemCyberSecStatus,
-      getNewsItemCyberSecStatus,
       submitBtnColor,
       submitBtnIcon
     }
@@ -552,56 +433,6 @@ export default {
 </script>
 
 <style scoped>
-.cybersecurity-human-btn {
-  background-color: #4caf50 !important;
-  color: white !important;
-}
-
-.cybersecurity-bot-btn {
-  background-color: #b1f3b3 !important;
-  color: white !important;
-}
-
-.cybersecurity-bot-btn:hover {
-  background-color: #67c46a !important;
-  color: white !important;
-}
-
-.non-cybersecurity-human-btn {
-  background-color: #e42e2e !important;
-  color: white !important;
-}
-
-.non-cybersecurity-bot-btn {
-  background-color: #faaeae !important;
-  color: white !important;
-}
-
-.non-cybersecurity-bot-btn:hover {
-  background-color: #e66363 !important;
-  color: white !important;
-}
-
-.inactive-yes-btn {
-  background-color: #f3f3f3 !important;
-  color: #424242 !important;
-}
-
-.inactive-yes-btn:hover {
-  background-color: #b1f3b3 !important;
-  color: #424242 !important;
-}
-
-.inactive-no-btn {
-  background-color: #f3f3f3 !important;
-  color: #424242 !important;
-}
-
-.inactive-no-btn:hover {
-  background-color: #faaeae !important;
-  color: #424242 !important;
-}
-
 .cyber-chip-yes {
   background-color: #4caf50;
   color: white;

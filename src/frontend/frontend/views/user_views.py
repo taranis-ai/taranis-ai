@@ -12,6 +12,7 @@ from frontend.views.base_view import BaseView
 
 class UserView(BaseView):
     model = User
+    icon = "user"
 
     @classmethod
     def get_extra_context(cls, object_id: int | str):

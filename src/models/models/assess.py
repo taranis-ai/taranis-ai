@@ -1,15 +1,8 @@
-from requests import Response
 from datetime import datetime
 from pydantic import field_validator, model_validator, field_serializer
 import langcodes
 
 from models.base import TaranisBaseModel
-
-
-class Product(TaranisBaseModel):
-    def __init__(self, response: Response):
-        self.data: bytes = response.content
-        self.mime_type: str = response.headers["Content-Type"]
 
 
 class NewsItem(TaranisBaseModel):

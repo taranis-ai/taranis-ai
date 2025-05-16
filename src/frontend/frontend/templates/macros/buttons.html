@@ -23,7 +23,8 @@
                 hx-push-url="true"
                 {% if action.hx_target %} hx-target="{{ action.hx_target }}" {% endif %}
                 {% if action.hx_swap %} hx-swap="{{ action.hx_swap }}" {% endif %}
-                {% if action.confirm %} hx-confirm="{{ action.confirm }}" {% endif %}>
+                {% if action.confirm %} hx-confirm="{{ action.confirm }}" {% endif %}
+                @click.stop>
             {{ action.label }}
         </button>
 {% endmacro %}

@@ -163,7 +163,6 @@ export const useAssessStore = defineStore(
         stories.value.items.push(updatedItem)
       }
 
-      console.debug('Updated Story', updatedItem)
       return updatedItem
     }
 

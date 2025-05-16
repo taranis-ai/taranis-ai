@@ -1,6 +1,6 @@
 <section id="error-msg" x-data="{ show: true }" x-init="setTimeout(() => show = false, 30000)">
   {% if error %}
-    <div x-show="show" x-transition class="toast toast-top toast-end">
+    <div x-show="show" x-transition class="toast toast-bottom toast-end fixed z-50">
       <div class="alert alert-error flex flex-col gap-2 w-72">
         <div class="flex items-center gap-2">
           {{ heroicon_outline("exclamation-triangle") }}
