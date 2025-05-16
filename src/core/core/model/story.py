@@ -469,7 +469,7 @@ class Story(BaseModel):
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "last_change": "internal" if news_item.get("source") == "manual" else "external",
+            "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
         }
 
         return cls.add(data)
