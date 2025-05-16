@@ -65,7 +65,7 @@ class NewsItem(BaseModel):
         hash: str | None = None,
         attributes=None,
         id=None,
-        last_change="internal",
+        last_change="external",
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
