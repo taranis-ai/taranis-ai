@@ -1,8 +1,10 @@
 from jinja2 import pass_context
 from flask import url_for
+import base64
+
 from models.admin import Role
 
-__all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var", "permissions_count"]
+__all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var", "permissions_count", "b64decode"]
 
 
 def human_readable_trigger(trigger):
@@ -31,6 +33,10 @@ def last_path_segment(value):
 
 def admin_action(value):
     return url_for("admin_settings.settings_action", action=last_path_segment(value))
+
+
+def b64decode(value):
+    return base64.b64decode(value).decode("utf-8")
 
 
 @pass_context

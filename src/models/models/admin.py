@@ -164,7 +164,7 @@ class WordList(TaranisBaseModel):
     id: int | None = None
     name: str
     description: str | None = None
-    usage: int = 0
+    usage: list[str] = Field(default_factory=list)
     link: str | None = None
     entries: list[WordListEntry] = Field(default_factory=list)
 
@@ -265,7 +265,7 @@ class Template(TaranisBaseModel):
     _model_name = "template"
     _pretty_name = "Template"
 
-    name: str | None = None
+    id: str | None = None
     content: str | None = None
 
 
@@ -298,8 +298,9 @@ class Bot(TaranisBaseModel):
     _pretty_name = "Bot"
     _search_fields = ["name", "description"]
 
-    id: int | None = None
+    id: str | None = None
     name: str
     description: str | None = None
     type: str
+    index: int | None = None
     parameters: dict[str, str] = Field(default_factory=dict)

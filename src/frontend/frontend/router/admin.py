@@ -18,6 +18,7 @@ from frontend.views import (
     ProductTypeView,
     WordListView,
     SourceGroupView,
+    SourceView,
     ReportItemTypeView,
     AttributeView,
     TemplateView,
@@ -84,30 +85,6 @@ class ImportUsers(MethodView):
         return UserView.import_users_post_view()
 
 
-class TemplatesAPI(MethodView):
-    @auth_required()
-    def get(self):
-        return TemplateView.list_view()
-
-    @auth_required()
-    def post(self):
-        return TemplateView.update_view(object_id=0)
-
-
-class UpdateTemplate(MethodView):
-    @auth_required()
-    def get(self, template_id: int = 0):
-        return TemplateView.edit_view(object_id=template_id)
-
-    @auth_required()
-    def put(self, template_id):
-        return TemplateView.update_view(object_id=template_id)
-
-    @auth_required()
-    def delete(self, template_id):
-        return TemplateView.delete_view(object_id=template_id)
-
-
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
@@ -142,6 +119,9 @@ def init(app: Flask):
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupView.as_view("osint_source_groups"))
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
 
+    admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
+    admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
+
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=BotView.as_view("edit_bot"))
 
@@ -151,8 +131,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/product_types", view_func=ProductTypeView.as_view("product_types"))
     admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
 
-    admin_bp.add_url_rule("/templates", view_func=TemplatesAPI.as_view("templates"))
-    admin_bp.add_url_rule("/templates/<int:template_id>", view_func=UpdateTemplate.as_view("edit_template"))
+    admin_bp.add_url_rule("/templates", view_func=TemplateView.as_view("template_data"))
+    admin_bp.add_url_rule("/templates/<string:template_id>", view_func=TemplateView.as_view("edit_template"))
 
     admin_bp.add_url_rule("/publisher", view_func=PublisherView.as_view("publisher_presets"))
     admin_bp.add_url_rule("/publishers/<int:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))

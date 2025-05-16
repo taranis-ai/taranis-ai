@@ -11,6 +11,7 @@ from .attribute_views import AttributeView
 from .worker_views import WorkerView
 from .source_groups_views import SourceGroupView
 from .report_views import ReportItemTypeView
+from .source_views import SourceView
 
 __all__ = [
     "ACLView",
@@ -25,6 +26,7 @@ __all__ = [
     "WordListView",
     "AttributeView",
     "WorkerView",
+    "SourceView",
     "SourceGroupView",
     "ReportItemTypeView",
 ]

@@ -21,6 +21,7 @@ class BaseView(MethodView):
     edit_template: str = ""
     base_route: str = ""
     edit_route: str = ""
+    icon: str = "wrench"
 
     _registry: dict[str, Any] = {}
 
@@ -34,6 +35,7 @@ class BaseView(MethodView):
             "error": error,
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
+            "columns": cls.get_columns(),
             "routes": {
                 "base_route": cls.get_base_route(),
                 "edit_route": cls.get_edit_route(**{f"{cls.model_name()}_id": object_id}),

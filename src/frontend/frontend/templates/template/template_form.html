@@ -1,0 +1,25 @@
+
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="bg-base-100 rounded-sm p-4">
+  <pre id="editor">{{ template.content | default('') | b64decode }}</pre>
+</div>
+
+<script>
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/github");
+    editor.session.setMode("ace/mode/html");
+</script>
+<style type="text/css" media="screen">
+  #editor {
+      margin-top: 64px;
+      margin-left: 260px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+  }
+</style>
+{% endblock %}
