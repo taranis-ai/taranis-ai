@@ -75,7 +75,7 @@ class MISPConnector:
             "language": "",
             "osint_source_id": "",
             "review": "",
-            "source": "",
+            "source": "manual",
             "story_id": "",
         }
 
