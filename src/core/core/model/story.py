@@ -414,16 +414,17 @@ class Story(BaseModel):
             if "news_items_to_delete" in data:
                 cls.delete_news_items(data.pop("news_items_to_delete"))
 
-            existing_news_item_story_ids = []
+            skipped_news_item_story_ids = []
             for news_item in data.get("news_items", []):
                 result, code = cls.add_single_news_item(news_item)
-                existing_news_item_story_ids.append(result.get("news_item_story_id"))
-                logger.debug(f"News item {news_item.get(id), 'no'} added with result: {result}")
+                if skipped_item := result.get("skipped_news_item_story_id"):
+                    skipped_news_item_story_ids.append(skipped_item)
+                logger.debug(f"News item {news_item.get('id')} added with result: {result}")
                 if story_id := result.get("story_id"):
                     logger.debug(f"News item for story {story_id} will be added.")
                     story_ids.append(story_id)
             target_id = data.get("id")
-            if any(story_id != target_id for story_id in existing_news_item_story_ids):
+            if any(story_id != target_id for story_id in skipped_news_item_story_ids):
                 return cls.handle_conflicting_news_items(data)
 
             cls.group_stories(story_ids)
@@ -471,7 +472,7 @@ class Story(BaseModel):
             news_item_obj = NewsItem.get(news_item.get("id", ""))
             return {
                 "error": "Identical news item found. Skipping...",
-                "news_item_story_id": news_item_obj.story_id if news_item_obj else None,
+                "skipped_news_item_story_id": news_item_obj.story_id if news_item_obj else None,
             }, 400
 
         data = {
@@ -555,7 +556,6 @@ class Story(BaseModel):
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
-        logger.debug("started uupdate function")
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -579,21 +579,18 @@ class Story(BaseModel):
             story.comments = data["comments"]
 
         if "tags" in data:
-            logger.debug("Debug output, just started updating tags data")
             story.set_tags(data["tags"])
 
         if summary := data.get("summary"):
             story.summary = summary
 
         if "attributes" in data:
-            logger.debug("Debug output, just started updating attributes data")
             story.set_attributes(data["attributes"])
 
         if "links" in data:
             story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
-        logger.debug("Debug output, just finished updating general story data")
 
         story.update_timestamps()
         db.session.commit()
@@ -649,7 +646,7 @@ class Story(BaseModel):
                 conflicts.append(conflict.to_dict())
 
         if conflicts:
-            return {"conflicts": conflicts}, 409
+            return {"error": {"conflicts_number": len(conflicts)}}, 409
 
         return {"message": "Update successful"}, 200
 
@@ -668,7 +665,6 @@ class Story(BaseModel):
         self.remove_attributes(list(keys_to_remove))
 
     def patch_attributes(self, attributes: list[dict]):
-        logger.debug("Debug output, just started patching attributes")
         for attribute in attributes:
             attr_key = attribute.get("key")
             attr_value = attribute.get("value")
