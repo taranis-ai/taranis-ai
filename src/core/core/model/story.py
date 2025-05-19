@@ -350,6 +350,7 @@ class Story(BaseModel):
         biggest_story = 0
         query = cls.enhance_with_user_votes(query, user.id)
         query = cls.enhance_with_report_count(query)
+        query = query.distinct()
 
         for story, user_vote, report_count in db.session.execute(query):
             story_data = story.to_dict()

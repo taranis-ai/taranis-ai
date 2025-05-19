@@ -241,6 +241,17 @@ def stories_with_tlp(app, fake_source):
 
         news_items = [
             {
+                "id": "tlp-news-clear",
+                "title": "Plain News Item",
+                "content": "This is just a regular news item.",
+                "source": "https://example.com/news/plain",
+                "osint_source_id": fake_source,
+                "collected": "2024-01-01T01:00:00",
+                "published": "2024-01-01T01:00:00",
+                "review": "Another review",
+                "hash": "plain-news-hash",
+            },
+            {
                 "id": "tlp-news-green",
                 "title": "TLP News Item",
                 "content": "This is TLP-related content.",
@@ -251,17 +262,6 @@ def stories_with_tlp(app, fake_source):
                 "review": "Some review",
                 "hash": "tlp-news-hash",
                 "attributes": [{"key": "TLP", "value": TLPLevel.GREEN.value}],
-            },
-            {
-                "id": "tlp-news-clear",
-                "title": "Plain News Item",
-                "content": "This is just a regular news item.",
-                "source": "https://example.com/news/plain",
-                "osint_source_id": fake_source,
-                "collected": "2024-01-01T01:00:00",
-                "published": "2024-01-01T01:00:00",
-                "review": "Another review",
-                "hash": "plain-news-hash",
             },
             {
                 "id": "tlp-news-red",
