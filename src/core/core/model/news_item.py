@@ -214,7 +214,15 @@ class NewsItem(BaseModel):
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
-    def update_item(self, data) -> tuple[dict, int]:
+    @property
+    def user_override(self) -> NewsItemAttribute | None:
+        return self.find_attribute_by_key("user_override")
+
+    @user_override.setter
+    def user_override(self, value: str) -> None:
+        self.upsert_attribute(NewsItemAttribute(key="user_override", value=value))
+
+    def update_item(self, data, user: User | None) -> tuple[dict, int]:
         if self.source != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
@@ -236,6 +244,7 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
+        self.user_override = f"by_user_id_{user.id}" if user else "no"
         self.last_change = "internal"
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)

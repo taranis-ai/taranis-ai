@@ -395,15 +395,15 @@ class Story(BaseModel):
                 news_item.delete_item()
 
     @classmethod
-    def add_or_update(cls, data) -> "tuple[dict, int]":
+    def add_or_update(cls, data, user: User | None) -> "tuple[dict, int]":
         if "id" not in data:
-            return cls.add(data)
+            return cls.add(data, user)
 
         story_ids = [data.get("id")]
         conflict = data.pop("conflict", None)
 
         if Story.get(data["id"]) is None:
-            message, code = cls.add(data)
+            message, code = cls.add(data, user)
             if code != 200 and message.get("error") == "Story already exists":
                 logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
                 cls.handle_conflicting_news_items(data)
@@ -414,29 +414,31 @@ class Story(BaseModel):
             if "news_items_to_delete" in data:
                 cls.delete_news_items(data.pop("news_items_to_delete"))
 
+            skipped_news_item_story_ids = []
             for news_item in data.get("news_items", []):
-                logger.debug(f"{NewsItem.get(news_item.get('id'))}")
-                if not NewsItem.get(news_item.get("id")):
-                    result, _ = cls.add_single_news_item(news_item)
-                    story_id = result.get("story_id")
-                    if story_id is not None:
-                        story_ids.append(story_id)
+                result, code = cls.add_single_news_item(news_item, user)
+                if skipped_item := result.get("skipped_news_item_story_id"):
+                    skipped_news_item_story_ids.append(skipped_item)
+                if story_id := result.get("story_id"):
+                    story_ids.append(story_id)
+            target_id = data.get("id")
+            if any(story_id != target_id for story_id in skipped_news_item_story_ids):
+                return cls.handle_conflicting_news_items(data)
 
             cls.group_stories(story_ids)
             return cls.update(data["id"], data, external=True)
 
         result = cls.update_with_conflicts(data["id"], data)
-        logger.debug(f"{result=}")
         return result
 
     @classmethod
-    def add(cls, data) -> "tuple[dict, int]":
+    def add(cls, data, user: User | None) -> "tuple[dict, int]":
         try:
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
             StorySearchIndex.prepare(story)
-            story.update_status()
+            story.update_status(user)
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -463,7 +465,7 @@ class Story(BaseModel):
         return items
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
+    def add_from_news_item(cls, news_item: dict, user: User | None) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
             logger.warning("Identical news item found. Skipping...")
             return {"error": "Identical news item found. Skipping..."}, 400
@@ -476,7 +478,7 @@ class Story(BaseModel):
             "last_change": "internal" if news_item.get("source") == "manual" else "external",
         }
 
-        return cls.add(data)
+        return cls.add(data, user)
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -490,17 +492,17 @@ class Story(BaseModel):
         return None
 
     @classmethod
-    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
+    def add_single_news_item(cls, news_item: dict, user: User | None) -> tuple[dict, int]:
         if err := cls.check_news_item_data(news_item):
             return err, 400
         try:
-            return cls.add_from_news_item(news_item)
+            return cls.add_from_news_item(news_item, user)
         except Exception as e:
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict]):
+    def add_news_items(cls, news_items_list: list[dict], user: User | None) -> tuple[dict, int]:
         story_ids = []
         news_item_ids = []
         skipped_items = []
@@ -510,7 +512,7 @@ class Story(BaseModel):
                     logger.warning(err)
                     skipped_items.append(err)
                     continue
-                message, status = cls.add_from_news_item(news_item)
+                message, status = cls.add_from_news_item(news_item, user)
                 if status > 299:
                     error_message = message.get("error", "Unknown error")
                     logger.warning(error_message)
@@ -745,7 +747,7 @@ class Story(BaseModel):
                 logger.debug(f"User {user.id} not allowed to remove news item {news_item.id}")
                 return {"error": f"User {user.id} not allowed to remove news item {news_item.id}"}, 403
 
-        story.update_status()
+        story.update_status(user)
 
         db.session.commit()
 
@@ -817,8 +819,8 @@ class Story(BaseModel):
                 if user is None or news_item.allowed_with_acl(user, True):
                     story.news_items.append(news_item)
                     story.relevance += 1
-                    story.update_status()
-            cls.update_stories({story})
+                    story.update_status(user)
+            cls.update_stories({story}, user)
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -848,7 +850,7 @@ class Story(BaseModel):
                         story.news_items.remove(news_item)
                 processed_stories.add(story)
 
-            cls.update_stories(processed_stories)
+            cls.update_stories(processed_stories, user)
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception as e:
@@ -875,8 +877,8 @@ class Story(BaseModel):
                     return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
-                    cls.create_from_item(news_item)
-            story.update_status()
+                    cls.create_from_item(news_item, user)
+            story.update_status(user)
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:
@@ -887,6 +889,7 @@ class Story(BaseModel):
     def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
+            new_stories_ids = []
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -898,24 +901,24 @@ class Story(BaseModel):
                     continue
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                cls.create_from_item(news_item)
+                new_stories_ids.append(cls.create_from_item(news_item, user))
             db.session.commit()
-            cls.update_stories(processed_stories)
-            return {"message": "success"}, 200
+            cls.update_stories(processed_stories, user)
+            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
 
     @classmethod
-    def update_stories(cls, stories: set["Story"]):
+    def update_stories(cls, stories: set["Story"], user: User | None):
         for story in stories:
             try:
-                story.update_status()
+                story.update_status(user)
             except Exception:
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def create_from_item(cls, news_item):
+    def create_from_item(cls, news_item, user: User | None) -> str | None:
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -926,7 +929,8 @@ class Story(BaseModel):
         db.session.commit()
 
         StorySearchIndex.prepare(new_story)
-        new_story.update_status()
+        new_story.update_status(user)
+        return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
         status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
@@ -966,17 +970,18 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self):
+    def update_status(self, user: User | None):
         if self.remove_empty_story():
             return
         self.update_timestamps()
-        self.update_status_attributes()
+        self.update_status_attributes(user)
 
-    def update_status_attributes(self):
+    def update_status_attributes(self, user: User | None):
         attributes = [
             NewsItemAttribute(key="TLP", value=self.get_story_tlp()),
             NewsItemAttribute(key="cybersecurity", value=self.get_cybersecurity_status()),
             NewsItemAttribute(key="sentiment", value=self.get_story_sentiment()),
+            NewsItemAttribute(key="user_override", value=self.get_user_override(user)),
         ]
         for attribute in attributes:
             if attribute.value != "none":
@@ -1004,6 +1009,9 @@ class Story(BaseModel):
     @property
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
+
+    def get_user_override(self, user: User | None) -> str:
+        return f"by_user_id_{user.id}" if user else "no"
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
