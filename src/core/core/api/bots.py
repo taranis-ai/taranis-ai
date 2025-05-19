@@ -71,7 +71,7 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json, None)
+        return news_item.NewsItem.update_attributes(news_item_id, request.json, change_source="bot")
 
 
 class StoryAttributes(MethodView):
@@ -85,7 +85,7 @@ class StoryAttributes(MethodView):
     def patch(self, story_id):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
-                current_story.patch_attributes(input_data)
+                current_story.patch_attributes(input_data, change_source="bot")
             else:
                 return {"error": "No data provided"}, 400
             return {"message": f"Story {story_id} updated successfully"}, 200
@@ -99,7 +99,7 @@ class UpdateStory(MethodView):
 
     @api_key_required
     def put(self, story_id):
-        return story.Story.update(story_id, request.json)
+        return story.Story.update(story_id, request.json, change_source="bot")
 
 
 class BotsInfo(MethodView):

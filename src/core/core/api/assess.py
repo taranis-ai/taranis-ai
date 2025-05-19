@@ -46,10 +46,7 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
-        if "attributes" not in data_json:
-            data_json["attributes"] = []
-        data_json["attributes"].append({"key": "user_override", "value": f"by_user_id_{current_user.id}"})
-        result, status = story.Story.add_single_news_item(data_json, user=current_user)
+        result, status = story.Story.add_single_news_item(data_json, change_source=str(current_user or ""))
         sse_manager.news_items_updated()
         return result, status
 
@@ -83,7 +80,7 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json, current_user)
+        return news_item.NewsItem.update_attributes(news_item_id, request.json, str(current_user or ""))
 
 
 class Stories(MethodView):

@@ -175,7 +175,7 @@ class NewsItem(BaseModel):
         return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_attributes(cls, news_item_id, attributes, user: User | None) -> tuple[dict, int]:
+    def update_attributes(cls, news_item_id, attributes, change_source: str) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
@@ -184,10 +184,11 @@ class NewsItem(BaseModel):
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
+        attributes.append(NewsItemAttribute(key="change_source", value=change_source))
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
         db.session.commit()
-        news_item.story.update_status(user)
+        news_item.story.update_status()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
@@ -239,12 +240,12 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        self.user_override = f"by_user_id_{user.id}" if user else "no"
+        self.user_override = str(user or "")
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
-        self.story.update_status(user)
+        self.story.update_status()
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod

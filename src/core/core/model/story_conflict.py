@@ -26,7 +26,7 @@ class StoryConflict:
 
         updated_data.update(resolution)
 
-        response, code = Story.update(self.story_id, updated_data, user=user, external=True)
+        response, code = Story.update(self.story_id, updated_data, user=user, change_source="collector")
 
         if code == 200:
             StoryConflict.conflict_store.pop(self.story_id, None)

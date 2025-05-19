@@ -91,7 +91,7 @@ def stories(app, news_items):
         from core.model.story import Story, StoryNewsItemAttribute
         from core.model.news_item import NewsItem
 
-        result = Story.add_news_items(news_items, None)
+        result = Story.add_news_items(news_items, "")
 
         yield result[0].get("story_ids")
 
@@ -277,7 +277,7 @@ def stories_with_tlp(app, fake_source):
             },
         ]
 
-        result, _ = Story.add_news_items(news_items, None)
+        result, _ = Story.add_news_items(news_items, "")
         yield result
 
         StoryNewsItemAttribute.delete_all()
