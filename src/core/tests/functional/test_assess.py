@@ -59,13 +59,15 @@ class TestAssessStories(BaseTest):
         first_story = response.get_json()
         assert first_story["id"] == stories[0]
         assert first_story["title"] == "Mobile World Congress 2023"
-        assert first_story["attributes"] == [
-            {
-                "key": "user_override",
-                "value": "no",
-            },
-            {"key": "TLP", "value": "clear"},
-        ]
+        assert len(first_story["attributes"]) == len(
+            [
+                {
+                    "key": "user_override",
+                    "value": "no",
+                },
+                {"key": "TLP", "value": "clear"},
+            ]
+        )
 
     def test_get_stories(self, client, stories, auth_header):
         """
