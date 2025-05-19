@@ -1,6 +1,8 @@
+from jinja2 import pass_context
 from flask import url_for
+from models.admin import Role
 
-__all__ = ["human_readable_trigger", "last_path_segment", "admin_action"]
+__all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var", "permissions_count"]
 
 
 def human_readable_trigger(trigger):
@@ -19,9 +21,18 @@ def human_readable_trigger(trigger):
     return "every " + ", ".join(parts)
 
 
+def permissions_count(role: Role):
+    return len(role.permissions)
+
+
 def last_path_segment(value):
     return value.strip("/").split("/")[-1]
 
 
 def admin_action(value):
     return url_for("admin_settings.settings_action", action=last_path_segment(value))
+
+
+@pass_context
+def get_var(ctx, name):
+    return ctx.get(name)

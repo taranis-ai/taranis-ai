@@ -6,7 +6,8 @@ from frontend.router import base, admin, admin_settings
 
 
 def init(app: Flask):
-    api_doc(app, config_url=f"{Config.TARANIS_CORE_URL}/static/openapi3_1.yaml", url_prefix=f"{Config.APPLICATION_ROOT}/doc", editor=False)
+    doc_url_prefix = f"{Config.APPLICATION_ROOT}doc" if Config.APPLICATION_ROOT == "/" else f"{Config.APPLICATION_ROOT}/doc"
+    api_doc(app, config_path="frontend/static/assets/openapi3_1.yaml", url_prefix=doc_url_prefix, editor=False)
     base.init(app)
     admin.init(app)
     admin_settings.init(app)

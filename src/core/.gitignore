@@ -5,4 +5,4 @@ worker_init.flag
 __pycache__/
 *.pyc
 videos/
-trace.zip
+taranis_ai_core_trace.zip

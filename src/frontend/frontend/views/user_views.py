@@ -14,7 +14,7 @@ class UserView(BaseView):
     model = User
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, object_id: int | str):
         dpl = DataPersistenceLayer()
         return {
             "organizations": dpl.get_objects(Organization),

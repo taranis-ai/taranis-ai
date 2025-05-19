@@ -3,18 +3,12 @@
   <script src="{{ url_for('static', filename='js/fuse.js') }}"></script>
 {% endblock %}
 {% block content %}
-{% set show_form = role_id is defined %}
 <div class="p-8" id="{{ model_name }}">
   <div class="text-3xl font-bold mb-4">
-    <a href="{{ url_for('admin.acls') }}" class="text-blue-500 hover:underline">{{ name }}</a>
+    <a href="{{ routes.base_route }}" class="text-blue-500 hover:underline">{{ name }}</a>
   </div>
   <div class="bg-base rounded-sm p-4" id="form-container" >
-    {% if show_form %}
-      {% include 'acl/acl_form.html' %}
-    {% else %}
-      {% include 'acl/acl_table_header.html' %}
-      {% include 'acl/acl_table.html' %}
-    {% endif %}
+    {% include templates.htmx_update_template %}
   </div>
 </div>
 {% endblock %}

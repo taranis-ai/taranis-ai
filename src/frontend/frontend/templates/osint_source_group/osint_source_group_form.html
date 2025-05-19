@@ -1,0 +1,26 @@
+{% from "macros/forms.html" import form_input %}
+{% from "macros/datatable.html" import datatable with context %}
+
+{% set columns = [
+  {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
+  {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
+] %}
+
+
+{% set form_error = form_error | default({}) %}
+<div class="bg-base-100 rounded-sm p-4">
+    <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{{ submit_text }}</h1>
+
+    <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+        {% if error %}
+        <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+        {% endif %}
+
+        {{ form_input('Name', 'name', osint_source_group.name, form_error.name) }}
+        {{ form_input('Description', 'description', osint_source_group.description, form_error.description, required=False) }}
+
+        {{ datatable('OSINT Sources', osint_sources, columns, osint_source_group.osint_sources, selectable=true, input_name="osint_sources[]") }}
+
+        <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
+    </form>
+</div>
