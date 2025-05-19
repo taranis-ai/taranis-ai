@@ -82,7 +82,7 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     page.goto(e2e_server.url())
     yield page
     if request.config.getoption("--e2e-ci") == "e2e_ci":
-        context.tracing.stop(path="trace.zip")
+        context.tracing.stop(path="taranis_ai_core_trace.zip")
 
 
 @pytest.fixture(scope="session")

@@ -110,7 +110,12 @@ class Story(BaseModel):
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
-        if item := cls.get(item_id):
+        query = db.select(cls).filter(cls.id == item_id)
+        if user:
+            query = cls._add_ACL_check(query, user)
+            query = cls._add_TLP_check(query, user)
+
+        if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 

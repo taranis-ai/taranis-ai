@@ -2,7 +2,7 @@ def test_api_key(app):
     from core.config import Config
 
     with app.app_context():
-        api_key = Config.API_KEY
+        api_key = Config.API_KEY.get_secret_value()
         assert api_key == "test_key"
 
 

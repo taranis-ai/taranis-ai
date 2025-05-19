@@ -1,0 +1,8 @@
+<section id="notification-bar">
+{% if notification %}
+    <div role="alert" class="alert alert-info">
+        {{ heroicon_outline("information-circle") }}
+        <span>{{ notification }}</span>
+    </div>
+{% endif %}
+</section>

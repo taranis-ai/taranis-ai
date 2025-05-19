@@ -161,7 +161,7 @@ class WordList(TaranisBaseModel):
     _pretty_name = "Word List"
     _search_fields = ["name", "description"]
 
-    id: int
+    id: int | None = None
     name: str
     description: str | None = None
     usage: int = 0
@@ -178,11 +178,11 @@ class OSINTSource(TaranisBaseModel):
     id: str
     name: str
     description: str = ""
-    type: COLLECTOR_TYPES | Literal[""] = ""
-    parameters: list[ParameterValue] = Field(default_factory=list)
+    type: COLLECTOR_TYPES | None = None
+    parameters: dict[str, str] = Field(default_factory=dict)
     groups: list["OSINTSourceGroup"] = Field(default_factory=list)
 
-    icon: str | None = None  # We'll assume it can be a base64 string
+    icon: str | None = None
     state: int = -1
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
@@ -195,7 +195,7 @@ class OSINTSourceGroup(TaranisBaseModel):
     _pretty_name = "OSINT Source Group"
     _search_fields = ["name", "description"]
 
-    id: str
+    id: str | None = None
     name: str
     description: str = ""
     default: bool = False

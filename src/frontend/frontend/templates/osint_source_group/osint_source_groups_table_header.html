@@ -1,9 +1,0 @@
-{% from "macros/table.html" import table_search_bar with context %}
-<div class="flex gap-4">
-  <div class="grow-0">
-    <button hx-get={{ url_for('admin.osint_source_groups', source_group_id=0) }} hx-swap="innerHTML" hx-target="#form-container" class="btn btn-primary">
-      New {{ name }}
-    </button>
-  </div>
-  {{ table_search_bar('osint-source-groups-table') }}
-</div>
