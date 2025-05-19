@@ -46,6 +46,8 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
+        if "attributes" not in data_json:
+            data_json["attributes"] = []
         data_json["attributes"].append({"key": "user_override", "value": f"by_user_id_{current_user.id}"})
         result, status = story.Story.add_single_news_item(data_json, user=current_user)
         sse_manager.news_items_updated()

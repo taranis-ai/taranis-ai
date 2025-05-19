@@ -27,10 +27,10 @@ class TestBotsApi(BaseTest):
         # Update current_story with with the cleanup_story_update_data
         update_story_data = self.deepmerge(current_story_data, cleanup_story_update_data)
 
-        assert len(update_story_data["attributes"]) == len(cleanup_story_update_data["attributes"]) + 1
+        assert len(update_story_data["attributes"]) == len(cleanup_story_update_data["attributes"]) + 2
         check_attributes = sorted(update_story_data["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
-            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}],
+            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}, {"key": "user_override", "value": "no"}],
             key=lambda d: d["key"],
         )
         assert check_attributes == expected_attributes
@@ -68,7 +68,8 @@ class TestBotsApi(BaseTest):
 
         attributes = sorted(response.get_json()["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
-            cleanup_story_update_data["attributes"] + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}],
+            cleanup_story_update_data["attributes"]
+            + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}, {"key": "user_override", "value": "no"}],
             key=lambda d: d["key"],
         )
 

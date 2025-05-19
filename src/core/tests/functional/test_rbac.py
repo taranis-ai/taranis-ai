@@ -60,7 +60,7 @@ class TestRBAC:
         results = Story.get_filtered(filter_query)
         assert results
         result_ids = {n.id for story in results for n in story.news_items}
-        assert result_ids == {"tlp-news-clear"}
+        assert result_ids == {"tlp-news-clear"}, "User with TLP Clear should only see TLP Clear news items"
 
         # User has TLP level Green -> should see the TLP Green and Clear story
         mock_user.get_highest_tlp.return_value = TLPLevel.GREEN

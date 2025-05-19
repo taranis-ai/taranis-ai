@@ -16,7 +16,7 @@ class NewsItemService:
         news_item.update_item(data, user)
 
         if story := Story.get(news_item.story_id):
-            story.update_status()
+            story.update_status(user)
         db.session.commit()
 
         return {"message": "success"}, 200
@@ -40,10 +40,9 @@ class NewsItemService:
             logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 400
 
-        story.last_change = "internal"
         story.news_items.remove(news_item)
         news_item.delete_item()
-        story.update_status()
+        story.update_status(user)
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
         return {"message": "News Item deleted", "id": news_item_id}, 200
 
