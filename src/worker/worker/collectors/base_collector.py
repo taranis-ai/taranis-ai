@@ -189,9 +189,9 @@ class BaseCollector:
                 self.core_api.add_or_update_story(story)
 
     def check_internal_changes(self, existing_story) -> bool:
-        if existing_story.get("last_change") == "internal":
+        if existing_story.get("user_override") != "no":
             return True
-        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items"))
+        return any(news_item.get("user_override") != "no" for news_item in existing_story.get("news_items"))
 
     def get_news_items_to_delete(self, new_story: dict, existing_story: dict) -> list:
         existing_news_items = existing_story.get("news_items", [])

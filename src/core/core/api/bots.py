@@ -71,7 +71,7 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+        return news_item.NewsItem.update_attributes(news_item_id, request.json, None)
 
 
 class StoryAttributes(MethodView):

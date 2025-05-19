@@ -44,7 +44,6 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
-    last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
@@ -67,7 +66,6 @@ class Story(BaseModel):
         attributes: list[dict] | None = None,
         tags=None,
         news_items=None,
-        last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
         self.likes = likes
@@ -82,7 +80,6 @@ class Story(BaseModel):
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
         self.links = links or []
-        self.last_change = last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
@@ -475,7 +472,6 @@ class Story(BaseModel):
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "last_change": "internal" if news_item.get("source") == "manual" else "external",
         }
 
         return cls.add(data, user)
@@ -569,8 +565,6 @@ class Story(BaseModel):
 
         if "links" in data:
             story.links = data["links"]
-
-        story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
         db.session.commit()

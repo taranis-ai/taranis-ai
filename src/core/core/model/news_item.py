@@ -36,7 +36,6 @@ class NewsItem(BaseModel):
     language: Mapped[str] = db.Column(db.String())
     content: Mapped[str] = db.Column(db.String())
     collected: Mapped[datetime] = db.Column(db.DateTime)
-    last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
     updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
 
@@ -65,7 +64,6 @@ class NewsItem(BaseModel):
         hash: str | None = None,
         attributes=None,
         id=None,
-        last_change="internal",
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
@@ -81,7 +79,6 @@ class NewsItem(BaseModel):
         self.link = link
         self.author = author
         self.language = language
-        self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
@@ -174,12 +171,11 @@ class NewsItem(BaseModel):
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
-        news_item.last_change = "internal"
         db.session.commit()
         return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
+    def update_attributes(cls, news_item_id, attributes, user: User | None) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
@@ -190,9 +186,8 @@ class NewsItem(BaseModel):
 
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
-        news_item.last_change = "internal"
         db.session.commit()
-        news_item.story.update_status()
+        news_item.story.update_status(user)
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
@@ -245,12 +240,11 @@ class NewsItem(BaseModel):
             self.published = published
 
         self.user_override = f"by_user_id_{user.id}" if user else "no"
-        self.last_change = "internal"
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
-        self.story.update_status()
+        self.story.update_status(user)
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod

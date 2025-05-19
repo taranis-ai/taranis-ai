@@ -81,7 +81,7 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+        return news_item.NewsItem.update_attributes(news_item_id, request.json, current_user)
 
 
 class Stories(MethodView):

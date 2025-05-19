@@ -107,7 +107,6 @@ class MISPConnector:
         For each news item in 'news_items', create a TaranisObject and add it to the event.
         """
         for news_item in news_items:
-            news_item.pop("last_change", None)  # key intended for internal use only
             object_data = self.get_news_item_object_dict()
             # sourcery skip: dict-assign-update-to-union
             object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
@@ -122,8 +121,6 @@ class MISPConnector:
         Create a TaranisObject for the story itself, add attributes, links, and tags from the story,
         and attach it to the event with all data correctly stored under their respective keys.
         """
-        # Remove internal keys not meant for external processing
-        story.pop("last_change", None)
 
         object_data = self.get_story_object_dict()
         object_data.update({k: story[k] for k in object_data if k in story})
@@ -191,7 +188,8 @@ class MISPConnector:
         """
         key = attr.get("key", "")
         value = attr.get("value")
-        if value is not None:
+        # user_override is only for internal user
+        if value is not None and key != "user_override":
             attribute_value = f"{{'key': '{key}', 'value': '{value}'}}"
             logger.debug(f"Adding attribute: {attribute_value}")
             return attribute_value
@@ -487,13 +485,13 @@ class MISPConnector:
         """
         if result := self.send_event_to_misp(story, misp_event_uuid):
             # Update the Story with the MISP event UUID
-            # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
+            # When an update or create event happened, update the Story so the user_override is set to "by_user_id_x". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
-                logger.debug(f"Update the story {story.get('id')} to last_change=external")
+                logger.debug(f"Update the story {story.get('id')} to user_override: no")
                 self.core_api.api_post("/worker/stories", story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
-                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}],
+                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}, {"key": "user_override", "value": "no"}],
                 )
 
 
