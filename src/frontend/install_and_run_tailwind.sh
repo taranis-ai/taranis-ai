@@ -7,5 +7,7 @@ if [ ! -x tailwindcss ]; then
     chmod +x tailwindcss
 fi
 
+./update_assets.sh
+
 ./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
 

@@ -3,7 +3,9 @@
 set -eu pipefail
 
 # Move to the top-level directory of your git repo
-static_dir="$(git rev-parse --show-toplevel)/src/frontend/frontend/static"
+static_dir="$(git rev-parse --show-toplevel)/src/frontend/frontend/static/vendor"
+
+mkdir -p "$static_dir/css" "$static_dir/js"
 
 # Define URLs and target directories
 declare -A files=(

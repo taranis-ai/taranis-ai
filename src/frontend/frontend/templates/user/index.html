@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block head %}
-<link href="{{ url_for('static', filename='css/tom-select.css') }}" rel="stylesheet">
-<script src="{{ url_for('static', filename='js/tom-select.complete.min.js') }}"></script>
+<link href="{{ url_for('static', filename='vendor/css/tom-select.css') }}" rel="stylesheet">
+<script src="{{ url_for('static', filename='vendor/js/tom-select.complete.min.js') }}"></script>
 {% endblock %}
 {% block content %}
 <div class="p-8" id="{{ model_name }}">

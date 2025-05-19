@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Taranis AI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-  <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/js/htmx.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
   <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
   <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='js/alpinejs.min.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='vendor/js/alpinejs.min.js') }}"></script>
   {% block head %}{% endblock %}
 </head>
 
