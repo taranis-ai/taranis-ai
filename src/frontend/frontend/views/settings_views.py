@@ -14,6 +14,7 @@ class SettingsView(BaseView):
     default_template = "settings/index.html"
     base_route = "admin_settings.settings"
     edit_route = "admin_settings.settings"
+    _index = 190
 
     @classmethod
     def get_extra_context(cls, object_id: int | str):

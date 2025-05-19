@@ -11,7 +11,7 @@
 {% set permissions = permissions | default([]) %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{{ submit_text }}</h1>
-  <form id="role-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="role-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
     {% endif %}

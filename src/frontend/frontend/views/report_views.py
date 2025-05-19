@@ -5,6 +5,8 @@ from models.admin import ReportItemType
 
 class ReportItemTypeView(BaseView):
     model = ReportItemType
+    icon = "presentation-chart-bar"
+    _index = 120
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:

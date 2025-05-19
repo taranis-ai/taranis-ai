@@ -1,12 +1,13 @@
 from models.admin import Role, Permission
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
-from frontend.filters import permissions_count
+from frontend.filters import item_count
 
 
 class RoleView(BaseView):
     model = Role
-    icon = "users"
+    icon = "user-group"
+    _index = 40
 
     @classmethod
     def get_extra_context(cls, object_id: int | str):
@@ -16,4 +17,4 @@ class RoleView(BaseView):
     @classmethod
     def get_columns(cls):
         columns = super().get_columns()
-        return columns + [{"title": "Permissions", "field": "permissions", "sortable": False, "renderer": permissions_count}]
+        return columns + [{"title": "Permissions", "field": "permissions", "sortable": False, "renderer": item_count}]

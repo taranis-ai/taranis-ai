@@ -9,7 +9,7 @@
 
 {% set table_container = model_name + '-table-container' %}
 
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }"}">
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
 {{ table_decoration(name, model_name, table_container) }}
 {{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
 </div>

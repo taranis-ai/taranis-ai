@@ -5,6 +5,7 @@ from models.admin import Template
 class TemplateView(BaseView):
     model = Template
     icon = "document-text"
+    _index = 160
 
     @classmethod
     def model_plural_name(cls) -> str:

@@ -2,9 +2,8 @@ from jinja2 import pass_context
 from flask import url_for
 import base64
 
-from models.admin import Role
 
-__all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var", "permissions_count", "b64decode"]
+__all__ = ["human_readable_trigger", "last_path_segment", "admin_action", "get_var", "item_count", "b64decode"]
 
 
 def human_readable_trigger(trigger):
@@ -23,8 +22,8 @@ def human_readable_trigger(trigger):
     return "every " + ", ".join(parts)
 
 
-def permissions_count(role: Role):
-    return len(role.permissions)
+def item_count(item):
+    return item.count if hasattr(item, "count") else 0
 
 
 def last_path_segment(value):
