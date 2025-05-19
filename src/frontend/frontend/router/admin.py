@@ -24,6 +24,7 @@ from frontend.views import (
     TemplateView,
     PublisherView,
     ACLView,
+    ConnectorView,
 )
 
 
@@ -109,6 +110,9 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/acls", view_func=ACLView.as_view("acls"))
     admin_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLView.as_view("edit_acl"))
+
+    admin_bp.add_url_rule("/connectors", view_func=ConnectorView.as_view("connectors"))
+    admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
 
     admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("workers"))
     admin_bp.add_url_rule("/workers/<int:worker_id>", view_func=WorkerView.as_view("edit_worker"))

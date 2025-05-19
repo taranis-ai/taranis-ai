@@ -3,7 +3,7 @@ from typing import Literal
 from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType, COLLECTOR_TYPES
+from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES
 from models.assess import StoryTag
 
 
@@ -304,3 +304,22 @@ class Bot(TaranisBaseModel):
     type: str
     index: int | None = None
     parameters: dict[str, str] = Field(default_factory=dict)
+
+
+class Connector(TaranisBaseModel):
+    _core_endpoint = "/config/connectors"
+    _model_name = "connector"
+    _pretty_name = "Connector"
+    _search_fields = ["name", "description"]
+
+    id: str | None = None
+    name: str
+    description: str | None = None
+    type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
+    index: int | None = None
+    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+    icon: str | None = None
+    state: int = -1
+    last_collected: datetime | None = None
+    last_attempted: datetime | None = None
+    last_error_message: str | None = None
