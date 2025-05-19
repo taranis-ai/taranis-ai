@@ -411,16 +411,13 @@ class Story(BaseModel):
             if "news_items_to_delete" in data:
                 cls.delete_news_items(data.pop("news_items_to_delete"))
 
-            skipped_news_item_story_ids = []
             for news_item in data.get("news_items", []):
-                result, code = cls.add_single_news_item(news_item, user)
-                if skipped_item := result.get("skipped_news_item_story_id"):
-                    skipped_news_item_story_ids.append(skipped_item)
-                if story_id := result.get("story_id"):
-                    story_ids.append(story_id)
-            target_id = data.get("id")
-            if any(story_id != target_id for story_id in skipped_news_item_story_ids):
-                return cls.handle_conflicting_news_items(data)
+                logger.debug(f"{NewsItem.get(news_item.get('id'))}")
+                if not NewsItem.get(news_item.get("id")):
+                    result, _ = cls.add_single_news_item(news_item, user)
+                    story_id = result.get("story_id")
+                    if story_id is not None:
+                        story_ids.append(story_id)
 
             cls.group_stories(story_ids)
             return cls.update(data["id"], data, external=True)
