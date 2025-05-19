@@ -163,7 +163,6 @@
             </router-link>
           </v-card-title>
           <v-card-text>
-            {{ news_item.attributes }}
             <cyber-security-buttons
               :news_item="news_item"
               :dirty="dirty"
