@@ -880,7 +880,6 @@ class Story(BaseModel):
     def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
-            new_stories_ids = []
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -892,10 +891,10 @@ class Story(BaseModel):
                     continue
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                new_stories_ids.append(cls.create_from_item(news_item, user))
+                cls.create_from_item(news_item, user)
             db.session.commit()
             cls.update_stories(processed_stories, user)
-            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
+            return {"message": "success"}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
@@ -909,7 +908,7 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def create_from_item(cls, news_item, user: User | None) -> str | None:
+    def create_from_item(cls, news_item, user: User | None):
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -921,7 +920,6 @@ class Story(BaseModel):
 
         StorySearchIndex.prepare(new_story)
         new_story.update_status(user)
-        return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
         status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
