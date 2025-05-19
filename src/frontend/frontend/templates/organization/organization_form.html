@@ -2,7 +2,7 @@
 {% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
 {% set form_error = form_error | default({}) %}
 
-<div class="bg-base-100 rounded-sm p-4">
+<div class="bg-base-100 p-4">
     <h1 class="text-3xl font-bold w-1/2 ml-[10%]">{{ submit_text }}</h1>
     <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ organization.id }}</p>
 

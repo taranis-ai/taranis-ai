@@ -132,7 +132,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
 
     admin_bp.add_url_rule("/templates", view_func=TemplateView.as_view("template_data"))
-    admin_bp.add_url_rule("/templates/<string:template_id>", view_func=TemplateView.as_view("edit_template"))
+    admin_bp.add_url_rule("/templates/<string:template>", view_func=TemplateView.as_view("edit_template"))
 
     admin_bp.add_url_rule("/publisher", view_func=PublisherView.as_view("publisher_presets"))
     admin_bp.add_url_rule("/publishers/<int:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))

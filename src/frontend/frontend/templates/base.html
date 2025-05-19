@@ -14,7 +14,7 @@
   {% block head %}{% endblock %}
 </head>
 
-<body class="flex bg-base-300 min-h-screen" hx-ext="response-targets" x-data="{ sidebarOpen: true }">
+<body class="flex bg-base-300 min-h-screen" hx-ext="response-targets" x-data="{ sidebarOpen: true }" x-init="if (window.self !== window.top) sidebarOpen = false">
   <!-- Sidebar -->
   <aside id="admin_menu" x-bind:class="sidebarOpen ? 'w-64' : 'w-0'"
     class="fixed top-16 left-0 bg-base-200 overflow-hidden transition-all duration-300 z-20 h-screen">

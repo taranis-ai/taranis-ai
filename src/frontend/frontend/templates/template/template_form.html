@@ -1,25 +1,22 @@
-
-{% extends 'base.html' %}
-{% block content %}
-
-<div class="bg-base-100 rounded-sm p-4">
-  <pre id="editor">{{ template.content | default('') | b64decode }}</pre>
-</div>
+{% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
+{% set form_error = form_error | default({}) %}
 
 <script>
-    var editor = ace.edit("editor");
-    editor.setTheme("ace/theme/github");
-    editor.session.setMode("ace/mode/html");
+  require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='js/vs') }}" } });
+
+  require(['vs/editor/editor.main'], function() {
+    const initial = {{ template.content | default('') | b64decode | tojson }};
+
+    monaco.editor.create(
+      document.getElementById('editor'),
+      {
+        value: initial,
+        language: 'jinja',
+        automaticLayout: true,
+        theme: "vs-dark",
+      }
+    );
+  });
 </script>
-<style type="text/css" media="screen">
-  #editor {
-      margin-top: 64px;
-      margin-left: 260px;
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      right: 0;
-  }
-</style>
-{% endblock %}
+
+<div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>

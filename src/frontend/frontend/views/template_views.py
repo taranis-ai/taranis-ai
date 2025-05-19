@@ -13,3 +13,7 @@ class TemplateView(BaseView):
     @classmethod
     def get_columns(cls):
         return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+
+    @classmethod
+    def _get_object_key(cls) -> str:
+        return f"{cls.model_name().lower()}"

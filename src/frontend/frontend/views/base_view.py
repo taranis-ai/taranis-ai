@@ -38,11 +38,11 @@ class BaseView(MethodView):
             "columns": cls.get_columns(),
             "routes": {
                 "base_route": cls.get_base_route(),
-                "edit_route": cls.get_edit_route(**{f"{cls.model_name()}_id": object_id}),
+                "edit_route": cls.get_edit_route(**{cls._get_object_key(): object_id}),
             },
             "model_name": cls.model_name(),
             "model_plural_name": cls.model_plural_name(),
-            f"{cls.model_name()}_id": object_id,
+            cls._get_object_key(): object_id,
         }
 
     @classmethod
@@ -156,7 +156,7 @@ class BaseView(MethodView):
             form_action = f"hx-post={cls.get_base_route()}"
             submit = f"Create {cls.pretty_name()}"
         else:
-            key = f"{cls.model_name()}_id"
+            key = cls._get_object_key()
             form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
             submit = f"Update {cls.pretty_name()}"
 
@@ -254,8 +254,12 @@ class BaseView(MethodView):
             return Response(status=200, headers={"HX-Refresh": "true"})
         return Response(status=400, headers={"HX-Refresh": "true"})
 
+    @classmethod
+    def _get_object_key(cls) -> str:
+        return f"{cls.model_name().lower()}_id"
+
     def _get_object_id(self, kwargs: dict) -> int | str | None:
-        key = f"{self.model_name().lower()}_id"
+        key = self._get_object_key()
         return kwargs.get(key)
 
     @auth_required()

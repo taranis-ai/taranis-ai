@@ -9,7 +9,7 @@ from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    get_template_as_base64,
+    get_for_api,
     write_base64_to_file,
     get_presenter_templates,
     delete_template,
@@ -226,7 +226,7 @@ class Templates(MethodView):
             templates = [{"path": t} for t in get_presenter_templates()]
             return jsonify({"total_count": len(templates), "items": templates})
         if template_path:
-            template = get_template_as_base64(template_path)
+            template = get_for_api(template_path)
             return (template, 200) or ({"error": "Product type not found"}, 404)
         templates = get_templates_as_base64()
         return jsonify({"items": templates, "total_count": len(templates)}), 200

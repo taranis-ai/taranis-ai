@@ -89,7 +89,11 @@ def get_default_json(filename: str) -> str:
 
 
 def get_templates_as_base64() -> list[dict[str, str]]:
-    return [{"id": template, "content": get_template_as_base64(template)} for template in get_presenter_templates()]
+    return [get_for_api(template) for template in get_presenter_templates()]
+
+
+def get_for_api(template: str) -> dict:
+    return {"id": template, "content": get_template_as_base64(template)}
 
 
 def get_template_as_base64(presenter_template: str) -> str:
