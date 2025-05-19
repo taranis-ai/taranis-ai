@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy import or_, func
-from sqlalchemy.orm import aliased, Mapped, relationship
+from sqlalchemy.orm import aliased, Mapped, relationship, defer
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -141,7 +141,7 @@ class Story(BaseModel):
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
+        query = db.select(cls).options(defer(Story.links)).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
         query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
 
         if item_id := filter_args.get("story_id"):
