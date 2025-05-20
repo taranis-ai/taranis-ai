@@ -211,12 +211,16 @@ class NewsItem(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     @property
-    def user_override(self) -> NewsItemAttribute | None:
-        return self.find_attribute_by_key("user_override")
+    def news_item_override(self) -> str | None:
+        return attr.value if (attr := self.find_attribute_by_key("override")) else None
 
-    @user_override.setter
-    def user_override(self, value: str) -> None:
-        self.upsert_attribute(NewsItemAttribute(key="user_override", value=value))
+    @news_item_override.setter
+    def news_item_override(self, value: str | User | None) -> None:
+        if not value:
+            self.upsert_attribute(NewsItemAttribute(key="override", value=""))
+        if isinstance(value, User):
+            value = str(value.id)
+        self.upsert_attribute(NewsItemAttribute(key="override", value=value))
 
     def update_item(self, data, user: User | None) -> tuple[dict, int]:
         if self.source != "manual":
@@ -240,7 +244,7 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        self.user_override = str(user or "")
+        self.news_item_override = user
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 

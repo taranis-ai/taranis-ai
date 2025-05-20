@@ -129,7 +129,7 @@ const filteredStoryAttributes = computed(() => {
     return (
       Object.prototype.hasOwnProperty.call(attr, 'key') &&
       attr.key !== 'sentiment' &&
-      attr.key !== 'user_override' &&
+      attr.key !== 'override' &&
       attr.key !== 'cybersecurity' &&
       attr.key !== 'TLP' &&
       !attr.key.includes('_BOT')

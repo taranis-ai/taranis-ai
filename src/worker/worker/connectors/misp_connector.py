@@ -188,8 +188,8 @@ class MISPConnector:
         """
         key = attr.get("key", "")
         value = attr.get("value")
-        # user_override is only for internal user
-        if value is not None and key != "user_override":
+        # override is only for internal user
+        if value is not None and key != "override":
             attribute_value = f"{{'key': '{key}', 'value': '{value}'}}"
             logger.debug(f"Adding attribute: {attribute_value}")
             return attribute_value
@@ -485,13 +485,13 @@ class MISPConnector:
         """
         if result := self.send_event_to_misp(story, misp_event_uuid):
             # Update the Story with the MISP event UUID
-            # When an update or create event happened, update the Story so the user_override is set to "by_user_id_x". Don't if it was a proposal.
+            # When an update or create event happened, update the Story so the override is set to "by_user_id_x". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
-                logger.debug(f"Update the story {story.get('id')} to user_override: no")
+                logger.debug(f"Update the story {story.get('id')} to override: <empty_string>")
                 self.core_api.api_post("/worker/stories", story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
-                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}, {"key": "user_override", "value": "no"}],
+                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}, {"key": "override", "value": ""}],
                 )
 
 

@@ -30,7 +30,7 @@ class TestBotsApi(BaseTest):
         assert len(update_story_data["attributes"]) == len(cleanup_story_update_data["attributes"]) + 2
         check_attributes = sorted(update_story_data["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
-            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}, {"key": "user_override", "value": ""}],
+            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}, {"key": "override", "value": ""}],
             key=lambda d: d["key"],
         )
         assert check_attributes == expected_attributes
@@ -69,7 +69,7 @@ class TestBotsApi(BaseTest):
         attributes = sorted(response.get_json()["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
             cleanup_story_update_data["attributes"]
-            + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}, {"key": "user_override", "value": "bot"}],
+            + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}, {"key": "override", "value": "bot"}],
             key=lambda d: d["key"],
         )
 

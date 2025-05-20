@@ -42,7 +42,7 @@ class NewsItemService:
 
         story.news_items.remove(news_item)
         if story.news_items:
-            story.update(story.id, change_source=str(user or ""))
+            story.update(story.id, change_source=story.get_story_override(user))
         news_item.delete_item()
         story.update_status()
         logger.debug(f"NewsItem with id: {news_item_id} deleted")

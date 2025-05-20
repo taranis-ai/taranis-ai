@@ -25,7 +25,7 @@ class AddNewsItems(MethodView):
         json_data = request.json
         if not isinstance(json_data, list):
             return {"error": "Expected a list of news items"}, 400
-        result, status = Story.add_news_items(json_data, "worker")
+        result, status = Story.add_news_items(json_data, change_source="worker")
         sse_manager.news_items_updated()
         return result, status
 
@@ -131,7 +131,7 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
-        return Story.add_or_update(request.json, "worker")
+        return Story.add_or_update(request.json, change_source="worker")
 
 
 class Tags(MethodView):

@@ -470,7 +470,7 @@ class Story(BaseModel):
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "attributes": [{"key": "user_override", "value": cls.get_user_override(change_source)}],
+            "attributes": [{"key": "override", "value": cls.get_story_override(change_source)}],
         }
 
         return cls.add(data)
@@ -563,7 +563,7 @@ class Story(BaseModel):
 
         if change_source:
             data["attributes"] = data.get("attributes", [])
-            data["attributes"].append({"key": "user_override", "value": ""})
+            data["attributes"].append({"key": "override", "value": ""})
 
         if "attributes" in data:
             story.set_attributes(data["attributes"], change_source)
@@ -649,8 +649,8 @@ class Story(BaseModel):
             attr_value = attribute.get("value")
             if attr_key == "TLP":
                 attr_value = self.get_story_tlp(TLPLevel.get_tlp_level(attr_value))  # type: ignore
-            if attr_key == "user_override":
-                attr_value = self.get_user_override(change_source)
+            if attr_key == "override":
+                attr_value = self.get_story_override(change_source)
             self.upsert_attribute(NewsItemAttribute(key=attr_key, value=attr_value))
 
     def remove_attributes(self, keys: list[str]):
@@ -924,7 +924,7 @@ class Story(BaseModel):
             created=news_item.published,
             description=news_item.review or news_item.content,
             news_items=[news_item.id],
-            attributes=[{"key": "user_override", "value": cls.get_user_override(str(user or ""))}],
+            attributes=[{"key": "override", "value": cls.get_story_override(user)}],
         )
         db.session.add(new_story)
         db.session.commit()
@@ -1010,7 +1010,11 @@ class Story(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
 
     @classmethod
-    def get_user_override(cls, change_source: str) -> str:
+    def get_story_override(cls, change_source: str | User | None) -> str:
+        if not change_source:
+            return ""
+        if isinstance(change_source, User):
+            return str(change_source.id)
         return change_source
 
     def to_dict(self) -> dict[str, Any]:
