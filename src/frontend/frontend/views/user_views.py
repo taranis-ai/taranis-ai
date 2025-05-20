@@ -6,12 +6,14 @@ from frontend.core_api import CoreApi
 from models.admin import Role, Organization
 from frontend.data_persistence import DataPersistenceLayer
 from models.admin import User
-
+from frontend.filters import permissions_count, role_count
 from frontend.views.base_view import BaseView
 
 
 class UserView(BaseView):
     model = User
+    icon = "user"
+    _index = 20
 
     @classmethod
     def get_extra_context(cls, object_id: int | str):
@@ -21,6 +23,15 @@ class UserView(BaseView):
             "roles": dpl.get_objects(Role),
             "current_user": get_jwt_identity(),
         }
+
+    @classmethod
+    def get_columns(cls):
+        return [
+            {"title": "username", "field": "username", "sortable": True, "renderer": None},
+            {"title": "name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "roles", "field": "roles", "sortable": False, "renderer": role_count},
+            {"title": "permissions", "field": "permissions", "sortable": False, "renderer": permissions_count},
+        ]
 
     @classmethod
     def import_users_view(cls, error=None):
