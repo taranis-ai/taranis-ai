@@ -5,13 +5,14 @@ set -eu pipefail
 # Move to the top-level directory of your git repo
 static_dir="$(git rev-parse --show-toplevel)/src/frontend/frontend/static/vendor"
 
-mkdir -p "$static_dir/css" "$static_dir/js"
+mkdir -p "$static_dir/css" "$static_dir/js" "$static_dir/assets"
 
 # Define URLs and target directories
 declare -A files=(
   ["https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css"]="${static_dir}/css/tom-select.css"
   ["https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"]="${static_dir}/js/tom-select.complete.min.js"
   ["https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js.map"]="${static_dir}/js/tom-select.complete.min.js.map"
+  ["https://eugit.opencloud.lu/MISP/MISP/raw/commit/be88ddc16d55013651c1e11635b1062bea9a487a/INSTALL/logos/misp-logo.svg"]="${static_dir}/assets/misp-logo.svg"
   ["https://cdn.jsdelivr.net/npm/alpinejs/dist/cdn.min.js"]="${static_dir}/js/alpinejs.min.js"
   ["https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"]="${static_dir}/js/fuse.js"
   ["https://cdn.jsdelivr.net/npm/htmx.org/dist/htmx.min.js"]="${static_dir}/js/htmx.min.js"

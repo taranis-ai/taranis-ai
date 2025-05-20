@@ -51,7 +51,11 @@
       {% for col in columns %}
         <td>
           {% if col.renderer %}
-            {{ col.renderer(item) }}
+            {% if 'render_args' in col %}
+              {{ col.renderer(item, col.render_args) }}
+            {% else %}
+              {{ col.renderer(item) }}
+            {% endif %}
           {% else %}
             {{ item[col.field] }}
           {% endif %}
