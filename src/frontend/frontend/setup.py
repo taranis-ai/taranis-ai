@@ -48,7 +48,7 @@ def jinja_setup(app: Flask):
             "heroicon_mini": heroicon_mini,
             "heroicon_outline": heroicon_outline,
             "heroicon_solid": heroicon_solid,
-            "views": BaseView._registry,
+            "views": dict(sorted(BaseView._registry.items(), key=lambda item: (getattr(item[1], "_index", float("inf")), item[0]))),
         }
     )
 

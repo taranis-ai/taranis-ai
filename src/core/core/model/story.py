@@ -468,7 +468,6 @@ class Story(BaseModel):
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
-            logger.warning("Identical news item found. Skipping...")
             news_item_obj = NewsItem.get(news_item.get("id", ""))
             return {
                 "error": "Identical news item found. Skipping...",
@@ -551,6 +550,7 @@ class Story(BaseModel):
         }
         if skipped_items:
             result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+        logger.info(f"News items added successfully: {result}")
         return result, 200
 
     @classmethod
