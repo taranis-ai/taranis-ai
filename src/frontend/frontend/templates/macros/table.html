@@ -1,6 +1,6 @@
 {% macro table(table_id, data, columns, actions, base_url, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
-{% from "macros/table.html" import table_header with context %}
-{% from "macros/buttons.html" import action_button with context %}
+{% from "macros/table.html" import table_header %}
+{% from "macros/buttons.html" import action_button %}
 {% set item_ids = data | map(attribute='id') | list %}
 {% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
 
@@ -93,11 +93,11 @@
 </table>
 {% endmacro %}
 
-{% macro table_decoration(name, model_name, container_id, add_button=true, searchbar=true, delete_button=true) %}
+{% macro table_decoration(name, model_name, container_id, add_route, delete_route, searchbar=true) %}
 <div class="flex gap-4">
-  {% if add_button %}
+  {% if add_route %}
   <div class="grow-0">
-    <button hx-get="{{ routes.edit_route }}" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+    <button hx-get="{{ add_route }}" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
       New {{ name }}
     </button>
   </div>
@@ -105,14 +105,14 @@
   {% if searchbar %}
   {{ table_search_bar(container_id) }}
   {% endif %}
-  {% if delete_button %}
+  {% if delete_route %}
   <div class="grow-0">
       <button
         type="button"
         class="btn btn-error"
         data-testid="delete-{{ model_name }}-button"
         :hx-vals="JSON.stringify({ ids: selectedItems })"
-        hx-delete="{{ routes.delete_route }}"
+        hx-delete="{{ delete_route }}"
         hx-confirm="Are you sure you want to delete the selected items?"
         hx-target="#{{ container_id }}"
         :disabled="selectedItems.length === 0">
@@ -150,7 +150,7 @@
 {% endmacro %}
 
 {% macro table_header(title, sortable) %}
-{% from "macros/query_params.html" import update_query_params with context %}
+{% from "macros/query_params.html" import update_query_params %}
 {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
 {% set order = title ~ '_' ~ order_direction %}
 {% set order_params = {'order': order, 'page': 1} %}

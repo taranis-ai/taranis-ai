@@ -1,16 +1,9 @@
 {% extends 'base.html' %}
 {% block head %}
-<script src="{{ url_for('static', filename='js/fuse.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/fuse.js') }}"></script>
 <script src="{{ url_for('static', filename='js/vs/loader.js') }}"></script>
 <script src="{{ url_for('static', filename='js/monaco.js') }}"></script>
 {% endblock %}
 {% block content %}
-<div class="p-8" id="{{ model_name }}">
-  <div class="text-3xl font-bold mb-4">
-    <a href="{{ routes.base_route }}" class="text-blue-500 hover:underline">{{ name }}</a>
-  </div>
-  <div class="bg-base p-4" id="form-container">
-    {% include templates.htmx_list_template %}
-  </div>
-</div>
+{% include 'partials/admin_index.html' %}
 {% endblock %}

@@ -1,5 +1,5 @@
-{% from "macros/forms.html" import form_input, form_select %}
-{% from "macros/datatable.html" import datatable with context %}
+{% from "macros/forms.html" import form_input %}
+{% from "macros/datatable.html" import datatable %}
 {% from "macros/variables.html" import tlp_levels %}
 
 {% set columns = [
@@ -10,7 +10,7 @@
 {% set form_error = form_error | default({}) %}
 {% set permissions = permissions | default([]) %}
 <div class="bg-base-100 p-4">
-  <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{{ submit_text }}</h1>
+  <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <form id="role-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
@@ -20,7 +20,7 @@
     {{ form_input('Description', 'description', role.description, form_error.description) }}
     {{ tlp_levels(role.tlp_level) }}
 
-    {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
+    {{ datatable('Permissions', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
 
     <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
   </form>

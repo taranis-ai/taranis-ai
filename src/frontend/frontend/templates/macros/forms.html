@@ -1,12 +1,7 @@
 {% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True) %}
+{% from "macros/forms.html" import form_input_content %}
 <div class="mb-5 w-full flex flex-row">
-  <label class="floating-label w-1/2">
-    <span>{{ label }}</span>
-    <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
-      class="input w-full validator {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
-      {% if preserve %}hx-preserve{% endif %}
-    />
-  </label>
+  {{ form_input_content(label, name, value, error, type, input_id, placeholder, required, preserve) }}
   {% if error -%}
   <div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>
   {% endif -%}
@@ -22,5 +17,15 @@
     {% endfor -%}
   </select>
   <div class="validator-hint">Required</div>
+</label>
+{% endmacro %}
+
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True) %}
+<label class="floating-label w-1/2">
+  <span>{{ label }}</span>
+  <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
+    class="input w-full validator {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
+    {% if preserve %}hx-preserve{% endif %}
+  />
 </label>
 {% endmacro %}

@@ -8,13 +8,13 @@ from frontend.auth import auth_required
 class UserProfile(MethodView):
     @auth_required()
     def get(self):
-        return render_template("user/profile.html", user=current_user)
+        return render_template("user_profile/profile.html", user=current_user)
 
 
 class UserSettings(MethodView):
     @auth_required()
     def get(self):
-        return render_template("user/profile.html", user=current_user)
+        return render_template("user_profile/settings.html", user=current_user)
 
 
 def init(app: Flask):

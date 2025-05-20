@@ -1,26 +1,36 @@
-{% from "macros/forms.html" import form_input, form_select %}
-{% from "macros/datatable.html" import datatable with context %}
-{% from "macros/variables.html" import tlp_levels %}
+{% from "macros/forms.html" import form_input, form_select, form_input_content %}
+{% from "macros/datatable.html" import datatable %}
 
-{% set columns = [
-  {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
-  {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
+{% set item_types = [
+  { 'id': 'osint_source', 'name': 'OSINT Source' },
+  { 'id': 'osint_source_group', 'name': 'OSINT Source Group' },
+  { 'id': 'product_type', 'name': 'Product Type' },
+  { 'id': 'report_item_type', 'name': 'Report Type' },
+  { 'id': 'word_list', 'name': 'Word List' }
 ] %}
 
+
 {% set form_error = form_error | default({}) %}
-{% set permissions = permissions | default([]) %}
+{% set roles = roles | default([]) %}
 <div class="bg-base-100 p-4">
-  <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{{ submit_text }}</h1>
-  <form id="role-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+
+  <form id="acl-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    {% include "acl/acl_form_warning.html" %}
     {% if error %}
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
     {% endif %}
 
-    {{ form_input('Name', 'name', role.name, form_error.name) }}
-    {{ form_input('Description', 'description', role.description, form_error.description) }}
-    {{ tlp_levels(role.tlp_level) }}
+    {{ form_input('Name', 'name', acl.name, form_error.name) }}
+    {{ form_input('Description', 'description', acl.description, form_error.description) }}
 
-    {{ datatable('permissions-table', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
-    <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
+    <div class="join gap-1 w-3/4">
+      {{ form_select(label='Item Type', name='item_type', value=acl.item_type, options=item_types) }}
+      {{ form_input_content('Item ID', 'item_id', acl.item_id, form_error.item_id) }}
+    </div>
+
+    <div class="w-3/4">
+    {{ datatable('roles-table', roles, columns, acl.roles, selectable=true, input_name="roles[]") }}
+    </div>
+    <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>
 </div>
