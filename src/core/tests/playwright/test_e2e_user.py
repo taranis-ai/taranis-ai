@@ -318,7 +318,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_test_id("show-all-attributes").click()
             check_attributes_table(
-                page.get_by_test_id("attributes-table"), [["user_override", "no"], ["test_key", "dangerous"], ["TLP", "clear"]]
+                page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"], ["overridden_by", "user_1"]]
             )
 
             # manually classify first three news items

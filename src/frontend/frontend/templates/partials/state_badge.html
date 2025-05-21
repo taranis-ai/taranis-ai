@@ -1,0 +1,9 @@
+{% if state == 0 %}
+<div title="OK" class="badge badge-success">OK</div>
+{% elif state == 1 %}
+<div title="Error" class="badge badge-error">Error</div>
+{% elif state == -2 %}
+<div title="Disabled" class="badge badge-warning">Disabled</div>
+{% else %}
+<div title="Unknown" class="badge badge-neutral">Unknown</div>
+{% endif %}

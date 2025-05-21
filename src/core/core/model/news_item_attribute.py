@@ -58,5 +58,5 @@ class NewsItemAttribute(BaseModel):
         if not change_source:
             return ""
         if isinstance(change_source, User):
-            return str(change_source.id)
+            return f"user_{str(change_source.id)}"
         return change_source

@@ -66,7 +66,9 @@ export const useAuthStore = defineStore(
           await authLogout()
         }
       } catch (error) {
-        console.error(error)
+        if (error.response?.status !== 401) {
+          console.error(error)
+        }
       }
       reset()
       router.push({ name: 'login' })

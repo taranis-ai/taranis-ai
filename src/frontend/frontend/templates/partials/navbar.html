@@ -1,0 +1,59 @@
+<div class="flex items-center space-x-4">
+  <button
+    @click="sidebarOpen = !sidebarOpen"
+    class="btn btn-ghost btn-square mr-4"
+    aria-label="Toggle sidebar"
+  >
+    {{ heroicon_outline('bars-3') }}
+  </button>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-ghost normal-case text-xl">
+    <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="Taranis AI Logo" class="h-8">
+  </a>
+</div>
+
+<nav>
+  <ul class="menu bg-base-200 menu-horizontal rounded-box">
+    <li>
+      <a>
+        {{ heroicon_outline('squares-2x2') }}
+        Dashboard
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('admin.dashboard') }}">
+        {{ heroicon_outline('cog-6-tooth') }}
+        Administration
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('admin.dashboard') }}">
+        {{ heroicon_outline('newspaper') }}
+      Assess
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('admin.dashboard') }}">
+        {{ heroicon_outline('presentation-chart-bar') }}
+      Analyze
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('admin.dashboard') }}">
+        {{ heroicon_outline('paper-airplane') }}
+      Publish
+      </a>
+    </li>
+    <li class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+        {{ heroicon_outline('user-circle') }}
+      </div>
+      <ul
+        tabindex="0"
+        class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+        <li><a href="{{ url_for('user.user_profile') }}">Profile</a></li>
+        <li><a href="{{ url_for('user.user_settings') }}">User Settings</a></li>
+        <li><a href="{{ url_for('base.logout') }}">Logout</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
