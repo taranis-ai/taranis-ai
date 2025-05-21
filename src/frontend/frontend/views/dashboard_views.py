@@ -8,10 +8,12 @@ from frontend.log import logger
 
 class DashboardView(BaseView):
     model = Dashboard
+    icon = "home"
     htmx_list_template = "dashboard/index.html"
     htmx_update_template = "dashboard/index.html"
     default_template = "dashboard/index.html"
     base_route = "base.dashboard"
+    _index = 10
 
     @classmethod
     def static_view(cls):

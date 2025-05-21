@@ -5,6 +5,8 @@ from frontend.data_persistence import DataPersistenceLayer
 
 class SourceGroupView(BaseView):
     model = OSINTSourceGroup
+    icon = "building-library"
+    _index = 65
 
     @classmethod
     def get_extra_context(cls, object_id: int | str):

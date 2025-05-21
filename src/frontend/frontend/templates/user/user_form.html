@@ -1,7 +1,6 @@
 {% from "macros/forms.html" import form_input, form_select %}
 
 {% set create = user_id == 0 | default('true') %}
-{% set form_title = 'User' %}
 
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
@@ -38,16 +37,16 @@
     }
 </script>
 
-<div class="bg-base-100 rounded-sm p-4">
+<div class="bg-base-100 p-4">
     <div class="w-1/2 ml-[10%]">
     {% if create -%}
-        <h1 class="text-3xl font-bold mb-5">Create {{ form_title }}</h1>
+        <h1 class="text-3xl font-bold mb-5">{{ submit_text }}</h1>
     {% else -%}
         {% include "user/user_form_warning.html" %}
     {% endif -%}
     </div>
 
-    <form id="user-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error -%}
         <div role="alert" class="alert alert-error mb-5 w-3/4">{{ error }}</div>
         {% endif -%}
