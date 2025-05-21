@@ -76,7 +76,6 @@ class UpdateNewsItemAttributes(MethodView):
         if not attributes:
             return {"error": "No attributes provided"}, 400
         attributes.append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("bot")})
-        logger.debug(f"{attributes=}")
         return news_item.NewsItem.update_attributes(news_item_id, attributes)
 
 
@@ -91,7 +90,6 @@ class StoryAttributes(MethodView):
     def patch(self, story_id):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
-                logger.debug(f"Updating story {story_id} with data: {input_data}")
                 input_data.append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("bot")})
                 current_story.patch_attributes(input_data)
             else:

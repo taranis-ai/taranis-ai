@@ -465,12 +465,10 @@ class Story(BaseModel):
             return {"error": "Identical news item found. Skipping..."}, 400
 
         news_item_attributes = news_item.get("attibutes", [])
-        logger.debug(f"News item attributes: {news_item_attributes=}")
         overriden_by: str = next(
             (attribute.get("value") for attribute in news_item_attributes if attribute.get("key") == "overridden_by"),
             "unknown",
         )
-        logger.debug(f"Overridden by: {overriden_by=}")
 
         data = {
             "title": news_item.get("title"),
@@ -514,7 +512,6 @@ class Story(BaseModel):
                     logger.warning(err)
                     skipped_items.append(err)
                     continue
-
                 message, status = cls.add_from_news_item(news_item)
                 if status > 299:
                     error_message = message.get("error", "Unknown error")
@@ -571,7 +568,6 @@ class Story(BaseModel):
             story.summary = summary
 
         if "attributes" in data:
-            logger.debug(f"Updating attributes for story {story_id}: {data['attributes']}")
             story.set_attributes(data["attributes"])
 
         if "links" in data:
@@ -641,7 +637,6 @@ class Story(BaseModel):
         Calls patch_attributes() for add/update,
         remove_attributes() for deletions.
         """
-        logger.debug(f"Setting attributes for story {self.id}: {attributes=}")
         input_keys = {attr["key"] for attr in attributes}
         existing_keys = {attr.key for attr in self.attributes}
 

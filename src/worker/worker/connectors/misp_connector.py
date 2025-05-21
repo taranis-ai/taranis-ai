@@ -491,7 +491,10 @@ class MISPConnector:
                 self.core_api.api_post("/worker/stories", story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
-                    [{"key": "misp_event_uuid", "value": f"{result.uuid}"}, {"key": "override", "value": ""}],
+                    [
+                        {"key": "misp_event_uuid", "value": f"{result.uuid}"},
+                        {"key": "overriden_by", "value": f"misp_connector_{self.connector_id}"},
+                    ],
                 )
 
 
