@@ -393,7 +393,7 @@ class Story(BaseModel):
                 news_item.delete_item()
 
     @classmethod
-    def add_or_update(cls, data, change_source: str) -> "tuple[dict, int]":
+    def add_or_update(cls, data) -> "tuple[dict, int]":
         if "id" not in data:
             return cls.add(data)
 
@@ -415,13 +415,13 @@ class Story(BaseModel):
             for news_item in data.get("news_items", []):
                 logger.debug(f"{NewsItem.get(news_item.get('id'))}")
                 if not NewsItem.get(news_item.get("id")):
-                    result, _ = cls.add_single_news_item(news_item, change_source)
+                    result, _ = cls.add_single_news_item(news_item)
                     story_id = result.get("story_id")
                     if story_id is not None:
                         story_ids.append(story_id)
 
             cls.group_stories(story_ids)
-            return cls.update(data["id"], data, change_source)
+            return cls.update(data["id"], data)
 
         result = cls.update_with_conflicts(data["id"], data)
         return result
@@ -460,17 +460,25 @@ class Story(BaseModel):
         return items
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict, change_source: str) -> "tuple[dict, int]":
+    def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
             logger.warning("Identical news item found. Skipping...")
             return {"error": "Identical news item found. Skipping..."}, 400
+
+        news_item_attributes = news_item.get("attibutes", [])
+        logger.debug(f"News item attributes: {news_item_attributes=}")
+        overriden_by: str = next(
+            (attribute.get("value") for attribute in news_item_attributes if attribute.get("key") == "overridden_by"),
+            "unknown",
+        )
+        logger.debug(f"Overridden by: {overriden_by=}")
 
         data = {
             "title": news_item.get("title"),
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "attributes": [{"key": "override", "value": cls.get_story_override(change_source)}],
+            "attributes": [{"key": "overridden_by", "value": overriden_by}],
         }
 
         return cls.add(data)
@@ -487,17 +495,17 @@ class Story(BaseModel):
         return None
 
     @classmethod
-    def add_single_news_item(cls, news_item: dict, change_source: str) -> tuple[dict, int]:
+    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
         if err := cls.check_news_item_data(news_item):
             return err, 400
         try:
-            return cls.add_from_news_item(news_item, change_source)
+            return cls.add_from_news_item(news_item)
         except Exception as e:
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict], change_source: str) -> tuple[dict, int]:
+    def add_news_items(cls, news_items_list: list[dict]) -> tuple[dict, int]:
         story_ids = []
         news_item_ids = []
         skipped_items = []
@@ -507,7 +515,8 @@ class Story(BaseModel):
                     logger.warning(err)
                     skipped_items.append(err)
                     continue
-                message, status = cls.add_from_news_item(news_item, change_source)
+
+                message, status = cls.add_from_news_item(news_item)
                 if status > 299:
                     error_message = message.get("error", "Unknown error")
                     logger.warning(error_message)
@@ -529,7 +538,7 @@ class Story(BaseModel):
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data=None, change_source: str = "", user=None) -> tuple[dict, int]:
+    def update(cls, story_id: str, data=None, user=None) -> tuple[dict, int]:
         if not data:
             data = {}
         story = cls.get(story_id)
@@ -561,12 +570,9 @@ class Story(BaseModel):
         if summary := data.get("summary"):
             story.summary = summary
 
-        if change_source:
-            data["attributes"] = data.get("attributes", [])
-            data["attributes"].append({"key": "override", "value": ""})
-
         if "attributes" in data:
-            story.set_attributes(data["attributes"], change_source)
+            logger.debug(f"Updating attributes for story {story_id}: {data['attributes']}")
+            story.set_attributes(data["attributes"])
 
         if "links" in data:
             story.links = data["links"]
@@ -629,28 +635,27 @@ class Story(BaseModel):
 
         return {"message": "Update successful"}, 200
 
-    def set_attributes(self, attributes: list[dict], change_source: str):
+    def set_attributes(self, attributes: list[dict]):
         """
         Synchronize story attributes to match the provided list.
         Calls patch_attributes() for add/update,
         remove_attributes() for deletions.
         """
+        logger.debug(f"Setting attributes for story {self.id}: {attributes=}")
         input_keys = {attr["key"] for attr in attributes}
         existing_keys = {attr.key for attr in self.attributes}
 
-        self.patch_attributes(attributes, change_source)
+        self.patch_attributes(attributes)
 
         keys_to_remove = existing_keys - input_keys
         self.remove_attributes(list(keys_to_remove))
 
-    def patch_attributes(self, attributes: list[dict], change_source: str):
+    def patch_attributes(self, attributes: list[dict]):
         for attribute in attributes:
             attr_key = attribute.get("key")
             attr_value = attribute.get("value")
             if attr_key == "TLP":
                 attr_value = self.get_story_tlp(TLPLevel.get_tlp_level(attr_value))  # type: ignore
-            if attr_key == "override":
-                attr_value = self.get_story_override(change_source)
             self.upsert_attribute(NewsItemAttribute(key=attr_key, value=attr_value))
 
     def remove_attributes(self, keys: list[str]):
@@ -924,7 +929,7 @@ class Story(BaseModel):
             created=news_item.published,
             description=news_item.review or news_item.content,
             news_items=[news_item.id],
-            attributes=[{"key": "override", "value": cls.get_story_override(user)}],
+            attributes=[{"key": "overridden_by", "value": cls.get_story_override(user)}],
         )
         db.session.add(new_story)
         db.session.commit()

@@ -175,7 +175,7 @@ class NewsItem(BaseModel):
         return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_attributes(cls, news_item_id, attributes, change_source: str) -> tuple[dict, int]:
+    def update_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
@@ -184,7 +184,6 @@ class NewsItem(BaseModel):
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
-        attributes.append(NewsItemAttribute(key="change_source", value=change_source))
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
         db.session.commit()
@@ -210,19 +209,7 @@ class NewsItem(BaseModel):
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
-    @property
-    def news_item_override(self) -> str | None:
-        return attr.value if (attr := self.find_attribute_by_key("override")) else None
-
-    @news_item_override.setter
-    def news_item_override(self, value: str | User | None) -> None:
-        if not value:
-            self.upsert_attribute(NewsItemAttribute(key="override", value=""))
-        if isinstance(value, User):
-            value = str(value.id)
-        self.upsert_attribute(NewsItemAttribute(key="override", value=value))
-
-    def update_item(self, data, user: User | None) -> tuple[dict, int]:
+    def update_item(self, data) -> tuple[dict, int]:
         if self.source != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
@@ -244,7 +231,8 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        self.news_item_override = user
+        if attributes := data.get("attributes"):
+            self.update_attributes(self.id, attributes)
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 

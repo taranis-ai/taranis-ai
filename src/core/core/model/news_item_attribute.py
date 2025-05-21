@@ -4,6 +4,7 @@ import contextlib
 from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Mapped, deferred
+from core.model.user import User
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -51,3 +52,11 @@ class NewsItemAttribute(BaseModel):
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
         return TLPLevel(cls.get_by_key(attributes, "TLP"))
+
+    @staticmethod
+    def get_override_state(change_source: str | User | None) -> str:
+        if not change_source:
+            return ""
+        if isinstance(change_source, User):
+            return str(change_source.id)
+        return change_source

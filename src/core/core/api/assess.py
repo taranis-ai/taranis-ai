@@ -9,6 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.model import news_item, osint_source, news_item_tag, story
 from core.managers.decorators import validate_json
 from core.managers import queue_manager
+from core.model.news_item_attribute import NewsItemAttribute
 from core.service.news_item import NewsItemService
 from core.audit import audit_logger
 from core.config import Config
@@ -46,7 +47,10 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
-        result, status = story.Story.add_single_news_item(data_json, change_source=str(current_user or ""))
+        if not data_json.get("attributes"):
+            data_json["attributes"] = []
+        data_json["attributes"].append({"key": "overriden_by", "value": NewsItemAttribute.get_override_state(current_user)})
+        result, status = story.Story.add_single_news_item(data_json)
         sse_manager.news_items_updated()
         return result, status
 
@@ -80,7 +84,12 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json, change_source=str(current_user or ""))
+        attributes = request.json
+        if not attributes:
+            return {"error": "No attributes provided"}, 400
+
+        attributes["overriden_by"] = NewsItemAttribute.get_override_state(current_user)
+        return news_item.NewsItem.update_attributes(news_item_id, attributes)
 
 
 class Stories(MethodView):

@@ -18,19 +18,18 @@ class TestBotsApi(BaseTest):
     def test_story_update(self, client, stories, cleanup_story_update_data, api_header):
         """
         This test queries the story update authenticated.
-        It expects a valid data and a valid status-code
+        It expects valid data and a valid status-code.
         """
         response = client.get(f"{self.base_uri}/story/{stories[0]}", headers=api_header)
         self.assert_json_ok(response)
         current_story_data = response.get_json()
 
-        # Update current_story with with the cleanup_story_update_data
         update_story_data = self.deepmerge(current_story_data, cleanup_story_update_data)
 
         assert len(update_story_data["attributes"]) == len(cleanup_story_update_data["attributes"]) + 2
         check_attributes = sorted(update_story_data["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
-            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}, {"key": "override", "value": ""}],
+            cleanup_story_update_data["attributes"] + [{"key": "TLP", "value": "clear"}, {"key": "overridden_by", "value": "unknown"}],
             key=lambda d: d["key"],
         )
         assert check_attributes == expected_attributes
@@ -69,7 +68,7 @@ class TestBotsApi(BaseTest):
         attributes = sorted(response.get_json()["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
             cleanup_story_update_data["attributes"]
-            + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}, {"key": "override", "value": "bot"}],
+            + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}, {"key": "overridden_by", "value": "bot"}],
             key=lambda d: d["key"],
         )
 

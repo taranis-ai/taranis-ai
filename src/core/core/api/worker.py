@@ -6,6 +6,7 @@ from core.managers.auth_manager import api_key_required
 from core.log import logger
 from core.managers import queue_manager
 from core.model.connector import Connector
+from core.model.news_item_attribute import NewsItemAttribute
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
 from core.model.product_type import ProductType
@@ -25,7 +26,12 @@ class AddNewsItems(MethodView):
         json_data = request.json
         if not isinstance(json_data, list):
             return {"error": "Expected a list of news items"}, 400
-        result, status = Story.add_news_items(json_data, change_source="worker")
+        for item in json_data:
+            if not item.get("attributes"):
+                item["attributes"] = []
+                item["attributes"]["overriden_by"] = NewsItemAttribute.get_override_state("collector" + item.get("osint_source_id"))
+
+        result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
 
@@ -131,7 +137,13 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
-        return Story.add_or_update(request.json, change_source="worker")
+        story_dict = request.json
+        if not story_dict:
+            return {"error": "No data provided"}, 400
+        if not story_dict.get("attributes"):
+            story_dict["attributes"] = []
+        story_dict["attributes"].append({"key": "overriden_by", "value": NewsItemAttribute.get_override_state("worker")})
+        return Story.add_or_update(story_dict)
 
 
 class Tags(MethodView):
