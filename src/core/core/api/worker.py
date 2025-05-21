@@ -29,7 +29,7 @@ class AddNewsItems(MethodView):
         for item in json_data:
             if not item.get("attributes"):
                 item["attributes"] = []
-                item["attributes"]["overriden_by"] = NewsItemAttribute.get_override_state("collector" + item.get("osint_source_id"))
+                item["attributes"]["overridden_by"] = NewsItemAttribute.get_override_state("collector" + item.get("osint_source_id"))
 
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
@@ -142,7 +142,7 @@ class Stories(MethodView):
             return {"error": "No data provided"}, 400
         if not story_dict.get("attributes"):
             story_dict["attributes"] = []
-        story_dict["attributes"].append({"key": "overriden_by", "value": NewsItemAttribute.get_override_state("worker")})
+        story_dict["attributes"].append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("worker")})
         return Story.add_or_update(story_dict)
 
 

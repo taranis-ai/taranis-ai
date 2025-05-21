@@ -26,7 +26,7 @@ class StoryConflict:
 
         updated_data.update(resolution)
 
-        response, code = Story.update(self.story_id, updated_data, user=user, change_source="collector")
+        response, code = Story.update(self.story_id, updated_data, user=user)
 
         if code == 200:
             StoryConflict.conflict_store.pop(self.story_id, None)
@@ -49,7 +49,7 @@ class StoryConflict:
     @classmethod
     def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
         if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change", "has_proposals", "user_override"}
+            keys_to_remove = {"updated", "last_change", "has_proposals"}
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
         elif isinstance(obj, dict):
