@@ -14,7 +14,7 @@ class TaranisLogger:
     def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
-            stream_handler.setFormatter(TaranisLogFormatter())
+            stream_handler.setFormatter(TaranisLogFormatter(module))
         else:
             stream_handler.setFormatter(logging.Formatter(f"[{module}] [%(levelname)s] - %(message)s"))
         sys_log_handler = None
@@ -58,14 +58,14 @@ class TaranisLogger:
 
 
 class TaranisLogFormatter(logging.Formatter):
-    def __init__(self):
+    def __init__(self, module):
         grey = "\x1b[38;20m"
         blue = "\x1b[1;36m"
         yellow = "\x1b[33;20m"
         red = "\x1b[31;20m"
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
-        self.format_string = "[%(asctime)s] [%(levelname)s] - %(message)s"
+        self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"
         self.datefmt = "%Y-%m-%d %H:%M:%S"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
@@ -79,6 +79,7 @@ class TaranisLogFormatter(logging.Formatter):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)
+
 
 class Logger(TaranisLogger):
     def resolve_ip_address(self):
