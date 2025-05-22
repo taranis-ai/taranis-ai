@@ -232,16 +232,15 @@ class Templates(MethodView):
         return jsonify({"items": templates, "total_count": len(templates)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
-    def put(self):
+    def put(self, template_path: str):
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_path = request.json.pop("path")
-        if write_base64_to_file(request.json.get("data"), template_path):
+        if write_base64_to_file(request.json.get("content"), template_path):
             return {"message": "Template updated or created", "path": template_path}, 200
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, template_path):
+    def delete(self, template_path: str):
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
