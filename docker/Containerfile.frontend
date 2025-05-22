@@ -11,13 +11,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-dev
 
 COPY ./src/frontend/. /app/
-COPY ./.git /.git
 
-RUN arch=$(uname -m) && \
-    arch_short=$([ "$arch" = "x86_64" ] && echo "x64" || echo "arm64") && \
-    curl -sLo /tmp/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.5/tailwindcss-linux-${arch_short} && \
-    chmod +x /tmp/tailwindcss && \
-    /tmp/tailwindcss -i /app/frontend/static/css/input.css -o /app/frontend/static/css/tailwind.css
+RUN /app/build_tailwindcss.sh
 
 ENV UV_COMPILE_BYTECODE=1
 
