@@ -53,6 +53,7 @@ class TestWorkerApi:
         update_data["id"] = story_1_id  # reuse the story id from the previous test
         update_data["news_items"] = [cleanup_news_item]
         update_data["attributes"].append({"key": "status", "value": "updated"})
+        update_data["tags"] = ["tag1", "tag2"]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -83,6 +84,7 @@ class TestWorkerApi:
         assert attributes_in_story["status"].get("value") == "updated", (
             f"Expected 'updated' but got '{attributes_in_story['status'].get('value')}'"
         )
+        assert len(updated_story.get("tags")) == 2
 
     def test_worker_story_update_including_existing_news_items(
         self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header
@@ -122,6 +124,7 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.get_json()[0].get("title") == update_data["title"]
         assert len(response.get_json()[0].get("news_items", [])) == len(original_news_items)
+        assert len(response.get_json()[0].get("tags")) == 2
 
     def test_worker_story_update_with_conflict(self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header):
         story_2_id = stories[1]
@@ -174,6 +177,22 @@ class TestWorkerApi:
         assert result.get("message") == "Story added successfully"
         assert result.get("news_item_ids")[0] == full_story[0].get("news_items", [])[0].get("id", "<news_item_id>")
         assert result.get("story_id", "t<story_id>") == full_story[0].get("id")
+
+    def test_worker_put_tags(self, client, stories, api_header):
+        story_1_id = stories[0]
+        tags = ["tag3", "tag4"]
+
+        response = client.put(f"{self.base_uri}/tags", json={story_1_id: tags}, headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json().get("message") == "Tags updated"
+
+    def test_worker_get_tags(self, client, api_header):
+        response = client.get(f"{self.base_uri}/tags", headers=api_header)
+
+        assert response.status_code == 200
+        assert isinstance(response.get_json(), dict)
+        assert len(response.get_json()) == 5
 
 
 class TestWorkerStoryApi:
