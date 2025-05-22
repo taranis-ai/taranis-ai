@@ -261,7 +261,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
 
         def show_open_api():
-            page.goto(url_for("bp_doc.swagger_blueprint_doc_handler", _external=True))
+            page.goto(url_for("api_doc.swagger_blueprint_doc_handler", _external=True))
             expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
             page.screenshot(path="./tests/playwright/screenshots/docs_openapi.png")
 

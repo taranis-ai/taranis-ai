@@ -1,5 +1,5 @@
 {% macro dashboard_card(title, endpoint, icon) %}
-<div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+<div class="bg-base-100 border p-4 shadow-lg">
     {% if endpoint %}
     <a href="{{ endpoint }}" class="underline text-xl" target="_top">{{ title }}</a>
     {% else %}
@@ -16,7 +16,7 @@
 {% endmacro %}
 
 {% macro trending_card(cluster) %}
-<div class="bg-base-100 border rounded-sm p-4 shadow-lg">
+<div class="bg-base-100 border p-4 shadow-lg">
     <a href="/cluster/{{ cluster.name }}" class="underline text-xl" target="_top">{{ cluster.name }}</a>
     <div class="divider"></div>
     <span class="inline-flex">

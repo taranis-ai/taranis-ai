@@ -91,7 +91,8 @@ export const router = createRouter({
         default: () => import('@/views/users/ReportView.vue')
       },
       props: true,
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS },
+      title: 'Analyze'
     },
     {
       path: '/publish',
@@ -498,17 +499,11 @@ router.beforeEach((to) => {
     console.error('Access Denied - User is lacking permissions')
     return { name: 'forbidden' }
   }
-  return true
-})
-
-router.afterEach((to, from) => {
-  if (to.name === from.name) {
-    return
-  }
-
   if (to.meta.title) {
     document.title = `Taranis AI | ${to.meta.title}`
   } else {
     document.title = 'Taranis AI'
   }
+
+  return true
 })

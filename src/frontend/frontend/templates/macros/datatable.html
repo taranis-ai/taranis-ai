@@ -1,5 +1,5 @@
 {% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items") %}
-{% from "macros/datatable.html" import datatable_header with context %}
+{% from "macros/datatable.html" import datatable_header %}
 {% set safe_data = data | list | tojson | replace('"', "'") %}
 {% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
 {% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list | tojson | replace('"', "'") %}
@@ -154,7 +154,7 @@
 {% endmacro %}
 
 {% macro datatable_header(title, sortable) %}
-{% from "macros/query_params.html" import update_query_params with context %}
+{% from "macros/query_params.html" import update_query_params %}
 {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
 {% set order = title ~ '_' ~ order_direction %}
 {% set order_params = {'order': order, 'page': 1} %}
