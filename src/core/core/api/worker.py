@@ -159,8 +159,14 @@ class Tags(MethodView):
             return {"error": "No data provided"}, 400
         errors = {}
         bot_type = request.args.get("bot_type", default="")
+        if bot_type:
+            next(iter(data.values())).append(bot_type)
         for story_id, tags in data.items():
-            _, status = Story.update_tags(story_id, tags, bot_type)
+            story = Story.get(story_id)
+            if not story:
+                errors[story_id] = "Story not found"
+                continue
+            _, status = story.set_tags(tags)
             if status != 200:
                 errors[story_id] = status
         if errors:
