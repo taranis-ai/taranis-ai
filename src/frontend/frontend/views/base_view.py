@@ -153,7 +153,7 @@ class BaseView(MethodView):
         resp_obj=None,
     ) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        if object_id == 0:
+        if str(object_id) == "0":
             form_action = f"hx-post={cls.get_base_route()}"
             submit = f"Create {cls.pretty_name()}"
         else:

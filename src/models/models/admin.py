@@ -3,7 +3,7 @@ from typing import Literal
 from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES
+from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES, WORKER_TYPES, WORKER_CATEGORY
 from models.assess import StoryTag
 
 
@@ -67,14 +67,17 @@ class ParameterValue(TaranisBaseModel):
 
 
 class Worker(TaranisBaseModel):
-    _core_endpoint = "/config/workers"
-    _model_name = "worker"
-    id: str
+    _core_endpoint = "/config/worker-types"
+    _model_name = "worker_type"
+    _search_fields = ["name", "description"]
+    _pretty_name = "Worker Type"
+
+    id: str | None = None
     name: str
     description: str | None = ""
-    type: str | None = ""
-    category: str | None = ""
-    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+    type: WORKER_TYPES
+    category: WORKER_CATEGORY
+    parameters: dict[str, str] = Field(default_factory=dict)
 
 
 class Role(TaranisBaseModel):
@@ -317,7 +320,7 @@ class Connector(TaranisBaseModel):
     description: str | None = None
     type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
     index: int | None = None
-    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+    parameters: dict[str, str] = Field(default_factory=dict)
     icon: str | None = None
     state: int = -1
     last_collected: datetime | None = None

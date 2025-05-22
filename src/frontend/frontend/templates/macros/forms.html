@@ -8,23 +8,45 @@
 </div>
 {% endmacro %}
 
-{% macro form_select(label, name, value, options=[], input_id=None, required=True) %}
-<label class="floating-label mb-5 w-1/2">
-  <span>{{ label }}</span>
+{% macro form_select(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+<label class="select mb-5 {{ width }}">
+  <span class="label">{{ label }}</span>
   <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="validator select w-full">
+    {% if not value %}
+    <option value="" selected disabled>Select an item type</option>
+    {% endif %}
     {% for option in options -%}
     <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
     {% endfor -%}
   </select>
-  <div class="validator-hint">Required</div>
 </label>
 {% endmacro %}
 
-{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True) %}
-<label class="floating-label w-1/2">
-  <span>{{ label }}</span>
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+<label class="floating-label {{ width }}">
+  <span class="label">{{ label }}</span>
   <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
     class="input w-full validator {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
+    {% if preserve %}hx-preserve{% endif %}
+  />
+</label>
+{% endmacro %}
+
+
+{% macro form_textarea(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+<label class="floating-label mb-5 {{ width }}">
+  <span class="label">{{ label }}</span>
+  <textarea class="textarea w-full" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
+    class="input w-full validator {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
+    {% if preserve %}hx-preserve{% endif %}></textarea>
+</label>
+{% endmacro %}
+
+{% macro form_fileinput(label, name, value, error, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+<label class="floating-label mb-5 {{ width }}">
+  <span class="label">{{ label }}</span>
+  <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
+    class="input w-full validator file-input {% if error %}input-error{% endif %}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
     {% if preserve %}hx-preserve{% endif %}
   />
 </label>

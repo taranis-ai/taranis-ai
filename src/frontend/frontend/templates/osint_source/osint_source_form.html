@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input %}
+{% from "macros/forms.html" import form_input, form_textarea, form_fileinput, form_select %}
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
@@ -12,8 +12,30 @@
     {% endif %}
 
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
-    {{ form_input('Description', 'description', osint_source.description, form_error.description, required=False) }}
+    {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
+    {{ form_fileinput('Icon', 'icon', osint_source.icon, form_error.icon, type='file', required=False) }}
 
-    <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
+    <label class="select w-full">
+      <span class="label">Collector Type</span>
+      <select id="collector_type"
+              name="collector_type"
+              required
+              class="validator select w-full"
+              hx-get="{{ url_for('admin.osint_source_parameters', osint_source_id=osint_source.id) }}"
+              hx-trigger="change"
+              hx-include="#collector_type"
+              hx-target="#parameters"
+              hx-swap="innerHTML">
+      {% if not osint_source.collector_type %}
+      <option value="" selected disabled>Select a collector type</option>
+      {% endif %}
+      {% for option in collector_types -%}
+      <option value="{{ option.id }}" {% if option.id == osint_source.collector_type %}selected{% endif %}>{{ option.name }}</option>
+      {% endfor -%}
+      </select>
+    </label>
+    <div id="parameters"></div>
+
+    <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>
 </div>

@@ -41,11 +41,15 @@ class TemplateView(BaseView):
             resp_obj=resp_obj,
         )
 
-        template = context[cls.model_name()]
+        dpl = DataPersistenceLayer()
+        raw_model = dpl.get_object(cls.model, object_id) or cls.model()
+        template = Template(**raw_model.model_dump())
+
         try:
-            template.content = b64decode(template.content).decode("utf-8")
+            template.content = b64decode(template.content or "").decode("utf-8")
         except Exception:
-            logger.warning(f"Failed to decode template content for {template.id}")
+            logger.exception()
+            logger.warning(f"Failed to decode template content for {template}")
             template.content = template.content
 
         context[cls.model_name()] = template
