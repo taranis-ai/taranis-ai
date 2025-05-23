@@ -1,12 +1,15 @@
 // Load this after loader.js (<script src="/frontend/static/js/vs/loader.js"></script>)
 
+const scriptUrl = document.currentScript.src;
+
+const vsBase = scriptUrl.replace(
+  /\/frontend\/static\/js\/monaco\.js$/,
+  "/frontend/static/vendor/js/vs"
+);
+
 require.config({
   paths: {
-    vs:
-      document.currentScript.src.substring(
-        0,
-        document.currentScript.src.lastIndexOf("/")
-      ) + "/vs",
+    vs: vsBase,
   },
 });
 

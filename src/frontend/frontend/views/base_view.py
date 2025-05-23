@@ -153,7 +153,7 @@ class BaseView(MethodView):
         resp_obj=None,
     ) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        if object_id == 0:
+        if str(object_id) == "0":
             form_action = f"hx-post={cls.get_base_route()}"
             submit = f"Create {cls.pretty_name()}"
         else:
@@ -175,7 +175,7 @@ class BaseView(MethodView):
             if msg := resp_obj.get("message"):
                 context["message"] = msg
         else:
-            context[cls.model_name()] = cls.model().model_dump(mode="json") if object_id == 0 else dpl.get_object(cls.model, object_id)
+            context[cls.model_name()] = cls.model.model_construct() if str(object_id) == "0" else dpl.get_object(cls.model, object_id)
 
         context |= cls.get_extra_context(object_id)
         return context

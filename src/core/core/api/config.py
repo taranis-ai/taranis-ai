@@ -188,6 +188,14 @@ class Parameters(MethodView):
         return worker.Worker.get_parameter_map(), 200
 
 
+class WorkerParameters(MethodView):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        x = worker.Worker.get_parameter_map()
+        result = [{"id": key, "parameters": value} for key, value in x.items()]
+        return {"items": result}, 200
+
+
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
     @extract_args("search")
@@ -232,16 +240,24 @@ class Templates(MethodView):
         return jsonify({"items": templates, "total_count": len(templates)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
-    def put(self):
+    def post(self, template_path=None):
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_path = request.json.pop("path")
-        if write_base64_to_file(request.json.get("data"), template_path):
+        template_path = request.json.get("id")
+        if write_base64_to_file(request.json.get("content"), template_path):
+            return {"message": "Template updated or created", "path": template_path}, 200
+        return {"error": "Could not write template to file"}, 500
+
+    @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    def put(self, template_path: str):
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        if write_base64_to_file(request.json.get("content"), template_path):
             return {"message": "Template updated or created", "path": template_path}, 200
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, template_path):
+    def delete(self, template_path: str):
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
@@ -724,6 +740,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
     config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
+    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
     config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))
@@ -732,7 +749,10 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
     config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
     config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
-    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
+    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
+    config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
     config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
     config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
@@ -752,9 +772,9 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
+    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
     config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
     config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))

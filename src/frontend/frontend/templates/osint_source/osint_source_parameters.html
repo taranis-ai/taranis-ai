@@ -1,0 +1,11 @@
+{% from "macros/forms.html" import form_input, form_select, form_textarea, form_switch %}
+
+{% for field in parameters %}
+  {% if field.type == 'text' or field.type == 'number' %}
+    {{ form_input(field.label, field.name, field.value, type=field.type, required=field.required) }}
+  {% elif field.type == 'textarea' %}
+    {{ form_textarea(field.label, field.name, field.value, required=field.required) }}
+  {% elif field.type == 'switch' %}
+    {{ form_switch(field.label, field.name, field.value, required=field.required) }}
+  {% endif %}
+{% endfor %}

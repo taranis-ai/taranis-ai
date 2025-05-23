@@ -101,7 +101,7 @@
 <div class="flex gap-4">
   {% if add_route %}
   <div class="grow-0">
-    <button hx-get="{{ add_route }}" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+    <button hx-get="{{ add_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
       New {{ name }}
     </button>
   </div>

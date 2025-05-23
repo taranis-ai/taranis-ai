@@ -1,0 +1,6 @@
+<span class="label">{{ selected_item_label | default('Item ID') }}</span>
+<select name="item_id_select" required {% if not item_ids %}disabled{% endif %} class="validator select w-full">
+  {% for option in item_ids -%}
+  <option value="{{ option.id }}">{{ option.name }}</option>
+  {% endfor -%}
+</select>

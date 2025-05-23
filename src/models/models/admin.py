@@ -3,16 +3,20 @@ from typing import Literal
 from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES
+from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES, WORKER_TYPES, WORKER_CATEGORY
 from models.assess import StoryTag
 
 
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
-    id: str
+    _model_name = "job"
+    _pretty_name = "Scheduler"
+
+    id: str | None = None
     name: str
-    trigger: str
-    next_run_time: str
+    trigger: str | None = None
+    kwargs: str | None = None
+    next_run_time: str | None = None
 
 
 class Address(TaranisBaseModel):
@@ -67,14 +71,17 @@ class ParameterValue(TaranisBaseModel):
 
 
 class Worker(TaranisBaseModel):
-    _core_endpoint = "/config/workers"
-    _model_name = "worker"
-    id: str
+    _core_endpoint = "/config/worker-types"
+    _model_name = "worker_type"
+    _search_fields = ["name", "description"]
+    _pretty_name = "Worker Type"
+
+    id: str | None = None
     name: str
     description: str | None = ""
-    type: str | None = ""
-    category: str | None = ""
-    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+    type: WORKER_TYPES
+    category: WORKER_CATEGORY
+    parameters: dict[str, str] = Field(default_factory=dict)
 
 
 class Role(TaranisBaseModel):
@@ -175,7 +182,7 @@ class OSINTSource(TaranisBaseModel):
     _pretty_name = "OSINT Source"
     _search_fields = ["name", "description"]
 
-    id: str
+    id: str | None = None
     name: str
     description: str = ""
     type: COLLECTOR_TYPES | None = None
@@ -317,9 +324,26 @@ class Connector(TaranisBaseModel):
     description: str | None = None
     type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
     index: int | None = None
-    parameters: list["ParameterValue"] = Field(default_factory=list["ParameterValue"])
+    parameters: dict[str, str] = Field(default_factory=dict)
     icon: str | None = None
     state: int = -1
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
     last_error_message: str | None = None
+
+
+class WorkerParameterValue(TaranisBaseModel):
+    name: str
+    label: str | None = None
+    parent: Literal["parameters"] = "parameters"
+    type: str | None = None
+    rules: list[str] = Field(default_factory=list)
+
+
+class WorkerParameter(TaranisBaseModel):
+    _core_endpoint = "/config/worker-parameters"
+    _model_name = "worker_parameter"
+    _pretty_name = "Worker Parameter"
+
+    id: str
+    parameters: list[WorkerParameterValue]
