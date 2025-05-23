@@ -13,7 +13,7 @@ class NewsItemService:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
-        news_item.update_item(data)
+        news_item.update_item(data, user)
 
         if story := Story.get(news_item.story_id):
             story.update_status()
@@ -40,8 +40,9 @@ class NewsItemService:
             logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 400
 
-        story.last_change = "internal"
         story.news_items.remove(news_item)
+        if story.news_items:
+            story.update(story.id, change_source=story.get_story_override(user))
         news_item.delete_item()
         story.update_status()
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
