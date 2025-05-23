@@ -9,10 +9,14 @@ from models.assess import StoryTag
 
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
-    id: str
+    _model_name = "job"
+    _pretty_name = "Scheduler"
+
+    id: str | None = None
     name: str
-    trigger: str
-    next_run_time: str
+    trigger: str | None = None
+    kwargs: str | None = None
+    next_run_time: str | None = None
 
 
 class Address(TaranisBaseModel):
@@ -178,7 +182,7 @@ class OSINTSource(TaranisBaseModel):
     _pretty_name = "OSINT Source"
     _search_fields = ["name", "description"]
 
-    id: str
+    id: str | None = None
     name: str
     description: str = ""
     type: COLLECTOR_TYPES | None = None
@@ -326,3 +330,20 @@ class Connector(TaranisBaseModel):
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
     last_error_message: str | None = None
+
+
+class WorkerParameterValue(TaranisBaseModel):
+    name: str
+    label: str | None = None
+    parent: Literal["parameters"] = "parameters"
+    type: str | None = None
+    rules: list[str] = Field(default_factory=list)
+
+
+class WorkerParameter(TaranisBaseModel):
+    _core_endpoint = "/config/worker-parameters"
+    _model_name = "worker_parameter"
+    _pretty_name = "Worker Parameter"
+
+    id: str
+    parameters: list[WorkerParameterValue]

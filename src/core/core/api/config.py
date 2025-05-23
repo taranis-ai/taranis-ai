@@ -188,6 +188,14 @@ class Parameters(MethodView):
         return worker.Worker.get_parameter_map(), 200
 
 
+class WorkerParameters(MethodView):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        x = worker.Worker.get_parameter_map()
+        result = [{"id": key, "parameters": value} for key, value in x.items()]
+        return {"items": result}, 200
+
+
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
     @extract_args("search")
@@ -732,6 +740,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
     config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
+    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
     config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))
