@@ -1,9 +1,10 @@
 #!/bin/bash
 
-set -eu pipefail
+set -euo pipefail
 
-# Move to the top-level directory of your git repo
-static_dir="$(git rev-parse --show-toplevel)/src/frontend/frontend/static/vendor"
+SCRIPT_PATH="$( readlink -f "${BASH_SOURCE[0]}" )"
+SCRIPT_DIR="$( dirname "$SCRIPT_PATH" )"
+static_dir="${SCRIPT_DIR}/frontend/static/vendor"
 
 mkdir -p "$static_dir/css" "$static_dir/js" "$static_dir/assets"
 
@@ -31,5 +32,6 @@ pushd "${static_dir}/js" > /dev/null
 mkdir -p vs
 tar -xzf monaco-editor-0.52.2.tgz --strip-components=2 package/min/vs
 rm -f monaco-editor-0.52.2.tgz
+popd > /dev/null
 
 echo "All files downloaded successfully."

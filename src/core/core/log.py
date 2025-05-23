@@ -65,7 +65,8 @@ class TaranisLogFormatter(logging.Formatter):
         red = "\x1b[31;20m"
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
-        self.format_string = f"[{module}] [%(levelname)s] - %(message)s"
+        self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"
+        self.datefmt = "%Y-%m-%d %H:%M:%S"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
             logging.INFO: blue + self.format_string + reset,
@@ -74,9 +75,9 @@ class TaranisLogFormatter(logging.Formatter):
             logging.CRITICAL: bold_red + self.format_string + reset,
         }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)
 
 

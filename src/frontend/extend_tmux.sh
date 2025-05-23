@@ -2,8 +2,6 @@
 
 set -eu
 
-# cd $(git rev-parse --show-toplevel)
-
 # Create tailwind tab
 tmux new-window -t taranis -n tailwind
 tmux send-keys -t taranis:tailwind "./install_and_run_tailwind.sh" C-m
