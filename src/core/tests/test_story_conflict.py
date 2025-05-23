@@ -9,32 +9,16 @@ class TestStoryConflictSorting:
         story_data_1 = {
             "title": "Test Story",
             "description": "A test story",
-            "tags": [
-                {"name": "zebra_tag", "tag_type": "PERSON"},
-                {"name": "alpha_tag", "tag_type": "LOCATION"},
-                {"name": "beta_tag", "tag_type": "ORGANIZATION"},
-            ],
-            "attributes": [
-                {"key": "source", "value": "news_site_2"},
-                {"key": "author", "value": "john_doe"},
-                {"key": "category", "value": "politics"},
-            ],
+            "tags": {"zebra_tag": "PERSON", "alpha_tag": "LOCATION", "beta_tag": "ORGANIZATION"},
+            "attributes": {"source": "news_site_2", "author": "john_doe", "category": "politics"},
         }
 
-        # Same data but different order
+        # Same data but keys in different order
         story_data_2 = {
             "title": "Test Story",
             "description": "A test story",
-            "tags": [
-                {"name": "alpha_tag", "tag_type": "LOCATION"},
-                {"name": "zebra_tag", "tag_type": "PERSON"},
-                {"name": "beta_tag", "tag_type": "ORGANIZATION"},
-            ],
-            "attributes": [
-                {"key": "category", "value": "fun"},
-                {"key": "source", "value": "new_news"},
-                {"key": "author", "value": "cute_dog"},
-            ],
+            "tags": {"alpha_tag": "LOCATION", "zebra_tag": "PERSON", "beta_tag": "ORGANIZATION"},
+            "attributes": {"category": "politics", "source": "news_site_2", "author": "john_doe"},
         }
 
         result_1 = StoryConflict.stable_stringify(story_data_1)
@@ -44,27 +28,18 @@ class TestStoryConflictSorting:
 
     def test_fix_addresses_original_issue_521(self):
         """Integration test that verifies the fix addresses the original issue #521."""
-        # Simulate the exact scenario described in issue #521
         original_story = {
             "title": "Breaking News Story",
             "description": "Important news",
-            "tags": [
-                {"name": "Politics", "tag_type": "CATEGORY"},
-                {"name": "Europe", "tag_type": "LOCATION"},
-                {"name": "John Smith", "tag_type": "PERSON"},
-            ],
-            "attributes": [{"key": "source", "value": "Reuters"}, {"key": "urgency", "value": "high"}, {"key": "verified", "value": "true"}],
+            "tags": {"Politics": "CATEGORY", "Europe": "LOCATION", "John Smith": "PERSON"},
+            "attributes": {"source": "Reuters", "urgency": "high", "verified": "true"},
         }
 
         updated_story = {
             "title": "Breaking News Story",
             "description": "Important news",
-            "tags": [
-                {"name": "John Smith", "tag_type": "PERSON"},
-                {"name": "Politics", "tag_type": "CATEGORY"},
-                {"name": "Europe", "tag_type": "LOCATION"},
-            ],
-            "attributes": [{"key": "verified", "value": "true"}, {"key": "source", "value": "Reuters"}, {"key": "urgency", "value": "high"}],
+            "tags": {"John Smith": "PERSON", "Politics": "CATEGORY", "Europe": "LOCATION"},
+            "attributes": {"verified": "true", "source": "Reuters", "urgency": "high"},
         }
 
         normalized_original, normalized_updated = StoryConflict.normalize_data(original_story, updated_story)
