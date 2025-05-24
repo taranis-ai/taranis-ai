@@ -54,8 +54,14 @@ export const useConflictsStore = defineStore('conflicts', () => {
 
   async function loadSummariesPerConflict() {
     const ids = [
-      ...new Set(newsItemConflicts.value.map((c) => c.existing_story_id))
+      ...new Set(
+        newsItemConflicts.value.flatMap((c) => [
+          c.existing_story_id,
+          c.incoming_story_id
+        ])
+      )
     ]
+
     for (const id of ids) {
       try {
         if (!storySummaries.value[id]) {

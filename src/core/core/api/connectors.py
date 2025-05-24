@@ -62,7 +62,14 @@ class StoryInfo(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id):
         if story := Story.get(story_id):
-            return {"id": story.id, "title": story.title, "news_item_count": len(story.news_items), "relevance": story.relevance}, 200
+            news_item_titles = [item.title for item in story.news_items if hasattr(item, "title")]
+            return {
+                "id": story.id,
+                "title": story.title,
+                "news_item_count": len(story.news_items),
+                "relevance": story.relevance,
+                "news_item_titles": news_item_titles,
+            }, 200
         return {"error": "Story not found"}, 404
 
 
