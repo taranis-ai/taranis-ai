@@ -141,7 +141,7 @@
                     <v-card-subtitle>Incoming Story</v-card-subtitle>
                     <v-card-text>
                       <div class="text-h6 mb-2">{{ group.title }}</div>
-                      <ul>
+                      <ul class="news-item-list">
                         <li
                           v-for="item in group.fullStory.news_items || []"
                           :key="item.id"
@@ -164,11 +164,27 @@
                     :key="cluster.id"
                   >
                     <v-card outlined class="mb-4">
+                      <v-card-subtitle>Internal Story</v-card-subtitle>
+
                       <v-card-text>
-                        <div class="text-h6 mb-2">
-                          {{ cluster.summary?.title || 'Loading...' }}
+                        <div class="text-caption text-muted mt-1">
+                          ID: {{ cluster.id }} &mdash; Items:
+                          {{ cluster.summary?.news_item_count ?? 0 }} &mdash;
+                          Relevance: {{ cluster.summary?.relevance ?? 'n/a' }}
                         </div>
-                        <ul>
+                        <div class="mb-2">
+                          <div class="text-h6">
+                            <a
+                              :href="`/story/${cluster.id}`"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="story-link"
+                            >
+                              {{ cluster.summary?.title || 'Loading...' }}
+                            </a>
+                          </div>
+                        </div>
+                        <ul class="news-item-list">
                           <li
                             v-for="item in cluster.summary?.news_item_titles ||
                             []"
@@ -439,3 +455,49 @@ onMounted(async () => {
   await store.loadSummariesPerConflict()
 })
 </script>
+
+<style scoped>
+.mergely-editor {
+  border: 1px solid #ccc;
+}
+.merged-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.proposal-link {
+  color: inherit;
+  text-decoration: none;
+}
+:deep(.internal-story-title a:hover) {
+  text-decoration: underline;
+  color: #1976d2;
+}
+.story-link {
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.story-link:hover {
+  text-decoration: underline;
+  color: #1976d2;
+}
+
+.internal-story-meta {
+  line-height: 1.3;
+}
+
+.text-muted {
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.news-item-list {
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.news-item-list li {
+  margin-bottom: 0.25rem;
+}
+</style>
