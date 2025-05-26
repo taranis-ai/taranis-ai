@@ -9,4 +9,4 @@ class SchedulerView(BaseView):
     htmx_update_template = "schedule/index.html"
     default_template = "schedule/index.html"
     base_route = "admin.scheduler"
-    _index = 10
+    _index = 61

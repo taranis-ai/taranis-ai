@@ -3,7 +3,7 @@ from typing import Literal
 from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES, WORKER_TYPES, WORKER_CATEGORY
+from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES, WORKER_TYPES, WORKER_CATEGORY, PRESENTER_TYPES, OSINTState
 from models.assess import StoryTag
 
 
@@ -49,17 +49,17 @@ class ACL(TaranisBaseModel):
     _core_endpoint = "/config/acls"
     _model_name = "acl"
     _search_fields = ["name", "description"]
+    _pretty_name = "ACL"
 
     id: int | None = None
     name: str = ""
     description: str | None = ""
     item_type: ItemType | None = None
 
-    roles: list["Role"] = Field(default_factory=list["Role"])
+    roles: list[int] = Field(default_factory=list[int])
 
     read_only: bool = True
     enabled: bool = True
-    _pretty_name = "ACL"
 
 
 class ParameterValue(TaranisBaseModel):
@@ -106,7 +106,7 @@ class User(TaranisBaseModel):
     organization: Organization | int | dict = Field(default_factory=dict)
     permissions: list[str] | None = None
     profile: dict | None = None
-    roles: list[Role] | list[int] | list[dict] = Field(default_factory=list[Role])
+    roles: list[int] | list[int] | list[dict] = Field(default_factory=list[int])
     username: str = ""
     password: str | None = None
 
@@ -171,7 +171,7 @@ class WordList(TaranisBaseModel):
     id: int | None = None
     name: str
     description: str | None = None
-    usage: list[str] = Field(default_factory=list)
+    usage: list[str] = Field(default_factory=list[str])
     link: str | None = None
     entries: list[WordListEntry] = Field(default_factory=list)
 
@@ -187,10 +187,9 @@ class OSINTSource(TaranisBaseModel):
     description: str = ""
     type: COLLECTOR_TYPES | None = None
     parameters: dict[str, str] = Field(default_factory=dict)
-    groups: list["OSINTSourceGroup"] = Field(default_factory=list)
 
     icon: str | None = None
-    state: int = -1
+    state: OSINTState = OSINTState.UNKNOWN
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
     last_error_message: str | None = None
@@ -207,8 +206,8 @@ class OSINTSourceGroup(TaranisBaseModel):
     description: str = ""
     default: bool = False
 
-    osint_sources: list[OSINTSource | str] = Field(default_factory=list)
-    word_lists: list[WordList | str] = Field(default_factory=list)
+    osint_sources: list[str] = Field(default_factory=list[str])
+    word_lists: list[str] = Field(default_factory=list[str])
 
 
 class ProductType(TaranisBaseModel):
@@ -220,9 +219,9 @@ class ProductType(TaranisBaseModel):
     id: int | None = None
     title: str
     description: str | None = None
-    type: str
+    type: PRESENTER_TYPES
     parameters: dict[str, str] = Field(default_factory=dict)
-    report_types: list[int] = Field(default_factory=list)
+    report_types: list[int] = Field(default_factory=list[int])
 
 
 class PublisherPreset(TaranisBaseModel):

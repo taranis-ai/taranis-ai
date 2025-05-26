@@ -101,3 +101,10 @@ class WordListUsage(IntEnum):
     COLLECTOR_INCLUDELIST = 1  # 2^0
     COLLECTOR_EXCLUDELIST = 2  # 2^1
     TAGGING_BOT = 4  # 2^2
+
+
+class OSINTState(IntEnum):
+    DISABLED = -2
+    UNKNOWN = -1
+    OK = 0
+    ERROR = 1

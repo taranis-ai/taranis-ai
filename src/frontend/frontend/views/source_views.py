@@ -35,7 +35,10 @@ class SourceView(BaseView):
                 collector_type = collector.type  # type: ignore
                 parameters = cls.get_worker_parameters(f"{collector_type}")
 
-        return {"collector_types": cls.collector_types.values(), "parameters": parameters}
+        return {
+            "collector_types": cls.collector_types.values(),
+            "parameters": parameters,
+        }
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
