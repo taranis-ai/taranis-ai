@@ -3,6 +3,7 @@ from flask.views import MethodView
 
 from core.model.news_item import NewsItem
 from core.model.story import Story
+from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
@@ -24,6 +25,7 @@ class Dashboard(MethodView):
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
         schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
+        conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         return {
             "items": [
                 {
@@ -34,7 +36,7 @@ class Dashboard(MethodView):
                     "report_items_in_progress": report_items_in_progress,
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
-                    "conflict_count": len(StoryConflict.conflict_store),
+                    "conflict_count": conflict_count,
                 }
             ]
         }, 200

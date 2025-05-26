@@ -399,38 +399,64 @@ class Story(BaseModel):
         if "id" not in data:
             return cls.add(data)
 
-        story_ids = [data.get("id")]
-        conflict = data.pop("conflict", None)
+        story_id = data.get("id")
+        if Story.get(story_id) is None:
+            return cls._handle_missing_story_add(data)
 
-        if Story.get(data["id"]) is None:
-            message, code = cls.add(data)
-            if code != 200 and message.get("error") == "Story already exists":
-                logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
-                cls.handle_conflicting_news_items(data)
-                return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, 409
-            return message, code
+        if data.pop("conflict", None):
+            return cls.update_with_conflicts(story_id, data)
+        else:
+            return cls._handle_existing_story_update(data)
 
-        if not conflict:
-            if "news_items_to_delete" in data:
-                cls.delete_news_items(data.pop("news_items_to_delete"))
+    @classmethod
+    def _handle_missing_story_add(cls, data) -> "tuple[dict, int]":
+        message, code = cls.add(data)
+        if code != 200 and message.get("error") == "Story already exists":
+            logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
+            cls.handle_conflicting_news_items(data)
+            return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, 409
+        return message, code
 
-            skipped_news_item_story_ids = []
-            for news_item in data.get("news_items", []):
-                result, code = cls.add_single_news_item(news_item)
-                if skipped_item := result.get("skipped_news_item_story_id"):
-                    skipped_news_item_story_ids.append(skipped_item)
-                logger.debug(f"News item {news_item.get('id')} added with result: {result}")
-                if story_id := result.get("story_id"):
-                    logger.debug(f"News item for story {story_id} will be added.")
-                    story_ids.append(story_id)
-            target_id = data.get("id")
-            if any(story_id != target_id for story_id in skipped_news_item_story_ids):
-                return cls.handle_conflicting_news_items(data)
+    @classmethod
+    def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
+        story_ids = [data["id"]]
 
-            cls.group_stories(story_ids)
-            return cls.update(data["id"], data, external=True)
+        if "news_items_to_delete" in data:
+            cls.delete_news_items(data.pop("news_items_to_delete"))
 
-        return cls.update_with_conflicts(data["id"], data)
+        skipped_story_ids, added_story_ids = cls._process_news_items(data)
+        story_ids += added_story_ids
+
+        if cls._has_cross_story_conflict(data["id"], skipped_story_ids):
+            cls._remove_conflicting_stories(data["id"], story_ids[1:])
+            return cls.handle_conflicting_news_items(data)
+
+        cls.group_stories(story_ids)
+        return cls.update(data["id"], data, external=True)
+
+    @classmethod
+    def _process_news_items(cls, data) -> "tuple[list[str], list[str]]":
+        skipped = []
+        added = []
+        for news_item in data.get("news_items", []):
+            result, code = cls.add_single_news_item(news_item)
+            if skipped_id := result.get("skipped_news_item_story_id"):
+                skipped.append(skipped_id)
+            if story_id := result.get("story_id"):
+                added.append(story_id)
+            logger.debug(f"News item {news_item.get('id')} added with result: {result}")
+        return skipped, added
+
+    @classmethod
+    def _has_cross_story_conflict(cls, target_id: str, skipped_story_ids: list[str]) -> bool:
+        return any(sid != target_id for sid in skipped_story_ids)
+
+    @classmethod
+    def _remove_conflicting_stories(cls, target_id: str, story_ids: list[str]) -> None:
+        for story_id in story_ids:
+            if story := cls.get(story_id):
+                logger.debug(f"Deleting story {story_id} due to incoming conflict with target story {target_id}.")
+                story.delete(story_id)
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
@@ -599,7 +625,10 @@ class Story(BaseModel):
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
-            has_proposals = data.pop("has_proposals", None)
+            for attribute in data.get("attributes", []):
+                if attribute.get("key") == "has_proposals":
+                    has_proposals = attribute.get("value")
+                    break
             current_data_dict = current_data.to_detail_dict()
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
             conflict = StoryConflict(

@@ -3,6 +3,7 @@ from typing import ClassVar, Dict, Any
 
 from core.log import logger
 from core.model.news_item import NewsItem
+from core.model.user import User
 
 
 @dataclass
@@ -87,6 +88,43 @@ class NewsItemConflict:
     def regroup_news_items(cls, incoming_story: dict, keep_in_incoming: list, dissolve: list):
         cls.remove_dissolve_news_items(dissolve)
         cls._regroup_story(incoming_story, keep_in_incoming)
+
+    @classmethod
+    def ingest_incoming_ungroup_internal(cls, data: dict, user: User) -> tuple[dict, int]:
+        import core.model.story as story
+
+        if not data:
+            return {"error": "Missing story_ids or news_item_ids"}, 400
+
+        incoming_story = data.get("incoming_story")
+        story_ids = data.get("existing_story_ids")
+        news_item_ids = data.get("incoming_news_item_ids")
+
+        if not story_ids or not news_item_ids or not incoming_story:
+            return {"error": "Missing story_ids or news_item_ids or incoming story"}, 400
+
+        story.Story.delete_news_items(news_item_ids)
+        story.Story.ungroup_multiple_stories(story_ids, user)
+
+        response, code = story.Story.add(incoming_story)
+        if code != 200:
+            return {"error": "Failed to ingest incoming story"}, code
+
+        keep_in_incoming = news_item_ids
+        keep_in_existing = []
+        dissolve = []
+
+        cls.remove_conflict(incoming_story.get("id", ""), keep_in_incoming, keep_in_existing, dissolve)
+
+        return response, 200
+
+    @classmethod
+    def remove_by_news_item_ids(cls, news_item_ids: list[str]):
+        """Removes all conflicts involving these news_item_ids, regardless of story."""
+        logger.debug(f"Removing conflicts for news_item_ids: {news_item_ids}")
+        keys_to_remove = [key for key, conflict in cls.conflict_store.items() if conflict.news_item_id in news_item_ids]
+        for key in keys_to_remove:
+            cls.conflict_store.pop(key, None)
 
     @classmethod
     def resolve(cls, resolution_data: dict) -> tuple[dict, int]:

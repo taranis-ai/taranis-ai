@@ -27,8 +27,24 @@ export async function fetchStorySummary(storyId) {
 
 export async function submitNewsItemConflictResolution(resolutionData) {
   return apiService.post('/connectors/conflict/resolve', resolutionData, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+export function ungroupNewsItems(storyIds) {
+  return apiService.put('/connectors/stories/ungroup-and-delete', storyIds, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+export function addIncomingStory(fullStory) {
+  return apiService.post('/connectors/stories', fullStory, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+export function addUniqueNewsItems(payload) {
+  return apiService.post('/connectors/news-items', payload, {
+    headers: { 'Content-Type': 'application/json' }
   })
 }
