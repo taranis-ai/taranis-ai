@@ -40,12 +40,6 @@ class NewsItems(MethodView):
         return {"added": added_ids}, 200
 
 
-class Stories(MethodView):
-    @auth_required("ASSESS_ACCESS")
-    def post(self):
-        return Story.add_or_update(request.json)
-
-
 class StoryConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id=None):
@@ -94,14 +88,14 @@ class NewsItemConflicts(MethodView):
         ]
         return {"conflicts": conflicts}, 200
 
-    @auth_required("ASSESS_ACCESS")
-    def post(self):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self):
         data = request.json
-
         if not data:
-            return {"error": "resolution is required"}, 400
-
-        response, code = NewsItemConflict.resolve(data)
+            return {"error": "Missing story_ids or news_item_ids"}, 400
+        response, code = NewsItemConflict.ingest_incoming_ungroup_internal(data, current_user)
+        sse_manager.news_items_updated()
         return response, code
 
 
@@ -120,30 +114,14 @@ class StoryInfo(MethodView):
         return {"error": "Story not found"}, 404
 
 
-class PrepareInternalState(MethodView):
-    @auth_required("ASSESS_UPDATE")
-    @validate_json
-    def put(self):
-        data = request.json
-        if not data:
-            return {"error": "Missing story_ids or news_item_ids"}, 400
-        response, code = NewsItemConflict.ingest_incoming_ungroup_internal(data, current_user)
-        sse_manager.news_items_updated()
-        return response, code
-
-
 def initialize(app: Flask):
     conflicts_bp = Blueprint("connectors", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/connectors")
 
-    conflicts_bp.add_url_rule("/conflicts/compare", view_func=StoryConflicts.as_view("story_conflicts"))
-    conflicts_bp.add_url_rule("/conflicts/newsitem/compare", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
-    conflicts_bp.add_url_rule("/conflict/resolve", view_func=NewsItemConflicts.as_view("news_item_conflict_resolve"))
+    conflicts_bp.add_url_rule("/conflicts/stories", view_func=StoryConflicts.as_view("story_conflicts"))
+    conflicts_bp.add_url_rule("/conflicts/stories/<string:story_id>", view_func=StoryConflicts.as_view("story_conflict"))
+    conflicts_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
-    conflicts_bp.add_url_rule("/compare/<string:story_id>", view_func=StoryConflicts.as_view("conflict_by_story_id"))
-    conflicts_bp.add_url_rule("/conflict/ungroup", view_func=StoryConflicts.as_view("conflict_ungroup"))
     conflicts_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
-    conflicts_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
-    conflicts_bp.add_url_rule("/stories/ungroup-and-delete", view_func=PrepareInternalState.as_view("ungroup_stories"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)
