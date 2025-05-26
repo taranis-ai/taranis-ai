@@ -132,8 +132,6 @@
           class="mb-6"
         >
           <v-card outlined>
-            <v-card-title>{{ group.title }} (ID: {{ storyId }})</v-card-title>
-
             <v-card-text>
               <v-row>
                 <v-col cols="6">
@@ -145,11 +143,12 @@
                         <li
                           v-for="item in group.fullStory.news_items || []"
                           :key="item.id"
-                          :style="
-                            existingIdsMap[storyId]?.has(item.id)
-                              ? 'color: grey; opacity: 0.6'
-                              : ''
-                          "
+                          :class="{
+                            'item-grey': existingIdsMap[storyId]?.has(item.id),
+                            'item-blue': duplicateIncomingNewsItemIds.has(
+                              item.id
+                            )
+                          }"
                         >
                           {{ item.title || 'Untitled' }}
                         </li>
@@ -164,14 +163,54 @@
                     :key="cluster.id"
                   >
                     <v-card outlined class="mb-4">
-                      <v-card-subtitle>Internal Story</v-card-subtitle>
-
-                      <v-card-text>
-                        <div class="text-caption text-muted mt-1">
-                          ID: {{ cluster.id }} &mdash; Items:
-                          {{ cluster.summary?.news_item_count ?? 0 }} &mdash;
-                          Relevance: {{ cluster.summary?.relevance ?? 'n/a' }}
+                      <v-card-subtitle class="pb-0">
+                        <div
+                          class="d-flex flex-wrap justify-space-between align-start w-100"
+                        >
+                          <div style="min-width: 0; max-width: 70%">
+                            <div class="font-weight-medium">Internal Story</div>
+                            <div class="text-caption text-muted">
+                              ID: {{ cluster.id }} — Items:
+                              {{ cluster.summary?.news_item_count ?? 0 }} —
+                              Relevance:
+                              {{ cluster.summary?.relevance ?? 'n/a' }}
+                            </div>
+                          </div>
+                          <div
+                            class="d-flex flex-wrap justify-end"
+                            style="gap: 6px; max-width: 30%"
+                          >
+                            <v-chip
+                              v-if="duplicateInternalStoryIds.has(cluster.id)"
+                              color="info"
+                              text-color="white"
+                              small
+                              label
+                            >
+                              Appears in multiple conflicts
+                            </v-chip>
+                            <v-chip
+                              v-if="conflictingStoryIds.has(cluster.id)"
+                              color="error"
+                              text-color="white"
+                              small
+                              label
+                            >
+                              Has conflicting update
+                            </v-chip>
+                            <v-chip
+                              v-if="cluster.summary?.is_misp_story"
+                              color="deep-purple"
+                              text-color="white"
+                              small
+                              label
+                            >
+                              MISP
+                            </v-chip>
+                          </div>
                         </div>
+                      </v-card-subtitle>
+                      <v-card-text>
                         <div class="mb-2">
                           <div class="text-h6">
                             <a
@@ -349,6 +388,10 @@ function onPanelsUpdated(panels) {
   prevPanels.value = [...panels]
 }
 
+const conflictingStoryIds = computed(() => {
+  return new Set(storyConflicts.value.map((c) => c.storyId))
+})
+
 const groupedNewsItemConflicts = computed(() => {
   const groups = {}
   for (const c of newsItemConflicts.value) {
@@ -448,6 +491,44 @@ async function replaceWithIncoming(storyId, newsItems) {
   await store.loadNewsItemConflicts()
 }
 
+const duplicateInternalStoryIds = computed(() => {
+  const mapping = {}
+
+  for (const group of Object.values(groupedNewsItemConflicts.value)) {
+    const incomingId = group.fullStory.id
+    for (const conflict of group.conflicts) {
+      const internalId = conflict.existing_story_id
+      if (!internalId) continue
+      if (!mapping[internalId]) {
+        mapping[internalId] = new Set()
+      }
+      mapping[internalId].add(incomingId)
+    }
+  }
+
+  return new Set(
+    Object.entries(mapping)
+      .filter(([_, set]) => set.size > 1)
+      .map(([storyId]) => storyId)
+  )
+})
+
+const duplicateIncomingNewsItemIds = computed(() => {
+  const idCounts = {}
+  Object.values(groupedNewsItemConflicts.value).forEach((group) => {
+    for (const item of group.fullStory.news_items || []) {
+      if (!item?.id) continue
+      idCounts[item.id] = (idCounts[item.id] || 0) + 1
+    }
+  })
+
+  return new Set(
+    Object.entries(idCounts)
+      .filter(([_, count]) => count > 1)
+      .map(([id]) => id)
+  )
+})
+
 onMounted(async () => {
   await store.loadStoryConflicts()
   await store.fetchProposalCount()
@@ -499,5 +580,19 @@ onMounted(async () => {
 
 .news-item-list li {
   margin-bottom: 0.25rem;
+}
+
+.item-grey {
+  color: grey;
+  opacity: 0.6;
+}
+
+.item-red {
+  color: red;
+}
+
+.item-blue {
+  color: #074b86;
+  font-weight: 500;
 }
 </style>
