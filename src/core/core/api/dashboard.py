@@ -2,6 +2,7 @@ from flask import Blueprint, request, Flask
 from flask.views import MethodView
 
 from core.model.news_item import NewsItem
+from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
@@ -23,6 +24,7 @@ class Dashboard(MethodView):
         total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
         latest_collected = NewsItem.latest_collected()
         schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
+        conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         return {
             "items": [
                 {
@@ -33,7 +35,7 @@ class Dashboard(MethodView):
                     "total_database_items": total_database_items,
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
-                    "conflict_count": len(StoryConflict.conflict_store),
+                    "conflict_count": conflict_count,
                 }
             ]
         }, 200

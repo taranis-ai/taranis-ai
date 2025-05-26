@@ -59,7 +59,7 @@ class MISPCollector(BaseCollector):
         content = ""
         link = ""
         news_item_id = ""
-        orig_source = ""
+        orig_source = "manual"
         story_id = ""
         hash_value = ""
         language = ""
@@ -226,7 +226,9 @@ class MISPCollector(BaseCollector):
     def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
         for story in story_dicts:
             if self.check_for_proposal_existence(misp, story.get("id", "")):
-                story["has_proposals"] = f"{self.url}/events/view/{story.get('id')}"
+                story["attributes"].append({"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"})
+            else:
+                story["attributes"].append({"key": "has_proposals", "value": ""})
 
     def misp_collector(self, source: dict) -> None:
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)

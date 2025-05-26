@@ -25,12 +25,18 @@ class StoryConflict:
             return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400
 
         updated_data.update(resolution)
-
-        response, code = Story.update(self.story_id, updated_data, user=user, external=True)
+        story = Story.get(self.story_id)
+        if not story:
+            logger.error(f"Story with id {self.story_id} not found for resolution.")
+            return {"error": "Story not found", "id": self.story_id}, 404
+        response, code = story.add_or_update(updated_data)
 
         if code == 200:
             StoryConflict.conflict_store.pop(self.story_id, None)
             logger.debug(f"Removed conflict for story {self.story_id} after successful update.")
+        elif code == 409:
+            StoryConflict.conflict_store.pop(self.story_id, None)
+            logger.warning(f"Conflict resolution for story {self.story_id}.")
 
         return response, code
 
@@ -49,7 +55,7 @@ class StoryConflict:
     @classmethod
     def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
         if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change", "has_proposals", "detail_view"}
+            keys_to_remove = {"updated", "last_change", "has_proposals", "detail_view", "news_items_to_delete"}
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
         elif isinstance(obj, dict):
