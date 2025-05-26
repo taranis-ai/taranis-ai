@@ -6,10 +6,8 @@ import {
   getProposals,
   getAllNewsItemConflicts,
   fetchStorySummary,
-  submitNewsItemConflictResolution,
-  ungroupNewsItems as cleanInternallyIngestIncoming,
-  addIncomingStory,
-  addUniqueNewsItems
+  resolveIngestIncomingStory,
+  resolveAddUniqueNewsItems
 } from '@/api/connectors'
 
 export const useConflictsStore = defineStore('conflicts', () => {
@@ -76,29 +74,16 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
   }
 
-  async function resolveNewsItemConflict(payload) {
+  async function resolveIngestIncomingStoryWrapper(storyPayload) {
     try {
-      const { data } = await submitNewsItemConflictResolution(payload)
-      return data
-    } catch (error) {
-      console.error('Error resolving news-item conflict:', error)
-      throw error
-    }
-  }
-
-  async function ingestIncomingStory(storyPayload) {
-    const { incoming_story, existing_story_ids, incoming_news_item_ids } =
-      storyPayload
-
-    try {
-      await cleanInternallyIngestIncoming(storyPayload)
+      await resolveIngestIncomingStory(storyPayload)
     } catch (error) {
       console.error('Error ungrouping news items:', error)
       throw error
     }
   }
 
-  async function ingestUniqueNewsItems(
+  async function resolveIngestUniqueNewsItems(
     storyId,
     uniqueItems,
     resolvedConflictIds = []
@@ -115,7 +100,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
 
     try {
-      const { data } = await addUniqueNewsItems(payload)
+      const { data } = await resolveAddUniqueNewsItems(payload)
       console.log(
         `Added: ${data.added?.length || 0}, Skipped: ${resolvedConflictIds.length}`
       )
@@ -137,8 +122,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     fetchProposalCount,
     loadNewsItemConflicts,
     loadSummariesPerConflict,
-    resolveNewsItemConflict,
-    ingestIncomingStory,
-    ingestUniqueNewsItems
+    resolveIngestIncomingStoryWrapper,
+    resolveIngestUniqueNewsItems
   }
 })

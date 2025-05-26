@@ -226,7 +226,8 @@ import 'mergely/lib/mergely.css'
 const store = useConflictsStore()
 const { storyConflicts, proposalCount, newsItemConflicts, storySummaries } =
   storeToRefs(store)
-const { ingestIncomingStory, ingestUniqueNewsItems } = store
+const { resolveIngestIncomingStoryWrapper, resolveIngestUniqueNewsItems } =
+  store
 
 const openPanels = ref([])
 const prevPanels = ref([])
@@ -387,10 +388,8 @@ function handleKeepInternal(storyId) {
   const incomingNewsItems = group.fullStory.news_items || []
   const existing = existingIdsMap.value[storyId] || new Set()
 
-  // Unique = not already in existing
   const uniqueItems = incomingNewsItems.filter((item) => !existing.has(item.id))
 
-  // Skipped/conflicting = items that *were* in conflict but weren't ingested
   const skippedConflictingIds = incomingNewsItems
     .filter((item) => existing.has(item.id))
     .map((item) => item.id)
@@ -408,7 +407,7 @@ async function keepInternalIngestNewsItems(
   }
 
   try {
-    const data = await ingestUniqueNewsItems(
+    const data = await resolveIngestUniqueNewsItems(
       storyId,
       uniqueItems,
       resolvedConflictIds
@@ -424,7 +423,7 @@ async function replaceWithIncoming(storyId, newsItems) {
   const group = groupedNewsItemConflicts.value[storyId]
   const existingIds = group.existingClusters.map((c) => c.id)
   const newsItemIds = (newsItems || []).map((item) => item.id)
-  await ingestIncomingStory({
+  await resolveIngestIncomingStoryWrapper({
     incoming_story: group.fullStory,
     existing_story_ids: existingIds,
     incoming_news_item_ids: newsItemIds
