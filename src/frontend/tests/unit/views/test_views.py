@@ -27,11 +27,8 @@ class TestRegisteredViews:
 
         html = resp.get_data(as_text=True)
         payload = mock_core_endpoints[view_name]
-        item = payload["items"][0]
 
-        expected = (
-            str(item["name"]) if "name" in item else str(item["title"]) if "title" in item else str(item["id"]) if "id" in item else None
-        )
-        assert expected is not None, f"Expected item in {view_name!r} to have a 'name', 'title', or 'id' field but found none."
+        expected = payload.get("_expect_object", None)
+        assert expected is not None, f"Expected: {expected} item in {view_name!r} not found in payload: {payload!r}"
 
         assert expected in html, f"Expected {expected!r} in the {view_name!r} HTML but did not find it.\nHTML snippet: {html[200:500]}…"

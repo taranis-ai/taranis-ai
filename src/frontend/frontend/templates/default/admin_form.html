@@ -12,7 +12,7 @@
     {% endif %}
 
     {% for field in form_fields %}
-      {% if field.type == 'text' || field.type == 'number' %}
+      {% if field.type == 'text' or field.type == 'number' %}
         {{ form_input(field.label, field.name, field.value, form_error[field.name], type=field.type, required=field.required) }}
       {% elif field.type == 'textarea' %}
         {{ form_textarea(field.label, field.name, field.value, form_error[field.name], required=field.required) }}
@@ -23,7 +23,6 @@
       {% endif %}
     {% endfor %}
 
-    {{ datatable('OSINT Sources', osint_sources, columns, osint_source_group.osint_sources, selectable=true, input_name="osint_sources[]") }}
     <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
   </form>
 </div>

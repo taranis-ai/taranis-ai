@@ -116,11 +116,11 @@ class Dashboard(TaranisBaseModel):
     _model_name = "dashboard"
     _pretty_name = "Dashboard"
     _cache_timeout = 30
-    total_news_items: int | None = None
-    total_products: int | None = None
-    report_items_completed: int | None = None
-    report_items_in_progress: int | None = None
-    total_database_items: int | None = None
+    total_news_items: int = 0
+    total_products: int = 0
+    report_items_completed: int = 0
+    report_items_in_progress: int = 0
+    total_database_items: int = 0
     latest_collected: str | None = None
     schedule_length: int | None = None
     conflict_count: int | None = None
@@ -153,7 +153,7 @@ class Settings(TaranisBaseModel):
     _pretty_name = "Settings"
     _cache_timeout = 30
     id: int = Field(default=1, frozen=True, exclude=True)
-    settings: TaranisConfig | None = Field(default_factory=TaranisConfig)
+    settings: TaranisConfig = Field(default_factory=TaranisConfig)
 
 
 class WordListEntry(TaranisBaseModel):
@@ -271,7 +271,7 @@ class Template(TaranisBaseModel):
     _model_name = "template"
     _pretty_name = "Template"
 
-    id: str | None = None
+    id: str
     content: str | None = None
 
 

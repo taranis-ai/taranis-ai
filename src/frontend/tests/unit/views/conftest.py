@@ -33,10 +33,24 @@ def core_payloads():
             logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
             items = [{"id": 1, "name": f"test_{view_name.lower()}"}]
 
+        expect_object = None
+
+        if view_name == "Dashboard":
+            expect_object = str(items[0].get("total_news_items"))
+        elif view_name == "Settings":
+            expect_object = items[0].get("settings", {}).get("default_collector_proxy")
+        elif "name" in items[0]:
+            expect_object = str(items[0].get("name"))
+        elif "title" in items[0]:
+            expect_object = str(items[0].get("title"))
+        elif "id" in items[0]:
+            expect_object = str(items[0].get("id"))
+
         payloads[view_name] = {
             "items": items,
             "total_count": len(items),
             "_url": f"{Config.TARANIS_CORE_URL}{endpoint}",
+            "_expect_object": expect_object,
         }
     yield payloads
 
