@@ -56,7 +56,7 @@ class ACL(TaranisBaseModel):
     description: str | None = ""
     item_type: ItemType | None = None
 
-    roles: list[int] = Field(default_factory=list[int])
+    roles: list[int] = Field(default_factory=list)
 
     read_only: bool = True
     enabled: bool = True
@@ -92,7 +92,7 @@ class Role(TaranisBaseModel):
     id: int | None = None
     name: str = ""
     description: str | None = ""
-    permissions: list[str] = Field(default_factory=list[str])
+    permissions: list[str] = Field(default_factory=list)
     tlp_level: TLPLevel | None = None
 
 
@@ -106,7 +106,7 @@ class User(TaranisBaseModel):
     organization: Organization | int | dict = Field(default_factory=dict)
     permissions: list[str] | None = None
     profile: dict | None = None
-    roles: list[int] | list[int] | list[dict] = Field(default_factory=list[int])
+    roles: list[int] | list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: str | None = None
 
@@ -171,7 +171,7 @@ class WordList(TaranisBaseModel):
     id: int | None = None
     name: str
     description: str | None = None
-    usage: list[str] = Field(default_factory=list[str])
+    usage: list[str] = Field(default_factory=list)
     link: str | None = None
     entries: list[WordListEntry] = Field(default_factory=list)
 
@@ -206,8 +206,8 @@ class OSINTSourceGroup(TaranisBaseModel):
     description: str = ""
     default: bool = False
 
-    osint_sources: list[str] = Field(default_factory=list[str])
-    word_lists: list[str] = Field(default_factory=list[str])
+    osint_sources: list[str] = Field(default_factory=list)
+    word_lists: list[str] = Field(default_factory=list)
 
 
 class ProductType(TaranisBaseModel):
@@ -221,7 +221,7 @@ class ProductType(TaranisBaseModel):
     description: str | None = None
     type: PRESENTER_TYPES
     parameters: dict[str, str] = Field(default_factory=dict)
-    report_types: list[int] = Field(default_factory=list[int])
+    report_types: list[int] = Field(default_factory=list)
 
 
 class PublisherPreset(TaranisBaseModel):
