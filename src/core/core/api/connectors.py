@@ -103,15 +103,15 @@ class StoryInfo(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id):
         if story := Story.get(story_id):
-            is_misp_story = any(attribute.key.startswith("misp_event_uuid") for attribute in story.attributes)
-            news_item_titles = [{"title": item.title, "id": item.id} for item in story.news_items if hasattr(item, "title")]
+            is_misp_story = any(attribute.key == "misp_event_uuid" for attribute in story.attributes)
+            news_item_data = [{"title": item.title, "id": item.id} for item in story.news_items if hasattr(item, "title")]
             return {
                 "id": story.id,
                 "title": story.title,
                 "is_misp_story": is_misp_story,
                 "news_item_count": len(story.news_items),
                 "relevance": story.relevance,
-                "news_item_titles": news_item_titles,
+                "news_item_data": news_item_data,
             }, 200
         return {"error": "Story not found"}, 404
 

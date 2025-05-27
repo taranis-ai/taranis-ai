@@ -225,7 +225,7 @@
                         </div>
                         <ul class="news-item-list">
                           <li
-                            v-for="item in cluster.summary?.news_item_titles ||
+                            v-for="item in cluster.summary?.news_item_data ||
                             []"
                             :key="item.id"
                             :style="
