@@ -1,10 +1,19 @@
 import pytest
+from typing import get_origin
 
 from frontend.log import logger
 from frontend.config import Config
 from frontend.views.base_view import BaseView
 from polyfactory.factories.pydantic_factory import ModelFactory
 from polyfactory.exceptions import ParameterException
+from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation
+from pydantic import BaseModel
+from pydantic.fields import FieldInfo
+
+
+@pytest.fixture
+def form_data():
+    return html_form_to_dict
 
 
 @pytest.fixture(scope="class")
@@ -55,12 +64,76 @@ def core_payloads():
     yield payloads
 
 
+@pytest.fixture(scope="class")
+def form_formats_from_models():
+    """
+    Returns mapping:
+       view_name -> {
+         "allowed": set of all permissible form keys,
+         "required": set of keys that must appear
+       }
+    """
+    payloads: dict[str, dict[str, set[str]]] = {}
+
+    for view_name, view_cls in BaseView._registry.items():
+        # custom override
+        form_fields = getattr(view_cls, "form_fields", None)
+        if isinstance(form_fields, dict):
+            keys = set(form_fields.keys())
+            # if you want to detect required in form_fields, you'll have to mark them in that dict
+            payloads[view_name] = {"allowed": keys, "required": keys.copy()}
+            continue
+
+        model = getattr(view_cls, "model", None)
+        if not model:
+            continue
+
+        allowed_keys = set()
+        required_keys = set()
+
+        for field_name, field_info in model.model_fields.items():
+            if field_name == "id" and view_name != "Template":
+                continue
+
+            field_info: FieldInfo = field_info
+            field_name: str = field_name
+
+            ann = field_info.annotation
+            field_required = True
+
+            if nested_origin := unwrap_annotation(ann):
+                ann = nested_origin[0]
+                field_required = nested_origin[1]
+
+            origin = get_origin(ann)
+
+            if isinstance(ann, type) and issubclass(ann, BaseModel):
+                print(f"Gathering nested fields for {view_name}.{field_name} with {ann}")
+                nested_allow_keys, nested_require_keys = gather_fields_from_model(ann)
+                for nk in nested_allow_keys:
+                    allowed_keys.add(f"{field_name}[{nk}]")
+                for nk in nested_require_keys:
+                    required_keys.add(f"{field_name}[{nk}]")
+                continue
+
+            key = field_name
+            if origin in (list, set, dict):
+                key = f"{field_name}[]"
+
+            allowed_keys.add(key)
+            if field_required:
+                required_keys.add(key)
+
+        payloads[view_name] = {
+            "allowed": allowed_keys,
+            "required": required_keys,
+        }
+
+    yield payloads
+
+
 @pytest.fixture
-def mock_core_endpoints(requests_mock, core_payloads):
-    """
-    Function‐scoped: before each test, register all URLs
-    from our pre‐built core_payloads, then yield that payloads dict.
-    """
+def mock_core_get_endpoints(requests_mock, core_payloads):
     for data in core_payloads.values():
         requests_mock.get(
             data["_url"],
@@ -70,3 +143,245 @@ def mock_core_endpoints(requests_mock, core_payloads):
             },
         )
     yield core_payloads
+
+
+@pytest.fixture
+def mock_core_get_item_endpoints(requests_mock, core_payloads):
+    for data in core_payloads.values():
+        requests_mock.get(f"{data['_url']}/{data['items'][0]['id']}", json=data["items"][0])
+    yield core_payloads
+
+
+@pytest.fixture
+def mock_core_delete_endpoints(requests_mock, core_payloads):
+    for data in core_payloads.values():
+        delete_url = f"{data['_url']}/{data['items'][0]['id']}"
+        requests_mock.delete(
+            delete_url,
+            json={
+                "message": "Successfully deleted",
+            },
+        )
+    yield core_payloads
+
+
+@pytest.fixture
+def mock_core_create_endpoints(requests_mock, core_payloads):
+    for data in core_payloads.values():
+        requests_mock.post(
+            data["_url"],
+            json={
+                "message": "Successfully created",
+            },
+        )
+    yield core_payloads
+
+
+@pytest.fixture
+def mock_core_update_endpoints(requests_mock, core_payloads):
+    for data in core_payloads.values():
+        update_url = f"{data['_url']}/{data['items'][0]['id']}"
+        requests_mock.put(
+            update_url,
+            json={
+                "message": "Successfully updated",
+            },
+        )
+    yield core_payloads
+
+
+########### LEGACY FIXTURES ###########
+
+
+@pytest.fixture
+def dashboard_get_mock(requests_mock):
+    mock_data = {
+        "items": [
+            {
+                "latest_collected": "2025-01-14T21:16:42.699574+01:00",
+                "report_items_completed": 5,
+                "report_items_in_progress": 1,
+                "schedule_length": 2,
+                "total_database_items": 308,
+                "total_news_items": 306,
+                "total_products": 1,
+            }
+        ]
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def users_get_mock(requests_mock, organizations_get_mock, roles_get_mock):
+    mock_data = {
+        "items": [
+            {
+                "id": 1,
+                "name": "Arthur Dent",
+                "organization": 1,
+                "permissions": [
+                    "ASSESS_ACCESS",
+                    "ANALYZE_ACCESS",
+                    "PUBLISH_PRODUCT",
+                    "PUBLISH_ACCESS",
+                    "PUBLISH_CREATE",
+                    "ASSESS_DELETE",
+                    "BOT_EXECUTE",
+                    "ANALYZE_DELETE",
+                    "ANALYZE_UPDATE",
+                    "ASSESS_CREATE",
+                ],
+                "profile": {},
+                "roles": [1],
+                "username": "admin",
+            },
+            {
+                "id": 6,
+                "name": "ccc",
+                "organization": 2,
+                "permissions": [
+                    "PUBLISH_DELETE",
+                    "ASSESS_UPDATE",
+                    "ANALYZE_CREATE",
+                    "PUBLISH_UPDATE",
+                    "ASSESS_ACCESS",
+                    "ANALYZE_ACCESS",
+                    "PUBLISH_PRODUCT",
+                    "PUBLISH_ACCESS",
+                    "PUBLISH_CREATE",
+                    "ASSESS_DELETE",
+                    "BOT_EXECUTE",
+                    "ANALYZE_DELETE",
+                    "ANALYZE_UPDATE",
+                    "ASSESS_CREATE",
+                ],
+                "profile": {},
+                "roles": [2],
+                "username": "ccc",
+            },
+        ],
+        "total_count": 2,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/users", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def organizations_get_mock(requests_mock):
+    mock_data = {
+        "items": [
+            {
+                "address": {
+                    "city": "Beaconsfield, Buckinghamshire",
+                    "country": "United Kingdom",
+                    "street": "Cherry Tree Rd",
+                    "zip": "HP9 1BH",
+                },
+                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
+                "id": 2,
+                "name": "The Clacks",
+            },
+            {
+                "address": {"city": "Islington, London", "country": "United Kingdom", "street": "29 Arlington Avenue", "zip": "N1 7BE"},
+                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
+                "id": 1,
+                "name": "The Earth",
+            },
+        ],
+        "total_count": 2,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/organizations", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def roles_get_mock(requests_mock):
+    mock_data = {
+        "items": [
+            {
+                "description": "Administrator role",
+                "id": 1,
+                "name": "Admin",
+                "permissions": [
+                    "ANALYZE_CREATE",
+                    "CONFIG_BOT_CREATE",
+                    "CONFIG_OSINT_SOURCE_GROUP_ACCESS",
+                    "CONFIG_ACL_DELETE",
+                    "CONFIG_ROLE_DELETE",
+                ],
+                "tlp_level": None,
+            },
+            {
+                "description": "Basic user role",
+                "id": 2,
+                "name": "User",
+                "permissions": [
+                    "ASSESS_ACCESS",
+                    "ASSESS_CREATE",
+                    "ASSESS_UPDATE",
+                    "ASSESS_DELETE",
+                ],
+                "tlp_level": None,
+            },
+        ],
+        "total_count": 2,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/roles", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def permissions_get_mock(requests_mock):
+    mock_data = {
+        "items": [
+            {
+                "description": "Access to the assessment module",
+                "id": "ASSESS_ACCESS",
+                "name": "ASSESS_ACCESS",
+            },
+            {
+                "description": "Create new assessments",
+                "id": "ASSESS_CREATE",
+                "name": "ASSESS_CREATE",
+            },
+        ],
+        "total_count": 2,
+    }
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/permissions", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def users_delete_mock(requests_mock):
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json={"message": "Success"})
+
+
+@pytest.fixture
+def users_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/1", json={"message": "Success"})
+
+
+@pytest.fixture
+def organizations_delete_mock(requests_mock):
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json={"message": "Success"})
+
+
+@pytest.fixture
+def organizations_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
+
+
+@pytest.fixture
+def roles_delete_mock(requests_mock):
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json={"message": "Success"})
+
+
+@pytest.fixture
+def roles_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})

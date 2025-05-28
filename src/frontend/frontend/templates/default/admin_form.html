@@ -2,7 +2,7 @@
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
-{% set form_fields = [{}] %}
+{% set form_fields = {} %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
 
@@ -11,15 +11,15 @@
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
     {% endif %}
 
-    {% for field in form_fields %}
+    {% for field_name, field in form_fields.items() %}
       {% if field.type == 'text' or field.type == 'number' %}
-        {{ form_input(field.label, field.name, field.value, form_error[field.name], type=field.type, required=field.required) }}
+        {{ form_input(field.label, field_name, field.value, form_error[field_name], type=field.type, required=field.required) }}
       {% elif field.type == 'textarea' %}
-        {{ form_textarea(field.label, field.name, field.value, form_error[field.name], required=field.required) }}
+        {{ form_textarea(field.label, field_name, field.value, form_error[field_name], required=field.required) }}
       {% elif field.type == 'select' %}
-        {{ form_select(label=field.label, name=field.name, value=field.value, options=field.options) }}
+        {{ form_select(label=field.label, name=field_name, value=field.value, options=field.options) }}
       {% elif field.type == 'switch' %}
-        {{ form_switch(field.label, field.name, field.value, required=field.required) }}
+        {{ form_switch(field.label, field_name, field.value, required=field.required) }}
       {% endif %}
     {% endfor %}
 

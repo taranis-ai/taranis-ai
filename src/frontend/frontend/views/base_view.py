@@ -23,6 +23,7 @@ class BaseView(MethodView):
     edit_route: str = ""
     icon: str = "wrench"
     _index: float | int = float("inf")
+    _read_only: bool = False
 
     _registry: dict[str, Any] = {}
 

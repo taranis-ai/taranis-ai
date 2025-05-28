@@ -16,6 +16,14 @@ class ItemType(StrEnum):
     REPORT_ITEM_TYPE = auto()
     PRODUCT_TYPE = auto()
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
+
 
 class COLLECTOR_TYPES(StrEnum):
     RSS_COLLECTOR = auto()
@@ -25,6 +33,14 @@ class COLLECTOR_TYPES(StrEnum):
     RT_COLLECTOR = auto()
     MISP_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
 
 
 class BOT_TYPES(StrEnum):
@@ -39,12 +55,28 @@ class BOT_TYPES(StrEnum):
     SENTIMENT_ANALYSIS_BOT = auto()
     CYBERSEC_CLASSIFIER_BOT = auto()
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
+
 
 class PRESENTER_TYPES(StrEnum):
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
 
 
 class PUBLISHER_TYPES(StrEnum):
@@ -84,6 +116,14 @@ class WORKER_TYPES(StrEnum):
     MISP_PUBLISHER = auto()
     MISP_CONNECTOR = auto()
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
+
 
 class CONNECTOR_TYPES(StrEnum):
     MISP_CONNECTOR = auto()
@@ -108,3 +148,34 @@ class OSINTState(IntEnum):
     UNKNOWN = -1
     OK = 0
     ERROR = 1
+
+
+class AttributeType(StrEnum):
+    def __str__(self):
+        return str.__str__(self)
+
+    STRING = auto()
+    NUMBER = auto()
+    BOOLEAN = auto()
+    RADIO = auto()
+    ENUM = auto()
+    TEXT = auto()
+    RICH_TEXT = auto()
+    DATE = auto()
+    TIME = auto()
+    DATE_TIME = auto()
+    LINK = auto()
+    ATTACHMENT = auto()
+    TLP = auto()
+    CPE = auto()
+    CVE = auto()
+    CVSS = auto()
+    STORY = auto()
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)

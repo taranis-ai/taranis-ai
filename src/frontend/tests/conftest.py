@@ -30,10 +30,10 @@ def auth_user():
     debug_user = {
         "id": 1,
         "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "The Earth"},
+        "organization": 1,
         "permissions": [],
         "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
+        "roles": [1],
         "username": "admin",
     }
 

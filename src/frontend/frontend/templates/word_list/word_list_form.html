@@ -1,6 +1,5 @@
 {% from "macros/forms.html" import form_input %}
 {% from "macros/datatable.html" import datatable %}
-{% from "macros/variables.html" import tlp_levels %}
 
 {% set columns = [
   {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
@@ -8,19 +7,21 @@
 ] %}
 
 {% set form_error = form_error | default({}) %}
-{% set permissions = permissions | default([]) %}
+{% set word_list_entries = word_list.entries | default([]) %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
-  <form id="role-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="word_list-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
     <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
     {% endif %}
 
-    {{ form_input('Name', 'name', role.name, form_error.name) }}
-    {{ form_input('Description', 'description', role.description, form_error.description) }}
-    {{ tlp_levels(role.tlp_level) }}
+    {{ form_input('Name', 'name', word_list.name, form_error.name) }}
+    {{ form_input('Description', 'description', word_list.description, form_error.description) }}
+    {{ form_input('Link', 'link', word_list.link, form_error.link) }}
 
-    {{ datatable('Permissions', permissions, columns, role.permissions, selectable=true, input_name="permissions[]", headline="Permissions") }}
+    {% include "word_list/word_list_usage.html" %}
+
+    {{ datatable('Word List Entries', word_list_entries, columns, selected_items=[], selectable=false, headline="Word List Entries") }}
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

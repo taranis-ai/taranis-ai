@@ -42,8 +42,7 @@ class TemplateView(BaseView):
         )
 
         dpl = DataPersistenceLayer()
-        raw_model = dpl.get_object(cls.model, object_id) or cls.model()
-        template = Template(**raw_model.model_dump())
+        template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
 
         try:
             template.content = b64decode(template.content or "").decode("utf-8")
