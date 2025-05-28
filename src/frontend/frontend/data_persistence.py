@@ -27,7 +27,7 @@ class DataPersistenceLayer:
     def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
         return object_model._core_endpoint
 
-    def get_object(self, object_model: Type[T], object_id: int | str) -> TaranisBaseModel | None:
+    def get_object(self, object_model: Type[T], object_id: int | str) -> T | None:
         endpoint = self.get_endpoint(object_model)
 
         if cache_object := cache.get(key=self.make_user_key(endpoint)):

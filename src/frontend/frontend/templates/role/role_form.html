@@ -20,8 +20,8 @@
     {{ form_input('Description', 'description', role.description, form_error.description) }}
     {{ tlp_levels(role.tlp_level) }}
 
-    {{ datatable('Permissions', permissions, columns, role.permissions, selectable=true, input_name="permissions[]") }}
+    {{ datatable('Permissions', permissions, columns, role.permissions, selectable=true, input_name="permissions[]", headline="Permissions") }}
 
-    <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
+    <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>
 </div>

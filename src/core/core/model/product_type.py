@@ -10,7 +10,7 @@ from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
-from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64, write_base64_to_file
+from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -86,6 +86,7 @@ class ProductType(BaseModel):
     @classmethod
     def update(cls, product_type_id: int, data, user=None) -> tuple[dict, int]:
         product_type = cls.get(product_type_id)
+        logger.debug(f"Updating {cls.__name__} with id {product_type_id} and data {data}")
         if not product_type:
             logger.error(f"Could not find product type with id {product_type_id}")
             return {"error": f"Could not find product type with id {product_type_id}"}, 404
@@ -101,15 +102,9 @@ class ProductType(BaseModel):
         if type := data.get("type"):
             product_type.type = type
             product_type.parameters = Worker.parse_parameters(type, data.get("parameters", product_type.parameters))
-        elif parameters := data.get("parameters"):
-            updated_product_type = ParameterValue.get_or_create_from_list(parameters)
-            product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
         report_types = data.get("report_types", None)
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)
-        if template_data := data.get("template"):
-            if template_path := product_type.get_template():
-                write_base64_to_file(template_data, template_path)
         db.session.commit()
         return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
 

@@ -381,8 +381,14 @@ export const router = createRouter({
       path: '/config/product/templates',
       name: 'product_templates',
       components: {
-        default: () => import('@/views/admin/ProductTemplatesView.vue'),
+        default: () => import('@/views/admin/FrontendProxy.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      props: {
+        default: {
+          title: 'Templates',
+          targetUrl: `${import.meta.env.BASE_URL}frontend/admin/templates`
+        }
       },
       meta: {
         requiresAuth: true,

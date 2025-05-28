@@ -14,6 +14,7 @@ class SettingsView(BaseView):
     default_template = "settings/index.html"
     base_route = "admin_settings.settings"
     edit_route = "admin_settings.settings"
+    _read_only = True
     _index = 190
 
     @classmethod

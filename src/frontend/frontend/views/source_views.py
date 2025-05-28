@@ -29,13 +29,19 @@ class SourceView(BaseView):
     @classmethod
     def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        parameters = []
+        parameters = {}
+        parameter_values = {}
         if str(object_id) != "0" and object_id:
             if collector := dpl.get_object(OSINTSource, object_id):
-                collector_type = collector.type  # type: ignore
-                parameters = cls.get_worker_parameters(f"{collector_type}")
+                if collector_type := collector.type:
+                    parameter_values = collector.parameters
+                    parameters = cls.get_worker_parameters(collector_type=collector_type.name.lower())
 
-        return {"collector_types": cls.collector_types.values(), "parameters": parameters}
+        return {
+            "collector_types": cls.collector_types.values(),
+            "parameter_values": parameter_values,
+            "parameters": parameters,
+        }
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -53,4 +59,4 @@ class SourceView(BaseView):
 
         parameters = cls.get_worker_parameters(collector_type)
 
-        return render_template("osint_source/osint_source_parameters.html", parameters=parameters)
+        return render_template("partials/worker_parameters.html", parameters=parameters)
