@@ -5,8 +5,9 @@ import {
   updateStory,
   getProposals,
   getAllNewsItemConflicts,
-  fetchStorySummary,
-  submitNewsItemConflictResolution
+  getStorySummary,
+  resolveIngestIncomingStory,
+  resolveAddUniqueNewsItems
 } from '@/api/connectors'
 
 export const useConflictsStore = defineStore('conflicts', () => {
@@ -17,66 +18,112 @@ export const useConflictsStore = defineStore('conflicts', () => {
 
   async function loadStoryConflicts() {
     try {
-      const response = await getAllStoryConflicts()
-      storyConflicts.value = response.data.conflicts
+      const { data } = await getAllStoryConflicts()
+      storyConflicts.value = data.conflicts
     } catch (error) {
-      console.error('Error loading conflicts:', error)
+      console.error('Error loading story conflicts:', error)
     }
+  }
+  async function fetchNewsItemConflicts() {
+    try {
+      const { data } = await getAllNewsItemConflicts()
+      return data.conflicts
+    } catch (error) {
+      console.error('Error fetching news-item conflicts:', error)
+      return []
+    }
+  }
+
+  async function reloadNewsItemConflicts() {
+    const fresh = await fetchNewsItemConflicts()
+    newsItemConflicts.value = fresh
   }
 
   async function resolveStoryConflictById(storyId, resolutionData) {
     try {
-      const response = await updateStory(storyId, resolutionData)
-      return response.data
+      const { data } = await updateStory(storyId, resolutionData)
+      return data
     } catch (error) {
-      console.error(`Error resolving conflict for story ${storyId}:`, error)
+      console.error(`Error resolving story ${storyId}:`, error)
       throw error
     }
   }
 
   async function fetchProposalCount() {
     try {
-      const response = await getProposals()
-      proposalCount.value = response.data.count
+      const { data } = await getProposals()
+      proposalCount.value = data.count
     } catch (error) {
-      console.error('Error getting proposal count:', error)
+      console.error('Error fetching proposal count:', error)
     }
   }
 
   async function loadNewsItemConflicts() {
     try {
-      const response = await getAllNewsItemConflicts()
-      newsItemConflicts.value = response.data.conflicts
+      const { data } = await getAllNewsItemConflicts()
+      newsItemConflicts.value = data.conflicts
     } catch (error) {
-      console.error('Error loading news item conflicts:', error)
+      console.error('Error loading news-item conflicts:', error)
     }
   }
 
   async function loadSummariesPerConflict() {
     const ids = [
-      ...new Set(newsItemConflicts.value.map((c) => c.existing_story_id))
+      ...new Set(
+        newsItemConflicts.value.flatMap((c) => [
+          c.existing_story_id,
+          c.incoming_story_id
+        ])
+      )
     ]
     for (const id of ids) {
-      try {
-        if (!storySummaries.value[id]) {
-          const summary = await fetchStorySummary(id)
-          storySummaries.value = {
-            ...storySummaries.value,
-            [id]: summary
-          }
+      if (!storySummaries.value[id]) {
+        try {
+          const summary = await getStorySummary(id)
+          storySummaries.value[id] = summary
+        } catch (err) {
+          console.error(`Error fetching summary ${id}:`, err)
         }
-      } catch (err) {
-        console.error(`Failed to fetch summary for story ${id}`, err)
       }
     }
   }
 
-  async function resolveNewsItemConflict(payload) {
+  async function resolveIngestIncomingStoryWrapper(storyPayload) {
     try {
-      const response = await submitNewsItemConflictResolution(payload)
-      return response.data
+      await resolveIngestIncomingStory(storyPayload)
     } catch (error) {
-      console.error('Error resolving news item conflict:', error)
+      console.error('Error ungrouping news items:', error)
+      throw error
+    }
+  }
+
+  async function resolveIngestUniqueNewsItems(
+    storyId,
+    uniqueItems,
+    resolvedConflictIds = [],
+    remainingStories
+  ) {
+    if (!Array.isArray(uniqueItems) && !Array.isArray(resolvedConflictIds)) {
+      console.warn('No input provided')
+      return
+    }
+
+    const payload = {
+      story_id: storyId,
+      news_items: uniqueItems,
+      resolved_conflict_item_ids: resolvedConflictIds,
+      remaining_stories: remainingStories || []
+    }
+
+    try {
+      const { data } = await resolveAddUniqueNewsItems(payload)
+      console.log(
+        `Added: ${data.added?.length || 0}, Skipped: ${resolvedConflictIds.length}`
+      )
+      await loadNewsItemConflicts()
+      return data
+    } catch (error) {
+      console.error('Error ingesting unique news items:', error)
       throw error
     }
   }
@@ -87,10 +134,13 @@ export const useConflictsStore = defineStore('conflicts', () => {
     proposalCount,
     storySummaries,
     loadStoryConflicts,
-    fetchProposalCount,
     resolveStoryConflictById,
+    fetchProposalCount,
     loadNewsItemConflicts,
     loadSummariesPerConflict,
-    resolveNewsItemConflict
+    resolveIngestIncomingStoryWrapper,
+    resolveIngestUniqueNewsItems,
+    fetchNewsItemConflicts,
+    reloadNewsItemConflicts
   }
 })
