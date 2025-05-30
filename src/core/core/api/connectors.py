@@ -2,8 +2,8 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.config import Config
 from core.log import logger
+from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
@@ -11,33 +11,6 @@ from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
 from core.audit import audit_logger
-
-
-class NewsItems(MethodView):
-    @auth_required("ASSESS_CREATE")
-    @validate_json
-    def post(self):
-        data_json = request.json
-        if not data_json:
-            return {"error": "No NewsItems in JSON Body"}, 422
-        logger.debug(data_json)
-
-        news_items = data_json.get("news_items", [])
-        resolved_conflict_ids = data_json.get("resolved_conflict_item_ids", [])
-        added_ids = []
-
-        for item in news_items:
-            result, status = Story.add_single_news_item(item)
-            if status == 200:
-                added_ids.extend(result.get("news_item_ids", []))
-            else:
-                logger.error(f"Failed to add news item: {result}")
-                return result, status
-
-        NewsItemConflict.remove_by_news_item_ids(resolved_conflict_ids)
-
-        sse_manager.news_items_updated()
-        return {"added": added_ids}, 200
 
 
 class StoryConflicts(MethodView):
@@ -62,16 +35,21 @@ class StoryConflicts(MethodView):
         ]
         return {"conflicts": conflicts}, 200
 
-    @auth_required("ASSESS_ACCESS")
-    def put(self):
-        data = request.json
-        if not data:
-            return {"error": "resolution is required"}, 400
-        for news_item in data.get("news_items", []):
-            if not data.get("news_items"):
-                return {"error": "news item is required"}, 400
-            Story.add_from_news_item(news_item)
-        return {"message": "New news items added successfully"}, 200
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self, story_id):
+        if not request.json:
+            return {"error": "Invalid JSON payload"}, 400
+        if not story_id:
+            return {"error": "No story_id provided"}, 400
+
+        conflict = StoryConflict.conflict_store.get(story_id)
+        if conflict is None:
+            logger.error(f"No conflict found for story {story_id}")
+            return {"error": "No conflict found", "id": story_id}, 404
+
+        response, code = conflict.resolve(request.json, user=current_user)
+        return response, code
 
 
 class NewsItemConflicts(MethodView):
@@ -88,20 +66,29 @@ class NewsItemConflicts(MethodView):
         ]
         return {"conflicts": conflicts}, 200
 
+    @auth_required("ASSESS_CREATE")
+    @validate_json
+    def post(self):
+        data_json = request.json
+        if not data_json:
+            return {"error": "No NewsItems in JSON Body"}, 422
+
+        result, code = NewsItemConflict.add_news_items_and_clear_from_store(data_json)
+        if code != 200:
+            return result, code
+
+        sse_manager.news_items_updated()
+        return result, 200
+
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self):
         data = request.json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
-        remaining_stories = data.pop("context", [])
-        response, code = NewsItemConflict.ingest_incoming_ungroup_internal(data, current_user)
-        NewsItemConflict.flush_store()
-        for story in remaining_stories:
-            logger.debug(f"Adding story {story} to news items")
-            Story.add_or_update(story)
+        result, code = NewsItemConflict.ingest_incoming_ungroup_internal_clear_store(data, current_user)
         sse_manager.news_items_updated()
-        return response, code
+        return result, code
 
 
 class StoryInfo(MethodView):
@@ -128,7 +115,6 @@ def initialize(app: Flask):
     conflicts_bp.add_url_rule("/conflicts/stories/<string:story_id>", view_func=StoryConflicts.as_view("story_conflict"))
     conflicts_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
-    conflicts_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)

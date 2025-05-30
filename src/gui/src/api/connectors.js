@@ -16,13 +16,16 @@ export function getProposals() {
   return apiService.get(`/assess/connectors/proposals`)
 }
 
-export function updateStory(storyId, resolutionData) {
-  return apiService.patch(`/assess/connectors/story/${storyId}`, resolutionData)
-}
-
-export async function fetchStorySummary(storyId) {
+export async function getStorySummary(storyId) {
   const res = await apiService.get(`/connectors/story-summary/${storyId}`)
   return res.data
+}
+
+export function updateStory(storyId, resolutionData) {
+  return apiService.put(
+    `/connectors/conflicts/stories/${storyId}`,
+    resolutionData
+  )
 }
 
 export function resolveIngestIncomingStory(storyIds) {
@@ -32,7 +35,7 @@ export function resolveIngestIncomingStory(storyIds) {
 }
 
 export function resolveAddUniqueNewsItems(payload) {
-  return apiService.post('/connectors/news-items', payload, {
+  return apiService.post('/connectors/conflicts/news-items', payload, {
     headers: { 'Content-Type': 'application/json' }
   })
 }
