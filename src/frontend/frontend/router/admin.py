@@ -1,6 +1,6 @@
 from flask import Flask, render_template, Blueprint, request
 from flask.views import MethodView
-from models.admin import Job, Dashboard
+from models.admin import Job
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
@@ -25,18 +25,9 @@ from frontend.views import (
     PublisherView,
     ACLView,
     ConnectorView,
+    SchedulerView,
+    DashboardView,
 )
-
-
-class AdminDashboardAPI(MethodView):
-    @auth_required()
-    def get(self):
-        result = DataPersistenceLayer().get_objects(Dashboard)
-
-        if result is None:
-            return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
-
-        return render_template("admin_dashboard/index.html", data=result[0])
 
 
 class ScheduleAPI(MethodView):
@@ -86,10 +77,24 @@ class ImportUsers(MethodView):
         return UserView.import_users_post_view()
 
 
+class ACLItemAPI(MethodView):
+    @auth_required()
+    def get(self):
+        item_type = request.args.get("item_type", "")
+        return ACLView.get_acl_item_ids_view(item_type)
+
+
+class OSINTSourceParameterAPI(MethodView):
+    @auth_required()
+    def get(self, osint_source_id: str):
+        collector_type = request.args.get("collector_type", "")
+        return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type)
+
+
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
-    admin_bp.add_url_rule("/", view_func=AdminDashboardAPI.as_view("dashboard"))
+    admin_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
     admin_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))
@@ -99,8 +104,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
-    admin_bp.add_url_rule("/scheduler", view_func=ScheduleAPI.as_view("scheduler"))
-    admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=ScheduleJobDetailsAPI.as_view("scheduler_job_details"))
+    admin_bp.add_url_rule("/scheduler", view_func=SchedulerView.as_view("scheduler"))
+    admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=SchedulerView.as_view("edit_job"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationView.as_view("edit_organization"))
@@ -110,21 +115,20 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/acls", view_func=ACLView.as_view("acls"))
     admin_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLView.as_view("edit_acl"))
+    admin_bp.add_url_rule("/acl/item_ids", view_func=ACLItemAPI.as_view("acl_item_ids"))
 
     admin_bp.add_url_rule("/connectors", view_func=ConnectorView.as_view("connectors"))
     admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
 
-    admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("workers"))
-    admin_bp.add_url_rule("/workers/<int:worker_id>", view_func=WorkerView.as_view("edit_worker"))
-
-    # admin_bp.add_url_rule("/worker_types", view_func=WorkerTypesAPI.as_view("worker_types"))
-    # admin_bp.add_url_rule("/worker_types/<int:worker_type_id>", view_func=UpdateWorkerType.as_view("edit_worker_type"))
+    admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("worker_types"))
+    admin_bp.add_url_rule("/workers/<int:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
 
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupView.as_view("osint_source_groups"))
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
 
     admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
     admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
+    admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=BotView.as_view("edit_bot"))

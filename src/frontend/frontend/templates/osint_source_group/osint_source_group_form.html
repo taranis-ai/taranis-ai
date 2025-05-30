@@ -1,10 +1,10 @@
 {% from "macros/forms.html" import form_input %}
 {% from "macros/datatable.html" import datatable %}
 
-
 {% set form_error = form_error | default({}) %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_source_group.id }}</p>
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
@@ -16,6 +16,6 @@
 
     {{ datatable('OSINT Sources', osint_sources, columns, osint_source_group.osint_sources, selectable=true, input_name="osint_sources[]") }}
 
-    <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
+    <input type="submit" class="btn btn-primary mt-5 w-full" value="{{ submit_text }}" />
   </form>
 </div>

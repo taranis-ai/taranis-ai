@@ -104,7 +104,8 @@ export default {
     function editItem(item) {
       templateName.value = item.path
       getTemplate(item.path).then((response) => {
-        templateData.value = response.data !== '' ? atob(response.data) : ''
+        templateData.value =
+          response.data !== '' ? atob(response.data.content) : ''
         edit.value = true
         showForm.value = true
       })

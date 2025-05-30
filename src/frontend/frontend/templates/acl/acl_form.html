@@ -1,15 +1,6 @@
 {% from "macros/forms.html" import form_input, form_select, form_input_content %}
 {% from "macros/datatable.html" import datatable %}
 
-{% set item_types = [
-  { 'id': 'osint_source', 'name': 'OSINT Source' },
-  { 'id': 'osint_source_group', 'name': 'OSINT Source Group' },
-  { 'id': 'product_type', 'name': 'Product Type' },
-  { 'id': 'report_item_type', 'name': 'Report Type' },
-  { 'id': 'word_list', 'name': 'Word List' }
-] %}
-
-
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 <div class="bg-base-100 p-4">
@@ -24,13 +15,39 @@
     {{ form_input('Description', 'description', acl.description, form_error.description) }}
 
     <div class="join gap-1 w-3/4">
-      {{ form_select(label='Item Type', name='item_type', value=acl.item_type, options=item_types) }}
-      {{ form_input_content('Item ID', 'item_id', acl.item_id, form_error.item_id) }}
+    <label class="select w-full">
+      <span class="label">Item Type</span>
+        <select id="item_type"
+                name="item_type"
+                required
+                class="validator select w-full"
+                hx-get="{{ url_for('admin.acl_item_ids') }}"
+                hx-trigger="change"
+                hx-include="#item_type"
+                hx-target="#item_ids"
+                hx-swap="innerHTML">
+        {% if not acl.item_type %}
+        <option value="" selected disabled>Select an item type</option>
+        {% endif %}
+        {% for option in item_types -%}
+        <option value="{{ option.id }}" {% if option.id == acl.item_type %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor -%}
+      </select>
+    </label>
+    <label class="select w-full" id="item_ids">
+      <span class="label">Item ID</span>
+      <select name="item_id_select" required disabled class="validator select w-full">
+        {% for option in item_ids -%}
+        <option value="{{ option.id }}" {% if option.id == acl.item_id %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor -%}
+      </select>
+    </label>
     </div>
 
     <div class="w-3/4">
+    <h4 class="text-l font-bold mb-1 mt-5">Roles</h4>
     {{ datatable('roles-table', roles, columns, acl.roles, selectable=true, input_name="roles[]") }}
     </div>
-    <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
+    <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>
 </div>
