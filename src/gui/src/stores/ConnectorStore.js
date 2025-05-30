@@ -5,7 +5,7 @@ import {
   updateStory,
   getProposals,
   getAllNewsItemConflicts,
-  fetchStorySummary,
+  getStorySummary,
   resolveIngestIncomingStory,
   resolveAddUniqueNewsItems
 } from '@/api/connectors'
@@ -23,6 +23,20 @@ export const useConflictsStore = defineStore('conflicts', () => {
     } catch (error) {
       console.error('Error loading story conflicts:', error)
     }
+  }
+  async function fetchNewsItemConflicts() {
+    try {
+      const { data } = await getAllNewsItemConflicts()
+      return data.conflicts
+    } catch (error) {
+      console.error('Error fetching news-item conflicts:', error)
+      return []
+    }
+  }
+
+  async function reloadNewsItemConflicts() {
+    const fresh = await fetchNewsItemConflicts()
+    newsItemConflicts.value = fresh
   }
 
   async function resolveStoryConflictById(storyId, resolutionData) {
@@ -65,7 +79,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     for (const id of ids) {
       if (!storySummaries.value[id]) {
         try {
-          const summary = await fetchStorySummary(id)
+          const summary = await getStorySummary(id)
           storySummaries.value[id] = summary
         } catch (err) {
           console.error(`Error fetching summary ${id}:`, err)
@@ -86,7 +100,8 @@ export const useConflictsStore = defineStore('conflicts', () => {
   async function resolveIngestUniqueNewsItems(
     storyId,
     uniqueItems,
-    resolvedConflictIds = []
+    resolvedConflictIds = [],
+    remainingStories
   ) {
     if (!Array.isArray(uniqueItems) && !Array.isArray(resolvedConflictIds)) {
       console.warn('No input provided')
@@ -96,7 +111,8 @@ export const useConflictsStore = defineStore('conflicts', () => {
     const payload = {
       story_id: storyId,
       news_items: uniqueItems,
-      resolved_conflict_item_ids: resolvedConflictIds
+      resolved_conflict_item_ids: resolvedConflictIds,
+      remaining_stories: remainingStories || []
     }
 
     try {
@@ -123,6 +139,8 @@ export const useConflictsStore = defineStore('conflicts', () => {
     loadNewsItemConflicts,
     loadSummariesPerConflict,
     resolveIngestIncomingStoryWrapper,
-    resolveIngestUniqueNewsItems
+    resolveIngestUniqueNewsItems,
+    fetchNewsItemConflicts,
+    reloadNewsItemConflicts
   }
 })

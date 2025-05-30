@@ -281,8 +281,12 @@ import 'mergely/lib/mergely.css'
 const store = useConflictsStore()
 const { storyConflicts, proposalCount, newsItemConflicts, storySummaries } =
   storeToRefs(store)
-const { resolveIngestIncomingStoryWrapper, resolveIngestUniqueNewsItems } =
-  store
+const {
+  resolveIngestIncomingStoryWrapper,
+  resolveIngestUniqueNewsItems,
+  loadNewsItemConflicts,
+  loadSummariesPerConflict
+} = store
 
 const openPanels = ref([])
 const prevPanels = ref([])
@@ -370,7 +374,7 @@ function scrollToNextDiff(storyId) {
   try {
     storyConflicts.value
       .find((x) => x.storyId === storyId)
-      .mergelyInstance.scrollToDiff('next')
+      ?.mergelyInstance.scrollToDiff('next')
   } catch {
     showToast('Scroll error', 'error')
   }
@@ -388,26 +392,36 @@ function onPanelsUpdated(panels) {
   prevPanels.value = [...panels]
 }
 
-const conflictingStoryIds = computed(() => {
-  return new Set(storyConflicts.value.map((c) => c.storyId))
-})
+async function reloadNewsItemConflictViewState() {
+  await loadNewsItemConflicts()
+  storySummaries.value = {}
+  await loadSummariesPerConflict()
+}
+
+const conflictingStoryIds = computed(
+  () => new Set(storyConflicts.value.map((c) => c.storyId))
+)
 
 const groupedNewsItemConflicts = computed(() => {
   const groups = {}
   for (const c of newsItemConflicts.value) {
     const id = c.incoming_story_id
-    if (!groups[id])
+    if (!groups[id]) {
       groups[id] = {
         title: c.incoming_story?.title || 'Untitled',
         fullStory: c.incoming_story,
         conflicts: []
       }
+    }
     groups[id].conflicts.push(c)
   }
   Object.values(groups).forEach((group) => {
     group.existingClusters = [
       ...new Set(group.conflicts.map((x) => x.existing_story_id))
-    ].map((id) => ({ id, summary: storySummaries.value[id] }))
+    ].map((id) => ({
+      id,
+      summary: storySummaries.value[id]
+    }))
   })
   return groups
 })
@@ -425,9 +439,7 @@ const existingIdsMap = computed(() => {
   Object.entries(groupedNewsItemConflicts.value).forEach(([id, group]) => {
     const set = new Set()
     group.existingClusters.forEach((cluster) => {
-      cluster.summary?.news_item_titles?.forEach(
-        (ni) => ni.id && set.add(ni.id)
-      )
+      cluster.summary?.news_item_data?.forEach((ni) => ni.id && set.add(ni.id))
     })
     map[id] = set
   })
@@ -443,18 +455,15 @@ function hasUniqueItems(storyId) {
 function handleKeepInternal(storyId) {
   const group = groupedNewsItemConflicts.value[storyId]
   if (!group) return
-
   const incomingNewsItems = group.fullStory.news_items || []
   const existing = existingIdsMap.value[storyId] || new Set()
-
   const uniqueItems = incomingNewsItems.filter((item) => !existing.has(item.id))
-
   const skippedConflictingIds = incomingNewsItems
     .filter((item) => existing.has(item.id))
     .map((item) => item.id)
-
   keepInternalIngestNewsItems(storyId, uniqueItems, skippedConflictingIds)
 }
+
 async function keepInternalIngestNewsItems(
   storyId,
   uniqueItems,
@@ -464,15 +473,17 @@ async function keepInternalIngestNewsItems(
     showToast('Nothing to ingest or resolve', 'info')
     return
   }
-
   try {
     const data = await resolveIngestUniqueNewsItems(
       storyId,
       uniqueItems,
-      resolvedConflictIds
+      resolvedConflictIds,
+      Object.entries(groupedNewsItemConflicts.value).map(
+        ([_, otherGroup]) => otherGroup.fullStory
+      )
     )
     showToast(`Ingested ${data.added?.length || 0} item(s)`, 'success')
-    await store.loadNewsItemConflicts()
+    await reloadNewsItemConflictViewState()
   } catch (error) {
     console.error('Error ingesting unique news items:', error)
     showToast('Failed to ingest unique news items')
@@ -483,29 +494,35 @@ async function replaceWithIncoming(storyId, newsItems) {
   const group = groupedNewsItemConflicts.value[storyId]
   const existingIds = group.existingClusters.map((c) => c.id)
   const newsItemIds = (newsItems || []).map((item) => item.id)
-
-  showToast('Reevaluating conflicts...', 'info')
-
-  await resolveIngestIncomingStoryWrapper({
-    resolving_story_id: storyId,
-    incoming_story: group.fullStory,
-    existing_story_ids: existingIds,
-    incoming_news_item_ids: newsItemIds,
-    context: Object.entries(groupedNewsItemConflicts.value).map(
-      ([_, otherGroup]) => ({
-        story: otherGroup.fullStory
-      })
-    )
-  })
-
-  showToast(`Replaced clusters for ${storyId}`, 'success')
-
-  await store.loadNewsItemConflicts()
+  snackbarMessage.value = 'Reevaluating conflicts...'
+  snackbarColor.value = 'info'
+  snackbar.value = true
+  try {
+    await resolveIngestIncomingStoryWrapper({
+      resolving_story_id: storyId,
+      incoming_story: group.fullStory,
+      existing_story_ids: existingIds,
+      incoming_news_item_ids: newsItemIds,
+      remaining_stories: Object.entries(groupedNewsItemConflicts.value).map(
+        ([_, otherGroup]) => otherGroup.fullStory
+      )
+    })
+    snackbarMessage.value = `Replaced clusters for ${storyId}`
+    snackbarColor.value = 'success'
+    await reloadNewsItemConflictViewState()
+  } catch (err) {
+    console.error(err)
+    snackbarMessage.value = 'Failed to resolve conflict'
+    snackbarColor.value = 'error'
+  } finally {
+    setTimeout(() => {
+      snackbar.value = false
+    }, 3000)
+  }
 }
 
 const duplicateInternalStoryIds = computed(() => {
   const mapping = {}
-
   for (const group of Object.values(groupedNewsItemConflicts.value)) {
     const incomingId = group.fullStory.id
     for (const conflict of group.conflicts) {
@@ -517,7 +534,6 @@ const duplicateInternalStoryIds = computed(() => {
       mapping[internalId].add(incomingId)
     }
   }
-
   return new Set(
     Object.entries(mapping)
       .filter(([_, set]) => set.size > 1)
@@ -533,7 +549,6 @@ const duplicateIncomingNewsItemIds = computed(() => {
       idCounts[item.id] = (idCounts[item.id] || 0) + 1
     }
   })
-
   return new Set(
     Object.entries(idCounts)
       .filter(([_, count]) => count > 1)
@@ -544,8 +559,7 @@ const duplicateIncomingNewsItemIds = computed(() => {
 onMounted(async () => {
   await store.loadStoryConflicts()
   await store.fetchProposalCount()
-  await store.loadNewsItemConflicts()
-  await store.loadSummariesPerConflict()
+  await reloadNewsItemConflictViewState()
 })
 </script>
 
