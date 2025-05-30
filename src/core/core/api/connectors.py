@@ -94,7 +94,12 @@ class NewsItemConflicts(MethodView):
         data = request.json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
+        remaining_stories = data.pop("context", [])
         response, code = NewsItemConflict.ingest_incoming_ungroup_internal(data, current_user)
+        NewsItemConflict.flush_store()
+        for story in remaining_stories:
+            logger.debug(f"Adding story {story} to news items")
+            Story.add_or_update(story)
         sse_manager.news_items_updated()
         return response, code
 

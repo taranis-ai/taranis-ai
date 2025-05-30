@@ -478,16 +478,28 @@ async function keepInternalIngestNewsItems(
     showToast('Failed to ingest unique news items')
   }
 }
+
 async function replaceWithIncoming(storyId, newsItems) {
   const group = groupedNewsItemConflicts.value[storyId]
   const existingIds = group.existingClusters.map((c) => c.id)
   const newsItemIds = (newsItems || []).map((item) => item.id)
+
+  showToast('Reevaluating conflicts...', 'info')
+
   await resolveIngestIncomingStoryWrapper({
+    resolving_story_id: storyId,
     incoming_story: group.fullStory,
     existing_story_ids: existingIds,
-    incoming_news_item_ids: newsItemIds
+    incoming_news_item_ids: newsItemIds,
+    context: Object.entries(groupedNewsItemConflicts.value).map(
+      ([_, otherGroup]) => ({
+        story: otherGroup.fullStory
+      })
+    )
   })
+
   showToast(`Replaced clusters for ${storyId}`, 'success')
+
   await store.loadNewsItemConflicts()
 }
 
