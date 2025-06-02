@@ -32,8 +32,9 @@ def run_core(app):
             env |= config
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
+        taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
         process = subprocess.Popen(
-            ["flask", "run", "--port", "5000"],
+            ["flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
             env=env,
             stdout=subprocess.PIPE,
@@ -42,7 +43,7 @@ def run_core(app):
         )
 
         try:
-            core_url = app.config.get("TARANIS_CORE_URL", "http://127.0.0.1:5000/api")
+            core_url = app.config.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
             _wait_for_server_to_be_alive(f"{core_url}/isalive")
         except requests.exceptions.RequestException as e:
             if process:
