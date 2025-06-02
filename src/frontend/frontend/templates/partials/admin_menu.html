@@ -1,7 +1,7 @@
 <ul class="menu menu-vertical bg-base-200 h-full">
 {% for view_name, view in views.items() %}
   <li>
-    <a href="{{ view.get_base_route() }}">
+    <a href="{{ view.get_base_route() }}" data-testid="admin-menu-{{ view_name }}">
       {{ heroicon_outline(view.icon) }}
       {{ view_name }}
     </a>

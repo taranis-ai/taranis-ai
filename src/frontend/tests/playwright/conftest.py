@@ -24,6 +24,7 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
 @pytest.fixture(scope="session")
 def run_core(app):
     # run the flask core as a subprocess in the background
+    process = None
     try:
         core_path = os.path.abspath("../core")
         env = {}
@@ -45,21 +46,17 @@ def run_core(app):
             universal_newlines=True,
         )
 
-        try:
-            core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
-            print(f"Waiting for Taranis Core to be available at: {core_url}")
-            _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
-        except requests.exceptions.RequestException as e:
-            if process:
-                process.terminate()
-                process.wait()
-            pytest.fail(str(e))
+        core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+        print(f"Waiting for Taranis Core to be available at: {core_url}")
+        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
 
         yield
-        process.terminate()
-        process.wait()
     except Exception as e:
         pytest.fail(str(e))
+    finally:
+        if process:
+            process.terminate()
+            process.wait()
 
 
 @pytest.fixture(scope="session")

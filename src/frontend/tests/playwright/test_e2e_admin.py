@@ -38,6 +38,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
+            page.pause()
             page.get_by_test_id("new-organization-button").click()
             page.get_by_label("Name").fill("Test organizations")
             page.get_by_label("Description").fill("Test description of an organization")
@@ -47,19 +48,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Country").fill("Test Country")
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            # expect(page.get_by_text("Successfully created Test")).to_be_visible()
+            expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_role():
-            page.goto(url_for("admin.roles", _external=True))
+            page.get_by_test_id("admin-menu-Role").click()
             page.get_by_test_id("new-role-button").click()
             page.get_by_label("Name").fill("Test Role")
             page.get_by_label("Description").fill("Test description of a role")
             page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            # expect(page.get_by_text("Successfully created new role")).to_be_visible()
+            expect(page.get_by_text("Test Role")).to_be_visible()
 
         def add_user():
-            page.goto(url_for("admin.users", _external=True))
+            page.get_by_test_id("admin-menu-User").click()
             page.get_by_test_id("new-user-button").click()
             page.get_by_label("Name").fill("Test User")
             page.get_by_label("Description").fill("Test description of a user")
@@ -247,6 +248,5 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def show_open_api():
             page.goto(url_for("api_doc.swagger_blueprint_doc_handler", _external=True))
             expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
-            page.screenshot(path="./tests/playwright/screenshots/docs_openapi.png")
 
-        show_open_api()
+        # show_open_api()

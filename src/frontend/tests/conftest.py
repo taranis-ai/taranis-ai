@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
-load_dotenv(dotenv_path=env_file, override=True)
+load_dotenv(dotenv_path=env_file, override=False)
 
 
 @pytest.fixture(scope="session")
