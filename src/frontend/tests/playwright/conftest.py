@@ -62,6 +62,16 @@ def run_core(app):
         pytest.fail(str(e))
 
 
+@pytest.fixture(scope="session")
+def build_tailwindcss(app):
+    # build the tailwind css
+    try:
+        result = subprocess.call(["./build_tailwindcss.sh"])
+        assert result == 0, f"Install failed with status code: {result}"
+    except Exception as e:
+        pytest.fail(str(e))
+
+
 @pytest.fixture(scope="class")
 def e2e_ci(request):
     request.cls.ci_run = request.config.getoption("--e2e-ci") == "e2e_ci"
@@ -72,7 +82,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, run_core):
+def e2e_server(app, live_server, build_tailwindcss, run_core):
     live_server.app = app
     live_server.start()
     yield live_server

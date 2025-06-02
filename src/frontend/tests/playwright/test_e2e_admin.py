@@ -106,8 +106,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         check_dashboard()
         add_organization()
-        # add_role()
-        # add_user()
+        add_role()
+        add_user()
         # update_user()  # assign roles to user
         # assert_update_user()
         # update_user()  # deassign roles from a user
@@ -266,3 +266,4 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_openapi.png")
 
         show_open_api()
+        page.pause()
