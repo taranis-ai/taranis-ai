@@ -26,13 +26,16 @@ def run_core(app):
     # run the flask core as a subprocess in the background
     try:
         core_path = os.path.abspath("../core")
-        env = os.environ.copy()
+        env = {}
         if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
             config = {k: v for k, v in config.items() if v}
-            env |= config
+            env = config
+        env |= os.environ.copy()
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
+        taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
+        print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
             ["flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
@@ -43,8 +46,9 @@ def run_core(app):
         )
 
         try:
-            core_url = app.config.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
-            _wait_for_server_to_be_alive(f"{core_url}/isalive")
+            core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+            print(f"Waiting for Taranis Core to be available at: {core_url}")
+            _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
         except requests.exceptions.RequestException as e:
             if process:
                 process.terminate()
