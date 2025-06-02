@@ -66,8 +66,9 @@ def run_core(app):
 def build_tailwindcss(app):
     # build the tailwind css
     try:
-        result = subprocess.call(["./build_tailwindcss.sh"])
-        assert result == 0, f"Install failed with status code: {result}"
+        if os.getenv("E2E_TEST_TAILWIND_REBUILD") == "true" or not os.path.isfile("frontend/static/css/tailwind.css"):
+            result = subprocess.call(["./build_tailwindcss.sh"])
+            assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
         pytest.fail(str(e))
 

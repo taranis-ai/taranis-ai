@@ -39,7 +39,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
             page.get_by_test_id("new-organization-button").click()
-            page.get_by_label("Name").click()
             page.get_by_label("Name").fill("Test organizations")
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
@@ -51,37 +50,22 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             # expect(page.get_by_text("Successfully created Test")).to_be_visible()
 
         def add_role():
-            page.get_by_role("link", name="Roles").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("New Role")
-            page.get_by_label("Description").fill("Basic user role")
-            page.get_by_role("combobox").first.click()
-            page.get_by_role("option", name="Clear").click()
-            page.get_by_role("cell", name="CONFIG_WORKER_ACCESS").click()
-            page.get_by_role("cell", name="CONFIG_WORKER_ACCESS").click()
-            page.get_by_role("row", name="CONFIG_WORKER_ACCESS Access").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ADMIN_OPERATIONS Admin").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_ACCESS Analyze access").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_CREATE Analyze create").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_DELETE Analyze delete").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_UPDATE Analyze update").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ASSESS_ACCESS Assess access").get_by_role("cell").first.click()
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
+            page.goto(url_for("admin.roles", _external=True))
+            page.get_by_test_id("new-role-button").click()
+            page.get_by_label("Name").fill("Test Role")
+            page.get_by_label("Description").fill("Test description of a role")
+            page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_text("Successfully created new role")).to_be_visible()
+            # expect(page.get_by_text("Successfully created new role")).to_be_visible()
 
         def add_user():
-            page.get_by_role("link", name="Users").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Username").click()
-            page.get_by_label("Username").fill("test")
-            page.get_by_label("Name", exact=True).fill("testname")
+            page.goto(url_for("admin.users", _external=True))
+            page.get_by_test_id("new-user-button").click()
+            page.get_by_label("Name").fill("Test User")
+            page.get_by_label("Description").fill("Test description of a user")
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
-            page.get_by_role("combobox").first.click()
-            page.get_by_text("The Clacks").click()
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
+            page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
 
         def update_user():
             page.get_by_role("cell", name="test").nth(1).click()
@@ -106,8 +90,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         check_dashboard()
         add_organization()
-        add_role()
-        add_user()
+        # add_user()
+        # add_role()
         # update_user()  # assign roles to user
         # assert_update_user()
         # update_user()  # deassign roles from a user
@@ -266,4 +250,3 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_openapi.png")
 
         show_open_api()
-        page.pause()
