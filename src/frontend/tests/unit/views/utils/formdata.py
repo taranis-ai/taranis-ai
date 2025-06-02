@@ -64,6 +64,9 @@ class FormData(dict):
         return getattr(client, method)(url, self)
 
     def get_cleaned_keys(self):
+        """
+        Return the keys of the form data, excluding None and empty strings.
+        """
         keys = set(dict(self).keys())
         keys.discard(None)
         return keys

@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input, form_select, form_textarea, form_switch %}
 
+{% set parameter_values = parameter_values | default({}) %}
 {% for field in parameters %}
   {% set field_value = parameter_values.get(field.name, field.value)  %}
   {% if field.type == 'text' or field.type == 'number' %}

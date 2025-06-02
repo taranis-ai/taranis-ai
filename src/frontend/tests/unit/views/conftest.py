@@ -9,6 +9,8 @@ from polyfactory.exceptions import ParameterException
 from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
+from uuid_extensions import uuid7str
+from faker import Faker
 
 
 @pytest.fixture
@@ -29,7 +31,7 @@ def core_payloads():
     for view_name, view_cls in BaseView._registry.items():
         model = getattr(view_cls, "model", None)
         endpoint = getattr(model, "_core_endpoint", None)
-        if not (model and endpoint):
+        if not model or not endpoint:
             continue
 
         # Make a factory for this model
@@ -145,49 +147,78 @@ def mock_core_get_endpoints(requests_mock, core_payloads):
     yield core_payloads
 
 
-@pytest.fixture
-def mock_core_get_item_endpoints(requests_mock, core_payloads):
-    for data in core_payloads.values():
-        requests_mock.get(f"{data['_url']}/{data['items'][0]['id']}", json=data["items"][0])
-    yield core_payloads
+@pytest.fixture(scope="class")
+def mock_core_get_item_endpoint_data(core_payloads):
+    payloads: dict[str, dict] = {}
+    faker = Faker()
+
+    for view_name, view_cls in BaseView._registry.items():
+        data = core_payloads.get(view_name)
+        url = data.get("_url", None)
+        current_item = data["items"][0]
+        model = getattr(view_cls, "model", None)
+        if not model or not current_item:
+            continue
+
+        if field_info := model.model_fields.get("id"):
+            ann = field_info.annotation
+            if nested_origin := unwrap_annotation(ann):
+                ann = nested_origin[0]
+
+            if isinstance(ann, int) or issubclass(ann, int):
+                current_item["id"] = faker.pyint()
+            elif isinstance(ann, str) or issubclass(ann, str):
+                current_item["id"] = uuid7str()
+            else:
+                logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")
+                current_item["id"] = "42"
+
+        payloads[view_name] = {"_url": url, **current_item}
+    yield payloads
 
 
 @pytest.fixture
-def mock_core_delete_endpoints(requests_mock, core_payloads):
-    for data in core_payloads.values():
-        delete_url = f"{data['_url']}/{data['items'][0]['id']}"
-        requests_mock.delete(
-            delete_url,
-            json={
-                "message": "Successfully deleted",
-            },
-        )
-    yield core_payloads
+def mock_core_get_item_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+        url = view_data.pop("_url", None)
+        data_id = view_data.get("id", None)
+        if not url or not data_id:
+            continue
+        requests_mock.get(f"{url}/{data_id}", json=view_data)
+    yield mock_core_get_item_endpoint_data
 
 
 @pytest.fixture
-def mock_core_create_endpoints(requests_mock, core_payloads):
-    for data in core_payloads.values():
-        requests_mock.post(
-            data["_url"],
-            json={
-                "message": "Successfully created",
-            },
-        )
-    yield core_payloads
+def mock_core_delete_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+        url = view_data.pop("_url", None)
+        data_id = view_data.get("id", None)
+        if not url or not data_id:
+            continue
+        requests_mock.delete(f"{url}/{data_id}", json={"message": "Successfully deleted"})
+    yield mock_core_get_item_endpoint_data
 
 
 @pytest.fixture
-def mock_core_update_endpoints(requests_mock, core_payloads):
-    for data in core_payloads.values():
-        update_url = f"{data['_url']}/{data['items'][0]['id']}"
-        requests_mock.put(
-            update_url,
-            json={
-                "message": "Successfully updated",
-            },
-        )
-    yield core_payloads
+def mock_core_create_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+        url = view_data.pop("_url", None)
+        data_id = view_data.get("id", None)
+        if not url or not data_id:
+            continue
+        requests_mock.post(f"{url}", json=view_data)
+    yield mock_core_get_item_endpoint_data
+
+
+@pytest.fixture
+def mock_core_update_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+        url = view_data.pop("_url", None)
+        data_id = view_data.get("id", None)
+        if not url or not data_id:
+            continue
+        requests_mock.put(f"{url}/{data_id}", json=view_data)
+    yield mock_core_get_item_endpoint_data
 
 
 ########### LEGACY FIXTURES ###########

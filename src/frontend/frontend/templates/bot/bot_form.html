@@ -4,6 +4,10 @@
 <div class="bg-base-100 p-4">
 
   <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    {% if error -%}
+    <div role="alert" class="alert alert-error mb-5 w-3/4">{{ error }}</div>
+    {% endif -%}
+
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}
 

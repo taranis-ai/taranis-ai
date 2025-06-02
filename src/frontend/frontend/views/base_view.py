@@ -204,7 +204,7 @@ class BaseView(MethodView):
         return render_template(
             cls.get_update_template(),
             **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
-        )
+        ), 400
 
     @classmethod
     def list_view(cls):
