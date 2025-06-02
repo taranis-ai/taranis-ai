@@ -23,8 +23,13 @@ class StoryBot(BaseBot):
         self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT)
 
         logger.info(f"Clustering {len(data)} news items")
-        if cluster := self.bot_api.api_post("/", {"stories": data}):
-            self.core_api.news_items_grouping_multiple(cluster["cluster_ids"]["event_clusters"])
-            return {"message": f"incremental Clustering done with: {len(data)} news items"}
+        if response := self.bot_api.api_post("/", {"stories": data}):
+            cluster_data = response.get("cluster_ids", {})
+            message = response.get("message", "")
+            if not cluster_data or not cluster_data.get("event_clusters"):
+                return {"message": f"{message}. No clusters found."}
 
-        return {"message": "No clustering done"}
+            self.core_api.news_items_grouping_multiple(cluster_data.get("event_clusters", []))
+            return {"message": message}
+
+        raise RuntimeError(f"Did not receive clustering information from Story Bot at {self.bot_api.api_url}")
