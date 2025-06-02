@@ -46,6 +46,9 @@
             :order="true"
           />
         </v-col>
+        <span>
+          {{ attribute.attribute_enums }}
+        </span>
       </v-row>
       <v-row no-gutters>
         <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>

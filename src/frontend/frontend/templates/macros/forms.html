@@ -1,6 +1,6 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True) %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
 {% from "macros/forms.html" import form_input_content %}
-<div class="mb-5 w-full flex flex-row">
+<div class="mb-5 {{ width }} flex flex-row">
   {{ form_input_content(label, name, value, error, type, input_id, placeholder, required, preserve) }}
   {% if error -%}
   <div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>
@@ -52,12 +52,21 @@
 </label>
 {% endmacro %}
 
-{% macro form_switch(label, name, value, required=True, preserve=True, width='w-full') %}
-<fieldset class="fieldset bg-base-100 border-base-300 rounded-box border mb-5 {{ width }}">
+{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full') %}
+<fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
   <legend class="fieldset-legend">{{ label }}</legend>
   <label class="label">
-    <input type="checkbox" checked="checked" class="toggle toggle-primary" name="{{ name }}" id="{{ name }}" {% if required %}required{% endif %} {% if value %}checked{% endif %}/>
-    {{ name }}
+    <input
+      id="{{ name }}"
+      name="{{ name }}"
+      type="checkbox"
+      checked="checked"
+      class="toggle toggle-primary"
+      {% if required %}required{% endif %}
+      {% if value %}checked{% endif %}
+      onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';"
+    />
+    <span class="text-base-content" id="{{ name }}_status">{{ yes_val if value else no_val }}</span>
   </label>
 </fieldset>
 {% endmacro %}

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
-load_dotenv(dotenv_path=env_file, override=True)
+load_dotenv(dotenv_path=env_file, override=False)
 
 
 @pytest.fixture(scope="session")
@@ -30,10 +30,10 @@ def auth_user():
     debug_user = {
         "id": 1,
         "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "The Earth"},
+        "organization": 1,
         "permissions": [],
         "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
+        "roles": [1],
         "username": "admin",
     }
 

@@ -129,7 +129,7 @@ class Attribute(BaseModel):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Attribute":
         if attribute_type := data.pop("type", None):
-            data["attribute_type"] = AttributeType[attribute_type]
+            data["attribute_type"] = AttributeType[attribute_type.upper()]
         return cls(**data)
 
     @classmethod
