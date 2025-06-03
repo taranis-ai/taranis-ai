@@ -269,6 +269,7 @@ class ReportItemAttributeGroup(TaranisBaseModel):
     id: int | None = None
     title: str | None = None
     description: str | None = None
+    index: int | None = None
     attribute_group_items: list[ReportItemAttribute] = Field(default_factory=list)
 
 

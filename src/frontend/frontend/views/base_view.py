@@ -112,12 +112,21 @@ class BaseView(MethodView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
-            obj = cls.model(**parse_formdata(request.form))
+            form_data = parse_formdata(request.form)
+            return cls.store_form_data(form_data, object_id)
+        except Exception as exc:
+            logger.error(f"Error processing form data: {str(exc)}")
+            return None, str(exc)
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        try:
+            obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
         except Exception as exc:
-            logger.error(f"Error processing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
     @classmethod

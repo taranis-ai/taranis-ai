@@ -37,8 +37,8 @@
 <label class="floating-label mb-5 {{ width }}">
   <span class="label">{{ label }}</span>
   <textarea class="textarea w-full" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}"
-    class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}" name="{{ name }}" {% if required %}required{% endif %} value="{{ value }}"
-    {% if preserve %}hx-preserve{% endif %}></textarea>
+    class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}" name="{{ name }}" {% if required %}required{% endif %}
+    {% if preserve %}hx-preserve{% endif %}>{{ value }}</textarea>
 </label>
 {% endmacro %}
 

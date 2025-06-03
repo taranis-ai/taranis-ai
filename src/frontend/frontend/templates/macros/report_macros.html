@@ -7,9 +7,12 @@
       {{ group.title or 'New Group' }}
     </div>
     <div class="collapse-content">
-      <div class="flex items-center justify-between p-4">
+      <div class="flex items-center justify-between py-2">
+        <div class="flex-initial w-18 mr-2">
+          {{ form_input_content(label='Group Index', name='attribute_groups[' ~ group.index ~ '][index]', value=group.index, type="number", input_class="input-sm") }}
+        </div>
         <div class="flex-1">
-          {{ form_input_content('Group Title', 'attribute_groups[][title]', group.title or '', input_class="input-sm") }}
+          {{ form_input_content(label='Group Title', name='attribute_groups[' ~ group.index ~ '][title]', value=group.title or '', input_class="input-sm") }}
         </div>
         <button
           type="button"
@@ -22,8 +25,7 @@
         </button>
       </div>
 
-      {{ form_textarea('Group Description', 'attribute_groups[][description]', group.description or '', required=False) }}
-
+      {{ form_textarea(label='Group Description', name='attribute_groups[' ~ group.index ~ '][description]', value=group.description or '', required=False) }}
       <!-- Placeholder for future items UI -->
       <div class="mt-4 text-gray-400 italic text-sm">
         [Attribute Items UI goes here...]

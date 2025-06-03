@@ -13,6 +13,8 @@ class ReportItemTypeView(BaseView):
     icon = "presentation-chart-bar"
     _index = 120
 
+    form_fields = {"title": {}, "description": {}}
+
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
@@ -32,5 +34,11 @@ class ReportItemTypeView(BaseView):
 
     @classmethod
     def process_form_data(cls, object_id: int | str):
-        logger.debug(parse_formdata(request.form))
-        return super().process_form_data(object_id)
+        logger.debug(f"Form data: {request.form}")
+        form_data = parse_formdata(request.form)
+        logger.debug(f"Parsed Formdata: {form_data}")
+        attribute_groups = form_data.get("attribute_groups", {}).values()
+        logger.debug(f"Attribute Groups: {attribute_groups} - Type: {type(attribute_groups)}")
+        form_data["attribute_groups"] = attribute_groups
+        logger.debug(f"Processed Formdata: {form_data}")
+        return cls.store_form_data(form_data, object_id)

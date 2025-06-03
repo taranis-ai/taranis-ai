@@ -89,12 +89,12 @@ class AttributeGroup(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, index, attribute_group_items=None, id=None):
+    def __init__(self, title, index, description="", attribute_group_items=None, id=None):
         if id:
             self.id = id
         self.title = title
-        self.description = description
         self.index = index
+        self.description = description
         self.attribute_group_items = AttributeGroupItem.load_multiple(attribute_group_items) if attribute_group_items else []
 
     @classmethod
