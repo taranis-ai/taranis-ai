@@ -36,7 +36,6 @@ class NewsItem(BaseModel):
     language: Mapped[str] = db.Column(db.String())
     content: Mapped[str] = db.Column(db.String())
     collected: Mapped[datetime] = db.Column(db.DateTime)
-    last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
     updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
 
@@ -65,7 +64,6 @@ class NewsItem(BaseModel):
         hash: str | None = None,
         attributes=None,
         id=None,
-        last_change="internal",
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
@@ -81,7 +79,6 @@ class NewsItem(BaseModel):
         self.link = link
         self.author = author
         self.language = language
-        self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
@@ -174,7 +171,6 @@ class NewsItem(BaseModel):
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
-        news_item.last_change = "internal"
         db.session.commit()
         return {"message": "Language updated"}, 200
 
@@ -190,7 +186,6 @@ class NewsItem(BaseModel):
 
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
-        news_item.last_change = "internal"
         db.session.commit()
         news_item.story.update_status()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
@@ -236,7 +231,8 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        self.last_change = "internal"
+        if attributes := data.get("attributes"):
+            self.update_attributes(self.id, attributes)
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
