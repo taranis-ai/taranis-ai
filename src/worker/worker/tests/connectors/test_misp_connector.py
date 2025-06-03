@@ -8,7 +8,7 @@ from worker.config import Config
 
 @pytest.fixture
 def core_mock(requests_mock, stories):
-    from worker.tests.connectors.test_data import misp_connector
+    from worker.tests.misp_connector_test_data import misp_connector
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
