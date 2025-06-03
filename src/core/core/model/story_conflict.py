@@ -46,10 +46,8 @@ class StoryConflict:
         logger.debug("Conflict store flushed")
 
     @classmethod
-    def get_proposal_count(cls):
+    def get_proposal_count(cls) -> int:
         logger.debug(f"with count {len(cls.conflict_store.values())}")
-        for conflict in cls.conflict_store.values():
-            logger.debug(f"{conflict.has_proposals} ")
         return sum(bool(conflict.has_proposals) for conflict in cls.conflict_store.values())
 
     @classmethod
@@ -69,7 +67,5 @@ class StoryConflict:
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
         normalized_current = cls.remove_keys_deep(current_data)
-        logger.debug(f"{normalized_current=}")
         normalized_new = cls.remove_keys_deep(new_data)
-        logger.debug(f"{normalized_new=}")
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
