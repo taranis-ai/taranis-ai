@@ -62,8 +62,8 @@
           <v-list-item
             v-for="button in buttonList"
             :key="button.route"
-            :to="button.route"
             :title="$t(button.title)"
+            v-bind="button.route ? { to: button.route } : { href: button.href }"
           />
         </v-list>
       </v-menu>
@@ -73,7 +73,7 @@
             variant="text"
             :ripple="false"
             :rounded="false"
-            :to="button.route"
+            v-bind="button.route ? { to: button.route } : { href: button.href }"
             :prepend-icon="button.icon"
             class="main-menu-btn"
           >
@@ -175,7 +175,7 @@ export default defineComponent({
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
-        route: '/config/dashboard'
+        href: '/frontend/admin'
       },
       {
         title: 'main_menu.assess',
