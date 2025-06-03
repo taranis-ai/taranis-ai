@@ -80,6 +80,12 @@ class LoginView(MethodView):
         return response
 
 
+class OpenAPIView(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("open_api/index.html")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
@@ -88,6 +94,7 @@ def init(app: Flask):
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))
+    base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
 
     base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
     base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))

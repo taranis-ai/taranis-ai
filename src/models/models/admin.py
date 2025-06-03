@@ -220,7 +220,7 @@ class OSINTSourceGroup(TaranisBaseModel):
     default: bool = False
 
     osint_sources: list[str] = Field(default_factory=list)
-    word_lists: list[str] = Field(default_factory=list)
+    word_lists: list[int] = Field(default_factory=list)
 
 
 class ProductParameterValue(TaranisBaseModel):
@@ -255,20 +255,21 @@ class PublisherPreset(TaranisBaseModel):
 
 
 class ReportItemAttribute(TaranisBaseModel):
-    _core_endpoint = "/config/report-item-attributes"
-    _model_name = "report_item_attribute"
-    _pretty_name = "Report Item Attribute"
-    _search_fields = ["title", "description"]
-
     id: int | None = None
-    value: str | None = None
+    attribute: dict[str, str] | None = None
+    attribute_id: int | None = None
+    attribute_group_id: int | None = None
     title: str | None = None
     description: str | None = None
     index: int | None = None
     required: bool | None = None
-    attribute_type: str | None = None
-    group_title: str | None = None
-    render_data: dict | None = None
+
+
+class ReportItemAttributeGroup(TaranisBaseModel):
+    id: int | None = None
+    title: str | None = None
+    description: str | None = None
+    attribute_group_items: list[ReportItemAttribute] = Field(default_factory=list)
 
 
 class ReportItemType(TaranisBaseModel):
@@ -280,7 +281,7 @@ class ReportItemType(TaranisBaseModel):
     id: int | None = None
     title: str
     description: str = ""
-    report_item_attributes: list[ReportItemAttribute] = Field(default_factory=list)
+    attribute_groups: list[ReportItemAttributeGroup] = Field(default_factory=list)
 
 
 class Template(TaranisBaseModel):

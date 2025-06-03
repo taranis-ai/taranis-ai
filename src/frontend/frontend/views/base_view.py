@@ -117,6 +117,7 @@ class BaseView(MethodView):
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
         except Exception as exc:
+            logger.error(f"Error processing form data: {str(exc)}")
             return None, str(exc)
 
     @classmethod
@@ -196,8 +197,6 @@ class BaseView(MethodView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         resp_obj, error = cls.process_form_data(object_id)
-        if error:
-            logger.error(f"Error processing form data: {error}")
         if resp_obj and not error:
             return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
 

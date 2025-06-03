@@ -105,6 +105,12 @@ class PublisherParameterAPI(MethodView):
         return PublisherView.get_publisher_parameters_view(publisher_id, publisher_type)
 
 
+class ReportItemTypeGroupsAPI(MethodView):
+    @auth_required()
+    def post(self):
+        return ReportItemTypeView.get_report_item_type_groups_view()
+
+
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
@@ -150,6 +156,7 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))
     admin_bp.add_url_rule("/report_types/<int:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
+    admin_bp.add_url_rule("/add_report_type_group", view_func=ReportItemTypeGroupsAPI.as_view("add_report_item_types_group"))
 
     admin_bp.add_url_rule("/product_types", view_func=ProductTypeView.as_view("product_types"))
     admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
@@ -158,7 +165,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/templates/<string:template>", view_func=TemplateView.as_view("edit_template"))
 
     admin_bp.add_url_rule("/publisher", view_func=PublisherView.as_view("publisher_presets"))
-    admin_bp.add_url_rule("/publishers/<string:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))
+    admin_bp.add_url_rule("/publisher/<string:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))
     admin_bp.add_url_rule("/publisher_parameters/<string:publisher_id>", view_func=PublisherParameterAPI.as_view("publisher_parameters"))
 
     admin_bp.add_url_rule("/word_lists", view_func=WordListView.as_view("word_lists"))

@@ -38,7 +38,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
-            page.pause()
             page.get_by_test_id("new-organization-button").click()
             page.get_by_label("Name").fill("Test organizations")
             page.get_by_label("Description").fill("Test description of an organization")
@@ -246,7 +245,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
 
         def show_open_api():
-            page.goto(url_for("api_doc.swagger_blueprint_doc_handler", _external=True))
-            expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
+            page.goto(url_for("base.open_api", _external=True))
+            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
-        # show_open_api()
+        show_open_api()

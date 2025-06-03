@@ -12,7 +12,7 @@
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% if error %}
-    <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+    <p class="text-3xl font-bold mb-4 alert alert-error">{{ error }}</p>
     {% endif %}
 
     {{ form_input('Name', 'name', osint_source_group.name, form_error.name) }}

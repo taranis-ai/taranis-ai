@@ -1,8 +1,11 @@
 from typing import Any
+from flask import render_template, request
+
 from frontend.views.base_view import BaseView
-from models.admin import ReportItemType
-from models.admin import Attribute
+from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.router_helpers import parse_formdata
+from frontend.log import logger
 
 
 class ReportItemTypeView(BaseView):
@@ -22,3 +25,12 @@ class ReportItemTypeView(BaseView):
     def get_extra_context(cls, object_id: int | str):
         dpl = DataPersistenceLayer()
         return {"attributes": [p.model_dump() for p in dpl.get_objects(Attribute)]}
+
+    @classmethod
+    def get_report_item_type_groups_view(cls):
+        return render_template("report_item_type/attribute_group.html", group=ReportItemAttributeGroup())
+
+    @classmethod
+    def process_form_data(cls, object_id: int | str):
+        logger.debug(parse_formdata(request.form))
+        return super().process_form_data(object_id)

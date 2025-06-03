@@ -1,0 +1,34 @@
+{% macro render_attribute_group(group) %}
+{% from "macros/forms.html" import form_input_content, form_textarea %}
+<div class="card bg-base-100 shadow border rounded-box">
+  <div class="collapse collapse-arrow">
+    <input type="checkbox" checked />
+    <div class="collapse-title">
+      {{ group.title or 'New Group' }}
+    </div>
+    <div class="collapse-content">
+      <div class="flex items-center justify-between p-4">
+        <div class="flex-1">
+          {{ form_input_content('Group Title', 'attribute_groups[][title]', group.title or '', input_class="input-sm") }}
+        </div>
+        <button
+          type="button"
+          name="delete_group"
+          class="btn btn-sm btn-error ml-2"
+          title="Delete Group"
+          @click.stop="$el.closest('.card').remove()"
+        >
+          Delete Group
+        </button>
+      </div>
+
+      {{ form_textarea('Group Description', 'attribute_groups[][description]', group.description or '', required=False) }}
+
+      <!-- Placeholder for future items UI -->
+      <div class="mt-4 text-gray-400 italic text-sm">
+        [Attribute Items UI goes here...]
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

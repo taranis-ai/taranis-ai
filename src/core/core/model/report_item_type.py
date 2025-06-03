@@ -49,7 +49,7 @@ class AttributeGroupItem(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["attribute"] = self.attribute.to_dict()
+        data["attribute"] = self.attribute.to_report_item_dict()
         return data
 
     def to_export_dict(self):
