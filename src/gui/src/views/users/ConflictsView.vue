@@ -352,20 +352,71 @@ async function getMergedContentForConflict(storyId) {
   }
 }
 
+const groupedNewsItemConflicts = computed(() => {
+  const groups = {}
+  for (const c of newsItemConflicts.value) {
+    const id = c.incoming_story_id
+    if (!groups[id]) {
+      groups[id] = {
+        title: c.incoming_story?.title || 'Untitled',
+        fullStory: c.incoming_story,
+        conflicts: []
+      }
+    }
+    groups[id].conflicts.push(c)
+  }
+  Object.values(groups).forEach((group) => {
+    group.existingClusters = [
+      ...new Set(group.conflicts.map((x) => x.existing_story_id))
+    ].map((id) => ({
+      id,
+      summary: storySummaries.value[id]
+    }))
+  })
+  return groups
+})
+
+const allNewsItemConflictStories = computed(() =>
+  Object.values(groupedNewsItemConflicts.value).map((group) => group.fullStory)
+)
+
 async function submitResolution(storyId) {
+  const conflict = storyConflicts.value.find((x) => x.storyId === storyId)
+  if (!conflict) return showToast('Conflict not found')
+
   const txt = mergedContents.value[storyId]
   if (!txt) return showToast('Get right side first')
+
+  let editedResolution
   try {
-    const data = JSON.parse(txt)
-    await store.resolveStoryConflictById(storyId, data)
+    editedResolution = JSON.parse(txt)
+  } catch {
+    return showToast('Invalid JSON after editing', 'error')
+  }
+
+  let originalRHS
+  try {
+    originalRHS = JSON.parse(conflict.updated)
+  } catch {
+    return showToast('Invalid original RHS JSON (unedited)', 'error')
+  }
+
+  try {
+    await updateStory(storyId, {
+      resolution: editedResolution,
+      incoming_story_original: originalRHS,
+      remaining_stories: allNewsItemConflictStories.value
+    })
+
+    destroyMergely(conflict)
     const idx = storyConflicts.value.findIndex((x) => x.storyId === storyId)
-    destroyMergely(storyConflicts.value[idx])
     storyConflicts.value.splice(idx, 1)
     openPanels.value = []
     prevPanels.value = []
     delete mergedContents.value[storyId]
     showToast(`Story ${storyId} resolved`, 'success')
-  } catch {
+  } catch (err) {
+    console.error(err)
     showToast(`Failed resolving ${storyId}`, 'error')
   }
 }
@@ -401,30 +452,6 @@ async function reloadNewsItemConflictViewState() {
 const conflictingStoryIds = computed(
   () => new Set(storyConflicts.value.map((c) => c.storyId))
 )
-
-const groupedNewsItemConflicts = computed(() => {
-  const groups = {}
-  for (const c of newsItemConflicts.value) {
-    const id = c.incoming_story_id
-    if (!groups[id]) {
-      groups[id] = {
-        title: c.incoming_story?.title || 'Untitled',
-        fullStory: c.incoming_story,
-        conflicts: []
-      }
-    }
-    groups[id].conflicts.push(c)
-  }
-  Object.values(groups).forEach((group) => {
-    group.existingClusters = [
-      ...new Set(group.conflicts.map((x) => x.existing_story_id))
-    ].map((id) => ({
-      id,
-      summary: storySummaries.value[id]
-    }))
-  })
-  return groups
-})
 
 const incomingIdsMap = computed(() => {
   const map = {}

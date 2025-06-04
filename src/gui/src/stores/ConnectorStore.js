@@ -24,30 +24,6 @@ export const useConflictsStore = defineStore('conflicts', () => {
       console.error('Error loading story conflicts:', error)
     }
   }
-  async function fetchNewsItemConflicts() {
-    try {
-      const { data } = await getAllNewsItemConflicts()
-      return data.conflicts
-    } catch (error) {
-      console.error('Error fetching news-item conflicts:', error)
-      return []
-    }
-  }
-
-  async function reloadNewsItemConflicts() {
-    const fresh = await fetchNewsItemConflicts()
-    newsItemConflicts.value = fresh
-  }
-
-  async function resolveStoryConflictById(storyId, resolutionData) {
-    try {
-      const { data } = await updateStory(storyId, resolutionData)
-      return data
-    } catch (error) {
-      console.error(`Error resolving story ${storyId}:`, error)
-      throw error
-    }
-  }
 
   async function fetchProposalCount() {
     try {
@@ -65,6 +41,21 @@ export const useConflictsStore = defineStore('conflicts', () => {
     } catch (error) {
       console.error('Error loading news-item conflicts:', error)
     }
+  }
+
+  async function fetchNewsItemConflicts() {
+    try {
+      const { data } = await getAllNewsItemConflicts()
+      return data.conflicts
+    } catch (error) {
+      console.error('Error fetching news-item conflicts:', error)
+      return []
+    }
+  }
+
+  async function reloadNewsItemConflicts() {
+    const fresh = await fetchNewsItemConflicts()
+    newsItemConflicts.value = fresh
   }
 
   async function loadSummariesPerConflict() {
@@ -88,6 +79,16 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
   }
 
+  async function resolveStoryConflictById(storyId, resolutionPayload) {
+    try {
+      const { data } = await updateStory(storyId, resolutionPayload)
+      return data
+    } catch (error) {
+      console.error(`Error resolving story ${storyId}:`, error)
+      throw error
+    }
+  }
+
   async function resolveIngestIncomingStoryWrapper(storyPayload) {
     try {
       await resolveIngestIncomingStory(storyPayload)
@@ -101,7 +102,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     storyId,
     uniqueItems,
     resolvedConflictIds = [],
-    remainingStories
+    remainingStories = []
   ) {
     if (!Array.isArray(uniqueItems) && !Array.isArray(resolvedConflictIds)) {
       console.warn('No input provided')
@@ -112,7 +113,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
       story_id: storyId,
       news_items: uniqueItems,
       resolved_conflict_item_ids: resolvedConflictIds,
-      remaining_stories: remainingStories || []
+      remaining_stories: remainingStories
     }
 
     try {
@@ -134,13 +135,13 @@ export const useConflictsStore = defineStore('conflicts', () => {
     proposalCount,
     storySummaries,
     loadStoryConflicts,
-    resolveStoryConflictById,
     fetchProposalCount,
     loadNewsItemConflicts,
-    loadSummariesPerConflict,
-    resolveIngestIncomingStoryWrapper,
-    resolveIngestUniqueNewsItems,
     fetchNewsItemConflicts,
-    reloadNewsItemConflicts
+    reloadNewsItemConflicts,
+    loadSummariesPerConflict,
+    resolveStoryConflictById,
+    resolveIngestIncomingStoryWrapper,
+    resolveIngestUniqueNewsItems
   }
 })
