@@ -169,7 +169,8 @@ class MISPConnector:
         self.set_misp_event_uuid_attribute(story)
         return self._process_items(story, "attributes", self._process_attribute)
 
-    def _process_items(self, story: dict, key: str, processor: Callable) -> list:
+    @staticmethod
+    def _process_items(story: dict, key: str, processor: Callable) -> list:
         """
         Generic helper to process a list of items stored under the provided key in the story dictionary.
 
@@ -185,7 +186,8 @@ class MISPConnector:
                 items_list.append(processed)
         return items_list
 
-    def _process_attribute(self, attr: dict) -> str | None:
+    @staticmethod
+    def _process_attribute(attr: dict) -> str | None:
         """
         Process a single attribute dict into its string representation.
         """
@@ -199,7 +201,8 @@ class MISPConnector:
             logger.warning(f"Skipping attribute with missing value: {attr}")
             return None
 
-    def _process_link(self, link_item: dict) -> str | None:
+    @staticmethod
+    def _process_link(link_item: dict) -> str | None:
         """
         Process a single link dict into its string representation.
         """
@@ -213,7 +216,8 @@ class MISPConnector:
             logger.warning(f"Skipping link with missing data: {link_item}")
             return None
 
-    def _process_tags(self, tag_item: dict) -> str | None:
+    @staticmethod
+    def _process_tags(tag_item: dict) -> str | None:
         """
         Process a single tag dict into its JSON string representation, sanitized.
         """
