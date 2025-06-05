@@ -1007,13 +1007,13 @@ class Story(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
+        data["tags"] = sorted([tag.to_dict() for tag in self.tags[:5]], key=lambda x: x["name"])
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_dict() for tag in self.tags]
+        data["tags"] = sorted([tag.to_dict() for tag in self.tags], key=lambda x: x["name"])
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         return data
@@ -1021,7 +1021,7 @@ class Story(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [{"name": tag.name, "tag_type": tag.tag_type} for tag in self.tags]
+        data["tags"] = sorted([tag.to_dict() for tag in self.tags], key=lambda x: x["name"])
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
