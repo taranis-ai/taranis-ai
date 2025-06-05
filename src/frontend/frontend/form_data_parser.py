@@ -12,7 +12,7 @@ def parse_key(key: str) -> list[str]:
     return tokens
 
 
-def insert_value(container, tokens: list[str], value: str):
+def insert_value(container: list | dict, tokens: list[str], value: str):
     token = tokens[0]
 
     if isinstance(container, list):
