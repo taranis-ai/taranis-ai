@@ -20,10 +20,7 @@
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <form id="attribute-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 alert alert-error">{{ error }}</p>
-    {% endif %}
-
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Name', 'name', attribute.name, form_error.name, width="w-3/4") }}
     {{ form_input('Description', 'description', attribute.description, form_error.description, width="w-3/4") }}
     {{ form_input('Default Value', 'default_value', attribute.default_value, form_error.default_value, required=False, width="w-3/4") }}

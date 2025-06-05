@@ -44,9 +44,7 @@
   </div>
 
   <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error -%}
-    <div role="alert" class="alert alert-error mb-5 w-3/4">{{ error }}</div>
-    {% endif -%}
+    {% include 'partials/admin_form_error.html' %}
 
     {{ form_input('Username', 'username', user.username, form_error.username, width="w-3/4") }}
     {{ form_input('Name', 'name', user.name, form_error.name, width="w-3/4") }}

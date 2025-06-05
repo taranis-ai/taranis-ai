@@ -3,10 +3,7 @@
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <form id="report_item_type-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 alert alert-error">{{ error }}</p>
-    {% endif %}
-
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Title', 'title', report_item_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', report_item_type.description, form_error.description, width="w-3/4") }}
 

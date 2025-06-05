@@ -11,10 +11,7 @@
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <form id="word_list-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 alert alert-error">{{ error }}</p>
-    {% endif %}
-
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Name', 'name', word_list.name, form_error.name) }}
     {{ form_input('Description', 'description', word_list.description, form_error.description) }}
     {{ form_input('Link', 'link', word_list.link, form_error.link) }}

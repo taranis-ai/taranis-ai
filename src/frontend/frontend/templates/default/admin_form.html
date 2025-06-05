@@ -7,10 +7,7 @@
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 alert alert-error">{{ error }}</p>
-    {% endif %}
-
+    {% include 'partials/admin_form_error.html' %}
     {% for field_name, field in form_fields.items() %}
       {% if field.type == 'text' or field.type == 'number' %}
         {{ form_input(field.label, field_name, field.value, form_error[field_name], type=field.type, required=field.required) }}

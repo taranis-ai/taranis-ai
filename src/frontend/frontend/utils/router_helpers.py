@@ -3,7 +3,7 @@ from werkzeug.datastructures import ImmutableMultiDict, MultiDict
 from typing import Type, get_origin, Union, get_args
 from pydantic import BaseModel
 
-from frontend.form_data_parser import parse_key, insert_value
+from frontend.utils.form_data_parser import parse_key, insert_value
 
 
 def is_htmx_request() -> bool:

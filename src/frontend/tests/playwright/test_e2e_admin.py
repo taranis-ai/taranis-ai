@@ -46,7 +46,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Zip").fill("9999")
             page.get_by_label("Country").fill("Test Country")
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+
+            with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
             expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_role():

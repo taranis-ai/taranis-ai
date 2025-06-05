@@ -6,10 +6,11 @@ from flask.views import MethodView
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
+from frontend.utils.router_helpers import is_htmx_request, parse_formdata, convert_query_params
 from frontend.cache_models import PagingData
 from frontend.log import logger
 from frontend.auth import auth_required
+from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class BaseView(MethodView):
@@ -114,8 +115,11 @@ class BaseView(MethodView):
         try:
             form_data = parse_formdata(request.form)
             return cls.store_form_data(form_data, object_id)
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
-            logger.error(f"Error processing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
     @classmethod
@@ -125,6 +129,9 @@ class BaseView(MethodView):
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
@@ -222,8 +229,8 @@ class BaseView(MethodView):
             items = DataPersistenceLayer().get_objects(cls.model, page)
             error = None if items else f"No {cls.model_name()} items found"
         except ValidationError as exc:
-            logger.exception(f"Error validating {cls.model_name()}")
-            items, error = None, exc.errors()[0]["msg"]
+            logger.exception(format_pydantic_errors(exc, cls.model))
+            items, error = None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)

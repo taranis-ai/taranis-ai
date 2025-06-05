@@ -8,7 +8,7 @@ from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.auth import auth_required
-from frontend.router_helpers import convert_query_params
+from frontend.utils.router_helpers import convert_query_params
 from frontend.views import (
     UserView,
     OrganizationView,
