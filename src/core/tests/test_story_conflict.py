@@ -1,4 +1,3 @@
-import pytest
 from core.model.story_conflict import StoryConflict
 
 
@@ -71,7 +70,3 @@ class TestStoryConflictSorting:
         assert (
             normalized_original == normalized_updated
         ), "Stories with same content but different order should normalize to identical strings"
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
