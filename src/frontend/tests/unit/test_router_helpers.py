@@ -1,4 +1,4 @@
-from frontend.utils.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 from werkzeug.datastructures import ImmutableMultiDict
 
 

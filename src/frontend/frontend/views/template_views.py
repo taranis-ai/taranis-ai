@@ -6,7 +6,7 @@ from frontend.views.base_view import BaseView
 from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 
 
 class TemplateView(BaseView):

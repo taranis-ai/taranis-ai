@@ -6,7 +6,8 @@ from flask.views import MethodView
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import is_htmx_request, parse_formdata, convert_query_params
+from frontend.utils.router_helpers import is_htmx_request, convert_query_params
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.cache_models import PagingData
 from frontend.log import logger
 from frontend.auth import auth_required

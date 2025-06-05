@@ -4,7 +4,7 @@ from flask import render_template, request
 from frontend.views.base_view import BaseView
 from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.log import logger
 
 

@@ -1,7 +1,7 @@
 from typing import Any
 from flask import request, render_template
 
-from frontend.utils.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from models.admin import PublisherPreset, ProductType, ReportItemType, Template, WorkerParameter, WorkerParameterValue
