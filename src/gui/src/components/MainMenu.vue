@@ -166,16 +166,16 @@ export default defineComponent({
 
     const buttons = [
       {
-        title: 'main_menu.dashboard',
-        icon: 'mdi-view-dashboard-variant-outline',
-        permission: 'ASSESS_ACCESS',
-        route: '/'
-      },
-      {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
         href: '/frontend/admin'
+      },
+      {
+        title: 'main_menu.dashboard',
+        icon: 'mdi-view-dashboard-variant-outline',
+        permission: 'ASSESS_ACCESS',
+        route: '/'
       },
       {
         title: 'main_menu.assess',

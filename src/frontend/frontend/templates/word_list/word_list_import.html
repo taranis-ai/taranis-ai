@@ -1,0 +1,25 @@
+
+
+<div class="p-5">
+  <form id="form" hx-trigger="submit" hx-post="{{ url_for('admin.import_users') }}" hx-target="#result" enctype="multipart/form-data">
+    <div class="grid grid-cols-1">
+      <div>
+        <label class="label">
+          <span class="label-text">Select JSON File</span>
+        </label>
+        <input
+          type="file"
+          name="file"
+          accept="application/json"
+          class="file-input file-input-bordered w-full"
+          required
+        />
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-success w-full mt-5">Submit</button>
+  </form>
+
+  <div id="result" class="mt-5"></div>
+</div>
+

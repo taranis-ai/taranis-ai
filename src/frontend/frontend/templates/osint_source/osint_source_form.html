@@ -23,7 +23,9 @@
               hx-trigger="change"
               hx-include="#collector_type"
               hx-target="#parameters"
-              hx-swap="innerHTML">
+              hx-swap="innerHTML"
+              {% if osint_source.type %}disabled{% endif %}
+              >
       {% if not osint_source.collector_type %}
       <option value="" selected disabled>Select a collector type</option>
       {% endif %}
@@ -31,6 +33,9 @@
       <option value="{{ option.id }}" {% if option.id == osint_source.type %}selected{% endif %}>{{ option.name }}</option>
       {% endfor -%}
       </select>
+      {% if osint_source.type %}
+        <input type="hidden" name="type" value="{{ osint_source.type }}">
+      {% endif %}
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 

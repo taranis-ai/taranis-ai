@@ -2,11 +2,9 @@ from flask import Flask, render_template, Blueprint, request
 from flask.views import MethodView
 from models.admin import Job
 
-from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.log import logger
 from frontend.auth import auth_required
 from frontend.utils.router_helpers import convert_query_params
 from frontend.views import (
@@ -57,24 +55,46 @@ class ScheduleJobDetailsAPI(MethodView):
 class ExportUsers(MethodView):
     @auth_required()
     def get(self):
-        user_ids = request.args.getlist("ids")
-
-        core_resp = CoreApi().export_users(user_ids)
-
-        if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
-
-        return CoreApi.stream_proxy(core_resp, "users_export.json")
+        return UserView.export_view()
 
 
 class ImportUsers(MethodView):
     @auth_required()
     def get(self):
-        return UserView.import_users_view()
+        return UserView.import_view()
 
     def post(self):
-        return UserView.import_users_post_view()
+        return UserView.import_post_view()
+
+
+class ExportOSINTSources(MethodView):
+    @auth_required()
+    def get(self):
+        return SourceView.export_view()
+
+
+class ImportOSINTSources(MethodView):
+    @auth_required()
+    def get(self):
+        return SourceView.import_view()
+
+    def post(self):
+        return SourceView.import_post_view()
+
+
+class ExportWordLists(MethodView):
+    @auth_required()
+    def get(self):
+        return WordListView.export_view()
+
+
+class ImportWordLists(MethodView):
+    @auth_required()
+    def get(self):
+        return WordListView.import_view()
+
+    def post(self):
+        return WordListView.import_post_view()
 
 
 class ACLItemAPI(MethodView):
@@ -149,6 +169,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
     admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
+    admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
+    admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
@@ -170,5 +192,7 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/word_lists", view_func=WordListView.as_view("word_lists"))
     admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
+    admin_bp.add_url_rule("/export/word_lists", view_func=ExportWordLists.as_view("export_word_lists"))
+    admin_bp.add_url_rule("/import/word_lists", view_func=ImportWordLists.as_view("import_word_lists"))
 
     app.register_blueprint(admin_bp)
