@@ -1,5 +1,6 @@
+import json
 from typing import Any
-from flask import render_template
+from flask import render_template, request, Response
 
 from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue
 from models.types import COLLECTOR_TYPES
@@ -7,6 +8,8 @@ from frontend.views.base_view import BaseView
 from frontend.filters import render_icon, render_source_parameter, render_state
 from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.core_api import CoreApi
+from frontend.config import Config
 
 
 class SourceView(BaseView):
@@ -60,3 +63,36 @@ class SourceView(BaseView):
         parameters = cls.get_worker_parameters(collector_type)
 
         return render_template("partials/worker_parameters.html", parameters=parameters)
+
+    @classmethod
+    def import_view(cls, error=None):
+        return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)
+
+    @classmethod
+    def import_post_view(cls):
+        sources = request.files.get("file")
+        if not sources:
+            return cls.import_view("No file or organization provided")
+        data = sources.read()
+        data = json.loads(data)
+        data = json.dumps(data["data"])
+
+        response = CoreApi().import_sources(json.loads(data))
+
+        if not response:
+            error = "Failed to import sources"
+            return cls.import_view(error)
+
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @classmethod
+    def export_view(cls):
+        source_ids = request.args.getlist("ids")
+        core_resp = CoreApi().export_sources(source_ids)
+
+        if not core_resp:
+            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+
+        return CoreApi.stream_proxy(core_resp, "sources_export.json")

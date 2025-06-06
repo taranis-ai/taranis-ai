@@ -85,6 +85,36 @@ class CoreApi:
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
 
+    def import_word_lists(self, word_lists):
+        return self.api_post("/config/import-word-lists", json_data=word_lists)
+
+    def export_word_lists(self, word_list_ids=None):
+        try:
+            return self.api_download("/config/export-word-lists", params=word_list_ids)
+        except Exception as e:
+            logger.error(f"Export word lists failed: {e}")
+            return None
+
+    def import_sources(self, sources):
+        return self.api_post("/config/import-osint-sources", json_data=sources)
+
+    def export_sources(self, source_ids=None):
+        try:
+            return self.api_download("/config/export-osint-sources", params=source_ids)
+        except Exception as e:
+            logger.error(f"Export sources failed: {e}")
+            return None
+
+    def import_report_item_types(self, report_item_types):
+        return self.api_post("/config/import-report-item-types", json_data=report_item_types)
+
+    def export_report_item_types(self, report_item_type_ids=None):
+        try:
+            return self.api_download("/config/export-report-item-types", params=report_item_type_ids)
+        except Exception as e:
+            logger.error(f"Export report item types failed: {e}")
+            return None
+
     def login(self, username, password):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
