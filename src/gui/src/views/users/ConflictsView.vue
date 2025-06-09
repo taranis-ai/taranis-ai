@@ -285,7 +285,8 @@ const {
   resolveIngestIncomingStoryWrapper,
   resolveIngestUniqueNewsItems,
   loadNewsItemConflicts,
-  loadSummariesPerConflict
+  loadSummariesPerConflict,
+  resolveStoryConflictById
 } = store
 
 const openPanels = ref([])
@@ -402,7 +403,7 @@ async function submitResolution(storyId) {
   }
 
   try {
-    await updateStory(storyId, {
+    await resolveStoryConflictById(storyId, {
       resolution: editedResolution,
       incoming_story_original: originalRHS,
       remaining_stories: allNewsItemConflictStories.value
