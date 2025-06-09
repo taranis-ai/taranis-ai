@@ -319,6 +319,13 @@ class MISPConnector:
                 return obj
         return None
 
+    def get_taranis_news_item_object_hash_list(self, event: MISPEvent) -> list[str] | None:
+        news_item_obj_hash_list = []
+        for obj in event.objects:
+            if obj.name == "taranis-news-item":
+                news_item_obj_hash_list.extend(attr.value for attr in obj.attributes if attr.object_relation == "hash")
+        return news_item_obj_hash_list or None
+
     def drop_existing_news_items(self, story: dict, ids_in_misp: set) -> dict | None:
         """
         Drop news items from 'story' that already exist in the MISP event
@@ -336,8 +343,11 @@ class MISPConnector:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
             event_dict = event.to_dict()
             orgc_id = event_dict.get("orgc_id", None)
+
             if orgc_id != self.org_id:
-                return self._add_proposal_to_event(story, misp_event_uuid, event, misp)
+                extension_id = self.add_missing_news_items_as_extension(event, story, misp)
+                self.propose_removal_of_old_news_items_with_attribute_proposals(event, story, misp, extension_id)
+                return self._add_attribute_proposal_to_event(story, misp_event_uuid, event, misp)
 
             self.remove_missing_objects_from_misp(misp, event, story)
             ids_in_misp = self.get_event_object_ids(event)
@@ -345,7 +355,7 @@ class MISPConnector:
                 return self._update_event(story_prepared, misp_event_uuid, event, misp)
         return None
 
-    def add_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> MISPShadowAttribute | None:
+    def add_story_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> MISPShadowAttribute | None:
         existing_object = self.get_taranis_story_object(existing_event)
         new_object = self.get_taranis_story_object(event_to_add)
 
@@ -369,13 +379,15 @@ class MISPConnector:
                 logger.info(f"No changes detected for {new_attr.object_relation}. Skipping proposal.")
                 continue
 
-            proposal = self._create_proposal(existing_event, existing_object, existing_attr, new_attr)
+            attribute_proposal = self._create_attribute_proposal(existing_event, existing_object, existing_attr, new_attr)
 
             try:
                 logger.debug(f"Adding proposal for {new_attr.object_relation} with value: {new_attr.value}")
-                logger.debug(f"{proposal.to_dict()=}")
+                logger.debug(f"{attribute_proposal.to_dict()=}")
 
-                shadow_attribute: MISPShadowAttribute | dict = misp.update_attribute_proposal(existing_attr.id, proposal, pythonify=True)
+                shadow_attribute: MISPShadowAttribute | dict = misp.update_attribute_proposal(
+                    existing_attr.id, attribute_proposal, pythonify=True
+                )
 
                 if isinstance(shadow_attribute, dict) and "errors" in shadow_attribute:
                     logger.error(f"Failed to add proposal for {new_attr.object_relation}: {shadow_attribute['errors']}")
@@ -388,7 +400,204 @@ class MISPConnector:
             except Exception as e:
                 logger.error(f"Error while adding proposal for {new_attr.object_relation}: {e}")
 
-    def _create_proposal(
+    def _get_parent_hashes(self, existing_event: MISPEvent) -> set[str]:
+        return set(self.get_taranis_news_item_object_hash_list(existing_event) or [])
+
+    def _get_incoming_hashes(self, story: dict) -> set[str]:
+        items = story.get("news_items", []) or []
+        return {ni.get("hash") for ni in items if ni.get("hash")}
+
+    def _get_hashes_to_remove(self, extension_event: MISPEvent, incoming_hashes: set[str]) -> list[tuple[str, int]]:
+        to_remove = []
+        for obj in extension_event.objects:
+            if obj.name != "taranis-news-item":
+                continue
+            obj_hash = next((attr.value for attr in obj.attributes if attr.object_relation == "hash"), None)
+            if obj_hash and obj_hash not in incoming_hashes:
+                to_remove.append((obj_hash, obj.id))
+        return to_remove
+
+    def _get_hashes_to_add(self, parent_hashes: set[str], extension_hashes: set[str], incoming_hashes: set[str]) -> list[str]:
+        return [h for h in incoming_hashes if h not in parent_hashes and h not in extension_hashes]
+
+    def _create_extension_event(self, existing_event: MISPEvent, hashes_to_add: list[str], misp: PyMISP) -> MISPEvent | None:
+        new_event = MISPEvent()
+        new_event.info = f"Extension of Event {existing_event.id} – new news items added"
+        new_event.distribution = existing_event.distribution
+        new_event.threat_level_id = existing_event.threat_level_id
+        new_event.analysis = existing_event.analysis
+        new_event.extends_uuid = existing_event.uuid
+        if self.sharing_group_id:
+            new_event.sharing_group_id = int(self.sharing_group_id)
+        try:
+            created = misp.add_event(new_event, pythonify=True)
+            if isinstance(created, dict) and created.get("errors"):
+                return None
+            return created  # type: ignore
+        except exceptions.PyMISPError:
+            return None
+
+    def _delete_stale_objects(self, extension_event: MISPEvent, hashes_to_remove: list[tuple[str, int]], misp: PyMISP) -> None:
+        for _, obj_id in hashes_to_remove:
+            try:
+                misp.delete_object(obj_id)
+            except Exception:
+                pass
+
+    def _add_new_objects(self, extension_event_id: int, incoming_items: list[dict], hashes_to_add: list[str], misp: PyMISP) -> None:
+        hash_to_obj: dict[str, MISPObject] = {}
+        for ni in incoming_items:
+            h = ni.get("hash")
+            if not h or h not in hashes_to_add:
+                continue
+            data = self.get_news_item_object_dict()
+            data.update({k: ni[k] for k in data if k in ni})
+            base_obj = BaseMispObject(
+                parameters=data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
+            )
+            hash_to_obj[h] = base_obj
+        for h in hashes_to_add:
+            obj_to_add = hash_to_obj.get(h)
+            if not obj_to_add:
+                continue
+            try:
+                misp.add_object(extension_event_id, obj_to_add)
+            except Exception:
+                pass
+
+    def add_missing_news_items_as_extension(
+        self,
+        existing_event: MISPEvent,
+        story: dict,
+        misp: PyMISP,
+    ) -> int | None:
+        parent_hashes = self._get_parent_hashes(existing_event)
+        extension_event = self._find_existing_extension_by_org(misp, existing_event)
+        if extension_event:
+            extension_hashes = set(self.get_taranis_news_item_object_hash_list(extension_event) or [])
+        else:
+            extension_hashes = set()
+        incoming_items = story.get("news_items", []) or []
+        incoming_hashes = self._get_incoming_hashes(story)
+        hashes_to_remove = self._get_hashes_to_remove(extension_event, incoming_hashes) if extension_event else []
+        hashes_to_add = self._get_hashes_to_add(parent_hashes, extension_hashes, incoming_hashes)
+        if not hashes_to_remove and not hashes_to_add:
+            return None
+        if not extension_event:
+            extension_event = self._create_extension_event(existing_event, hashes_to_add, misp)
+            if not extension_event:
+                return None
+        extension_event_id = extension_event.id  # type: ignore
+        self._delete_stale_objects(extension_event, hashes_to_remove, misp)
+        self._add_new_objects(extension_event_id, incoming_items, hashes_to_add, misp)
+        return extension_event_id
+
+    def _find_existing_extension_by_org(self, misp: PyMISP, parent_event: MISPEvent) -> MISPEvent | None:
+        """
+        Work around the non‐working 'extends_uuid' filter by retrieving a
+        reasonable subset of recent events and then returning the first one
+        whose .extends_uuid == parent_event.uuid and .org_id == self.org_id.
+        """
+        try:
+            parent_ts = parent_event.timestamp
+            candidates = misp.search(controller="events", date_from=parent_ts, pythonify=True)
+        except exceptions.PyMISPError as e:
+            logger.error(f"Error fetching candidate events for extension search: {e}")
+            return None
+
+        for ev in candidates:
+            if getattr(ev, "extends_uuid", None) == parent_event.uuid and str(ev.org_id) == str(self.org_id):  # type: ignore
+                return ev  # type: ignore
+
+        return None
+
+    def _check_news_item_to_remove(self, existing_news_item_hash_list: list, new_news_item_hash_list: list) -> list | None:
+        news_item_hash_to_remove = []
+        for existing_hash in existing_news_item_hash_list:
+            if existing_hash not in new_news_item_hash_list:
+                logger.debug(f"News item will be proposed to remove: {existing_hash}")
+                news_item_hash_to_remove.append(existing_hash)
+
+        return news_item_hash_to_remove or None
+
+    def propose_removal_of_old_news_items_with_attribute_proposals(
+        self,
+        existing_event: MISPEvent,
+        story: dict,
+        misp: PyMISP,
+        extension_event_id: int | None = None,
+    ) -> None:
+        """
+        1) Build two lists of hashes: one from existing_event, one from story['news_items'].
+        2) Call _check_news_item_to_remove(...) to see which existing hashes no longer appear.
+        3) For each hash-to-remove:
+            a) Find the matching MISPObject (name == "taranis-news-item") in existing_event.
+            b) Within that object, locate the Attribute whose object_relation == "hash".
+            c) Build a MISPAttribute proposal via _create_attribute_proposal, then override the comment.
+            d) Call misp.update_attribute_proposal(orig_attribute_id, proposal).
+        4) If extension_event_id is given, the comment will reference it; otherwise use the "no extension" fallback.
+        """
+
+        existing_hashes = self.get_taranis_news_item_object_hash_list(existing_event) or []
+
+        new_items = story.get("news_items", []) or []
+        new_hashes = [ni.get("hash") for ni in new_items if ni.get("hash")]
+
+        hashes_to_remove = self._check_news_item_to_remove(existing_hashes, new_hashes)
+        if not hashes_to_remove:
+            logger.info("No news‐item hashes to propose for removal.")
+            return
+
+        for h in hashes_to_remove:
+            found_obj = None
+            found_attr = None
+
+            for misp_obj in existing_event.objects:
+                if misp_obj.name != "taranis-news-item":
+                    continue
+
+                for attr in misp_obj.attributes:
+                    if attr.object_relation == "hash" and attr.value == h:
+                        found_obj = misp_obj
+                        found_attr = attr
+                        break
+
+                if found_obj:
+                    break
+
+            if not found_obj or not found_attr:
+                logger.error(f"Could not locate MISPObject or its 'hash' attribute for hash='{h}'; skipping proposal.")
+                continue
+
+            proposal = self._create_attribute_proposal(
+                existing_event,
+                found_obj,
+                found_attr,
+                new_attr=found_attr,
+            )
+
+            if extension_event_id is not None:
+                proposal.comment = (
+                    f"This news‐item can be removed. Please review the new items in extension Event "
+                    f"{extension_event_id} and consider adding any relevant items from there."
+                )
+            else:
+                proposal.comment = (
+                    "This news‐item is not considered a good fit for the story. Please consider deletion and update of this event."
+                )
+
+            try:
+                shadow_attr = misp.update_attribute_proposal(found_attr.id, proposal, pythonify=True)
+                if isinstance(shadow_attr, dict) and shadow_attr.get("errors"):
+                    logger.error(f"Failed to propose update on attribute (hash={h}, attr_id={found_attr.id}): {shadow_attr['errors']}")
+                else:
+                    logger.info(f"Proposed attribute update on news‐item (hash={h}, attr_id={found_attr.id}).")
+            except exceptions.PyMISPError as e:
+                logger.error(f"PyMISP error while proposing attribute update for hash={h}, attr_id={found_attr.id}: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error while proposing attribute update for hash={h}, attr_id={found_attr.id}: {e}")
+
+    def _create_attribute_proposal(
         self, existing_event: MISPEvent, existing_object: MISPObject, existing_attr: MISPAttribute, new_attr: MISPObjectAttribute
     ) -> MISPAttribute:
         proposal = MISPAttribute()
@@ -420,14 +629,14 @@ class MISPConnector:
             return None
         return updated_event
 
-    def _add_proposal_to_event(
+    def _add_attribute_proposal_to_event(
         self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent, misp: PyMISP
     ) -> MISPShadowAttribute | None:
         logger.info(
             f"Event with UUID: {misp_event_uuid} is not editable by the organisation with ID: {self.org_id}. A proposal will be attempted instead."
         )
         event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
-        shadow_attribute: MISPShadowAttribute | None = self.add_proposal(existing_event, event_to_add, misp)
+        shadow_attribute: MISPShadowAttribute | None = self.add_story_proposal(existing_event, event_to_add, misp)
         logger.debug(f"{shadow_attribute=}")
         return shadow_attribute
 
