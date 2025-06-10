@@ -437,7 +437,7 @@ class MISPConnector:
         except exceptions.PyMISPError:
             return None
 
-    def _delete_stale_objects(self, extension_event: MISPEvent, hashes_to_remove: list[tuple[str, int]], misp: PyMISP) -> None:
+    def _delete_stale_objects(self, hashes_to_remove: list[tuple[str, int]], misp: PyMISP) -> None:
         for _, obj_id in hashes_to_remove:
             try:
                 misp.delete_object(obj_id)
@@ -488,7 +488,7 @@ class MISPConnector:
             if not extension_event:
                 return None
         extension_event_id = extension_event.id  # type: ignore
-        self._delete_stale_objects(extension_event, hashes_to_remove, misp)
+        self._delete_stale_objects(hashes_to_remove, misp)
         self._add_new_objects(extension_event_id, incoming_items, hashes_to_add, misp)
         return extension_event_id
 
