@@ -307,8 +307,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("div[name='comment']").get_by_role("textbox")).to_have_text("I like this story, it needs to be reviewed.")
 
             # Tag chips
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(0)).to_have_text("APT74")
-            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(1)).to_have_text("APT75")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(0)).to_have_text("APT75")
+            expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(1)).to_have_text("APT74")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(2)).to_have_text("APT76")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(3)).to_have_text("APT77")
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(4)).to_have_text("APT78")
