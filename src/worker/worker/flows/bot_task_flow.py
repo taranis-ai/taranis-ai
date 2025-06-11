@@ -2,6 +2,7 @@ from prefect import flow, task
 from core.log import logger
 from models.bot import BotTaskRequest
 from core.model.bot import Bot
+from worker.bots.registry import BOT_REGISTRY
 import json
 
 
@@ -24,7 +25,6 @@ def parse_filters(filter_dict: dict | None):
 
     logger.info(f"[bot_task] Parsing filters: {filter_dict}")
 
-    # Parse filter conditions
     parsed_filters = {}
     for key, value in filter_dict.items():
         if isinstance(value, str) and value.startswith("[") and value.endswith("]"):
@@ -39,20 +39,13 @@ def parse_filters(filter_dict: dict | None):
 def execute_bot_logic(bot: Bot, filters: dict):
     logger.info(f"[bot_task] Executing bot {bot.id} with filters: {filters}")
 
-    # Import the specific bot module
-    bot_module = __import__(f"worker.bots.{bot.type}_bot", fromlist=["BotTask"])
+    bot_class = BOT_REGISTRY.get(bot.type)
+    if not bot_class:
+        raise ValueError(f"Unsupported bot type: {bot.type}")
 
-    # Get the bot task class
-    bot_task_class = getattr(bot_module, "BotTask")
+    bot_instance = bot_class(bot)
 
-    # Initialize and run the bot
-    bot_instance = bot_task_class(bot)
-
-    # Apply filters
-    if filters:
-        result = bot_instance.execute(filters=filters)
-    else:
-        result = bot_instance.execute()
+    result = bot_instance.execute(filters=filters) if filters else bot_instance.execute()
 
     logger.info(f"[bot_task] Bot {bot.id} executed successfully")
     return result
@@ -63,7 +56,6 @@ def update_bot_execution_stats(bot: Bot, result):
     logger.info(f"[bot_task] Updating execution stats for bot {bot.id}")
 
     bot.update_last_execution()
-
     if result:
         bot.log_execution_result(result)
 
@@ -75,21 +67,21 @@ def bot_task_flow(request: BotTaskRequest):
     try:
         logger.info(f"[bot_task_flow] Starting execution of bot {request.bot_id}")
 
-        # Fetch bot information
         bot = fetch_bot_info(request.bot_id)
-
-        # Parse filters if provided
         filters = parse_filters(request.filter)
-
-        # Execute bot logic
         result = execute_bot_logic(bot, filters)
-
-        # Update execution stats
         bot = update_bot_execution_stats(bot, result)
 
         logger.info(f"[bot_task_flow] Successfully executed bot {request.bot_id}")
-        return {"message": f"Executing Bot {request.bot_id} scheduled", "id": request.bot_id, "result": result}
+        return {
+            "message": f"Executing Bot {request.bot_id} scheduled",
+            "id": request.bot_id,
+            "result": result,
+        }
 
     except Exception as e:
         logger.exception(f"[bot_task_flow] Failed to execute bot {request.bot_id}")
-        return {"error": "Could not reach rabbitmq", "details": str(e)}
+        return {
+            "error": "Could not reach rabbitmq",
+            "details": str(e),
+        }

@@ -3,6 +3,7 @@ from core.log import logger
 from models.connector import ConnectorTaskRequest
 from core.model.connector import Connector
 from core.model.news_item import NewsItem
+from worker.connectors.registry import CONNECTOR_REGISTRY
 from typing import List, Optional
 
 
@@ -64,11 +65,11 @@ def transform_stories_for_connector(stories: List[NewsItem], connector: Connecto
 def push_to_connector(connector: Connector, transformed_stories: List[dict]):
     logger.info(f"[connector_task] Pushing {len(transformed_stories)} stories to connector {connector.id}")
 
-    connector_module = __import__(f"worker.connectors.{connector.type}_connector", fromlist=["ConnectorTask"])
+    connector_class = CONNECTOR_REGISTRY.get(connector.type)
+    if not connector_class:
+        raise ValueError(f"Unsupported connector type: {connector.type}")
 
-    connector_task_class = getattr(connector_module, "ConnectorTask")
-
-    connector_instance = connector_task_class(connector)
+    connector_instance = connector_class(connector)
 
     batch_size = connector.batch_size or 100
     results = []
@@ -98,28 +99,27 @@ def connector_task_flow(request: ConnectorTaskRequest):
     try:
         logger.info(f"[connector_task_flow] Starting push to connector {request.connector_id}")
 
-        # Fetch connector information
         connector = fetch_connector_info(request.connector_id)
-
-        # Fetch stories to push
         stories = fetch_stories_for_push(request.story_ids)
 
         if not stories:
             logger.info(f"[connector_task_flow] No stories to push to connector {request.connector_id}")
             return {"message": f"No stories to push to connector {request.connector_id}", "count": 0}
 
-        # Transform stories for connector
         transformed_stories = transform_stories_for_connector(stories, connector)
-
-        # Push to connector
         results = push_to_connector(connector, transformed_stories)
-
-        # Update story status
         count = update_story_status(stories, connector, results)
 
         logger.info(f"[connector_task_flow] Successfully pushed {count} stories to connector {request.connector_id}")
-        return {"message": f"Connector with id: {request.connector_id} scheduled", "count": count, "results": results}
+        return {
+            "message": f"Connector with id: {request.connector_id} scheduled",
+            "count": count,
+            "results": results,
+        }
 
     except Exception as e:
         logger.exception(f"[connector_task_flow] Failed to push to connector {request.connector_id}")
-        return {"error": "Could not reach rabbitmq", "details": str(e)}
+        return {
+            "error": "Could not reach rabbitmq",
+            "details": str(e),
+        }

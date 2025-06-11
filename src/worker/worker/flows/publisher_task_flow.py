@@ -3,6 +3,7 @@ from core.log import logger
 from models.publisher import PublisherTaskRequest
 from core.model.product import Product
 from core.model.publisher import Publisher
+from worker.publishers.registry import PUBLISHER_REGISTRY
 
 
 @task
@@ -39,11 +40,12 @@ def get_rendered_product(product: Product, publisher: Publisher):
 def dispatch_publisher(publisher: Publisher, rendered_product):
     logger.info(f"[publisher_task] Dispatching to publisher type: {publisher.type}")
 
-    publisher_module = __import__(f"worker.publishers.{publisher.type}_publisher", fromlist=["PublisherTask"])
-    publisher_task_class = getattr(publisher_module, "PublisherTask")
+    publisher_class = PUBLISHER_REGISTRY.get(publisher.type)
+    if not publisher_class:
+        raise ValueError(f"Unsupported publisher type: {publisher.type}")
 
-    publisher_instance = publisher_task_class(publisher)
-    result = publisher_instance.publish(data=rendered_product.data, file_name_prefix=rendered_product.mime_type)
+    publisher_instance = publisher_class()
+    result = publisher_instance.publish(publisher, {}, rendered_product)
 
     logger.info(f"[publisher_task] Published product successfully")
     return result
@@ -54,19 +56,20 @@ def publisher_task_flow(request: PublisherTaskRequest):
     try:
         logger.info(f"[publisher_task_flow] Starting publication of product {request.product_id} with publisher {request.publisher_id}")
 
-        # Fetch  data
         product = fetch_product_info(request.product_id)
         publisher = fetch_publisher_info(request.publisher_id)
-
-        # Get rendered product
         rendered_product = get_rendered_product(product, publisher)
-
-        # Dispatch to publisher
         result = dispatch_publisher(publisher, rendered_product)
 
         logger.info(f"[publisher_task_flow] Successfully published product {request.product_id}")
-        return {"message": f"Publishing Product: {request.product_id} with publisher: {request.publisher_id} scheduled", "result": result}
+        return {
+            "message": f"Publishing Product: {request.product_id} with publisher: {request.publisher_id} scheduled",
+            "result": result,
+        }
 
     except Exception as e:
         logger.exception(f"[publisher_task_flow] Failed to publish product {request.product_id}")
-        return {"error": "Could not reach rabbitmq", "details": str(e)}
+        return {
+            "error": "Could not reach rabbitmq",
+            "details": str(e),
+        }

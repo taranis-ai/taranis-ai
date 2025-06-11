@@ -4,6 +4,7 @@ from models.presenter import PresenterTaskRequest
 from core.model.product import Product
 from core.model.presenter import Presenter
 from core.model.report_item import ReportItem
+from worker.presenters.registry import PRESENTER_REGISTRY
 import time
 
 
@@ -39,29 +40,20 @@ def fetch_report_items(product: Product, presenter: Presenter):
     logger.info("[presenter_task] Fetching report items for product %s", product.id)
 
     if hasattr(presenter, "with_limit") and presenter.with_limit:
-        report_items = ReportItem.get_for_product(product, limit=presenter.limit)
-    else:
-        report_items = ReportItem.get_for_product(product)
-
-    return report_items
+        return ReportItem.get_for_product(product, limit=presenter.limit)
+    return ReportItem.get_for_product(product)
 
 
 @task
 def generate_rendered_product(presenter: Presenter, product: Product, report_items: list):
     logger.info("[presenter_task] Generating rendered product for %s", product.id)
 
-    # Import the specific presenter module
-    module_name = "worker.presenters.%s_presenter" % presenter.type
-    presenter_module = __import__(module_name, fromlist=["PresenterTask"])
+    presenter_class = PRESENTER_REGISTRY.get(presenter.type)
+    if not presenter_class:
+        raise ValueError(f"Unsupported presenter type: {presenter.type}")
 
-    # Get the presenter task class
-    presenter_task_class = getattr(presenter_module, "PresenterTask")
-
-    # Initialize and run the presenter
-    presenter_instance = presenter_task_class(presenter)
-    rendered_product = presenter_instance.generate(product=product, report_items=report_items)
-
-    return rendered_product
+    presenter_instance = presenter_class(presenter)
+    return presenter_instance.generate(product=product, report_items=report_items)
 
 
 @task
@@ -76,7 +68,6 @@ def save_rendered_product(product: Product, presenter: Presenter, rendered_produ
 def presenter_task_flow(request: PresenterTaskRequest):
     try:
         product_id = str(request.product_id) if request and hasattr(request, "product_id") else None
-
         if not product_id:
             raise ValueError("Product ID is required")
 
@@ -94,15 +85,12 @@ def presenter_task_flow(request: PresenterTaskRequest):
             raise ValueError("Invalid product type")
 
         presenter = fetch_presenter(product_type.id)
-
         report_items = fetch_report_items(product, presenter)
-
         rendered_product = generate_rendered_product(presenter, product, report_items)
-
         final_product = save_rendered_product(product, presenter, rendered_product)
 
         logger.info("[presenter_task_flow] Successfully generated product: %s", product_id)
-        return {"message": "Generating Product %s scheduled" % product_id, "result": final_product}
+        return {"message": f"Generating Product {product_id} scheduled", "result": final_product}
 
     except Exception as e:
         logger.exception("[presenter_task_flow] Failed to generate product")
