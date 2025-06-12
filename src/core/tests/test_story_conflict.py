@@ -75,7 +75,7 @@ def updated_story():
 
 
 class TestStoryConflictSorting:
-    def test_stable_stringify_handles_different_tag_order(self, sample_story_data_1, sample_story_data_2):
+    def test_stable_stringify_handles_different_tag_order(self, story_data_1, story_data_2):
         result_1 = StoryConflict.stable_stringify(story_data_1)
         result_2 = StoryConflict.stable_stringify(story_data_2)
 
