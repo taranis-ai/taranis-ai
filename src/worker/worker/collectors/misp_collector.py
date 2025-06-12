@@ -24,14 +24,12 @@ class MISPCollector(BaseCollector):
         self.url: str = ""
         self.api_key: str = ""
         self.ssl: bool = False
-        self.request_timeout: int
         self.sharing_group_id: str = ""
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.ssl = parameters.get("SSL", False)
-        self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES", "")
         self.headers = parameters.get("HEADERS", "")
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
@@ -125,11 +123,22 @@ class MISPCollector(BaseCollector):
             return ""
 
     @staticmethod
-    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict:
+    def remove_duplicate_news_items(news_items: list[NewsItem]) -> list[NewsItem]:
+        hash_list = []
+        unique_news_item_list = []
+        for news_item in news_items:
+            if news_item not in hash_list:
+                unique_news_item_list.append(news_item)
+                hash_list.append(news_item.hash)
+        return unique_news_item_list
+
+    @staticmethod
+    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
+        MISPCollector.remove_duplicate_news_items(news_items_list)
         story_properties["news_items"] = news_items_list
         return story_properties
 
-    def get_story_properties_from_story_object(self, event: dict) -> dict:
+    def get_story_properties_from_story_object(self, object: dict) -> dict:
         """
         Useful for unit testing.
         If you add or remove a key from here, do the same for the respective object definition file.
@@ -151,7 +160,7 @@ class MISPCollector(BaseCollector):
             "attributes": [],
         }
 
-        for item in event.get("Attribute", []):
+        for item in object.get("Attribute", []):
             match item.get("object_relation", ""):
                 case "id":
                     story_properties["id"] = item.get("value", None)
@@ -189,25 +198,59 @@ class MISPCollector(BaseCollector):
                     story_properties["dislikes"] = int(item.get("value", 0))
         return story_properties
 
-    def get_story(self, event: dict, source: dict) -> dict:
-        story_news_items = []
+    def get_extended_event_news_items(self, event: dict, misp, source) -> list:
+        all_news_items = []
+        if extending_events := event.get("Event", {}).get("extensionEvents", {}):
+            for extended_event_id, _ in extending_events.items():
+                logger.debug(f"Extending event with ID: {extended_event_id}")
+                extended_event = misp.get_event(extended_event_id, pythonify=False)
+                if not self.is_sharing_group_match(extended_event):
+                    logger.debug(f"Skipping extended event with ID {extended_event_id} due to sharing group mismatch")
+                    continue
+                extended_objects = extended_event.get("Event", {}).get("Object", {})
+                _, story_news_items = self.extract_story_data_from_event_objects(extended_objects, source)
+                all_news_items.append(story_news_items)
+
+        return all_news_items
+
+    def get_story(self, misp, event: dict, source: dict) -> dict | None:
         story_properties = {}
-        if event_objects := event.get("Event", {}).get("Object", {}):
-            for object in event_objects:
-                if object.get("name") == "taranis-story":
-                    story_properties = self.get_story_properties_from_story_object(object)
-                else:
-                    story_news_items.append(self.create_news_item(object, source))
+        story_news_items = []
+        extended_news_items = self.get_extended_event_news_items(event, misp, source)
+
+        if event_object_dicts := event.get("Event", {}).get("Object", {}):
+            story_properties, news_items = self.extract_story_data_from_event_objects(event_object_dicts, source)
+            story_news_items = news_items + extended_news_items  # Keep extended events at the end for deduplication
 
         if not story_properties:
-            logger.error(f"The Taranis event is malformed and does not contain the required properties: {story_properties=}")
-            raise RuntimeError("The Taranis event is malformed and does not contain the required properties")
-        return self.to_story_dict(story_properties, story_news_items, event.get("Event", {}).get("uuid"))
+            logger.error(
+                f"The Taranis event is malformed or is just an extended event and does not contain the required properties: {story_properties=}"
+            )
+            return None
+        return self.to_story_dict(story_properties, story_news_items)
+
+    def extract_story_data_from_event_objects(self, event_object_dicts: list[dict], source) -> tuple[dict, list]:  # TODO: check this
+        story_news_items = []
+        story_properties = {}
+        for object in event_object_dicts:
+            if object.get("name") == "taranis-story":
+                story_properties = self.get_story_properties_from_story_object(object)
+            elif object.get("name") == "taranis-news-item":
+                news_item = self.create_news_item(object, source)
+                story_news_items.append(news_item)
+            else:
+                logger.warning(f"Unknown object type in MISP event: {object.get('name')}")
+        return story_properties, story_news_items
 
     def get_taranis_event_ids(self, misp) -> set[int]:
         # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
         # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[dict] = misp.search(controller="objects", object_name="taranis-news-item", pythonify=False)
+        taranis_objects: list[dict] = misp.search(
+            controller="objects", object_name="taranis-news-item", sharinggroup=self.sharing_group_id or None, pythonify=False
+        )
+        if isinstance(taranis_objects, dict):
+            logger.error(f"Error fetching objects from MISP: {taranis_objects.get('message', 'Unknown error')}")
+            return set()
 
         event_ids = set()
         for obj_dict in taranis_objects:
@@ -218,10 +261,10 @@ class MISPCollector(BaseCollector):
 
     def is_sharing_group_match(self, event: dict) -> bool:
         event_sg_id = str(event.get("Event", {}).get("sharing_group_id"))
-        return not self.sharing_group_id or event_sg_id == str(self.sharing_group_id)
+        return not self.sharing_group_id or event_sg_id == self.sharing_group_id
 
-    def get_taranis_story_dicts(self, events: list[dict], source) -> list[dict]:
-        return [story for event in events if self.is_sharing_group_match(event) if (story := self.get_story(event, source)) is not None]
+    def get_taranis_story_dicts(self, misp, events: list[dict], source) -> list[dict]:
+        return [story for event in events if self.is_sharing_group_match(event) if (story := self.get_story(misp, event, source)) is not None]
 
     def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
         for story in story_dicts:
@@ -234,8 +277,8 @@ class MISPCollector(BaseCollector):
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
         event_ids: set[int] = self.get_taranis_event_ids(misp)
 
-        events: list[dict] = [misp.get_event(event_id, pythonify=False) for event_id in event_ids]  # type: ignore
-        story_dicts = self.get_taranis_story_dicts(events, source)
+        events: list[dict] = [misp.get_event(event_id, extended=False, pythonify=False) for event_id in event_ids]  # type: ignore
+        story_dicts = self.get_taranis_story_dicts(misp, events, source)
         logger.info(f"{len(story_dicts)} stories have been collected from MISP")
         self.set_story_proposal_status(misp, story_dicts)
 

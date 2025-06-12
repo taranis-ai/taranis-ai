@@ -485,8 +485,8 @@ class MISPConnector:
             return None
         if not extension_event:
             extension_event = self._create_extension_event(existing_event, hashes_to_add, misp)
-            if not extension_event:
-                return None
+        if not extension_event:
+            return None
         extension_event_id = extension_event.id  # type: ignore
         self._delete_stale_objects(hashes_to_remove, misp)
         self._add_new_objects(extension_event_id, incoming_items, hashes_to_add, misp)
