@@ -16,9 +16,10 @@ def setup_tasks(app: Celery):
         app.register_task(CollectorTask())
     if "Presenters" in Config.WORKER_TYPES:
         try:
-            from worker.presenters.presenter_tasks import PresenterTask
+            from worker.presenters.presenter_tasks import PresenterTask, TemplateValidationTask
 
             app.register_task(PresenterTask())
+            app.register_task(TemplateValidationTask())
         except OSError as e:
             logger.critical(f"Failed to load PDFPresenter: {e}. Ensure WeasyPrint and dependencies are installed.")
 
