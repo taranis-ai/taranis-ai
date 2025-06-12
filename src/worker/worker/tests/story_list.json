@@ -452,6 +452,78 @@
     },
     "id": "11"
 
-  }
+  },
+  {
+  "attributes": [
+    {
+      "key": "test_key",
+      "value": "test_value"
+    },
+    {
+      "key": "TLP",
+      "value": "clear"
+    },
+    {
+      "key": "cybersecurity",
+      "value": "yes"
+    }
+  ],
+  "comments": "This is a story comment",
+  "created": "2025-06-03T07:36:00+00:00",
+  "description": "",
+  "detail_view": true,
+  "dislikes": 0,
+  "id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
+  "important": false,
+  "last_change": "internal",
+  "likes": 0,
+  "links": [
+    {
+      "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
+      "news_item_id": "06cc6fd0-a775-4923-bdef-8cd5381164ce"
+    }
+  ],
+  "news_items": [
+    {
+      "attributes": [
+        {
+          "key": "cybersecurity_human",
+          "value": "yes"
+        }
+      ],
+      "author": "Author attributes",
+      "collected": "2025-06-03T08:01:11.369743+00:00",
+      "content": "Title attributes",
+      "hash": "b050dbdd99a5645e286ba20324afad2ec35e8a3bbdfa6721b6c9e3f74b8d0ed4",
+      "id": "06cc6fd0-a775-4923-bdef-8cd5381164ce",
+      "language": "",
+      "last_change": "internal",
+      "link": "https://www.hohoho.at/news/special-case-with-attributes.html",
+      "osint_source_id": "2fe06fdc-46a6-4688-ba01-3f0931aab7a5",
+      "published": "2025-06-03T07:36:00+00:00",
+      "review": "",
+      "source": "https://www.test.at/security/rss/news.xml",
+      "story_id": "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448",
+      "title": "Title news item with attributes",
+      "updated": "2025-06-03T06:54:55.220906+00:00"
+    }
+  ],
+  "read": false,
+  "relevance": 0,
+  "summary": "This is a story summary",
+  "tags": [
+    {
+      "name": "TAG",
+      "tag_type": "ORG"
+    },
+    {
+      "name": "tag2",
+      "tag_type": "misc"
+    }
+  ],
+  "title": "Title",
+  "updated": "2025-06-03T12:37:53.360510+00:00"
+}
+
 
 ]

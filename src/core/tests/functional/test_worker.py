@@ -1,3 +1,8 @@
+import importlib.util
+import os
+import sys
+
+
 class TestWorkerApi:
     base_uri = "/api/worker"
 
@@ -7,8 +12,10 @@ class TestWorkerApi:
         It expects a valid data and a valid status-code
         """
 
+        story_1_id = stories[0]
+
         update_story_data = cleanup_story_update_data
-        update_story_data["id"] = stories[0]
+        update_story_data["id"] = story_1_id
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -19,13 +26,13 @@ class TestWorkerApi:
         assert response.status_code == 200
         result = response.get_json()
         assert result.get("message") == "Story updated successfully"
-        assert result.get("id") == stories[0]
+        assert result.get("id") == story_1_id
 
-        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": stories[0]})
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
 
         assert response.status_code == 200
         assert response.get_json()[0].get("title") == update_story_data["title"]
-        assert response.get_json()[0].get("id") == stories[0]
+        assert response.get_json()[0].get("id") == story_1_id
 
     def test_worker_story_update_with_new_news_item(self, client, stories, cleanup_story_update_data, cleanup_news_item, api_header):
         """
@@ -33,24 +40,25 @@ class TestWorkerApi:
         by including new news items and adding an extra attribute.
         It verifies that the total number of news_items in the story increases as expected.
         """
+        story_1_id = stories[0]
+
         # Get the current state of the story to know the original number of news items.
         response = client.get(
             f"{self.base_uri}/stories",
             headers=api_header,
-            query_string={"story_id": stories[0]},
+            query_string={"story_id": story_1_id},
         )
         assert response.status_code == 200
         original_story = response.get_json()[0]
         original_news_items = original_story.get("news_items", [])
-        original_news_items_count = len(original_news_items)
-
-        print(f"{original_news_items=}")
-        print(f"{original_news_items_count=}")
+        assert len(original_news_items) == 1
+        assert len(original_story.get("attributes", [])[0]) == 4
 
         update_data = cleanup_story_update_data.copy()
-        update_data["id"] = stories[0]  # reuse the story id from the previous test
-        update_data["news_items"] = [original_story.get("news_items", [])[0], cleanup_news_item]
+        update_data["id"] = story_1_id  # reuse the story id from the previous test
+        update_data["news_items"] = [cleanup_news_item]
         update_data["attributes"].append({"key": "status", "value": "updated"})
+        update_data["tags"] = ["tag1", "tag2"]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -60,18 +68,13 @@ class TestWorkerApi:
         assert response.status_code == 200
         result = response.get_json()
         assert result.get("message") == "Story updated successfully"
-        assert result.get("id") == stories[0]
+        assert result.get("id") == story_1_id
 
-        response = client.get(
-            f"{self.base_uri}/stories",
-            headers=api_header,
-            query_string={"story_id": stories[0]},
-        )
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
         assert response.status_code == 200
         updated_story = response.get_json()[0]
-        print(f"{updated_story=}")
         assert updated_story.get("title") == update_data["title"]
-        assert updated_story.get("id") == stories[0]
+        assert updated_story.get("id") == story_1_id
 
         updated_news_items = updated_story.get("news_items", [])
         assert len(updated_news_items) == 2, f"Expected 2 news items, but got {len(updated_news_items)}"
@@ -85,6 +88,86 @@ class TestWorkerApi:
         assert any(attr.get("key") == "status" and attr.get("value") == "updated" for attr in attributes_in_story), (
             "Updated attribute not found in the story."
         )
+        assert len(updated_story.get("tags")) == 2
+
+    def test_worker_story_update_including_existing_news_items(
+        self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header
+    ):
+        story_1_id = stories[0]
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_1_id},
+        )
+        assert response.status_code == 200
+        original_story = response.get_json()[0]
+        original_news_items = original_story.get("news_items", [])
+        original_news_items.append(cleanup_news_item_2)
+
+        update_data = cleanup_story_update_data.copy()
+        update_data["id"] = story_1_id
+        update_data["news_items"] = original_news_items
+
+        response = client.post(
+            f"{self.base_uri}/stories",
+            json=update_data,
+            headers=api_header,
+        )
+        result = response.get_json()
+
+        assert response.status_code == 200
+        assert result.get("message") == "Story updated successfully"
+        assert result.get("id") == story_1_id
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_1_id},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()[0].get("title") == update_data["title"]
+        assert len(response.get_json()[0].get("news_items", [])) == len(original_news_items)
+        assert len(response.get_json()[0].get("tags")) == 2
+
+    def test_worker_story_update_with_conflict(self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header):
+        story_2_id = stories[1]
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_2_id},
+        )
+        assert response.status_code == 200
+        original_story = response.get_json()[0]
+        original_news_items = original_story.get("news_items", [])
+
+        updated_news_items = original_news_items.copy()
+        updated_news_items.append(cleanup_news_item_2)
+
+        update_data = cleanup_story_update_data.copy()
+        update_data["id"] = story_2_id
+        update_data["news_items"] = updated_news_items
+
+        response = client.post(
+            f"{self.base_uri}/stories",
+            json=update_data,
+            headers=api_header,
+        )
+        result = response.get_json()
+        assert response.status_code == 409
+        assert "conflicts_number" in result.get("error")
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_2_id},
+        )
+        assert response.status_code == 200
+        updated_story = response.get_json()[0]
+
+        assert updated_story.get("title") == original_story["title"]
+        assert len(updated_story.get("news_items", [])) == len(original_story.get("news_items", []))
 
     def test_worker_create_full_story(self, client, full_story: list[dict], api_header):
         response = client.post(
@@ -99,11 +182,27 @@ class TestWorkerApi:
         assert result.get("news_item_ids")[0] == full_story[0].get("news_items", [])[0].get("id", "<news_item_id>")
         assert result.get("story_id", "t<story_id>") == full_story[0].get("id")
 
+    def test_worker_put_tags(self, client, stories, api_header):
+        story_1_id = stories[0]
+        tags = ["tag3", "tag4"]
+
+        response = client.put(f"{self.base_uri}/tags", json={story_1_id: tags}, headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json().get("message") == "Tags updated"
+
+    def test_worker_get_tags(self, client, api_header):
+        response = client.get(f"{self.base_uri}/tags", headers=api_header)
+
+        assert response.status_code == 200
+        assert isinstance(response.get_json(), dict)
+        assert len(response.get_json()) == 5
+
 
 class TestWorkerStoryApi:
     base_uri = "/api/worker"
 
-    def test_news_items_to_story(self, client, news_items, api_header):
+    def test_news_items_to_story(self, client, news_items, api_header, auth_header):
         story = {
             "title": "Test title",
             "attributes": [{"key": "hey", "value": "hou"}],
@@ -111,6 +210,58 @@ class TestWorkerStoryApi:
         }
 
         response = client.post(f"{self.base_uri}/stories", json=story, headers=api_header)
-
         assert response.status_code == 200
         assert response.get_json().get("message") == "Story added successfully"
+        response = client.delete(f"api/assess/story/{response.get_json().get('story_id')}", headers=auth_header)
+        assert response.status_code == 200
+
+
+class TestConnector:
+    base_uri = "/api/worker"
+
+    def test_connector(self, client, stories, api_header):
+        from unittest.mock import MagicMock
+
+        sys.modules["pymisp"] = MagicMock()
+        sys.modules["worker"] = MagicMock()
+        sys.modules["worker.log"] = MagicMock()
+        sys.modules["worker.core_api"] = MagicMock()
+        sys.modules["worker.connectors"] = MagicMock()
+        sys.modules["worker.connectors.definitions"] = MagicMock()
+        sys.modules["worker.connectors.definitions.misp_objects"] = MagicMock()
+        file_path = os.path.abspath(os.path.join(__file__, "../../../../worker/worker/connectors/misp_connector.py"))
+
+        spec = importlib.util.spec_from_file_location("misp_connector", file_path)
+
+        assert spec is not None
+        assert spec.loader is not None
+
+        misp_connector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(misp_connector)
+
+        MISPConnector = misp_connector.MISPConnector
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+        )
+        story = response.get_json()[0]
+        story_id = story.get("id")
+        story["attributes"] = [{"key": "test", "value": "test"}]
+        story["tags"] = ["test_tag"]
+
+        response = client.post(
+            f"{self.base_uri}/stories",
+            json=story,
+            headers=api_header,
+        )
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        story = response.get_json()[0]
+        story_attributes = story.get("attributes", [])
+        story_tags = story.get("tags", [])
+
+        tag_list = MISPConnector._process_items(story, "tags", MISPConnector._process_tags)
+        attribute_list = MISPConnector._process_items(story, "attributes", MISPConnector._process_attribute)
+        assert attribute_list == ["{'key': 'test', 'value': 'test'}"], f"Expected attributes {story_attributes}, but got {attribute_list}"
+        assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {story_tags}, but got {tag_list}"
