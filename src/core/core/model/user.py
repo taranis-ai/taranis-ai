@@ -74,8 +74,8 @@ class User(BaseModel):
             "id": self.id,
             "name": self.name,
             "username": self.username,
-            "organization": self.organization.to_user_dict(),
-            "roles": [role.to_user_dict() for role in self.roles if role],
+            "organization": self.organization.id,
+            "roles": [role.id for role in self.roles if role],
             "permissions": self.get_permissions(),
             "profile": self.profile,
         }

@@ -4,7 +4,7 @@
 {% set table_container = model_name + '-table-container' %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
-  {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.delete_route) %}
+  {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
   <div class="grow-0">
     <div class="join gap-1" hx-target="#form-container">
       {{ import_button(url_for('admin.import_users')) }}

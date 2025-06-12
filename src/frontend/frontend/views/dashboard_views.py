@@ -14,6 +14,7 @@ class DashboardView(BaseView):
     htmx_update_template = "admin_dashboard/index.html"
     default_template = "admin_dashboard/index.html"
     base_route = "admin.dashboard"
+    _read_only = True
     _index = 10
 
     @classmethod

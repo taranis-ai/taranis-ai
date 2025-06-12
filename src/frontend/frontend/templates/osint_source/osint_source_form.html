@@ -19,7 +19,7 @@
     <label class="select w-full mb-5">
       <span class="label">Collector Type</span>
       <select id="collector_type"
-              name="collector_type"
+              name="type"
               required
               class="validator select w-full"
               hx-get="{{ url_for('admin.osint_source_parameters', osint_source_id=osint_id) }}"
@@ -31,11 +31,11 @@
       <option value="" selected disabled>Select a collector type</option>
       {% endif %}
       {% for option in collector_types -%}
-      <option value="{{ option.id }}" {% if option.id == osint_source.collector_type %}selected{% endif %}>{{ option.name }}</option>
+      <option value="{{ option.id }}" {% if option.id == osint_source.type %}selected{% endif %}>{{ option.name }}</option>
       {% endfor -%}
       </select>
     </label>
-    <div id="parameters">{% include "osint_source/osint_source_parameters.html" %}</div>
+    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 
     <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>

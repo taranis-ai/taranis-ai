@@ -98,7 +98,7 @@
 {% endmacro %}
 
 {% macro table_decoration(name, model_name, container_id, add_route, delete_route, searchbar=true) %}
-<div class="flex gap-4">
+<div class="flex gap-4 mb-4">
   {% if add_route %}
   <div class="grow-0">
     <button hx-get="{{ add_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">

@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select, form_input_content %}
+{% from "macros/forms.html" import form_input, form_select, form_input_content, form_switch %}
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
@@ -36,7 +36,7 @@
     </label>
     <label class="select w-full" id="item_ids">
       <span class="label">Item ID</span>
-      <select name="item_id_select" required disabled class="validator select w-full">
+      <select name="item_id" required disabled class="validator select w-full">
         {% for option in item_ids -%}
         <option value="{{ option.id }}" {% if option.id == acl.item_id %}selected{% endif %}>{{ option.name }}</option>
         {% endfor -%}
@@ -44,9 +44,13 @@
     </label>
     </div>
 
+    <div class="join gap-1 w-3/4 m-5">
+      {{ form_switch('Enabled', 'enabled', acl.enabled, width='w-1/4') }}
+      {{ form_switch('Read Only', 'read_only', acl.read_only, width='w-1/4') }}
+    </div>
+
     <div class="w-3/4">
-    <h4 class="text-l font-bold mb-1 mt-5">Roles</h4>
-    {{ datatable('roles-table', roles, columns, acl.roles, selectable=true, input_name="roles[]") }}
+    {{ datatable('roles-table', roles, columns, acl.roles, selectable=true, input_name="roles[]", headline="Roles") }}
     </div>
     <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>
