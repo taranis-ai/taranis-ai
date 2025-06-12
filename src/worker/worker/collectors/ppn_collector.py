@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 from pathlib import Path
 from worker.log import logger
 from worker.types import NewsItem
@@ -16,11 +15,11 @@ class PPNCollector(BaseCollector):
         self.osint_source_id: str
 
         self.news_items = []
-        self.path: str
+        self.path: Path
         self.last_attempted = None
 
     def parse_source(self, source):
-        self.path = source["parameters"].get("PATH", None)
+        self.path = Path(source["parameters"].get("PATH", None))
         self.osint_source_id = source["id"]
         if not self.path:
             logger.error("No PATH set")
@@ -37,9 +36,8 @@ class PPNCollector(BaseCollector):
             return str(e)
 
     def ppn_collector(self, source):
-        # load news
-        ppn_items = self.load_ppn()
-        self.news_items = self.create_news_items(ppn_items)
+        items = self.load_from_folder(self.path)
+        self.news_items = self.create_news_items(items)
         news_item_batches = self.batch_news_items()
         for batch in news_item_batches:
             self.publish(batch, source)
@@ -55,6 +53,7 @@ class PPNCollector(BaseCollector):
 
         for item in ppn_items:
             if content := item.get("maintext", None):
+                date = item.get("date_publish", "") or item.get("date_download", "")
                 news_items.append(
                     NewsItem(
                         osint_source_id=self.osint_source_id,
@@ -63,80 +62,23 @@ class PPNCollector(BaseCollector):
                         content=content,
                         web_url=item.get("url", ""),
                         source=item.get("source_domain", ""),
-                        published_date=item.get("date_publish", ""),
+                        published_date=date,
                         language=item.get("language", ""),
                     )
                 )
         return news_items
 
-    def load_from_folder(self, path: str, languages: list[str] | None = None) -> list[dict]:
+    def load_from_folder(self, path: Path, languages: list[str] | None = None) -> list[dict]:
         if languages is None:
             languages = ["ar", "de", "en", "es", "fr", "it", "ua", "ru", "zh"]
         docs = []
 
-        dataset_path = self.path / Path(path)
-
-        dataset_files = os.listdir(dataset_path)
+        dataset_files = os.listdir(path)
         for file in dataset_files:
             if file[-4:] == "json":
-                with open(dataset_path / file, "r") as f:
+                with open(path / file, "r") as f:
                     lines = f.readlines()[0]
                 doc_json = json.loads(lines)
                 if doc_json["language"] in languages:
                     docs.append(doc_json)
         return docs
-
-    def load_from_folder_tribunal_ukraine(self, path: str, languages: list[str] | None = None) -> list[dict]:
-        if languages is None:
-            languages = ["de", "en", "es", "fr", "ru"]
-        docs = []
-
-        dataset_path = self.path / Path(path)
-
-        language_list_tribunal_ukraine = [f"lang={lang}" for lang in languages]
-        if "de" in languages:
-            language_list_tribunal_ukraine.append("lang=_")
-        dataset_files = os.listdir(dataset_path)
-        for file in dataset_files:
-            if file[-4:] == "json":
-                for lang in language_list_tribunal_ukraine:
-                    if lang in file:
-                        with open(dataset_path / file, "r") as f:
-                            lines = f.readlines()[0]
-                        doc_json = json.loads(lines)
-                        docs.append(doc_json)
-        return docs
-
-    def load_rrn(self):
-        return self.load_from_folder("ppn_data/2023/09/13/rrn.media/", languages=["ar", "de", "en", "es", "fr", "it", "ua", "ru", "zh"])
-
-    def load_tribunalukraine(self):
-        return self.load_from_folder_tribunal_ukraine("ppn_data/2023/11/09/tribunalukraine.info/", languages=["de", "en", "es", "fr", "ru"])
-
-    def load_waronfakes(self):
-        return self.load_from_folder("ppn_data/2023/11/09/waronfakes.com/", languages=["ar", "de", "en", "es", "fr", "zh"])
-
-    def load_lavirgule(self):
-        return self.load_from_folder("ppn_data/2023/11/09/lavirgule.news/", languages=["ar", "de", "en", "es", "fr", "it", "ua", "ru", "zh"])
-
-    def load_notrepays(self):
-        return self.load_from_folder("ppn_data/2023/11/09/notrepays.today/", languages=["ar", "de", "en", "es", "fr", "it", "ua", "ru", "zh"])
-
-    def load_regular_fr(self):
-        return pickle.load(open(str(Path(self.path) / "regular_data/regular_ukraine_FR.pkl"), "rb"))
-
-    def load_regular_en(self):
-        return pickle.load(open(str(Path(self.path) / "regular_data/regular_ukraine_EN.pkl"), "rb"))
-
-    def load_ppn(self):
-        rrn_docs = self.load_rrn()
-        tribunalukraine_docs = self.load_tribunalukraine()
-        waron_fakes_doc = self.load_waronfakes()
-        docs = rrn_docs + tribunalukraine_docs + waron_fakes_doc
-        lavirgule_docs = self.load_lavirgule()
-        notrepays_docs = self.load_notrepays()
-        docs = docs + lavirgule_docs + notrepays_docs
-        return docs
-
-    def load_regular(self):
-        return self.load_regular_fr() + self.load_regular_en()
