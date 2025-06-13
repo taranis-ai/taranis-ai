@@ -9,6 +9,47 @@ from worker.log import logger
 from worker.core_api import CoreApi
 
 
+def validate_jinja_template(template_str: str) -> dict:
+    """
+    Validates a Jinja2 template string.
+
+    Args:
+        template_str (str): The template string to validate
+
+    Returns:
+        dict: {
+            "is_valid": bool,
+            "error_message": str | None,
+            "error_type": str | None
+        }
+    """
+    try:
+        env = Environment(autoescape=False)  # Same settings as BasePresenter
+        env.from_string(template_str)
+        logger.info("Template validation successful")
+        return {
+            "is_valid": True,
+            "error_message": None,
+            "error_type": None
+        }
+    except TemplateSyntaxError as e:
+        error_msg = f"Template syntax error: {str(e)}"
+        logger.warning(error_msg)
+        return {
+            "is_valid": False,
+            "error_message": error_msg,
+            "error_type": "TemplateSyntaxError"
+        }
+    except Exception as e:
+        error_msg = f"Template validation failed: {str(e)}"
+        logger.error(error_msg)
+        return {
+            "is_valid": False,
+            "error_message": error_msg,
+            "error_type": type(e).__name__
+        }
+
+
 class TemplateValidationTask(Task):
     """
     Dedicated Celery task for template validation.
@@ -30,31 +71,7 @@ class TemplateValidationTask(Task):
                 "error_type": str | None
             }
         """
-        try:
-            env = Environment(autoescape=False)  # Same settings as BasePresenter
-            env.from_string(template_str)
-            logger.info("Template validation successful")
-            return {
-                "is_valid": True,
-                "error_message": None,
-                "error_type": None
-            }
-        except TemplateSyntaxError as e:
-            error_msg = f"Template syntax error: {str(e)}"
-            logger.warning(error_msg)
-            return {
-                "is_valid": False,
-                "error_message": error_msg,
-                "error_type": "TemplateSyntaxError"
-            }
-        except Exception as e:
-            error_msg = f"Template validation failed: {str(e)}"
-            logger.error(error_msg)
-            return {
-                "is_valid": False,
-                "error_message": error_msg,
-                "error_type": type(e).__name__
-            }
+        return validate_jinja_template(template_str)
 
     def run(self, template_str: str) -> dict:
         """
@@ -93,31 +110,7 @@ class PresenterTask(Task):
                 "error_type": str | None
             }
         """
-        try:
-            env = Environment(autoescape=False)  # Same settings as BasePresenter
-            env.from_string(template_str)
-            logger.info("Template validation successful")
-            return {
-                "is_valid": True,
-                "error_message": None,
-                "error_type": None
-            }
-        except TemplateSyntaxError as e:
-            error_msg = f"Template syntax error: {str(e)}"
-            logger.warning(error_msg)
-            return {
-                "is_valid": False,
-                "error_message": error_msg,
-                "error_type": "TemplateSyntaxError"
-            }
-        except Exception as e:
-            error_msg = f"Template validation failed: {str(e)}"
-            logger.error(error_msg)
-            return {
-                "is_valid": False,
-                "error_message": error_msg,
-                "error_type": type(e).__name__
-            }
+        return validate_jinja_template(template_str)
 
     def get_product(self, product_id: int) -> dict[str, str]:
         product = None
