@@ -4,6 +4,7 @@ from pathlib import Path
 from worker.log import logger
 from worker.types import NewsItem
 from worker.collectors.base_web_collector import BaseCollector
+import hashlib
 
 
 class PPNCollector(BaseCollector):
@@ -54,9 +55,12 @@ class PPNCollector(BaseCollector):
         for item in ppn_items:
             if content := item.get("maintext", None):
                 date = item.get("date_publish", "") or item.get("date_download", "")
+                for_hash: str = item.get("title", "") + item.get("maintext", "")
+
                 news_items.append(
                     NewsItem(
                         osint_source_id=self.osint_source_id,
+                        hash=hashlib.sha256(for_hash.encode()).hexdigest(),
                         author=",".join(item.get("author", [])),
                         title=item.get("title", ""),
                         content=content,
