@@ -144,6 +144,13 @@ class Worker(BaseModel):
             if bool(WORKER_TYPES(type)):
                 query = query.where(Worker.type == type)
 
+        if exclude := filter_args.get("exclude"):
+            query = query.where(
+                db.or_(
+                    ~Worker.name.ilike(f"%{exclude}%"),
+                    ~Worker.description.ilike(f"%{exclude}%"),
+                )
+            )
         return query.order_by(db.asc(Worker.name))
 
     @classmethod

@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
+    DISABLE_PPN_COLLECTOR: bool = True
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
