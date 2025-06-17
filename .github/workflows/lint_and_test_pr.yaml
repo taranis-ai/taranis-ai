@@ -254,28 +254,26 @@ jobs:
 
   human_approval:
     needs: e2e_tests
-    continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.check_paths.outputs.trigger }}
-      is_approved: ${{ steps.pr_approval.outputs.approved }}
-      pr_number: ${{ steps.get_pr.outputs.number }}
-      pr_sha: ${{ steps.get_pr.outputs.sha }}
+      is_approved:  ${{ steps.pr_approval.outputs.approved }}
+      pr_number:    ${{ steps.set_pr.outputs.pr_number }}
+      pr_sha:       ${{ steps.set_pr.outputs.pr_sha }}
 
     steps:
-      - name: Get PR info
-        id: get_pr
+      - name: Set PR metadata
+        id: set_pr
         run: |
-          PR_JSON=$(echo '${{ toJson(github.event.workflow_run.pull_requests) }}')
-          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number')
-          PR_SHA=$(echo "$PR_JSON" | jq -r '.[0].head.sha')
-          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+          PR_NUM=${{ github.event.workflow_run.pull_requests[0].number }}
+          PR_SHA=${{ github.event.workflow_run.head_commit.id }}
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "pr_sha=$PR_SHA" >> $GITHUB_OUTPUT
 
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.get_pr.outputs.sha }}
+          ref: ${{ steps.set_pr.outputs.pr_sha }}
           fetch-depth: 0
 
       - name: Get changed files
@@ -289,26 +287,29 @@ jobs:
             echo "trigger=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if PR is approved by a human
+      - name: Check for human approval
         id: pr_approval
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ steps.get_pr.outputs.number }}
-          echo "Checking approval status for PR #$PR_NUMBER"
-
-          APPROVED_HUMAN=$(gh pr view "$PR_NUMBER" --json reviews --jq '
-            .reviews
-            | map(select(.state == "APPROVED"))
-            | map(select(.author.login != "sourcery-ai[bot]"))
-            | unique_by(.author.login)
-            | length
-          ')
-          if [[ "$APPROVED_HUMAN" -gt 0 ]]; then
+          echo "Checking approvals on PR #${{ steps.set_pr.outputs.pr_number }}"
+          APPROVED=$(gh pr view "${{ steps.set_pr.outputs.pr_number }}" \
+            --json reviews \
+            --jq '
+              .reviews
+              | map(select(.state=="APPROVED"))
+              | map(select(.author.login != "sourcery-ai[bot]"))
+              | unique_by(.author.login)
+              | length
+            '
+          )
+          if (( APPROVED > 0 )); then
             echo "approved=true" >> $GITHUB_OUTPUT
           else
             echo "approved=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   production_compose_test:
     needs: human_approval
