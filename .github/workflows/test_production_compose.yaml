@@ -2,46 +2,81 @@ name: Test Production Compose
 
 on:
   pull_request:
-    # paths:
-      # - '**/expensive/**'
-    # types: [labeled]
-  # workflow_dispatch:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+
 jobs:
   compose-static-tag:
-    # if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-expensive')
+    if: >
+      github.event_name == 'pull_request_review' &&
+      github.event.review.state == 'approved'
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout tag 1.1.4
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        run: |
+          echo "CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_ENV
+
+      - name: Check for relevant path changes
+        id: check_paths
+        run: |
+          echo "changed=${CHANGED_FILES}" >> $GITHUB_OUTPUT
+          if echo "$CHANGED_FILES" | grep -qE '^(src/core/core/|src/worker/worker/|docker/)'; then
+            echo "trigger=true" >> $GITHUB_OUTPUT
+          else
+            echo "trigger=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git tag --sort=-creatordate | head -n 1)
+          echo "Latest tag: $latest_tag"
+          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Checkout latest tag
+        if: steps.check_paths.outputs.trigger == 'true'
         uses: actions/checkout@v4
         with:
           fetch-tags: true
-          ref: 1.1.4
+          ref: ${{ steps.get_latest_tag.outputs.tag }}
 
-      - name: Compose up tagged version
+      - name: Run docker compose for tagged version
+        if: steps.check_paths.outputs.trigger == 'true'
         working-directory: docker
         run: |
-          pwd
-          ls -la
           cp env.sample .env
-          cat .env
           docker compose up --wait core database frontend gui sse rabbitmq collector workers
           docker ps -a
           docker compose down
 
       - name: Checkout latest commit
+        if: steps.check_paths.outputs.trigger == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
-      - name: Compose up latest version
+
+      - name: Build Docker images from PR code
+        if: steps.check_paths.outputs.trigger == 'true'
+        run: |
+          chmod +x docker/build_containers.sh
+          ./docker/build_containers.sh
+
+      - name: Run docker compose for latest version
+        if: steps.check_paths.outputs.trigger == 'true'
         working-directory: docker
         run: |
-          pwd
-          ls -la
           cp env.sample .env
-          cat .env
           docker volume ls
           docker compose up --wait core database frontend gui sse rabbitmq collector workers
           docker ps -a
           docker compose down
-
