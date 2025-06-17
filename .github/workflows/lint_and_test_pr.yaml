@@ -254,6 +254,7 @@ jobs:
 
   filter:
     name: Detect Relevant Changes
+    needs: [test_core, test_frontend, test_gui, test_worker, e2e_tests]
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -353,8 +354,8 @@ jobs:
 
       - name: Build Docker images from PR code
         run: |
-          chmod +x docker/build_containers.sh
-          ./docker/build_containers.sh
+          chmod +x docker/build_container.sh
+          ./docker/build_container.sh
 
       - name: Run docker compose for latest version
         working-directory: docker
