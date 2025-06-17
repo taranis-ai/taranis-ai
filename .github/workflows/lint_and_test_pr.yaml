@@ -123,43 +123,6 @@ jobs:
           name: ${{ env.GUI_ARTIFACT_NAME }}
           path: ${{ runner.temp }}/${{ env.GUI_ARTIFACT_NAME }}.tar.gz
 
-  test_worker:
-    name: pytest worker
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/worker
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install worker
-        run: uv sync --all-extras
-
-      - name: Install playwright dependencies
-        run: uv run playwright install --with-deps chromium
-
-      - name: Lint with ruff
-        run: uv run ruff check --output-format=github .
-
-      - name: Run tests and capture output
-        id: run-tests
-        run: |
-          set -o pipefail
-          uv run pytest | tee pytest_output.txt
-          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
   e2e_tests:
     needs: [test_core, test_frontend, test_gui]
     name: End-to-End Tests
@@ -256,6 +219,43 @@ jobs:
           name: ${{ env.TRACES_ARTIFACT_NAME }}
           path: src/**/taranis_ai_*_trace.zip
 
+
+  test_worker:
+    name: pytest worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install worker
+        run: uv sync --all-extras
+
+      - name: Install playwright dependencies
+        run: uv run playwright install --with-deps chromium
+
+      - name: Lint with ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Run tests and capture output
+        id: run-tests
+        run: |
+          set -o pipefail
+          uv run pytest | tee pytest_output.txt
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
   precheck:
     needs: e2e_tests
