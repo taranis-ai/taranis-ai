@@ -364,5 +364,7 @@ jobs:
           docker volume ls
           docker compose up --wait core database frontend gui sse rabbitmq collector workers
           docker ps -a
+          echo "Check migration logs:"
+          docker logs -f core
           docker compose down
 
