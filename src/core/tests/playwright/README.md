@@ -22,7 +22,6 @@ All flags:
 
 - `--e2e-user` - extensive tests of user parts (headful)
 - `--e2e-ci` - e2e tests of user and admin parts (headless)
-- `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--e2e-user-workflow` - test of defined user workflow (headful)
 - `--record-video` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
@@ -48,30 +47,17 @@ Where desired, to stop the test execution and allow to connect to the instance w
 To enter the debug mode, use:
 
 ```bash
-PWDEBUG=1 pytest <--flag>
+PWDEBUG=1 pytest --e2e-ci
+```
+
+To always rebuild the VueJS gui set:
+
+```bash
+E2E_TEST_GUI_REBUILD=true pytest --e2e-ci
 ```
 
 To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop (works also without `PWDEBUG=1`).
 
 ## Pictures for documentation
 
-To generate most of the pictures for documentation, run:
-
-```bash
-pytest --e2e-admin
-```
-
-To copy the pictures to the documentation repository, use [this](https://github.com/taranis-ai/taranis.ai/blob/master/scripts/sync_new_pictures.sh) script.
-
-It takes two arguments:
-
-```bash
-./sync_new_pictures.sh <path/to/screenshot/folder_in_taranis-ai> <path_to_taranis.ai/static/docs>
-```
-
-Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
-
-## DB file for E2E
-
-Defined in `tests/.env`.
-When tests are stopped from command line, remove the database file manually.
+Has been moved to `src/frontend/tests/playwright`

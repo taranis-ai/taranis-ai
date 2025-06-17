@@ -128,35 +128,44 @@ export const useAssessStore = defineStore(
     }
 
     function getStoryByID(id) {
-      let story = stories.value.items.filter((item) => item.id === id)[0]
-      if (!story) {
-        const response = getStory(id)
-        story = response.data
-        stories.value.items.push(story)
+      let story = stories.value.items.filter((item) => item?.id === id)[0]
+
+      // if not story is undefined or does not have a key called "detail_view" retrieve it from the API
+      if (story && story.detail_view) {
+        return story
       }
-      return story
+      return updateStoryByID(id)
     }
+
     function removeStoryByID(id) {
       deleteStory(id)
-      stories.value.items = stories.value.items.filter((item) => item.id !== id)
+      stories.value.items = stories.value.items.filter(
+        (item) => item?.id !== id
+      )
     }
     async function updateStoryByID(id) {
-      const response = await getStory(id)
-      const updated_item = response.data
-      let found = false
+      const { data: updatedItem } = await getStory(id)
 
-      stories.value.items = stories.value.items.map((item) => {
-        if (item.id === id) {
-          found = true
-          return { ...item, ...updated_item }
+      // 2. Find the existing index in your reactive array
+      const idx = stories.value.items.findIndex(
+        (item) => item != null && item.id === updatedItem.id
+      )
+
+      if (idx !== -1) {
+        // 3a. If found, splice in an in-place replacement so Vue notices the change
+        const existing = stories.value.items[idx]
+        const merged = {
+          ...existing,
+          ...updatedItem
         }
-        return item
-      })
-
-      if (!found) {
-        stories.value.items.push(updated_item)
+        stories.value.items.splice(idx, 1, merged)
+      } else {
+        stories.value.items.push(updatedItem)
       }
+
+      return updatedItem
     }
+
     async function voteOnStory(id, vote) {
       try {
         await voteStory(id, vote)
@@ -212,6 +221,11 @@ export const useAssessStore = defineStore(
         notifyFailure(error)
       }
     }
+
+    const storyByID = computed(() => {
+      return (id) => stories.value.items.find((item) => item?.id === id) ?? null
+    })
+
     async function updateOSINTSources() {
       const response = await getOSINTSourcesList()
       osint_sources.value = response.data
@@ -357,6 +371,16 @@ export const useAssessStore = defineStore(
       }
     }
 
+    function resetFilter() {
+      const filterStore = useFilterStore()
+
+      reset()
+      filterStore.resetFilter()
+      updateOSINTSources()
+      updateOSINTSourceGroupsList()
+      updateStories()
+    }
+
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }
@@ -387,7 +411,9 @@ export const useAssessStore = defineStore(
       OSINTSourceGroupsList,
       OSINTSourcesList,
       activeSelection,
+      storyByID,
       reset,
+      resetFilter,
       updateStories,
       groupStories,
       ungroupStories,

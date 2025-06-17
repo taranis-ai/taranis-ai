@@ -29,6 +29,19 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
+    def check_if_api_connected(self):
+        try:
+            url = f"{self.api_url}/isalive"
+            response = requests.get(url=url, verify=self.verify, timeout=self.timeout)
+            if response.ok and response.json().get("isalive") is True:
+                return True
+
+            logger.error(f"API connection failed: {response.status_code} - {response.text}")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API connection failed: {e}")
+        return False
+
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
@@ -75,6 +88,9 @@ class CoreApi:
     def login(self, username, password):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
+
+    def logout(self):
+        return self.api_delete("/auth/logout")
 
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:

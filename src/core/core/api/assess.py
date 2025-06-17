@@ -153,7 +153,6 @@ class StoryTagList(MethodView):
 class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
-        logger.debug(f"Getting story {story_id}")
         return story.Story.get_for_api(story_id, current_user)
 
     @auth_required("ASSESS_UPDATE")

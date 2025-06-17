@@ -1,4 +1,4 @@
-from pydantic import model_validator, field_validator, ValidationInfo
+from pydantic import model_validator, field_validator, ValidationInfo, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ def mask_db_uri(uri: str) -> str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    API_KEY: str = "supersecret"
+    API_KEY: SecretStr = SecretStr("supersecret")
     APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
     DB_USER: str = "taranis"
-    DB_PASSWORD: str = "supersecret"
+    DB_PASSWORD: SecretStr = SecretStr("supersecret")
     SQLALCHEMY_SCHEMA: str = "postgresql+psycopg"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URI_MASK: str | None = None
     SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
     SQLALCHEMY_CONNECT_TIMEOUT: int = 10
+    SQLALCHEMY_MAX_OVERFLOW: int = 10
+    SQLALCHEMY_POOL_SIZE: int = 20
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -56,11 +58,19 @@ class Settings(BaseSettings):
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
-            self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
+            self.SQLALCHEMY_DATABASE_URI = (
+                f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD.get_secret_value()}@{self.DB_URL}/{self.DB_DATABASE}"
+            )
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
+        self.SQLALCHEMY_ENGINE_OPTIONS.update(
+            {
+                "pool_size": self.SQLALCHEMY_POOL_SIZE,
+                "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
+            }
+        )
         self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 
@@ -81,7 +91,7 @@ class Settings(BaseSettings):
     QUEUE_BROKER_HOST: str = "localhost"
     QUEUE_BROKER_PORT: int = 5672
     QUEUE_BROKER_USER: str = "taranis"
-    QUEUE_BROKER_PASSWORD: str = "supersecret"
+    QUEUE_BROKER_PASSWORD: SecretStr = SecretStr("supersecret")
     QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
@@ -94,7 +104,7 @@ class Settings(BaseSettings):
             broker_url = self.QUEUE_BROKER_URL
         else:
             broker_url = (
-                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}"
+                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD.get_secret_value()}"
                 f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
             )
         self.CELERY = {
@@ -107,8 +117,9 @@ class Settings(BaseSettings):
         return self
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
-    def check_non_empty_string(cls, v: str, info: ValidationInfo) -> str:
-        if not isinstance(v, str) or not v.strip():
+    def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:
+        value = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{info.field_name} must be a non-empty string")
         return v
 

@@ -26,7 +26,10 @@ dependencies = [
     "granian",
     "requests",
     "setuptools",
+    "polyfactory",
+    "uuid7",
     "heroicons[jinja]>=2.11.0",
+    "taranis-models"
 ]
 dynamic = ["version"]
 
@@ -42,11 +45,12 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock"]
+dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock", "pytest-playwright", "playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -60,6 +64,14 @@ lines-after-imports = 2
 
 [tool.coverage.run]
 branch = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "e2e_ci: marks tests as to run only when calling with --e2e-ci option",
+    "e2e_timeout: time in milliseconds to wait for the e2e tests to finish",
+    "e2e_admin: marks tests that produce pictures for the documentation",
+]
 
 [tool.pylint.'MESSAGES CONTROL']
 max-line-length = 142
@@ -76,3 +88,6 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
+
+[tool.uv]
+config-settings = { editable_mode = "compat" }

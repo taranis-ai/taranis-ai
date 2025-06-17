@@ -1,0 +1,52 @@
+{% from "macros/forms.html" import form_input %}
+{% set form_error = form_error | default({}) %}
+{% set placeholder = 'new_template' if template.id == '0' else template.id %}
+
+<script>
+  require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
+
+  require(['vs/editor/editor.main'], function() {
+    const ta     = document.getElementById('editor-content'),
+          wrap   = document.getElementById('editor'),
+          initial = ta.value;
+
+    ta.classList.add('hidden');
+    wrap.classList.remove('hidden');
+
+    const editor = monaco.editor.create(wrap, {
+      value: initial,
+      language: 'jinja',
+      automaticLayout: true,
+      theme: 'vs-dark',
+    });
+
+    editor.onDidChangeModelContent(() => {
+      ta.value = editor.getValue();
+    });
+  });
+</script>
+
+
+<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
+    <span class="label">Filename</span>
+    <input id="id"
+           type="text"
+           placeholder="{{ placeholder }}"
+           name="id"
+           value="{{ placeholder }}"
+           required
+           pattern="^[\w\.\-]+$"
+           class="input w-full validator"
+      {% if preserve %}hx-preserve{% endif %}
+      {% if template.id != '0' %}readonly disabled{% endif %}
+    />
+    <p class="validator-hint">Must be a valid filename</p>
+  </label>
+
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
+
+  <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
+
+  <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
+</form>

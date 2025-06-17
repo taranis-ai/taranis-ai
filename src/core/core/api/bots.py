@@ -15,7 +15,7 @@ class BotGroupAction(MethodView):
     def put(self):
         story_ids = request.json
         if not story_ids:
-            return {"No story ids provided"}, 400
+            return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
@@ -26,7 +26,7 @@ class BotGroupMultipleAction(MethodView):
     def put(self):
         story_ids = request.json
         if not story_ids:
-            return {"No stories provided"}, 400
+            return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
@@ -37,7 +37,7 @@ class BotUnGroupAction(MethodView):
     def put(self):
         newsitem_ids = request.json
         if not newsitem_ids:
-            return {"No news items provided"}, 400
+            return {"error": "No news items provided"}, 400
         response, code = story.Story.remove_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
         return response, code
@@ -88,11 +88,15 @@ class StoryAttributes(MethodView):
                 current_story.patch_attributes(input_data)
             else:
                 return {"error": "No data provided"}, 400
-            return {"message": f"Story {story_id} updated"}, 200
+            return {"message": f"Story {story_id} updated successfully"}, 200
         return {"error": f"Story {story_id} not found"}, 404
 
 
 class UpdateStory(MethodView):
+    @api_key_required
+    def get(self, story_id):
+        return story.Story.get_for_api(story_id, None)
+
     @api_key_required
     def put(self, story_id):
         return story.Story.update(story_id, request.json)

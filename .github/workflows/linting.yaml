@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   pull_request:
 
+env:
+  UV_NO_SYNC: true
+  UV_FROZEN: true
+
 jobs:
   test_core:
     name: pytest core
@@ -15,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
@@ -23,29 +27,21 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
 
   test_frontend:
     name: pytest frontend
@@ -57,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
@@ -65,29 +61,21 @@ jobs:
         run: uv python install
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi
 
   test_gui:
     name: test gui
@@ -138,32 +126,57 @@ jobs:
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/core
-    needs: [test_core, test_gui]
+    needs: [test_core, test_gui, test_frontend]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install the project
-        run: uv sync --all-extras --dev
-
-      - name: Install Playwright dependencies
-        run: uv run playwright install --with-deps chromium
-
-      - name: Set Artifact Name
-        shell: bash
+      - name: Set PLAYWRIGHT_BROWSERS_PATH and TRACES_ARTIFACT_NAME
         run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
           TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
           echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Check Playwright version consistency in uv.lock files
+        run: |
+          set -euo pipefail
+
+          FRONTEND_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
+          CORE_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
+
+          echo "Frontend playwright version: $FRONTEND_VERSION"
+          echo "Core playwright version:     $CORE_VERSION"
+
+          if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
+            echo "::error ::Mismatch in declared playwright versions!"
+            echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
+            echo "::error ::Please run \`uv sync --upgrade --all-extras\` in both folders to align."
+            exit 1
+          fi
+
+      - name: Set up Python
+        working-directory: src/core
+        run: uv python install
+
+      - name: Install core
+        working-directory: src/core
+        run: uv sync --all-extras
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright
+
+      - name: Install Playwright dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: src/core
+        run: uv run playwright install --with-deps chromium
 
       - name: Download built frontend
         uses: actions/download-artifact@v4
@@ -177,16 +190,30 @@ jobs:
 
       - name: Run e2e tests
         id: run_e2e
+        working-directory: src/core
+        run: uv run pytest --e2e-ci
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras
+
+      - name: Build Tailwind CSS
+        working-directory: src/frontend
+        run: ./build_tailwindcss.sh
+
+      - name: Run e2e tests frontend
+        id: run_e2e_frontend
+        working-directory: src/frontend
         run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && steps.run_e2e.outcome == 'failure' }}
+        if: ${{ !cancelled() && (steps.run_e2e.outcome == 'failure' || steps.run_e2e_frontend.outcome == 'failure') }}
         with:
           retention-days: 7
           overwrite: true
           name: ${{ env.TRACES_ARTIFACT_NAME }}
-          path: src/core/trace.zip
+          path: src/**/taranis_ai_*_trace.zip
 
   test_worker:
     name: pytest worker
@@ -198,15 +225,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
       - name: Set up Python
         run: uv python install
 
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install worker
+        run: uv sync --all-extras
 
       - name: Install playwright dependencies
         run: uv run playwright install --with-deps chromium
@@ -215,20 +242,12 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Run tests and capture output
-        continue-on-error: true
         id: run-tests
         run: |
           set -o pipefail
           uv run pytest | tee pytest_output.txt
-
-      - name: Extract and Post Test Summary
-        run: |
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail if tests failed
-        run: |
-          if [[ ${{ steps.run-tests.outcome }} == 'failure' ]]; then exit 1; else exit 0; fi

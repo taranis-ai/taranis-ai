@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import Callable
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
@@ -124,9 +125,8 @@ class MISPConnector:
         # Remove internal keys not meant for external processing
         story.pop("last_change", None)
 
-        object_data: dict = self.get_story_object_dict()
-        # sourcery skip: dict-assign-update-to-union
-        object_data.update({k: story[k] for k in object_data if k in story})  # only keep keys that are in the object_data dict
+        object_data = self.get_story_object_dict()
+        object_data.update({k: story[k] for k in object_data if k in story})
         self._convert_types_to_misp_representation(object_data)
         object_data["attributes"] = []
         object_data["links"] = self._process_items(story, "links", self._process_link)
@@ -215,14 +215,14 @@ class MISPConnector:
 
     def _process_tags(self, tag_item: dict) -> str | None:
         """
-        Process a single tag dict into its string representation.
+        Process a single tag dict into its JSON string representation, sanitized.
         """
         name = tag_item.get("name", "")
         tag_type = tag_item.get("tag_type", "")
         if name:
-            tag_value = f"{{'name': '{name}', 'tag_type': '{tag_type}'}}"
-            logger.debug(f"Adding tag: {tag_value}")
-            return tag_value
+            json_str = json.dumps({"name": name, "tag_type": tag_type})
+            logger.debug(f"Adding tag: {json_str}")
+            return json_str
         else:
             logger.warning(f"Skipping tag with missing data: {tag_item}")
             return None
@@ -489,12 +489,12 @@ class MISPConnector:
             # Update the Story with the MISP event UUID
             # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
+                logger.debug(f"Update the story {story.get('id')} to last_change=external")
+                self.core_api.api_post("/worker/stories", story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
                     [{"key": "misp_event_uuid", "value": f"{result.uuid}"}],
                 )
-                logger.debug(f"Update the story {story.get('id')} to last_change=external")
-                self.core_api.api_post("/worker/stories", story)
 
 
 def sending():

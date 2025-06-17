@@ -3,29 +3,35 @@ from flask_jwt_extended import get_jwt_identity
 import json
 
 from frontend.core_api import CoreApi
-from frontend.models import Role, Organization
+from models.admin import Role, Organization
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.models import User
-
+from models.admin import User
+from frontend.filters import permissions_count, role_count
 from frontend.views.base_view import BaseView
 
 
 class UserView(BaseView):
     model = User
-    htmx_update_template = "user/user_form.html"
-    htmx_list_template = "user/users_table.html"
-    default_template = "user/index.html"
-    base_route = "admin.users"
-    edit_route = "admin.edit_user"
+    icon = "user"
+    _index = 20
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, object_id: int | str):
         dpl = DataPersistenceLayer()
         return {
             "organizations": dpl.get_objects(Organization),
             "roles": dpl.get_objects(Role),
             "current_user": get_jwt_identity(),
         }
+
+    @classmethod
+    def get_columns(cls):
+        return [
+            {"title": "username", "field": "username", "sortable": True, "renderer": None},
+            {"title": "name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "roles", "field": "roles", "sortable": False, "renderer": role_count},
+            {"title": "permissions", "field": "permissions", "sortable": False, "renderer": permissions_count},
+        ]
 
     @classmethod
     def import_users_view(cls, error=None):

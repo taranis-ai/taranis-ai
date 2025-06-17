@@ -1,0 +1,16 @@
+<section id="error-msg" x-data="{ show: true }" x-init="setTimeout(() => show = false, 30000)">
+  {% if error %}
+    <div x-show="show" x-transition class="toast toast-bottom toast-end fixed z-50">
+      <div class="alert alert-error flex flex-col gap-2 w-72">
+        <div class="flex items-center gap-2">
+          {{ heroicon_outline("exclamation-triangle") }}
+          <span>{{ error }}</span>
+        </div>
+        <!-- Progress bar with CSS animation -->
+      <div class="w-full h-2 bg-black/20 rounded overflow-hidden">
+        <div class="h-full bg-black animate-shrink-30"></div>
+      </div>
+      </div>
+    </div>
+  {% endif %}
+</section>

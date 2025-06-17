@@ -74,8 +74,8 @@ class User(BaseModel):
             "id": self.id,
             "name": self.name,
             "username": self.username,
-            "organization": self.organization.to_user_dict(),
-            "roles": [role.to_user_dict() for role in self.roles if role],
+            "organization": self.organization.id,
+            "roles": [role.id for role in self.roles if role],
             "permissions": self.get_permissions(),
             "profile": self.profile,
         }
@@ -125,7 +125,7 @@ class User(BaseModel):
         highest_tlp = TLPLevel.CLEAR
         for role in self.roles:
             if tlp_level := role.tlp_level:
-                highest_tlp = TLPLevel.get_highest_tlp([highest_tlp, tlp_level])
+                highest_tlp = TLPLevel.get_most_restrictive_tlp([highest_tlp, tlp_level])
         return highest_tlp
 
     def get_current_organization_name(self):

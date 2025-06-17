@@ -1,0 +1,44 @@
+{% from "macros/forms.html" import form_input, form_select %}
+{% set template_path = product_type.parameters.TEMPLATE_PATH if product_type.parameters else None %}
+
+<script type="text/javascript">
+  var settings = {
+    plugins: ['remove_button'],
+    persist:false,
+    onItemAdd:function(){
+			this.setTextboxValue('');
+			this.refreshOptions();
+		}
+  };
+
+  htmx.onLoad(function(elt) {
+    var elt = document.getElementById('report_types-select');
+    if (elt && elt.classList.contains('tomselected')) return;
+    new TomSelect(elt, settings);
+  });
+</script>
+
+<div class="bg-base-100 p-4">
+  <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <form id="product_type-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+    {% if error %}
+    <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
+    {% endif %}
+
+    {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
+    {{ form_input('Description', 'description', product_type.description, form_error.description, width="w-3/4") }}
+    {{ form_select('Presenter Type', 'type', product_type.type, options=presenter_types, width="w-3/4") }}
+    {{ form_select('Template', 'parameters[TEMPLATE_PATH]', template_path, options=template_files, width="w-3/4") }}
+
+    <fieldset class="fieldset bg-base-100 w-3/4 mb-5">
+      <legend class="fieldset-legend">Report Types</legend>
+      <select name="report_types[]" multiple required type="number" id="report_types-select" class="tomselect">
+          {% for report_type in report_types %}
+          <option value="{{ report_type.id }}" {% if report_type.id in selected_report_types %}selected{% endif %}>{{ report_type.title }}</option>
+          {% endfor %}
+      </select>
+    </fieldset>
+
+    <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
+  </form>
+</div>

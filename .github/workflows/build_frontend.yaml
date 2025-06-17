@@ -18,6 +18,8 @@ permissions:
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-frontend
   LATEST: ${{ github.ref == 'refs/heads/master' }}
+  UV_NO_SYNC: true
+  UV_FROZEN: true
 
 jobs:
   test:
@@ -29,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           prune-cache: false
@@ -38,7 +40,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras
 
       - name: unit tests
         run: uv run pytest
@@ -54,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           prune-cache: false

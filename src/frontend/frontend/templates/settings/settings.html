@@ -2,7 +2,18 @@
 {% from "macros/forms.html" import form_input %}
 {% from "macros/buttons.html" import export_button %}
 
-{% set current_settings = settings[0].settings %}
+{% set settings = settings | default([{}]) %}
+
+{% set current_settings = settings[0].settings | default({}) %}
+{% set links = {
+  "delete_tags": "/api/admin/delete_tags",
+  "delete_stories": "/api/admin/delete-stories",
+  "ungroup_stories": "/api/admin/ungroup-stories",
+  "reset_database": "/api/admin/reset-database",
+  "clear_queues": "/api/admin/clear-queues",
+  "export_stories": "/api/admin/export-stories",
+  "update_settings": "/api/admin/settings"
+} %}
 
 <div class="container mx-auto p-2" id="settings-container" hx-target="#settings-container" hx-target-error="#error-msg" hx-swap="innerHTML" hx-ext="response-targets">
   <!-- Header -->
@@ -19,11 +30,11 @@
           <form
             class="form-control w-full"
             id="default-tlp-level-form"
-            hx-post="{{ settings._links.update_settings | admin_action }}"
+            hx-post="{{ links.update_settings | admin_action }}"
           >
           <p class="mb-5">Set the default TLP Level for new Sources, Roles, and Reports.</p>
           {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level') }}
-          {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy) }}
+          {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False) }}
           {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval) }}
           <input type="submit" class="btn btn-primary w-1/2" value="Update Settings" />
           </form>
@@ -38,7 +49,7 @@
       <div class="card-body">
         <h2 class="card-title">Export Stories</h2>
         <div class="grid grid-cols-2 gap-2 mt-2 join" hx-boost="false">
-          {% set export_url = settings._links.export_stories | admin_action %}
+          {% set export_url = links.export_stories | admin_action %}
           {{ export_button(export_url, "Export all Stories") }}
           {{ export_button(export_url ~ "?metadata=true", "Export all Stories with metadata") }}
         </div>
@@ -67,7 +78,7 @@
                 <div class="card-actions tooltip" data-tip="Delete all Worker Queues">
                   <button
                     class="btn btn-error btn-outline w-full"
-                    hx-post="{{ settings._links.clear_queues | admin_action }}"
+                    hx-post="{{ links.clear_queues | admin_action }}"
                     hx-confirm="Are you sure you want to delete all worker queues?"
                   >Delete all Worker Queues</button>
                 </div>
@@ -84,7 +95,7 @@
                 <div class="card-actions tooltip" data-tip="Delete all Tags from all Stories">
                   <button
                     class="btn btn-error btn-outline w-full"
-                    hx-post="{{ settings._links.delete_tags | admin_action }}"
+                    hx-post="{{ links.delete_tags | admin_action }}"
                     hx-confirm="Are you sure you want to delete all tags?"
                   >Delete all Tags</button>
                 </div>
@@ -101,7 +112,7 @@
                 <div class="card-actions tooltip" data-tip="Not yet implemented">
                   <button
                     class="btn btn-error btn-outline w-full pointer-events-auto"
-                    hx-post="{{ settings._links.ungroup_stories | admin_action }}"
+                    hx-post="{{ links.ungroup_stories | admin_action }}"
                     hx-confirm="Are you sure you want to ungroup all stories?"
                     title="Not yet implemented"
                     disabled
@@ -120,7 +131,7 @@
               <div class="card-actions tooltip" data-tip="Not yet implemented">
                 <button
                   class="btn btn-error btn-outline w-full"
-                  hx-post="{{ settings._links.delete_stories | admin_action }}"
+                  hx-post="{{ links.delete_stories | admin_action }}"
                   hx-confirm="Are you sure you want to delete all stories?"
                   disabled
                 >Delete all Stories</button>
@@ -141,7 +152,7 @@
               <div class="card-actions tooltip" data-tip="Not yet implemented">
                 <button
                   class="btn btn-error btn-outline w-full"
-                  hx-post="{{ settings._links.reset_database | admin_action }}"
+                  hx-post="{{ links.reset_database | admin_action }}"
                   hx-confirm="Are you absolutely sure you want to delete EVERYTHING?"
                   disabled
                 >Delete Everything</button>

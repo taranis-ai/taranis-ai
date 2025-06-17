@@ -1,0 +1,8 @@
+<div class="p-8" id="{{ model_name }}">
+  <div class="text-3xl font-bold mb-4">
+    <a href="{{ routes.base_route }}" class="text-blue-500 hover:underline">{{ name }}</a>
+  </div>
+  <div class="bg-base p-4" id="form-container">
+    {% include templates.htmx_list_template %}
+  </div>
+</div>

@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.1.2
+  version: 1.1.7
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -2584,18 +2584,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    size:
-                      type: integer
-                    name:
-                      type: string
-                    tags:
-                      type: array
-                      items:
-                        type: object
+                $ref: '#/components/schemas/trending_clusters'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -3568,6 +3557,26 @@ components:
             last_rendered:
               type: string
               format: date-time
+
+    trending_clusters:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          size:
+            type: integer
+          tags:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                size:
+                  type: integer
+                type:
+                  type: string
+                  nullable: true
 
     report_item_lock:
       type: object

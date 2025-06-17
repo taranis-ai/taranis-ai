@@ -1,6 +1,6 @@
 
 <div class="flex justify-center min-h-screen items-center bg-base-100">
-  <form hx-post hx-target="this" hx-swap="innerHTML" class="card w-full max-w-md bg-base-100">
+  <form class="card w-full max-w-md bg-base-100" method="POST" data-testid="login-form">
     <figure class="px-10 pt-10">
       <img src="{{ url_for('static', filename='assets/taranis-logo-login.svg') }}" alt="Taranis Logo"/>
     </figure>
@@ -19,7 +19,15 @@
           <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
         </label>
       </div>
-      <input type="submit" class="btn btn-primary btn-block" value="Login" />
+      <input type="submit" class="btn btn-primary btn-block" value="Login" data-testid="login-button" />
+    </div>
+    <div id="login-error-msg">
+    {% if login_error %}
+    <div role="alert" class="alert alert-error">
+      {{ heroicon_outline("exclamation-circle") }}
+      <span>{{ login_error }}</span>
+    </div>
+    {% endif %}
     </div>
   </form>
 </div>

@@ -1,15 +1,8 @@
-from requests import Response
 from datetime import datetime
 from pydantic import field_validator, model_validator, field_serializer
 import langcodes
 
 from models.base import TaranisBaseModel
-
-
-class Product(TaranisBaseModel):
-    def __init__(self, response: Response):
-        self.data: bytes = response.content
-        self.mime_type: str = response.headers["Content-Type"]
 
 
 class NewsItem(TaranisBaseModel):
@@ -50,3 +43,9 @@ class NewsItem(TaranisBaseModel):
     @field_serializer("published_date", "collected_date", when_used="always")
     def serialize_datetime(self, value: datetime | None) -> str | None:
         return value.isoformat() if value else None
+
+
+class StoryTag(TaranisBaseModel):
+    name: str
+    size: int
+    type: str | None = None

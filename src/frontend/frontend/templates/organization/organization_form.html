@@ -1,23 +1,23 @@
 {% from "macros/forms.html" import form_input %}
-{% set create = request.path.rsplit('/', 1)[-1] == '0' | default('true') %}
-{% set form_title = 'Organization' %}
-
 {% set form_error = form_error | default({}) %}
-<div class="bg-base-100 rounded-sm p-4">
-    <h1 class="text-3xl font-bold mb-5 w-1/2 ml-[10%]">{% if create %}Create{% else %}Edit{% endif %} {{ form_title }}</h1>
+{% set address = organization.address | default({}) %}
 
-    <form id="organization-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+<div class="bg-base-100 p-4">
+    <h1 class="text-3xl font-bold w-1/2 ml-[10%]">{{ submit_text }}</h1>
+    <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ organization.id }}</p>
+
+    <form id="organization-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
         {% if error %}
         <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
         {% endif %}
 
         {{ form_input('Name', 'name', organization.name, form_error.name) }}
-        {{ form_input('Description', 'description', organization.description, form_error.description) }}
-        {{ form_input('Street', 'address[street]', organization.address.street, form_error.street) }}
-        {{ form_input('City', 'address[city]', organization.address.city, form_error.city) }}
-        {{ form_input('Country', 'address[country]', organization.address.country, form_error.country) }}
-        {{ form_input('ZIP', 'address[zip]', organization.address.zip, form_error.zip) }}
+        {{ form_input('Description', 'description', organization.description, form_error.description, required=False) }}
+        {{ form_input('Street', 'address[street]', address.street, form_error.street, required=False) }}
+        {{ form_input('City', 'address[city]', address.city, form_error.city, required=False) }}
+        {{ form_input('Country', 'address[country]', address.country, form_error.country, required=False) }}
+        {{ form_input('ZIP', 'address[zip]', address.zip, form_error.zip, required=False) }}
 
-        <input type="submit" class="btn btn-primary w-1/2" value="{% if create %}Create{% else %}Update{% endif %} {{ form_title }}" />
+        <input type="submit" class="btn btn-primary w-1/2" value="{{ submit_text }}" />
     </form>
 </div>

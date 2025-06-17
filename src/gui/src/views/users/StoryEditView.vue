@@ -1,16 +1,19 @@
 <template>
   <StoryEdit v-if="story" :story-prop="story" />
+  <not-found-card v-else :item-id="storyId" item-type="Story" />
 </template>
 
 <script>
 import StoryEdit from '@/components/assess/StoryEdit.vue'
-import { ref, onBeforeMount } from 'vue'
-import { getStory } from '@/api/assess'
+import NotFoundCard from '@/components/common/NotFoundCard.vue'
+import { onBeforeMount, ref } from 'vue'
+import { useAssessStore } from '@/stores/AssessStore'
 
 export default {
   name: 'StoryEditView',
   components: {
-    StoryEdit
+    StoryEdit,
+    NotFoundCard
   },
   props: {
     storyId: {
@@ -19,11 +22,11 @@ export default {
     }
   },
   setup(props) {
-    const story = ref(null)
+    const assessStore = useAssessStore()
+    const story = ref()
 
     onBeforeMount(async () => {
-      const response = await getStory(props.storyId)
-      story.value = response.data
+      story.value = await assessStore.getStoryByID(props.storyId)
     })
 
     return {

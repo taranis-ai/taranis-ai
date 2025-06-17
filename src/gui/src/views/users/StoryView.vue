@@ -7,7 +7,7 @@
 </template>
 
 <script>
-import { computed, onMounted } from 'vue'
+import { ref, onBeforeMount } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
@@ -32,14 +32,11 @@ export default {
 
     storyHotkeys()
 
-    const story = computed(() => {
-      return assessStore.stories.items.find((item) => item.id == props.storyId)
-    })
+    const story = ref()
 
-    onMounted(async () => {
-      const assessStore = useAssessStore()
-      assessStore.updateOSINTSources()
-      assessStore.updateStoryByID(props.storyId)
+    onBeforeMount(async () => {
+      await assessStore.updateOSINTSources()
+      story.value = await assessStore.getStoryByID(props.storyId)
     })
 
     return {

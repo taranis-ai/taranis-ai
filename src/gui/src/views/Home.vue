@@ -24,14 +24,14 @@
       </v-btn-toggle>
     </v-row>
     <v-row no-gutters>
-      <dash-board-card v-for="cluster in clusters" :key="cluster.name">
+      <dash-board-card v-for="(cluster, name) in clusters" :key="name">
         <template #title>
           <v-card-title>
             <v-divider />
           </v-card-title>
         </template>
         <template #card>
-          <trending-card :cluster="cluster" />
+          <trending-card :cluster="cluster" :tag-type="name" />
         </template>
       </dash-board-card>
 

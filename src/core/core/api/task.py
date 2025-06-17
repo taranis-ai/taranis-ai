@@ -28,7 +28,7 @@ class Task(MethodView):
         result = data.get("result")
         status = data.get("status")
 
-        logger.debug(f"Received task result with id {task_id} and status {status}")
+        logger.debug(f"Received task result with id {task_id} and status {status} with result {result}")
 
         if not result or "error" in result or status == "FAILURE":
             TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
@@ -55,10 +55,9 @@ def serialize_result(result: dict | str | None = None):
 
     if isinstance(result, str):
         return result
-
     if "exc_message" in result:
         if isinstance(result["exc_message"], (list, tuple)):
-            return " ".join(result["exc_message"])
+            return " ".join(map(str, result["exc_message"]))
         return result["exc_message"]
 
     if "message" in result:

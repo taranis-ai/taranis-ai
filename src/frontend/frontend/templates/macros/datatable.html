@@ -1,11 +1,11 @@
-{% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items") %}
-{% from "macros/datatable.html" import datatable_header with context %}
+{% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items", headline="", width="w-full") %}
+{% from "macros/datatable.html" import datatable_header %}
 {% set safe_data = data | list | tojson | replace('"', "'") %}
 {% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
 {% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list | tojson | replace('"', "'") %}
 {% set safe_columns = columns | map(attribute='title') | list | tojson %}
 
-<div id="dataTableDiv" x-data="{
+<div id="dataTableDiv" class="{{ width }}" x-data="{
     data: {{ safe_data }},
     items: [],
     filteredItems: [],
@@ -79,7 +79,7 @@
     }
   }">
 <div>
-  <h4 class="text-l font-bold mb-4">{{ table_id }}</h4>
+  {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
   <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..."/>
 </div>
 <table class="table table-sm" id="{{ table_id }}" >
@@ -147,14 +147,16 @@
     </tr>
   </tfoot>
 </table>
+{% if selectable %}
 <template x-for="item in selectedItems" :key="item">
   <input type="hidden" name="{{ input_name }}" :value="item" />
 </template>
+{% endif %}
 </div>
 {% endmacro %}
 
 {% macro datatable_header(title, sortable) %}
-{% from "macros/query_params.html" import update_query_params with context %}
+{% from "macros/query_params.html" import update_query_params %}
 {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
 {% set order = title ~ '_' ~ order_direction %}
 {% set order_params = {'order': order, 'page': 1} %}

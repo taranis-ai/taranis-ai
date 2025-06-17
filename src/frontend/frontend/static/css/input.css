@@ -1,9 +1,53 @@
 @import "tailwindcss";
-@plugin "../js/daisyui.js" {
+@plugin "../vendor/js/daisyui.js" {
     themes: light --default, dark --prefersdark;
 }
 
 .input:focus {
     outline-offset: 0;
     outline-color: var(--color-primary);
+}
+
+@layer utilities {
+  @keyframes fill {
+    0% {
+      width: 0%;
+    }
+    100% {
+      width: 100%;
+    }
+  }
+
+  .animate-fill-30 {
+    animation: fill 30s linear forwards;
+  }
+
+  .animate-fill-20 {
+    animation: fill 20s linear forwards;
+  }
+
+  .animate-fill-10 {
+    animation: fill 10s linear forwards;
+  }
+
+  @keyframes shrink {
+    0% {
+      width: 100%;
+    }
+    100% {
+      width: 0%;
+    }
+  }
+
+  .animate-shrink-30 {
+    animation: shrink 30s linear forwards;
+  }
+
+  .animate-shrink-20 {
+    animation: shrink 20s linear forwards;
+  }
+
+  .animate-shrink-10 {
+    animation: shrink 10s linear forwards;
+  }
 }

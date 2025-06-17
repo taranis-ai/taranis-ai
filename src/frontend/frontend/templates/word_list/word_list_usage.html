@@ -1,0 +1,47 @@
+  <div class="flex gap-8 items-center" x-data="{
+    include: false,
+    exclude: false,
+    tagging: false,
+    updateState(key) {
+        if (this.exclude) {
+            // If exclude is checked, uncheck others
+            this.include = false;
+            this.tagging = false;
+        }
+        if (key === 'include' && this.include && this.exclude) {
+            this.exclude = false;
+        }
+        if (key === 'tagging' && this.tagging && this.exclude) {
+            this.exclude = false;
+        }
+        if (key === 'exclude' && this.exclude) {
+            this.include = false;
+            this.tagging = false;
+        }
+    }
+}">
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox" class="checkbox checkbox-primary" name="include"
+      x-model="include"
+      @change="updateState('include')"
+      :disabled="exclude"
+    >
+    Collector Includelist
+  </label>
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox" class="checkbox checkbox-error" name="exclude"
+      x-model="exclude"
+      @change="updateState('exclude')"
+      :disabled="include || tagging"
+    >
+    Collector Excludelist
+  </label>
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox" class="checkbox checkbox-accent" name="tagging"
+      x-model="tagging"
+      @change="updateState('tagging')"
+      :disabled="exclude"
+    >
+    Tagging Bot
+  </label>
+</div>

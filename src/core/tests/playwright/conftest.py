@@ -9,7 +9,7 @@ from playwright.sync_api import Browser
 @pytest.fixture(scope="session")
 def build_gui():
     try:
-        if not os.path.isdir("../gui/dist"):
+        if os.getenv("E2E_TEST_GUI_REBUILD") == "true" or not os.path.isdir("../gui/dist"):
             if not os.path.isdir("../gui/node_modules"):
                 print("Building node_modules")
                 print(os.path.isdir("../gui/node_modules"))
@@ -52,8 +52,6 @@ def e2e_server(app, live_server, stories, build_gui):
 
 @pytest.fixture(scope="session")
 def pic_prefix(request):
-    if request.config.getoption("--e2e-admin"):
-        yield "docs_"
     yield ""
 
 
@@ -61,13 +59,7 @@ def pic_prefix(request):
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
 
-    if request.config.getoption("--e2e-admin"):
-        browser_type_launch_args["args"] = ["--window-size=1640,1338"]
-
     if request.config.getoption("--record-video"):
-        if request.config.getoption("--e2e-admin"):
-            browser_type_launch_args["args"] = ["--window-size=1964,1211"]
-            print("Screenshots in --e2e-admin mode are not of optimal resolution")
         return {
             **browser_context_args,
             "record_video_dir": "tests/playwright/videos",
@@ -90,7 +82,7 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     page.goto(e2e_server.url())
     yield page
     if request.config.getoption("--e2e-ci") == "e2e_ci":
-        context.tracing.stop(path="trace.zip")
+        context.tracing.stop(path="taranis_ai_core_trace.zip")
 
 
 @pytest.fixture(scope="session")
@@ -209,9 +201,9 @@ def stories_date_descending(app, stories):
     with app.app_context():
         creation_timestamps = []
         for story_id in stories:
-            try:
-                creation_timestamps.append(Story.get(story_id).created)
-            except AttributeError:
+            if s := Story.get(story_id):
+                creation_timestamps.append(s.created)
+            else:
                 creation_timestamps.append(datetime.fromtimestamp(0))
         story_ids = [story_id for story_id, _ in sorted(zip(stories, creation_timestamps), key=lambda x: x[1], reverse=True)]
     yield story_ids
@@ -224,11 +216,9 @@ def stories_date_descending_not_important(app, stories_date_descending):
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
-            try:
-                if not Story.get(story_id).important:
+            if s := Story.get(story_id):
+                if not s.important:
                     story_ids.append(story_id)
-            except AttributeError:
-                continue
     yield story_ids
 
 
@@ -239,11 +229,9 @@ def stories_date_descending_important(app, stories_date_descending):
     with app.app_context():
         story_ids = []
         for story_id in stories_date_descending:
-            try:
-                if Story.get(story_id).important:
+            if s := Story.get(story_id):
+                if s.important:
                     story_ids.append(story_id)
-            except AttributeError:
-                continue
     yield story_ids
 
 
@@ -254,9 +242,9 @@ def stories_relevance_descending(app, stories):
     with app.app_context():
         relevances = []
         for story_id in stories:
-            try:
-                relevances.append(Story.get(story_id).relevance)
-            except AttributeError:
+            if s := Story.get(story_id):
+                relevances.append(s.relevance)
+            else:
                 relevances.append(0)
         story_ids = [story_id for story_id, _ in sorted(zip(stories, relevances), key=lambda x: x[1], reverse=True)]
     yield story_ids
@@ -1026,6 +1014,6 @@ def create_html_render(app):
             # test html for product rendering
             test_html = "Thanks to Cybersecurity experts, the world of IT is now safe."
 
-            Product.update_render_for_id(product_id, test_html.encode("utf-8"))
+            Product.update_render_for_id(product_id, test_html)
 
     return get_product_to_render

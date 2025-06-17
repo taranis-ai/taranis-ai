@@ -11,17 +11,13 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-dev
 
 COPY ./src/frontend/. /app/
-COPY ./.git /.git
-
-RUN arch=$(uname -m) && \
-    arch_short=$([ "$arch" = "x86_64" ] && echo "x64" || echo "arm64") && \
-    curl -sLo /tmp/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.2/tailwindcss-linux-${arch_short} && \
-    chmod +x /tmp/tailwindcss && \
-    /tmp/tailwindcss -i /app/frontend/static/css/input.css -o /app/frontend/static/css/tailwind.css
+RUN rm -f /app/frontend/static/assets/openapi3_1.yaml
+COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
 
 ENV UV_COMPILE_BYTECODE=1
 
-RUN uv venv && \
+RUN /app/build_tailwindcss.sh && \
+    uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen
 
@@ -35,8 +31,9 @@ RUN install -d -o user -g user /app/data
 
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/frontend/. /app/
-COPY --from=builder --chown=user:user /app/frontend/static/css/tailwind.css /app/frontend/static/css/tailwind.css
+COPY --from=builder --chown=user:user /app/frontend/static/ /app/frontend/static/
 
+# Copy the OpenAPI spec file
 USER user
 
 ENV PYTHONOPTIMIZE=1

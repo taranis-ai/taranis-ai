@@ -245,7 +245,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             assert sorted(actual_rows) == sorted(expected_rows)
 
-        def interact_with_story(story_ids, story_news_items_dict):
+        def interact_with_story(story_ids):
             self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("show story-actions-menu")).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_story_options.png")
@@ -290,28 +290,16 @@ class TestEndToEndUser(PlaywrightHelpers):
                 "I like this story, it needs to be reviewed."
             )
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
-
-            # manually classify first three news items
-            self.highlight_element(
-                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][0].id}-cybersec-yes-btn"), scroll=True
-            ).click()
-            self.highlight_element(
-                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][1].id}-cybersec-no-btn"), scroll=True
-            ).click()
-            self.highlight_element(
-                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][2].id}-cybersec-yes-btn"), scroll=True
-            ).click()
-
-            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=True).click()
+            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
             page.locator("div").filter(has_text="updated").nth(2).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
-        def assert_edited_story(story_ids):
+        def assert_edited_story(story_ids, story_news_items_dict):
+            page.get_by_test_id("story-go-back-btn").click()
             self.highlight_element(page.get_by_test_id(f"story-actions-div-{story_ids[0]}").get_by_test_id("edit story")).click()
 
             expect(page.get_by_label("Title")).to_have_value("Genetic Engineering Data Theft by APT81")
-
             expect(page.locator("div[name='summary']").get_by_role("textbox")).to_have_text(
                 "This story informs about the current security state."
             )
@@ -329,11 +317,20 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_label("Tags", exact=True).locator("xpath=..").locator("div.v-chip__content").nth(7)).to_have_text("APT81")
 
             page.get_by_test_id("show-all-attributes").click()
-            check_attributes_table(
-                page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"], ["cybersecurity", "incomplete"]]
-            )
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["TLP", "clear"], ["test_key", "dangerous"]])
 
-            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
+            # manually classify first three news items
+            self.highlight_element(
+                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][0].id}-cybersec-yes-btn"), scroll=True
+            ).click()
+            self.highlight_element(
+                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][1].id}-cybersec-no-btn"), scroll=True
+            ).click()
+            self.highlight_element(
+                page.get_by_test_id(f"news-item-{story_news_items_dict[story_ids[0]][2].id}-cybersec-yes-btn"), scroll=True
+            ).click()
+            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=True).click()
+            page.get_by_test_id("story-go-back-btn").click()
 
         def infinite_scroll_all_items(stories_date_descending):
             self.smooth_scroll(page.get_by_test_id(f"story-card-{stories_date_descending[19]}"))
@@ -398,8 +395,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
-        interact_with_story(stories, story_news_items)
-        assert_edited_story(stories)
+        interact_with_story(stories)
+        assert_edited_story(stories, story_news_items)
 
         assert_first_story_and_news_items(stories, story_news_items)
         self.highlight_element(page.get_by_role("link", name="Assess").first).click()

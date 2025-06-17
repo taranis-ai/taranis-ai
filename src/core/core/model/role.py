@@ -36,9 +36,9 @@ class TLPLevel(StrEnum):
         return [type(self)[nm].value for nm in names]
 
     @classmethod
-    def get_highest_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
+    def get_most_restrictive_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
         """
-        Get the highest TLP level from a list of TLP levels.
+        Get the most restrictive TLP level from a list of TLP levels.
         If the list is empty, return the default TLP level (CLEAR).
         """
         if not tlp_levels:

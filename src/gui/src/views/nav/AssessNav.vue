@@ -304,11 +304,7 @@ export default {
     })
 
     function resetFilter() {
-      assessStore.reset()
-      filterStore.resetFilter()
-      assessStore.updateOSINTSources()
-      assessStore.updateOSINTSourceGroupsList()
-      assessStore.updateStories()
+      assessStore.resetFilter()
     }
 
     function setCompactView() {

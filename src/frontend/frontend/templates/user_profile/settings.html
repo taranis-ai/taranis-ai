@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="p-8" id="{{ model_name }}">
+  <div class="text-3xl font-bold mb-4">
+    {{ user.name }}
+  </div>
+  <div class="bg-base p-4" id="form-container">
+    {{ user }}
+  </div>
+</div>
+{% endblock %}

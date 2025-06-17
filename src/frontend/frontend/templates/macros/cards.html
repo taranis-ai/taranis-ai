@@ -1,0 +1,29 @@
+{% macro dashboard_card(title, endpoint, icon) %}
+<div class="bg-base-100 border p-4 shadow-lg">
+    {% if endpoint %}
+    <a href="{{ endpoint }}" class="underline text-xl" target="_top">{{ title }}</a>
+    {% else %}
+    <span class="text-xl">{{ title }}</span>
+    {% endif %}
+    <div class="divider"></div>
+    <span class="inline-flex">
+        {% if icon %}{{ heroicon_solid(icon) }}{% endif %}
+        <span class="caption">
+            {{ caller() }}
+        </span>
+    </span>
+</div>
+{% endmacro %}
+
+{% macro trending_card(cluster) %}
+<div class="bg-base-100 border p-4 shadow-lg">
+    <a href="/cluster/{{ cluster.name }}" class="underline text-xl" target="_top">{{ cluster.name }}</a>
+    <div class="divider"></div>
+    <span class="inline-flex">
+        {{ heroicon_solid('tag') }}
+        <span class="caption">
+            {{ cluster.size }} items
+        </span>
+    </span>
+</div>
+{% endmacro %}
