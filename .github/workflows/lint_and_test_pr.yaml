@@ -253,7 +253,7 @@ jobs:
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
   filter:
-    name: 🔎 Detect Relevant Changes
+    name: Detect Relevant Changes
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -271,7 +271,7 @@ jobs:
   human_approval:
     needs: [e2e_tests, filter]
     runs-on: ubuntu-latest
-    if: needs.e2e_tests.result == 'success'
+    if: needs.e2e_tests.result == 'success' && needs.filter.outputs.code == 'true'
     outputs:
       should_run: ${{ needs.filter.outputs.code }}
       is_approved:  ${{ steps.pr_approval.outputs.is_approved }}
@@ -280,9 +280,7 @@ jobs:
     steps:
       - name: Set PR commit
         id: set_pr
-        run: |
-          # workflow_run.head_commit.id is never null
-          echo "pr_sha=${{ github.event.workflow_run.head_commit.id }}" >> $GITHUB_OUTPUT
+        run: echo "pr_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
 
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -296,7 +294,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ github.event.workflow_run.pull_requests[0].number }}
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.number }}"
+          echo "Checking PR #$PR_NUMBER for human approval"
           COUNT=$(gh pr view "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --json reviews \
@@ -306,8 +305,7 @@ jobs:
               | map(select(.author.login != "sourcery-ai[bot]"))
               | unique_by(.author.login)
               | length
-            '
-          )
+            ')
           if (( COUNT > 0 )); then
             echo "is_approved=true"  >> $GITHUB_OUTPUT
           else
