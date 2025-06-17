@@ -1,8 +1,8 @@
 <template>
   <div v-if="tags" class="story-tag-list">
     <v-chip
-      v-for="(tag, i) in tags"
-      :key="i"
+      v-for="(tag, tagName) in tags"
+      :key="tagName"
       class="py-3 mr-1 mt-1"
       :color="labelcolor(tag.tag_type)"
       link
@@ -52,8 +52,8 @@ export default defineComponent({
   name: 'TagList',
   props: {
     tags: {
-      type: Array,
-      required: true
+      type: Object,
+      default: () => ({})
     },
     truncate: {
       type: Boolean,
@@ -79,7 +79,6 @@ export default defineComponent({
     const router = useRouter()
 
     const max_width = computed(() => (props.truncate ? '60px' : '120px'))
-
     const flex_wrap = computed(() => (props.wrap ? 'wrap' : 'nowrap'))
 
     const updateTags = (tag) => {
