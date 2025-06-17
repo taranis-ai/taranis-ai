@@ -319,6 +319,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Get latest tag
         id: get_latest_tag
         run: |
@@ -359,6 +364,6 @@ jobs:
           docker compose up --wait core database frontend gui sse rabbitmq collector workers
           docker ps -a
           echo "Check migration logs:"
-          docker logs -f core
+          docker logs core
           docker compose down
 
