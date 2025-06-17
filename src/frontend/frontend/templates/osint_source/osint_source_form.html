@@ -8,10 +8,7 @@
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
-    {% endif %}
-
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
     {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
     {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False) }}
@@ -26,7 +23,9 @@
               hx-trigger="change"
               hx-include="#collector_type"
               hx-target="#parameters"
-              hx-swap="innerHTML">
+              hx-swap="innerHTML"
+              {% if osint_source.type %}disabled{% endif %}
+              >
       {% if not osint_source.collector_type %}
       <option value="" selected disabled>Select a collector type</option>
       {% endif %}
@@ -34,6 +33,9 @@
       <option value="{{ option.id }}" {% if option.id == osint_source.type %}selected{% endif %}>{{ option.name }}</option>
       {% endfor -%}
       </select>
+      {% if osint_source.type %}
+        <input type="hidden" name="type" value="{{ osint_source.type }}">
+      {% endif %}
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 

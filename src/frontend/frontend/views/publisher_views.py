@@ -1,7 +1,7 @@
 from typing import Any
 from flask import request, render_template
 
-from frontend.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from models.admin import PublisherPreset, ProductType, ReportItemType, Template, WorkerParameter, WorkerParameterValue
@@ -47,6 +47,7 @@ class PublisherView(BaseView):
 
     @classmethod
     def get_publisher_parameters_view(cls, publisher_id: str, publisher_type: str):
+        publisher_type = publisher_type.lower()
         if not publisher_id and not publisher_type:
             logger.warning("No Publisher ID or Publisher Type provided.")
 

@@ -19,7 +19,7 @@ def mask_db_uri(uri: str) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", secrets_dir="/var/run")
 
     API_KEY: SecretStr = SecretStr("supersecret")
     APPLICATION_ROOT: str = "/"
