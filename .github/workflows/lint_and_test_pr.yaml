@@ -124,57 +124,49 @@ jobs:
           path: ${{ runner.temp }}/${{ env.GUI_ARTIFACT_NAME }}.tar.gz
 
   e2e_tests:
-    needs: [test_core, test_frontend, test_gui]
     name: End-to-End Tests
     runs-on: ubuntu-latest
-
+    needs: [test_core, test_gui, test_frontend]
     steps:
-      - name: Grab PR number & SHA
-        id: pr_info
-        run: |
-          PR_NUM=${{ github.event.workflow_run.pull_requests[0].number }}
-          PR_SHA=${{ github.event.workflow_run.head_commit.id }}
-          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
-          echo "pr_sha=$PR_SHA"      >> $GITHUB_OUTPUT
-
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.pr_info.outputs.pr_sha }}
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - name: Set PLAYWRIGHT_BROWSERS_PATH & Trace Artifact Name
+      - name: Set PLAYWRIGHT_BROWSERS_PATH and TRACES_ARTIFACT_NAME
         run: |
           echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
-          TRACE="playwright-traces-${{ steps.pr_info.outputs.pr_number }}"
-          echo "TRACES_ARTIFACT_NAME=${TRACE//\//-}" >> $GITHUB_ENV
+          TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
+          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
-      - name: Check Playwright version consistency
+      - name: Check Playwright version consistency in uv.lock files
         run: |
           set -euo pipefail
-          FRONT=$(uv export --frozen --no-hashes --all-extras --directory src/frontend \
-                  | grep '^playwright==' | cut -d= -f3)
-          CORE=$(uv export --frozen --no-hashes --all-extras --directory src/core \
-                  | grep '^playwright==' | cut -d= -f3)
-          echo "Frontend playwright version: $FRONT"
-          echo "Core     playwright version: $CORE"
-          if [ "$FRONT" != "$CORE" ]; then
-            echo "::error ::Playwright version mismatch!"
+
+          FRONTEND_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
+          CORE_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
+
+          echo "Frontend playwright version: $FRONTEND_VERSION"
+          echo "Core playwright version:     $CORE_VERSION"
+
+          if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
+            echo "::error ::Mismatch in declared playwright versions!"
+            echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
+            echo "::error ::Please run \`uv sync --upgrade --all-extras\` in both folders to align."
             exit 1
           fi
 
-      - name: Set up Python & install core
+      - name: Set up Python
         working-directory: src/core
-        run: |
-          uv python install
-          uv sync --all-extras
+        run: uv python install
 
-      - name: Cache Playwright browsers
+      - name: Install core
+        working-directory: src/core
+        run: uv sync --all-extras
+
+      - name: Cache Playwright Browsers
         id: playwright-cache
         uses: actions/cache@v4
         with:
@@ -186,17 +178,18 @@ jobs:
         working-directory: src/core
         run: uv run playwright install --with-deps chromium
 
-      - name: Download built frontend artifact
+      - name: Download built frontend
         uses: actions/download-artifact@v4
         with:
-          name: built-frontend-${{ steps.pr_info.outputs.pr_number }}
+          name: ${{ needs.test_gui.outputs.gui_artifact_name }}
           path: src/gui/
 
-      - name: Extract frontend artifact
+      - name: Extract Artifact for CI/CD
         working-directory: src/gui
-        run: tar xf built-frontend-${{ steps.pr_info.outputs.pr_number }}.tar.gz
+        run: tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
 
-      - name: Run core E2E tests
+      - name: Run e2e tests
+        id: run_e2e
         working-directory: src/core
         run: uv run pytest --e2e-ci
 
@@ -208,17 +201,19 @@ jobs:
         working-directory: src/frontend
         run: ./build_tailwindcss.sh
 
-      - name: Run frontend E2E tests
+      - name: Run e2e tests frontend
+        id: run_e2e_frontend
         working-directory: src/frontend
         run: uv run pytest --e2e-ci
 
-      - name: Upload traces on failure
-        if: failure()
+      - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && (steps.run_e2e.outcome == 'failure' || steps.run_e2e_frontend.outcome == 'failure') }}
         with:
+          retention-days: 7
+          overwrite: true
           name: ${{ env.TRACES_ARTIFACT_NAME }}
           path: src/**/taranis_ai_*_trace.zip
-
 
   test_worker:
     name: pytest worker
