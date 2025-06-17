@@ -1,0 +1,369 @@
+name: test and lint
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+env:
+  UV_NO_SYNC: true
+  UV_FROZEN: true
+
+jobs:
+  test_core:
+    name: pytest core
+    defaults:
+      run:
+        working-directory: src/core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras
+
+      - name: Lint with ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Run tests and capture output
+        id: run-tests
+        run: |
+          set -o pipefail
+          uv run pytest | tee pytest_output.txt
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+
+  test_frontend:
+    name: pytest frontend
+    defaults:
+      run:
+        working-directory: src/frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras
+
+      - name: Lint with ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Run tests and capture output
+        id: run-tests
+        run: |
+          set -o pipefail
+          uv run pytest | tee pytest_output.txt
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+
+  test_gui:
+    name: test gui
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/gui
+    outputs:
+      gui_artifact_name: ${{ steps.set_gui_artifact_name.outputs.gui_artifact_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: src/gui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint with eslint
+        run: pnpm run lint_and_format
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Preperae GUI artifact
+        id: set_gui_artifact_name
+        run: |
+          GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
+          GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}
+          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME}" >> $GITHUB_ENV
+          echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          tar -czf ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz dist/
+
+      - name: Upload built frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.GUI_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/${{ env.GUI_ARTIFACT_NAME }}.tar.gz
+
+  test_worker:
+    name: pytest worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install worker
+        run: uv sync --all-extras
+
+      - name: Install playwright dependencies
+        run: uv run playwright install --with-deps chromium
+
+      - name: Lint with ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Run tests and capture output
+        id: run-tests
+        run: |
+          set -o pipefail
+          uv run pytest | tee pytest_output.txt
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **✅ Passed:** $(grep -oP '\d+(?= passed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+
+  e2e_tests:
+    needs: [test_core, test_frontend, test_gui]
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Grab PR number & SHA
+        id: pr_info
+        run: |
+          PR_NUM=${{ github.event.workflow_run.pull_requests[0].number }}
+          PR_SHA=${{ github.event.workflow_run.head_commit.id }}
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "pr_sha=$PR_SHA"      >> $GITHUB_OUTPUT
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr_info.outputs.pr_sha }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set PLAYWRIGHT_BROWSERS_PATH & Trace Artifact Name
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
+          TRACE="playwright-traces-${{ steps.pr_info.outputs.pr_number }}"
+          echo "TRACES_ARTIFACT_NAME=${TRACE//\//-}" >> $GITHUB_ENV
+
+      - name: Check Playwright version consistency
+        run: |
+          set -euo pipefail
+          FRONT=$(uv export --frozen --no-hashes --all-extras --directory src/frontend \
+                  | grep '^playwright==' | cut -d= -f3)
+          CORE=$(uv export --frozen --no-hashes --all-extras --directory src/core \
+                  | grep '^playwright==' | cut -d= -f3)
+          echo "Frontend playwright version: $FRONT"
+          echo "Core     playwright version: $CORE"
+          if [ "$FRONT" != "$CORE" ]; then
+            echo "::error ::Playwright version mismatch!"
+            exit 1
+          fi
+
+      - name: Set up Python & install core
+        working-directory: src/core
+        run: |
+          uv python install
+          uv sync --all-extras
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright
+
+      - name: Install Playwright dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: src/core
+        run: uv run playwright install --with-deps chromium
+
+      - name: Download built frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: built-frontend-${{ steps.pr_info.outputs.pr_number }}
+          path: src/gui/
+
+      - name: Extract frontend artifact
+        working-directory: src/gui
+        run: tar xf built-frontend-${{ steps.pr_info.outputs.pr_number }}.tar.gz
+
+      - name: Run core E2E tests
+        working-directory: src/core
+        run: uv run pytest --e2e-ci
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras
+
+      - name: Build Tailwind CSS
+        working-directory: src/frontend
+        run: ./build_tailwindcss.sh
+
+      - name: Run frontend E2E tests
+        working-directory: src/frontend
+        run: uv run pytest --e2e-ci
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TRACES_ARTIFACT_NAME }}
+          path: src/**/taranis_ai_*_trace.zip
+
+
+  precheck:
+    needs: e2e_tests
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check_paths.outputs.trigger }}
+      is_approved: ${{ steps.pr_approval.outputs.approved }}
+      pr_number: ${{ steps.get_pr.outputs.number }}
+      pr_sha: ${{ steps.get_pr.outputs.sha }}
+
+    steps:
+      - name: Get PR info
+        id: get_pr
+        run: |
+          PR_JSON=$(echo '${{ toJson(github.event.workflow_run.pull_requests) }}')
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number')
+          PR_SHA=$(echo "$PR_JSON" | jq -r '.[0].head.sha')
+          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.get_pr.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: check_paths
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD | tr '\n' ',' | sed 's/,$//')
+          echo "CHANGED_FILES=$CHANGED" >> $GITHUB_ENV
+          if echo "$CHANGED" | grep -qE '^(src/core/core/|src/worker/worker/|docker/)'; then
+            echo "trigger=true" >> $GITHUB_OUTPUT
+          else
+            echo "trigger=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if PR is approved by a human
+        id: pr_approval
+        run: |
+          PR_NUMBER=${{ steps.get_pr.outputs.number }}
+          echo "Checking approval status for PR #$PR_NUMBER"
+
+          APPROVED_HUMAN=$(gh pr view "$PR_NUMBER" --json reviews --jq '
+            .reviews
+            | map(select(.state == "APPROVED"))
+            | map(select(.author.login != "sourcery-ai[bot]"))
+            | unique_by(.author.login)
+            | length
+          ')
+          if [[ "$APPROVED_HUMAN" -gt 0 ]]; then
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "approved=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  production_compose_test:
+    needs: precheck
+    if: needs.precheck.outputs.should_run == 'true' && needs.precheck.outputs.is_approved == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.precheck.outputs.pr_sha }}
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git tag --sort=-creatordate | head -n 1)
+          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Checkout latest tag
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          ref: ${{ steps.get_latest_tag.outputs.tag }}
+
+      - name: Run docker compose for tagged version
+        working-directory: docker
+        run: |
+          cp env.sample .env
+          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker ps -a
+          docker compose down
+
+      - name: Checkout PR commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.precheck.outputs.pr_sha }}
+          fetch-depth: 1
+
+      - name: Build Docker images from PR code
+        run: |
+          chmod +x docker/build_containers.sh
+          ./docker/build_containers.sh
+
+      - name: Run docker compose for latest version
+        working-directory: docker
+        run: |
+          cp env.sample .env
+          docker volume ls
+          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker ps -a
+          docker compose down
+
