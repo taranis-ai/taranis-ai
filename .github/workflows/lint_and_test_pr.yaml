@@ -252,8 +252,9 @@ jobs:
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
-  precheck:
+  human_approval:
     needs: e2e_tests
+    continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.check_paths.outputs.trigger }}
@@ -310,15 +311,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   production_compose_test:
-    needs: precheck
-    if: needs.precheck.outputs.should_run == 'true' && needs.precheck.outputs.is_approved == 'true'
+    needs: human_approval
+    if: needs.human_approval.outputs.should_run == 'true' && needs.human_approval.outputs.is_approved == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.precheck.outputs.pr_sha }}
+          ref: ${{ needs.human_approval.outputs.pr_sha }}
           fetch-depth: 0
 
       - name: Get latest tag
@@ -345,7 +346,7 @@ jobs:
       - name: Checkout PR commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.precheck.outputs.pr_sha }}
+          ref: ${{ needs.human_approval.outputs.pr_sha }}
           fetch-depth: 1
 
       - name: Build Docker images from PR code
