@@ -319,12 +319,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.human_approval.outputs.pr_sha }}
-          fetch-depth: 0
-
       - name: Get latest tag
         id: get_latest_tag
         run: |
