@@ -252,12 +252,28 @@ jobs:
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
+  filter:
+    name: 🔎 Detect Relevant Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/core/core/**'
+              - 'src/worker/worker/**'
+              - 'docker/**'
+
   human_approval:
-    needs: e2e_tests
+    needs: [e2e_tests, filter]
     runs-on: ubuntu-latest
     if: needs.e2e_tests.result == 'success'
     outputs:
-      should_run: ${{ steps.check_paths.outputs.should_run }}
+      should_run: ${{ needs.filter.outputs.code }}
       is_approved:  ${{ steps.pr_approval.outputs.is_approved }}
       pr_sha:       ${{ steps.set_pr.outputs.pr_sha }}
 
@@ -273,17 +289,6 @@ jobs:
         with:
           ref: ${{ steps.set_pr.outputs.pr_sha }}
           fetch-depth: 0
-
-      - name: Check for relevant file-changes
-        id: check_paths
-        continue-on-error: true
-        run: |
-          CHANGED=$(git diff --name-only origin/main...HEAD | tr '\n' ',' | sed 's/,$//')
-          if echo "$CHANGED" | grep -qE '^(src/core/core/|src/worker/worker/|docker/)'; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "should_run=false" >> $GITHUB_OUTPUT
-          fi
 
       - name: Verify human approval
         id: pr_approval
