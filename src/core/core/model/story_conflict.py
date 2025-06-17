@@ -57,46 +57,8 @@ class StoryConflict:
         return obj
 
     @classmethod
-    def _sort_recursively(cls, obj: Any) -> Any:
-        """
-        Recursively sort nested structures for deterministic ordering.
-        Handles dictionaries (sorted by keys), lists of dictionaries (sorted by 'name', 'key', or 'id').
-        Returns a new sorted object without modifying the original.
-        """
-        if isinstance(obj, dict):
-            return {key: cls._sort_recursively(value) for key, value in sorted(obj.items())}
-        elif isinstance(obj, list):
-            if obj and isinstance(obj[0], dict):
-                sort_key = None
-                if "name" in obj[0]:
-                    sort_key = "name"
-                elif "key" in obj[0]:
-                    sort_key = "key"
-                elif "id" in obj[0]:
-                    sort_key = "id"
-
-                if sort_key:
-                    try:
-                        return sorted([cls._sort_recursively(item) for item in obj], key=lambda x: x.get(sort_key, ""))
-                    except (TypeError, KeyError):
-                        return [cls._sort_recursively(item) for item in obj]
-                else:
-                    try:
-                        return sorted([cls._sort_recursively(item) for item in obj], key=lambda x: str(x))
-                    except TypeError:
-                        return [cls._sort_recursively(item) for item in obj]
-            else:
-                try:
-                    return sorted([cls._sort_recursively(item) for item in obj])
-                except TypeError:
-                    return [cls._sort_recursively(item) for item in obj]
-        else:
-            return obj
-
-    @classmethod
     def stable_stringify(cls, obj: Any, indent=2) -> str:
-        sorted_obj = cls._sort_recursively(obj)
-        return json.dumps(sorted_obj, sort_keys=True, indent=indent)
+        return json.dumps(obj, sort_keys=True, indent=indent, ensure_ascii=False)
 
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:

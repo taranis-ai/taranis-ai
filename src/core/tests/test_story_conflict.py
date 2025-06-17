@@ -7,16 +7,16 @@ def story_data_1():
     return {
         "title": "Test Story",
         "description": "A test story",
-        "tags": [
-            {"name": "zebra_tag", "tag_type": "PERSON"},
-            {"name": "alpha_tag", "tag_type": "LOCATION"},
-            {"name": "beta_tag", "tag_type": "ORGANIZATION"},
-        ],
-        "attributes": [
-            {"key": "source", "value": "news_site_2"},
-            {"key": "author", "value": "john_doe"},
-            {"key": "category", "value": "politics"},
-        ],
+        "tags": {
+            "zebra_tag": {"name": "zebra_tag", "tag_type": "PERSON"},
+            "alpha_tag": {"name": "alpha_tag", "tag_type": "LOCATION"},
+            "beta_tag": {"name": "beta_tag", "tag_type": "ORGANIZATION"},
+        },
+        "attributes": {
+            "source": {"key": "source", "value": "news_site_2"},
+            "author": {"key": "author", "value": "john_doe"},
+            "category": {"key": "category", "value": "politics"},
+        },
     }
 
 
@@ -25,16 +25,16 @@ def story_data_2():
     return {
         "title": "Test Story",
         "description": "A test story",
-        "tags": [
-            {"name": "alpha_tag", "tag_type": "LOCATION"},
-            {"name": "zebra_tag", "tag_type": "PERSON"},
-            {"name": "beta_tag", "tag_type": "ORGANIZATION"},
-        ],
-        "attributes": [
-            {"key": "category", "value": "politics"},
-            {"key": "source", "value": "news_site_2"},
-            {"key": "author", "value": "john_doe"},
-        ],
+        "tags": {
+            "alpha_tag": {"name": "alpha_tag", "tag_type": "LOCATION"},
+            "zebra_tag": {"name": "zebra_tag", "tag_type": "PERSON"},
+            "beta_tag": {"name": "beta_tag", "tag_type": "ORGANIZATION"},
+        },
+        "attributes": {
+            "category": {"key": "category", "value": "politics"},
+            "source": {"key": "source", "value": "news_site_2"},
+            "author": {"key": "author", "value": "john_doe"},
+        },
     }
 
 
@@ -43,16 +43,16 @@ def original_story():
     return {
         "title": "Breaking News Story",
         "description": "Important news",
-        "tags": [
-            {"name": "Politics", "tag_type": "CATEGORY"},
-            {"name": "Europe", "tag_type": "LOCATION"},
-            {"name": "John Smith", "tag_type": "PERSON"},
-        ],
-        "attributes": [
-            {"key": "source", "value": "Reuters"},
-            {"key": "urgency", "value": "high"},
-            {"key": "verified", "value": "true"},
-        ],
+        "tags": {
+            "Politics": {"name": "Politics", "tag_type": "CATEGORY"},
+            "Europe": {"name": "Europe", "tag_type": "LOCATION"},
+            "John Smith": {"name": "John Smith", "tag_type": "PERSON"},
+        },
+        "attributes": {
+            "source": {"key": "source", "value": "Reuters"},
+            "urgency": {"key": "urgency", "value": "high"},
+            "verified": {"key": "verified", "value": "true"},
+        },
     }
 
 
@@ -61,16 +61,16 @@ def updated_story():
     return {
         "title": "Breaking News Story",
         "description": "Important news",
-        "tags": [
-            {"name": "John Smith", "tag_type": "PERSON"},
-            {"name": "Politics", "tag_type": "CATEGORY"},
-            {"name": "Europe", "tag_type": "LOCATION"},
-        ],
-        "attributes": [
-            {"key": "verified", "value": "true"},
-            {"key": "source", "value": "Reuters"},
-            {"key": "urgency", "value": "high"},
-        ],
+        "tags": {
+            "John Smith": {"name": "John Smith", "tag_type": "PERSON"},
+            "Politics": {"name": "Politics", "tag_type": "CATEGORY"},
+            "Europe": {"name": "Europe", "tag_type": "LOCATION"},
+        },
+        "attributes": {
+            "verified": {"key": "verified", "value": "true"},
+            "source": {"key": "source", "value": "Reuters"},
+            "urgency": {"key": "urgency", "value": "high"},
+        },
     }
 
 
