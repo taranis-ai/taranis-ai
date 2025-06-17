@@ -254,7 +254,7 @@ jobs:
 
   filter:
     name: Detect Relevant Changes
-    needs: [test_core, test_frontend, test_gui, test_worker, e2e_tests]
+    needs: e2e_tests
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -270,7 +270,7 @@ jobs:
               - 'docker/**'
 
   human_approval:
-    needs: [e2e_tests, filter]
+    needs: filter
     runs-on: ubuntu-latest
     if: needs.e2e_tests.result == 'success' && needs.filter.outputs.code == 'true'
     outputs:
