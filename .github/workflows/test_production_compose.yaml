@@ -48,18 +48,18 @@ jobs:
 
       - name: Retag images to ghcr.io
         run: |
-          docker tag taranis-core:latest     ghcr.io/taranis-ai/taranis-core:latest
-          docker tag taranis-gui:latest      ghcr.io/taranis-ai/taranis-gui:latest
-          docker tag taranis-frontend:latest ghcr.io/taranis-ai/taranis-frontend:latest
-          docker tag taranis-collector:latest ghcr.io/taranis-ai/taranis-collector:latest
-          docker tag taranis-workers:latest   ghcr.io/taranis-ai/taranis-workers:latest
+          docker tag docker.io/taranis-ai/taranis-core:latest     ghcr.io/taranis-ai/taranis-core:latest
+          docker tag docker.io/taranis-ai/taranis-gui:latest      ghcr.io/taranis-ai/taranis-gui:latest
+          docker tag docker.io/taranis-ai/taranis-frontend:latest ghcr.io/taranis-ai/taranis-frontend:latest
+          docker tag docker.io/taranis-ai/taranis-collector:latest ghcr.io/taranis-ai/taranis-collector:latest
+          docker tag docker.io/taranis-ai/taranis-workers:latest   ghcr.io/taranis-ai/taranis-workers:latest
 
       - name: Run docker compose for last commit
         working-directory: docker
         run: |
           cp env.sample .env
           docker volume ls
-          docker compose up --wait --wait-timeout 60 -- core database frontend gui sse rabbitmq collector workers
+          docker compose up --pull=never --wait-timeout=60 --wait -- core database frontend gui sse rabbitmq collector workers
           docker ps -a
           echo "Check migration logs:"
           docker compose logs core
