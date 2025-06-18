@@ -33,7 +33,7 @@ jobs:
           docker compose up --wait --wait-timeout 60 -- core database frontend gui sse rabbitmq collector workers
           docker ps -a
           docker compose down
-          docker image prune -f
+          docker image prune -a -f
 
       - name: Checkout PR commit
         uses: actions/checkout@v4
