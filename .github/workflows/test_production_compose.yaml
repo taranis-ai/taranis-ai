@@ -7,7 +7,6 @@ on:
 jobs:
   production_compose_test:
     runs-on: ubuntu-latest
-    if: github.event.review.state == 'approved'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
