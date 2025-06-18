@@ -252,29 +252,12 @@ jobs:
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
-  filter:
-    name: Detect Relevant Changes
+  human_approval:
     needs: e2e_tests
     runs-on: ubuntu-latest
+    if: needs.e2e_tests.result == 'success'
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            code:
-              - 'src/core/core/**'
-              - 'src/worker/worker/**'
-              - 'docker/**'
-
-  human_approval:
-    needs: filter
-    runs-on: ubuntu-latest
-    if: needs.e2e_tests.result == 'success' && needs.filter.outputs.code == 'true'
-    outputs:
-      should_run: ${{ needs.filter.outputs.code }}
+      should_run: ${{ needs.e2e_tests.result == 'success' }}
       is_approved:  ${{ steps.pr_approval.outputs.is_approved }}
       pr_sha:       ${{ steps.set_pr.outputs.pr_sha }}
 
@@ -341,7 +324,7 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
-          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker compose up --wait --wait-timeout 60 -- core database frontend gui sse rabbitmq collector workers
           docker ps -a
           docker compose down
 
@@ -361,7 +344,7 @@ jobs:
         run: |
           cp env.sample .env
           docker volume ls
-          docker compose up --wait core database frontend gui sse rabbitmq collector workers
+          docker compose up --wait --wait-timeout 60 -- core database frontend gui sse rabbitmq collector workers
           docker ps -a
           echo "Check migration logs:"
           docker compose logs core
