@@ -13,6 +13,7 @@ def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
             initilize_database(app)
             return app
         initialize_managers(app, initial_setup)
+    return None
 
     return app
 
