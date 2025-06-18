@@ -11,10 +11,10 @@ def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
     with app.app_context():
         if db_setup:
             initilize_database(app)
-            return app
+            return None
         initialize_managers(app, initial_setup)
 
-    return app
+    return None
 
 
 def initilize_database(app: Flask):
