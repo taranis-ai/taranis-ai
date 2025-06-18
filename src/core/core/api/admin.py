@@ -11,8 +11,6 @@ from core.model.settings import Settings
 from core.managers import queue_manager
 from core.config import Config
 
-# dummy change
-
 
 class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")

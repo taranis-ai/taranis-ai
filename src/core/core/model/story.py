@@ -36,6 +36,15 @@ class Story(BaseModel):
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
 
+    likes: Mapped[int] = db.Column(db.Integer, default=0)
+    dislikes: Mapped[int] = db.Column(db.Integer, default=0)
+    relevance: Mapped[int] = db.Column(db.Integer, default=0)
+
+    comments: Mapped[str] = db.Column(db.String(), default="")
+    summary: Mapped[str] = db.Column(db.Text, default="")
+    news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    links: Mapped[list[str]] = db.Column(db.JSON, default=[])
+    last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
