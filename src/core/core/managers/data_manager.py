@@ -97,6 +97,7 @@ def get_for_api(template: str) -> dict:
 
 
 def get_template_as_base64(presenter_template: str) -> str:
+    filepath = ""
     try:
         filepath = get_presenter_template_path(presenter_template)
         with open(filepath, "rb") as f:
@@ -108,24 +109,139 @@ def get_template_as_base64(presenter_template: str) -> str:
 
 
 def write_base64_to_file(base64_string: str, presenter_template: str) -> bool:
+    """
+    Write base64 string to template file with validation.
+    Validates the template and flags as dirty if validation fails.
+    """
+    filepath = None
     try:
+        # Decode the template content for validation
+        template_content = base64.b64decode(base64_string).decode("utf-8")
         filepath = get_presenter_template_path(presenter_template)
+        
+        # Validate the template using built-in Jinja2 validation
+        from jinja2 import Environment, TemplateSyntaxError
+        
+        try:
+            env = Environment(autoescape=False)
+            env.parse(template_content)
+            validation_result = {
+                "is_valid": True,
+                "error_message": "",
+                "error_type": ""
+            }
+        except TemplateSyntaxError as e:
+            validation_result = {
+                "is_valid": False,
+                "error_message": str(e),
+                "error_type": "TemplateSyntaxError"
+            }
+        except Exception as e:
+            validation_result = {
+                "is_valid": False,
+                "error_message": str(e),
+                "error_type": type(e).__name__
+            }
+        
+        # Always write the file, but track validation status
         with open(filepath, "wb") as f:
             f.write(base64.b64decode(base64_string))
+        
+        # Update template validation status
+        _update_template_validation_status(presenter_template, validation_result)
+        
+        if not validation_result['is_valid']:
+            logger.warning(f"Template {presenter_template} saved but flagged as dirty due to validation error: {validation_result['error_message']}")
+        else:
+            logger.info(f"Template {presenter_template} saved and validated successfully")
+            
         return True
     except Exception as e:
-        logger.error(f"An error occurred while converting base64 to file {filepath}: {e}")
+        error_msg = f"An error occurred while converting base64 to file {filepath or presenter_template}: {e}"
+        logger.error(error_msg)
         return False
 
 
 def delete_template(presenter_template: str) -> bool:
+    filepath = ""
     try:
         filepath = get_presenter_template_path(presenter_template)
         Path(filepath).unlink()
+        # Remove validation status for deleted template
+        _remove_template_validation_status(presenter_template)
         return True
     except Exception as e:
         logger.error(f"An error occurred while deleting file: {filepath}: {e}")
         return False
+
+
+def _get_template_validation_status_file() -> Path:
+    """Get the path to the template validation status file."""
+    return Path(Config.DATA_FOLDER) / "presenter_templates" / "template_validation_status.json"
+
+
+def _load_template_validation_status() -> dict:
+    """Load template validation status from file."""
+    status_file = _get_template_validation_status_file()
+    if status_file.exists():
+        try:
+            with open(status_file, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading template validation status: {e}")
+    return {}
+
+
+def _save_template_validation_status(status_data: dict) -> None:
+    """Save template validation status to file."""
+    status_file = _get_template_validation_status_file()
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(status_file, "w") as f:
+            json.dump(status_data, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving template validation status: {e}")
+
+
+def _update_template_validation_status(template_name: str, validation_result: dict) -> None:
+    """Update validation status for a specific template."""
+    status_data = _load_template_validation_status()
+    
+    status_data[template_name] = {
+        "is_valid": validation_result["is_valid"],
+        "error_message": validation_result.get("error_message", ""),
+        "error_type": validation_result.get("error_type", ""),
+        "last_validated": str(Path(get_presenter_template_path(template_name)).stat().st_mtime)
+    }
+    
+    _save_template_validation_status(status_data)
+
+
+def _remove_template_validation_status(template_name: str) -> None:
+    """Remove validation status for a deleted template."""
+    status_data = _load_template_validation_status()
+    if template_name in status_data:
+        del status_data[template_name]
+        _save_template_validation_status(status_data)
+
+
+def get_template_validation_status(template_name: str | None = None) -> dict:
+    """
+    Get validation status for a specific template or all templates.
+    Returns dict with template validation information.
+    """
+    status_data = _load_template_validation_status()
+    
+    if template_name:
+        return status_data.get(template_name, {"is_valid": True, "error_message": "", "error_type": ""})
+    
+    return status_data
+
+
+def get_dirty_templates() -> list[str]:
+    """Get list of template names that have validation errors (are 'dirty')."""
+    status_data = _load_template_validation_status()
+    return [template for template, status in status_data.items() if not status.get("is_valid", True)]
 
 
 def initialize(initial_setup: bool = True) -> None:

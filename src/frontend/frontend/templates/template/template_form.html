@@ -47,3 +47,50 @@
     });
   });
 </script>
+
+
+<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
+    <span class="label">Filename</span>
+    <input id="id"
+           type="text"
+           placeholder="{{ placeholder }}"
+           name="id"
+           value="{{ placeholder }}"
+           required
+           pattern="^[\w\.\-]+$"
+           class="input w-full validator"
+           {% if preserve %}hx-preserve{% endif %}
+           {% if template.id != '0' %}readonly disabled{% endif %} />
+    <p class="validator-hint">Must be a valid filename</p>
+  </label>
+
+  <!-- Template Validation Status Display -->
+  {% if validation_status %}
+  <div class="w-3/4 mb-5">
+    {% if is_dirty %}
+    <div role="alert" class="alert alert-warning">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+      <div>
+        <h3 class="font-bold">Template has validation errors!</h3>
+        <div class="text-xs">
+          <strong>Error Type:</strong> {{ validation_status.error_type }}<br>
+          <strong>Error Message:</strong> {{ validation_status.error_message }}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div role="alert" class="alert alert-success">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <span>Template validation passed successfully.</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
+
+  <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
+
+  <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
+</form>

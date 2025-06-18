@@ -233,30 +233,96 @@ class Roles(MethodView):
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
+        from core.managers.data_manager import get_template_validation_status, get_dirty_templates
+        
         if request.args.get("list", default=False, type=bool):
             templates = [{"path": t} for t in get_presenter_templates()]
-            return jsonify({"total_count": len(templates), "items": templates})
+            # Add validation status for each template
+            validation_status = get_template_validation_status()
+            for template in templates:
+                template_name = template["path"]
+                template_status = validation_status.get(template_name, {"is_valid": True, "error_message": "", "error_type": ""})
+                template["validation_status"] = template_status
+                template["is_dirty"] = not template_status["is_valid"]
+            
+            # Add summary of dirty templates
+            dirty_templates = get_dirty_templates()
+            return jsonify({
+                "total_count": len(templates), 
+                "items": templates,
+                "dirty_count": len(dirty_templates),
+                "dirty_templates": dirty_templates
+            })
+            
         if template_path:
             template = get_for_api(template_path)
+            # Add validation status for single template
+            validation_status = get_template_validation_status(template_path)
+            template["validation_status"] = validation_status
+            template["is_dirty"] = not validation_status["is_valid"]
             return (template, 200) or ({"error": "Product type not found"}, 404)
+            
         templates = get_templates_as_base64()
-        return jsonify({"items": templates, "total_count": len(templates)}), 200
+        # Add validation status for all templates
+        validation_status = get_template_validation_status()
+        for template in templates:
+            template_name = template["id"]
+            template_status = validation_status.get(template_name, {"is_valid": True, "error_message": "", "error_type": ""})
+            template["validation_status"] = template_status
+            template["is_dirty"] = not template_status["is_valid"]
+        
+        dirty_templates = get_dirty_templates()
+        return jsonify({
+            "items": templates, 
+            "total_count": len(templates),
+            "dirty_count": len(dirty_templates),
+            "dirty_templates": dirty_templates
+        }), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path=None):
+        from core.managers.data_manager import get_template_validation_status
+        
         if not request.json:
             return {"error": "No data provided"}, 400
         template_path = request.json.get("id")
         if write_base64_to_file(request.json.get("content"), template_path):
-            return {"message": "Template updated or created", "path": template_path}, 200
+            # Get validation status after writing
+            validation_status = get_template_validation_status(template_path)
+            response = {
+                "message": "Template updated or created", 
+                "path": template_path,
+                "validation_status": validation_status,
+                "is_dirty": not validation_status["is_valid"]
+            }
+            
+            if not validation_status["is_valid"]:
+                response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
+                
+            return response, 200
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
+        from core.managers.data_manager import get_template_validation_status
+        
         if not request.json:
             return {"error": "No data provided"}, 400
         if write_base64_to_file(request.json.get("content"), template_path):
-            return {"message": "Template updated or created", "path": template_path}, 200
+            # Get validation status after writing
+            validation_status = get_template_validation_status(template_path)
+            response = {
+                "message": "Template updated or created", 
+                "path": template_path,
+                "validation_status": validation_status,
+                "is_dirty": not validation_status["is_valid"]
+            }
+            
+            if not validation_status["is_valid"]:
+                response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
+                
+            return response, 200
+        return {"error": "Could not write template to file"}, 500
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
@@ -264,6 +330,61 @@ class Templates(MethodView):
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
+
+
+class TemplateValidation(MethodView):
+    """Endpoint for validating Jinja2 templates without saving them."""
+    
+    @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    def post(self):
+        """Validate a Jinja2 template without saving it."""
+        if not request.json:
+            return {"error": "No data provided"}, 400
+            
+        template_content = request.json.get("content")
+        if not template_content:
+            return {"error": "No template content provided"}, 400
+            
+        try:
+            import base64
+            from jinja2 import Environment, TemplateSyntaxError
+            
+            # Decode base64 content if needed
+            if request.json.get("is_base64", False):
+                template_content = base64.b64decode(template_content).decode("utf-8")
+                
+            # Validate the template using the same logic as in presenter_tasks
+            try:
+                env = Environment(autoescape=False)
+                env.parse(template_content)
+                validation_result = {
+                    "is_valid": True,
+                    "error_message": "",
+                    "error_type": ""
+                }
+            except TemplateSyntaxError as e:
+                validation_result = {
+                    "is_valid": False,
+                    "error_message": str(e),
+                    "error_type": "TemplateSyntaxError"
+                }
+            except Exception as e:
+                validation_result = {
+                    "is_valid": False,
+                    "error_message": str(e),
+                    "error_type": type(e).__name__
+                }
+            
+            return {
+                "is_valid": validation_result["is_valid"],
+                "error_message": validation_result.get("error_message", ""),
+                "error_type": validation_result.get("error_type", ""),
+                "message": "Template is valid" if validation_result["is_valid"] else "Template has validation errors"
+            }, 200
+            
+        except Exception as e:
+            logger.error(f"Error validating template: {e}")
+            return {"error": f"Validation failed: {str(e)}"}, 500
 
 
 class Organizations(MethodView):
@@ -774,6 +895,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
     config_bp.add_url_rule("/templates", view_func=Templates.as_view("templates"))
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
+    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view("template_validation"))
     config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
     config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
     config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
