@@ -51,7 +51,6 @@ jobs:
           docker tag docker.io/taranis-ai/taranis-core:latest     ghcr.io/taranis-ai/taranis-core:latest
           docker tag docker.io/taranis-ai/taranis-gui:latest      ghcr.io/taranis-ai/taranis-gui:latest
           docker tag docker.io/taranis-ai/taranis-frontend:latest ghcr.io/taranis-ai/taranis-frontend:latest
-          docker tag docker.io/taranis-ai/taranis-collector:latest ghcr.io/taranis-ai/taranis-collector:latest
           docker tag docker.io/taranis-ai/taranis-workers:latest   ghcr.io/taranis-ai/taranis-workers:latest
 
       - name: Run docker compose for last commit
