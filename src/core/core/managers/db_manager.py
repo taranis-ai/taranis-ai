@@ -28,7 +28,6 @@ def initial_database_setup(engine: Engine):
 def initialize(app: Flask, initial_setup: bool = True):
     logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
     db.init_app(app)
-    exit(1)
 
     if initial_setup:
         initial_database_setup(db.engine)
