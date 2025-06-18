@@ -4,18 +4,16 @@ from core.managers import db_manager, auth_manager, api_manager, queue_manager, 
 from core.config import Config
 
 
-def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
+def create_app(initial_setup: bool = True, db_setup: bool = False) -> None:
     app = Flask(__name__, static_url_path=f"{Config.APPLICATION_ROOT}static")
     app.config.from_object("core.config.Config")
 
     with app.app_context():
         if db_setup:
             initilize_database(app)
-            return app
+            return None
         initialize_managers(app, initial_setup)
     return None
-
-    return app
 
 
 def initilize_database(app: Flask):
