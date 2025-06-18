@@ -20,7 +20,11 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_validation_status}
+        ]
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -51,7 +55,36 @@ class TemplateView(BaseView):
             logger.warning(f"Failed to decode template content for {template}")
             template.content = template.content
 
+        # Fetch template validation status for dirty flag display
+        validation_status = None
+        is_dirty = False
+        if object_id != 0 and str(object_id) != '0':  # Only for existing templates
+            try:
+                # IMPROVED: Simple on-demand validation (no JSON file needed)
+                validation_response = dpl.api.api_get(f"/config/templates/{object_id}")
+                if validation_response:
+                    # Template content is already available in validation_response
+                    validation_status = validation_response.get("validation_status", {})
+                    is_dirty = validation_response.get("is_dirty", False)
+                    
+                    # Alternative: Direct validation without JSON file dependency
+                    # This would be even simpler but requires template content access
+                    # template_content = template.content  # Already decoded above
+                    # from jinja2 import Environment, TemplateSyntaxError
+                    # try:
+                    #     env = Environment(autoescape=False)
+                    #     env.parse(template_content)
+                    #     validation_status = {"is_valid": True, "error_message": "", "error_type": ""}
+                    #     is_dirty = False
+                    # except TemplateSyntaxError as e:
+                    #     validation_status = {"is_valid": False, "error_message": str(e), "error_type": "TemplateSyntaxError"}
+                    #     is_dirty = True
+            except Exception as e:
+                logger.warning(f"Failed to fetch validation status for template {object_id}: {e}")
+
         context[cls.model_name()] = template
+        context["validation_status"] = validation_status
+        context["is_dirty"] = is_dirty
         return context
 
     @classmethod
