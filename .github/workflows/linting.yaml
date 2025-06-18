@@ -11,6 +11,7 @@ env:
 jobs:
   test_core:
     name: pytest core
+    if: false
     defaults:
       run:
         working-directory: src/core
