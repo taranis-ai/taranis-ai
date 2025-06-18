@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
   pull_request_review:
     types: [submitted]
+  pull_request:
 jobs:
   production_compose_test:
     runs-on: ubuntu-latest
