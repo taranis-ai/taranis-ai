@@ -46,6 +46,14 @@ jobs:
           chmod +x docker/build_container.sh
           ./docker/build_container.sh
 
+      - name: Retag images to ghcr.io
+        run: |
+          docker tag taranis-core:latest     ghcr.io/taranis-ai/taranis-core:latest
+          docker tag taranis-gui:latest      ghcr.io/taranis-ai/taranis-gui:latest
+          docker tag taranis-frontend:latest ghcr.io/taranis-ai/taranis-frontend:latest
+          docker tag taranis-collector:latest ghcr.io/taranis-ai/taranis-collector:latest
+          docker tag taranis-workers:latest   ghcr.io/taranis-ai/taranis-workers:latest
+
       - name: Run docker compose for last commit
         working-directory: docker
         run: |
