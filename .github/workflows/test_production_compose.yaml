@@ -58,6 +58,7 @@ jobs:
         run: |
           cp env.sample .env
           docker volume ls
+          docker compose pull rabbitmq sse
           docker compose up --pull=never --wait-timeout=60 --wait -- core database frontend gui sse rabbitmq collector workers
           docker ps -a
           echo "Check migration logs:"
