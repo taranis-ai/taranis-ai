@@ -413,10 +413,16 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix: str, stories_relevance_descending: list):
         base_url = e2e_server.url()
 
+        #      Helper functions
+        # ===============================
+
         def go_to_analyze():
             self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
             page.wait_for_url("**/analyze", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Analyze")
+
+        #        Test definitions
+        # ===============================
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
@@ -522,6 +528,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.locator("#v-menu-v-42").get_by_text("APT75")).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
+
+        #           Run test
+        # ============================
 
         page = taranis_frontend
         self.add_keystroke_overlay(page)
