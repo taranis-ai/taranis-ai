@@ -411,8 +411,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         filter_by_cybersecurity(stories_relevance_descending, story_news_items)
 
     def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix: str, stories_relevance_descending: list):
-        base_url = e2e_server.url()
-
         #      Helper functions
         # ===============================
 
@@ -532,6 +530,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         #           Run test
         # ============================
 
+        base_url = e2e_server.url()
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
