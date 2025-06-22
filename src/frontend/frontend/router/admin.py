@@ -82,6 +82,12 @@ class ImportOSINTSources(MethodView):
         return SourceView.import_post_view()
 
 
+class LoadDefaultOSINTSources(MethodView):
+    @auth_required()
+    def post(self):
+        return SourceView.load_default_osint_sources()
+
+
 class ExportWordLists(MethodView):
     @auth_required()
     def get(self):
@@ -171,6 +177,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
     admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
     admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
+    admin_bp.add_url_rule("/load_default_osint_sources", view_func=LoadDefaultOSINTSources.as_view("load_default_osint_sources"))
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))

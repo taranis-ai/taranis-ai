@@ -4,6 +4,7 @@ from flask import render_template, request, Response
 
 from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue
 from models.types import COLLECTOR_TYPES
+from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
 from frontend.filters import render_icon, render_source_parameter, render_state
 from frontend.log import logger
@@ -28,6 +29,20 @@ class SourceView(BaseView):
         all_parameters = dpl.get_objects(WorkerParameter)
         match = next((wp for wp in all_parameters if wp.id == collector_type), None)
         return match.parameters if match else []
+
+    @classmethod
+    def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
+        if objects is not None:
+            filtered = [obj for obj in (objects or []) if isinstance(obj, OSINTSource) and obj.id != "manual"]
+            objects = CacheObject(
+                filtered,
+                page=objects.page,
+                limit=objects.limit,
+                order=objects.order,
+                links=objects._links,
+                total_count=len(filtered),
+            )
+        return super().get_view_context(objects, error)
 
     @classmethod
     def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
@@ -96,3 +111,19 @@ class SourceView(BaseView):
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         return CoreApi.stream_proxy(core_resp, "sources_export.json")
+
+    @classmethod
+    def load_default_osint_sources(cls):
+        response = CoreApi().load_default_osint_sources()
+        if not response:
+            logger.error("Failed to load default OSINT sources")
+            return render_template("partials/error.html", error="Failed to load default OSINT sources")
+
+        response = CoreApi().import_sources(response)
+
+        if not response:
+            logger.error("Failed to import default OSINT sources")
+            return render_template("partials/error.html", error="Failed to import default OSINT sources")
+
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        return render_template("partials/notifications.html", message="Default OSINT sources loaded successfully")

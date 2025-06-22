@@ -328,6 +328,10 @@ class OSINTSource(BaseModel):
     def import_osint_sources(cls, file) -> list[str]:
         file_data = file.read()
         json_data = json.loads(file_data.decode("utf8"))
+        return cls.import_osint_sources_from_json(json_data)
+
+    @classmethod
+    def import_osint_sources_from_json(cls, json_data) -> list[str]:
         groups = []
         if json_data["version"] == 1:
             data = cls.parse_version_1(json_data["data"])

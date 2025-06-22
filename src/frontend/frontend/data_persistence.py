@@ -50,7 +50,7 @@ class DataPersistenceLayer:
         suffix = self.make_key(object._core_endpoint)
         self.invalidate_cache(suffix)
 
-    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> list[T]:
+    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject:
         endpoint = self.get_endpoint(object_model)
         cache_object: CacheObject | None
         if cache_object := cache.get(key=self.make_user_key(endpoint)):
@@ -64,7 +64,7 @@ class DataPersistenceLayer:
         result_object = [object_model(**object) for object in result.get("items", [])]
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")
-            return []
+            return CacheObject([], 0)
         total_count = result.get("total_count", len(result_object))
         links = result.get("_links", {})
         cache_object = CacheObject(

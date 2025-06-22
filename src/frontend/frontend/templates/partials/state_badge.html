@@ -1,7 +1,9 @@
 {% if state == 0 %}
 <div title="OK" class="badge badge-success">OK</div>
 {% elif state == 1 %}
-<div title="Error" class="badge badge-error">Error</div>
+<div class="tooltip" data-tip="{{ state_message }}">
+  <div title="Error" class="badge badge-error">Error</div>
+</div>
 {% elif state == -2 %}
 <div title="Disabled" class="badge badge-warning">Disabled</div>
 {% else %}

@@ -85,7 +85,7 @@
     </tr>
     {% endif %}
   </tbody>
-  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+  <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
     <tr>
       <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
         <div class="flex justify-center">

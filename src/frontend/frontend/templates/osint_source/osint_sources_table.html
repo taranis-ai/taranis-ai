@@ -45,6 +45,7 @@
 {% else %}
   <div class="text-center p-4">
     <p class="text-gray-500">No {{ model_name }}s available.</p>
+    <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_osint_sources') }}">Load default sources</button>
   </div>
 {% endif %}
 </div>

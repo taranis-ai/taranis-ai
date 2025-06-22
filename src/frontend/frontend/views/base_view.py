@@ -8,7 +8,7 @@ from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.cache_models import PagingData
+from frontend.cache_models import PagingData, CacheObject
 from frontend.log import logger
 from frontend.auth import auth_required
 from frontend.utils.validation_helpers import format_pydantic_errors
@@ -202,7 +202,7 @@ class BaseView(MethodView):
     @classmethod
     def get_view_context(
         cls,
-        objects: list[TaranisBaseModel] | None = None,
+        objects: CacheObject | None = None,
         error: str | None = None,
     ) -> dict[str, Any]:
         context = cls._common_context(error)
@@ -300,8 +300,9 @@ class BaseView(MethodView):
 
     @auth_required()
     def delete(self, **kwargs):
-        object_id = self._get_object_id(kwargs)
-        if object_id is None:
-            ids = request.form.getlist("ids")
+        if ids := request.form.getlist("ids"):
             return self.delete_multiple_view(object_ids=ids)
+        object_id = self._get_object_id(kwargs) or request.form.get("id")
+        if object_id is None:
+            abort(405)
         return self.delete_view(object_id=object_id)

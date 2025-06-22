@@ -105,6 +105,13 @@ class CoreApi:
             logger.error(f"Export sources failed: {e}")
             return None
 
+    def load_default_osint_sources(self):
+        try:
+            return self.api_get("/static/default_sources.json")
+        except Exception as e:
+            logger.error(f"Load default OSINT sources failed: {e}")
+            return None
+
     def import_report_item_types(self, report_item_types):
         return self.api_post("/config/import-report-item-types", json_data=report_item_types)
 

@@ -448,26 +448,20 @@ class Connectors(MethodView):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
-                return {"message": f"OSINT Source {source.name} updated", "id": f"{connector_id}"}, 200
+                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
-        return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
+        return {"error": f"Connector with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, connector_id: str):
-        force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(connector_id):
-            return {
-                "error": f"""OSINT Source with ID: {connector_id} has related News Items.
-                To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
-
-        return osint_source.OSINTSource.delete(connector_id, force=force)
+        # TODO: Implement force delete logic if needed
+        return connector.Connector.delete(connector_id)
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
-        return osint_source.OSINTSource.toggle_state(source_id, state)
+    def patch(self, connector_id: str):
+        # TODO: Implement toggle state logic if needed
+        pass
 
 
 class ConnectorsPull(MethodView):
@@ -571,10 +565,12 @@ class OSINTSourcesImport(MethodView):
     def post(self):
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
-            if sources is None:
-                return {"error": "Unable to import"}, 400
-            return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
-        return {"error": "No file provided"}, 400
+        if json_data := request.get_json(silent=True):
+            sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        if sources is None:
+            logger.error("Failed to import OSINT sources")
+            return {"error": "Unable to import"}, 400
+        return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
 class OSINTSourceGroups(MethodView):

@@ -87,12 +87,7 @@ def render_source_parameter(item: OSINTSource) -> str:
 
 def render_state(item) -> str:
     if hasattr(item, "state"):
-        return Markup(
-            render_template(
-                "partials/state_badge.html",
-                state=item.state,
-            )
-        )
+        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=item.last_error_message or ""))
     return Markup(render_template("partials/state_badge.html", state=-1))
 
 
