@@ -302,6 +302,8 @@ class BaseView(MethodView):
     def delete(self, **kwargs):
         if ids := request.form.getlist("ids"):
             return self.delete_multiple_view(object_ids=ids)
+        if ids := request.args.getlist("ids"):
+            return self.delete_multiple_view(object_ids=ids)
         object_id = self._get_object_id(kwargs) or request.form.get("id")
         if object_id is None:
             abort(405)

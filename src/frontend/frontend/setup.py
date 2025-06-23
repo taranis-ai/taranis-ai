@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import frontend.filters as filters_module
 from frontend.config import Config
 from frontend.views.base_view import BaseView
+from frontend.log import logger
 
 from heroicons.jinja import (
     heroicon_micro,
@@ -65,3 +66,4 @@ def init(app: Flask):
     app.url_map.strict_slashes = False
 
     jinja_setup(app)
+    logger.debug(f"Listening on {Config.APPLICATION_ROOT} and Core URL {Config.TARANIS_CORE_URL}")

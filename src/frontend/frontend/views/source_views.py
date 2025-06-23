@@ -121,9 +121,12 @@ class SourceView(BaseView):
 
         response = CoreApi().import_sources(response)
 
-        if not response:
-            logger.error("Failed to import default OSINT sources")
-            return render_template("partials/error.html", error="Failed to import default OSINT sources")
+        if not response.ok:
+            error = response.json().get("error", "Unknown error")
+            error_message = f"Failed to import default OSINT sources: {error}"
+            logger.error(error_message)
+            return render_template("partials/error.html", error=error_message)
 
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
-        return render_template("partials/notifications.html", message="Default OSINT sources loaded successfully")
+        items = DataPersistenceLayer().get_objects(cls.model)
+        return render_template(cls.get_list_template(), **cls.get_view_context(items))

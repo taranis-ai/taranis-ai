@@ -64,12 +64,14 @@
 
       {% if actions %}
       <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
+        {% if actions is sameas true %}
         {% from "macros/table.html" import default_table_actions %}
         {% set ns = namespace(actions=[]) %}
-        {{ default_table_actions(ns, edit_route) }}
+        {{ default_table_actions(ns, base_url) }}
         {% set actions = ns.actions %}
+        {% endif %}
         {% for action in actions %}
-        {{ action_button(action) }}
+        {{ action_button(action, item_id=item.id) }}
         {% endfor %}
       </td>
       {% endif %}
