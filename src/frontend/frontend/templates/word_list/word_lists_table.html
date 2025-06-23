@@ -1,23 +1,25 @@
 {% from "macros/table.html" import table, table_decoration %}
 {% from "macros/buttons.html" import import_button, export_button %}
 
-{% set columns =  columns | default([
-    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+{% set columns = columns | default([
+  {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+  {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ]) %}
 
 {% set data = model_plural_name | get_var %}
 
 {% set table_container = model_name + '-table-container' %}
 
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
+<div id="{{ table_container }}"
+     class="table-container"
+     x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
-  <div class="grow-0">
-    <div class="join gap-1" hx-target="#form-container">
-      {{ import_button(url_for('admin.import_word_lists')) }}
-      {{ export_button(url_for('admin.export_word_lists')) }}
+    <div class="grow-0">
+      <div class="join gap-1" hx-target="#form-container">
+        {{ import_button(url_for('admin.import_word_lists') ) }}
+        {{ export_button(url_for('admin.export_word_lists') ) }}
+      </div>
     </div>
-  </div>
   {% endcall %}
-{{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
+  {{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
 </div>

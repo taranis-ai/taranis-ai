@@ -1,9 +1,9 @@
 {% from "macros/table.html" import table, table_decoration %}
 {% from "macros/buttons.html" import import_button, export_button %}
 
-{% set columns =  columns | default([
-    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
+{% set columns = columns | default([
+  {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
+  {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ]) %}
 
 {% set data = model_plural_name | get_var %}
@@ -11,41 +11,63 @@
 {% set table_container = model_name + '-table-container' %}
 
 {% set actions = [
-        {
-            'label': 'Edit',
-            'class': 'btn-primary',
-            'method': 'get',
-            'url': routes.base_route,
-            'hx_target': '#form-container',
-            'hx_swap': 'innerHTML',
-            'confirm': None
-        },
-        {
-            'label': 'Delete',
-            'class': 'btn-danger',
-            'method': 'delete',
-            'url': routes.base_route,
-            'hx_target': None,
-            'hx_swap': None,
-            'confirm': 'Are you sure you want to delete this Source?'
-        }
-    ] %}
+  {
+    'label': 'Edit',
+    'class': 'btn-primary',
+    'method': 'get',
+    'url': routes.base_route,
+    'hx_target': '#form-container',
+    'hx_swap': 'innerHTML',
+    'confirm': None
+  },
+  {
+    'label': 'Delete',
+    'class': 'btn-danger',
+    'method': 'delete',
+    'url': routes.base_route,
+    'hx_target': None,
+    'hx_swap': None,
+    'confirm': 'Are you sure you want to delete this Source?'
+  },
+  {
+    'label': 'Preview',
+    'class': 'btn-secondary',
+    'method': 'get',
+    'url': routes.base_route,
+    'hx_target': '#form-container',
+    'hx_swap': 'innerHTML',
+    'confirm': None
+  },
+  {
+    'label': 'Collect',
+    'class': 'btn-success',
+    'method': 'post',
+    'url': routes.collect_route,
+    'hx_target': '#notification-bar',
+    'hx_swap': 'innerHTML',
+    'confirm': None
+  }
+] %}
 
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
+<div id="{{ table_container }}"
+     class="table-container"
+     x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.base_route) %}
-  <div class="grow-0">
-    <div class="join gap-1" hx-target="#form-container">
-      {{ import_button(url_for('admin.import_osint_sources')) }}
-      {{ export_button(url_for('admin.export_osint_sources')) }}
+    <div class="grow-0">
+      <div class="join gap-1" hx-target="#form-container">
+        {{ import_button(url_for('admin.import_osint_sources') ) }}
+        {{ export_button(url_for('admin.export_osint_sources') ) }}
+      </div>
     </div>
-  </div>
   {% endcall %}
-{% if data and data | length > 0 %}
-{{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
-{% else %}
-  <div class="text-center p-4">
-    <p class="text-gray-500">No {{ model_name }}s available.</p>
-    <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_osint_sources') }}" hx-target="#{{ table_container }}">Load default sources</button>
-  </div>
-{% endif %}
+  {% if data and data | length > 0 %}
+    {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
+  {% else %}
+    <div class="text-center p-4">
+      <p class="text-gray-500">No {{ model_name }}s available.</p>
+      <button class="mt-2 btn btn-primary"
+              hx-post="{{ url_for('admin.load_default_osint_sources') }}"
+              hx-target="#{{ table_container }}">Load default sources</button>
+    </div>
+  {% endif %}
 </div>

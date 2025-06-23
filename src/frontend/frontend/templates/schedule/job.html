@@ -6,10 +6,10 @@
 <tr id="details-{{ job.id }}" x-show="openJobs['{{ job.id }}']" x-transition class="transition-all duration-300 ease-in-out">
   <td colspan="2">
     <div class="bg-base-200 flex items-center">
-      <span class="text-lg font-semibold text-gray-800 mr-4">
+      <span class="text-lg font-semibold mr-4">
         {{ job.id }} | {{ job.kwargs }}
       </span>
-      <span class="text-lg text-gray-600 font-semibold">
+      <span class="text-lg font-semibold">
         {{ job.trigger | human_readable_trigger }}
       </span>
     </div>
