@@ -14,6 +14,7 @@
   {
     'label': 'Edit',
     'class': 'btn-primary',
+    'icon': 'pencil-square',
     'method': 'get',
     'url': routes.base_route,
     'hx_target': '#form-container',
@@ -21,17 +22,9 @@
     'confirm': None
   },
   {
-    'label': 'Delete',
-    'class': 'btn-danger',
-    'method': 'delete',
-    'url': routes.base_route,
-    'hx_target': None,
-    'hx_swap': None,
-    'confirm': 'Are you sure you want to delete this Source?'
-  },
-  {
     'label': 'Preview',
-    'class': 'btn-secondary',
+    'class': '',
+    'icon': 'eye',
     'method': 'get',
     'url': routes.base_route,
     'hx_target': '#form-container',
@@ -40,13 +33,24 @@
   },
   {
     'label': 'Collect',
-    'class': 'btn-success',
+    'class': '',
+    'icon': 'bug-ant',
     'method': 'post',
     'url': routes.collect_route,
     'hx_target': '#notification-bar',
     'hx_swap': 'innerHTML',
     'confirm': None
-  }
+  },
+  {
+    'label': 'Delete',
+    'class': 'btn-error',
+    'icon': 'trash',
+    'method': 'delete',
+    'url': routes.base_route,
+    'hx_target': None,
+    'hx_swap': None,
+    'confirm': 'Are you sure you want to delete this Source?'
+  },
 ] %}
 
 <div id="{{ table_container }}"

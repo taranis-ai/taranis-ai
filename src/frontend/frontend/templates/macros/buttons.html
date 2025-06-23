@@ -13,16 +13,18 @@
 {% endmacro %}
 
 {% macro action_button(action, item_id) %}
+  {# djlint:off #}
   {% set action_url = action.url ~ '/' ~ item_id if item_id else action.url %}
-  <button class="btn {{ action.class }}"
-          hx-
-          {{ action.method }}
-          None="{{ action_url }}"
+  <div class="tooltip" data-tip="{{ action.label }}">
+  <button class="btn btn-ghost {{ action.class }}"
+          hx-{{ action.method }}="{{ action_url }}"
           hx-push-url="true"
           {% if action.hx_target %}hx-target="{{ action.hx_target }}"{% endif %}
           {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}"{% endif %}
           {% if action.confirm %}hx-confirm="{{ action.confirm }}"{% endif %}
           @click.stop>
-    {{ action.label }}
+       {{ heroicon_outline(action.icon) }}
   </button>
+  </div>
+  {# djlint:on #}
 {% endmacro %}

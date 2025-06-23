@@ -77,12 +77,13 @@ def render_parameter(item, key):
 
 
 def render_source_parameter(item: OSINTSource) -> str:
+    source_parameter = ""
     if hasattr(item, "parameters") and isinstance(item.parameters, dict):
         if item.type in ["rss_collector", "simple_web_collector"]:
-            return item.parameters.get("FEED_URL", "")
+            source_parameter = item.parameters.get("FEED_URL", "")
         if item.type == "misp_collector":
-            return item.parameters.get("URL", "")
-    return ""
+            source_parameter = item.parameters.get("URL", "")
+    return source_parameter
 
 
 def render_state(item) -> str:
