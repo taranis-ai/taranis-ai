@@ -53,9 +53,7 @@
   },
 ] %}
 
-<div id="{{ table_container }}"
-     class="table-container"
-     x-data="{ selectedItems: [] }">
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.base_route) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
@@ -69,9 +67,9 @@
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ model_name }}s available.</p>
-      <button class="mt-2 btn btn-primary"
-              hx-post="{{ url_for('admin.load_default_osint_sources') }}"
-              hx-target="#{{ table_container }}">Load default sources</button>
+      <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_osint_sources') }}" hx-target="#{{ table_container }}">
+        Load default sources
+      </button>
     </div>
   {% endif %}
 </div>
