@@ -38,9 +38,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
-            page.pause()
             page.get_by_test_id("new-organization-button").click()
-            page.get_by_label("Name").fill("Test organizations")
+            page.get_by_label("Name").fill("Test Organization User Mgmt")
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
             page.get_by_label("City").fill("Test City")
@@ -48,7 +47,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Country").fill("Test Country")
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_text("Test organizations")).to_be_visible()
+            expect(page.get_by_text("Test Organization User Mgmt").first).to_be_visible()
 
         def add_role():
             page.get_by_test_id("admin-menu-Role").click()
