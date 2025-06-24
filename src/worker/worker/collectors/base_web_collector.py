@@ -59,17 +59,14 @@ class BaseWebCollector(BaseCollector):
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         logger.debug(f"{self.name} sending GET request to {url}")
-        try:
-            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
-            if response.status_code == 200 and not response.content:
-                raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
-            if response.status_code == 304:
-                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
-            if response.status_code == 429:
-                raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise e
+        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+        if response.status_code == 200 and not response.content:
+            logger.debug(f"{self.name} request to {url} got Response 200 OK, but returned no content")
+        if response.status_code == 304:
+            raise NoChangeError(f"Content of {url} was not modified - {response.text}")
+        if response.status_code == 429:
+            raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+        response.raise_for_status()
 
         return response
 
