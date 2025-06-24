@@ -1,10 +1,10 @@
-from celery import Task, shared_task
+from celery import Task
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector
 from worker.log import logger
 from worker.core_api import CoreApi
-from requests.exceptions import ConnectionError
+from typing import Any
 
 
 class Collector:
@@ -17,48 +17,17 @@ class Collector:
             "misp_collector": worker.collectors.MISPCollector(),
         }
 
-    def get_source(self, osint_source_id: str) -> tuple[dict[str, str] | None, str | None]:
-        try:
-            source = self.core_api.get_osint_source(osint_source_id)
-        except ConnectionError as e:
-            logger.critical(e)
-            return None, str(e)
+    def get_source(self, osint_source_id: str) -> dict[str, Any]:
+        if source := self.core_api.get_osint_source(osint_source_id):
+            return source
+        raise ValueError(f"Source with id {osint_source_id} not found")
 
-        if not source:
-            logger.error(f"Source with id {osint_source_id} not found")
-            return None, f"Source with id {osint_source_id} not found"
-        return source, None
-
-    def get_collector(self, source: dict[str, str]) -> tuple[BaseCollector | None, str | None]:
-        logger.info(source)
-        collector_type = source.get("type")
-        if not collector_type:
-            logger.error(f"Source {source['id']} has no collector_type")
-            return None, f"Source {source['id']} has no collector_type"
-
-        if collector := self.collectors.get(collector_type):
-            return collector, None
-
-        return None, f"Collector {collector_type} not implemented"
-
-    def collect_by_source_id(self, osint_source_id: str, manual: bool = False):
-        err = None
-
-        source, err = self.get_source(osint_source_id)
-        if err or not source:
-            return err
-
-        collector, err = self.get_collector(source)
-        if err or not collector:
-            return err
-
-        if err := collector.collect(source, manual):
-            if err == "Not modified":
-                return "Not modified"
-            self.core_api.update_osintsource_status(osint_source_id, {"error": err})
-            return err
-
-        return "Collection completed successfully"
+    def get_collector(self, source: dict[str, Any]) -> BaseCollector:
+        if collector_type := source.get("type"):
+            if collector := self.collectors.get(collector_type):
+                return collector
+            raise ValueError(f"Collector of type {collector_type} not implemented")
+        raise ValueError(f"Source {source['id']} has no collector_type")
 
 
 class CollectorTask(Task):
@@ -71,26 +40,40 @@ class CollectorTask(Task):
     def __init__(self):
         self.core_api = CoreApi()
 
-    def run(self, osint_source_id: str, manual: bool = False):
+    def run(self, osint_source_id: str, manual: bool = False, **kwargs):
         self.collector = Collector()
-        logger.info(f"Starting collector task {self.name}")
-        if err := self.collector.collect_by_source_id(osint_source_id, manual):
-            return err
+        source = self.collector.get_source(osint_source_id)
+        collector = self.collector.get_collector(source)
+        task_description = f"Collect source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}'"
+        kwargs["task_description"] = task_description
+
+        logger.info(f"Starting collector task: {task_description}")
+        try:
+            collector.collect(source, manual)
+        except Exception as e:
+            if e == "Not modified":
+                return f"Source '{source.get('name')}' with id {osint_source_id} was not modified"
+            self.core_api.update_osintsource_status(osint_source_id, {"error": e})
+
         self.core_api.run_post_collection_bots(osint_source_id)
-        return f"Successfully collected source {osint_source_id}"
+        return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}\nException: {exc}")
 
 
-@shared_task(time_limit=300, name="collector_preview", track_started=True, acks_late=True, priority=8)
-def collector_preview(osint_source_id: str):
-    collector = Collector()
-    source, err = collector.get_source(osint_source_id)
-    if err or not source:
-        return err
+class CollectorPreview(Task):
+    name = "collector_preview"
+    track_started = True
+    acks_late = True
+    priority = 8
 
-    collector, err = collector.get_collector(source)
-    if err or not collector:
-        return err
+    def run(self, osint_source_id: str, **kwargs):
+        collector = Collector()
+        source = collector.get_source(osint_source_id)
+        collector = collector.get_collector(source)
 
-    result = collector.preview_collector(source)
-    logger.debug(result)
-    return result
+        return collector.preview_collector(source)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}\nException: {exc}")
