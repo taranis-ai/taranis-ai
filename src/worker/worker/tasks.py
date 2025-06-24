@@ -11,9 +11,11 @@ def setup_tasks(app: Celery):
 
         app.register_task(BotTask())
     if "Collectors" in Config.WORKER_TYPES:
-        from worker.collectors.collector_tasks import CollectorTask
+        from worker.collectors.collector_tasks import CollectorTask, CollectorPreview
 
         app.register_task(CollectorTask())
+        app.register_task(CollectorPreview())
+
     if "Presenters" in Config.WORKER_TYPES:
         try:
             from worker.presenters.presenter_tasks import PresenterTask
