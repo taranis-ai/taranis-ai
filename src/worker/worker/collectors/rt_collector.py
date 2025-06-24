@@ -43,8 +43,7 @@ class RTCollector(BaseWebCollector):
     def parse_fields_to_include(self, fields_to_include):
         self.fields_to_include = [field.strip() for field in fields_to_include.split(",")]
 
-    def setup_collector(self, source):
-        logger.info(f"Website {source.get('id')} Starting collector for url: {self.base_url}")
+    def setup_collector(self, source: dict):
         self.set_auth_header(source.get("parameters").get("RT_TOKEN", None))
         super().parse_source(source)
         self.set_base_url(source.get("parameters").get("BASE_URL", None))

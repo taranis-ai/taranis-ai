@@ -70,7 +70,7 @@ class BaseWebCollector(BaseCollector):
 
         return response
 
-    def parse_source(self, source):
+    def parse_source(self, source: dict):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")

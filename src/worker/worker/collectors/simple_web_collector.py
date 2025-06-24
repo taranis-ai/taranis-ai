@@ -29,9 +29,8 @@ class SimpleWebCollector(BaseWebCollector):
             logger.error("No WEB_URL set")
             raise ValueError("No WEB_URL set")
 
-    def collect(self, source, manual: bool = False):
+    def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
-        logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
 
         try:
             return self.web_collector(source, manual)
