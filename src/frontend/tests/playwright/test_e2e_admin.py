@@ -40,7 +40,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
             page.get_by_test_id("new-organization-button").click()
-            page.get_by_label("Name").fill("Test organizations")
+            page.get_by_label("Name").fill("Test Organization User Mgmt")
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
             page.get_by_label("City").fill("Test City")
@@ -51,7 +51,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
-            expect(page.get_by_text("Test organizations")).to_be_visible()
+            expect(page.get_by_text("Test Organization User Mgmt").first).to_be_visible()
 
         def add_user():
             page.get_by_test_id("admin-menu-User").click()
