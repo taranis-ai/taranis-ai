@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
   pull_request_review:
     types: [submitted]
+  push:
 jobs:
   production_compose_test:
     if: ${{ github.event.review.state == 'approved' }}
