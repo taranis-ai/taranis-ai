@@ -54,7 +54,7 @@ taranis-ai = "core.granian:main"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
+dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

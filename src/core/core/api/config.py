@@ -672,7 +672,7 @@ class WordListImport(MethodView):
             logger.error("Failed to import Word Lists")
             return {"error": "Unable to import Word Lists"}, 400
 
-        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported Word Lists"}
+        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
 
 class WordListExport(MethodView):
@@ -681,7 +681,7 @@ class WordListExport(MethodView):
         source_ids = request.args.getlist("ids")
         data = word_list.WordList.export(source_ids)
         if data is None:
-            return {"error": "Unable to export Word Lists"}, 400
+            return {"error": "Unable to export word lists"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="word_list_export.json",
