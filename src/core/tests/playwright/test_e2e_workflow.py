@@ -23,7 +23,15 @@ class TestUserWorkflow(PlaywrightHelpers):
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
     def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
-        def enter_hotkey_menu():
+        #        Test definitions
+        # ===============================
+
+        def go_to_assess():
+            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
+            expect(page).to_have_title("Taranis AI | Assess")
+
+        def test_hotkey_menu():
             page.keyboard.press("Control+Shift+L")
             self.short_sleep(duration=1)
             assert_hotkey_menu()
@@ -66,11 +74,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             expect(page.get_by_role("listbox")).to_contain_text("Reports")
             expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
             expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
-
-        def go_to_assess():
-            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            expect(page).to_have_title("Taranis AI | Assess")
 
         def apply_filter():
             # Set time filter
@@ -214,15 +217,21 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Update", exact=True)).click()
             go_to_assess()
 
+        #           Run test
+        # ============================
+
         page = taranis_frontend
 
         go_to_assess()
-        enter_hotkey_menu()
+        test_hotkey_menu()
         apply_filter()
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
     def test_reports(self, taranis_frontend: Page):
+        #        Test definitions
+        # ===============================
+
         def go_to_analyze():
             self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
             page.wait_for_url("**/analyze", wait_until="domcontentloaded")
@@ -302,6 +311,9 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.short_sleep(duration=1)
             page.keyboard.press("Control+Space")
             self.short_sleep(duration=1)
+
+        #           Run test
+        # ============================
 
         page = taranis_frontend
 

@@ -17,6 +17,7 @@ fi
 
 if [ ! -f "src/core/.env" ]; then
     cp dev/env.dev src/core/.env
+    echo "FLASK_RUN_PORT=5001" >> src/core/.env
 fi
 
 if [ ! -f "src/worker/.env" ]; then
@@ -28,12 +29,14 @@ if [ ! -f "src/gui/.env" ]; then
 fi
 
 if [ ! -f "src/frontend/.env" ]; then
-    cp src/frontend/env.sample src/frontend/.env
+    cp dev/env.dev src/frontend/.env
+    echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
+if [ ! -f "src/gui/public/config.local.json" ]; then
+    echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
+fi
 
 docker compose -f dev/compose.yml up -d
 
 ./dev/start_tmux.sh
-

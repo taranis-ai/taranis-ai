@@ -81,9 +81,10 @@ class TestWorkerApi:
                 f"News item {new_item['id']} was not found in the updated story."
             )
 
-        attributes_in_story = updated_story.get("attributes", [])
-        assert any(attr.get("key") == "status" and attr.get("value") == "updated" for attr in attributes_in_story), (
-            "Updated attribute not found in the story."
+        attributes_in_story = updated_story.get("attributes", {})
+        assert "status" in attributes_in_story, "Updated attribute key 'status' not found in the story."
+        assert attributes_in_story["status"].get("value") == "updated", (
+            f"Expected 'updated' but got '{attributes_in_story['status'].get('value')}'"
         )
 
     def test_worker_create_full_story(self, client, full_story: list[dict], api_header):
