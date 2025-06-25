@@ -3,11 +3,12 @@
 {% set parameter_values = parameter_values | default({}) %}
 {% for field in parameters %}
   {% set field_value = parameter_values.get(field.name, field.value)  %}
+  {% set pattern, invalid_msg = get_html5_pattern_from_rule(field.rules) %}
   {% if field.type == 'text' or field.type == 'number' %}
-    {{ form_input(field.label, 'parameters[' + field.name + ']', field_value, type=field.type, required=field.required) }}
+    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=field.required, pattern=pattern, invalid_msg=invalid_msg) }}
   {% elif field.type == 'textarea' %}
-    {{ form_textarea(field.label, 'parameters[' + field.name + ']', field_value, required=field.required) }}
+    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field.required) }}
   {% elif field.type == 'switch' %}
-    {{ form_switch(field.label, 'parameters[' + field.name + ']', field_value, required=field.required) }}
+    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field.required) }}
   {% endif %}
 {% endfor %}

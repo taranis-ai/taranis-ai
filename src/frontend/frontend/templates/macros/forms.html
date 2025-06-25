@@ -1,7 +1,7 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full') %}
   {% from "macros/forms.html" import form_input_content %}
   <div class="mb-5 {{ width }} flex flex-row">
-    {{ form_input_content(label, name, value, error, type, input_id, placeholder, required, preserve) }}
+    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg) }}
     {% if error -%}
       <div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>
     {% endif -%}
@@ -11,10 +11,11 @@
 {% macro form_select(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
   <label class="select mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
-    <select id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}"
-            name="{{ name }}"
-            {% if required %}required{% endif %}
-            class="validator select w-full">
+    <select id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" name="{{ name }}" {% if required %}required{% endif %} class="
+            validator
+            select
+            w-full
+            ">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options -%}
         <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
@@ -23,14 +24,13 @@
   </label>
 {% endmacro %}
 
-{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full', input_class='') %}
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='') %}
   <label class="floating-label {{ width }}">
-    <span class="label">{{ label }}</span>
-    <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}"
-           type="{{ type }}"
-           placeholder="{{ placeholder if placeholder is not none else label }}"
-           class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
+    <span class="label">{{ label }} -</span>
+    <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}" class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
            name="{{ name }}"
+           {% if pattern %}pattern="{{ pattern }}"{% endif %}
+           {% if invalid_msg %}oninput="this.setCustomValidity('')" oninvalid="this.setCustomValidity('{{ invalid_msg }}')"{% endif %}
            {% if required %}required{% endif %}
            value="{{ value }}"
            {% if preserve %}hx-preserve{% endif %} />
@@ -53,34 +53,28 @@
 {% macro form_fileinput(label, name, value, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
   <label class="floating-label mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
-    <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}"
-           type="{{ type }}"
-           placeholder="{{ placeholder if placeholder is not none else label }}"
-           class="input w-full validator file-input"
-           name="{{ name }}"
-           {% if required %}required{% endif %}
-           value="{{ value }}"
+    <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}" class="input w-full validator file-input" name="{{ name }}" {% if required %}required{% endif %} value="
+           {{ value }}
+           "
            {% if preserve %}hx-preserve{% endif %} />
   </label>
 {% endmacro %}
 
 {% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full') %}
-{% from "macros/forms.html" import form_switch_content %}
+  {% from "macros/forms.html" import form_switch_content %}
   <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
     <legend class="fieldset-legend">{{ label }}</legend>
-    <label class="label">
-      {{ form_switch_content(name, value, yes_val, no_val, required, preserve) }}
-    </label>
+    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve) }}</label>
   </fieldset>
 {% endmacro %}
 
 {% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='') %}
-      <input id="{{ name }}"
-             name="{{ name }}"
-             type="checkbox"
-             class="toggle toggle-primary {{ input_class }}"
-             {% if required %}required{% endif %}
-             {% if value %}checked{% endif %}
-             onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';" />
-      <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value else no_val }}</span>
+  <input id="{{ name }}"
+         name="{{ name }}"
+         type="checkbox"
+         class="toggle toggle-primary {{ input_class }}"
+         {% if required %}required{% endif %}
+         {% if value %}checked{% endif %}
+         onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';" />
+  <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value else no_val }}</span>
 {% endmacro %}

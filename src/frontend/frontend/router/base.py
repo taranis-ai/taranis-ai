@@ -55,12 +55,16 @@ class LoginView(MethodView):
         if not username or not password:
             return render_template("login/index.html", login_error="Username and password are required"), 400
 
-        core_response = CoreApi().login(username, password)
+        try:
+            core_response = CoreApi().login(username, password)
+            core_json = core_response.json()
+            jwt_token = core_json.get("access_token")
+        except Exception:
+            return render_template("login/index.html", login_error="Login failed, no response from server"), 500
 
         if not core_response.ok:
-            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_json.get("error")), core_response.status_code
 
-        jwt_token = core_response.json().get("access_token")
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
         set_access_cookies(response, jwt_token)
 

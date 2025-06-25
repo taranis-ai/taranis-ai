@@ -34,6 +34,8 @@ class QueueManager:
         self.schedule_word_list_gathering()
 
     def clear_queues(self):
+        if self.error:
+            return
         with self._celery.connection() as conn:
             for queue_name in set(self.queue_names):
                 with contextlib.suppress(Exception):
