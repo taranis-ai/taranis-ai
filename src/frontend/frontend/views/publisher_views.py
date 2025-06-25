@@ -68,10 +68,50 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        base_context |= {
+        templates = dpl.get_objects(Template)
+        template_files = []
+        
+        # Get validation status from core API
+        try:
+            from frontend.core_api import CoreApi
+            core_api = CoreApi()
+            
+            # Get template validation data from core API
+            api_response = core_api.api_get("/config/templates", params={"list": True})
+            
+            # Create a mapping of template path to validation status
+            validation_map = {}
+            if api_response and "items" in api_response:
+                for api_template in api_response["items"]:
+                    template_path = api_template.get("path")
+                    validation_status = api_template.get("validation_status", {})
+                    is_valid = validation_status.get("is_valid", True)
+                    status = 'valid' if is_valid else 'invalid'
+                    validation_map[template_path] = status
+            
+            for t in templates:
+                # Get validation status from the API response, default to unknown
+                status = validation_map.get(t.id, 'unknown')
+                
+                template_files.append({
+                    "id": t.id, 
+                    "name": t.id,
+                    "validation_status": status
+                })
+        except Exception as e:
+            # Fallback if API call fails
+            logger.warning(f"Failed to get template validation status from API: {e}")
+            for t in templates:
+                template_files.append({
+                    "id": t.id, 
+                    "name": t.id,
+                    "validation_status": 'unknown'
+                })
+        
+        return {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
-            "template_files": [{"id": t.id, "name": t.id} for t in dpl.get_objects(Template)],
+            "template_files": template_files,
         }
         return base_context
 
