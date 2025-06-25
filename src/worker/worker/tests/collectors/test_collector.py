@@ -21,7 +21,10 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
-    assert str(exception.value) == "Base Web Collector got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+    assert (
+        str(exception.value)
+        == "Base Web Collector request to https://test.org/429 got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+    )
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/404")
