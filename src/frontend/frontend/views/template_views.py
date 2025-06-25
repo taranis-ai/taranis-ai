@@ -27,6 +27,43 @@ class TemplateView(BaseView):
         ]
 
     @classmethod
+    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
+        """Override to fetch templates with validation status for the list view."""
+        if object_id == 0 or str(object_id) == '0':  # List view case
+            # For the list view, fetch templates with validation status
+            dpl = DataPersistenceLayer()
+            
+            # Call the core API directly with list=true to get validation status
+            api_result = dpl.api.api_get("/config/templates", params={"list": "true"})
+            
+            if api_result and "items" in api_result:
+                # Convert API result to Template objects with validation status
+                template_objects = []
+                for item in api_result["items"]:
+                    # Map the API response fields to Template model fields
+                    template_data = {
+                        "id": item.get("path"),  # Map path to id
+                        "content": None,  # Content is not needed for list view
+                        "validation_status": item.get("validation_status", {}),
+                        "is_dirty": item.get("is_dirty", False)
+                    }
+                    template_obj = cls.model(**template_data)
+                    template_objects.append(template_obj)
+                
+                # Override the cache for this request
+                from frontend.cache import cache
+                from frontend.cache_models import CacheObject
+                cache_object = CacheObject(
+                    template_objects,
+                    total_count=api_result.get("total_count", len(template_objects)),
+                    links=api_result.get("_links", {}),
+                )
+                cache_key = dpl.make_user_key(cls.model._core_endpoint)
+                cache.set(key=cache_key, value=cache_object, timeout=cache_object.timeout)
+        
+        return super().get_extra_context(object_id)
+
+    @classmethod
     def _get_object_key(cls) -> str:
         return f"{cls.model_name().lower()}"
 
