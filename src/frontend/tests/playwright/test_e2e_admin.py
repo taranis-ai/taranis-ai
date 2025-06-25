@@ -31,7 +31,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         expect(page.locator("#dashboard")).to_be_visible()
 
     def test_admin_user_management(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
 
         def check_dashboard():
             expect(page.locator("#dashboard")).to_be_visible()
@@ -52,15 +53,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
             expect(page.get_by_text("Test organizations")).to_be_visible()
 
-        def add_role():
-            page.get_by_test_id("admin-menu-Role").click()
-            page.get_by_test_id("new-role-button").click()
-            page.get_by_label("Name").fill("Test Role")
-            page.get_by_label("Description").fill("Test description of a role")
-            page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_text("Test Role")).to_be_visible()
-
         def add_user():
             page.get_by_test_id("admin-menu-User").click()
             page.get_by_test_id("new-user-button").click()
@@ -69,6 +61,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
+
+        def add_role():
+            page.get_by_test_id("admin-menu-Role").click()
+            page.get_by_test_id("new-role-button").click()
+            page.get_by_label("Name").fill("Test Role")
+            page.get_by_label("Description").fill("Test description of a role")
+            page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_text("Test Role")).to_be_visible()
 
         def update_user():
             page.get_by_role("cell", name="test").nth(1).click()
@@ -79,18 +80,22 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Submit").click()
             page.get_by_text("User was successfully updated").click()
 
-        def remove_user():
-            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
-            page.get_by_role("button", name="Delete").click()
-            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
-            page.get_by_text("Successfully deleted").click()
-
         def assert_update_user():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("3")
 
         def assert_update_user_2():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
+        def remove_user():
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
+            page.get_by_role("button", name="Delete").click()
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            page.get_by_text("Successfully deleted").click()
+
+        #           Run test
+        # ============================
+
+        page = taranis_frontend
         check_dashboard()
         add_organization()
         # add_user()
@@ -102,7 +107,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # remove_user()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()
@@ -180,6 +186,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
+        #           Run test
+        # ============================
+        page = taranis_frontend
+
         # add_osint_sources()
         # wordlists()
         # edit_wordlist()
@@ -188,7 +198,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # osint_sources()
 
     def test_report_types(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
 
         def add_attribute():
             page.get_by_role("link", name="Attributes").click()
@@ -228,27 +239,30 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_report_type_select_attribute.png")
             page.get_by_role("button", name="Save").click()
 
+        #           Run test
+        # ============================
+        page = taranis_frontend
+
         # add_attribute()
         # new_report_type()
         # add_attribute_group()
         # add_attribute_to_group()
 
     def test_admin_product_types(self, taranis_frontend: Page):
-        page = taranis_frontend
-
         def show_product_type():
             page.get_by_role("link", name="Product Types").click()
             page.get_by_role("cell", name="Default TEXT Presenter").first.click()
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_edit.png")
 
+        page = taranis_frontend
+
         # show_product_type()
 
     def test_open_api(self, taranis_frontend: Page):
-        page = taranis_frontend
-
         def show_open_api():
             page.goto(url_for("base.open_api", _external=True))
             # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
-        show_open_api()
+        page = taranis_frontend
+        # show_open_api()
