@@ -38,9 +38,8 @@
            required
            pattern="^[\w\.\-]+$"
            class="input w-full validator"
-      {% if preserve %}hx-preserve{% endif %}
-      {% if template.id != '0' %}readonly disabled{% endif %}
-    />
+           {% if preserve %}hx-preserve{% endif %}
+           {% if template.id != '0' %}readonly disabled{% endif %} />
     <p class="validator-hint">Must be a valid filename</p>
   </label>
 

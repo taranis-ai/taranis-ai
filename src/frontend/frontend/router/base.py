@@ -7,7 +7,6 @@ from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
 from models.admin import Dashboard
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.log import logger
 from frontend.auth import auth_required
 
 
@@ -58,13 +57,10 @@ class LoginView(MethodView):
 
         core_response = CoreApi().login(username, password)
 
-        jwt_token = core_response.json().get("access_token")
-
-        logger.debug(f"Login response: {jwt_token}")
-
         if not core_response.ok:
             return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
+        jwt_token = core_response.json().get("access_token")
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
         set_access_cookies(response, jwt_token)
 
