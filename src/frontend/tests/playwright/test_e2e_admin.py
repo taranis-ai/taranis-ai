@@ -54,13 +54,34 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_text("Test Organization User Mgmt").first).to_be_visible()
 
         def add_user():
-            page.get_by_test_id("admin-menu-User").click()
+            page.goto(url_for("admin.users", _external=True))
             page.get_by_test_id("new-user-button").click()
-            page.get_by_label("Name").fill("Test User")
-            page.get_by_label("Description").fill("Test description of a user")
-            page.get_by_label("Password", exact=True).fill("testasdfasdf")
+            page.get_by_role("textbox", name="Username").fill("testuser")
+            page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
+            page.get_by_role("textbox", name="Password").fill("testpassword")
+            page.get_by_role("button", name="Generate Password").click()
+            page.locator("#user-role-select-ts-control").click()
+            page.locator("#user-role-select-opt-1").click()
+            page.locator("#user-role-select-opt-2").click()
+            page.get_by_label("Organization Select an item").select_option("2")
+            expect(page.get_by_role("group")).to_contain_text("Admin - Administrator role×")
+            expect(page.get_by_role("group")).to_contain_text("User - Basic user role×")
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            page.get_by_role("button", name="Create User").click()
+
+        def assert_user():
+            expect(page.get_by_test_id("edit--3")).to_contain_text("testuser")
+            expect(page.get_by_role("cell", name="Test User")).to_be_visible()
+            expect(page.get_by_test_id("edit--3").get_by_role("cell", name="2")).to_be_visible()
+            expect(page.get_by_test_id("edit--3").get_by_role("cell", name="74")).to_be_visible()
+
+        def remove_user():
+            page.pause()
+            page.on("dialog", lambda dialog: dialog.accept())
+            page.get_by_test_id("edit--3").get_by_role("button", name="Delete").click()
+
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            # page.get_by_text("Successfully deleted").click()
 
         def add_role():
             page.get_by_test_id("admin-menu-Role").click()
@@ -86,12 +107,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def assert_update_user_2():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
-        def remove_user():
-            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
-            page.get_by_role("button", name="Delete").click()
-            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
-            page.get_by_text("Successfully deleted").click()
-
         def remove_organization():
             # locate to organizations index page
             page.goto(url_for("admin.organizations", _external=True))
@@ -106,13 +121,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
         check_dashboard()
         add_organization()
-        # add_user()
+        add_user()
+        assert_user()
+        remove_user()
         # add_role()
-        # update_user()  # assign roles to user
+        # update_user()
         # assert_update_user()
-        # update_user()  # deassign roles from a user
+        # update_user()
         # assert_update_user_2()
-        # remove_user()
+        # remove_organization()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         #        Test definitions
