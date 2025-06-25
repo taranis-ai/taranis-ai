@@ -11,7 +11,7 @@
   {% endif %}
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
     {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
     {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False) }}

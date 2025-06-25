@@ -134,7 +134,16 @@ class PublisherParameterAPI(MethodView):
 class ReportItemTypeGroupsAPI(MethodView):
     @auth_required()
     def post(self):
-        return ReportItemTypeView.get_report_item_type_groups_view()
+        group_index = request.form.get("group_index", type=int) or 0
+        return ReportItemTypeView.get_report_item_type_groups_view(group_index)
+
+
+class ReportItemTypeGroupItemAPI(MethodView):
+    @auth_required()
+    def post(self):
+        group_index = request.form.get("attribute_group_index", type=int) or 0
+        attribute_index = request.form.get("attribute_index", type=int) or 0
+        return ReportItemTypeView.get_report_item_type_group_items_view(group_index, attribute_index)
 
 
 def init(app: Flask):
@@ -186,6 +195,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))
     admin_bp.add_url_rule("/report_types/<int:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
     admin_bp.add_url_rule("/add_report_type_group", view_func=ReportItemTypeGroupsAPI.as_view("add_report_item_types_group"))
+    admin_bp.add_url_rule("/add_report_type_group_item", view_func=ReportItemTypeGroupItemAPI.as_view("add_report_item_types_group_item"))
 
     admin_bp.add_url_rule("/product_types", view_func=ProductTypeView.as_view("product_types"))
     admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))

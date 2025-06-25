@@ -1,11 +1,12 @@
 {% from "macros/forms.html" import form_input_content, form_textarea %}
 {% from "macros/report_macros.html" import render_attribute_group %}
-
+{% set highest_group_index = report_item_type.attribute_groups | map(attribute='index') | max | default(-1) %}
 <div class="mb-4">
   <button
     type="button"
     class="btn btn-primary"
     hx-post="{{ url_for('admin.add_report_item_types_group') }}"
+    hx-vals='{"group_index": "{{ highest_group_index + 1 }}" }'
     hx-target="#groups-container"
     hx-swap="beforeend"
   >
@@ -15,6 +16,6 @@
 
 <div id="groups-container" class="space-y-4">
 {% for group in report_item_type.attribute_groups %}
-  {{ render_attribute_group(group) }}
+  {{ render_attribute_group(group, attribute_types) }}
 {% endfor %}
 </div>
