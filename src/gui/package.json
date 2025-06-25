@@ -43,16 +43,16 @@
     "vue-i18n": "^11.1.7",
     "vue-router": "^4.5.1",
     "vue-use-hotkeys": "^0.4.0",
-    "vuetify": "^3.8.10",
+    "vuetify": "^3.8.11",
     "zipson": "^0.2.12"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue": "^6.0.0",
     "eslint": "^9.29.0",
-    "prettier": "^3.6.0",
+    "prettier": "^3.6.1",
     "sass": "^1.89.2",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5",
+    "vite": "^7.0.0",
     "vite-plugin-vuetify": "^2.1.1",
     "vue-tsc": "^2.2.10"
   }
