@@ -92,6 +92,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
             page.get_by_text("Successfully deleted").click()
 
+        def remove_organization():
+            # locate to organizations index page
+            page.goto(url_for("admin.organizations", _external=True))
+            page.get_by_role("row", name=re.compile("Test Organization User Mgmt")).get_by_role("button", name="Delete").click()
+            # Set up dialog handler to automatically accept confirmation
+            page.on("dialog", lambda dialog: dialog.accept())
+            page.get_by_role("button", name="Delete").click()
+
         #           Run test
         # ============================
 
@@ -266,3 +274,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         page = taranis_frontend
         # show_open_api()
+
+    def test_template_management(self, taranis_frontend: Page):
+        def show_template_management():
+            page.goto(url_for("admin.template_data", _external=True))
+            expect(page.locator("h2.title").first).to_contain_text("Template Management")
+
+        page = taranis_frontend
+
+        # show_template_management()
