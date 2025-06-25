@@ -22,10 +22,7 @@
       {% if data %}
         {% for item in data %}
           {% set edit_route = base_url ~ '/' ~ item.id %}
-          <tr hx-get="{{ edit_route }}"
-              hx-push-url="true"
-              hx-target="#form-container"
-              hx-trigger="click"
+          <tr onclick="window.location='{{ edit_route }}';"
               class="cursor-pointer hover:bg-info"
               data-testid="edit-{{ model_name }}-{{ item.id }}">
             {% if selectable %}
@@ -78,16 +75,6 @@
   <td class="text-right">
     {% if actions is sameas true %}
       {% set actions = [
-              {
-                'label': 'Edit',
-                'class': 'btn-primary',
-                'icon': 'pencil-square',
-                'method': 'get',
-                'url': base_url,
-                'hx_target': '#form-container',
-                'hx_swap': 'innerHTML',
-                'confirm': None
-              },
               {
                 'label': 'Delete',
                 'icon': 'trash',

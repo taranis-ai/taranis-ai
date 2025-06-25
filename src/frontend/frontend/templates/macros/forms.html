@@ -30,7 +30,14 @@
     <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}" class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
            name="{{ name }}"
            {% if pattern %}pattern="{{ pattern }}"{% endif %}
-           {% if invalid_msg %}oninput="this.setCustomValidity('')" oninvalid="this.setCustomValidity('{{ invalid_msg }}')"{% endif %}
+           {% if invalid_msg %}
+             x-on:input="
+              $el.setCustomValidity('');
+              if (!$el.validity.valid) {
+                $el.setCustomValidity('{{ invalid_msg }}');
+              }
+            "
+           {% endif %}
            {% if required %}required{% endif %}
            value="{{ value }}"
            {% if preserve %}hx-preserve{% endif %} />

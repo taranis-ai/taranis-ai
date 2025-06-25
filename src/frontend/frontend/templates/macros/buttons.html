@@ -16,7 +16,7 @@
   {# djlint:off #}
   {% set action_url = action.url ~ '/' ~ item_id if item_id else action.url %}
   <div class="tooltip" data-tip="{{ action.label }}">
-  <button class="btn btn-ghost {{ action.class }}"
+  <button class="btn btn-ghost btn-sm {{ action.class }}"
           hx-{{ action.method }}="{{ action_url }}"
           hx-push-url="true"
           {% if action.hx_target %}hx-target="{{ action.hx_target }}"{% endif %}

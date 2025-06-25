@@ -44,8 +44,9 @@ def get_html5_pattern_from_rule(rules: list[str]) -> tuple[str, str] | str:
 
     html5_patterns = {
         "json": (r"\{[^\{\}]*\}", "Input has to be a valid JSON object"),
-        "tlp": (r"(clear|green|amber|amber+strict|red)", "Input has to be a valid TLP value (clear, green, amber, amber+strict, red)"),
+        "tlp": (r"clear|green|amber|amber\+strict|red", "Input has to be a valid TLP value (clear, green, amber, amber+strict, red)"),
         "ip": (r"(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}", "Input has to be a valid IP address"),
+        "required": ("required", "This field is required"),
     }
 
     if len(rules) > 1:
