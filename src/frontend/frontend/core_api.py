@@ -112,6 +112,13 @@ class CoreApi:
             logger.error(f"Load default OSINT sources failed: {e}")
             return None
 
+    def load_default_word_lists(self):
+        try:
+            return self.api_get("/static/default_word_lists.json")
+        except Exception as e:
+            logger.error(f"Load default word lists failed: {e}")
+            return None
+
     def import_report_item_types(self, report_item_types):
         return self.api_post("/config/import-report-item-types", json_data=report_item_types)
 

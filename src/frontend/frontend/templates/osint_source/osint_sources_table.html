@@ -66,9 +66,9 @@
     {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
   {% else %}
     <div class="text-center p-4">
-      <p class="text-gray-500">No {{ model_name }}s available.</p>
+      <p class="text-gray-500">No {{ name }} available.</p>
       <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_osint_sources') }}" hx-target="#{{ table_container }}">
-        Load default sources
+        Load default {{ name }}
       </button>
     </div>
   {% endif %}

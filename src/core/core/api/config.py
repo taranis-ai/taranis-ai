@@ -665,10 +665,14 @@ class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
         if file := request.files.get("file"):
-            if wls := word_list.WordList.import_word_lists(file):
-                return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
-            return {"error": "Unable to import"}, 400
-        return {"error": "No file provided"}, 400
+            wls = word_list.WordList.import_word_lists(file)
+        if json_data := request.get_json(silent=True):
+            wls = word_list.WordList.import_word_lists_from_json(json_data)
+        if wls is None:
+            logger.error("Failed to import Word Lists")
+            return {"error": "Unable to import Word Lists"}, 400
+
+        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported Word Lists"}
 
 
 class WordListExport(MethodView):
@@ -677,7 +681,7 @@ class WordListExport(MethodView):
         source_ids = request.args.getlist("ids")
         data = word_list.WordList.export(source_ids)
         if data is None:
-            return {"error": "Unable to export"}, 400
+            return {"error": "Unable to export Word Lists"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="word_list_export.json",

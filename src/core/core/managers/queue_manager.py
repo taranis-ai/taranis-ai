@@ -53,9 +53,12 @@ class QueueManager:
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
 
+        if self.error:
+            return
+
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
-            self._celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+            self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
 
     def get_queued_tasks(self):
         if self.error:

@@ -55,3 +55,22 @@ class WordListView(BaseView):
             return f"Failed to fetch word lists from: {Config.TARANIS_CORE_URL}", 500
 
         return CoreApi.stream_proxy(core_resp, "word_lists_export.json")
+
+    @classmethod
+    def load_default_word_lists(cls):
+        response = CoreApi().load_default_word_lists()
+        if not response:
+            logger.error("Failed to load default word lists")
+            return render_template("partials/error.html", error="Failed to load default word lists")
+
+        response = CoreApi().import_word_lists(response)
+
+        if not response.ok:
+            error = response.json().get("error", "Unknown error")
+            error_message = f"Failed to import default word lists: {error}"
+            logger.error(error_message)
+            return render_template("partials/error.html", error=error_message)
+
+        DataPersistenceLayer().invalidate_cache_by_object(WordList)
+        items = DataPersistenceLayer().get_objects(cls.model)
+        return render_template(cls.get_list_template(), **cls.get_view_context(items))

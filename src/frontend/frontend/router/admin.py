@@ -103,6 +103,12 @@ class ImportWordLists(MethodView):
         return WordListView.import_post_view()
 
 
+class LoadDefaultWordLists(MethodView):
+    @auth_required()
+    def post(self):
+        return WordListView.load_default_word_lists()
+
+
 class ACLItemAPI(MethodView):
     @auth_required()
     def get(self):
@@ -211,5 +217,6 @@ def init(app: Flask):
     admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
     admin_bp.add_url_rule("/export/word_lists", view_func=ExportWordLists.as_view("export_word_lists"))
     admin_bp.add_url_rule("/import/word_lists", view_func=ImportWordLists.as_view("import_word_lists"))
+    admin_bp.add_url_rule("/load_default_word_lists", view_func=LoadDefaultWordLists.as_view("load_default_word_lists"))
 
     app.register_blueprint(admin_bp)
