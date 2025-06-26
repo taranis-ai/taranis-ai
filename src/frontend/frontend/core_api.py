@@ -112,6 +112,27 @@ class CoreApi:
             logger.error(f"Load default OSINT sources failed: {e}")
             return None
 
+    def collect_osint_source_preview(self, osint_source_id):
+        try:
+            return self.api_post(f"/config/osint-sources/{osint_source_id}/preview")
+        except Exception as e:
+            logger.error(f"Collect OSINT source preview failed: {e}")
+            return None
+
+    def collect_osint_source(self, osint_source_id):
+        try:
+            return self.api_post(f"/config/osint-sources/{osint_source_id}/collect")
+        except Exception as e:
+            logger.error(f"Collect OSINT source failed: {e}")
+            return None
+
+    def collect_all_osint_sources(self):
+        try:
+            return self.api_post("/config/osint-sources/collect")
+        except Exception as e:
+            logger.error(f"Collect OSINT sources failed: {e}")
+            return None
+
     def load_default_word_lists(self):
         try:
             return self.api_get("/static/default_word_lists.json")

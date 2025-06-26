@@ -1,8 +1,8 @@
 import json
 from typing import Any
-from flask import render_template, request, Response
+from flask import render_template, request, Response, redirect, url_for
 
-from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue
+from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
@@ -130,3 +130,37 @@ class SourceView(BaseView):
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
+
+    @classmethod
+    def collect_osint_source(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source(osint_source_id)
+        if not response:
+            logger.error("Failed to start OSINT source collection")
+            return render_template("partials/error.html", error="Failed to start OSINT source collection"), 500
+        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+
+    @classmethod
+    def collect_all_osint_sources(cls):
+        response = CoreApi().collect_all_osint_sources()
+        if not response:
+            logger.error("Failed to load OSINT sources")
+            return render_template("partials/error.html", error="Failed to load OSINT sources"), 500
+        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+
+    @classmethod
+    def collect_osint_source_preview(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source_preview(osint_source_id)
+        logger.debug(f"Collect OSINT source preview response: {response}")
+        if not response:
+            logger.error("Failed to load OSINT source preview")
+            return render_template("partials/error.html", error="Failed to load OSINT source preview"), 500
+        DataPersistenceLayer().invalidate_cache_by_object(TaskResult)
+        return redirect(url_for("admin.osint_source_preview", osint_source_id=osint_source_id))
+
+    @classmethod
+    def get_osint_source_preview_view(cls, osint_source_id: str):
+        dpl = DataPersistenceLayer()
+        if task_result := dpl.get_object(TaskResult, f"source_preview_{osint_source_id}"):
+            return render_template("osint_source/osint_source_preview.html", task_result=task_result)
+
+        return render_template("partials/error.html", error="OSINT source preview not found"), 404

@@ -597,6 +597,19 @@ class OSINTSourceGroups(MethodView):
         return osint_source.OSINTSourceGroup.delete(group_id)
 
 
+class TaskResults(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @extract_args("search")
+    def get(self, task_id=None, filter_args=None):
+        if task_id:
+            return task.Task.get_for_api(task_id)
+        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def delete(self, task_id):
+        return task.Task.delete(task_id)
+
+
 class Presenters(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
     @extract_args("search")
@@ -752,6 +765,8 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
     config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    config_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results"))
+    config_bp.add_url_rule("/task-results/<string:task_id>", view_func=TaskResults.as_view("task_result"))
 
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
     config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))

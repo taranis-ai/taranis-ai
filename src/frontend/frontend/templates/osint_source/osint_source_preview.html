@@ -1,1 +1,6 @@
-{% include "assess/story/story_card.html" %}
+{% extends "base.html" %}
+{% from 'assess/story/story_card.html' import story_card %}
+
+{% block content %}
+  {% for story in task_result.result %}{{ story_card(story) }}{% endfor %}
+{% endblock content %}

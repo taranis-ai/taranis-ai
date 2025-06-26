@@ -36,11 +36,11 @@
 
 <div class="bg-base-100 p-4">
   <div class="w-1/2 ml-[10%]">
-  {% if create -%}
+    {% if create -%}
       <h1 class="text-3xl font-bold mb-5">{{ submit_text }}</h1>
-  {% else -%}
+    {% else -%}
       {% include "user/user_form_warning.html" %}
-  {% endif -%}
+    {% endif -%}
   </div>
 
   <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
@@ -51,27 +51,30 @@
 
     <div x-data="{ showPassword: false }" class="join gap-1 w-3/4">
       <label class="floating-label mb-5 input validator w-full shrink">
-          <span>Password</span>
-              <input
-                  id="user-password"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="Password"
-                  class="input input-md validator {% if form_error.password %}input-error{% endif %}"
-                  name="password"
-                  {% if create %}required hx-preserve{% endif %}
-              />
-              <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
-              <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
-        </label>
-      <button type="button" class="btn btn-primary grow" id="generate-password" onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
+        <span>Password</span>
+        <input id="user-password"
+               :type="showPassword ? 'text' : 'password'"
+               placeholder="Password"
+               class="input input-md validator {% if form_error.password %}input-error{% endif %}"
+               name="password"
+               {% if create %}required hx-preserve{% endif %} />
+        <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
+        <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+      </label>
+      <button type="button"
+              class="btn btn-primary grow"
+              id="generate-password"
+              onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
     </div>
 
     <fieldset class="fieldset bg-base-100 w-3/4">
       <legend class="fieldset-legend">Roles</legend>
       <select name="roles[]" multiple required type="number" id="user-role-select" class="tomselect">
-          {% for role in roles %}
-          <option value="{{ role.id }}" {% if role.id in user_roles %}selected{% endif %}>{{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}</option>
-          {% endfor %}
+        {% for role in roles %}
+          <option value="{{ role.id }}" {% if role.id in user_roles %}selected{% endif %}>
+            {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
+          </option>
+        {% endfor %}
       </select>
       <p class="validator-hint">Required</p>
     </fieldset>

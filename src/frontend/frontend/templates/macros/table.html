@@ -22,9 +22,7 @@
       {% if data %}
         {% for item in data %}
           {% set edit_route = base_url ~ '/' ~ item.id %}
-          <tr onclick="window.location='{{ edit_route }}';"
-              class="cursor-pointer hover:bg-info"
-              data-testid="edit-{{ model_name }}-{{ item.id }}">
+          <tr onclick="window.location='{{ edit_route }}';" class="cursor-pointer hover:bg-info" data-testid="edit-{{ model_name }}-{{ item.id }}">
             {% if selectable %}
               <td>
                 <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />

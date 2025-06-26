@@ -20,7 +20,12 @@
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
-  <form id="product_type-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="product_type-form"
+        class="w-3/4 ml-[10%]"
+        {{ form_action }}
+        hx-swap="innerHTML"
+        hx-target="#form-container"
+        hx-target-error="#form-container">
     {% include 'partials/admin_form_error.html' %}
     {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', product_type.description, form_error.description, width="w-3/4") }}
@@ -30,9 +35,9 @@
     <fieldset class="fieldset bg-base-100 w-3/4 mb-5">
       <legend class="fieldset-legend">Report Types</legend>
       <select name="report_types[]" multiple required type="number" id="report_types-select" class="tomselect">
-          {% for report_type in report_types %}
+        {% for report_type in report_types %}
           <option value="{{ report_type.id }}" {% if report_type.id in selected_report_types %}selected{% endif %}>{{ report_type.title }}</option>
-          {% endfor %}
+        {% endfor %}
       </select>
     </fieldset>
 

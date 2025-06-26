@@ -15,18 +15,20 @@
     'label': 'Preview',
     'class': '',
     'icon': 'eye',
-    'method': 'get',
-    'url': routes.base_route,
-    'hx_target': '#form-container',
-    'hx_swap': 'innerHTML',
+    'method': 'post',
+    'url': url_for('admin.osint_source_preview', osint_source_id=''),
+    'hx_target_error': '#error-msg',
+    'hx_target': None,
+    'hx_swap': None,
     'confirm': None
   },
   {
     'label': 'Collect',
     'class': '',
-    'icon': 'bug-ant',
+    'icon': 'arrows-pointing-in',
     'method': 'post',
-    'url': routes.collect_route,
+    'url': url_for('admin.collect_osint_source', osint_source_id=''),
+    'hx_target_error': '#error-msg',
     'hx_target': '#notification-bar',
     'hx_swap': 'innerHTML',
     'confirm': None
@@ -47,6 +49,10 @@
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.base_route) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
+        <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
+          {{ heroicon_outline("arrows-pointing-in", class="h-5 w-5") }}
+          Collect All
+        </button>
         {{ import_button(url_for('admin.import_osint_sources') ) }}
         {{ export_button(url_for('admin.export_osint_sources') ) }}
       </div>

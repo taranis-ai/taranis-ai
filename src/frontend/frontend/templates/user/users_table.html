@@ -5,12 +5,12 @@
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
-  <div class="grow-0">
-    <div class="join gap-1" hx-target="#form-container">
-      {{ import_button(url_for('admin.import_users')) }}
-      {{ export_button(url_for('admin.export_users')) }}
+    <div class="grow-0">
+      <div class="join gap-1" hx-target="#form-container">
+        {{ import_button(url_for('admin.import_users') ) }}
+        {{ export_button(url_for('admin.export_users') ) }}
+      </div>
     </div>
-  </div>
   {% endcall %}
 
   {{ table(model_name + '-table', users, columns, actions=true, standalone=false, base_url=routes.base_route) }}

@@ -10,9 +10,7 @@
 
 {% set table_container = model_name + '-table-container' %}
 
-<div id="{{ table_container }}"
-     class="table-container"
-     x-data="{ selectedItems: [] }">
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
@@ -22,7 +20,7 @@
     </div>
   {% endcall %}
   {% if data and data | length > 0 %}
-  {{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
+    {{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>

@@ -136,9 +136,7 @@ class OSINTSource(BaseModel):
         if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
             return refresh_interval
 
-        # use default interval (0 */8 * * * = 8h) if no REFERESH_INTERVAL was set will be moved to admin settings
-        logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
-        return "0 */8 * * *"
+        return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
 
     def to_task_dict(self, crontab_str: str):
         return {
@@ -236,8 +234,6 @@ class OSINTSource(BaseModel):
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)
         schedule_manager.schedule.add_celery_task(entry)
-
-        logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):

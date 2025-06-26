@@ -92,10 +92,7 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
 
     def send_task(self, *args, **kwargs):
-        if self.error:
-            return False
-        self._celery.send_task(*args, **kwargs)
-        return True
+        return False if self.error else self._celery.send_task(*args, **kwargs)
 
     def get_queue_status(self) -> tuple[dict, int]:
         if self.error:
@@ -119,9 +116,10 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def preview_osint_source(self, source_id: str):
-        task = self._celery.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}")
-        logger.info(f"Collect for source {source_id} scheduled as {task.id}")
-        return {"message": f"Refresh for source {source_id} scheduled", "task_id": task.id}, 200
+        if task := self.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}"):
+            logger.info(f"Collect for source {source_id} scheduled as {task.id}")
+            return {"message": f"Refresh for source {source_id} scheduled", "task_id": task.id}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
 
     def collect_all_osint_sources(self):
         from core.model.osint_source import OSINTSource

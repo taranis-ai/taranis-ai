@@ -1,9 +1,9 @@
-<div class="card">
-  <div class="card-body">
-    <h2 class="card-title">{{ title }}</h2>
-    <p>{{ description }}</p>
-    <div class="card-actions">
-      <button class="btn btn-primary">Open</button>
+{% macro story_card(story) %}
+  <div class="card card-border bg-base-100 mx-4 my-2">
+    <div class="card-body">
+      <h2 class="card-title">{{ story.title }}</h2>
+      <p>{{ story.content }}</p>
+      <div class="card-actions"></div>
     </div>
   </div>
-</div>
+{% endmacro %}

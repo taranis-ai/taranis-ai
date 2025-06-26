@@ -2,10 +2,7 @@
 {% from "macros/datatable.html" import datatable %}
 {% from "macros/variables.html" import tlp_levels %}
 
-{% set columns = [
-  {'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None},
-  {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}
-] %}
+{% set columns = [{'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None}, {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}] %}
 
 {% set form_error = form_error | default({}) %}
 {% set permissions = permissions | default([]) %}

@@ -1,5 +1,5 @@
 from pydantic import Field, AnyUrl
-from typing import Literal
+from typing import Literal, Any
 from datetime import datetime
 
 from models.base import TaranisBaseModel
@@ -365,3 +365,13 @@ class WorkerParameter(TaranisBaseModel):
 
     id: str
     parameters: list[WorkerParameterValue]
+
+
+class TaskResult(TaranisBaseModel):
+    _core_endpoint = "/config/task-results"
+    _model_name = "task_result"
+    _pretty_name = "Task Result"
+
+    id: str | None = None
+    result: Any = None
+    status: str | None = None

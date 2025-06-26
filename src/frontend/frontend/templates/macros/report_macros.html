@@ -30,9 +30,7 @@
 
         <div id="attribute-items-container-{{ group.index }}" class="mt-4 space-y-2">
           {% if group.attribute_group_items %}
-            {% for attribute in group.attribute_group_items %}
-              {{ render_attribute_item(attribute, attribute_types, group.index) }}
-            {% endfor %}
+            {% for attribute in group.attribute_group_items %}{{ render_attribute_item(attribute, attribute_types, group.index) }}{% endfor %}
           {% endif %}
         </div>
       </div>
