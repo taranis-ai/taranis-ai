@@ -15,7 +15,7 @@ class TaranisLogger:
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
         else:
-            stream_handler.setFormatter(logging.Formatter(f"[{module}] [%(levelname)s] - %(message)s"))
+            stream_handler.setFormatter(logging.Formatter(f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"))
         sys_log_handler = None
         if syslog_address:
             try:
@@ -62,9 +62,14 @@ class TaranisLogger:
     def error(self, message):
         self.logger.error(message)
 
+    def get_stream_handler(self) -> logging.StreamHandler | None:
+        for h in self.logger.handlers:
+            if isinstance(h, logging.StreamHandler):
+                return h
+
 
 class TaranisLogFormatter(logging.Formatter):
-    def __init__(self, module):
+    def __init__(self, module, extra_fmt: str | None = None):
         grey = "\x1b[38;20m"
         blue = "\x1b[1;36m"
         yellow = "\x1b[33;20m"
@@ -72,7 +77,10 @@ class TaranisLogFormatter(logging.Formatter):
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
         self.module = module
-        self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"
+        self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s]"
+        if extra_fmt:
+            self.format_string += f" [{extra_fmt}]"
+        self.format_string += " - %(message)s"
         self.datefmt = "%Y-%m-%d %H:%M:%S"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
