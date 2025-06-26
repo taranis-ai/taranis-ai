@@ -1,10 +1,22 @@
 from celery import Task
+from contextlib import contextmanager
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector
-from worker.log import logger
+from worker.log import logger, TaranisLogFormatter
 from worker.core_api import CoreApi
 from typing import Any
+
+
+@contextmanager
+def collector_log_fmt(logger, collector_formatter):
+    stream_handler = logger.get_stream_handler()
+    old_fmt = stream_handler.formatter
+    stream_handler.setFormatter(collector_formatter)
+    try:
+        yield
+    finally:
+        stream_handler.setFormatter(old_fmt)
 
 
 class Collector:
@@ -44,23 +56,27 @@ class CollectorTask(Task):
         self.collector = Collector()
         source = self.collector.get_source(osint_source_id)
         collector = self.collector.get_collector(source)
-        task_description = f"Collect source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}'"
-        kwargs["task_description"] = task_description
+        formatter = TaranisLogFormatter(logger.module, extra_fmt=f"{collector.name} {self.request.id}")
+        task_description = (
+            f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
+        )
+        self.request.task_description = task_description
 
         logger.info(f"Starting collector task: {task_description}")
-        try:
-            collector.collect(source, manual)
-        except Exception as e:
-            if e == "Not modified":
-                return f"Source '{source.get('name')}' with id {osint_source_id} was not modified"
-            self.core_api.update_osintsource_status(osint_source_id, {"error": e})
-            raise RuntimeError from e
+        with collector_log_fmt(logger, formatter):
+            try:
+                collector.collect(source, manual)
+            except Exception as e:
+                if str(e) == "Not modified":
+                    return f"Source '{source.get('name')}' with id {osint_source_id} was not modified"
+                self.core_api.update_osintsource_status(osint_source_id, {"error": str(e)})
+                raise RuntimeError(e) from e
 
         self.core_api.run_post_collection_bots(osint_source_id)
         return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}\nException: {exc}")
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}\nException: {exc}")
 
 
 class CollectorPreview(Task):
