@@ -6,7 +6,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup, Tag
-from typing import Any, Optional
+from typing import Any
 import json
 
 from worker.log import logger
@@ -46,7 +46,7 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
         self.web_url: str = ""
 
-    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
+    def send_get_request(self, url: str, modified_since: datetime.datetime | None = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
         If modified_since is given, make request conditional with If-Modified-Since
         Check for specific status codes and raise rest of errors
@@ -58,14 +58,14 @@ class BaseWebCollector(BaseCollector):
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-        logger.debug(f"{self.name} sending GET request to {url}")
+        logger.debug(f"Sending GET request to {url}")
         response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
         if response.status_code == 200 and not response.content:
-            logger.debug(f"{self.name} request to {url} got Response 200 OK, but returned no content")
+            logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
             raise NoChangeError(f"Content of {url} was not modified - {response.text}")
         if response.status_code == 429:
-            raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+            raise requests.exceptions.HTTPError("Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
         response.raise_for_status()
 
         return response
@@ -136,7 +136,7 @@ class BaseWebCollector(BaseCollector):
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
-        logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
+        logger.info(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
@@ -178,7 +178,8 @@ class BaseWebCollector(BaseCollector):
     def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
-        if xpath:
+        if xpath and web_content:
+            logger.info(f"Attempting xpath extraction for xpath: {xpath}")
             content = self.xpath_extraction(web_content, xpath)
         elif web_content:
             content = extract(web_content, url=web_url)
