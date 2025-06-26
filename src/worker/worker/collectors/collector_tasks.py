@@ -54,6 +54,7 @@ class CollectorTask(Task):
             if e == "Not modified":
                 return f"Source '{source.get('name')}' with id {osint_source_id} was not modified"
             self.core_api.update_osintsource_status(osint_source_id, {"error": e})
+            raise RuntimeError from e
 
         self.core_api.run_post_collection_bots(osint_source_id)
         return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
