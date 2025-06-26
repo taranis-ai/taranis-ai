@@ -26,7 +26,7 @@
 
 {% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='') %}
   <label class="floating-label {{ width }}">
-    <span class="label">{{ label }} -</span>
+    <span class="label">{{ label }}</span>
     <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}" class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
            name="{{ name }}"
            {% if pattern %}pattern="{{ pattern }}"{% endif %}

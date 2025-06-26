@@ -142,7 +142,7 @@ class WordList(BaseModel):
         if "entries" in data:
             data["entries"] = WordListEntry.load_multiple(data["entries"])
 
-        word_list = cls(
+        return cls(
             id=data.get("id"),
             name=data.get("name", ""),
             description=data.get("description"),
@@ -150,8 +150,6 @@ class WordList(BaseModel):
             link=data.get("link", ""),
             entries=data.get("entries", []),
         )
-
-        return word_list
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

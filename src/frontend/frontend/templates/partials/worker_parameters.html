@@ -5,7 +5,7 @@
 {% for field in parameters %}
   {% set field_value = parameter_values.get(field.name, field.value) %}
   {% set pattern, invalid_msg = get_html5_pattern_from_rule(field.rules) %}
-  {% set required = False %}
+  {% set required = pattern == 'required' %}
   {% set pattern = "" if required else pattern %}
   {% if field.type == 'text' or field.type == 'number' %}
     {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=required, pattern=pattern, invalid_msg=invalid_msg) }}
