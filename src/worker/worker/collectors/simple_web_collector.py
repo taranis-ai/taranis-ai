@@ -26,17 +26,11 @@ class SimpleWebCollector(BaseWebCollector):
         super().parse_source(source)
         self.web_url = source["parameters"].get("WEB_URL", None)
         if not self.web_url:
-            logger.error("No WEB_URL set")
             raise ValueError("No WEB_URL set")
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
-
-        try:
-            return self.web_collector(source, manual)
-        except Exception as e:
-            logger.exception(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-            return str(e)
+        return self.web_collector(source, manual)
 
     def preview_collector(self, source):
         self.parse_source(source)
@@ -78,22 +72,13 @@ class SimpleWebCollector(BaseWebCollector):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
 
         if response.status_code == 429:
-            logger.error("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
-            raise requests.exceptions.HTTPError("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
-
-        if not response or not response.ok:
-            logger.info(f"Website {source['id']} returned no content")
-            raise ValueError("Website returned no content")
+            raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
+        response.raise_for_status()
 
         self.last_attempted = self.get_last_attempted(source)
         if not self.last_attempted:
             self.update_favicon(self.web_url, self.osint_source_id)
-
-        try:
-            self.news_items = self.gather_news_items()
-        except ValueError as e:
-            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-
+        self.news_items = self.gather_news_items()
         self.publish(self.news_items, source)
         return None
 
