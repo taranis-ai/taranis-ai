@@ -80,7 +80,7 @@ class CollectorTask(Task):
         return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}\nException: {exc}")
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
 
 
 class CollectorPreview(Task):
@@ -103,4 +103,4 @@ class CollectorPreview(Task):
         return preview_result
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}\nException: {exc}")
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}")
