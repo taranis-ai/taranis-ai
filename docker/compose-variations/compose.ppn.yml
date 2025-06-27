@@ -142,6 +142,9 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
+    volumes:
+      - ./ppn/:/opt/data/ppn
+
 
   workers:
     depends_on:
