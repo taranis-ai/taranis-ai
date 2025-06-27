@@ -12,13 +12,13 @@ from worker.log import logger
 class MISPCollector(BaseCollector):
     def __init__(self):
         super().__init__()
-        self.core_api = CoreApi()
-        self.type = "MISP_CONNECTOR"
-        self.name = "MISP Connector"
-        self.description = "Connector for MISP"
+        self.core_api: CoreApi = CoreApi()
+        self.type: str = "MISP_CONNECTOR"
+        self.name: str = "MISP Connector"
+        self.description: str = "Connector for MISP"
 
-        self.proxies = None
-        self.headers = {}
+        self.proxies: dict | None = None
+        self.headers: dict = {}
         self.connector_id: str
 
         self.url: str = ""
@@ -26,6 +26,7 @@ class MISPCollector(BaseCollector):
         self.ssl: bool = False
         self.request_timeout: int
         self.sharing_group_id: str = ""
+        self.org_id: str = ""
 
     def parse_parameters(self, parameters: dict) -> None:
         logger.debug(f"{parameters=}")
@@ -33,13 +34,15 @@ class MISPCollector(BaseCollector):
         self.api_key = parameters.get("API_KEY", "")
         self.ssl = parameters.get("SSL", False)
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
-        self.proxies = parameters.get("PROXIES", "")
-        self.headers = parameters.get("HEADERS", "")
+        self.proxies = parameters.get("PROXIES", {})
+        self.headers = parameters.get("HEADERS", {})
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
 
-        if not self.url or not self.api_key:
-            raise ValueError("Missing required parameters")
+        if not self.url:
+            raise ValueError("Missing URL parameter")
+        if not self.api_key:
+            raise ValueError("Missing API_KEY parameter")
 
     def collect(self, source: dict, manual: bool = False) -> None:
         self.parse_parameters(source.get("parameters", ""))
@@ -54,7 +57,7 @@ class MISPCollector(BaseCollector):
         event_ids = set()
         for obj in taranis_objects:
             event_ids.add(obj.event_id)  # type: ignore
-            print(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
+            logger.debug(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
 
         events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
         logger.debug(f"{events=}")
@@ -71,7 +74,7 @@ class MISPCollector(BaseCollector):
         logger.debug(f"{story_dicts=}")
         self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
 
-    def check_for_proposal_existence(self, misp, event_uuid) -> bool:
+    def check_for_proposal_existence(self, misp: PyMISP, event_uuid: str) -> bool:
         resp = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
         data: list = misp._check_json_response(resp)
         logger.debug(f"{data=}")
