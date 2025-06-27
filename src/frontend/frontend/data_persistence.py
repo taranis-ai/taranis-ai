@@ -78,7 +78,6 @@ class DataPersistenceLayer:
 
     def store_object(self, object: TaranisBaseModel):
         store_object = object.model_dump(mode="json")
-        logger.info(f"Storing object: {store_object}")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
