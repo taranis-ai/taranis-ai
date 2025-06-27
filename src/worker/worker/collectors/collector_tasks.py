@@ -3,14 +3,18 @@ from contextlib import contextmanager
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector
-from worker.log import logger, TaranisLogFormatter
+from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
 from typing import Any
 
 
 @contextmanager
-def collector_log_fmt(logger, collector_formatter):
+def collector_log_fmt(logger: TaranisLogger, collector_formatter: TaranisLogFormatter):
     stream_handler = logger.get_stream_handler()
+    if stream_handler is None:
+        yield
+        return
+
     old_fmt = stream_handler.formatter
     stream_handler.setFormatter(collector_formatter)
     try:
