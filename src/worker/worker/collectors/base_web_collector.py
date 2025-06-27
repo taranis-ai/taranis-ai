@@ -18,32 +18,32 @@ from worker.collectors.playwright_manager import PlaywrightManager
 class NoChangeError(Exception):
     """Custom exception for when a source didn't change."""
 
-    def __init__(self, message="Not modified"):
+    def __init__(self, message: str = "Not modified"):
         super().__init__(message)
         logger.debug(message)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Not modified"
 
 
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
-        self.type = "BASE_WEB_COLLECTOR"
-        self.name = "Base Web Collector"
-        self.description = "Base abstract type for all collectors that use web scraping"
+        self.type: str = "BASE_WEB_COLLECTOR"
+        self.name: str = "Base Web Collector"
+        self.description: str = "Base abstract type for all collectors that use web scraping"
 
-        self.proxies = None
-        self.timeout = 60
-        self.last_attempted = None
-        self.headers = {"User-Agent": "TaranisAI/1.0"}
+        self.proxies: dict | None = None
+        self.timeout: int = 60
+        self.last_attempted: datetime.datetime | None = None
+        self.headers: dict = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
-        self.split_digest_urls = []
+        self.split_digest_urls: list = []
 
         self.playwright_manager: PlaywrightManager | None = None
-        self.browser_mode = None
+        self.browser_mode: str | None = None
         self.web_url: str = ""
 
     def send_get_request(self, url: str, modified_since: datetime.datetime | None = None) -> requests.Response:
@@ -52,9 +52,9 @@ class BaseWebCollector(BaseCollector):
         Check for specific status codes and raise rest of errors
         """
 
-        # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
 
+        # transform modified_since datetime object to str that is accepted by If-Modified-Since
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
@@ -83,7 +83,7 @@ class BaseWebCollector(BaseCollector):
 
         self.osint_source_id = source["id"]
 
-    def set_proxies(self, proxy_server: str):
+    def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
     def update_headers(self, headers: str):
@@ -134,7 +134,7 @@ class BaseWebCollector(BaseCollector):
 
         return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
+    def xpath_extraction(self, html_content: str, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
         logger.info(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
@@ -149,7 +149,7 @@ class BaseWebCollector(BaseCollector):
     def clean_url(self, url: str) -> str:
         return url.split("?")[0].split("#")[0]
 
-    def extract_meta(self, web_content, web_url) -> tuple[str, str]:
+    def extract_meta(self, web_content: str, web_url: str) -> tuple[str, str]:
         metadata = extract_metadata(web_content, default_url=web_url)
         if metadata is None:
             return "", ""
@@ -175,7 +175,7 @@ class BaseWebCollector(BaseCollector):
             review=web_content["review"],
         )
 
-    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
+    def extract_web_content(self, web_url: str, xpath: str = "") -> dict[str, Any]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath and web_content:
@@ -202,10 +202,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}")
+                logger.warning(f"Failed to parse the digest with error: {str(e)}")
                 continue
             except Exception as e:
-                logger.error(f"{self.type} failed digest splitting with error: {str(e)}")
+                logger.error(f"Failed digest splitting with error: {str(e)}")
                 raise e
 
         return news_items
