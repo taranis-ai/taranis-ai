@@ -82,6 +82,7 @@ class SimpleWebCollector(BaseWebCollector):
             raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
         response.raise_for_status()
 
+
         self.last_attempted = self.get_last_attempted(source)
         if not self.last_attempted:
             self.update_favicon(self.web_url, self.osint_source_id)
