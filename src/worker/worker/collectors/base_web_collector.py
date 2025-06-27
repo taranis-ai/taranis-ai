@@ -66,7 +66,9 @@ class BaseWebCollector(BaseCollector):
             if response.status_code == 304:
                 raise NoChangeError(f"Content of {url} was not modified - {response.text}")
             if response.status_code == 429:
-                raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+                raise requests.exceptions.HTTPError(
+                    f"{self.name} request to {url} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+                )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise e
