@@ -135,8 +135,8 @@ class BaseWebCollector(BaseCollector):
         return "", published_date
 
     def xpath_extraction(self, html_content: str, xpath: str, get_content: bool = True) -> str | None:
+        logger.info(f"Attempting extraction for xpath: {xpath}")
         document = lxml.html.fromstring(html_content)
-        logger.info(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
@@ -179,7 +179,6 @@ class BaseWebCollector(BaseCollector):
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath and web_content:
-            logger.info(f"Attempting xpath extraction for xpath: {xpath}")
             content = self.xpath_extraction(web_content, xpath)
         elif web_content:
             content = extract(web_content, url=web_url)
