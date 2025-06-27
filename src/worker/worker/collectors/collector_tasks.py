@@ -52,11 +52,11 @@ class CollectorTask(Task):
     def __init__(self):
         self.core_api = CoreApi()
 
-    def run(self, osint_source_id: str, manual: bool = False, **kwargs):
+    def run(self, osint_source_id: str, manual: bool = False):
         self.collector = Collector()
         source = self.collector.get_source(osint_source_id)
         collector = self.collector.get_collector(source)
-        formatter = TaranisLogFormatter(logger.module, extra_fmt=f"{collector.name} {self.request.id}")
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
         task_description = (
             f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
         )
@@ -85,12 +85,18 @@ class CollectorPreview(Task):
     acks_late = True
     priority = 8
 
-    def run(self, osint_source_id: str, **kwargs):
+    def run(self, osint_source_id: str):
         collector = Collector()
         source = collector.get_source(osint_source_id)
         collector = collector.get_collector(source)
-
-        return collector.preview_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
+        task_description = (
+            f"Preview: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
+        )
+        logger.info(f"Starting collector task: {task_description}")
+        with collector_log_fmt(logger, formatter):
+            preview_result = collector.preview_collector(source)
+        return preview_result
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}\nException: {exc}")

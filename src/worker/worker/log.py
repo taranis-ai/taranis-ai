@@ -69,7 +69,7 @@ class TaranisLogger:
 
 
 class TaranisLogFormatter(logging.Formatter):
-    def __init__(self, module, extra_fmt: str | None = None):
+    def __init__(self, module, custom_prefix: str | None = None):
         grey = "\x1b[38;20m"
         blue = "\x1b[1;36m"
         yellow = "\x1b[33;20m"
@@ -78,8 +78,8 @@ class TaranisLogFormatter(logging.Formatter):
         reset = "\x1b[0m"
         self.module = module
         self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s]"
-        if extra_fmt:
-            self.format_string += f" [{extra_fmt}]"
+        if custom_prefix:
+            self.format_string += f" [{custom_prefix}]"
         self.format_string += " - %(message)s"
         self.datefmt = "%Y-%m-%d %H:%M:%S"
         self.FORMATS = {
