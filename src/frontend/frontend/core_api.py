@@ -45,7 +45,6 @@ class CoreApi:
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        logger.debug(f"PUT {endpoint} with data: {json_data}")
         return requests.put(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None) -> requests.Response:

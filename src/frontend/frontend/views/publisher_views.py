@@ -79,7 +79,6 @@ class ProductTypeView(BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            logger.debug(f"Processing form data for ProductType with ID {object_id}: {form_data}")
             obj = cls.model(**form_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)

@@ -5,7 +5,6 @@ from heroicons.jinja import heroicon_outline
 
 from markupsafe import Markup
 from models.admin import Role, User, OSINTSource
-from frontend.log import logger
 
 __all__ = [
     "human_readable_trigger",
@@ -26,7 +25,6 @@ __all__ = [
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
     hours, minutes, seconds = map(int, time_part.split(":"))
-    logger.debug(f"Trigger time part: {time_part}, hours: {hours}, minutes: {minutes}, seconds: {seconds} --- {trigger}")
     parts = []
     if hours > 0:
         parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
