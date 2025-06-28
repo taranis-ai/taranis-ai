@@ -1,83 +1,153 @@
 {% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items", headline="", width="w-full") %}
   {% from "macros/datatable.html" import datatable_header %}
-  {% set safe_data = data | list | tojson | replace('"', "'") %}
-  {% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
-  {% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list | tojson | replace('"', "'") %}
-  {% set safe_columns = columns | map(attribute='title') | list | tojson %}
-
+  {% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list %}
+  {# djlint:off #}
   <div id="dataTableDiv"
        class="{{ width }}"
-       x-data="{ data: {{ safe_data }}, items: [], filteredItems: [], selectedItems: {{ safe_selected_items }}, view: 5, searchInput: '', pagination: {}, fuse: null, searchKeys: {{ safe_search_keys }},  init() { console.debug('Initializing dataTable: ', this.selectedItems); this.filteredItems = this.data this.pagination = { total: this.data.length, lastPage: Math.ceil(this.data.length / this.view), perPage: this.view, currentPage: 1, from: 1, to: this.view }; this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 }); this.$watch('searchInput', value => this.search(value)); this.changePage(1) }, search(value) { if (value.length > 1) { const result = this.fuse.search(value); this.filteredItems = result.map(r => r.item); } else { this.filteredItems = this.data; }  this.pagination.total = this.filteredItems.length; this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1; this.changePage(1) }, changePage(page) { page = Math.max(1, Math.min(page, this.pagination.lastPage)); const from = (page - 1) * this.view; const to = from + this.view;  this.items = this.filteredItems.slice(from, to);  this.pagination.currentPage = page; this.pagination.from = from + 1; this.pagination.to = Math.min(to, this.pagination.total); }, isEmpty() { return this.pagination.total ? false : true }, toggleSelectAll() { const allSelected = this.items.every(item => this.selectedItems.includes(item.id)); if (allSelected) { this.selectedItems = this.selectedItems.filter(id => !this.items.find(item => item.id === id)); } else { const newIds = this.items.map(item => item.id); this.selectedItems = [...new Set([...this.selectedItems, ...newIds])]; } }, toggleItem(id) { if (this.selectedItems.includes(id)) { this.selectedItems = this.selectedItems.filter(item => item !== id) } else { this.selectedItems.push(id) } }, checkAllSelected() { if (this.items.length === 0) return false; return this.items.every(item => this.selectedItems.includes(item.id)); } }">
-    <div>
-      {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
-      <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..." />
-    </div>
-    <table class="table table-sm" id="{{ table_id }}">
-      <thead>
-        <tr>
-          {% if selectable %}
-            <th>
-              <input type="checkbox" class="checkbox" @click="toggleSelectAll" :checked="checkAllSelected()" />
-            </th>
-          {% endif %}
-          {% for col in columns %}{{ datatable_header(col.title, col.sortable) }}{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        <template x-for="(item, index) in items" :key="index">
-          <tr class="hover:bg-base-200 text-base-900 text-xs">
-            {% if selectable %}
-              <td>
-                <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
-              </td>
-            {% endif %}
+       x-data="{
+            data: {{ data }},
+            items: [],
+            filteredItems: [],
+            selectedItems: {{ selected_items }},
+            view: 5,
+            searchInput: '',
+            pagination: {},
+            fuse: null,
+            searchKeys: {{ safe_search_keys }},
 
-            {% for col in columns %}
-              <td>
-                <span x-text="item.{{ col.field }}"></span>
-              </td>
-            {% endfor %}
-          </tr>
-        </template>
-        <tr x-show="isEmpty()">
-          <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
-        </tr>
-      </tbody>
-      <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-        <tr>
-          <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
-            <div class="flex justify-center">
-              <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
-                <div class="items-center gap-2">
-                  <span class="text-sm font-medium">Items per page:</span>
-                  <select x-model="view" @change="changePage(1)" class="select select-bordered w-18">
-                    {% set current_limit = request.args.get('limit', 5) %}
-                    {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
-                  </select>
-                </div>
+            init() {
+              console.debug('Initializing dataTable: ', this.selectedItems);
+              this.filteredItems = this.data
+              this.pagination = {
+                total: this.data.length,
+                lastPage: Math.ceil(this.data.length / this.view),
+                perPage: this.view,
+                currentPage: 1,
+                from: 1,
+                to: this.view
+              };
+              this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
+              this.$watch('searchInput', value => this.search(value));
+              this.changePage(1)
+            },
+            search(value) {
+              if (value.length > 1) {
+                const result = this.fuse.search(value);
+                this.filteredItems = result.map(r => r.item);
+              } else {
+                this.filteredItems = this.data;
+              }
 
-                <div class="flex items-center gap-2">
-                  <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
-                  <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
+              this.pagination.total = this.filteredItems.length;
+              this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
+              this.changePage(1)
+            },
+            changePage(page) {
+              page = Math.max(1, Math.min(page, this.pagination.lastPage));
+              const from = (page - 1) * this.view;
+              const to = from + this.view;
 
-                  <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold"
-                        x-text="'Page ' + pagination.currentPage + ' of ' + pagination.lastPage"></span>
+              this.items = this.filteredItems.slice(from, to);
 
-                  <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
-                  <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
-                </div>
-              </div>
-            </div>
+              this.pagination.currentPage = page;
+              this.pagination.from = from + 1;
+              this.pagination.to = Math.min(to, this.pagination.total);
+            },
+            isEmpty() {
+              return this.pagination.total ? false : true
+            },
+            toggleSelectAll() {
+              const allSelected = this.items.every(item => this.selectedItems.includes(item.id));
+              if (allSelected) {
+                this.selectedItems = this.selectedItems.filter(id => !this.items.find(item => item.id === id));
+              } else {
+                const newIds = this.items.map(item => item.id);
+                this.selectedItems = [...new Set([...this.selectedItems, ...newIds])];
+              }
+            },
+            toggleItem(id) {
+              if (this.selectedItems.includes(id)) {
+                this.selectedItems = this.selectedItems.filter(item => item !== id)
+              } else {
+                this.selectedItems.push(id)
+              }
+            },
+            checkAllSelected() {
+              if (this.items.length === 0) return false;
+              return this.items.every(item => this.selectedItems.includes(item.id));
+            }
+          }">
+  <div>
+  {# djlint:on #}
+  {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
+  <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..." />
+</div>
+<table class="table table-sm" id="{{ table_id }}">
+  <thead>
+    <tr>
+      {% if selectable %}
+        <th>
+          <input type="checkbox" class="checkbox" @click="toggleSelectAll" :checked="checkAllSelected()" />
+        </th>
+      {% endif %}
+      {% for col in columns %}{{ datatable_header(col.title, col.sortable) }}{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    <template x-for="(item, index) in items" :key="index">
+      <tr class="hover:bg-base-200 text-base-900 text-xs">
+        {% if selectable %}
+          <td>
+            <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
           </td>
-        </tr>
-      </tfoot>
-    </table>
-    {% if selectable %}
-      <template x-for="item in selectedItems" :key="item">
-        <input type="hidden" name="{{ input_name }}" :value="item" />
-      </template>
-    {% endif %}
-  </div>
+        {% endif %}
+
+        {% for col in columns %}
+          <td>
+            <span x-text="item.{{ col.field }}"></span>
+          </td>
+        {% endfor %}
+      </tr>
+    </template>
+    <tr x-show="isEmpty()">
+      <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+    </tr>
+  </tbody>
+  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+    <tr>
+      <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
+        <div class="flex justify-center">
+          <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
+            <div class="items-center gap-2">
+              <span class="text-sm font-medium">Items per page:</span>
+              <select x-model="view" @change="changePage(1)" class="select select-bordered w-18">
+                {% set current_limit = request.args.get('limit', 5) %}
+                {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
+              <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
+
+              <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold"
+                    x-text="'Page ' + pagination.currentPage + ' of ' + pagination.lastPage"></span>
+
+              <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
+              <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+{% if selectable %}
+  <template x-for="item in selectedItems" :key="item">
+    <input type="hidden" name="{{ input_name }}" :value="item" />
+  </template>
+{% endif %}
+</div>
 {% endmacro %}
 
 {% macro datatable_header(title, sortable) %}

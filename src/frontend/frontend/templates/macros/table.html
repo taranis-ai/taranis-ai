@@ -22,14 +22,14 @@
       {% if data %}
         {% for item in data %}
           {% set edit_route = base_url ~ '/' ~ item.id %}
-          <tr onclick="window.location='{{ edit_route }}';" class="cursor-pointer hover:bg-info" data-testid="edit-{{ model_name }}-{{ item.id }}">
+          <tr class="hover:bg-info">
             {% if selectable %}
               <td>
                 <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
               </td>
             {% endif %}
             {% for col in columns %}
-              <td class="max-w-[50ch] truncate">
+              <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch] truncate">
                 {% if col.renderer %}
                   {% if 'render_args' in col %}
                     {{ col.renderer(item, col.render_args) }}
@@ -73,6 +73,13 @@
   <td class="text-right">
     {% if actions is sameas true %}
       {% set actions = [
+              {
+                'label': 'Edit',
+                'class': 'btn-primary',
+                'icon': 'pencil-square',
+                'url': base_url,
+                'is_link': true
+              },
               {
                 'label': 'Delete',
                 'icon': 'trash',
