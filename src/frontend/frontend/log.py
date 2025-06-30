@@ -16,7 +16,7 @@ class TaranisLogger:
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
         else:
-            stream_handler.setFormatter(logging.Formatter(f"[{module}] [%(levelname)s] - %(message)s"))
+            stream_handler.setFormatter(logging.Formatter(f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"))
         sys_log_handler = None
         if syslog_address:
             try:
