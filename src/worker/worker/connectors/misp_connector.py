@@ -67,9 +67,7 @@ class MISPConnector:
             "author": "",
             "content": "",
             "link": "",
-            "published": "",
             "title": "",
-            "collected": "",
             "hash": "",
             "id": "",
             "language": "",
@@ -88,15 +86,9 @@ class MISPConnector:
         return {
             "attributes": {},
             "comments": "",
-            "created": "",
             "description": "",
-            "dislikes": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "id": "",
-            "important": "",  # TODO: misp is converting bool to int, so we use 0/1 as string
-            "likes": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "links": {},
-            "read": "0",  # TODO: misp is converting bool to int, so we use 0/1 as string
-            "relevance": "0",  # TODO: when misp fixes discarding zero value integers, we should use int
             "summary": "",
             "tags": {},
             "title": "",
@@ -127,7 +119,6 @@ class MISPConnector:
 
         object_data = self.get_story_object_dict()
         object_data.update({k: story[k] for k in object_data if k in story})
-        self._convert_types_to_misp_representation(object_data)
         object_data["attributes"] = []
         object_data["links"] = self._process_items(story, "links", self._process_link)
         object_data["tags"] = self._process_items(story, "tags", self._process_tags)
@@ -140,18 +131,6 @@ class MISPConnector:
         attribute_list = self.add_attributes_from_story(story)
         story_object.add_attributes("attributes", *attribute_list)
         event.add_object(story_object)
-
-    def _convert_types_to_misp_representation(self, object_data) -> None:
-        """
-        Convert types in the object_data dictionary to MISP representations.
-        This step is not necessary but useful in case of comparisons of existing events, because the data comes in that format.
-        For example, convert boolean values to integers (0/1).
-        """
-        object_data["important"] = str(int(object_data.get("important", 0)))
-        object_data["read"] = str(int(object_data.get("read", 0)))
-        object_data["likes"] = str(object_data.get("likes", 0))
-        object_data["dislikes"] = str(object_data.get("dislikes", 0))
-        object_data["relevance"] = str(object_data.get("relevance", 0))
 
     def set_misp_event_uuid_attribute(self, story: dict) -> None:
         """
