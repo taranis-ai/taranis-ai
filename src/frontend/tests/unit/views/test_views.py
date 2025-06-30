@@ -50,7 +50,7 @@ class TestCRUDViews:
         missing_required = required - actual_keys
         extra = actual_keys - allowed
 
-        assert not missing_required, f"{view_name!r} missing required fields: {missing_required}"
+        assert not missing_required, f"{view_name!r} missing required fields: {missing_required} from {actual_keys!r}"
         assert not extra, f"{view_name!r} has unexpected fields: {extra}"
 
     def test_update_form_renders(
@@ -70,7 +70,7 @@ class TestCRUDViews:
         missing_required = required - actual_keys
         extra = actual_keys - allowed
 
-        assert not missing_required, f"{view_name!r} missing required fields: {missing_required}"
+        assert not missing_required, f"{view_name!r} missing required fields: {missing_required} from {actual_keys!r}"
         assert not extra, f"{view_name!r} has unexpected fields: {extra}"
 
     # def test_create_form_submits(self, view_name, view_cls, mock_core_create_endpoints, authenticated_client):

@@ -48,6 +48,5 @@ class BotView(BaseView):
             logger.warning("No bot ID or bot type provided.")
 
         parameters = cls.get_worker_parameters(bot_type)
-        logger.debug(f"Parameters for bot type '{bot_type}': {parameters}")
 
         return render_template("partials/worker_parameters.html", parameters=parameters)

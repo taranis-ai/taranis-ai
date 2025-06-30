@@ -1,13 +1,28 @@
 {% macro tlp_levels(selected, name='tlp_level', input_id='tlp_level') %}
-{% from "macros/forms.html" import form_select %}
+  {% from "macros/forms.html" import form_select %}
 
-{% set tlp_levels = [
-  {'id': 'clear', 'name': 'Clear'},
-  {'id': 'green', 'name': 'Green'},
-  {'id': 'amber', 'name': 'Amber'},
-  {'id': 'amber+strict', 'name': 'Amber+Strict'},
-  {'id': 'red', 'name': 'Red'}
-] %}
+  {% set tlp_levels = [
+    {
+      "id": "clear",
+      "name": "Clear"
+    },
+    {
+      "id": "green",
+      "name": "Green"
+    },
+    {
+      "id": "amber",
+      "name": "Amber"
+    },
+    {
+      "id": "amber+strict",
+      "name": "Amber+Strict"
+    },
+    {
+      "id": "red",
+      "name": "Red"
+    }
+  ] %}
 
-{{ form_select(label='TLP Level', name=name, value=selected, options=tlp_levels, input_id=input_id) }}
+  {{ form_select(label='TLP Level', name=name, value=selected, options=tlp_levels, input_id=input_id) }}
 {% endmacro %}

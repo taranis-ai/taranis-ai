@@ -9,10 +9,11 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "apscheduler",
     "Flask",
@@ -54,7 +55,7 @@ taranis-ai = "core.granian:main"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
+dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

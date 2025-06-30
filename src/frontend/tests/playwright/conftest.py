@@ -3,7 +3,9 @@ import pytest
 import time
 import subprocess
 import requests
+import contextlib
 from dotenv import dotenv_values
+from urllib.parse import urlparse
 
 from playwright.sync_api import Browser
 
@@ -36,6 +38,10 @@ def run_core(app):
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
         taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
+        with contextlib.suppress(Exception):
+            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
+            os.remove(f"{parsed_uri.path}")
+
         print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
             ["flask", "run", "--no-reload", "--port", taranis_core_port],

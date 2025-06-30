@@ -1,12 +1,16 @@
+import json
 from typing import Any
-from flask import render_template
+from flask import render_template, request, Response, redirect, url_for
 
-from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue
+from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
 from models.types import COLLECTOR_TYPES
+from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
 from frontend.filters import render_icon, render_source_parameter, render_state
 from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.core_api import CoreApi
+from frontend.config import Config
 
 
 class SourceView(BaseView):
@@ -25,6 +29,20 @@ class SourceView(BaseView):
         all_parameters = dpl.get_objects(WorkerParameter)
         match = next((wp for wp in all_parameters if wp.id == collector_type), None)
         return match.parameters if match else []
+
+    @classmethod
+    def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
+        if objects is not None:
+            filtered = [obj for obj in (objects or []) if isinstance(obj, OSINTSource) and obj.id != "manual"]
+            objects = CacheObject(
+                filtered,
+                page=objects.page,
+                limit=objects.limit,
+                order=objects.order,
+                links=objects._links,
+                total_count=len(filtered),
+            )
+        return super().get_view_context(objects, error)
 
     @classmethod
     def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
@@ -60,3 +78,89 @@ class SourceView(BaseView):
         parameters = cls.get_worker_parameters(collector_type)
 
         return render_template("partials/worker_parameters.html", parameters=parameters)
+
+    @classmethod
+    def import_view(cls, error=None):
+        return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)
+
+    @classmethod
+    def import_post_view(cls):
+        sources = request.files.get("file")
+        if not sources:
+            return cls.import_view("No file or organization provided")
+        data = sources.read()
+        data = json.loads(data)
+        data = json.dumps(data["data"])
+
+        response = CoreApi().import_sources(json.loads(data))
+
+        if not response:
+            error = "Failed to import sources"
+            return cls.import_view(error)
+
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @classmethod
+    def export_view(cls):
+        source_ids = request.args.getlist("ids")
+        core_resp = CoreApi().export_sources(source_ids)
+
+        if not core_resp:
+            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+
+        return CoreApi.stream_proxy(core_resp, "sources_export.json")
+
+    @classmethod
+    def load_default_osint_sources(cls):
+        response = CoreApi().load_default_osint_sources()
+        if not response:
+            logger.error("Failed to load default OSINT sources")
+            return render_template("partials/error.html", error="Failed to load default OSINT sources")
+
+        response = CoreApi().import_sources(response)
+
+        if not response.ok:
+            error = response.json().get("error", "Unknown error")
+            error_message = f"Failed to import default OSINT sources: {error}"
+            logger.error(error_message)
+            return render_template("partials/error.html", error=error_message)
+
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        items = DataPersistenceLayer().get_objects(cls.model)
+        return render_template(cls.get_list_template(), **cls.get_view_context(items))
+
+    @classmethod
+    def collect_osint_source(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source(osint_source_id)
+        if not response:
+            logger.error("Failed to start OSINT source collection")
+            return render_template("partials/error.html", error="Failed to start OSINT source collection"), 500
+        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+
+    @classmethod
+    def collect_all_osint_sources(cls):
+        response = CoreApi().collect_all_osint_sources()
+        if not response:
+            logger.error("Failed to load OSINT sources")
+            return render_template("partials/error.html", error="Failed to load OSINT sources"), 500
+        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+
+    @classmethod
+    def collect_osint_source_preview(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source_preview(osint_source_id)
+        logger.debug(f"Collect OSINT source preview response: {response}")
+        if not response:
+            logger.error("Failed to load OSINT source preview")
+            return render_template("partials/error.html", error="Failed to load OSINT source preview"), 500
+        DataPersistenceLayer().invalidate_cache_by_object(TaskResult)
+        return redirect(url_for("admin.osint_source_preview", osint_source_id=osint_source_id))
+
+    @classmethod
+    def get_osint_source_preview_view(cls, osint_source_id: str):
+        dpl = DataPersistenceLayer()
+        if task_result := dpl.get_object(TaskResult, f"source_preview_{osint_source_id}"):
+            return render_template("osint_source/osint_source_preview.html", task_result=task_result)
+
+        return render_template("partials/error.html", error="OSINT source preview not found"), 404

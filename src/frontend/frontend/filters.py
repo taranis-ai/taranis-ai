@@ -5,7 +5,6 @@ from heroicons.jinja import heroicon_outline
 
 from markupsafe import Markup
 from models.admin import Role, User, OSINTSource
-from frontend.log import logger
 
 __all__ = [
     "human_readable_trigger",
@@ -26,7 +25,6 @@ __all__ = [
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
     hours, minutes, seconds = map(int, time_part.split(":"))
-    logger.debug(f"Trigger time part: {time_part}, hours: {hours}, minutes: {minutes}, seconds: {seconds} --- {trigger}")
     parts = []
     if hours > 0:
         parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
@@ -77,22 +75,18 @@ def render_parameter(item, key):
 
 
 def render_source_parameter(item: OSINTSource) -> str:
+    source_parameter = ""
     if hasattr(item, "parameters") and isinstance(item.parameters, dict):
         if item.type in ["rss_collector", "simple_web_collector"]:
-            return item.parameters.get("FEED_URL", "")
+            source_parameter = item.parameters.get("FEED_URL", "")
         if item.type == "misp_collector":
-            return item.parameters.get("URL", "")
-    return ""
+            source_parameter = item.parameters.get("URL", "")
+    return source_parameter
 
 
 def render_state(item) -> str:
     if hasattr(item, "state"):
-        return Markup(
-            render_template(
-                "partials/state_badge.html",
-                state=item.state,
-            )
-        )
+        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=item.last_error_message or ""))
     return Markup(render_template("partials/state_badge.html", state=-1))
 
 
