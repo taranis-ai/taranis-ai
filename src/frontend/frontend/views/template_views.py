@@ -6,7 +6,7 @@ from frontend.views.base_view import BaseView
 from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 
 
 class TemplateView(BaseView):
@@ -55,9 +55,11 @@ class TemplateView(BaseView):
         return context
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str | int):
         try:
-            obj = Template(**parse_formdata(request.form))
+            if isinstance(object_id, int):
+                object_id = f"{object_id}"
+            obj = Template(id=object_id, **parse_formdata(request.form))
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
             dpl = DataPersistenceLayer()

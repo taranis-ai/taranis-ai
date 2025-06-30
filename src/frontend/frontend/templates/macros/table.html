@@ -1,198 +1,158 @@
 {% macro table(table_id, data, columns, actions, base_url, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
-{% from "macros/table.html" import table_header %}
-{% from "macros/buttons.html" import action_button %}
-{% set item_ids = data | map(attribute='id') | list %}
-{% set safe_selected_items = selected_items | list | tojson | replace('"', "'") %}
-
-<table class="table shadow table-zebra table-sm"
-       id="{{ table_id }}"
-       {% if standalone %}x-data="{ selectedItems: {{ safe_selected_items }} }"{% endif %}
->
-  <thead>
-    <tr>
-      {% if selectable %}
-      <th>
-        <input type="checkbox"
-                class="checkbox"
-                :checked="selectedItems.length === {{ item_ids | length }}"
-                @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
-                @click.stop
-        />
-      </th>
-      {% endif %}
-
-      {% for col in columns %}
-        {{ table_header(col.title, col.sortable) }}
-      {% endfor %}
-
-      {% if actions %}
-        <th class="text-right">Actions</th>
-      {% endif %}
-    </tr>
-  </thead>
-  <tbody>
-    {% if data %}
-    {% for item in data %}
-    {% set edit_route = base_url ~ '/' ~ item.id %}
-    <tr
-        hx-get="{{ edit_route }}"
-        hx-push-url="true"
-        hx-target="#form-container"
-        hx-trigger="click"
-        class="cursor-pointer hover:bg-gray-100"
-        data-testid="edit-{{ model_name }}-{{ item.id }}"
-    >
-      {% if selectable %}
-      <td>
-        <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
-      </td>
-      {% endif %}
-
-      {% for col in columns %}
-        <td>
-          {% if col.renderer %}
-            {% if 'render_args' in col %}
-              {{ col.renderer(item, col.render_args) }}
-            {% else %}
-              {{ col.renderer(item) }}
+  {% from "macros/table.html" import table_header %}
+  {% from "macros/buttons.html" import action_button %}
+  {% set item_ids = data | map(attribute='id') | list %}
+  <table class="table shadow table-zebra table-sm" id="{{ table_id }}" {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
+    <thead>
+      <tr>
+        {% if selectable %}
+          <th>
+            <input type="checkbox"
+                   class="checkbox"
+                   :checked="selectedItems.length === {{ item_ids | length }}"
+                   @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+                   @click.stop />
+          </th>
+        {% endif %}
+        {% for col in columns %}{{ table_header(col) }}{% endfor %}
+        {% if actions %}<th class="text-right">Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if data %}
+        {% for item in data %}
+          {% set edit_route = base_url ~ '/' ~ item.id %}
+          <tr class="hover:bg-info">
+            {% if selectable %}
+              <td>
+                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
+              </td>
             {% endif %}
-          {% else %}
-            {{ item[col.field] }}
-          {% endif %}
-        </td>
-      {% endfor %}
-
-      {% if actions %}
-      <td class="text-right" hx-target="closest tr" hx-swap="outerHTML">
-        {% from "macros/table.html" import default_table_actions %}
-        {% set ns = namespace(actions=[]) %}
-        {{ default_table_actions(ns, edit_route) }}
-        {% set actions = ns.actions %}
-        {% for action in actions %}
-        {{ action_button(action) }}
+            {% for col in columns %}
+              <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch] truncate">
+                {% if col.renderer %}
+                  {% if 'render_args' in col %}
+                    {{ col.renderer(item, col.render_args) }}
+                  {% else %}
+                    {{ col.renderer(item) }}
+                  {% endif %}
+                {% else %}
+                  {{ item[col.field] }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            {% if actions %}
+              {% from "macros/table.html" import table_actions %}
+              {{ table_actions(actions, item.id, base_url) }}
+            {% else %}
+            {% endif %}
+          </tr>
         {% endfor %}
-      </td>
+      {% else %}
+        <tr>
+          <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+            <div class="text-center">
+              <p class="text-gray-500">No data available</p>
+            </div>
+          </td>
+        </tr>
       {% endif %}
-    </tr>
-    {% endfor %}
-    {% else %}
-    <tr>
-      <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-        <div class="text-center">
-          <p class="text-gray-500">No data available</p>
-        </div>
-      </td>
-    </tr>
+    </tbody>
+    <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
+      <tr>
+        <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+          <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+{% endmacro %}
+
+{% macro table_actions(actions, item_id, base_url) %}
+  {% from "macros/buttons.html" import action_button %}
+  <td class="text-right">
+    {% if actions is sameas true %}
+      {% set actions = [
+              {
+                'label': 'Edit',
+                'class': 'btn-primary',
+                'icon': 'pencil-square',
+                'url': base_url,
+                'is_link': true
+              },
+              {
+                'label': 'Delete',
+                'icon': 'trash',
+                'class': 'btn-error',
+                'method': 'delete',
+                'url': base_url,
+                'hx_target': None,
+                'hx_swap': None,
+                'confirm': 'Are you sure you want to delete this item?'
+              }
+            ] %}
     {% endif %}
-  </tbody>
-  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-    <tr>
-      <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-        <div class="flex justify-center">
-          {% include 'partials/table_controls.html' %}
-        </div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
+    {% for action in actions %}{{ action_button(action, item_id=item_id) }}{% endfor %}
+  </td>
 {% endmacro %}
 
 {% macro table_decoration(name, model_name, container_id, add_route, delete_route, searchbar=true) %}
-<div class="flex gap-4 mb-4">
-  {% if add_route %}
-  <div class="grow-0">
-    <button hx-get="{{ add_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
-      New {{ name }}
-    </button>
+  <div class="flex gap-4 mb-4">
+    {% if add_route %}
+      <div class="grow-0">
+        <button hx-get="{{ add_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+          New {{ name }}
+        </button>
+      </div>
+    {% endif %}
+    {% if searchbar %}{{ table_search_bar(container_id) }}{% endif %}
+    {% if delete_route %}
+      <div class="grow-0">
+        <button type="button"
+                class="btn btn-error"
+                data-testid="delete-{{ model_name }}-button"
+                :hx-vals="JSON.stringify({ ids: selectedItems })"
+                hx-delete="{{ delete_route }}"
+                hx-confirm="Are you sure you want to delete the selected items?"
+                hx-target="#{{ container_id }}"
+                :disabled="selectedItems.length === 0">
+          Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
+        </button>
+      </div>
+    {% endif %}
+    {% if caller is defined %}{{ caller() }}{% endif %}
   </div>
-  {% endif %}
-  {% if searchbar %}
-  {{ table_search_bar(container_id) }}
-  {% endif %}
-  {% if delete_route %}
-  <div class="grow-0">
-      <button
-        type="button"
-        class="btn btn-error"
-        data-testid="delete-{{ model_name }}-button"
-        :hx-vals="JSON.stringify({ ids: selectedItems })"
-        hx-delete="{{ delete_route }}"
-        hx-confirm="Are you sure you want to delete the selected items?"
-        hx-target="#{{ container_id }}"
-        :disabled="selectedItems.length === 0">
-        Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
-      </button>
-  </div>
-  {% endif %}
-  {% if caller is defined %}
-    {{ caller() }}
-  {% endif %}
-</div>
 {% endmacro %}
 
-{% macro default_table_actions(ns, base_url) %}
-    {% set ns.actions = [
-        {
-            'label': 'Edit',
-            'class': 'btn-primary',
-            'method': 'get',
-            'url': base_url,
-            'hx_target': '#form-container',
-            'hx_swap': 'innerHTML',
-            'confirm': None
-        },
-        {
-            'label': 'Delete',
-            'class': 'btn-danger',
-            'method': 'delete',
-            'url': base_url,
-            'hx_target': None,
-            'hx_swap': None,
-            'confirm': 'Are you sure you want to delete this item?'
-        }
-    ] %}
-{% endmacro %}
-
-{% macro table_header(title, sortable) %}
-{% from "macros/query_params.html" import update_query_params %}
-{% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
-{% set order = title ~ '_' ~ order_direction %}
-{% set order_params = {'order': order, 'page': 1} %}
-{% set order_url = update_query_params(order_params) %}
-{% if sortable %}
-<th hx-boost>
-  <a  href="{{ order_url }}"
-      hx-target="closest table"
-      hx-push-url="true"
-      class="link link-hover">
-      {{ title|capitalize }}
-      {% if request.args.get('order', '').startswith(title) %}
-        {% if request.args.get('order').endswith('_asc') %}▲{% else %}▼{% endif %}
-      {% endif %}
-  </a>
-</th>
-{% else %}
-  <th>{{ title|capitalize }}</th>
-{% endif %}
+{% macro table_header(column) %}
+  {% from "macros/query_params.html" import update_query_params %}
+  {% set order_direction = 'asc' if request.args.get('order') != column.field ~ '_asc' else 'desc' %}
+  {% set order = column.field ~ '_' ~ order_direction %}
+  {% set order_params = {'order': order, 'page': 1} %}
+  {% set order_url = update_query_params(order_params) %}
+  {% if column.sortable %}
+    <th hx-boost>
+      <a href="{{ order_url }}" hx-target="closest table" hx-push-url="true" class="link link-hover">
+        {{ column.title }}
+        {% if request.args.get('order', '').startswith(column.field) %}
+          {% if request.args.get('order').endswith('_asc') %}
+            ▲
+          {% else %}
+            ▼
+          {% endif %}
+        {% endif %}
+      </a>
+    </th>
+  {% else %}
+    <th>{{ column.title }}</th>
+  {% endif %}
 {% endmacro %}
 
 {% macro table_search_bar(table_id) %}
-{% set current_search = request.args.get('search', '') %}
-<div class="grow">
-  <form
-    hx-get="{{ request.path }}"
-    hx-push-url="true"
-    hx-target="#{{ table_id }}"
-    hx-target-error="#error-msg"
-    hx-trigger="input delay:500ms"
-  >
-    <input
-      type="search"
-      name="search"
-      class="input w-full"
-      placeholder="Search..."
-      value="{{ current_search }}"
-    />
-  </form>
-</div>
+  {% set current_search = request.args.get('search', '') %}
+  <div class="grow">
+    <form hx-get="{{ request.path }}" hx-push-url="true" hx-target="#{{ table_id }}" hx-target-error="#error-msg" hx-trigger="input delay:500ms">
+      <input type="search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
+    </form>
+  </div>
 {% endmacro %}

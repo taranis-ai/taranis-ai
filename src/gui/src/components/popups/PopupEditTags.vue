@@ -61,7 +61,7 @@ export default {
     const close = () => {
       emit('close')
     }
-    
+
     const updatedTags = ref(props.tags || {})
 
     async function editTags() {

@@ -1,35 +1,35 @@
-{% extends 'base.html' %}
-{% from 'macros/cards.html' import dashboard_card %}
+{% extends "base.html" %}
+{% from 'dashboard/cards.html' import dashboard_card %}
 
 {% block content %}
-<div class="p-8" id="dashboard">
-  <div class="text-3xl font-bold mb-4">Dashboard</div>
+  <div class="p-8" id="dashboard">
+    <div class="text-3xl font-bold mb-4">Dashboard</div>
 
-  <div class="grid grid-flow-row-dense grid-cols-3 gap-4 pb-4">
-    {% call dashboard_card('Assess', '/assess', 'inbox-stack') %}
-      There are <strong>{{ data.total_news_items }}</strong> total Assess items.
-    {% endcall %}
-        {% call dashboard_card('Analyze', '/analyze') %}
-      There are <b>{{ data.report_items_completed }}</b> completed analyses.
-      <br/>
-      There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
-    {% endcall %}
-
-    {% call dashboard_card('Publish', '/publish') %}
-      There are <b>{{ data.total_products }}</b> products ready for publications.
-    {% endcall %}
-  </div>
-
-  <div class="text-3xl font-bold mb-4">Trending Tags</div>
-
-  <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-    {% for tag in data.trending_tags %}
-      {% call dashboard_card(tag.name, '/tags/' ~ tag.id) %}
-        <div class="text-2xl font-bold">{{ tag.name }}</div>
-        <div class="text-lg">Count: {{ tag.count }}</div>
+    <div class="grid grid-flow-row-dense grid-cols-3 gap-4 pb-4">
+      {% call dashboard_card('Assess', '/assess', 'inbox-stack') %}
+        There are <strong>{{ data.total_news_items }}</strong> total Assess items.
       {% endcall %}
-    {% endfor %}
-  </div>
+      {% call dashboard_card('Analyze', '/analyze') %}
+        There are <b>{{ data.report_items_completed }}</b> completed analyses.
+        <br />
+        There are <b>{{ data.report_items_in_progress }}</b> pending analyses.
+      {% endcall %}
 
-</div>
-{% endblock %}
+      {% call dashboard_card('Publish', '/publish') %}
+        There are <b>{{ data.total_products }}</b> products ready for publications.
+      {% endcall %}
+    </div>
+
+    <div class="text-3xl font-bold mb-4">Trending Tags</div>
+
+    <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
+      {% for tag in data.trending_tags %}
+        {% call dashboard_card(tag.name, '/tags/' ~ tag.id) %}
+          <div class="text-2xl font-bold">{{ tag.name }}</div>
+          <div class="text-lg">Count: {{ tag.count }}</div>
+        {% endcall %}
+      {% endfor %}
+    </div>
+
+  </div>
+{% endblock content %}

@@ -1,27 +1,11 @@
 from flask import request
-from werkzeug.datastructures import ImmutableMultiDict, MultiDict
+from werkzeug.datastructures import MultiDict
 from typing import Type, get_origin, Union, get_args
 from pydantic import BaseModel
 
 
 def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
-
-
-def parse_formdata(formdata: ImmutableMultiDict) -> dict:
-    parsed_data = {}
-    for key in formdata.keys():
-        if key.endswith("[]"):
-            parsed_data[key[:-2]] = formdata.getlist(key)
-        elif "[" in key and key.endswith("]"):
-            main_key, sub_key = key.split("[", 1)
-            sub_key = sub_key.rstrip("]")
-            if main_key not in parsed_data:
-                parsed_data[main_key] = {}
-            parsed_data[main_key][sub_key] = formdata.get(key)
-        else:
-            parsed_data[key] = formdata.get(key)
-    return parsed_data
 
 
 def convert_query_params(query_params: MultiDict[str, str], model: Type[BaseModel]) -> dict:

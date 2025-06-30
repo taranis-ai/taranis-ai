@@ -448,26 +448,20 @@ class Connectors(MethodView):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
-                return {"message": f"OSINT Source {source.name} updated", "id": f"{connector_id}"}, 200
+                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
-        return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
+        return {"error": f"Connector with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, connector_id: str):
-        force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(connector_id):
-            return {
-                "error": f"""OSINT Source with ID: {connector_id} has related News Items.
-                To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
-
-        return osint_source.OSINTSource.delete(connector_id, force=force)
+        # TODO: Implement force delete logic if needed
+        return connector.Connector.delete(connector_id)
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
-        return osint_source.OSINTSource.toggle_state(source_id, state)
+    def patch(self, connector_id: str):
+        # TODO: Implement toggle state logic if needed
+        pass
 
 
 class ConnectorsPull(MethodView):
@@ -571,10 +565,12 @@ class OSINTSourcesImport(MethodView):
     def post(self):
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
-            if sources is None:
-                return {"error": "Unable to import"}, 400
-            return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
-        return {"error": "No file provided"}, 400
+        if json_data := request.get_json(silent=True):
+            sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        if sources is None:
+            logger.error("Failed to import OSINT sources")
+            return {"error": "Unable to import"}, 400
+        return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
 class OSINTSourceGroups(MethodView):
@@ -599,6 +595,19 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id):
         return osint_source.OSINTSourceGroup.delete(group_id)
+
+
+class TaskResults(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @extract_args("search")
+    def get(self, task_id=None, filter_args=None):
+        if task_id:
+            return task.Task.get_for_api(task_id)
+        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def delete(self, task_id):
+        return task.Task.delete(task_id)
 
 
 class Presenters(MethodView):
@@ -669,10 +678,14 @@ class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
         if file := request.files.get("file"):
-            if wls := word_list.WordList.import_word_lists(file):
-                return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
-            return {"error": "Unable to import"}, 400
-        return {"error": "No file provided"}, 400
+            wls = word_list.WordList.import_word_lists(file)
+        if json_data := request.get_json(silent=True):
+            wls = word_list.WordList.import_word_lists_from_json(json_data)
+        if wls is None:
+            logger.error("Failed to import Word Lists")
+            return {"error": "Unable to import Word Lists"}, 400
+
+        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
 
 class WordListExport(MethodView):
@@ -681,7 +694,7 @@ class WordListExport(MethodView):
         source_ids = request.args.getlist("ids")
         data = word_list.WordList.export(source_ids)
         if data is None:
-            return {"error": "Unable to export"}, 400
+            return {"error": "Unable to export word lists"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="word_list_export.json",
@@ -757,6 +770,8 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
     config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    config_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results"))
+    config_bp.add_url_rule("/task-results/<string:task_id>", view_func=TaskResults.as_view("task_result"))
 
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
     config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))

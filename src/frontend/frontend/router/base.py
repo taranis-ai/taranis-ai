@@ -7,7 +7,6 @@ from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
 from models.admin import Dashboard
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.log import logger
 from frontend.auth import auth_required
 
 
@@ -20,6 +19,12 @@ class DashboardAPI(MethodView):
             return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
 
         return render_template("dashboard/index.html", data=result[0])
+
+
+class ClusterAPI(MethodView):
+    @auth_required()
+    def get(self, cluster_name: str):
+        return render_template("dashboard/cluster.html", data=cluster_name)
 
 
 class InvalidateCache(MethodView):
@@ -56,14 +61,15 @@ class LoginView(MethodView):
         if not username or not password:
             return render_template("login/index.html", login_error="Username and password are required"), 400
 
-        core_response = CoreApi().login(username, password)
-
-        jwt_token = core_response.json().get("access_token")
-
-        logger.debug(f"Login response: {jwt_token}")
+        try:
+            core_response = CoreApi().login(username, password)
+            core_json = core_response.json()
+            jwt_token = core_json.get("access_token")
+        except Exception:
+            return render_template("login/index.html", login_error="Login failed, no response from server"), 500
 
         if not core_response.ok:
-            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_json.get("error")), core_response.status_code
 
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
         set_access_cookies(response, jwt_token)
@@ -80,14 +86,22 @@ class LoginView(MethodView):
         return response
 
 
+class OpenAPIView(MethodView):
+    @auth_required()
+    def get(self):
+        return render_template("open_api/index.html")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
     base_bp.add_url_rule("/", view_func=DashboardAPI.as_view("dashboard"))
     base_bp.add_url_rule("/dashboard", view_func=DashboardAPI.as_view("dashboard_"))
+    base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=ClusterAPI.as_view("cluster"))
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))
+    base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
 
     base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
     base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))

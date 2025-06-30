@@ -4,10 +4,7 @@
 <div class="bg-base-100 p-4">
 
   <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error -%}
-    <div role="alert" class="alert alert-error mb-5 w-3/4">{{ error }}</div>
-    {% endif -%}
-
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}
 
@@ -22,15 +19,13 @@
               hx-include="#bot_type"
               hx-target="#parameters"
               hx-swap="innerHTML"
-              {% if bot.type %}disabled{% endif %}
-              >
-      {% if not bot.type %}
-      <option value="" selected disabled>Select a bot type</option>
-      {% endif %}
-      {% for option in bot_types -%}
-      <option value="{{ option.id }}" {% if option.id == bot.type %}selected{% endif %}>{{ option.name }}</option>
-      {% endfor -%}
+              {% if bot.type %}disabled{% endif %}>
+        {% if not bot.type %}<option value="" selected disabled>Select a bot type</option>{% endif %}
+        {% for option in bot_types -%}
+          <option value="{{ option.id }}" {% if option.id == bot.type %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor -%}
       </select>
+      {% if bot.type %}<input type="hidden" name="type" value="{{ bot.type }}">{% endif %}
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 

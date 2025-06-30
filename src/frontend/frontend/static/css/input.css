@@ -8,6 +8,11 @@
     outline-color: var(--color-primary);
 }
 
+.textarea:focus {
+    outline-offset: 0;
+    outline-color: var(--color-primary);
+}
+
 @layer utilities {
   @keyframes fill {
     0% {

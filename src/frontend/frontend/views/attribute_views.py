@@ -5,7 +5,7 @@ from frontend.views.base_view import BaseView
 from models.admin import Attribute
 from models.types import AttributeType
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import parse_formdata
+from frontend.utils.form_data_parser import parse_formdata
 
 
 class AttributeView(BaseView):
