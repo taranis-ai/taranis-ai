@@ -126,6 +126,7 @@ export default {
       author: userStore.name,
       published: new Date(),
       collected: '',
+      last_change: 'internal',
       attributes: []
     })
 
