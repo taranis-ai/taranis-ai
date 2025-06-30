@@ -62,7 +62,7 @@ class StoryConflict:
 
     @classmethod
     def stable_stringify(cls, obj: Any, indent=2) -> str:
-        return json.dumps(obj, sort_keys=True, indent=indent)
+        return json.dumps(obj, sort_keys=True, indent=indent, ensure_ascii=False)
 
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:

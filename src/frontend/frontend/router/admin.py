@@ -87,8 +87,22 @@ class ACLItemAPI(MethodView):
 class OSINTSourceParameterAPI(MethodView):
     @auth_required()
     def get(self, osint_source_id: str):
-        collector_type = request.args.get("collector_type", "")
+        collector_type = request.args.get("type", "")
         return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type)
+
+
+class BotParameterAPI(MethodView):
+    @auth_required()
+    def get(self, bot_id: str):
+        bot_type = request.args.get("type", "")
+        return BotView.get_bot_parameters_view(bot_id, bot_type)
+
+
+class PublisherParameterAPI(MethodView):
+    @auth_required()
+    def get(self, publisher_id: str):
+        publisher_type = request.args.get("type", "")
+        return PublisherView.get_publisher_parameters_view(publisher_id, publisher_type)
 
 
 def init(app: Flask):
@@ -131,7 +145,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
-    admin_bp.add_url_rule("/bots/<int:bot_id>", view_func=BotView.as_view("edit_bot"))
+    admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
+    admin_bp.add_url_rule("/bot_parameters/<string:bot_id>", view_func=BotParameterAPI.as_view("bot_parameters"))
 
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))
     admin_bp.add_url_rule("/report_types/<int:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
@@ -143,7 +158,8 @@ def init(app: Flask):
     admin_bp.add_url_rule("/templates/<string:template>", view_func=TemplateView.as_view("edit_template"))
 
     admin_bp.add_url_rule("/publisher", view_func=PublisherView.as_view("publisher_presets"))
-    admin_bp.add_url_rule("/publishers/<int:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))
+    admin_bp.add_url_rule("/publishers/<string:publisher_preset_id>", view_func=PublisherView.as_view("edit_publisher_preset"))
+    admin_bp.add_url_rule("/publisher_parameters/<string:publisher_id>", view_func=PublisherParameterAPI.as_view("publisher_parameters"))
 
     admin_bp.add_url_rule("/word_lists", view_func=WordListView.as_view("word_lists"))
     admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))

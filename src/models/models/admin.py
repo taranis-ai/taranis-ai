@@ -3,7 +3,19 @@ from typing import Literal
 from datetime import datetime
 
 from models.base import TaranisBaseModel
-from models.types import TLPLevel, ItemType, COLLECTOR_TYPES, CONNECTOR_TYPES, WORKER_TYPES, WORKER_CATEGORY
+from models.types import (
+    TLPLevel,
+    ItemType,
+    COLLECTOR_TYPES,
+    CONNECTOR_TYPES,
+    WORKER_TYPES,
+    WORKER_CATEGORY,
+    PRESENTER_TYPES,
+    OSINTState,
+    AttributeType,
+    BOT_TYPES,
+    PUBLISHER_TYPES,
+)
 from models.assess import StoryTag
 
 
@@ -49,17 +61,18 @@ class ACL(TaranisBaseModel):
     _core_endpoint = "/config/acls"
     _model_name = "acl"
     _search_fields = ["name", "description"]
+    _pretty_name = "ACL"
 
     id: int | None = None
     name: str = ""
     description: str | None = ""
     item_type: ItemType | None = None
+    item_id: str | None = None
 
-    roles: list["Role"] = Field(default_factory=list["Role"])
+    roles: list[int] = Field(default_factory=list)
 
     read_only: bool = True
     enabled: bool = True
-    _pretty_name = "ACL"
 
 
 class ParameterValue(TaranisBaseModel):
@@ -92,7 +105,7 @@ class Role(TaranisBaseModel):
     id: int | None = None
     name: str = ""
     description: str | None = ""
-    permissions: list[str] = Field(default_factory=list[str])
+    permissions: list[str] = Field(default_factory=list)
     tlp_level: TLPLevel | None = None
 
 
@@ -102,11 +115,11 @@ class User(TaranisBaseModel):
     _search_fields = ["name", "username"]
 
     id: int | None = None
-    name: str = ""
-    organization: Organization | int | dict = Field(default_factory=dict)
+    name: str
+    organization: int
     permissions: list[str] | None = None
     profile: dict | None = None
-    roles: list[Role] | list[int] | list[dict] = Field(default_factory=list[Role])
+    roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: str | None = None
 
@@ -116,11 +129,11 @@ class Dashboard(TaranisBaseModel):
     _model_name = "dashboard"
     _pretty_name = "Dashboard"
     _cache_timeout = 30
-    total_news_items: int | None = None
-    total_products: int | None = None
-    report_items_completed: int | None = None
-    report_items_in_progress: int | None = None
-    total_database_items: int | None = None
+    total_news_items: int = 0
+    total_products: int = 0
+    report_items_completed: int = 0
+    report_items_in_progress: int = 0
+    total_database_items: int = 0
     latest_collected: str | None = None
     schedule_length: int | None = None
     conflict_count: int | None = None
@@ -153,7 +166,7 @@ class Settings(TaranisBaseModel):
     _pretty_name = "Settings"
     _cache_timeout = 30
     id: int = Field(default=1, frozen=True, exclude=True)
-    settings: TaranisConfig | None = Field(default_factory=TaranisConfig)
+    settings: TaranisConfig = Field(default_factory=TaranisConfig)
 
 
 class WordListEntry(TaranisBaseModel):
@@ -170,9 +183,9 @@ class WordList(TaranisBaseModel):
 
     id: int | None = None
     name: str
-    description: str | None = None
+    description: str = ""
     usage: list[str] = Field(default_factory=list)
-    link: str | None = None
+    link: str = ""
     entries: list[WordListEntry] = Field(default_factory=list)
 
 
@@ -186,11 +199,10 @@ class OSINTSource(TaranisBaseModel):
     name: str
     description: str = ""
     type: COLLECTOR_TYPES | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
-    groups: list["OSINTSourceGroup"] = Field(default_factory=list)
+    parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
-    state: int = -1
+    state: OSINTState | None = OSINTState.UNKNOWN
     last_collected: datetime | None = None
     last_attempted: datetime | None = None
     last_error_message: str | None = None
@@ -207,8 +219,12 @@ class OSINTSourceGroup(TaranisBaseModel):
     description: str = ""
     default: bool = False
 
-    osint_sources: list[OSINTSource | str] = Field(default_factory=list)
-    word_lists: list[WordList | str] = Field(default_factory=list)
+    osint_sources: list[str] = Field(default_factory=list)
+    word_lists: list[str] = Field(default_factory=list)
+
+
+class ProductParameterValue(TaranisBaseModel):
+    TEMPLATE_PATH: str | None = None
 
 
 class ProductType(TaranisBaseModel):
@@ -219,9 +235,9 @@ class ProductType(TaranisBaseModel):
 
     id: int | None = None
     title: str
-    description: str | None = None
-    type: str
-    parameters: dict[str, str] = Field(default_factory=dict)
+    description: str = ""
+    type: PRESENTER_TYPES
+    parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
     report_types: list[int] = Field(default_factory=list)
 
 
@@ -233,9 +249,9 @@ class PublisherPreset(TaranisBaseModel):
 
     id: str | None = None
     name: str
-    type: str
-    description: str | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
+    type: PUBLISHER_TYPES
+    description: str | None = ""
+    parameters: dict[str, str] | None = Field(default_factory=dict)
 
 
 class ReportItemAttribute(TaranisBaseModel):
@@ -263,7 +279,7 @@ class ReportItemType(TaranisBaseModel):
 
     id: int | None = None
     title: str
-    description: str | None = None
+    description: str = ""
     report_item_attributes: list[ReportItemAttribute] = Field(default_factory=list)
 
 
@@ -272,7 +288,7 @@ class Template(TaranisBaseModel):
     _model_name = "template"
     _pretty_name = "Template"
 
-    id: str | None = None
+    id: str
     content: str | None = None
 
 
@@ -293,9 +309,9 @@ class Attribute(TaranisBaseModel):
 
     id: int | None = None
     name: str
-    description: str | None = None
-    type: str
-    default_value: str | None = None
+    description: str = ""
+    type: AttributeType
+    default_value: str = ""
     attribute_enums: list[AttributeEnum] = Field(default_factory=list)
 
 
@@ -307,10 +323,10 @@ class Bot(TaranisBaseModel):
 
     id: str | None = None
     name: str
-    description: str | None = None
-    type: str
+    description: str = ""
+    type: BOT_TYPES
     index: int | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
+    parameters: dict[str, str] | None = Field(default_factory=dict)
 
 
 class Connector(TaranisBaseModel):
@@ -321,7 +337,7 @@ class Connector(TaranisBaseModel):
 
     id: str | None = None
     name: str
-    description: str | None = None
+    description: str = ""
     type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
     index: int | None = None
     parameters: dict[str, str] = Field(default_factory=dict)

@@ -26,6 +26,8 @@ dependencies = [
     "granian",
     "requests",
     "setuptools",
+    "polyfactory",
+    "uuid7",
     "heroicons[jinja]>=2.11.0",
     "taranis-models"
 ]
@@ -43,6 +45,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 fallback_version = "0.0.0"
 root = "../.."
 
