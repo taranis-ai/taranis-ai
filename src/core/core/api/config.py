@@ -704,8 +704,13 @@ class WorkerInstances(MethodView):
 
 class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    @extract_args("search", "category", "type")
+    @extract_args("search", "category", "type", "exclude")
     def get(self, filter_args=None):
+        if Config.DISABLE_PPN_COLLECTOR:
+            if filter_args:
+                filter_args["exclude"] = "ppn"
+            else:
+                filter_args = {"exclude": "ppn"}
         return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")

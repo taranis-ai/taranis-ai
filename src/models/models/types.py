@@ -33,6 +33,7 @@ class COLLECTOR_TYPES(StrEnum):
     RT_COLLECTOR = auto()
     MISP_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
+    PPN_COLLECTOR = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -115,6 +116,7 @@ class WORKER_TYPES(StrEnum):
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
     MISP_CONNECTOR = auto()
+    PPN_COLLECTOR = auto()
 
     @classmethod
     def _missing_(cls, value):
