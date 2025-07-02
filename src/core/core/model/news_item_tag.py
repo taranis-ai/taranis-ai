@@ -110,10 +110,6 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
-        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag_type) for tag_name, tag_type in tags.items()}
-
-    @classmethod
-    def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
         """Parse tags from dict format - handles both old and new formats:
         - Old: {"APT75": "UNKNOWN"}
         - New: {"APT75": {"name": "APT75", "tag_type": "UNKNOWN"}}

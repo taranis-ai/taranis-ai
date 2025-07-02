@@ -401,7 +401,7 @@ class Story(BaseModel):
 
         story_id = data.get("id")
         if Story.get(story_id) is None:
-            return cls._handle_missing_story_add(data)
+            return cls._handle_new_story_add(data)
 
         if data.pop("conflict", None):
             return cls.update_with_conflicts(story_id, data)
@@ -409,7 +409,7 @@ class Story(BaseModel):
             return cls._handle_existing_story_update(data)
 
     @classmethod
-    def _handle_missing_story_add(cls, data) -> "tuple[dict, int]":
+    def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
         message, code = cls.add(data)
         if code != 200 and message.get("error") == "Story already exists":
             logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
@@ -705,7 +705,7 @@ class Story(BaseModel):
         Remove attributes from the story whose keys are in the provided list.
         """
         for key in keys:
-            if attr := self.find_attribute_by_key(key):
+            if (attr := self.find_attribute_by_key(key)) and key != "TLP":
                 self.attributes.remove(attr)
                 db.session.delete(attr)
 
