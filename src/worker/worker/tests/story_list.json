@@ -29,16 +29,16 @@
       }
     ],
     "tags": {
-      "Microsoft": "Vendor",
-      "security": "MISC",
-      "CVE-2020-1234": "CVE",
-      "Google": "Vendor",
-      "vulnerabilities": "CySec",
-      "Linux": "Product",
-      "Cisco": "Vendor",
-      "protocols": "MISC",
-      "breaches": "CySec",
-      "community": "MISC"
+      "Microsoft": {"name": "Microsoft", "tag_type": "Vendor"},
+      "security": {"name": "security", "tag_type": "MISC"},
+      "CVE-2020-1234": {"name": "CVE-2020-1234", "tag_type": "CVE"},
+      "Google": {"name": "Google", "tag_type": "Vendor"},
+      "vulnerabilities": {"name": "vulnerabilities", "tag_type": "CySec"},
+      "Linux": {"name": "Linux", "tag_type": "Product"},
+      "Cisco": {"name": "Cisco", "tag_type": "Vendor"},
+      "protocols": {"name": "protocols", "tag_type": "MISC"},
+      "breaches": {"name": "breaches", "tag_type": "CySec"},
+      "community": {"name": "community", "tag_type": "MISC"}
     },
     "id": "1"
   },
@@ -72,17 +72,17 @@
       }
     ],
     "tags": {
-      "Intel": "Vendor",
-      "Oracle": "Vendor",
-      "CVE-2021-5678": "CVE",
-      "vulnerabilities": "MISC",
-      "cloud": "MISC",
-      "infrastructures": "MISC",
-      "Apple": "Vendor",
-      "security": "MISC",
-      "Windows": "Product",
-      "systems": "MISC"
-    },
+        "Intel": {"name": "Intel", "tag_type": "Vendor"},
+        "Oracle": {"name": "Oracle", "tag_type": "Vendor"},
+        "CVE-2021-5678": {"name": "CVE-2021-5678", "tag_type": "CVE"},
+        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+        "cloud": {"name": "cloud", "tag_type": "MISC"},
+        "infrastructures": {"name": "infrastructures", "tag_type": "MISC"},
+        "Apple": {"name": "Apple", "tag_type": "Vendor"},
+        "security": {"name": "security", "tag_type": "MISC"},
+        "Windows": {"name": "Windows", "tag_type": "Product"},
+        "systems": {"name": "systems", "tag_type": "MISC"}
+  },
     "id": "2"
   },
   {
@@ -115,16 +115,16 @@
       }
     ],
     "tags": {
-      "IBM": "Vendor",
-      "NVIDIA": "Vendor",
-      "vulnerabilities": "MISC",
-      "AI": "MISC",
-      "modules": "MISC",
-      "Amazon": "Vendor",
-      "security": "MISC",
-      "cyber": "MISC",
-      "attacks": "MISC",
-      "AWS": "Vendor"
+        "IBM": {"name": "IBM", "tag_type": "Vendor"},
+        "NVIDIA": {"name": "NVIDIA", "tag_type": "Vendor"},
+        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+        "AI": {"name": "AI", "tag_type": "MISC"},
+        "modules": {"name": "modules", "tag_type": "MISC"},
+        "Amazon": {"name": "Amazon", "tag_type": "Vendor"},
+        "security": {"name": "security", "tag_type": "MISC"},
+        "cyber": {"name": "cyber", "tag_type": "MISC"},
+        "attacks": {"name": "attacks", "tag_type": "MISC"},
+        "AWS": {"name": "AWS", "tag_type": "Vendor"}
     },
     "id": "3"
   },
@@ -158,17 +158,17 @@
       }
     ],
     "tags": {
-      "tech wizard": "MISC",
-      "cybersecurity": "CySec",
-      "remedy": "MISC",
-      "Industries": "MISC",
-      "solution": "MISC",
-      "wizard": "MISC",
-      "rocket": "MISC",
-      "Thunderbird 3": "Product",
-      "moon": "MISC",
-      "Lady Penelope": "MISC",
-      "DevOps": "MISC"
+      "tech wizard": {"name": "tech wizard", "tag_type": "MISC"},
+      "cybersecurity": {"name": "cybersecurity", "tag_type": "CySec"},
+      "remedy": {"name": "remedy", "tag_type": "MISC"},
+      "Industries": {"name": "Industries", "tag_type": "MISC"},
+      "solution": {"name": "solution", "tag_type": "MISC"},
+      "wizard": {"name": "wizard", "tag_type": "MISC"},
+      "rocket": {"name": "rocket", "tag_type": "MISC"},
+      "Thunderbird 3": {"name": "Thunderbird 3", "tag_type": "Product"},
+      "moon": {"name": "moon", "tag_type": "MISC"},
+      "Lady Penelope": {"name": "Lady Penelope", "tag_type": "MISC"},
+      "DevOps": {"name": "DevOps", "tag_type": "MISC"}
     },
     "id": "4"
   },
@@ -202,16 +202,16 @@
       }
     ],
     "tags": {
-      "Facebook": "Vendor",
-      "countermeasures": "MISC",
-      "phishing": "MISC",
-      "attacks": "MISC",
-      "user": "MISC",
-      "data": "MISC",
-      "Salesforce": "Vendor",
-      "encryption": "MISC",
-      "technologies": "MISC",
-      "customer": "MISC"
+        "Facebook": {"name": "Facebook", "tag_type": "Vendor"},
+        "countermeasures": {"name": "countermeasures", "tag_type": "MISC"},
+        "phishing": {"name": "phishing", "tag_type": "MISC"},
+        "attacks": {"name": "attacks", "tag_type": "MISC"},
+        "user": {"name": "user", "tag_type": "MISC"},
+        "data": {"name": "data", "tag_type": "MISC"},
+        "Salesforce": {"name": "Salesforce", "tag_type": "Vendor"},
+        "encryption": {"name": "encryption", "tag_type": "MISC"},
+        "technologies": {"name": "technologies", "tag_type": "MISC"},
+        "customer": {"name": "customer", "tag_type": "MISC"}
     },
     "id": "5"
   },
@@ -245,16 +245,16 @@
       }
     ],
     "tags": {
-      "Adobe": "MISC",
-      "SAP": "MISC",
-      "CVE-2023-7891": "CVE",
-      "vulnerabilities": "MISC",
-      "enterprise": "MISC",
-      "solutions": "MISC",
-      "Twitter": "MISC",
-      "mechanisms": "MISC",
-      "malware": "MISC",
-      "infrastructure": "MISC"
+        "Adobe": {"name": "Adobe", "tag_type": "MISC"},
+        "SAP": {"name": "SAP", "tag_type": "MISC"},
+        "CVE-2023-7891": {"name": "CVE-2023-7891", "tag_type": "CVE"},
+        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+        "enterprise": {"name": "enterprise", "tag_type": "MISC"},
+        "solutions": {"name": "solutions", "tag_type": "MISC"},
+        "Twitter": {"name": "Twitter", "tag_type": "MISC"},
+        "mechanisms": {"name": "mechanisms", "tag_type": "MISC"},
+        "malware": {"name": "malware", "tag_type": "MISC"},
+        "infrastructure": {"name": "infrastructure", "tag_type": "MISC"}
     },
     "id": "6"
   },
@@ -288,16 +288,16 @@
       }
     ],
     "tags": {
-      "HP": "Vendor",
-      "Qualcomm": "MISC",
-      "firewall": "MISC",
-      "systems": "MISC",
-      "CVE-2023-1234": "CVE",
-      "vulnerabilities": "MISC",
-      "mobile": "MISC",
-      "devices": "MISC",
-      "LinkedIn": "Vendor",
-      "data": "MISC"
+        "HP": {"name": "HP", "tag_type": "Vendor"},
+        "Qualcomm": {"name": "Qualcomm", "tag_type": "MISC"},
+        "firewall": {"name": "firewall", "tag_type": "MISC"},
+        "systems": {"name": "systems", "tag_type": "MISC"},
+        "CVE-2023-1234": {"name": "CVE-2023-1234", "tag_type": "CVE"},
+        "vulnerabilities": {"name": "vulnerabilities", "tag_type": "MISC"},
+        "mobile": {"name": "mobile", "tag_type": "MISC"},
+        "devices": {"name": "devices", "tag_type": "MISC"},
+        "LinkedIn": {"name": "LinkedIn", "tag_type": "Vendor"},
+        "data": {"name": "data", "tag_type": "MISC"}
     },
     "id": "7"
   },
@@ -331,16 +331,16 @@
       }
     ],
     "tags": {
-      "Dell": "Vendor",
-      "VMware": "Vendor",
-      "security": "MISC",
-      "threats": "MISC",
-      "CVE-2023-5678": "CVE",
-      "GitHub": "Vendor",
-      "stance": "MISC",
-      "phishing": "MISC",
-      "scams": "MISC",
-      "platform": "MISC"
+        "Dell": {"name": "Dell", "tag_type": "Vendor"},
+        "VMware": {"name": "VMware", "tag_type": "Vendor"},
+        "security": {"name": "security", "tag_type": "MISC"},
+        "threats": {"name": "threats", "tag_type": "MISC"},
+        "CVE-2023-5678": {"name": "CVE-2023-5678", "tag_type": "CVE"},
+        "GitHub": {"name": "GitHub", "tag_type": "Vendor"},
+        "stance": {"name": "stance", "tag_type": "MISC"},
+        "phishing": {"name": "phishing", "tag_type": "MISC"},
+        "scams": {"name": "scams", "tag_type": "MISC"},
+        "platform": {"name": "platform", "tag_type": "MISC"}
     },
     "id": "8"
   },
@@ -374,9 +374,9 @@
       }
     ],
     "tags": {
-      "Software": "MISC",
-      "CVE": "MISC",
-      "vulnerability": "MISC"
+        "Software": {"name": "Software", "tag_type": "MISC"},
+        "CVE": {"name": "CVE", "tag_type": "MISC"},
+        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
     },
     "id": "9"
   },
@@ -410,9 +410,9 @@
       }
     ],
     "tags": {
-      "Cybersecurity": "MISC",
-      "blog": "MISC",
-      "vulnerability": "MISC"
+        "Cybersecurity": {"name": "Cybersecurity", "tag_type": "MISC"},
+        "blog": {"name": "blog", "tag_type": "MISC"},
+        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
     },
     "id": "10"
   },
@@ -446,28 +446,28 @@
       }
     ],
     "tags": {
-      "Cybersecurity": "MISC",
-      "blog": "MISC",
-      "vulnerability": "MISC"
+        "Cybersecurity": {"name": "Cybersecurity", "tag_type": "MISC"},
+        "blog": {"name": "blog", "tag_type": "MISC"},
+        "vulnerability": {"name": "vulnerability", "tag_type": "MISC"}
     },
     "id": "11"
 
   },
   {
-  "attributes": [
-    {
+  "attributes": {
+    "test_key":{
       "key": "test_key",
       "value": "test_value"
     },
-    {
+    "TLP": {
       "key": "TLP",
       "value": "clear"
     },
-    {
+    "cybersecurity": {
       "key": "cybersecurity",
       "value": "yes"
     }
-  ],
+  },
   "comments": "This is a story comment",
   "created": "2025-06-03T07:36:00+00:00",
   "description": "",
@@ -485,12 +485,16 @@
   ],
   "news_items": [
     {
-      "attributes": [
-        {
+      "attributes": {
+        "TLP": {
+          "key": "TLP",
+          "value": "clear"
+        },
+        "cybersecurity_human": {
           "key": "cybersecurity_human",
           "value": "yes"
         }
-      ],
+    },
       "author": "Author attributes",
       "collected": "2025-06-03T08:01:11.369743+00:00",
       "content": "Title attributes",
@@ -511,16 +515,16 @@
   "read": false,
   "relevance": 0,
   "summary": "This is a story summary",
-  "tags": [
-    {
+  "tags": {
+    "TAG": {
       "name": "TAG",
       "tag_type": "ORG"
     },
-    {
+    "tag2":{
       "name": "tag2",
       "tag_type": "misc"
     }
-  ],
+  },
   "title": "Title",
   "updated": "2025-06-03T12:37:53.360510+00:00"
 }

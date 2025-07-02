@@ -114,13 +114,14 @@ def test_drop_utf16_surrogates_edge_cases():
 def test_connector_story_processing(core_mock, caplog):
     import logging
 
+    # Set the logging level to ERROR to capture only error logs and fail properly
     caplog.set_level(logging.ERROR, logger="root")
 
     from worker.connectors.connector_tasks import ConnectorTask
 
     connector = ConnectorTask()
 
-    result = connector.run("74981521-4ba7-4216-b9ca-ebc00ffec29c", ["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
 
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)

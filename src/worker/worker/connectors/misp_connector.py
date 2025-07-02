@@ -51,9 +51,13 @@ class MISPConnector:
             self.misp_sender(story, misp_event_uuid)
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
-        story_attributes = story.get("attributes", [])
+        story_attributes: dict = story.get("attributes", {})
         return next(
-            (attribute.get("value") for attribute in story_attributes if attribute.get("key") == "misp_event_uuid"),
+            (
+                value_dict.get("value")
+                for key, value_dict in story_attributes.items()
+                if isinstance(value_dict, dict) and key == "misp_event_uuid"
+            ),
             None,
         )
 
@@ -137,8 +141,8 @@ class MISPConnector:
         Ensure the story has a 'misp_event_uuid' attribute so that the system can determine if it is
         an update or a new event.
         """
-        if all(attribute.get("key") != "misp_event_uuid" for attribute in story.get("attributes", [])):
-            story.setdefault("attributes", []).append({"key": "misp_event_uuid", "value": f"{story.get('id', '')}"})
+        if not story.get("attributes", {}).get("misp_event_uuid"):
+            story.get("attributes", {})["misp_event_uuid"] = {"key": "misp_event_uuid", "value": story.get("id", "")}
 
     def add_attributes_from_story(self, story: dict) -> list:
         """
@@ -151,33 +155,42 @@ class MISPConnector:
     @staticmethod
     def _process_items(story: dict, key: str, processor: Callable) -> list:
         """
-        Generic helper to process a list of items stored under the provided key in the story dictionary.
-
-        :param story: The source dictionary containing the items.
-        :param key: The key corresponding to the list of items (e.g., 'attributes', 'links', 'tags').
-        :param processor: A function that takes an item and returns a processed string (or None if invalid).
-        :return: A list of processed item strings.
+        Process items from the story, handling both dict and list formats.
         """
+        data = story.get(key, {})
         items_list = []
-        for item in story.get(key, []):
-            processed = processor(item)
-            if processed is not None:
-                items_list.append(processed)
+
+        if isinstance(data, dict):
+            for k, v in data.items():
+                processed = processor(k, v)
+                if processed is not None:
+                    items_list.append(processed)
+        elif isinstance(data, list):
+            for item in data:
+                processed = processor(item)
+                if processed is not None:
+                    items_list.append(processed)
+        else:
+            logger.warning(f"Unexpected data format for '{key}': {type(data)}")
+
         return items_list
 
     @staticmethod
-    def _process_attribute(attr: dict) -> str | None:
+    def _process_attribute(key: str, value_dict: dict) -> str | None:
         """
-        Process a single attribute dict into its string representation.
+        Process a single attribute from key and value_dict.
         """
-        key = attr.get("key", "")
-        value = attr.get("value")
+        if not isinstance(value_dict, dict):
+            logger.warning(f"Skipping attribute with invalid value: {key} -> {value_dict}")
+            return None
+
+        value = value_dict.get("value")
         if value is not None:
             attribute_value = f"{{'key': '{key}', 'value': '{value}'}}"
             logger.debug(f"Adding attribute: {attribute_value}")
             return attribute_value
         else:
-            logger.warning(f"Skipping attribute with missing value: {attr}")
+            logger.warning(f"Skipping attribute with missing value: {key}")
             return None
 
     @staticmethod
@@ -196,19 +209,18 @@ class MISPConnector:
             return None
 
     @staticmethod
-    def _process_tags(tag_item: dict) -> str | None:
+    def _process_tags(name: str, tag_dict: dict) -> str | None:
         """
-        Process a single tag dict into its JSON string representation, sanitized.
+        Process a single tag from key and value_dict.
         """
-        name = tag_item.get("name", "")
-        tag_type = tag_item.get("tag_type", "")
-        if name:
-            json_str = json.dumps({"name": name, "tag_type": tag_type})
-            logger.debug(f"Adding tag: {json_str}")
-            return json_str
-        else:
-            logger.warning(f"Skipping tag with missing data: {tag_item}")
+        if not isinstance(tag_dict, dict):
+            logger.warning(f"Skipping tag with invalid value: {name} -> {tag_dict}")
             return None
+
+        tag_type = tag_dict.get("tag_type", "misc")
+        tag_json = json.dumps({"name": name, "tag_type": tag_type})
+        logger.debug(f"Adding tag: {tag_json}")
+        return tag_json
 
     def create_misp_event(self, story: dict) -> MISPEvent:
         """
