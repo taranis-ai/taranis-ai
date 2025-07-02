@@ -189,6 +189,7 @@ class BaseCollector:
                 self.core_api.add_or_update_story(story)
 
     def check_internal_changes(self, existing_story: dict) -> bool:
+        # TODO: This should change and work with attributes (probably)
         overridden_by_value = existing_story.get("overridden_by")
         if overridden_by_value not in ["unknown", "collector"] or overridden_by_value.startswith("misp"):
             return True
