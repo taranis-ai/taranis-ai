@@ -20,7 +20,94 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_validation_status}
+        ]
+
+    @classmethod
+    def get_view_context(
+        cls,
+        objects: list | None = None,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        """Override to use enhanced templates with validation status."""
+        # If we have objects and this is for the list view, enhance them with validation status first
+        enhanced_objects = objects
+        if objects:
+            # Handle both paginated objects (with .data attribute) and simple lists
+            template_list = objects.data if hasattr(objects, 'data') else objects
+            if template_list and len(template_list) > 0:
+                dpl = DataPersistenceLayer()
+                try:
+                    # Get validation status from API
+                    api_result = dpl.api.api_get("/config/templates", params={"list": "true"})
+                    if api_result and "items" in api_result:
+                        # Create a mapping of template names to validation status
+                        validation_map = {}
+                        for item in api_result["items"]:
+                            template_id = item.get("id")
+                            if template_id:
+                                validation_map[template_id] = {
+                                    "validation_status": item.get("validation_status", {}),
+                                    "is_dirty": item.get("is_dirty", False)
+                                }
+                        
+                        # Create enhanced template objects that support dynamic attributes
+                        enhanced_templates = []
+                        for template_obj in template_list:
+                            if hasattr(template_obj, 'id') and getattr(template_obj, 'id') in validation_map:
+                                template_id = getattr(template_obj, 'id')
+                                # Create a dict-like object that supports both attribute and dict access
+                                enhanced_template = type('EnhancedTemplate', (), {
+                                    'id': template_id,
+                                    'content': getattr(template_obj, 'content', ''),
+                                    'validation_status': validation_map[template_id]["validation_status"],
+                                    'is_dirty': validation_map[template_id]["is_dirty"],
+                                    '__getitem__': lambda self, key: getattr(self, key),
+                                    '__contains__': lambda self, key: hasattr(self, key)
+                                })()
+                                
+                                # Copy all other attributes from the original template
+                                for attr in dir(template_obj):
+                                    if not attr.startswith('_') and not hasattr(enhanced_template, attr):
+                                        try:
+                                            setattr(enhanced_template, attr, getattr(template_obj, attr))
+                                        except Exception:
+                                            pass
+                                
+                                enhanced_templates.append(enhanced_template)
+                            else:
+                                # For templates without validation data, just use the original
+                                enhanced_templates.append(template_obj)
+                        
+                        # Update the appropriate container with enhanced templates
+                        if hasattr(objects, 'data'):
+                            objects.data = enhanced_templates
+                            enhanced_objects = objects
+                        else:
+                            # For CacheObject or other list-like pagination objects, replace contents in place
+                            objects.clear()
+                            objects.extend(enhanced_templates)
+                            enhanced_objects = objects
+                
+                except Exception as e:
+                    logger.warning(f"Failed to enhance templates with validation status in get_view_context: {e}")
+        
+        # Now create the context with the enhanced objects
+        context = super().get_view_context(enhanced_objects, error)
+        
+        # Ensure the template_data context variable contains our enhanced templates
+        if enhanced_objects:
+            context[cls.model_plural_name()] = enhanced_objects
+        
+        return context
+
+    @classmethod
+    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
+        # Just use the default behavior - validation status for list view is handled by get_view_context
+        return super().get_extra_context(object_id)
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -44,14 +131,29 @@ class TemplateView(BaseView):
         dpl = DataPersistenceLayer()
         template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
 
-        try:
-            template.content = b64decode(template.content or "").decode("utf-8")
-        except Exception:
-            logger.exception()
-            logger.warning(f"Failed to decode template content for {template}")
-            template.content = template.content
+        validation_status = None
+        is_dirty = False
+        if object_id != 0 and str(object_id) != '0':  # Only for existing templates
+            try:
+                validation_response = dpl.api.api_get(f"/config/templates/{object_id}")
+                if validation_response:
+                    # Always assign content from API response, even if invalid
+                    template.content = b64decode(validation_response.get("content", "") or "").decode("utf-8")
+                    validation_status = validation_response.get("validation_status", {})
+                    is_dirty = validation_response.get("is_dirty", False)
+            except Exception as e:
+                logger.warning(f"Failed to fetch validation status for template {object_id}: {e}")
+        else:
+            try:
+                template.content = b64decode(template.content or "").decode("utf-8")
+            except Exception:
+                logger.exception()
+                logger.warning(f"Failed to decode template content for {template}")
+                template.content = template.content
 
         context[cls.model_name()] = template
+        context["validation_status"] = validation_status
+        context["is_dirty"] = is_dirty
         return context
 
     @classmethod

@@ -292,6 +292,8 @@ class Template(TaranisBaseModel):
 
     id: str
     content: str | None = None
+    validation_status: dict | None = None
+    is_dirty: bool | None = None
 
 
 class AttributeEnum(TaranisBaseModel):

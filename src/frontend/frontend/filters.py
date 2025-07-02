@@ -19,6 +19,7 @@ __all__ = [
     "render_parameter",
     "render_source_parameter",
     "render_item_type",
+    "render_validation_status",
 ]
 
 
@@ -106,6 +107,26 @@ def admin_action(value):
 
 def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
+
+
+def render_validation_status(item) -> str:
+    """Render validation status badge for templates."""
+    if hasattr(item, "validation_status") and isinstance(item.validation_status, dict):
+        is_valid = item.validation_status.get("is_valid", True)
+        error_type = item.validation_status.get("error_type", "")
+        error_message = item.validation_status.get("error_message", "")
+        
+        if is_valid:
+            return Markup('<span class="badge badge-success text-xs">Valid</span>')
+        
+        # Create error tooltip with error details
+        tooltip_attr = f'title="{error_type}: {error_message}"' if error_message else f'title="{error_type}"'
+        return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
+    
+    if hasattr(item, "is_dirty") and item.is_dirty:
+        return Markup('<span class="badge badge-error text-xs">Invalid</span>')
+    
+    return Markup('<span class="badge badge-success text-xs">Valid</span>')
 
 
 @pass_context
