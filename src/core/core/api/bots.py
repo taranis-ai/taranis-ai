@@ -16,7 +16,7 @@ class BotGroupAction(MethodView):
     def put(self):
         story_ids = request.json
         if not story_ids:
-            return {"No story ids provided"}, 400
+            return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
@@ -27,7 +27,7 @@ class BotGroupMultipleAction(MethodView):
     def put(self):
         story_ids = request.json
         if not story_ids:
-            return {"No stories provided"}, 400
+            return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
@@ -38,7 +38,7 @@ class BotUnGroupAction(MethodView):
     def put(self):
         newsitem_ids = request.json
         if not newsitem_ids:
-            return {"No news items provided"}, 400
+            return {"error": "No news items provided"}, 400
         response, code = story.Story.remove_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
         return response, code

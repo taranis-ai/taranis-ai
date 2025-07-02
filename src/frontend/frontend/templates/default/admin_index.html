@@ -1,7 +1,7 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block head %}
   <script src="{{ url_for('static', filename='vendor/js/fuse.js') }}"></script>
-{% endblock %}
+{% endblock head %}
 {% block content %}
-{% include 'partials/admin_index.html' %}
-{% endblock %}
+  {% include "partials/admin_index.html" %}
+{% endblock content %}

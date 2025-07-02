@@ -11,9 +11,9 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     assert response.text == "200 OK"
     assert response.status_code == 200
 
-    with pytest.raises(NoChangeError) as exception:
-        response = base_web_collector.send_get_request("https://test.org/no_content")
-    assert str(exception.value) == "Not modified"
+    response = base_web_collector.send_get_request("https://test.org/no_content")
+    assert response.status_code == 200
+    assert response.text == ""
 
     with pytest.raises(NoChangeError) as exception:
         response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
@@ -21,7 +21,7 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
-    assert str(exception.value) == "Base Web Collector got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
+    assert str(exception.value) == "Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL."
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/404")
@@ -39,12 +39,14 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_not_modified
     from worker.tests.testdata import rss_collector_source_data_no_content
+    from worker.tests.testdata import rss_collector_url_not_modified
 
-    result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert result == "Not modified"
+    with pytest.raises(RuntimeError) as exception:
+        result = rss_collector.collect(rss_collector_source_data_not_modified)
+    assert str(exception.value) == f"RSS Collector for {rss_collector_url_not_modified} failed with error: Not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result == "Not modified"
+    assert result is None
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
@@ -181,7 +183,7 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query did not return tickets
-    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: No tickets available for {rt_testdata.rt_base_url}"
+    error_msg = f"RT Collector for {rt_testdata.rt_base_url} failed with error: No tickets available for {rt_testdata.rt_base_url}"
 
     with pytest.raises(RuntimeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_collector_no_tickets_source_data)
@@ -192,7 +194,7 @@ def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query response contains malformed json
-    error_msg = f"RT Collector not available {rt_testdata.rt_base_url} with exception: Could not decode result of query as JSON"
+    error_msg = f"RT Collector for {rt_testdata.rt_base_url} failed with error: Expecting ':' delimiter: line 1 column 13 (char 12)"
 
     with pytest.raises(RuntimeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)

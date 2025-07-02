@@ -57,13 +57,13 @@ class BaseCollector:
     def preview_collector(self, source: dict) -> list[dict]:
         raise NotImplementedError
 
-    def sanitize_html(self, html: str):
+    def sanitize_html(self, html: str) -> str:
         if not html:
             return ""
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
         return BeautifulSoup(html, "lxml").text
 
-    def sanitize_url(self, url: str):
+    def sanitize_url(self, url: str) -> str:
         """
         Sanitize URL to be compliant with RFC 3986
         """
@@ -112,8 +112,8 @@ class BaseCollector:
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        news_items_dicts = [item.to_dict() for item in news_items]
-        self.core_api.add_news_items(news_items_dicts)
+        if news_items_dicts := [item.to_dict() for item in news_items]:
+            self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
@@ -121,7 +121,7 @@ class BaseCollector:
         story_lists example: [{title: str, news_items: list[NewsItem]}]
         """
         if not story_lists:
-            logger.info(f"No stories to publish from source {source.get('name')} ({source.get('id')})")
+            logger.info(f"No stories to publish from source '{source.get('name')}' with id ({source.get('id')})")
             return None
 
         if not story_attribute_key:
@@ -188,11 +188,11 @@ class BaseCollector:
 
                 self.core_api.add_or_update_story(story)
 
-    def check_internal_changes(self, existing_story) -> bool:
+    def check_internal_changes(self, existing_story: dict) -> bool:
         overridden_by_value = existing_story.get("overridden_by")
         if overridden_by_value not in ["unknown", "collector"] or overridden_by_value.startswith("misp"):
             return True
-        return any(news_item.get("overridden_by") != "no" for news_item in existing_story.get("news_items"))
+        return any(news_item.get("overridden_by") != "no" for news_item in existing_story.get("news_items", []))
 
     def get_news_items_to_delete(self, new_story: dict, existing_story: dict) -> list:
         existing_news_items = existing_story.get("news_items", [])

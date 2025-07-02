@@ -65,14 +65,11 @@ class Scheduler:
 
     def get_periodic_tasks(self) -> dict:
         jobs = self.get_jobs()
-        logger.debug([job.id for job in jobs])
         items = [self.serialize_job(job) for job in jobs]
         return {"items": items, "total_count": len(items)}
 
     def get_periodic_task(self, job_id: str) -> dict | None:
-        if job := self.get_job(job_id):
-            return self.serialize_job(job)
-        return None
+        return self.serialize_job(job) if (job := self.get_job(job_id)) else None
 
     def remove_periodic_task(self, job_id: str):
         if job := self.get_job(job_id):

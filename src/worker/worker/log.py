@@ -3,7 +3,6 @@ import sys
 import socket
 import logging
 import traceback
-import datetime
 from celery.signals import after_setup_logger
 
 from worker.config import Config
@@ -16,7 +15,7 @@ class TaranisLogger:
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
         else:
-            stream_handler.setFormatter(logging.Formatter(f"[{module}] [%(levelname)s] - %(message)s"))
+            stream_handler.setFormatter(logging.Formatter(f"[%(asctime)s] [{module}] [%(levelname)s] - %(message)s"))
         sys_log_handler = None
         if syslog_address:
             try:
@@ -63,9 +62,14 @@ class TaranisLogger:
     def error(self, message):
         self.logger.error(message)
 
+    def get_stream_handler(self) -> logging.StreamHandler | None:
+        for h in self.logger.handlers:
+            if isinstance(h, logging.StreamHandler):
+                return h
+
 
 class TaranisLogFormatter(logging.Formatter):
-    def __init__(self, module):
+    def __init__(self, module, custom_prefix: str | None = None):
         grey = "\x1b[38;20m"
         blue = "\x1b[1;36m"
         yellow = "\x1b[33;20m"
@@ -73,7 +77,11 @@ class TaranisLogFormatter(logging.Formatter):
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
         self.module = module
-        self.format_string = "[%(asctime)s] [%(levelname)s] - %(message)s"
+        self.format_string = f"[%(asctime)s] [{module}] [%(levelname)s]"
+        if custom_prefix:
+            self.format_string += f" [{custom_prefix}]"
+        self.format_string += " - %(message)s"
+        self.datefmt = "%Y-%m-%d %H:%M:%S"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
             logging.INFO: blue + self.format_string + reset,
@@ -82,12 +90,9 @@ class TaranisLogFormatter(logging.Formatter):
             logging.CRITICAL: bold_red + self.format_string + reset,
         }
 
-    def formatTime(self, record, datefmt=None):
-        return datetime.datetime.now().isoformat()
-
-    def format(self, record):
+    def format(self, record: logging.LogRecord):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)
 
 

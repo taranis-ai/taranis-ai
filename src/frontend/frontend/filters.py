@@ -18,13 +18,11 @@ __all__ = [
     "render_icon",
     "render_parameter",
     "render_source_parameter",
+    "render_item_type",
 ]
 
 
-def human_readable_trigger(trigger):
-    if not trigger.startswith("interval"):
-        return trigger
-
+def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
     hours, minutes, seconds = map(int, time_part.split(":"))
     parts = []
@@ -35,6 +33,13 @@ def human_readable_trigger(trigger):
     if seconds > 0:
         parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
     return "every " + ", ".join(parts)
+
+
+def human_readable_trigger(trigger):
+    if trigger and trigger.startswith("interval"):
+        return parse_interval_trigger(trigger)
+
+    return trigger
 
 
 def permissions_count(item: Role | User) -> int:
@@ -53,12 +58,13 @@ def render_icon(item: OSINTSource) -> str:
     if hasattr(item, "icon") and item.icon:
         # TODO: Check if this is safe to render
         return Markup(f"<img src='data:image/svg+xml;base64,{item.icon}' height='32px' width='32px'  class='icon' alt='Icon' />")
-    if item.type == "rss_collector":
-        return heroicon_outline("rss")
-    if item.type == "simple_web_collector":
-        return heroicon_outline("globe-alt")
-    if item.type == "misp_collector":
-        return Markup(render_template("partials/misp_logo.html"))
+    if hasattr(item, "type") and item.type:
+        if item.type == "rss_collector":
+            return heroicon_outline("rss")
+        if item.type == "simple_web_collector":
+            return heroicon_outline("globe-alt")
+        if item.type == "misp_collector":
+            return Markup(render_template("partials/misp_logo.html"))
     return heroicon_outline("question-mark-circle")
 
 
@@ -69,23 +75,25 @@ def render_parameter(item, key):
 
 
 def render_source_parameter(item: OSINTSource) -> str:
+    source_parameter = ""
     if hasattr(item, "parameters") and isinstance(item.parameters, dict):
         if item.type in ["rss_collector", "simple_web_collector"]:
-            return item.parameters.get("FEED_URL", "")
+            source_parameter = item.parameters.get("FEED_URL", "")
         if item.type == "misp_collector":
-            return item.parameters.get("URL", "")
-    return ""
+            source_parameter = item.parameters.get("URL", "")
+    return source_parameter
 
 
 def render_state(item) -> str:
     if hasattr(item, "state"):
-        return Markup(
-            render_template(
-                "partials/state_badge.html",
-                state=item.state,
-            )
-        )
+        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=item.last_error_message or ""))
     return Markup(render_template("partials/state_badge.html", state=-1))
+
+
+def render_item_type(item) -> str:
+    if hasattr(item, "type") and item.type:
+        return item.type.split("_")[0].capitalize()
+    return "Unknown"
 
 
 def last_path_segment(value):

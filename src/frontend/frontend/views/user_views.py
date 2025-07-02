@@ -1,13 +1,14 @@
+import json
 from flask import render_template, request, Response
 from flask_jwt_extended import get_jwt_identity
-import json
 
 from frontend.core_api import CoreApi
-from models.admin import Role, Organization
+from models.admin import Role, Organization, User
 from frontend.data_persistence import DataPersistenceLayer
-from models.admin import User
 from frontend.filters import permissions_count, role_count
 from frontend.views.base_view import BaseView
+from frontend.config import Config
+from frontend.log import logger
 
 
 class UserView(BaseView):
@@ -34,19 +35,21 @@ class UserView(BaseView):
         ]
 
     @classmethod
-    def import_users_view(cls, error=None):
+    def import_view(cls, error=None):
         organizations = DataPersistenceLayer().get_objects(Organization)
         roles = DataPersistenceLayer().get_objects(Role)
 
-        return render_template("user/user_import.html", roles=roles, organizations=organizations, error=error)
+        return render_template(
+            f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", roles=roles, organizations=organizations, error=error
+        )
 
     @classmethod
-    def import_users_post_view(cls):
+    def import_post_view(cls):
         roles = [int(role) for role in request.form.getlist("roles[]")]
         organization = int(request.form.get("organization", "0"))
         users = request.files.get("file")
         if not users or organization == 0:
-            return cls.import_users_view("No file or organization provided")
+            return cls.import_view("No file or organization provided")
         data = users.read()
         data = json.loads(data)
         for user in data["data"]:
@@ -58,7 +61,18 @@ class UserView(BaseView):
 
         if not response:
             error = "Failed to import users"
-            return cls.import_users_view(error)
+            return cls.import_view(error)
 
         DataPersistenceLayer().invalidate_cache_by_object(User)
         return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @classmethod
+    def export_view(cls):
+        user_ids = request.args.getlist("ids")
+        core_resp = CoreApi().export_users(user_ids)
+
+        if not core_resp:
+            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+
+        return CoreApi.stream_proxy(core_resp, "users_export.json")

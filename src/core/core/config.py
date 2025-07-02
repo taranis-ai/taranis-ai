@@ -19,7 +19,7 @@ def mask_db_uri(uri: str) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", secrets_dir="/var/run")
 
     API_KEY: SecretStr = SecretStr("supersecret")
     APPLICATION_ROOT: str = "/"
@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
+    DISABLE_PPN_COLLECTOR: bool = True
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":

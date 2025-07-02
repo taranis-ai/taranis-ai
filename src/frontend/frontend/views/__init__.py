@@ -13,6 +13,7 @@ from .source_groups_views import SourceGroupView
 from .report_views import ReportItemTypeView
 from .source_views import SourceView
 from .connector_views import ConnectorView
+from .scheduler_views import SchedulerView
 
 __all__ = [
     "ACLView",
@@ -31,4 +32,5 @@ __all__ = [
     "SourceGroupView",
     "ReportItemTypeView",
     "ConnectorView",
+    "SchedulerView",
 ]

@@ -1,7 +1,7 @@
 <template>
   <v-combobox
     v-model="tags"
-    :items="modelValue"
+    :items="tagsArray"
     chips
     density="compact"
     closable-chips
@@ -24,20 +24,40 @@ export default {
   name: 'EditTags',
   props: {
     modelValue: {
-      type: Array,
-      default: () => []
+      type: Object,
+      default: () => ({})
     }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const updatedTags = ref(props.modelValue)
+    const tagsArray = computed(() => {
+      return Object.values(props.modelValue || {})
+    })
+
+    const updatedTags = ref(tagsArray.value)
 
     const updateTags = (val) => {
       updatedTags.value = val
-      emit('update:modelValue', val)
+
+      // Convert Array back to Object format for parent component
+      const tagsObject = {}
+      if (Array.isArray(val)) {
+        val.forEach((tag) => {
+          if (typeof tag === 'string') {
+            // Handle new tags entered as strings
+            tagsObject[tag] = { name: tag, tag_type: 'UNKNOWN' }
+          } else if (tag && tag.name) {
+            // Handle existing tag objects
+            tagsObject[tag.name] = tag
+          }
+        })
+      }
+
+      emit('update:modelValue', tagsObject)
     }
 
     return {
+      tagsArray,
       tags: computed({
         get: () => updatedTags.value,
         set: updateTags

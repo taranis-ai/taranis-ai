@@ -1,0 +1,57 @@
+{% from "macros/forms.html" import form_input, form_select %}
+{% set form_error = form_error | default({}) %}
+
+
+<script type="text/javascript">
+  var settings = {
+    create: true,
+    createOnBlur: true,
+    plugins: ['remove_button'],
+    persist:false
+  };
+
+  htmx.onLoad(function(elt) {
+    var elt = document.getElementById('attribute_enum-input');
+    if (elt && elt.classList.contains('tomselected')) return;
+    new TomSelect(elt, settings);
+  });
+</script>
+
+<div class="bg-base-100 p-4">
+  <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <form id="attribute-form"
+        class="w-3/4 ml-[10%]"
+        {{ form_action }}
+        hx-swap="innerHTML"
+        hx-target="#form-container"
+        hx-target-error="#form-container">
+    {% include "partials/admin_form_error.html" %}
+    {{ form_input('Name', 'name', attribute.name, form_error.name, width="w-3/4") }}
+    {{ form_input('Description', 'description', attribute.description, form_error.description, width="w-3/4") }}
+    {{ form_input('Default Value', 'default_value', attribute.default_value, form_error.default_value, required=False, width="w-3/4") }}
+
+    <div class="mb-5 w-3/4" x-data="{ showEnum: false }">
+      <label class="select w-full">
+        <span class="label">Attribute Type</span>
+        <select id="type"
+                name="type"
+                required
+                class="validator select w-full"
+                x-on:change="showEnum = $event.target.value.toLowerCase() == 'enum'"
+                x-on:load="showEnum = '{{ attribute.type | lower }}' == 'enum'">
+          {% if not attribute.type %}<option value="" selected disabled>Select an item type</option>{% endif %}
+          {% for option in attribute_types -%}
+            <option value="{{ option.id }}" {% if attribute.type == option.id %}selected{% endif %}>{{ option.name }}</option>
+          {% endfor -%}
+        </select>
+      </label>
+
+      <div class="w-full mt-5 mb-3" id="attribute_enum" x-show="showEnum">
+        <span class="label">Attribute Enum</span>
+        <input id="attribute_enum-input" name="attribute_enums[]" type="text" value="{{ attribute.attribute_enum }}" />
+      </div>
+    </div>
+
+    <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
+  </form>
+</div>

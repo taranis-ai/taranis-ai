@@ -129,7 +129,7 @@ class Attribute(BaseModel):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Attribute":
         if attribute_type := data.pop("type", None):
-            data["attribute_type"] = AttributeType[attribute_type]
+            data["attribute_type"] = AttributeType[attribute_type.upper()]
         return cls(**data)
 
     @classmethod
@@ -280,8 +280,7 @@ class Attribute(BaseModel):
         return data
 
     def to_report_item_dict(self):
-        data = super().to_dict()
-        attribute_enums = AttributeEnum.get_all_for_attribute(self.id)
-        data["attribute_enums"] = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums]
-        data["type"] = self.type.name
-        return data
+        return {
+            "name": self.name,
+            "type": self.type.name,
+        }

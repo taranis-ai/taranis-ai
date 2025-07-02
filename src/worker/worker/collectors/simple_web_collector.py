@@ -1,5 +1,6 @@
 import requests
 import logging
+import datetime
 
 from worker.log import logger
 from worker.types import NewsItem
@@ -10,39 +11,38 @@ from worker.collectors.playwright_manager import PlaywrightManager
 class SimpleWebCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
-        self.type = "SIMPLE_WEB_COLLECTOR"
-        self.name = "Simple Web Collector"
-        self.description = "Collector for gathering news with Trafilatura"
+        self.type: str = "SIMPLE_WEB_COLLECTOR"
+        self.name: str = "Simple Web Collector"
+        self.description: str = "Collector for gathering news with Trafilatura"
 
-        self.news_items = []
+        self.news_items: list[NewsItem] = []
         self.web_url: str
         self.xpath: str
-        self.last_attempted = None
+        self.last_attempted: datetime.datetime | None = None
         self.digest_splitting_limit: int
-        logger_trafilatura = logging.getLogger("trafilatura")
+        logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
-    def parse_source(self, source):
+    def parse_source(self, source: dict):
         super().parse_source(source)
         self.web_url = source["parameters"].get("WEB_URL", None)
         if not self.web_url:
-            logger.error("No WEB_URL set")
             raise ValueError("No WEB_URL set")
 
-    def collect(self, source, manual: bool = False):
-        self.parse_source(source)
-        logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
-
+    def collect(self, source: dict, manual: bool = False):
         try:
-            return self.web_collector(source, manual)
+            self.parse_source(source)
+            self.web_collector(source, manual)
         except Exception as e:
-            logger.exception(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-            return str(e)
+            raise RuntimeError(f"Simple Web Collector for {self.web_url} failed with error {e}") from e
 
-    def preview_collector(self, source):
-        self.parse_source(source)
-        self.news_items = self.gather_news_items()
-        return self.preview(self.news_items, source)
+    def preview_collector(self, source: dict):
+        try:
+            self.parse_source(source)
+            self.news_items = self.gather_news_items()
+            return self.preview(self.news_items, source)
+        except Exception as e:
+            raise RuntimeError(f"Simple Web Collector for {self.web_url} failed with error {e}") from e
 
     def handle_digests(self) -> list[NewsItem]:
         if not self.xpath:
@@ -75,28 +75,19 @@ class SimpleWebCollector(BaseWebCollector):
 
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
-    def web_collector(self, source, manual: bool = False):
+    def web_collector(self, source: dict, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
 
         if response.status_code == 429:
-            logger.error("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
-            raise requests.exceptions.HTTPError("Website returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
+            raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
+        response.raise_for_status()
 
-        if not response or not response.ok:
-            logger.info(f"Website {source['id']} returned no content")
-            raise ValueError("Website returned no content")
 
         self.last_attempted = self.get_last_attempted(source)
         if not self.last_attempted:
             self.update_favicon(self.web_url, self.osint_source_id)
-
-        try:
-            self.news_items = self.gather_news_items()
-        except ValueError as e:
-            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-
+        self.news_items = self.gather_news_items()
         self.publish(self.news_items, source)
-        return None
 
 
 def browser_mode_test():

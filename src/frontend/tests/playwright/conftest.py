@@ -3,7 +3,9 @@ import pytest
 import time
 import subprocess
 import requests
+import contextlib
 from dotenv import dotenv_values
+from urllib.parse import urlparse
 
 from playwright.sync_api import Browser
 
@@ -24,16 +26,25 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
 @pytest.fixture(scope="session")
 def run_core(app):
     # run the flask core as a subprocess in the background
+    process = None
     try:
         core_path = os.path.abspath("../core")
-        env = os.environ.copy()
+        env = {}
         if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
             config = {k: v for k, v in config.items() if v}
-            env |= config
+            env = config
+        env |= os.environ.copy()
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
+        taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
+        taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
+        with contextlib.suppress(Exception):
+            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
+            os.remove(f"{parsed_uri.path}")
+
+        print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
-            ["flask", "run", "--port", "5000"],
+            ["flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
             env=env,
             stdout=subprocess.PIPE,
@@ -41,18 +52,26 @@ def run_core(app):
             universal_newlines=True,
         )
 
-        try:
-            core_url = app.config.get("TARANIS_CORE_URL", "http://127.0.0.1:5000/api")
-            _wait_for_server_to_be_alive(f"{core_url}/isalive")
-        except requests.exceptions.RequestException as e:
-            if process:
-                process.terminate()
-                process.wait()
-            pytest.fail(str(e))
+        core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+        print(f"Waiting for Taranis Core to be available at: {core_url}")
+        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
 
         yield
-        process.terminate()
-        process.wait()
+    except Exception as e:
+        pytest.fail(str(e))
+    finally:
+        if process:
+            process.terminate()
+            process.wait()
+
+
+@pytest.fixture(scope="session")
+def build_tailwindcss(app):
+    # build the tailwind css
+    try:
+        if os.getenv("TARANIS_E2E_TEST_TAILWIND_REBUILD") == "true" or not os.path.isfile("frontend/static/css/tailwind.css"):
+            result = subprocess.call(["./build_tailwindcss.sh"])
+            assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
         pytest.fail(str(e))
 
@@ -67,7 +86,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, run_core):
+def e2e_server(app, live_server, build_tailwindcss, run_core):
     live_server.app = app
     live_server.start()
     yield live_server
