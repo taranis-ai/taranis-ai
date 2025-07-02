@@ -8,6 +8,7 @@ from core.managers.auth_manager import api_key_required
 from core.model import news_item, bot, story
 from core.managers.decorators import extract_args
 from core.config import Config
+from core.model.news_item_attribute import NewsItemAttribute
 
 
 class BotGroupAction(MethodView):
@@ -71,7 +72,11 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+        attributes = request.json
+        if not attributes:
+            return {"error": "No attributes provided"}, 400
+        attributes.append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("bot")})
+        return news_item.NewsItem.update_attributes(news_item_id, attributes)
 
 
 class StoryAttributes(MethodView):
@@ -85,6 +90,7 @@ class StoryAttributes(MethodView):
     def patch(self, story_id):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
+                input_data.append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("bot")})
                 current_story.patch_attributes(input_data)
             else:
                 return {"error": "No data provided"}, 400
@@ -99,7 +105,13 @@ class UpdateStory(MethodView):
 
     @api_key_required
     def put(self, story_id):
-        return story.Story.update(story_id, request.json)
+        story_dict = request.json
+        if not story_dict:
+            return {"error": "No data provided"}, 400
+        if not story_dict.get("attributes"):
+            story_dict["attributes"] = []
+        story_dict["attributes"].append({"key": "overridden_by", "value": NewsItemAttribute.get_override_state("bot")})
+        return story.Story.update(story_id, story_dict)
 
 
 class BotsInfo(MethodView):
