@@ -13,6 +13,16 @@ class TestWorkerApi:
         """
 
         story_1_id = stories[0]
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_1_id},
+        )
+
+        story_1 = response.get_json()[0]
+        assert story_1.get("attributes", {}).get("TLP", {}).get("value", "no TLP attribute") == "clear", (
+            "TLP attribute should be clear on preseed"
+        )
 
         update_story_data = cleanup_story_update_data
         update_story_data["id"] = story_1_id
@@ -33,6 +43,10 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.get_json()[0].get("title") == update_story_data["title"]
         assert response.get_json()[0].get("id") == story_1_id
+        assert response.get_json()[0].get("attributes", {}).get("TLP", {}).get("value", "no TLP attribute") == "clear", (
+            "TLP attribute should be kept after update"
+        )
+        assert len(response.get_json()[0].get("attributes")) == 3
 
     def test_worker_story_update_with_new_news_item(self, client, stories, cleanup_story_update_data, cleanup_news_item, api_header):
         """
@@ -52,7 +66,7 @@ class TestWorkerApi:
         original_story = response.get_json()[0]
         original_news_items = original_story.get("news_items", [])
         assert len(original_news_items) == 1
-        assert len(original_story.get("attributes", [])[0]) == 4
+        assert len(original_story.get("attributes", {})) == 3, "Number of expected attributes is 3"
 
         update_data = cleanup_story_update_data.copy()
         update_data["id"] = story_1_id  # reuse the story id from the previous test
@@ -259,10 +273,12 @@ class TestConnector:
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
         story = response.get_json()[0]
-        story_attributes = story.get("attributes", [])
-        story_tags = story.get("tags", [])
+        story_attributes = story.get("attributes", {})
+        story_tags = story.get("tags", {})
 
         tag_list = MISPConnector._process_items(story, "tags", MISPConnector._process_tags)
         attribute_list = MISPConnector._process_items(story, "attributes", MISPConnector._process_attribute)
-        assert attribute_list == ["{'key': 'test', 'value': 'test'}"], f"Expected attributes {story_attributes}, but got {attribute_list}"
+        assert attribute_list == ["{'key': 'TLP', 'value': 'clear'}", "{'key': 'test', 'value': 'test'}"], (
+            f"Expected attributes {story_attributes}, but got {attribute_list}"
+        )
         assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {story_tags}, but got {tag_list}"

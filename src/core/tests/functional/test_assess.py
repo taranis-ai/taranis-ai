@@ -110,21 +110,23 @@ class TestAssessStories(BaseTest):
         assert response[1] == 200
         response = nia2.set_tags([{"name": "foo", "tag_type": "misc"}, {"name": "bar", "tag_type": "misc"}])
         assert response[1] == 200
-        response = nia2.set_tags({"incompatible": {"tag_type": "misc"}, "format": ["misc"]})
-        assert response[1] == 500
+        response = nia2.set_tags(
+            {"new": {"tag_type": "misc"}, "falling_back": ["this_is_malformed_format_it_is_turned_into_misc_format_key"]}
+        )
+        assert response[1] == 200, "test"
 
         response = client.get("/api/assess/tags", headers=auth_header)
         assert len(response.get_json()) == 0
         assert response.content_type == "application/json"
         assert response.status_code == 200
         response = client.get("/api/assess/tags?min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 3
+        assert len(response.get_json()) == 5
         response = client.get("/api/assess/tags?search=fo&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?offset=1&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 2
+        assert len(response.get_json()) == 4
 
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
