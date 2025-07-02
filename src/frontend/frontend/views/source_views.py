@@ -45,21 +45,45 @@ class SourceView(BaseView):
         return super().get_view_context(objects, error)
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
-        if str(object_id) != "0" and object_id:
-            if collector := dpl.get_object(OSINTSource, object_id):
-                if collector_type := collector.type:
-                    parameter_values = collector.parameters
-                    parameters = cls.get_worker_parameters(collector_type=collector_type.name.lower())
 
-        return {
-            "collector_types": cls.collector_types.values(),
-            "parameter_values": parameter_values,
-            "parameters": parameters,
-        }
+        osint_source_actions = [
+            {
+                "label": "Preview",
+                "class": "",
+                "icon": "eye",
+                "method": "post",
+                "url": url_for("admin.osint_source_preview", osint_source_id=""),
+                "hx_target_error": "#error-msg",
+                "hx_target": None,
+                "hx_swap": None,
+                "confirm": None,
+            },
+            {
+                "label": "Collect",
+                "class": "",
+                "icon": "arrows-pointing-in",
+                "method": "post",
+                "url": url_for("admin.collect_osint_source", osint_source_id=""),
+                "hx_target_error": "#error-msg",
+                "hx_target": "#notification-bar",
+                "hx_swap": "outerHTML",
+                "confirm": None,
+            },
+        ]
+
+        collector = base_context.get(cls.model_name())
+        if collector and (collector_type := collector.type):
+            parameter_values = collector.parameters
+            parameters = cls.get_worker_parameters(collector_type=collector_type.name.lower())
+
+        base_context["parameters"] = parameters
+        base_context["parameter_values"] = parameter_values
+        base_context["collector_types"] = cls.collector_types.values()
+        base_context["actions"] = osint_source_actions + cls.get_default_actions()
+        return base_context
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -137,7 +161,7 @@ class SourceView(BaseView):
         if not response:
             logger.error("Failed to start OSINT source collection")
             return render_template("partials/error.html", error="Failed to start OSINT source collection"), 500
-        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+        return render_template("notification/index.html", notification="OSINT source collection started successfully"), 200
 
     @classmethod
     def collect_all_osint_sources(cls):
@@ -145,7 +169,7 @@ class SourceView(BaseView):
         if not response:
             logger.error("Failed to load OSINT sources")
             return render_template("partials/error.html", error="Failed to load OSINT sources"), 500
-        return render_template("partials/notifications.html", notification="OSINT source collection started successfully"), 200
+        return render_template("notification/index.html", notification="OSINT source collection started successfully"), 200
 
     @classmethod
     def collect_osint_source_preview(cls, osint_source_id: str):

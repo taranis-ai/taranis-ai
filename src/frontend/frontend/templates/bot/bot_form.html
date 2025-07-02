@@ -4,7 +4,7 @@
 <div class="bg-base-100 p-4">
 
   <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}
 

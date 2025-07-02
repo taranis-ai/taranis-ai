@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from flask import render_template, request, Response
 from flask_jwt_extended import get_jwt_identity
 
@@ -17,13 +18,12 @@ class UserView(BaseView):
     _index = 20
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str):
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        return {
-            "organizations": dpl.get_objects(Organization),
-            "roles": dpl.get_objects(Role),
-            "current_user": get_jwt_identity(),
-        }
+        base_context["organizations"] = dpl.get_objects(Organization)
+        base_context["roles"] = dpl.get_objects(Role)
+        base_context["current_user"] = get_jwt_identity()
+        return base_context
 
     @classmethod
     def get_columns(cls):

@@ -5,11 +5,13 @@
   {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
 ]) %}
 
+{% set actions = actions | default([]) %}
+
 {% set data = model_plural_name | get_var %}
 
 {% set table_container = model_name + '-table-container' %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {{ table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) }}
-  {{ table(model_name + '-table', data, columns, actions=true, standalone=false, base_url=routes.base_route) }}
+  {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
 </div>

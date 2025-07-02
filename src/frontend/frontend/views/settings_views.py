@@ -18,9 +18,10 @@ class SettingsView(BaseView):
     _index = 190
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str):
+    def get_extra_context(cls, base_context: dict) -> dict:
         dpl = DataPersistenceLayer()
-        return {"settings": dpl.get_objects(Settings)}
+        base_context["settings"] = dpl.get_objects(Settings)
+        return base_context
 
     @classmethod
     def model_plural_name(cls) -> str:
