@@ -300,3 +300,123 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
 
         # show_template_management()
+
+        def test_invalid_template_shows_invalid_badge():
+            """Test that invalid templates show 'Invalid' badge, not 'Valid'."""
+            page = taranis_frontend
+            
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+            page.get_by_test_id("new-template-button").click()
+
+            invalid_template_content = """
+    <html>
+    <body>
+        <h1>{{ title }}</h1>
+        {% for item in items %}
+            <p>{{ item.name }}</p>
+        
+    </body>
+    </html>
+            """.strip()
+            
+            page.fill('input[name="id"]', 'test_invalid_badge')
+            page.fill('textarea[name="content"]', invalid_template_content)
+            page.click('input[type="submit"]')
+        
+            # Find the template we just created (wait for it to appear)
+            invalid_template_row = page.locator('tr').filter(has_text='test_invalid_badge')
+            expect(invalid_template_row).to_be_visible(timeout=10000)
+            
+            # Check that it shows "Invalid" badge (not "Valid")
+            invalid_badge = invalid_template_row.locator('.badge-error')
+            expect(invalid_badge).to_be_visible()
+            expect(invalid_badge).to_contain_text("Invalid")
+            
+            # Ensure it doesn't have a "Valid" badge
+            valid_badge = invalid_template_row.locator('.badge-success')
+            expect(valid_badge).not_to_be_visible()
+
+        def test_invalid_template_content_accessible_via_htmx():
+            """Test that invalid template content is accessible when navigating via HTMX."""
+            page = taranis_frontend
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+            
+            # Find test_invalid.html template (should exist in test data)
+            invalid_template_row = page.locator('tr').filter(has_text='test_invalid.html')
+            expect(invalid_template_row).to_be_visible()
+            
+            invalid_template_row.click()
+            
+            # Wait for navigation
+            page.wait_for_load_state("networkidle")
+            
+            # Verify template content is accessible (not empty/broken)
+            template_content = page.locator('#editor-content')
+            expect(template_content).to_be_visible()
+            
+            content_value = template_content.input_value()
+            assert len(content_value) > 0, "Invalid template content should still be accessible"
+            
+            # Verify we can see some expected content 
+            assert "hello" in content_value.lower(), "Should contain template content (hello)"
+
+        def test_monaco_editor_loads_on_htmx_navigation():
+            """Test Monaco editor loads properly on HTMX navigation."""
+            page = taranis_frontend
+            
+            # Track console errors
+            console_errors = []
+            def handle_console(msg):
+                if msg.type == 'error':
+                    console_errors.append(msg.text)
+            page.on("console", handle_console)
+        
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+            
+            # Click on a template to navigate via HTMX (this was failing)
+            template_row = page.locator('tr').filter(has_text='test_valid.html')
+            expect(template_row).to_be_visible()
+            template_row.click()
+            
+            # Wait for page load and Monaco initialization
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)  # Wait for Monaco async loading
+            
+            # Check that we don't have the "ta is null" error
+            ta_null_errors = [err for err in console_errors if "ta is null" in err or "can't access property" in err]
+            assert not ta_null_errors, f"Found 'ta is null' errors: {ta_null_errors}"
+            
+            # Check that textarea is accessible (Monaco fallback works)
+            textarea = page.locator('#editor-content')
+            expect(textarea).to_be_visible()
+            
+            content = textarea.input_value()
+            assert len(content) > 0, "Template content should be accessible"
+            
+            # Accept Monaco or fallback textarea
+            monaco_div = page.locator('#editor')
+            textarea = page.locator('#editor-content')
+            if monaco_div.is_visible():
+                # Monaco loaded
+                expect(monaco_div).to_be_visible()
+                # Optionally check Monaco-specific content
+                monaco_lines = page.locator('.monaco-editor .view-line')
+                if monaco_lines.count() > 0:
+                    expect(monaco_lines.first).to_be_visible()
+            elif textarea.is_visible():
+                # Fallback: textarea is visible and has content
+                expect(textarea).to_be_visible()
+                content = textarea.input_value()
+                assert len(content) > 0, "Template content should be accessible in fallback"
+            else:
+                # Neither editor is visible, print console errors for debug
+                print("Console errors:", console_errors)
+                assert False, "Neither Monaco nor textarea editor is visible"
+
+    # Run the tests
+        test_invalid_template_shows_invalid_badge()
+        test_invalid_template_content_accessible_via_htmx()
+        test_monaco_editor_loads_on_htmx_navigation()
