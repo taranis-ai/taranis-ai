@@ -47,8 +47,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Zip").fill("9999")
             page.get_by_label("Country").fill("Test Country")
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_text("Test Organization User Mgmt").first).to_be_visible()
+
+            with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
             page.goto(url_for("admin.users", _external=True))
@@ -283,8 +286,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_open_api(self, taranis_frontend: Page):
         def show_open_api():
-            page.goto(url_for("api_doc.swagger_blueprint_doc_handler", _external=True))
-            expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
+            page.goto(url_for("base.open_api", _external=True))
+            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
         page = taranis_frontend
         # show_open_api()

@@ -3,11 +3,13 @@
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
-  <form id="publisher_preset-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% if error %}
-    <p class="text-3xl font-bold mb-4 error-msg">{{ error }}</p>
-    {% endif %}
-
+  <form id="publisher_preset-form"
+        class="w-3/4 ml-[10%]"
+        {{ form_action }}
+        hx-swap="innerHTML"
+        hx-target="#form-container"
+        hx-target-error="#form-container">
+    {% include 'partials/admin_form_error.html' %}
     {{ form_input('Name', 'name', publisher_preset.name, form_error.name, width="w-3/4") }}
     {{ form_input('Description', 'description', publisher_preset.description, form_error.description, width="w-3/4") }}
     <label class="select w-3/4 mb-5">
@@ -21,14 +23,11 @@
               hx-include="#publisher_type"
               hx-target="#parameters"
               hx-swap="innerHTML"
-              {% if publisher_preset.type %}disabled{% endif %}
-              >
-      {% if not publisher_preset.type %}
-      <option value="" selected disabled>Select a publisher type</option>
-      {% endif %}
-      {% for option in publisher_types -%}
-      <option value="{{ option.id }}" {% if option.id == publisher_preset.type %}selected{% endif %}>{{ option.name }}</option>
-      {% endfor -%}
+              {% if publisher_preset.type %}disabled{% endif %}>
+        {% if not publisher_preset.type %}<option value="" selected disabled>Select a publisher type</option>{% endif %}
+        {% for option in publisher_types -%}
+          <option value="{{ option.id }}" {% if option.id == publisher_preset.type %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor -%}
       </select>
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>

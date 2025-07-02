@@ -38,11 +38,11 @@ export default {
 
     const updateTags = (val) => {
       updatedTags.value = val
-      
+
       // Convert Array back to Object format for parent component
       const tagsObject = {}
       if (Array.isArray(val)) {
-        val.forEach(tag => {
+        val.forEach((tag) => {
           if (typeof tag === 'string') {
             // Handle new tags entered as strings
             tagsObject[tag] = { name: tag, tag_type: 'UNKNOWN' }
@@ -52,7 +52,7 @@ export default {
           }
         })
       }
-      
+
       emit('update:modelValue', tagsObject)
     }
 

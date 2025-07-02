@@ -1,13 +1,19 @@
 {% from "macros/forms.html" import form_input, form_select, form_textarea, form_switch %}
+{% from "macros/cron.html" import form_cron %}
 
 {% set parameter_values = parameter_values | default({}) %}
 {% for field in parameters %}
-  {% set field_value = parameter_values.get(field.name, field.value)  %}
+  {% set field_value = parameter_values.get(field.name, field.value) %}
+  {% set pattern, invalid_msg = get_html5_pattern_from_rule(field.rules) %}
+  {% set required = pattern == 'required' %}
+  {% set pattern = "" if required else pattern %}
   {% if field.type == 'text' or field.type == 'number' %}
-    {{ form_input(field.label, 'parameters[' + field.name + ']', field_value, type=field.type, required=field.required) }}
+    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=required, pattern=pattern, invalid_msg=invalid_msg) }}
   {% elif field.type == 'textarea' %}
-    {{ form_textarea(field.label, 'parameters[' + field.name + ']', field_value, required=field.required) }}
+    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required) }}
   {% elif field.type == 'switch' %}
-    {{ form_switch(field.label, 'parameters[' + field.name + ']', field_value, required=field.required) }}
+    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required) }}
+  {% elif field.type == 'cron_interval' %}
+    {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, error=field.error, required=required) }}
   {% endif %}
 {% endfor %}

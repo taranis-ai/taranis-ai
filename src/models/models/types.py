@@ -33,6 +33,7 @@ class COLLECTOR_TYPES(StrEnum):
     RT_COLLECTOR = auto()
     MISP_COLLECTOR = auto()
     MANUAL_COLLECTOR = auto()
+    PPN_COLLECTOR = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -86,6 +87,14 @@ class PUBLISHER_TYPES(StrEnum):
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
+
 
 class WORKER_TYPES(StrEnum):
     RSS_COLLECTOR = auto()
@@ -115,6 +124,7 @@ class WORKER_TYPES(StrEnum):
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
     MISP_CONNECTOR = auto()
+    PPN_COLLECTOR = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -128,6 +138,14 @@ class WORKER_TYPES(StrEnum):
 class CONNECTOR_TYPES(StrEnum):
     MISP_CONNECTOR = auto()
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
+
 
 class WORKER_CATEGORY(StrEnum):
     COLLECTOR = auto()
@@ -135,6 +153,14 @@ class WORKER_CATEGORY(StrEnum):
     PRESENTER = auto()
     PUBLISHER = auto()
     CONNECTOR = auto()
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if value.upper() == member.name:
+                    return member
+        return super()._missing_(value)
 
 
 class WordListUsage(IntEnum):
@@ -151,9 +177,6 @@ class OSINTState(IntEnum):
 
 
 class AttributeType(StrEnum):
-    def __str__(self):
-        return str.__str__(self)
-
     STRING = auto()
     NUMBER = auto()
     BOOLEAN = auto()

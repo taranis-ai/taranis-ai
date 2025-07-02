@@ -6,10 +6,12 @@ from flask.views import MethodView
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.router_helpers import is_htmx_request, parse_formdata, convert_query_params
-from frontend.cache_models import PagingData
+from frontend.utils.router_helpers import is_htmx_request, convert_query_params
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.cache_models import PagingData, CacheObject
 from frontend.log import logger
 from frontend.auth import auth_required
+from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class BaseView(MethodView):
@@ -112,11 +114,27 @@ class BaseView(MethodView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
-            obj = cls.model(**parse_formdata(request.form))
+            form_data = parse_formdata(request.form)
+            return cls.store_form_data(form_data, object_id)
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
+        except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
+            return None, str(exc)
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        try:
+            obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
     @classmethod
@@ -184,7 +202,7 @@ class BaseView(MethodView):
     @classmethod
     def get_view_context(
         cls,
-        objects: list[TaranisBaseModel] | None = None,
+        objects: CacheObject | None = None,
         error: str | None = None,
     ) -> dict[str, Any]:
         context = cls._common_context(error)
@@ -196,8 +214,6 @@ class BaseView(MethodView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         resp_obj, error = cls.process_form_data(object_id)
-        if error:
-            logger.error(f"Error processing form data: {error}")
         if resp_obj and not error:
             return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
 
@@ -214,8 +230,8 @@ class BaseView(MethodView):
             items = DataPersistenceLayer().get_objects(cls.model, page)
             error = None if items else f"No {cls.model_name()} items found"
         except ValidationError as exc:
-            logger.exception(f"Error validating {cls.model_name()}")
-            items, error = None, exc.errors()[0]["msg"]
+            logger.exception(format_pydantic_errors(exc, cls.model))
+            items, error = None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
@@ -284,8 +300,11 @@ class BaseView(MethodView):
 
     @auth_required()
     def delete(self, **kwargs):
-        object_id = self._get_object_id(kwargs)
-        if object_id is None:
-            ids = request.form.getlist("ids")
+        if ids := request.form.getlist("ids"):
             return self.delete_multiple_view(object_ids=ids)
+        if ids := request.args.getlist("ids"):
+            return self.delete_multiple_view(object_ids=ids)
+        object_id = self._get_object_id(kwargs) or request.form.get("id")
+        if object_id is None:
+            abort(405)
         return self.delete_view(object_id=object_id)

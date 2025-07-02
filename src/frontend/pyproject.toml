@@ -9,6 +9,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: Flask",
     "Topic :: Security",
 ]
@@ -50,7 +51,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock", "pytest-playwright", "playwright"]
+dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock", "pytest-playwright", "playwright", "djlint"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -88,6 +89,12 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
+
+[tool.djlint]
+preserve_blank_lines=true
+max_line_length=142
+max_attribute_length=142
+indent=2
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }

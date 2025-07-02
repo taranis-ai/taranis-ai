@@ -45,7 +45,7 @@ services:
 
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
@@ -128,7 +128,7 @@ services:
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
       WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -142,7 +142,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
   workers:
     depends_on:
@@ -158,7 +157,7 @@ services:
       BOT_API_KEY: "${BOT_API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
       WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -259,7 +258,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq/
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-supersecret}"
     healthcheck:
       test: "rabbitmqctl await_startup"
       interval: 10s

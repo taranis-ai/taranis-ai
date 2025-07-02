@@ -1,0 +1,59 @@
+{% macro render_attribute_group(group, attribute_types) %}
+  {% from "macros/forms.html" import form_input_content, form_textarea %}
+  {% from "macros/report_macros.html" import render_attribute_item %}
+  {% set name_prefix = 'attribute_groups[' ~ group.index ~ ']' %}
+  <div class="card bg-base-100 shadow border rounded-box" id="attribute-group-{{ group.index }}">
+    <div class="collapse collapse-arrow">
+      <input type="checkbox" checked />
+      <div class="collapse-title">{{ group.title or 'New Group' }}</div>
+      <div class="collapse-content">
+        <div class="flex items-center justify-between py-2">
+          <div class="flex-initial w-18 mr-2">
+            {{ form_input_content(label='Group Index', name=name_prefix ~ '[index]', value=group.index, type="number", input_class="input-sm") }}
+          </div>
+          <div class="flex-1">
+            {{ form_input_content(label='Group Title', name=name_prefix ~ '[title]', value=group.title or '', input_class="input-sm") }}
+          </div>
+          <button type="button" name="delete_group" class="btn btn-sm btn-error ml-2" title="Delete Group" @click.stop="$el.closest('.card').remove()">
+            Delete Group
+          </button>
+        </div>
+
+        {{ form_textarea(label='Group Description', name=name_prefix ~ '[description]', value=group.description or '', required=False) }}
+        {% set highest_index = group.attribute_group_items | map(attribute='index') | list | max | default(-1) %}
+        <button type="button"
+                class="btn btn-primary"
+                hx-post="{{ url_for('admin.add_report_item_types_group_item') }}"
+                hx-vals='{"attribute_group_index": "{{ group.index }}", "attribute_index": "{{ highest_index + 1 }}"}'
+                hx-target="#attribute-items-container-{{ group.index }}"
+                hx-swap="beforeend">+ Add New Attribute</button>
+
+        <div id="attribute-items-container-{{ group.index }}" class="mt-4 space-y-2">
+          {% if group.attribute_group_items %}
+            {% for attribute in group.attribute_group_items %}{{ render_attribute_item(attribute, attribute_types, group.index) }}{% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro render_attribute_item(attribute, attribute_types, group_index) %}
+  {% from "macros/forms.html" import form_input_content, form_switch_content, form_select %}
+  {% set attribute_index = attribute.index %}
+  {% set name_prefix = 'attribute_groups[' ~ group_index ~ '][attribute_group_items][' ~ attribute_index ~ ']' %}
+  <div class="card bg-base-100">
+    <div class="join gap-1">
+      {{ form_input_content(label='Attribute Title', name=name_prefix ~ '[title]', value=attribute.title or '', input_class="input-sm") }}
+      {{ form_select(label='Attribute Type', name=name_prefix ~ '[attribute_id]', value=attribute.attribute_id or '', options=attribute_types, width="w-full select-sm") }}
+      {{ form_input_content(label='Attribute Index', name=name_prefix ~ '[index]', value=attribute_index, type="number", input_class="input-sm", width="w-xs") }}
+      {{ form_input_content(label='Attribute Description', name=name_prefix ~ '[description]', value=attribute.description or '', input_class="input-sm", required=false) }}
+      {{ form_switch_content(name=name_prefix ~ '[required]', value=attribute.required or false, yes_val="Required", no_val="Not Required", required=false, input_class="input-sm") }}
+      <button type="button"
+              name="delete_attribute"
+              class="btn btn-ghost btn-sm btn-error"
+              title="Delete Attribute"
+              @click.stop="$el.closest('.card').remove()">{{ heroicon_outline("trash") }}</button>
+    </div>
+  </div>
+{% endmacro %}
