@@ -157,7 +157,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
-            check_attributes_table(page.get_by_test_id("attributes-table"), [["test_key", "dangerous"]])
+            check_attributes_table(page.get_by_test_id("attributes-table"), [["test_key", "dangerous"], ["overridden_by", "unknown"]])
 
             self.highlight_element(page.locator("div[name='summary']").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
