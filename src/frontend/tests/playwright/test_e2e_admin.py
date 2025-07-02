@@ -420,3 +420,57 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         test_invalid_template_shows_invalid_badge()
         test_invalid_template_content_accessible_via_htmx()
         test_monaco_editor_loads_on_htmx_navigation()
+
+
+    def test_product_type_template_validation_badges(self, taranis_frontend: Page):
+        """Test that both 'Valid' and 'Invalid' template validation badges are shown in the product type form."""
+        page = taranis_frontend
+
+        # Go to Product Types admin section
+        page.get_by_test_id("admin-menu-Product Type").click()
+        expect(page.locator("div.text-3xl").first).to_contain_text("Product Type")
+
+        # Click to add a new product type
+        page.get_by_test_id("new-product_type-button").click()
+        expect(page.locator("h1")).to_contain_text("Create Product Type")
+
+        # Open the template select dropdown
+        page.locator('label:has-text("Template")').click()
+        page.get_by_role("button", name="Select a template").click()
+        dropdown = page.locator('div.mb-5:has(label:has-text("Template")) .dropdown-content.menu')
+
+        # Get all badges in the dropdown
+        badges = dropdown.locator('.badge')
+        badge_count = badges.count()
+        assert badge_count > 0, "No badges found in template select options"
+
+        found_valid = False
+        found_invalid = False
+        for i in range(badge_count):
+            badge = badges.nth(i)
+            if badge.is_visible():
+                text = badge.inner_text().lower()
+                if "valid" in text and "invalid" not in text:
+                    found_valid = True
+                if "invalid" in text:
+                    found_invalid = True
+        assert found_valid, "No visible 'Valid' badge found in template select options"
+        assert found_invalid, "No visible 'Invalid' badge found in template select options"
+    def product_type_workflow(self, taranis_frontend: Page):
+        """Test product type workflow."""
+        page = taranis_frontend
+
+        # Navigate to product types
+        page.get_by_test_id("admin-menu-Product Type").click()
+        # page.goto(url_for("admin.product_types", _external=True))
+        expect(page.locator("h2.title").first).to_contain_text("Product Types")
+
+        # Add a new product type
+        page.get_by_test_id("new-product-type-button").click()
+        page.get_by_label("Name").fill("Test Product Type")
+        page.get_by_label("Description").fill("This is a test product type.")
+        page.screenshot(path="./tests/playwright/screenshots/product_type_add.png")
+        page.get_by_role("button", name="Create Product Type").click()
+
+        # Verify the new product type appears in the list
+        expect(page.get_by_text("Test Product Type")).to_be_visible()
