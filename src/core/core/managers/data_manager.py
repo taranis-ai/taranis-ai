@@ -93,7 +93,13 @@ def get_templates_as_base64() -> list[dict[str, str]]:
 
 
 def get_for_api(template: str) -> dict:
-    return {"id": template, "content": get_template_as_base64(template)}
+    # Always return the latest content, even if invalid
+    return {
+        "id": template,
+        "content": get_template_as_base64(template),
+        "validation_status": get_template_validation_status(template),
+        "is_dirty": not get_template_validation_status(template).get("is_valid", True)
+    }
 
 
 def get_template_as_base64(presenter_template: str) -> str:
