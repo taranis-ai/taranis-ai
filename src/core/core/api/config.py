@@ -234,46 +234,26 @@ class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
         from core.managers.data_manager import get_template_validation_status, get_dirty_templates
-        
+
+        # Always use get_for_api for each template to ensure consistent status/content
         if request.args.get("list", default=False, type=bool):
-            templates = [{"path": t} for t in get_presenter_templates()]
-            # Add validation status for each template
-            validation_status = get_template_validation_status()
-            for template in templates:
-                template_name = template["path"]
-                template_status = validation_status.get(template_name, {"is_valid": True, "error_message": "", "error_type": ""})
-                template["validation_status"] = template_status
-                template["is_dirty"] = not template_status["is_valid"]
-            
-            # Add summary of dirty templates
+            templates = [get_for_api(t) for t in get_presenter_templates()]
             dirty_templates = get_dirty_templates()
             return jsonify({
-                "total_count": len(templates), 
+                "total_count": len(templates),
                 "items": templates,
                 "dirty_count": len(dirty_templates),
                 "dirty_templates": dirty_templates
             })
-            
+
         if template_path:
             template = get_for_api(template_path)
-            # Add validation status for single template
-            validation_status = get_template_validation_status(template_path)
-            template["validation_status"] = validation_status
-            template["is_dirty"] = not validation_status["is_valid"]
             return (template, 200) or ({"error": "Product type not found"}, 404)
-            
-        templates = get_templates_as_base64()
-        # Add validation status for all templates
-        validation_status = get_template_validation_status()
-        for template in templates:
-            template_name = template["id"]
-            template_status = validation_status.get(template_name, {"is_valid": True, "error_message": "", "error_type": ""})
-            template["validation_status"] = template_status
-            template["is_dirty"] = not template_status["is_valid"]
-        
+
+        templates = [get_for_api(t) for t in get_presenter_templates()]
         dirty_templates = get_dirty_templates()
         return jsonify({
-            "items": templates, 
+            "items": templates,
             "total_count": len(templates),
             "dirty_count": len(dirty_templates),
             "dirty_templates": dirty_templates

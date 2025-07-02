@@ -25,29 +25,104 @@
 </form>
 
 <script>
-  require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
+  // Monaco initialization - handles both direct load and HTMX
+  function initMonaco() {
+    // Wait for elements to be available with retries
+    let retries = 0;
+    const maxRetries = 10;
+    
+    function tryInit() {
+      const ta = document.getElementById('editor-content');
+      const wrap = document.getElementById('editor');
+      
+      if (!ta || !wrap) {
+        retries++;
+        if (retries < maxRetries) {
+          setTimeout(tryInit, 100);
+          return;
+        } else {
+          console.error('Monaco elements not found after max retries');
+          return;
+        }
+      }
 
-  require(['vs/editor/editor.main'], function() {
-    const ta     = document.getElementById('editor-content'),
-          wrap   = document.getElementById('editor'),
-          initial = ta?.value || '';
+      // Don't reinitialize if already done
+      if (wrap.classList.contains('monaco-initialized')) {
+        return;
+      }
 
-    ta.classList.add('hidden');
-    wrap.classList.remove('hidden');
+      // Check if RequireJS is available
+      if (typeof require === 'undefined') {
+        console.error('RequireJS not available');
+        return;
+      }
 
-    const editor = monaco.editor.create(wrap, {
-      value: initial,
-      language: 'jinja',
-      automaticLayout: true,
-      theme: 'vs-dark',
+      require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
+
+      require(['vs/editor/editor.main'], function() {
+        // Double-check elements are still there
+        const ta = document.getElementById('editor-content');
+        const wrap = document.getElementById('editor');
+        
+        if (!ta || !wrap) {
+          console.error('Monaco elements disappeared during initialization');
+          return;
+        }
+        
+        const initial = ta?.value || '';
+
+        ta.classList.add('hidden');
+        wrap.classList.remove('hidden');
+        wrap.classList.add('monaco-initialized');
+
+        const editor = monaco.editor.create(wrap, {
+          value: initial,
+          language: 'jinja',
+          automaticLayout: true,
+          theme: 'vs-dark',
+        });
+
+        editor.onDidChangeModelContent(() => {
+          ta.value = editor.getValue();
+        });
+      }, function(err) {
+        console.error('Monaco failed to load, using textarea fallback:', err);
+        // Keep textarea visible if Monaco fails
+        const ta = document.getElementById('editor-content');
+        const wrap = document.getElementById('editor');
+        if (ta && wrap) {
+          ta.classList.remove('hidden');
+          wrap.classList.add('hidden');
+        }
+      });
+    }
+    
+    tryInit();
+  }
+
+  // For direct page loads: wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(initMonaco, 100);
     });
+  } else {
+    // DOM already ready, init with delay
+    setTimeout(initMonaco, 100);
+  }
 
-    editor.onDidChangeModelContent(() => {
-      ta.value = editor.getValue();
-    });
+  // For HTMX navigation: use afterSwap instead of afterSettle
+  document.addEventListener('htmx:afterSwap', function(event) {
+    if (event.target.querySelector('#editor-content')) {
+      // Use longer delay and ensure DOM is ready
+      setTimeout(function() {
+        // Wait for next tick to ensure DOM is fully updated
+        requestAnimationFrame(function() {
+          initMonaco();
+        });
+      }, 100);
+    }
   });
 </script>
-
 
 <form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
@@ -90,7 +165,7 @@
 
   <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
 
-  <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
+  <div class="bg-base-100 editor w-3/4 min-h-[60vh] hidden" id="editor"></div>
 
   <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
 </form>
