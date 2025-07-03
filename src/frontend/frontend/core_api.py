@@ -111,18 +111,25 @@ class CoreApi:
             logger.error(f"Load default OSINT sources failed: {e}")
             return None
 
-    def collect_osint_source_preview(self, osint_source_id):
+    def collect_osint_source_preview(self, osint_source_id: str):
         try:
             return self.api_post(f"/config/osint-sources/{osint_source_id}/preview")
         except Exception as e:
             logger.error(f"Collect OSINT source preview failed: {e}")
             return None
 
-    def collect_osint_source(self, osint_source_id):
+    def collect_osint_source(self, osint_source_id: str):
         try:
             return self.api_post(f"/config/osint-sources/{osint_source_id}/collect")
         except Exception as e:
             logger.error(f"Collect OSINT source failed: {e}")
+            return None
+
+    def execute_bot(self, bot_id: str):
+        try:
+            return self.api_post(f"/config/bots/{bot_id}/execute")
+        except Exception as e:
+            logger.error(f"Execute bot failed: {e}")
             return None
 
     def collect_all_osint_sources(self):

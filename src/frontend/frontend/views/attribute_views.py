@@ -19,8 +19,9 @@ class AttributeView(BaseView):
     }
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
-        return {"attribute_types": cls.attribute_types.values()}
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+        base_context["attribute_types"] = cls.attribute_types.values()
+        return base_context
 
     @classmethod
     def process_form_data(cls, object_id: int | str):

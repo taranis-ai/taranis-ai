@@ -20,9 +20,13 @@ class ACLView(BaseView):
     }
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        return {"roles": [p.model_dump() for p in dpl.get_objects(Role)], "item_types": cls.item_types.values()}
+        base_context |= {
+            "roles": [p.model_dump() for p in dpl.get_objects(Role)],
+            "item_types": cls.item_types.values(),
+        }
+        return base_context
 
     @classmethod
     def get_acl_item_ids_view(cls, item_type: str = ""):

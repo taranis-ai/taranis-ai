@@ -1,3 +1,5 @@
+from typing import Any
+
 from models.admin import Role, Permission
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
@@ -10,9 +12,10 @@ class RoleView(BaseView):
     _index = 40
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str):
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        return {"permissions": [p.model_dump() for p in dpl.get_objects(Permission)]}
+        base_context["permissions"] = [p.model_dump() for p in dpl.get_objects(Permission)]
+        return base_context
 
     @classmethod
     def get_columns(cls):

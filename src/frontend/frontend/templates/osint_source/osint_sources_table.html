@@ -10,40 +10,7 @@
 
 {% set table_container = model_name + '-table-container' %}
 
-{% set actions = [
-  {
-    'label': 'Preview',
-    'class': '',
-    'icon': 'eye',
-    'method': 'post',
-    'url': url_for('admin.osint_source_preview', osint_source_id=''),
-    'hx_target_error': '#error-msg',
-    'hx_target': None,
-    'hx_swap': None,
-    'confirm': None
-  },
-  {
-    'label': 'Collect',
-    'class': '',
-    'icon': 'arrows-pointing-in',
-    'method': 'post',
-    'url': url_for('admin.collect_osint_source', osint_source_id=''),
-    'hx_target_error': '#error-msg',
-    'hx_target': '#notification-bar',
-    'hx_swap': 'innerHTML',
-    'confirm': None
-  },
-  {
-    'label': 'Delete',
-    'class': 'btn-error',
-    'icon': 'trash',
-    'method': 'delete',
-    'url': routes.base_route,
-    'hx_target': None,
-    'hx_swap': None,
-    'confirm': 'Are you sure you want to delete this Source?'
-  },
-] %}
+{% set actions = actions | default([]) %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.base_route) %}
