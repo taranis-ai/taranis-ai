@@ -41,7 +41,6 @@ class BotView(BaseView):
                 "hx_target_error": "#error-msg",
                 "hx_target": "#notification-bar",
                 "hx_swap": "outerHTML",
-                "confirm": None,
             },
         ]
 

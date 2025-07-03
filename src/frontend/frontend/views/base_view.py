@@ -223,6 +223,7 @@ class BaseView(MethodView):
         context = cls._common_context(error)
         if objects:
             context[f"{cls.model_plural_name()}"] = objects
+        context["actions"] = cls.get_default_actions()
         return cls.get_extra_context(context)
 
     @classmethod

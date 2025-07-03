@@ -72,7 +72,9 @@ class LoginView(MethodView):
             return render_template("login/index.html", login_error=core_json.get("error")), core_response.status_code
 
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
+
         set_access_cookies(response, jwt_token)
+        response.set_cookie("access_token", jwt_token, httponly=False)
 
         return response
 
