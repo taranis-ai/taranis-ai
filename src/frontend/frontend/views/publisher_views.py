@@ -33,7 +33,7 @@ class PublisherView(BaseView):
         parameters = {}
         parameter_values = {}
         publisher = base_context.get(cls.model_name())
-        if publisher and (publisher_type := publisher.type):
+        if publisher and (hasattr(publisher, "type") and (publisher_type := publisher.type)):
             parameter_values = publisher.parameters
             parameters = cls.get_worker_parameters(publisher_type=publisher_type.name.lower())
 

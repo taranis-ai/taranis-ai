@@ -45,7 +45,7 @@ class BotView(BaseView):
         ]
 
         bot = base_context.get(cls.model_name())
-        if bot and (bot_type := bot.type):
+        if bot and (hasattr(bot, "type") and (bot_type := bot.type)):
             parameter_values = bot.parameters
             parameters = cls.get_worker_parameters(bot_type=bot_type.name.lower())
 

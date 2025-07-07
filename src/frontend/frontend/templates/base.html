@@ -22,7 +22,7 @@
     <!-- Sidebar -->
     <aside id="admin_menu"
            x-bind:class="sidebarOpen ? 'w-64' : 'w-0'"
-           class="fixed top-16 left-0 bg-base-200 overflow-hidden transition-all duration-300 z-20 h-screen">
+            class="fixed top-16 left-0 bg-base-200 transition-all duration-300 z-20 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden min-w-0">
       {% include "partials/admin_menu.html" %}
     </aside>
 
