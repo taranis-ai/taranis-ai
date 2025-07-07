@@ -119,9 +119,8 @@ class NewsItemTag(BaseModel):
                 name = tag_key
                 tag_type = tag_data
             else:
-                name = tag_key
-                tag_type = "misc"
-
+                raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
+                
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags
