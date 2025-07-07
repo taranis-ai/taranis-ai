@@ -40,8 +40,8 @@ def auth_required(permissions: list | str | None = None):
 
             try:
                 verify_jwt_in_request()
-            except Exception as ex:
-                logger.exception(str(ex))
+            except Exception:
+                logger.debug("JWT verification failed")
                 return redirect(url_for("base.login"), code=302)
 
             identity = get_jwt_identity()

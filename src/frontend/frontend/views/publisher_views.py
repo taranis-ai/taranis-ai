@@ -29,21 +29,20 @@ class PublisherView(BaseView):
         return match.parameters if match else []
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
-        if str(object_id) != "0" and object_id:
-            if publisher := dpl.get_object(PublisherPreset, object_id):
-                if publisher_type := publisher.type:
-                    parameter_values = publisher.parameters
-                    parameters = cls.get_worker_parameters(publisher_type=publisher_type.name.lower())
+        publisher = base_context.get(cls.model_name())
+        if publisher and (hasattr(publisher, "type") and (publisher_type := publisher.type)):
+            parameter_values = publisher.parameters
+            parameters = cls.get_worker_parameters(publisher_type=publisher_type.name.lower())
 
-        return {
+        base_context |= {
             "publisher_types": cls.publisher_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
         }
+        return base_context
 
     @classmethod
     def get_publisher_parameters_view(cls, publisher_id: str, publisher_type: str):
@@ -67,13 +66,14 @@ class ProductTypeView(BaseView):
     }
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        return {
+        base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
             "template_files": [{"id": t.id, "name": t.id} for t in dpl.get_objects(Template)],
         }
+        return base_context
 
     @classmethod
     def process_form_data(cls, object_id: int | str):

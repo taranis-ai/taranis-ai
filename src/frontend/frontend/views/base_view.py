@@ -146,8 +146,8 @@ class BaseView(MethodView):
         return cls.get_htmx_update_template() if is_htmx_request() else cls.get_edit_template()
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str) -> dict[str, Any]:
-        return {}
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+        return base_context
 
     @classmethod
     def get_template_urls(cls) -> dict[str, str]:
@@ -196,8 +196,23 @@ class BaseView(MethodView):
         else:
             context[cls.model_name()] = cls.model.model_construct() if str(object_id) == "0" else dpl.get_object(cls.model, object_id)
 
-        context |= cls.get_extra_context(object_id)
-        return context
+        return cls.get_extra_context(context)
+
+    @classmethod
+    def get_default_actions(cls) -> list[dict[str, Any]]:
+        return [
+            {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": cls.get_base_route(), "is_link": True},
+            {
+                "label": "Delete",
+                "icon": "trash",
+                "class": "btn-error",
+                "method": "delete",
+                "url": cls.get_base_route(),
+                "hx_target": None,
+                "hx_swap": None,
+                "confirm": "Are you sure you want to delete this item?",
+            },
+        ]
 
     @classmethod
     def get_view_context(
@@ -208,8 +223,8 @@ class BaseView(MethodView):
         context = cls._common_context(error)
         if objects:
             context[f"{cls.model_plural_name()}"] = objects
-        context |= cls.get_extra_context(0)
-        return context
+        context["actions"] = cls.get_default_actions()
+        return cls.get_extra_context(context)
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):

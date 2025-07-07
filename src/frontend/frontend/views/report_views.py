@@ -23,14 +23,15 @@ class ReportItemTypeView(BaseView):
         ]
 
     @classmethod
-    def get_extra_context(cls, object_id: int | str):
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        return {"attribute_types": dpl.get_objects(Attribute)}
+        base_context["attribute_types"] = dpl.get_objects(Attribute)
+        return base_context
 
     @classmethod
     def get_report_item_type_groups_view(cls, group_index: int = 0):
         return render_template(
-            "report_item_type/attribute_group.html", group=ReportItemAttributeGroup(index=group_index), **cls.get_extra_context(0)
+            "report_item_type/attribute_group.html", group=ReportItemAttributeGroup(index=group_index), **cls.get_extra_context({})
         )
 
     @classmethod
@@ -39,7 +40,7 @@ class ReportItemTypeView(BaseView):
             "report_item_type/attribute_item.html",
             attribute=ReportItemAttribute(index=attribute_index),
             group_index=group_index,
-            **cls.get_extra_context(0),
+            **cls.get_extra_context({}),
         )
 
     @classmethod
