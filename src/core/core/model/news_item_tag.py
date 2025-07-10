@@ -127,13 +127,15 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:
-        new_tags = {}
+        converted_tags = {}
         for tag in tags:
             if isinstance(tag, dict):
                 tag_name = tag.get("name")
                 tag_type = tag.get("tag_type", "misc")
-            else:
+            elif isinstance(tag, str):
                 tag_name = tag
                 tag_type = "misc"
-            new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type)
-        return new_tags
+            else:
+                raise ValueError(f"Invalid tag format in list: {type(tag).__name__} - must be str or dict")
+            converted_tags[tag_name] = {"name": tag_name, "tag_type": tag_type}
+        return cls._parse_dict_tags(converted_tags)
