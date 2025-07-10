@@ -88,16 +88,11 @@
     <div tabindex="0" role="button" class="btn btn-outline w-full justify-between">
       <span id="{{ name }}_display">
         {% if value %}
-          {% for option in options if option.id == value %}
-            {{ option.name }}
-            {% if option.validation_status == 'valid' %}
-              <span class="badge badge-success badge-sm ml-2">Valid</span>
-            {% elif option.validation_status == 'invalid' %}
-              <span class="badge badge-error badge-sm ml-2">Invalid</span>
-            {% else %}
-              <span class="badge badge-neutral badge-sm ml-2">Unknown</span>
-            {% endif %}
-          {% endfor %}
+          {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
+          {{ selected_option.name }}
+          <span class="badge {{ selected_option.validation_status|badge_class }} badge-sm ml-2">
+            {{ selected_option.validation_status|badge_label }}
+          </span>
         {% else %}
           Select a template
         {% endif %}
@@ -111,13 +106,9 @@
         <a class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
            onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ option.validation_status }}')">
           <span class="flex-1">{{ option.name }}</span>
-          {% if option.validation_status == 'valid' %}
-            <span class="badge badge-success badge-sm">Valid</span>
-          {% elif option.validation_status == 'invalid' %}
-            <span class="badge badge-error badge-sm">Invalid</span>
-          {% else %}
-            <span class="badge badge-neutral badge-sm">Unknown</span>
-          {% endif %}
+          <span class="badge {{ option.validation_status|badge_class }} badge-sm">
+            {{ option.validation_status|badge_label }}
+          </span>
         </a>
       {% endfor %}
     </div>

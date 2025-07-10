@@ -2,7 +2,6 @@ from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
-
 from markupsafe import Markup
 from models.admin import Role, User, OSINTSource
 
@@ -20,8 +19,25 @@ __all__ = [
     "render_source_parameter",
     "render_item_type",
     "render_validation_status",
+    "badge_class",
+    "badge_label",
 ]
+def badge_class(status):
+    """Return the CSS class for a badge based on validation status."""
+    if status == "valid":
+        return "badge-success"
+    elif status == "invalid":
+        return "badge-error"
+    return "badge-neutral"
 
+
+def badge_label(status):
+    """Return the label for a badge based on validation status."""
+    if status == "valid":
+        return "Valid"
+    elif status == "invalid":
+        return "Invalid"
+    return "Unknown"
 
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
@@ -123,8 +139,7 @@ def render_validation_status(item) -> str:
         tooltip_attr = f'title="{error_type}: {error_message}"' if error_message else f'title="{error_type}"'
         return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
     
-    if hasattr(item, "is_dirty") and item.is_dirty:
-        return Markup('<span class="badge badge-error text-xs">Invalid</span>')
+
     
     return Markup('<span class="badge badge-success text-xs">Valid</span>')
 

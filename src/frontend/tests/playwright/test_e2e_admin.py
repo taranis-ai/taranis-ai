@@ -304,7 +304,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def test_invalid_template_shows_invalid_badge():
             """Test that invalid templates show 'Invalid' badge, not 'Valid'."""
             page = taranis_frontend
-            
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
             page.get_by_test_id("new-template-button").click()
@@ -323,16 +322,31 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.fill('input[name="id"]', 'test_invalid_badge')
             page.fill('textarea[name="content"]', invalid_template_content)
             page.click('input[type="submit"]')
-        
+
+            # Wait for navigation or table update
+            page.wait_for_load_state("networkidle")
+            # Optionally, navigate to the template list page to ensure table is visible
+            page.goto(url_for("admin.template_data", _external=True))
+            page.wait_for_load_state("networkidle")
+
+            # Debug: print table content and take screenshot
+            print("[DEBUG] Template table content after add:")
+            print(page.content())
+            page.screenshot(path="./tests/playwright/screenshots/after_add_invalid_template.png")
+
             # Find the template we just created (wait for it to appear)
             invalid_template_row = page.locator('tr').filter(has_text='test_invalid_badge')
-            expect(invalid_template_row).to_be_visible(timeout=10000)
-            
+            try:
+                expect(invalid_template_row).to_be_visible(timeout=10000)
+            except Exception:
+                print("[DEBUG] Could not find row for 'test_invalid_badge'. Table content printed above.")
+                raise
+
             # Check that it shows "Invalid" badge (not "Valid")
             invalid_badge = invalid_template_row.locator('.badge-error')
             expect(invalid_badge).to_be_visible()
             expect(invalid_badge).to_contain_text("Invalid")
-            
+
             # Ensure it doesn't have a "Valid" badge
             valid_badge = invalid_template_row.locator('.badge-success')
             expect(valid_badge).not_to_be_visible()
