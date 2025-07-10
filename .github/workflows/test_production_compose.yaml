@@ -34,6 +34,7 @@ jobs:
           cp env.sample .env
 
           docker compose up --wait-timeout=60 --wait core database frontend gui sse rabbitmq collector workers
+          echo "Check docker ps -a:"
           docker ps -a
           docker compose down
 
@@ -42,7 +43,7 @@ jobs:
           grep '^ghcr.io/taranis-ai/taranis-.*:latest$' | \
           xargs docker rmi -f
 
-          echo "Debug print: docker image ls"
+          echo "docker image ls"
           docker image ls
 
       - name: Checkout PR commit
@@ -60,9 +61,11 @@ jobs:
         working-directory: docker/compose-variations
         run: |
           cp ../env.sample .env
+          echo "docker volume ls"
           docker volume ls
           docker compose pull rabbitmq sse database
           docker compose -f compose.e2e.yml up --pull=never --wait-timeout=60 --wait
+          echo "Check docker ps -a:"
           docker ps -a
           echo "Check migration logs:"
           docker compose logs core
