@@ -1,20 +1,20 @@
 services:
   summary_bot:
-    image: alpine
+    image: ${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}
     command: ["true"]
 
   nlp_bot:
-    image: alpine
+    image: ${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}
     command: ["true"]
 
   story_bot:
-    image: alpine
+    image: ${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}
     command: ["true"]
 
   sentiment_analysis_bot:
-    image: alpine
+    image: ${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}
     command: ["true"]
 
   scheduler:
-    image: alpine
+    image: ${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}
     command: ["true"]
