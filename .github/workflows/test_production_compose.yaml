@@ -32,6 +32,8 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
+          ls
+
           docker compose -f compose.yml -f compose-variations/compose.e2e.yml up --wait-timeout=60 --wait
           docker ps -a
           docker compose down
