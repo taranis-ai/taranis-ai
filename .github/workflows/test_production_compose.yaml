@@ -1,4 +1,4 @@
-name: Release
+name: Smoke test production compose
 on:
   workflow_dispatch:
   pull_request_review:
@@ -57,13 +57,12 @@ jobs:
           ./docker/build_container.sh
 
       - name: Run docker compose for last commit
-        working-directory: docker
+        working-directory: docker/compose-variations
         run: |
           cp env.sample .env
           docker volume ls
-          docker pull alpine
           docker compose pull rabbitmq sse database
-          docker compose -f compose.yml -f compose-variations/compose.e2e.yml up --pull=never --wait-timeout=60 --wait
+          docker compose -f compose.e2e.yml up --pull=never --wait-timeout=60 --wait
           docker ps -a
           echo "Check migration logs:"
           docker compose logs core
