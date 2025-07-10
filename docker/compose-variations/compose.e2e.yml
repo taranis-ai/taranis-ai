@@ -1,0 +1,20 @@
+services:
+  summary_bot:
+    image: alpine
+    command: ["true"]
+
+  nlp_bot:
+    image: alpine
+    command: ["true"]
+
+  story_bot:
+    image: alpine
+    command: ["true"]
+
+  sentiment_analysis_bot:
+    image: alpine
+    command: ["true"]
+
+  scheduler:
+    image: alpine
+    command: ["true"]
