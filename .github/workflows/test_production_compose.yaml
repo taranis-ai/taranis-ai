@@ -22,34 +22,28 @@ jobs:
           latest_tag=$(git tag --sort=-creatordate | head -n 1)
           echo "tag=$latest_tag" >> $GITHUB_OUTPUT
 
-      # - name: Checkout latest tag
-      #   uses: actions/checkout@v4
-      #   with:
-      #     fetch-tags: true
-      #     ref: ${{ steps.get_latest_tag.outputs.tag }}
+      - name: Checkout latest tag
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          ref: ${{ steps.get_latest_tag.outputs.tag }}
 
-      # - name: Run docker compose for tagged version
-      #   working-directory: docker
-      #   run: |
-      #     cp env.sample .env
-      #     echo "ls"
-      #     ls
-      #     echo "ls compose-variations"
-      #     ls compose-variations
-      #     echo "ls compose-variations/compose.e2e.yml"
-      #     compose-variations/compose.e2e.yml
+      - name: Run docker compose for tagged version
+        working-directory: docker
+        run: |
+          cp env.sample .env
 
-      #     docker compose -f compose.yml -f compose-variations/compose.e2e.yml up --wait-timeout=60 --wait
-      #     docker ps -a
-      #     docker compose down
+          docker compose up --wait-timeout=60 --wait core database frontend gui sse rabbitmq collector workers
+          docker ps -a
+          docker compose down
 
 
-      #     docker images --format '{{.Repository}}:{{.Tag}}' | \
-      #     grep '^ghcr.io/taranis-ai/taranis-.*:latest$' | \
-      #     xargs docker rmi -f
+          docker images --format '{{.Repository}}:{{.Tag}}' | \
+          grep '^ghcr.io/taranis-ai/taranis-.*:latest$' | \
+          xargs docker rmi -f
 
-      #     echo "Debug print: docker image ls"
-      #     docker image ls
+          echo "Debug print: docker image ls"
+          docker image ls
 
       - name: Checkout PR commit
         uses: actions/checkout@v4
