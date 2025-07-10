@@ -32,7 +32,7 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
-          docker compose -f docker-compose.yml -f compose_variations/compose.e2e.yml up --wait-timeout=60 --wait
+          docker compose -f compose.yml -f compose_variations/compose.e2e.yml up --wait-timeout=60 --wait
           docker ps -a
           docker compose down
 
@@ -61,7 +61,7 @@ jobs:
           cp env.sample .env
           docker volume ls
           docker compose pull rabbitmq sse database
-          docker compose -f docker-compose.yml -f compose_variations/compose.e2e.yml up --pull=never --wait-timeout=60 --wait
+          docker compose -f compose.yml -f compose_variations/compose.e2e.yml up --pull=never --wait-timeout=60 --wait
           docker ps -a
           echo "Check migration logs:"
           docker compose logs core
