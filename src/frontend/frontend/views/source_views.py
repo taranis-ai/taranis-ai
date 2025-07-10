@@ -6,7 +6,7 @@ from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, Tas
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
-from frontend.filters import render_icon, render_source_parameter, render_state
+from frontend.filters import render_icon, render_source_parameter, render_state, render_truncated
 from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.core_api import CoreApi
@@ -90,7 +90,13 @@ class SourceView(BaseView):
         return [
             {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
             {"title": "State", "field": "state", "sortable": False, "renderer": render_state},
-            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {
+                "title": "Name",
+                "field": "name",
+                "sortable": True,
+                "renderer": render_truncated,
+                "render_args": {"field": "name"},
+            },
             {"title": "Feed", "field": "parameters", "sortable": True, "renderer": render_source_parameter},
         ]
 

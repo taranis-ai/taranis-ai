@@ -10,6 +10,8 @@
     <script src="{{ url_for('static', filename='vendor/js/htmx.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
     <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
+    <script src="{{ url_for('static', filename='vendor/js/sweetalert2.all.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/sweetalert2.min.css') }}">
     <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/js/alpinejs.min.js') }}"></script>
     {% block head %}{% endblock head %}

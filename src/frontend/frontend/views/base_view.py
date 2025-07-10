@@ -303,7 +303,7 @@ class BaseView(MethodView):
         return self.edit_view(object_id=object_id)
 
     @auth_required()
-    def post(self):
+    def post(self, *args, **kwargs):
         return self.update_view(object_id=0)
 
     @auth_required()

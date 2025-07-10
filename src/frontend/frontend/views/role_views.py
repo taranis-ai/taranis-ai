@@ -3,7 +3,7 @@ from typing import Any
 from models.admin import Role, Permission
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
-from frontend.filters import permissions_count
+from frontend.filters import render_count
 
 
 class RoleView(BaseView):
@@ -25,6 +25,7 @@ class RoleView(BaseView):
                 "title": "Permissions",
                 "field": "permissions",
                 "sortable": False,
-                "renderer": permissions_count,
+                "renderer": render_count,
+                "render_args": {"field": "permissions"},
             }
         ]

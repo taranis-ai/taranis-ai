@@ -17,7 +17,7 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
 
     with pytest.raises(NoChangeError) as exception:
         response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
-    assert str(exception.value) == "Not modified"
+    assert str(exception.value) == "https://test.org/304 was not modified"
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
@@ -43,7 +43,10 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
 
     with pytest.raises(RuntimeError) as exception:
         result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert str(exception.value) == f"RSS Collector for {rss_collector_url_not_modified} failed with error: Not modified"
+    assert (
+        str(exception.value)
+        == f"RSS Collector for {rss_collector_url_not_modified} failed with error: {rss_collector_url_not_modified} was not modified"
+    )
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
     assert result is None

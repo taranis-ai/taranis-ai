@@ -7,6 +7,7 @@ from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.auth import auth_required
 
 
 class TemplateView(BaseView):
@@ -57,13 +58,19 @@ class TemplateView(BaseView):
     @classmethod
     def process_form_data(cls, object_id: str | int):
         try:
-            if isinstance(object_id, int):
-                object_id = f"{object_id}"
-            obj = Template(id=object_id, **parse_formdata(request.form))
+            form_data = parse_formdata(request.form)
+            logger.debug(f"Processing form data for {cls.model_name()}: {form_data}")
+            obj = Template(**form_data)
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
         except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @auth_required()
+    def post(self):
+        logger.debug(request.form)
+        return self.update_view(object_id=0)

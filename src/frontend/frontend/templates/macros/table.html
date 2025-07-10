@@ -29,10 +29,10 @@
               </td>
             {% endif %}
             {% for col in columns %}
-              <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch] truncate">
+              <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">
                 {% if col.renderer %}
                   {% if 'render_args' in col %}
-                    {{ col.renderer(item, col.render_args) }}
+                    {{ col.renderer(item, **col.render_args) }}
                   {% else %}
                     {{ col.renderer(item) }}
                   {% endif %}
