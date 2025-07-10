@@ -1,19 +1,20 @@
 import io
+import base64
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from sqlalchemy.exc import IntegrityError
-from psycopg.errors import UniqueViolation
+from sqlalchemy.exc import IntegrityError  # noqa: F401
+from psycopg.errors import UniqueViolation  # noqa: F401
 
 from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    get_for_api,
-    write_base64_to_file,
-    get_presenter_templates,
+    validate_template_content,
+    get_template_content,
+    list_templates,
+    save_template_content,
     delete_template,
-    get_templates_as_base64,
 )
 from core.model import (
     attribute,
@@ -233,77 +234,177 @@ class Roles(MethodView):
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
-        from core.managers.data_manager import get_template_validation_status, get_dirty_templates
-
-        # Always use get_for_api for each template to ensure consistent status/content
-        if request.args.get("list", default=False, type=bool):
-            templates = [get_for_api(t) for t in get_presenter_templates()]
-            dirty_templates = get_dirty_templates()
-            return jsonify({
-                "total_count": len(templates),
-                "items": templates,
-                "dirty_count": len(dirty_templates),
-                "dirty_templates": dirty_templates
-            })
-
         if template_path:
-            template = get_for_api(template_path)
-            return (template, 200) or ({"error": "Product type not found"}, 404)
+            content = get_template_content(template_path)
+            if content is None:
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file not found.",
+                    "error_type": "NotFound"
+                }
+                encoded_content = None
+            elif content == "__INVALID_UTF8__":
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file is not valid UTF-8.",
+                    "error_type": "UnicodeDecodeError"
+                }
+                encoded_content = None
+            elif content == "__EMPTY__":
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file is empty.",
+                    "error_type": "EmptyFile"
+                }
+                encoded_content = ""
+            else:
+                if isinstance(content, bytes):
+                    try:
+                        content = content.decode("utf-8")
+                    except Exception:
+                        validation_status = {
+                            "is_valid": False,
+                            "error_message": "Template file is not valid UTF-8.",
+                            "error_type": "UnicodeDecodeError"
+                        }
+                        encoded_content = None
+                        return {
+                            "id": template_path,
+                            "content": encoded_content,
+                            "validation_status": validation_status
+                        }, 200
+                validation_status = validate_template_content(content)
+                encoded_content = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+            
+            return jsonify({
+                "id": template_path,
+                "content": encoded_content,
+                "validation_status": validation_status
+            }), 200
 
-        templates = [get_for_api(t) for t in get_presenter_templates()]
-        dirty_templates = get_dirty_templates()
+        # List all templates
+        template_ids = list_templates()
+        items = []
+        for tid in template_ids:
+            content = get_template_content(tid)
+            if content is None:
+                # Still list the template, but mark as not found
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file not found.",
+                    "error_type": "NotFound"
+                }
+                encoded_content = None
+            elif content == "__INVALID_UTF8__":
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file is not valid UTF-8.",
+                    "error_type": "UnicodeDecodeError"
+                }
+                encoded_content = None
+            elif content == "__EMPTY__":
+                validation_status = {
+                    "is_valid": False,
+                    "error_message": "Template file is empty.",
+                    "error_type": "EmptyFile"
+                }
+                encoded_content = ""
+            else:
+                # Ensure content is str
+                if isinstance(content, bytes):
+                    try:
+                        content = content.decode("utf-8")
+                    except Exception:
+                        validation_status = {
+                            "is_valid": False,
+                            "error_message": "Template file is not valid UTF-8.",
+                            "error_type": "UnicodeDecodeError"
+                        }
+                        encoded_content = None
+                        items.append({
+                            "id": tid,
+                            "content": encoded_content,
+                            "validation_status": validation_status
+                        })
+                        continue
+                validation_status = validate_template_content(content)
+                encoded_content = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+            items.append({
+                "id": tid,
+                "content": encoded_content,
+                "validation_status": validation_status
+            })
         return jsonify({
-            "items": templates,
-            "total_count": len(templates),
-            "dirty_count": len(dirty_templates),
-            "dirty_templates": dirty_templates
+            "items": items,
+            "total_count": len(items)
         }), 200
+
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path=None):
-        from core.managers.data_manager import get_template_validation_status
-        
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_path = request.json.get("id")
-        if write_base64_to_file(request.json.get("content"), template_path):
-            # Get validation status after writing
-            validation_status = get_template_validation_status(template_path)
-            response = {
-                "message": "Template updated or created", 
-                "path": template_path,
-                "validation_status": validation_status,
-                "is_dirty": not validation_status["is_valid"]
-            }
-            
-            if not validation_status["is_valid"]:
-                response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
-                
-            return response, 200
-        return {"error": "Could not write template to file"}, 500
+        template_id = request.json.get("id")
+        base64_content = request.json.get("content")
+        if not template_id or not base64_content:
+            return {"error": "Missing template id or content"}, 400
+
+        # Decode content
+        try:
+            template_content = base64.b64decode(base64_content).decode("utf-8")
+        except Exception as e:
+            return {"error": f"Failed to decode content: {e}"}, 400
+
+        # Validate
+        validation_status = validate_template_content(template_content)
+
+        # Store in file
+        try:
+            save_template_content(template_id, template_content)
+        except Exception as e:
+            return {"error": f"Failed to save template: {e}"}, 500
+
+        response = {
+            "message": "Template updated or created",
+            "path": template_id,
+            "validation_status": validation_status
+        }
+        if not validation_status["is_valid"]:
+            response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
+        return response, 200
+
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
-        from core.managers.data_manager import get_template_validation_status
-        
         if not request.json:
             return {"error": "No data provided"}, 400
-        if write_base64_to_file(request.json.get("content"), template_path):
-            # Get validation status after writing
-            validation_status = get_template_validation_status(template_path)
-            response = {
-                "message": "Template updated or created", 
-                "path": template_path,
-                "validation_status": validation_status,
-                "is_dirty": not validation_status["is_valid"]
-            }
-            
-            if not validation_status["is_valid"]:
-                response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
-                
-            return response, 200
-        return {"error": "Could not write template to file"}, 500
-        return {"error": "Could not write template to file"}, 500
+        base64_content = request.json.get("content")
+        if not base64_content:
+            return {"error": "Missing template content"}, 400
+
+        # Decode content
+        try:
+            template_content = base64.b64decode(base64_content).decode("utf-8")
+        except Exception as e:
+            return {"error": f"Failed to decode content: {e}"}, 400
+
+        # Validate
+        validation_status = validate_template_content(template_content)
+
+        # Store in file
+        try:
+            save_template_content(template_path, template_content)
+        except Exception as e:
+            return {"error": f"Failed to save template: {e}"}, 500
+
+        response = {
+            "message": "Template updated or created",
+            "path": template_path,
+            "validation_status": validation_status
+        }
+        if not validation_status["is_valid"]:
+            response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
+        return response, 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
@@ -320,48 +421,24 @@ class TemplateValidation(MethodView):
         """Validate a Jinja2 template without saving it."""
         if not request.json:
             return {"error": "No data provided"}, 400
-            
+
         template_content = request.json.get("content")
         if not template_content:
             return {"error": "No template content provided"}, 400
-            
+
         try:
-            import base64
-            from jinja2 import Environment, TemplateSyntaxError
-            
             # Decode base64 content if needed
             if request.json.get("is_base64", False):
                 template_content = base64.b64decode(template_content).decode("utf-8")
-                
-            # Validate the template using the same logic as in presenter_tasks
-            try:
-                env = Environment(autoescape=False)
-                env.parse(template_content)
-                validation_result = {
-                    "is_valid": True,
-                    "error_message": "",
-                    "error_type": ""
-                }
-            except TemplateSyntaxError as e:
-                validation_result = {
-                    "is_valid": False,
-                    "error_message": str(e),
-                    "error_type": "TemplateSyntaxError"
-                }
-            except Exception as e:
-                validation_result = {
-                    "is_valid": False,
-                    "error_message": str(e),
-                    "error_type": type(e).__name__
-                }
-            
+
+            validation_result = validate_template_content(template_content)
             return {
                 "is_valid": validation_result["is_valid"],
                 "error_message": validation_result.get("error_message", ""),
                 "error_type": validation_result.get("error_type", ""),
                 "message": "Template is valid" if validation_result["is_valid"] else "Template has validation errors"
             }, 200
-            
+
         except Exception as e:
             logger.error(f"Error validating template: {e}")
             return {"error": f"Validation failed: {str(e)}"}, 500
@@ -673,6 +750,7 @@ class OSINTSourcesExport(MethodView):
 class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
+        sources = None
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
         if json_data := request.get_json(silent=True):
@@ -787,6 +865,7 @@ class WordLists(MethodView):
 class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
+        wls = None
         if file := request.files.get("file"):
             wls = word_list.WordList.import_word_lists(file)
         if json_data := request.get_json(silent=True):

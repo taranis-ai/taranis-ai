@@ -50,8 +50,7 @@ class TemplateView(BaseView):
                             template_id = item.get("id")
                             if template_id:
                                 validation_map[template_id] = {
-                                    "validation_status": item.get("validation_status", {}),
-                                    "is_dirty": item.get("is_dirty", False)
+                                    "validation_status": item.get("validation_status", {})
                                 }
                         
                         # Create enhanced template objects that support dynamic attributes
@@ -64,7 +63,6 @@ class TemplateView(BaseView):
                                     'id': template_id,
                                     'content': getattr(template_obj, 'content', ''),
                                     'validation_status': validation_map[template_id]["validation_status"],
-                                    'is_dirty': validation_map[template_id]["is_dirty"],
                                     '__getitem__': lambda self, key: getattr(self, key),
                                     '__contains__': lambda self, key: hasattr(self, key)
                                 })()
@@ -132,7 +130,6 @@ class TemplateView(BaseView):
         template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
 
         validation_status = None
-        is_dirty = False
         if object_id != 0 and str(object_id) != '0':  # Only for existing templates
             try:
                 validation_response = dpl.api.api_get(f"/config/templates/{object_id}")
@@ -140,7 +137,6 @@ class TemplateView(BaseView):
                     # Always assign content from API response, even if invalid
                     template.content = b64decode(validation_response.get("content", "") or "").decode("utf-8")
                     validation_status = validation_response.get("validation_status", {})
-                    is_dirty = validation_response.get("is_dirty", False)
             except Exception as e:
                 logger.warning(f"Failed to fetch validation status for template {object_id}: {e}")
         else:
@@ -153,7 +149,6 @@ class TemplateView(BaseView):
 
         context[cls.model_name()] = template
         context["validation_status"] = validation_status
-        context["is_dirty"] = is_dirty
         return context
 
     @classmethod
