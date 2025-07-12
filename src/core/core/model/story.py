@@ -692,21 +692,25 @@ class Story(BaseModel):
         Calls patch_attributes() for add/update,
         remove_attributes() for deletions.
         """
-        input_keys = {attr["key"] for attr in attributes}
+        parsed_attributes = NewsItemAttribute.parse_attributes(attributes)
+        input_keys = set(parsed_attributes.keys())
         existing_keys = {attr.key for attr in self.attributes}
 
-        self.patch_attributes(attributes)
+        self.patch_attributes(list(parsed_attributes.values()))
 
         keys_to_remove = existing_keys - input_keys
         self.remove_attributes(list(keys_to_remove))
 
-    def patch_attributes(self, attributes: list[dict]):
+    def patch_attributes(self, attributes: list[NewsItemAttribute] | dict[str, dict]):
+        if isinstance(attributes, dict) or not isinstance(attributes[0], NewsItemAttribute):
+            attributes = list(NewsItemAttribute.parse_attributes(attributes).values())
         for attribute in attributes:
-            attr_key = attribute.get("key")
-            attr_value = attribute.get("value")
-            if attr_key == "TLP":
-                attr_value = self.get_story_tlp(TLPLevel.get_tlp_level(attr_value))  # type: ignore
-            self.upsert_attribute(NewsItemAttribute(key=attr_key, value=attr_value))
+            if isinstance(attribute, NewsItemAttribute):
+                if attribute.key == "TLP":
+                    attribute.value = self.get_story_tlp(TLPLevel.get_tlp_level(attribute.value))
+                self.upsert_attribute(attribute)
+            else:
+                logger.warning(f"Expected NewsItemAttribute, got {type(attribute)}")
 
     def remove_attributes(self, keys: list[str]):
         """

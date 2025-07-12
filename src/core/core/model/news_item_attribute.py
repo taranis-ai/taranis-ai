@@ -51,3 +51,38 @@ class NewsItemAttribute(BaseModel):
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
         return TLPLevel(cls.get_by_key(attributes, "TLP"))
+
+    @classmethod
+    def parse_attributes(cls, tags: list | dict) -> dict[str, "NewsItemAttribute"]:
+        if isinstance(tags, dict):
+            return cls._parse_dict_attributes(tags)
+
+        return cls._parse_list_attributes(tags)
+
+    @classmethod
+    def _parse_dict_attributes(cls, tags: dict) -> dict[str, "NewsItemAttribute"]:
+        """Parse tags from dict format - handles both old and new formats:
+        - Old: {"APT75": "UNKNOWN"}
+        - New: {"APT75": {"key": "APT75", "value": "UNKNOWN"}}
+        """
+        parsed_tags = {}
+
+        for tag_key, tag_data in tags.items():
+            if isinstance(tag_data, dict):
+                key = tag_data.get("key", tag_key)
+                value = tag_data.get("value", "")
+            elif isinstance(tag_data, str):
+                key = tag_key
+                value = tag_data
+            else:
+                key = tag_key
+                value = ""
+
+            parsed_tags[key] = NewsItemAttribute(key=key, value=value)
+
+        return parsed_tags
+
+    @classmethod
+    def _parse_list_attributes(cls, attributes: list) -> dict[str, "NewsItemAttribute"]:
+        dict_attributes = {attr["key"]: attr for attr in attributes if isinstance(attr, dict) and "key" in attr}
+        return cls._parse_dict_attributes(dict_attributes)
