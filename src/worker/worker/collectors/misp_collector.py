@@ -132,7 +132,19 @@ class MISPCollector(BaseCollector):
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
         MISPCollector.remove_duplicate_news_items(news_items_list)
         story_properties["news_items"] = news_items_list
+        if story_properties.get("attributes"):
+            story_properties["attributes"] = MISPCollector.to_new_attribute_dict(story_properties.get("attributes", []))
+        if story_properties.get("tags"):
+            story_properties["tags"] = MISPCollector.to_new_tag_dict(story_properties.get("tags", []))
         return story_properties
+
+    @staticmethod
+    def to_new_attribute_dict(input_list):
+        return {item["key"]: item for item in input_list}
+
+    @staticmethod
+    def to_new_tag_dict(input_list):
+        return {item["name"]: item for item in input_list}
 
     def get_story_properties_from_story_object(self, object: dict) -> dict:
         """
@@ -265,9 +277,7 @@ class MISPCollector(BaseCollector):
     def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
         for story in story_dicts:
             if self.check_for_proposal_existence(misp, story.get("id", "")):
-                story["attributes"].append({"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"})
-            else:
-                story["attributes"].append({"key": "has_proposals", "value": ""})
+                story["attributes"]["has_proposals"] = {"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"}
 
     def misp_collector(self, source: dict) -> None:
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)

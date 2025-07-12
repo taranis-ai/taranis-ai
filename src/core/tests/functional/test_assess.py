@@ -244,7 +244,7 @@ class TestAssessUngroupBigStory(BaseTest):
         assert response.get_json()["message"] == "success"
         assert new_story_id != full_story_with_multiple_items
 
-        # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came to early - before all changes were made.
+        # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came too early - before all changes were made.
         # Without this, this problem was not visible and only occured in the real deployment.
         db.session.expunge_all()
 
