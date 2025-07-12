@@ -630,11 +630,12 @@ class Story(BaseModel):
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
         if current_data := Story.get(id):
-            for attribute in data.get("attributes", []):
-                if attribute.get("key") == "has_proposals":
-                    has_proposals = attribute.get("value")
-                    break
-            current_data_dict = current_data.to_detail_dict()
+            attibutes = data.get("attributes", {})
+            has_proposals = None
+            if attibutes.get("has_proposals"):
+                has_proposals = attibutes.get("has_proposals", {}).get("value")
+
+            current_data_dict = current_data.to_worker_dict()  # to_worker_dict() is needed to sort keys easily for conflict resolution
             current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
             conflict = StoryConflict(
                 story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
