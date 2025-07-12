@@ -335,3 +335,26 @@ def full_story(fake_source):
         story[0].get("news_items")[0].pop("updated")
         story[0].get("news_items")[0]["osint_source_id"] = fake_source
         yield story
+
+
+@pytest.fixture(scope="class")
+def full_story_with_multiple_items(fake_source):
+    import os
+    import json
+    from core.model.story import Story, NewsItem, StoryNewsItemAttribute
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    story_json = os.path.join(dir_path, "../test_data/story_list.json")
+    with open(story_json) as f:
+        story = json.load(f)
+        story[1].get("news_items")[0].pop("updated")
+        story[1].get("news_items")[1].pop("updated")
+        story[1].get("news_items")[0]["osint_source_id"] = fake_source
+        story[1].get("news_items")[1]["osint_source_id"] = fake_source
+
+        result = Story.add(story[1])
+        yield result[0].get("story_id")
+
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()

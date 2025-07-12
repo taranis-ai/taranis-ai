@@ -957,8 +957,8 @@ class Story(BaseModel):
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item))
-            db.session.commit()
             cls.update_stories(processed_stories)
+            db.session.commit()
             return {"message": "success", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
