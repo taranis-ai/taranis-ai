@@ -1,5 +1,4 @@
 import ast
-import datetime
 from dateutil.parser import isoparse
 from pymisp import PyMISP
 
@@ -56,7 +55,6 @@ class MISPCollector(BaseCollector):
     def create_news_item(self, event: dict, source: dict) -> NewsItem:
         author = ""
         title = ""
-        published: datetime.datetime | None = None
         content = ""
         link = ""
         news_item_id = ""
@@ -64,18 +62,17 @@ class MISPCollector(BaseCollector):
         story_id = ""
         hash_value = ""
         language = ""
-        collected_str = ""
         review = ""
         news_items_properties = event.pop("Attribute", [])
         for item in news_items_properties:
             match item.get("object_relation", ""):
                 case "title":
                     title = item.get("value", "")
-                case "published":
-                    published_str = item.get("value", "")
-                    published = (
-                        datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
-                    )
+                # case "published":
+                #     published_str = item.get("value", "")
+                #     published = (
+                #         datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
+                #     )
                 case "content":
                     content = item.get("value", "")
                 case "author":
@@ -96,12 +93,10 @@ class MISPCollector(BaseCollector):
                     story_id = item.get("value", "")
                 case "language":
                     language = item.get("value", "")
-                case "collected":
-                    collected_str = item.get("value")
                 case "review":
                     review = item.get("value")
 
-        logger.debug(f"Creating news item from MISP event with UUID: {news_item_id}")
+        logger.debug(f"Creating news item from MISP event with UUID: {news_item_id} story_id: {story_id}")
         return NewsItem(
             source=orig_source,
             id=news_item_id,
@@ -110,12 +105,10 @@ class MISPCollector(BaseCollector):
             title=title,
             content=content,
             web_url=link,
-            published_date=published,
             story_id=story_id,
             language=language,
             review=review,
             osint_source_id=source.get("id", ""),
-            collected_date=datetime.datetime.strptime(collected_str, "%Y-%m-%dT%H:%M:%S.%f%z"),
         )
 
     def get_internal_osint_source_id(self, osint_source_id: str) -> str:

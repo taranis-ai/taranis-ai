@@ -16,7 +16,7 @@ class TestAssessApi(BaseTest):
     def test_get_OSINTSourcesList(self, client, fake_source, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
-        It expects 1 OSINTSource ("manual") retured
+        It expects 1 OSINTSource ("manual") returned
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
         items = response.get_json()["items"]
@@ -60,6 +60,7 @@ class TestAssessStories(BaseTest):
         assert first_story["id"] == stories[0]
         assert first_story["title"] == "Mobile World Congress 2023"
         assert first_story["attributes"] == [{"key": "TLP", "value": "clear"}]
+        assert first_story["last_change"] == "external"
 
     def test_get_stories(self, client, stories, auth_header):
         """
@@ -67,7 +68,7 @@ class TestAssessStories(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "stories", auth_header)
-        assert response.get_json()["counts"]["total_count"] == 2
+        assert response.get_json()["counts"]["total_count"] == 3
         assert response.get_json()["items"][0]["id"] in stories
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
@@ -93,7 +94,7 @@ class TestAssessStories(BaseTest):
         assert response.get_json()["counts"]["total_count"] > 0
 
         response = client.get("/api/assess/stories?offset=1", headers=auth_header)
-        assert len(response.get_json()["items"]) == 1
+        assert len(response.get_json()["items"]) == 2
 
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
@@ -133,4 +134,99 @@ class TestAssessStories(BaseTest):
 
         response = client.get("/api/assess/stories", headers=auth_header)
         total_count = response.get_json()["counts"]["total_count"]
-        assert total_count == 1
+        assert total_count == 2
+
+
+class TestAssessStoriesGrouping(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_group_stories(self, client, stories, auth_header):
+        """
+        This test groups the stories authenticated.
+        """
+        # Check initial state
+        response = self.assert_get_ok(client, f"/story/{stories[0]}", auth_header)
+        response_json = response.get_json()
+        assert response_json["id"] == stories[0]
+        assert response_json["last_change"] == "external"
+
+        # Check main action
+        response = self.assert_put_ok(client, "/stories/group", [stories[0], stories[1]], auth_header)
+        assert response.get_json()["message"] == "Clustering Stories successful"
+        assert response.get_json()["id"] == stories[0]
+
+        # Check action result
+        response = self.assert_get_ok(client, f"/story/{stories[0]}", auth_header)
+        response_json = response.get_json()
+        assert response_json["id"] == stories[0]
+        assert len(response_json["news_items"]) == 2
+        assert response_json["last_change"] == "internal"
+
+        # Check the manual story that is supposed to stay unchanged
+        response = self.assert_get_ok(client, f"/story/{stories[2]}", auth_header)
+        response_json = response.get_json()
+        assert response_json["news_items"][0]["id"] == "04129597-592d-45cb-9a80-3218108b29a1"
+        assert response_json["news_items"][0]["osint_source_id"] == "manual"
+        assert response_json["last_change"] == "internal"
+        assert response_json["news_items"][0]["last_change"] == "internal", "manual news item's last_change should be internal"
+
+        response = self.assert_get_ok(client, "stories", auth_header)
+        assert response.get_json()["counts"]["total_count"] == 2
+
+    def test_ungroup_stories(self, client, stories, auth_header):
+        """
+        This test ungroups the stories authenticated.
+        """
+
+        self.assert_put_ok(client, "/stories/ungroup", [stories[0]], auth_header)
+        response = self.assert_get_ok(client, "stories", auth_header)
+        assert response.get_json()["counts"]["total_count"] == 3
+
+        assert response.get_json()["items"][0]["last_change"] == "internal"
+        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["items"][1]["last_change"] == "internal"
+        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "external"
+
+        # Check last_change for a manual news item
+        assert response.get_json()["items"][2]["news_items"][0]["id"] == "04129597-592d-45cb-9a80-3218108b29a1"
+        assert response.get_json()["items"][2]["news_items"][0]["osint_source_id"] == "manual"
+        assert response.get_json()["items"][2]["last_change"] == "internal"
+        assert response.get_json()["items"][2]["news_items"][0]["last_change"] == "internal", (
+            "manual news item's last_change should be internal"
+        )
+
+
+class TestAssessUngroupNewsItem(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_ungroup_single_news_item(self, client, stories, auth_header):
+        """
+        This test ungroups a single news item from a story with a single item.
+        """
+
+        response = self.assert_put_ok(client, "/news-items/ungroup", ["0a129597-592d-45cb-9a80-3218108b29a0"], auth_header)
+        assert response.get_json()["message"] == "success"
+        assert response.get_json()["new_stories_ids"] not in stories
+
+        response = client.get(f"/api/assess/story/{stories[1]}", headers=auth_header)
+        assert response.status_code == 404
+
+
+class TestStoryNewsItemStatus(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_story_news_item_status(self, client, stories, auth_header):
+        response = self.assert_get_ok(client, "stories", auth_header)
+        assert response.get_json()["counts"]["total_count"] == 3
+
+        assert response.get_json()["items"][0]["last_change"] == "external"
+        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["items"][1]["last_change"] == "external"
+        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "external"
+
+        assert response.get_json()["items"][2]["last_change"] == "internal", "manual should be internal"
+        assert response.get_json()["items"][2]["news_items"][0]["id"] == "04129597-592d-45cb-9a80-3218108b29a1"
+        assert response.get_json()["items"][2]["news_items"][0]["osint_source_id"] == "manual"
+        assert response.get_json()["items"][2]["news_items"][0]["last_change"] == "internal", (
+            "manual news item's last_change should be internal"
+        )

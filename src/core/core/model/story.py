@@ -465,7 +465,13 @@ class Story(BaseModel):
             db.session.add(story)
             db.session.commit()
             StorySearchIndex.prepare(story)
-            story.update_status()
+            if (
+                story.news_items[0].osint_source_id == "manual"
+            ):  # TODO: This is a suboptimal check covering normal use cases, but will be refactored within PR#523
+                story.update_status()
+            else:
+                story.update_status(change="external")
+
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -1054,11 +1060,12 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self):
+    def update_status(self, change: str = "internal"):
         if self.remove_empty_story():
             return
         self.update_timestamps()
         self.update_status_attributes()
+        self.last_change = change
 
     def update_status_attributes(self):
         attributes = [
