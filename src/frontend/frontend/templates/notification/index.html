@@ -1,13 +1,17 @@
-<section id="notification-bar" x-data="{ show: true }" x-init="setTimeout(() => show = false, 10000)">
-  {% if notification %}
-    <div x-show="show" x-transition class="toast toast-bottom toast-end fixed z-50">
-      <div class="alert alert-info flex flex-col gap-2 w-72">
+<section id="notification-bar" x-data="{ show: true }" x-init="setTimeout(() => show = false, 10000)" hx-swap-oob="{{ oob | default('false') }}">
+  {% if notification or error %}
+  {% set notification = notification or {} %}
+  {% set message = notification.get('message', notification.get('error', error)) %}
+  {% set icon = "exclamation-triangle" if error else notification.get('icon', "information-circle") %}
+  {% set class = "alert-error" if error else notification.get('class', "alert-info") %}
+    <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
+      <div class="alert flex flex-col w-full gap-2 {{ class }}">
         <div class="flex items-center gap-2">
-          {{ heroicon_outline("information-circle") }}
-          <span>{{ notification }}</span>
+          {{ heroicon_outline(icon) }}
+          <span>{{ message }}</span>
         </div>
         <div class="w-full h-2 bg-black/20 rounded overflow-hidden">
-          <div class="h-full bg-black animate-shrink-30"></div>
+          <div class="h-full bg-black animate-shrink-10"></div>
         </div>
       </div>
     </div>

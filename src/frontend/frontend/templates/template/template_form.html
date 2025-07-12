@@ -2,7 +2,7 @@
 {% set form_error = form_error | default({}) %}
 {% set placeholder = 'new_template' if template.id == '0' else template.id %}
 
-<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#notification-bar">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename</span>
     <input id="id"
@@ -12,9 +12,8 @@
            value="{{ placeholder }}"
            required
            pattern="^[\w\.\-]+$"
-           class="input w-full validator"
-           {% if preserve %}hx-preserve{% endif %}
-           {% if template.id != '0' %}readonly disabled{% endif %} />
+           class="input w-full validator {% if template.id != '0' %}bg-base-200 text-base-content opacity-60 pointer-events-none select-none{% endif %}"
+           {% if template.id != '0' %}readonly{% endif %} />
     <p class="validator-hint">Must be a valid filename</p>
   </label>
 

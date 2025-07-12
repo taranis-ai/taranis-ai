@@ -52,7 +52,6 @@ class SourceView(BaseView):
         osint_source_actions = [
             {
                 "label": "Preview",
-                "class": "",
                 "icon": "eye",
                 "method": "post",
                 "url": url_for("admin.osint_source_preview", osint_source_id=""),
@@ -63,7 +62,6 @@ class SourceView(BaseView):
             },
             {
                 "label": "Collect",
-                "class": "",
                 "icon": "arrows-pointing-in",
                 "method": "post",
                 "url": url_for("admin.collect_osint_source", osint_source_id=""),
@@ -71,6 +69,14 @@ class SourceView(BaseView):
                 "hx_target": "#notification-bar",
                 "hx_swap": "outerHTML",
                 "confirm": None,
+            },
+            {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": cls.get_base_route(), "type": "link"},
+            {
+                "label": "Delete",
+                "type": "function",
+                "icon": "trash",
+                "function": "delete_osint_source",
+                "url": cls.get_base_route(),
             },
         ]
 
@@ -82,7 +88,7 @@ class SourceView(BaseView):
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
-        base_context["actions"] = osint_source_actions + cls.get_default_actions()
+        base_context["actions"] = osint_source_actions
         return base_context
 
     @classmethod
@@ -147,7 +153,7 @@ class SourceView(BaseView):
         response = CoreApi().load_default_osint_sources()
         if not response:
             logger.error("Failed to load default OSINT sources")
-            return render_template("partials/error.html", error="Failed to load default OSINT sources")
+            return render_template("notification/index.html", error="Failed to load default OSINT sources")
 
         response = CoreApi().import_sources(response)
 
@@ -155,7 +161,7 @@ class SourceView(BaseView):
             error = response.json().get("error", "Unknown error")
             error_message = f"Failed to import default OSINT sources: {error}"
             logger.error(error_message)
-            return render_template("partials/error.html", error=error_message)
+            return render_template("notification/index.html", error=error_message)
 
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
@@ -166,16 +172,22 @@ class SourceView(BaseView):
         response = CoreApi().collect_osint_source(osint_source_id)
         if not response:
             logger.error("Failed to start OSINT source collection")
-            return render_template("partials/error.html", error="Failed to start OSINT source collection"), 500
-        return render_template("notification/index.html", notification="OSINT source collection started successfully"), 200
+            return render_template("notification/index.html", error="Failed to start OSINT source collection"), 500
+        return render_template(
+            "notification/index.html",
+            notification={"message": "OSINT source collection started successfully", "icon": "check-circle", "class": "alert-success"},
+        ), 200
 
     @classmethod
     def collect_all_osint_sources(cls):
         response = CoreApi().collect_all_osint_sources()
         if not response:
             logger.error("Failed to load OSINT sources")
-            return render_template("partials/error.html", error="Failed to load OSINT sources"), 500
-        return render_template("notification/index.html", notification="OSINT source collection started successfully"), 200
+            return render_template("notification/index.html", error="Failed to load OSINT sources"), 500
+        return render_template(
+            "notification/index.html",
+            notification={"message": "OSINT source collection started successfully", "icon": "check-circle", "class": "alert-success"},
+        ), 200
 
     @classmethod
     def collect_osint_source_preview(cls, osint_source_id: str):
@@ -183,7 +195,7 @@ class SourceView(BaseView):
         logger.debug(f"Collect OSINT source preview response: {response}")
         if not response:
             logger.error("Failed to load OSINT source preview")
-            return render_template("partials/error.html", error="Failed to load OSINT source preview"), 500
+            return render_template("notification/index.html", error="Failed to load OSINT source preview"), 500
         DataPersistenceLayer().invalidate_cache_by_object(TaskResult)
         return redirect(url_for("admin.osint_source_preview", osint_source_id=osint_source_id))
 
@@ -193,4 +205,10 @@ class SourceView(BaseView):
         if task_result := dpl.get_object(TaskResult, f"source_preview_{osint_source_id}"):
             return render_template("osint_source/osint_source_preview.html", task_result=task_result)
 
-        return render_template("partials/error.html", error="OSINT source preview not found"), 404
+        return render_template("notification/index.html", error="OSINT source preview not found"), 404
+
+    @classmethod
+    def delete_view(cls, object_id: str | int):
+        object_id_with_params = f"{object_id}{'?force=true' if request.args.get('force') == 'true' else ''}"
+        response = DataPersistenceLayer().delete_object(cls.model, object_id_with_params)
+        return render_template("notification/swal.html", response=response.json(), is_success=response.ok), response.status_code

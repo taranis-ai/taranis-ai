@@ -16,18 +16,26 @@
   {# djlint:off #}
   {% set action_url = action.url ~ '/' ~ item_id if item_id else action.url %}
   <div class="tooltip" data-tip="{{ action.label }}">
-  {% if action.is_link %}
+  {% if action.type == 'link' %}
   <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}">
        {{ heroicon_outline(action.icon) }}
   </a>
+  {% elif action.type == 'function' %}
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm {{ action.class }}"
+      @click.stop="{{ action.function }}('{{ action_url }}')"
+    >
+      {{ heroicon_outline(action.icon) }}
+    </button>
   {% else %}
   <button class="btn btn-ghost btn-sm {{ action.class }}"
           hx-{{ action.method }}="{{ action_url }}"
-          {% if action.push_url %}hx-push-url="true"{% endif %}
-          {% if action.hx_target_error %}hx-target-error="{{ action.hx_target_error }}"{% endif %}
-          {% if action.hx_target %}hx-target="{{ action.hx_target }}"{% endif %}
-          {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}"{% endif %}
-          {% if action.confirm %}hx-confirm="{{ action.confirm }}"{% endif %}
+          {% if action.push_url %}hx-push-url="true" {% endif %}
+          {% if action.hx_target_error %}hx-target-error="{{ action.hx_target_error }}" {% endif %}
+          {% if action.hx_target %}hx-target="{{ action.hx_target }}" {% endif %}
+          {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}" {% endif %}
+          {% if action.confirm %}hx-confirm="{{ action.confirm }}" {% endif %}
           @click.stop>
        {{ heroicon_outline(action.icon) }}
   </button>

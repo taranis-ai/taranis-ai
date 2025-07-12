@@ -1,13 +1,12 @@
 from typing import Any
 from base64 import b64decode, b64encode
-from flask import request
+from flask import request, render_template, Response
 
 from frontend.views.base_view import BaseView
 from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.auth import auth_required
 
 
 class TemplateView(BaseView):
@@ -59,7 +58,6 @@ class TemplateView(BaseView):
     def process_form_data(cls, object_id: str | int):
         try:
             form_data = parse_formdata(request.form)
-            logger.debug(f"Processing form data for {cls.model_name()}: {form_data}")
             obj = Template(**form_data)
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
@@ -70,7 +68,10 @@ class TemplateView(BaseView):
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
-    @auth_required()
-    def post(self):
-        logger.debug(request.form)
-        return self.update_view(object_id=0)
+    @classmethod
+    def update_view(cls, object_id: int | str = 0):
+        resp_obj, error = cls.process_form_data(object_id)
+        if resp_obj and not error:
+            return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
+
+        return render_template("notification/index.html", error=error), 400

@@ -130,7 +130,7 @@ class OSINTSource(BaseModel):
         }
 
     def to_task_id(self) -> str:
-        return f"{self.type}_{self.id}"
+        return f"collect_{self.type}_{self.id}"
 
     def get_schedule(self) -> str:
         if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):

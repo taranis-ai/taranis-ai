@@ -77,6 +77,8 @@ def handle_task_specific_result(task_id: str, result: dict) -> bool:
             logger.error(f"Product {product_id} not found or no render result")
             return False
         Product.update_render_for_id(product_id, rendered_product)
+    elif task_id.startswith("collect_"):
+        logger.debug(f"Collector task {task_id} completed with result: {result}")
     else:
         return False
     return True

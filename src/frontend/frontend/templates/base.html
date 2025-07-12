@@ -36,7 +36,6 @@
     <!-- Main Content -->
     <main x-bind:class="sidebarOpen ? 'ml-64' : 'ml-0'" class="pt-16 transition-all duration-300 w-full max-w-full">
       <div class="container mx-auto w-full max-w-full">
-        {% include "partials/error.html" %}
         {% block content %}{% endblock content %}
         {% include "notification/index.html" %}
       </div>

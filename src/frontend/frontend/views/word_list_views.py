@@ -61,7 +61,7 @@ class WordListView(BaseView):
         response = CoreApi().load_default_word_lists()
         if not response:
             logger.error("Failed to load default word lists")
-            return render_template("partials/error.html", error="Failed to load default word lists")
+            return render_template("notification/index.html", error="Failed to load default word lists")
 
         response = CoreApi().import_word_lists(response)
 
@@ -69,7 +69,7 @@ class WordListView(BaseView):
             error = response.json().get("error", "Unknown error")
             error_message = f"Failed to import default word lists: {error}"
             logger.error(error_message)
-            return render_template("partials/error.html", error=error_message)
+            return render_template("notification/index.html", error=error_message)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
         items = DataPersistenceLayer().get_objects(cls.model)

@@ -33,7 +33,7 @@ document.body.addEventListener('htmx:confirm', function(event) {
         cancelButtonText: cancelButtonText
     }).then((result) => {
         if (result.isConfirmed) {
-            event.detail.resume();
+            event.detail.issueRequest(true);
         }
     });
 });
