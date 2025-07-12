@@ -201,7 +201,8 @@ class TestAssessUngroupNewsItem(BaseTest):
 
     def test_ungroup_single_news_item(self, client, stories, auth_header):
         """
-        This test ungroups a single news item from a story with a single item.
+        This test ungroups (removes) a single news item from a story with a only 1 item.
+        The existing story ID should be removed and the news item should get a new story ID.
         """
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["0a129597-592d-45cb-9a80-3218108b29a0"], auth_header)
@@ -210,6 +211,57 @@ class TestAssessUngroupNewsItem(BaseTest):
 
         response = client.get(f"/api/assess/story/{stories[1]}", headers=auth_header)
         assert response.status_code == 404
+
+
+class TestAssessUngroupBigStory(BaseTest):
+    base_uri = "/api/assess"
+
+    def test_creation_of_full_story_with_multiple_items(self, client, full_story_with_multiple_items, auth_header):
+        """
+        This test creates a full story with multiple news items.
+        It expects the story to be created with the correct ID and last_change set to internal.
+        """
+
+        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items}", auth_header)
+        assert response.get_json()["id"] == full_story_with_multiple_items
+        assert len(response.get_json()["news_items"]) == 2
+        assert response.get_json()["last_change"] == "external"
+        assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
+        assert response.get_json()["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["news_items"][1]["id"] == "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"
+        assert response.get_json()["news_items"][1]["last_change"] == "external"
+
+    def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items, auth_header):
+        from core.managers.db_manager import db
+
+        """
+        This test ungroups (removes) a single news item from a story with multiple items.
+        The existing story ID should be kept with the first item and the other news item should get a new story ID.
+        """
+
+        response = self.assert_put_ok(client, "/news-items/ungroup", ["c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"], auth_header)
+        new_story_id = response.get_json()["new_stories_ids"][0]
+        assert response.get_json()["message"] == "success"
+        assert new_story_id != full_story_with_multiple_items
+
+        # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came to early - before all changes were made.
+        # Without this, this problem was not visible and only occured in the real deployment.
+        db.session.expunge_all()
+
+        # Original story should still exist and change last_change property to internal
+        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items}", auth_header)
+        assert response.get_json()["id"] == full_story_with_multiple_items
+        assert response.get_json()["last_change"] == "internal", "after an item was removed, property should be internal"
+        assert len(response.get_json()["news_items"]) == 1
+        assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
+        assert response.get_json()["news_items"][0]["last_change"] == "external"
+
+        # New story should be created with the news item and have last_change set to internal
+        response = self.assert_get_ok(client, f"/story/{new_story_id}", auth_header)
+        assert response.get_json()["last_change"] == "internal"
+        assert len(response.get_json()["news_items"]) == 1
+        assert response.get_json()["news_items"][0]["id"] == "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"
+        assert response.get_json()["news_items"][0]["last_change"] == "external"
 
 
 class TestStoryNewsItemStatus(BaseTest):
