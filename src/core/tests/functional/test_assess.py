@@ -230,6 +230,8 @@ class TestAssessUngroupBigStory(BaseTest):
         assert response.get_json()["news_items"][0]["last_change"] == "external"
         assert response.get_json()["news_items"][1]["id"] == "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"
         assert response.get_json()["news_items"][1]["last_change"] == "external"
+        assert len(response.get_json()["attributes"]) == 4
+        assert len(response.get_json()["tags"]) == 3
 
     def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items, auth_header):
         from core.managers.db_manager import db

@@ -193,9 +193,23 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         result = response.get_json()
+        new_story_id = result.get("story_id", "t<story_id>")
         assert result.get("message") == "Story added successfully"
         assert result.get("news_item_ids")[0] == full_story[0].get("news_items", [])[0].get("id", "<news_item_id>")
-        assert result.get("story_id", "t<story_id>") == full_story[0].get("id")
+        assert new_story_id == full_story[0].get("id")
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": new_story_id},
+        )
+        assert response.status_code == 200
+        story = response.get_json()[0]
+        assert story.get("id") == new_story_id
+        assert story.get("title") == full_story[0].get("title")
+        assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
+        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1  # TLP is automatically added
 
     def test_worker_put_tags(self, client, stories, api_header):
         story_1_id = stories[0]
