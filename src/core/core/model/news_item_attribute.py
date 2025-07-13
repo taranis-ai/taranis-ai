@@ -86,3 +86,15 @@ class NewsItemAttribute(BaseModel):
     def _parse_list_attributes(cls, attributes: list) -> dict[str, "NewsItemAttribute"]:
         dict_attributes = {attr["key"]: attr for attr in attributes if isinstance(attr, dict) and "key" in attr}
         return cls._parse_dict_attributes(dict_attributes)
+
+    @classmethod
+    def unify_attributes(cls, attributes: list | dict) -> list[dict[str, str]]:
+        """Unify attributes to a list of dicts with 'key' and 'value' keys.
+        This serves for the __init__ function of NewsItemAttribute
+        """
+        if isinstance(attributes, dict):
+            attributes = cls._parse_dict_attributes(attributes)
+        elif isinstance(attributes, list):
+            attributes = cls._parse_list_attributes(attributes)
+
+        return [{"key": attr.key, "value": attr.value} for attr in attributes.values()]

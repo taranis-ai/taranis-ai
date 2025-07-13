@@ -12,6 +12,7 @@ from core.managers.auth_manager import auth_required
 from core.managers import schedule_manager
 from core.config import Config
 from core.model.story_conflict import StoryConflict
+from core.log import logger
 
 
 class Dashboard(MethodView):
@@ -24,6 +25,8 @@ class Dashboard(MethodView):
         total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
         latest_collected = NewsItem.latest_collected()
         schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
+        logger.debug(f"Story conflict count: {len(StoryConflict.conflict_store)}")
+        logger.debug(f"News item conflict count: {len(NewsItemConflict.conflict_store)}")
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         return {
             "items": [

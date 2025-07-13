@@ -62,6 +62,7 @@ class StoryConflict:
                 "collected",
                 "published",
                 "created",
+                "relevance",
             }
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
