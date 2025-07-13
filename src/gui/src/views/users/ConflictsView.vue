@@ -56,7 +56,6 @@
               <div
                 :id="`mergely-editor-${conflict.storyId}`"
                 class="mergely-editor"
-                style="height: 300px"
               ></div>
 
               <div class="mt-4 d-flex align-center">
@@ -594,6 +593,7 @@ onMounted(async () => {
 <style scoped>
 .mergely-editor {
   border: 1px solid #ccc;
+  height: 1000px;
 }
 .merged-pre {
   white-space: pre-wrap;

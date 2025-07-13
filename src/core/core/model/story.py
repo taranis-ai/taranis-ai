@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Sequence
+from typing import Any
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
@@ -461,6 +461,10 @@ class Story(BaseModel):
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
         try:
+            if data.get("tags"):
+                data["tags"] = NewsItemTag.unify_tags(data["tags"])
+            if data.get("attributes"):
+                data["attributes"] = NewsItemAttribute.unify_attributes(data["attributes"])
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
@@ -487,15 +491,6 @@ class Story(BaseModel):
             logger.exception(f"Failed to add story: {data}")
             db.session.rollback()
             return {"error": "Failed to add story"}, 400
-
-    @classmethod
-    def add_multiple(cls, json_data) -> Sequence["Story"]:
-        items = cls.load_multiple(json_data)
-        db.session.add_all(items)
-        db.session.commit()
-        for item in items:
-            StorySearchIndex.prepare(item)
-        return items
 
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":

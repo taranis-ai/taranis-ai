@@ -139,3 +139,15 @@ class NewsItemTag(BaseModel):
             elif isinstance(tag, str):
                 dict_tags[tag] = {"name": tag, "tag_type": "misc"}
         return cls._parse_dict_tags(dict_tags)
+
+    @classmethod
+    def unify_tags(cls, tags: list | dict) -> list[dict[str, str]]:
+        """Unify tags to a list of dicts with 'name' and 'tag_type' keys.
+        This serves for the __init__ function of NewsItemTag
+        """
+        if isinstance(tags, dict):
+            tags = cls._parse_dict_tags(tags)
+        elif isinstance(tags, list):
+            tags = cls._parse_list_tags(tags)
+
+        return [{"name": tag.name, "tag_type": tag.tag_type} for tag in tags.values()]
