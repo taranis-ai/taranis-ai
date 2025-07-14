@@ -5,7 +5,7 @@
   {% set icon = "exclamation-triangle" if error else notification.get('icon', "information-circle") %}
   {% set class = "alert-error" if error else notification.get('class', "alert-info") %}
     <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
-      <div class="alert flex flex-col w-full gap-2 {{ class }}">
+      <div class="alert flex flex-col w-full gap-2 {{ class }}" role="alert">
         <div class="flex items-center gap-2">
           {{ heroicon_outline(icon) }}
           <span>{{ message }}</span>

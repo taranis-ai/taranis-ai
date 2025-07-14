@@ -28,6 +28,12 @@ from frontend.views import (
 )
 
 
+class AdminDashboardAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return DashboardView.admin_dashboard()
+
+
 class ScheduleAPI(MethodView):
     @auth_required()
     def get(self):
@@ -179,7 +185,7 @@ class ReportItemTypeGroupItemAPI(MethodView):
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
-    admin_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
+    admin_bp.add_url_rule("/", view_func=AdminDashboardAPI.as_view("dashboard"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
     admin_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))

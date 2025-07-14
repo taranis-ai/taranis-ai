@@ -5,20 +5,9 @@ from flask_jwt_extended import set_access_cookies
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
-from models.admin import Dashboard
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
-
-
-class DashboardAPI(MethodView):
-    @auth_required()
-    def get(self):
-        result = DataPersistenceLayer().get_objects(Dashboard)
-
-        if result is None:
-            return f"Failed to fetch dashboard from: {Config.TARANIS_CORE_URL}", 500
-
-        return render_template("dashboard/index.html", data=result[0])
+from frontend.views import DashboardView
 
 
 class ClusterAPI(MethodView):
@@ -103,8 +92,8 @@ class NotificationView(MethodView):
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
-    base_bp.add_url_rule("/", view_func=DashboardAPI.as_view("dashboard"))
-    base_bp.add_url_rule("/dashboard", view_func=DashboardAPI.as_view("dashboard_"))
+    base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
+    base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=ClusterAPI.as_view("cluster"))
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))

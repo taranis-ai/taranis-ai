@@ -1,4 +1,4 @@
-from models.admin import Dashboard
+from models.dashboard import Dashboard, TrendingClusters
 from frontend.views.base_view import BaseView
 from flask import render_template, abort
 
@@ -10,10 +10,10 @@ from frontend.auth import auth_required
 class DashboardView(BaseView):
     model = Dashboard
     icon = "home"
-    htmx_list_template = "admin_dashboard/index.html"
-    htmx_update_template = "admin_dashboard/index.html"
-    default_template = "admin_dashboard/index.html"
-    base_route = "admin.dashboard"
+    htmx_list_template = "dashboard/index.html"
+    htmx_update_template = "dashboard/index.html"
+    default_template = "dashboard/index.html"
+    base_route = "base.dashboard"
     _read_only = True
     _index = 10
 
@@ -21,8 +21,7 @@ class DashboardView(BaseView):
     def static_view(cls):
         try:
             dashboard = DataPersistenceLayer().get_objects(cls.model)
-            trending_clusters = {}
-            # trending_clusters = DataPersistenceLayer().get_objects(TrendingClusters)
+            trending_clusters = DataPersistenceLayer().get_objects(TrendingClusters)
             error = None
         except Exception as exc:
             dashboard = None
@@ -33,7 +32,19 @@ class DashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found")
         template = cls.get_list_template()
-        return render_template(template, **{"data": dashboard[0], "cluster": trending_clusters, "error": error})
+        context = {"data": dashboard[0], "cluster": trending_clusters, "error": error}
+        logger.debug(f"Rendering {template} with context: {context}")
+        return render_template(template, **context)
+
+    @classmethod
+    def admin_dashboard(cls):
+        dashboard = DataPersistenceLayer().get_objects(cls.model)
+
+        if not dashboard:
+            logger.error(f"Error retrieving {cls.model_name()}")
+            return render_template("errors/404.html", error="No Dashboard items found")
+
+        return render_template("admin_dashboard/index.html", data=dashboard[0])
 
     @auth_required()
     def get(self, **kwargs):
@@ -41,12 +52,12 @@ class DashboardView(BaseView):
 
     @auth_required()
     def post(self):
-        abort(501)
+        abort(405)
 
     @auth_required()
     def put(self, **kwargs):
-        abort(501)
+        abort(405)
 
     @auth_required()
     def delete(self, **kwargs):
-        abort(501)
+        abort(405)

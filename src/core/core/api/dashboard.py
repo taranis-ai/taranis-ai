@@ -43,7 +43,7 @@ class TrendingClusters(MethodView):
     @auth_required()
     def get(self):
         days = int(request.args.get("days", 7))
-        return NewsItemTagService.get_largest_tag_types(days)
+        return {"items": [NewsItemTagService.get_largest_tag_types(days)]}, 200
 
 
 class StoryClusters(MethodView):

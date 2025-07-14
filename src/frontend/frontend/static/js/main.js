@@ -5,39 +5,33 @@ function getCSRFToken() {
             ?.split("=")[1];
 }
 
+function getConfirmOptions(el, question) {  
+  const title = el.getAttribute('data-confirm-title') || question;  
+  return {  
+    title,  
+    text:    title === question ? '' : question,  
+    icon:    el.getAttribute('data-confirm-icon') || 'question',  
+    confirmButtonText: el.getAttribute('data-confirm-confirm') || 'OK',  
+    cancelButtonText:  el.getAttribute('data-confirm-cancel')  || 'Cancel'  
+  };  
+}  
+
+function showConfirmDialog(opts) {  
+  return Swal.fire({ ...opts, showCancelButton: true });  
+}
+
+document.body.addEventListener('htmx:confirm', function(evt) {  
+  evt.preventDefault();  
+  if (!evt.target.hasAttribute('hx-confirm')) {  
+    return evt.detail.issueRequest(true);  
+  }  
+  const opts = getConfirmOptions(evt.target, evt.detail.question);  
+  showConfirmDialog(opts).then(r => r.isConfirmed && evt.detail.issueRequest(true));  
+});
 
 document.body.addEventListener('htmx:configRequest', function(evt) {
     evt.detail.headers['X-CSRF-TOKEN'] = getCSRFToken(); // add CSRF to every request
 });
-
-document.body.addEventListener('htmx:confirm', function(event) {
-    event.preventDefault();
-    if (!event.target.hasAttribute('hx-confirm')) {
-        event.detail.issueRequest(true);
-        return;
-    }
-    const el = event.target;
-
-    const title = el.getAttribute('data-confirm-title') || event.detail.question;
-    const text = title === event.detail.question ? '' : event.detail.question;
-    const icon = el.getAttribute('data-confirm-icon') || 'question';
-    const confirmButtonText = el.getAttribute('data-confirm-confirm') || 'OK';
-    const cancelButtonText = el.getAttribute('data-confirm-cancel') || 'Cancel';
-
-    Swal.fire({
-        title: title,
-        text: text,
-        icon: icon,
-        showCancelButton: true,
-        confirmButtonText: confirmButtonText,
-        cancelButtonText: cancelButtonText
-    }).then((result) => {
-        if (result.isConfirmed) {
-            event.detail.issueRequest(true);
-        }
-    });
-});
-
 
 function toggleDetails(jobId) {
     const jobRow = document.getElementById(`job-row-${jobId}`);
