@@ -127,9 +127,10 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:
-        dict_tags = {
-            tag["name"]: tag
-            for tag in tags
-            if isinstance(tag, dict) and "name" in tag
-        }
+        dict_tags = {}
+        for tag in tags:
+            if isinstance(tag, dict) and "name" in tag:
+                dict_tags[tag["name"]] = tag
+            elif isinstance(tag, str):
+                dict_tags[tag] = {"name": tag, "tag_type": "misc"}
         return cls._parse_dict_tags(dict_tags)
