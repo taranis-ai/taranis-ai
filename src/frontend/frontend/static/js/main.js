@@ -33,6 +33,10 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
     evt.detail.headers['X-CSRF-TOKEN'] = getCSRFToken(); // add CSRF to every request
 });
 
+document.body.addEventListener('htmx:beforeSwap', function(evt) {
+  evt.detail.shouldSwap = true;
+});
+
 function toggleDetails(jobId) {
     const jobRow = document.getElementById(`job-row-${jobId}`);
     const detailsRow = document.getElementById(`details-${jobId}`);

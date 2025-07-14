@@ -55,7 +55,7 @@ class SourceView(BaseView):
                 "icon": "eye",
                 "method": "post",
                 "url": url_for("admin.osint_source_preview", osint_source_id=""),
-                "hx_target_error": "#error-msg",
+                "hx_target_error": "#notification-bar",
                 "hx_target": None,
                 "hx_swap": None,
                 "confirm": None,
@@ -65,7 +65,7 @@ class SourceView(BaseView):
                 "icon": "arrows-pointing-in",
                 "method": "post",
                 "url": url_for("admin.collect_osint_source", osint_source_id=""),
-                "hx_target_error": "#error-msg",
+                "hx_target_error": "#notification-bar",
                 "hx_target": "#notification-bar",
                 "hx_swap": "outerHTML",
                 "confirm": None,
@@ -208,7 +208,7 @@ class SourceView(BaseView):
         return render_template("notification/index.html", error="OSINT source preview not found"), 404
 
     @classmethod
-    def delete_view(cls, object_id: str | int):
+    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
         object_id_with_params = f"{object_id}{'?force=true' if request.args.get('force') == 'true' else ''}"
         response = DataPersistenceLayer().delete_object(cls.model, object_id_with_params)
         return render_template("notification/swal.html", response=response.json(), is_success=response.ok), response.status_code

@@ -211,7 +211,6 @@ class BaseView(MethodView):
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
-                "hx_target_error": "#error-msg",
                 "confirm": "Are you sure you want to delete this item?",
             },
         ]
@@ -275,20 +274,33 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
 
     @classmethod
-    def delete_view(cls, object_id: str | int):
+    def get_notification_from_response(cls, response) -> str:
+        """
+        Extracts the notification from the response object.
+        If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
+        If it was ok it should render it as a success message, otherwise it should render it as an error message.
+        """
+        if response.ok and response.json():
+            notification = response.json().get("message", "Operation successful")
+            return render_template("notification/index.html", notification=notification, oob=True)
+        error = response.json().get("error", "An error occurred")
+        return render_template("notification/index.html", error=error, oob=True)
+
+    @classmethod
+    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
         response = DataPersistenceLayer().delete_object(cls.model, object_id)
-        # return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
-        notification = render_template("notification/index.html", notification=response.json(), oob=True)
+
+        notification = cls.get_notification_from_response(response)
         table = cls.list_view()
         return notification + table[0], response.status_code
 
     @classmethod
-    def delete_multiple_view(cls, object_ids: list[str]):
+    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        if any(r.ok for r in results):
-            return Response(status=200, headers={"HX-Refresh": "true"})
-        return Response(status=400, headers={"HX-Refresh": "true"})
+        if all(r.ok for r in results):
+            return render_template("notification/index.html", notification="Selected items deleted successfully", oob=True), 200
+        return render_template("notification/index.html", error="Failed to delete selected items", oob=True), 500
 
     @classmethod
     def _get_object_key(cls) -> str:

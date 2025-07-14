@@ -38,7 +38,6 @@ class BotView(BaseView):
                 "icon": "rocket-launch",
                 "method": "post",
                 "url": url_for("admin.execute_bot", bot_id=""),
-                "hx_target_error": "#error-msg",
                 "hx_target": "#notification-bar",
                 "hx_swap": "outerHTML",
             },
