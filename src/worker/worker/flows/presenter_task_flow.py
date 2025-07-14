@@ -1,6 +1,6 @@
 from prefect import flow, task
 from core.log import logger
-from models.presenter import PresenterTaskRequest
+from models.models.presenter import PresenterTaskRequest
 from core.model.product import Product
 from core.model.presenter import Presenter
 from core.model.report_item import ReportItem
