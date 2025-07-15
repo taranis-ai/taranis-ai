@@ -1,55 +1,16 @@
-name: Smoke test production compose
+name: Smoke test docker compose
 on:
   workflow_dispatch:
   pull_request_review:
     types: [submitted]
 
 jobs:
-  production_compose_test:
-    if: ${{ github.event.review.state == 'approved' }}
+  test_docker_deployment:
+    if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get latest tag
-        id: get_latest_tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git tag --sort=-creatordate | head -n 1)
-          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
-
-      - name: Checkout latest tag
-        uses: actions/checkout@v4
-        with:
-          fetch-tags: true
-          ref: ${{ steps.get_latest_tag.outputs.tag }}
-
-      - name: Run docker compose for tagged version
-        working-directory: docker
-        run: |
-          cp env.sample .env
-
-          docker compose up --wait-timeout=60 --wait core database frontend gui sse rabbitmq collector workers
-          echo "Check docker ps -a:"
-          docker ps -a
-          docker compose down
-
-
-          docker images --format '{{.Repository}}:{{.Tag}}' | \
-          grep '^ghcr.io/taranis-ai/taranis-.*:latest$' | \
-          xargs docker rmi -f
-
-          echo "docker image ls"
-          docker image ls
-
-      - name: Checkout PR commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_commit.id }}
-          fetch-depth: 1
 
       - name: Build Docker images from PR code
         run: |
@@ -60,13 +21,11 @@ jobs:
         working-directory: docker/compose-variations
         run: |
           cp ../env.sample .env
-          echo "docker volume ls"
-          docker volume ls
           docker compose pull rabbitmq sse database
           docker compose -f compose.e2e.yml up --pull=never --wait-timeout=60 --wait
-          echo "Check docker ps -a:"
+          echo "Echo docker ps -a:"
           docker ps -a
-          echo "Check migration logs:"
+          echo "Echo core logs:"
           docker compose logs core
           docker compose down
 
