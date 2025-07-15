@@ -1,3 +1,4 @@
+import contextlib
 from typing import Any
 
 from models.admin import Role, Permission
@@ -13,8 +14,9 @@ class RoleView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        base_context["permissions"] = [p.model_dump() for p in dpl.get_objects(Permission)]
+        with contextlib.suppress(Exception):
+            dpl = DataPersistenceLayer()
+            base_context["permissions"] = [p.model_dump() for p in dpl.get_objects(Permission)]
         return base_context
 
     @classmethod

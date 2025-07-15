@@ -256,7 +256,7 @@ class BaseView(MethodView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("notification/index.html", error=error), 400
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 400 if error else 200
 
     @classmethod
     def static_view(cls):
@@ -281,18 +281,18 @@ class BaseView(MethodView):
         If it was ok it should render it as a success message, otherwise it should render it as an error message.
         """
         if response.ok and response.json():
-            notification = response.json().get("message", "Operation successful")
-            return render_template("notification/index.html", notification=notification, oob=True)
-        error = response.json().get("error", "An error occurred")
-        return render_template("notification/index.html", error=error, oob=True)
+            return render_template("notification/index.html", notification=response.json(), oob=True)
+        return render_template("notification/index.html", error=response.json(), oob=True)
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        response = DataPersistenceLayer().delete_object(cls.model, object_id)
+        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
-        notification = cls.get_notification_from_response(response)
-        table = cls.list_view()
-        return notification + table[0], response.status_code
+        response = cls.get_notification_from_response(core_response)
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
