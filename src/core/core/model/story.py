@@ -513,10 +513,10 @@ class Story(BaseModel):
         return cls.add(data)
 
     @classmethod
-    def add_or_update_for_misp(cls, data: list) -> "tuple[dict, int]":
+    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict, int]":
         if not data:
             return {"error": "No data provided"}, 400
-        prepared_stories = cls.prepare_misp_stories(data)
+        prepared_stories = cls.prepare_misp_stories(data, force=force)
         results = []
         for story in prepared_stories:
             result, status = cls.add_or_update(story)
@@ -973,12 +973,12 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def prepare_misp_stories(cls, story_lists: list[dict]) -> list[dict]:
+    def prepare_misp_stories(cls, story_lists: list[dict], force) -> list[dict]:
         stories = []
         for story in story_lists:
             if existing_story := cls.get(story.get("id", {})):
                 if isinstance(existing_story, Story):
-                    if cls.check_internal_changes(existing_story.to_detail_dict()):
+                    if not force and cls.check_internal_changes(existing_story.to_detail_dict()):
                         logger.info(f"Internal changes detected in story {existing_story.id}, skipping update")
                         story["conflict"] = True
 
