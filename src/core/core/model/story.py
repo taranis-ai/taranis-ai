@@ -421,15 +421,15 @@ class Story(BaseModel):
     def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
         story_ids = [data["id"]]
 
-        if "news_items_to_delete" in data:
-            cls.delete_news_items(data.pop("news_items_to_delete"))
-
         skipped_story_ids, added_story_ids = cls._process_news_items(data)
         story_ids += added_story_ids
 
         if cls._has_cross_story_conflict(data["id"], skipped_story_ids):
             cls._remove_conflicting_stories(data["id"], story_ids[1:])
             return cls.handle_conflicting_news_items(data)
+
+        if "news_items_to_delete" in data:
+            cls.delete_news_items(data.pop("news_items_to_delete"))
 
         cls.group_stories(story_ids)
         return cls.update(data["id"], data, external=True)
@@ -523,7 +523,7 @@ class Story(BaseModel):
                 results.append(result)
 
         if results:
-            return {"error": "Some stories could not be added", "details": results}, 400
+            return {"error": "Some stories could not be added", "details": results}, status
         return {"message": "Stories added successfully"}, 200
 
     @classmethod
