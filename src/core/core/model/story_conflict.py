@@ -29,7 +29,7 @@ class StoryConflict:
         if not story:
             logger.error(f"Story with id {self.story_id} not found for resolution.")
             return {"error": "Story not found", "id": self.story_id}, 404
-        response, code = story.add_or_update(updated_data)
+        response, code = story.add_or_update_for_misp([updated_data], force=True)
 
         if code == 200:
             StoryConflict.conflict_store.pop(self.story_id, None)
