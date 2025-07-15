@@ -44,7 +44,7 @@
   </div>
 
   <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
 
     {{ form_input('Username', 'username', user.username, form_error.username, width="w-3/4") }}
     {{ form_input('Name', 'name', user.name, form_error.name, width="w-3/4") }}
@@ -58,8 +58,8 @@
                class="input input-md validator {% if form_error.password %}input-error{% endif %}"
                name="password"
                {% if create %}required hx-preserve{% endif %} />
-        <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
-        <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+        <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="cursor-pointer") }}</div>
+        <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="cursor-pointer") }}</div>
       </label>
       <button type="button"
               class="btn btn-primary grow"

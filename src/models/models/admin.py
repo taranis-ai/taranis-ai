@@ -100,6 +100,7 @@ class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
     _model_name = "role"
     _search_fields = ["name", "description"]
+    _pretty_name = "Role"
 
     id: int | None = None
     name: str = ""

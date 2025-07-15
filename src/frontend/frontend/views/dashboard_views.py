@@ -1,4 +1,4 @@
-from models.dashboard import Dashboard, TrendingClusters
+from models.dashboard import Dashboard, TrendingCluster
 from frontend.views.base_view import BaseView
 from flask import render_template, abort
 
@@ -19,20 +19,23 @@ class DashboardView(BaseView):
 
     @classmethod
     def static_view(cls):
+        error = None
         try:
             dashboard = DataPersistenceLayer().get_objects(cls.model)
-            trending_clusters = DataPersistenceLayer().get_objects(TrendingClusters)
-            error = None
         except Exception as exc:
             dashboard = None
-            trending_clusters = None
             error = str(exc)
 
-        if not dashboard:
+        try:
+            trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
+        except Exception:
+            trending_clusters = []
+
+        if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found")
         template = cls.get_list_template()
-        context = {"data": dashboard[0], "cluster": trending_clusters, "error": error}
+        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error}
         logger.debug(f"Rendering {template} with context: {context}")
         return render_template(template, **context)
 

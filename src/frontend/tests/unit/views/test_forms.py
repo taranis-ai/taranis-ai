@@ -80,7 +80,7 @@ def test_roles_form_put(roles_put_mock, authenticated_client, htmx_header):
     assert response.headers.get("HX-Redirect") == url_for("admin.roles")
 
 
-def test_roles_form_delete(roles_delete_mock, authenticated_client, htmx_header, mock_core_get_endpoints):
+def test_roles_form_delete(roles_delete_mock, authenticated_client, htmx_header):
     response = authenticated_client.delete(url_for("admin.edit_role", role_id=2), headers=htmx_header)
     tree = html.fromstring(response.text)
     notification_span = tree.xpath('//span[@id="notification-message"]')

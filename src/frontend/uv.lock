@@ -591,15 +591,15 @@ wheels = [
 
 [[package]]
 name = "polyfactory"
-version = "2.22.0"
+version = "2.22.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "faker" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d1/c7/cc5a646fe3c87f84b5ea68aa8b5d51c7f5f7c9f7c88445fd0c1f3e8ac584/polyfactory-2.22.0.tar.gz", hash = "sha256:02f78f5ff34669e795984604ffc16d31ccd752512c7314fcf8608a5d4393f36f", size = 252368, upload-time = "2025-07-01T18:42:06.451Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/21/0b1a08bd4ab7d4685b4b83969a7b93a11c6557955765ada1b28d362d177c/polyfactory-2.22.1.tar.gz", hash = "sha256:6c91693088c81ab8fbe22dc66cae21fd3c17f91930fe1fae5b35b030eb020d3a", size = 253987, upload-time = "2025-07-14T19:37:29.032Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/86/6fc6e5a3da4e11819eaa5ce335e64fc42f8c3ebad1e7d260caf36dd1c398/polyfactory-2.22.0-py3-none-any.whl", hash = "sha256:d278e705d8551e84a79f5628f848faa8661d7389981ca74a0f7e5f087060f953", size = 63348, upload-time = "2025-07-01T18:42:05.199Z" },
+    { url = "https://files.pythonhosted.org/packages/12/8d/245e02e6ff1f046f70636dc62380ea73b03ab1d7f1fdcf61cbe26bc9c030/polyfactory-2.22.1-py3-none-any.whl", hash = "sha256:7500ee3678d9bc25347c0a73a35d3711cfcf9c7f45ad56d0bb085e9f75ecae7a", size = 63547, upload-time = "2025-07-14T19:37:27.353Z" },
 ]
 
 [[package]]
@@ -1023,7 +1023,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.2.0.dev3"
+version = "1.2.0.dev4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes" },
@@ -1031,9 +1031,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/3e/8334e140185194a6a16ac1c5dc91c27b3bf839c6f5d400b51354a93d937f/taranis_models-1.2.0.dev3.tar.gz", hash = "sha256:e846f344a69e7fe6da7577d2eebf04bf334664bcc501d85334019326edddf1a3", size = 24416, upload-time = "2025-07-14T07:30:00.071Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/fa/1812b28322a62d9b9f38d92ffe90d6c65b166852fb6ffc482d2dd7a03a37/taranis_models-1.2.0.dev4.tar.gz", hash = "sha256:a5f3c01002c82a9cfdee2057390e883b4093b20a79bc9d0fcb50a37d21331956", size = 24381, upload-time = "2025-07-15T12:18:10.81Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/35/5149b59a32a88fa2b7cb0aa848a9e18522b79da232e95025a76da6e39aaa/taranis_models-1.2.0.dev3-py3-none-any.whl", hash = "sha256:681871e395086e5c86b665944f39916b75b1b41873258ef4712c428ffaf384cc", size = 13136, upload-time = "2025-07-14T07:29:58.988Z" },
+    { url = "https://files.pythonhosted.org/packages/56/1b/6be037c7f675f1cb7351dfc033a2ba3839b7d9af164e907e2ac18c0a11f5/taranis_models-1.2.0.dev4-py3-none-any.whl", hash = "sha256:b69e445d2279585e0ce08aef2266ff8e92f9f12093bd9ea486dc7ba740db51eb", size = 13111, upload-time = "2025-07-15T12:18:09.68Z" },
 ]
 
 [[package]]

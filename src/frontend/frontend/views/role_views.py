@@ -1,10 +1,10 @@
-import contextlib
 from typing import Any
 
 from models.admin import Role, Permission
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
 from frontend.filters import render_count
+from frontend.log import logger
 
 
 class RoleView(BaseView):
@@ -14,9 +14,11 @@ class RoleView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        with contextlib.suppress(Exception):
+        try:
             dpl = DataPersistenceLayer()
             base_context["permissions"] = [p.model_dump() for p in dpl.get_objects(Permission)]
+        except Exception:
+            logger.exception("Error retrieving permissions")
         return base_context
 
     @classmethod

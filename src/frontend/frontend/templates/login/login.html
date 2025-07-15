@@ -15,8 +15,8 @@
         <label class="floating-label mb-3 input form-control w-full">
           <span>Password</span>
           <input id="password" :type="showPassword ? 'text' : 'password'" placeholder="Password" name="password" required />
-          <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
-          <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+          <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="cursor-pointer") }}</div>
+          <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="cursor-pointer") }}</div>
         </label>
       </div>
       <input type="submit" class="btn btn-primary btn-block" value="Login" data-testid="login-button" />

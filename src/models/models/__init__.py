@@ -1,7 +1,7 @@
 from models.admin import Job, Address, Organization, Role, User, Permission, ACL, Template, ReportItemType, ProductType
 from models.types import TLPLevel, WORKER_TYPES, WORKER_CATEGORY
 from models.base import TaranisBaseModel
-from models.dashboard import Dashboard, TrendingTag, TrendingClusters
+from models.dashboard import Dashboard, TrendingCluster
 
 __all__ = [
     "ACL",
@@ -12,11 +12,10 @@ __all__ = [
     "User",
     "Permission",
     "Dashboard",
-    "TrendingTag",
     "Template",
     "ReportItemType",
     "ProductType",
-    "TrendingClusters",
+    "TrendingCluster",
     "WORKER_TYPES",
     "WORKER_CATEGORY",
     "TaranisBaseModel",

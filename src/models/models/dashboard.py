@@ -19,16 +19,11 @@ class Dashboard(TaranisBaseModel):
     conflict_count: int | None = None
 
 
-class TrendingTag(TaranisBaseModel):
-    _core_endpoint = "/dashboard/cluster"
-    _model_name = "trending_tags"
-    name: str
-    tags: list[StoryTag] = Field(default_factory=list)
-    size: int | None = None
-
-
-class TrendingClusters(TaranisBaseModel):
+class TrendingCluster(TaranisBaseModel):
     _core_endpoint = "/dashboard/trending-clusters"
     _model_name = "trending_clusters"
     _pretty_name = "Trending Clusters"
-    root: list[TrendingTag] = Field(default_factory=list)
+
+    name: str
+    tags: list[StoryTag] = Field(default_factory=list)
+    size: int | None = None
