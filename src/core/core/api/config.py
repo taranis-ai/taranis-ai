@@ -224,6 +224,9 @@ class Roles(MethodView):
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
+        if user.UserRole.has_assigned_user(role_id):
+            logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
+            return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
         return role.Role.delete(role_id)
 
 

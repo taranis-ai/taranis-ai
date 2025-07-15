@@ -3,6 +3,7 @@ from jinja2 import TemplateNotFound
 from typing import Type, Any
 from pydantic import ValidationError
 from flask.views import MethodView
+from requests import Response as RequestsResponse
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
@@ -274,7 +275,7 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
 
     @classmethod
-    def get_notification_from_response(cls, response) -> str:
+    def get_notification_from_response(cls, response: RequestsResponse) -> str:
         """
         Extracts the notification from the response object.
         If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.

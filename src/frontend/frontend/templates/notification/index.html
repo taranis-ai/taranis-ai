@@ -1,7 +1,8 @@
 <section id="notification-bar" x-data="{ show: true }" x-init="setTimeout(() => show = false, 13370)" hx-swap-oob="{{ oob | default('false') }}">
   {% if notification or error %}
   {% set notification = notification if notification is defined and notification is mapping else {} %}
-  {% set message = notification.get('message') if notification.get('message') else error.get('error', "Error") %}
+  {% set error = error if error is defined and error is mapping else {} %}
+  {% set message = notification.get('message', error.get('error', "Error")) %}
   {% set icon = "exclamation-triangle" if error else notification.get('icon', "information-circle") %}
   {% set class = "alert-error" if error else notification.get('class', "alert-info") %}
     <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
