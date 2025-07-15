@@ -8,6 +8,7 @@ jobs:
   test_docker_deployment:
     if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,4 +29,3 @@ jobs:
           echo "Echo core logs:"
           docker compose logs core
           docker compose down
-
