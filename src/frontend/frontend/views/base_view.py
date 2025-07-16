@@ -18,6 +18,7 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 class BaseView(MethodView):
     model: Type[TaranisBaseModel]
 
+    decorators = [auth_required()]
     htmx_update_template: str = ""
     htmx_list_template: str = ""
     default_template: str = ""
@@ -311,25 +312,21 @@ class BaseView(MethodView):
         key = self._get_object_key()
         return kwargs.get(key)
 
-    @auth_required()
     def get(self, **kwargs):
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    @auth_required()
     def post(self, *args, **kwargs):
         return self.update_view(object_id=0)
 
-    @auth_required()
     def put(self, **kwargs):
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             abort(405)
         return self.update_view(object_id=object_id)
 
-    @auth_required()
     def delete(self, **kwargs):
         if ids := request.form.getlist("ids"):
             return self.delete_multiple_view(object_ids=ids)

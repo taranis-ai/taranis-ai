@@ -517,7 +517,11 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
+        if request.json:
+            state = request.json.get("state")
+        else:
+            state = request.args.get("state", default="enabled", type=str)
+        logger.debug(f"Toggling OSINT source {source_id} to state {state}")
         return osint_source.OSINTSource.toggle_state(source_id, state)
 
 

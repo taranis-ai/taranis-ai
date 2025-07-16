@@ -52,6 +52,11 @@ class CoreApi:
             json_data = {}
         return requests.post(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
+    def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
+        if not json_data:
+            json_data = {}
+        return requests.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+
     def api_delete(self, endpoint: str) -> requests.Response:
         return requests.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, timeout=self.timeout)
 
@@ -137,6 +142,13 @@ class CoreApi:
             return self.api_post("/config/osint-sources/collect")
         except Exception as e:
             logger.error(f"Collect OSINT sources failed: {e}")
+            return None
+
+    def toggle_osint_source(self, osint_source_id: str, new_state: str):
+        try:
+            return self.api_patch(f"/config/osint-sources/{osint_source_id}", json_data={"state": new_state})
+        except Exception as e:
+            logger.error(f"Toggle OSINT source failed: {e}")
             return None
 
     def load_default_word_lists(self):

@@ -4,7 +4,6 @@ from flask import render_template, abort
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.auth import auth_required
 
 
 class DashboardView(BaseView):
@@ -36,7 +35,6 @@ class DashboardView(BaseView):
             return render_template("errors/404.html", error="No Dashboard items found")
         template = cls.get_list_template()
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error}
-        logger.debug(f"Rendering {template} with context: {context}")
         return render_template(template, **context)
 
     @classmethod
@@ -49,18 +47,14 @@ class DashboardView(BaseView):
 
         return render_template("admin_dashboard/index.html", data=dashboard[0])
 
-    @auth_required()
     def get(self, **kwargs):
         return self.static_view()
 
-    @auth_required()
     def post(self):
         abort(405)
 
-    @auth_required()
     def put(self, **kwargs):
         abort(405)
 
-    @auth_required()
     def delete(self, **kwargs):
         abort(405)

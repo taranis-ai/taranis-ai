@@ -74,4 +74,4 @@ class TemplateView(BaseView):
         if resp_obj and not error:
             return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
 
-        return render_template("notification/index.html", error=error), 400
+        return render_template("notification/index.html", notification={"message": error, "error": True}), 400

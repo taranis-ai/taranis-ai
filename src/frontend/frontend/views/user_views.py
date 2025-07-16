@@ -10,6 +10,7 @@ from frontend.filters import render_count
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
+from frontend.auth import auth_required
 
 
 class UserView(BaseView):
@@ -73,6 +74,7 @@ class UserView(BaseView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
+    @auth_required()
     def export_view(cls):
         user_ids = request.args.getlist("ids")
         core_resp = CoreApi().export_users(user_ids)

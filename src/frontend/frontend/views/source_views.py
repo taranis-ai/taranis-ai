@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Literal
 from flask import render_template, request, Response, redirect, url_for
 
 from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
@@ -11,6 +11,7 @@ from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.core_api import CoreApi
 from frontend.config import Config
+from frontend.auth import auth_required
 
 
 class SourceView(BaseView):
@@ -212,3 +213,25 @@ class SourceView(BaseView):
         object_id_with_params = f"{object_id}{'?force=true' if request.args.get('force') == 'true' else ''}"
         response = DataPersistenceLayer().delete_object(cls.model, object_id_with_params)
         return render_template("notification/swal.html", response=response.json(), is_success=response.ok), response.status_code
+
+    @classmethod
+    @auth_required()
+    def toggle_osint_source_state(cls, osint_source_id: str, new_state: Literal["enabled", "disabled"]) -> tuple[str, int]:
+        dpl = DataPersistenceLayer()
+
+        response = CoreApi().toggle_osint_source(osint_source_id, new_state)
+        if not response:
+            logger.error(f"Failed to toggle OSINT source state for {osint_source_id}")
+            return render_template(
+                "notification/index.html", notification={"message": "Failed to toggle OSINT source state", "error": True}
+            ), 500
+
+        dpl.invalidate_cache_by_object(OSINTSource)
+        notification = render_template(
+            "notification/index.html",
+            notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},
+        )
+        osint_source = dpl.get_object(OSINTSource, osint_source_id)
+        state_button = render_template("osint_source/state_button.html", osint_source=osint_source)
+
+        return notification + state_button, 200
