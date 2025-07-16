@@ -165,9 +165,6 @@ class CoreApi:
             logger.exception("Can't run Post Collection Bots")
             return None
 
-    def update_osintsource_status(self, osint_source_id: str, error_msg: dict | None = None) -> dict | None:
-        return self.api_put(url=f"/worker/osint-sources/{osint_source_id}", json_data=error_msg)
-
     def update_osint_source_icon(self, osint_source_id: str, icon) -> dict | None:
         try:
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
