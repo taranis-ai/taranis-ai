@@ -6,9 +6,11 @@ export function getDashboardData() {
 
 export function getTrendingClusters(days = null) {
   if (days) {
-    return apiService.get(`/dashboard/trending-clusters?days=${days}`)
+    return apiService.get(
+      `/dashboard/trending-clusters?days=${days}&legacy=true`
+    )
   }
-  return apiService.get('/dashboard/trending-clusters')
+  return apiService.get('/dashboard/trending-clusters?legacy=true')
 }
 
 export function getClusterByType(tag_type, filter_data) {

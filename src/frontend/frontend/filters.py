@@ -4,19 +4,19 @@ import base64
 from heroicons.jinja import heroicon_outline
 
 from markupsafe import Markup
-from models.admin import Role, User, OSINTSource
+from models.admin import OSINTSource
 
 __all__ = [
     "human_readable_trigger",
     "last_path_segment",
     "admin_action",
     "get_var",
-    "permissions_count",
-    "role_count",
     "b64decode",
     "render_state",
+    "render_truncated",
     "render_icon",
     "render_parameter",
+    "render_count",
     "render_source_parameter",
     "render_item_type",
 ]
@@ -42,15 +42,9 @@ def human_readable_trigger(trigger):
     return trigger
 
 
-def permissions_count(item: Role | User) -> int:
-    if hasattr(item, "permissions") and isinstance(item.permissions, list):
-        return len(item.permissions)
-    return 0
-
-
-def role_count(item: User) -> int:
-    if hasattr(item, "roles") and isinstance(item.roles, list):
-        return len(item.roles)
+def render_count(item, field: str) -> int:
+    if hasattr(item, field) and isinstance(getattr(item, field), list):
+        return len(getattr(item, field))
     return 0
 
 
@@ -88,6 +82,13 @@ def render_state(item) -> str:
     if hasattr(item, "state"):
         return Markup(render_template("partials/state_badge.html", state=item.state, state_message=item.last_error_message or ""))
     return Markup(render_template("partials/state_badge.html", state=-1))
+
+
+def render_truncated(item, field: str) -> str:
+    if hasattr(item, field) and isinstance(getattr(item, field), str):
+        value = getattr(item, field)
+        return Markup(f"<div class='truncate'>{value}</div>")
+    return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
 
 
 def render_item_type(item) -> str:

@@ -6,10 +6,11 @@ from flask_jwt_extended import get_jwt_identity
 from frontend.core_api import CoreApi
 from models.admin import Role, Organization, User
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import permissions_count, role_count
+from frontend.filters import render_count
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
+from frontend.auth import auth_required
 
 
 class UserView(BaseView):
@@ -30,8 +31,14 @@ class UserView(BaseView):
         return [
             {"title": "username", "field": "username", "sortable": True, "renderer": None},
             {"title": "name", "field": "name", "sortable": True, "renderer": None},
-            {"title": "roles", "field": "roles", "sortable": False, "renderer": role_count},
-            {"title": "permissions", "field": "permissions", "sortable": False, "renderer": permissions_count},
+            {"title": "roles", "field": "roles", "sortable": False, "renderer": render_count, "render_args": {"field": "roles"}},
+            {
+                "title": "permissions",
+                "field": "permissions",
+                "sortable": False,
+                "renderer": render_count,
+                "render_args": {"field": "permissions"},
+            },
         ]
 
     @classmethod
@@ -67,6 +74,7 @@ class UserView(BaseView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
+    @auth_required()
     def export_view(cls):
         user_ids = request.args.getlist("ids")
         core_resp = CoreApi().export_users(user_ids)

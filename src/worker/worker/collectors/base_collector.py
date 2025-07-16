@@ -11,6 +11,18 @@ from worker.core_api import CoreApi
 from worker.types import NewsItem
 
 
+class NoChangeError(Exception):
+    """Custom exception for when a source didn't change."""
+
+    def __init__(self, message: str = "Not modified"):
+        super().__init__(message)
+        self.message = message
+        logger.debug(message)
+
+    def __str__(self) -> str:
+        return self.message
+
+
 class BaseCollector:
     def __init__(self):
         self.type = "BASE_COLLECTOR"

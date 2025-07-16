@@ -28,6 +28,12 @@ from frontend.views import (
 )
 
 
+class AdminDashboardAPI(MethodView):
+    @auth_required()
+    def get(self):
+        return DashboardView.admin_dashboard()
+
+
 class ScheduleAPI(MethodView):
     @auth_required()
     def get(self):
@@ -52,17 +58,12 @@ class ScheduleJobDetailsAPI(MethodView):
         return render_template("schedule/job_details.html", job=job)
 
 
-class ExportUsers(MethodView):
-    @auth_required()
-    def get(self):
-        return UserView.export_view()
-
-
 class ImportUsers(MethodView):
     @auth_required()
     def get(self):
         return UserView.import_view()
 
+    @auth_required()
     def post(self):
         return UserView.import_post_view()
 
@@ -78,6 +79,7 @@ class ImportOSINTSources(MethodView):
     def get(self):
         return SourceView.import_view()
 
+    @auth_required()
     def post(self):
         return SourceView.import_post_view()
 
@@ -106,25 +108,14 @@ class OSINTSourceCollect(MethodView):
         return SourceView.collect_all_osint_sources()
 
 
-class ExportWordLists(MethodView):
-    @auth_required()
-    def get(self):
-        return WordListView.export_view()
-
-
 class ImportWordLists(MethodView):
     @auth_required()
     def get(self):
         return WordListView.import_view()
 
-    def post(self):
-        return WordListView.import_post_view()
-
-
-class LoadDefaultWordLists(MethodView):
     @auth_required()
     def post(self):
-        return WordListView.load_default_word_lists()
+        return WordListView.import_post_view()
 
 
 class ACLItemAPI(MethodView):
@@ -139,19 +130,6 @@ class OSINTSourceParameterAPI(MethodView):
     def get(self, osint_source_id: str):
         collector_type = request.args.get("type", "")
         return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type)
-
-
-class BotParameterAPI(MethodView):
-    @auth_required()
-    def get(self, bot_id: str):
-        bot_type = request.args.get("type", "")
-        return BotView.get_bot_parameters_view(bot_id, bot_type)
-
-
-class BotExecuteAPI(MethodView):
-    @auth_required()
-    def post(self, bot_id: str):
-        return BotView.execute_bot(bot_id)
 
 
 class PublisherParameterAPI(MethodView):
@@ -179,14 +157,14 @@ class ReportItemTypeGroupItemAPI(MethodView):
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
-    admin_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
+    admin_bp.add_url_rule("/", view_func=AdminDashboardAPI.as_view("dashboard"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
     admin_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))
 
     admin_bp.add_url_rule("/users", view_func=UserView.as_view("users"))
     admin_bp.add_url_rule("/users/<int:user_id>", view_func=UserView.as_view("edit_user"))
-    admin_bp.add_url_rule("/export/users", view_func=ExportUsers.as_view("export_users"))
+    admin_bp.add_url_rule("/export/users", view_func=UserView.export_view, methods=["GET"], endpoint="export_users")
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
     admin_bp.add_url_rule("/scheduler", view_func=SchedulerView.as_view("scheduler"))
@@ -214,6 +192,9 @@ def init(app: Flask):
     admin_bp.add_url_rule("/sources", view_func=SourceView.as_view("osint_sources"))
     admin_bp.add_url_rule("/sources/<string:osint_source_id>", view_func=SourceView.as_view("edit_osint_source"))
     admin_bp.add_url_rule("/source_parameters/<string:osint_source_id>", view_func=OSINTSourceParameterAPI.as_view("osint_source_parameters"))
+    admin_bp.add_url_rule(
+        "/toggle_source_state/<string:osint_source_id>/<string:new_state>", view_func=SourceView.toggle_osint_source_state, methods=["POST"]
+    )
     admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
     admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
     admin_bp.add_url_rule("/load_default_osint_sources", view_func=LoadDefaultOSINTSources.as_view("load_default_osint_sources"))
@@ -223,8 +204,10 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
-    admin_bp.add_url_rule("/bot_parameters/<string:bot_id>", view_func=BotParameterAPI.as_view("bot_parameters"))
-    admin_bp.add_url_rule("/bot_execute/<string:bot_id>", view_func=BotExecuteAPI.as_view("execute_bot"))
+    admin_bp.add_url_rule(
+        "/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"], endpoint="bot_parameters"
+    )
+    admin_bp.add_url_rule("/bot_execute/<string:bot_id>", view_func=BotView.execute_bot, methods=["POST"])
 
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))
     admin_bp.add_url_rule("/report_types/<int:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
@@ -243,8 +226,10 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/word_lists", view_func=WordListView.as_view("word_lists"))
     admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
-    admin_bp.add_url_rule("/export/word_lists", view_func=ExportWordLists.as_view("export_word_lists"))
+    admin_bp.add_url_rule("/export/word_lists", view_func=WordListView.export_view, methods=["GET"], endpoint="export_word_lists")
     admin_bp.add_url_rule("/import/word_lists", view_func=ImportWordLists.as_view("import_word_lists"))
-    admin_bp.add_url_rule("/load_default_word_lists", view_func=LoadDefaultWordLists.as_view("load_default_word_lists"))
+    admin_bp.add_url_rule(
+        "/load_default_word_lists", view_func=WordListView.load_default_word_lists, methods=["POST"], endpoint="load_default_word_lists"
+    )
 
     app.register_blueprint(admin_bp)

@@ -130,7 +130,7 @@ class OSINTSource(BaseModel):
         }
 
     def to_task_id(self) -> str:
-        return f"{self.type}_{self.id}"
+        return f"collect_{self.type}_{self.id}"
 
     def get_schedule(self) -> str:
         if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
@@ -168,9 +168,9 @@ class OSINTSource(BaseModel):
         if not osint_source:
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
-        if state == "enable":
+        if state.startswith("enable"):
             osint_source.state = -1
-        elif state == "disable":
+        elif state.startswith("disable"):
             osint_source.state = -2
         else:
             return {"error": "Invalid state"}, 400

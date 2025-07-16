@@ -1,4 +1,5 @@
-from enum import StrEnum, auto, IntEnum
+from enum import StrEnum, auto, IntEnum, nonmember
+import contextlib
 
 
 class TLPLevel(StrEnum):
@@ -7,6 +8,45 @@ class TLPLevel(StrEnum):
     AMBER_STRICT = "amber+strict"
     AMBER = "amber"
     RED = "red"
+
+    _ACCESSIBLE_NAMES = nonmember(
+        {
+            "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+            "AMBER": ["AMBER", "GREEN", "CLEAR"],
+            "GREEN": ["GREEN", "CLEAR"],
+            "CLEAR": ["CLEAR"],
+        }
+    )
+
+    def get_accessible_levels(self) -> list[str]:
+        """
+        Return the list of TLPLevel members this level can access.
+        """
+        names = type(self)._ACCESSIBLE_NAMES.get(self.name, [])
+        return [type(self)[nm].value for nm in names]
+
+    @classmethod
+    def get_most_restrictive_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
+        """
+        Get the most restrictive TLP level from a list of TLP levels.
+        If the list is empty, return the default TLP level (CLEAR).
+        """
+        if not tlp_levels:
+            return cls.CLEAR
+
+        provided = {tlp.name for tlp in tlp_levels}
+
+        return next(
+            (cls[level_name] for level_name in cls._ACCESSIBLE_NAMES.keys() if level_name in provided),
+            cls.CLEAR,
+        )
+
+    @classmethod
+    def get_tlp_level(cls, tlp_level: str) -> "TLPLevel | None":
+        with contextlib.suppress(ValueError):
+            return TLPLevel(tlp_level)
+        return None
 
 
 class ItemType(StrEnum):

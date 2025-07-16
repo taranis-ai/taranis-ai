@@ -21,6 +21,8 @@ declare -A files=(
   ["https://cdn.jsdelivr.net/npm/alpinejs/dist/cdn.min.js"]="${JS_STATIC_DIR}/alpinejs.min.js"
   ["https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"]="${JS_STATIC_DIR}/fuse.js"
   ["https://cdn.jsdelivr.net/npm/htmx.org/dist/htmx.min.js"]="${JS_STATIC_DIR}/htmx.min.js"
+  ["https://cdn.jsdelivr.net/npm/sweetalert2/dist/sweetalert2.all.min.js"]="${JS_STATIC_DIR}/sweetalert2.all.min.js"
+  ["https://cdn.jsdelivr.net/npm/sweetalert2/dist/sweetalert2.min.css"]="${CSS_STATIC_DIR}/sweetalert2.min.css"
   ["https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js"]="${JS_STATIC_DIR}/daisyui.js"
   ["https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.52.2.tgz"]="${JS_STATIC_DIR}/monaco-editor-0.52.2.tgz"
 )

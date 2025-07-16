@@ -2,7 +2,7 @@ from celery import Task
 from contextlib import contextmanager
 
 import worker.collectors
-from worker.collectors.base_collector import BaseCollector
+from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
 from typing import Any
@@ -71,9 +71,9 @@ class CollectorTask(Task):
         with collector_log_fmt(logger, formatter):
             try:
                 collector.collect(source, manual)
+            except NoChangeError as e:
+                return f"Source '{source.get('name')}' with id {osint_source_id}: {str(e)}"
             except Exception as e:
-                if str(e) == "Not modified":
-                    return f"Source '{source.get('name')}' with id {osint_source_id} was not modified"
                 self.core_api.update_osintsource_status(osint_source_id, {"error": str(e)})
                 raise RuntimeError(e) from e
 

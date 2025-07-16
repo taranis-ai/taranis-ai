@@ -43,7 +43,11 @@ class TrendingClusters(MethodView):
     @auth_required()
     def get(self):
         days = int(request.args.get("days", 7))
-        return NewsItemTagService.get_largest_tag_types(days)
+        legacy = request.args.get("legacy", "false").lower() == "true"
+        if legacy:
+            return NewsItemTagService.get_largest_tag_types(days)
+
+        return {"items": list(NewsItemTagService.get_largest_tag_types(days).values())}, 200
 
 
 class StoryClusters(MethodView):

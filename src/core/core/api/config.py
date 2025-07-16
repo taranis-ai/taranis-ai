@@ -224,6 +224,9 @@ class Roles(MethodView):
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
+        if user.UserRole.has_assigned_user(role_id):
+            logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
+            return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
         return role.Role.delete(role_id)
 
 
@@ -514,7 +517,11 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
+        if request.json:
+            state = request.json.get("state")
+        else:
+            state = request.args.get("state", default="enabled", type=str)
+        logger.debug(f"Toggling OSINT source {source_id} to state {state}")
         return osint_source.OSINTSource.toggle_state(source_id, state)
 
 
@@ -524,7 +531,9 @@ class OSINTSourceCollect(MethodView):
         StoryConflict.flush_store()
         NewsItemConflict.flush_store()
         if source_id:
-            return queue_manager.queue_manager.collect_osint_source(source_id)
+            if source := osint_source.OSINTSource.get(source_id):
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.to_task_id())
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 
 

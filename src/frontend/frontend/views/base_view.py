@@ -3,6 +3,7 @@ from jinja2 import TemplateNotFound
 from typing import Type, Any
 from pydantic import ValidationError
 from flask.views import MethodView
+from requests import Response as RequestsResponse
 
 from models.admin import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
@@ -17,6 +18,7 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 class BaseView(MethodView):
     model: Type[TaranisBaseModel]
 
+    decorators = [auth_required()]
     htmx_update_template: str = ""
     htmx_list_template: str = ""
     default_template: str = ""
@@ -201,15 +203,16 @@ class BaseView(MethodView):
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
         return [
-            {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": cls.get_base_route(), "is_link": True},
+            {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": cls.get_base_route(), "type": "link"},
             {
                 "label": "Delete",
                 "icon": "trash",
                 "class": "btn-error",
                 "method": "delete",
                 "url": cls.get_base_route(),
-                "hx_target": None,
-                "hx_swap": None,
+                "hx_target": f"#{cls.model_name()}-table-container",
+                "hx_swap": "outerHTML",
+                "type": "button",
                 "confirm": "Are you sure you want to delete this item?",
             },
         ]
@@ -253,9 +256,9 @@ class BaseView(MethodView):
 
         if error and is_htmx_request():
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("partials/error.html", error=error), 400
+            return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error))
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 400 if error else 200
 
     @classmethod
     def static_view(cls):
@@ -273,19 +276,35 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
 
     @classmethod
-    def delete_view(cls, object_id: str | int):
-        result = DataPersistenceLayer().delete_object(cls.model, object_id)
-        if result:
-            return Response(status=result.status_code, headers={"HX-Refresh": "true"})
-        return "error"
+    def get_notification_from_response(cls, response: RequestsResponse) -> str:
+        """
+        Extracts the notification from the response object.
+        If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
+        If it was ok it should render it as a success message, otherwise it should render it as an error message.
+        """
+        if response.ok and response.json():
+            return render_template("notification/index.html", notification={"message": response.json().get("message"), "error": False})
+        return render_template("notification/index.html", notification={"message": response.json().get("error"), "error": True})
 
     @classmethod
-    def delete_multiple_view(cls, object_ids: list[str]):
+    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
+        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
+
+        response = cls.get_notification_from_response(core_response)
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code
+
+    @classmethod
+    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        if any(r.ok for r in results):
-            return Response(status=200, headers={"HX-Refresh": "true"})
-        return Response(status=400, headers={"HX-Refresh": "true"})
+        if all(r.ok for r in results):
+            return render_template(
+                "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+            ), 200
+        return render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}), 500
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -295,25 +314,21 @@ class BaseView(MethodView):
         key = self._get_object_key()
         return kwargs.get(key)
 
-    @auth_required()
     def get(self, **kwargs):
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    @auth_required()
-    def post(self):
+    def post(self, *args, **kwargs):
         return self.update_view(object_id=0)
 
-    @auth_required()
     def put(self, **kwargs):
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             abort(405)
         return self.update_view(object_id=object_id)
 
-    @auth_required()
     def delete(self, **kwargs):
         if ids := request.form.getlist("ids"):
             return self.delete_multiple_view(object_ids=ids)

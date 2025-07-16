@@ -1,5 +1,5 @@
 from typing import Any
-from flask import render_template, url_for
+from flask import render_template, url_for, request
 
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
@@ -7,6 +7,7 @@ from frontend.log import logger
 from models.admin import Bot, WorkerParameter, WorkerParameterValue
 from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
+from frontend.auth import auth_required
 
 
 class BotView(BaseView):
@@ -34,11 +35,9 @@ class BotView(BaseView):
         bot_actions = [
             {
                 "label": "Run Bot",
-                "class": "",
                 "icon": "rocket-launch",
                 "method": "post",
                 "url": url_for("admin.execute_bot", bot_id=""),
-                "hx_target_error": "#error-msg",
                 "hx_target": "#notification-bar",
                 "hx_swap": "outerHTML",
             },
@@ -58,7 +57,9 @@ class BotView(BaseView):
         return base_context
 
     @classmethod
-    def get_bot_parameters_view(cls, bot_id: str, bot_type: str):
+    @auth_required()
+    def get_bot_parameters_view(cls, bot_id: str):
+        bot_type = request.args.get("type", "")
         if not bot_id and not bot_type:
             logger.warning("No bot ID or bot type provided.")
 
@@ -67,10 +68,12 @@ class BotView(BaseView):
         return render_template("partials/worker_parameters.html", parameters=parameters)
 
     @classmethod
+    @auth_required()
     def execute_bot(cls, bot_id: str):
         response = CoreApi().execute_bot(bot_id)
-        logger.debug(f"Execute bot response: {response}")
         if not response:
             logger.error("Failed to execute bot.")
-            return render_template("partials/error.html", error="Failed to execute bot."), 500
-        return render_template("notification/index.html", notification="Bot executed successfully"), 200
+            return render_template("notification/index.html", notification={"message": "Failed to execute bot.", "error": True}), 500
+        return render_template(
+            "notification/index.html", notification={"message": "Bot executed successfully", "class": "alert-success"}
+        ), 200
