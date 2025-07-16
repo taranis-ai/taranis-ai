@@ -420,7 +420,7 @@ class Story(BaseModel):
     @classmethod
     def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
         story_ids = [data["id"]]
-        news_item_to_delete = data.pop("news_items_to_delete")
+        news_item_to_delete = data.pop("news_items_to_delete", None)
 
         skipped_story_ids, added_story_ids = cls._process_news_items(data)
         story_ids += added_story_ids
@@ -429,7 +429,7 @@ class Story(BaseModel):
             cls._remove_conflicting_stories(data["id"], story_ids[1:])
             return cls.handle_conflicting_news_items(data)
 
-        if "news_items_to_delete" in data:
+        if news_item_to_delete:
             cls.delete_news_items(news_item_to_delete)
 
         cls.group_stories(story_ids)
