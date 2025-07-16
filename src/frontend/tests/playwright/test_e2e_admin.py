@@ -76,7 +76,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("edit--3").get_by_role("cell", name="74")).to_be_visible()
 
         def remove_user():
-            page.pause()
             page.on("dialog", lambda dialog: dialog.accept())
             page.get_by_test_id("edit--3").get_by_role("button", name="Delete").click()
 

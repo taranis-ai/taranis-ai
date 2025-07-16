@@ -45,7 +45,6 @@ def validate_template_content(template_content: str) -> dict:
     """
     Validate template content using Jinja2. Returns validation status dict.
     """
-    # No logger needed
     try:
         env = Environment(autoescape=False, undefined=DebugUndefined)
         # Try to parse
@@ -155,7 +154,6 @@ def get_default_json(filename: str) -> str:
 
 
 def initialize(initial_setup: bool = True) -> None:
-    """Initialize data manager, syncing presenter templates if needed."""
     if initial_setup:
         sync_presenter_templates_to_data()
 

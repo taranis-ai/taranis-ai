@@ -2,6 +2,30 @@
 {% set form_error = form_error | default({}) %}
 {% set placeholder = 'new_template' if template.id == '0' else template.id %}
 
+
+<!-- Template Validation Status Display -->
+{% if validation_status %}
+<div class="w-3/4 mb-5">
+  {% if validation_status.is_valid is defined and not validation_status.is_valid %}
+  <div role="alert" class="alert alert-warning">
+    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+    <div>
+      <h3 class="font-bold">Template has validation errors!</h3>
+      <div class="text-xs">
+        <strong>Error Type:</strong> {{ validation_status.error_type }}<br>
+        <strong>Error Message:</strong> {{ validation_status.error_message }}
+      </div>
+    </div>
+  </div>
+  {% elif validation_status.is_valid %}
+  <div role="alert" class="alert alert-success">
+    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>Template validation passed successfully.</span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 <form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#notification-bar">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename</span>
@@ -17,6 +41,7 @@
     <p class="validator-hint">Must be a valid filename</p>
   </label>
 
+
   <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
 
   <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
@@ -25,252 +50,25 @@
 </form>
 
 <script>
-  // Monaco initialization - handles both direct load and HTMX
-  function initMonaco() {
-    // Wait for elements to be available with retries
-    let retries = 0;
-    const maxRetries = 10;
-    
-    function tryInit() {
-      const ta = document.getElementById('editor-content');
-      const wrap = document.getElementById('editor');
-      
-      if (!ta || !wrap) {
-        retries++;
-        if (retries < maxRetries) {
-          setTimeout(tryInit, 100);
-          return;
-        } else {
-          console.error('Monaco elements not found after max retries');
-          return;
-        }
-      }
+  require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
 
-      // Don't reinitialize if already done
-      if (wrap.classList.contains('monaco-initialized')) {
-        return;
-      }
+  require(['vs/editor/editor.main'], function() {
+    const ta     = document.getElementById('editor-content'),
+          wrap   = document.getElementById('editor'),
+          initial = ta?.value || '';
 
-      // Check if RequireJS is available
-      if (typeof require === 'undefined') {
-        console.error('RequireJS not available');
-        return;
-      }
+    ta.classList.add('hidden');
+    wrap.classList.remove('hidden');
 
-      require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
-  // Monaco initialization - handles both direct load and HTMX
-  function initMonaco() {
-    // Wait for elements to be available with retries
-    let retries = 0;
-    const maxRetries = 10;
-    
-    function tryInit() {
-      const ta = document.getElementById('editor-content');
-      const wrap = document.getElementById('editor');
-      
-      if (!ta || !wrap) {
-        retries++;
-        if (retries < maxRetries) {
-          setTimeout(tryInit, 100);
-          return;
-        } else {
-          console.error('Monaco elements not found after max retries');
-          return;
-        }
-      }
-
-      // Don't reinitialize if already done
-      if (wrap.classList.contains('monaco-initialized')) {
-        return;
-      }
-
-      // Check if RequireJS is available
-      if (typeof require === 'undefined') {
-        console.error('RequireJS not available');
-        return;
-      }
-
-      require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
-
-      require(['vs/editor/editor.main'], function() {
-        // Double-check elements are still there
-        const ta = document.getElementById('editor-content');
-        const wrap = document.getElementById('editor');
-        
-        if (!ta || !wrap) {
-          console.error('Monaco elements disappeared during initialization');
-          return;
-        }
-        
-        const initial = ta?.value || '';
-
-        ta.classList.add('hidden');
-        wrap.classList.remove('hidden');
-        wrap.classList.add('monaco-initialized');
-        ta.classList.add('hidden');
-        wrap.classList.remove('hidden');
-        wrap.classList.add('monaco-initialized');
-
-        const editor = monaco.editor.create(wrap, {
-          value: initial,
-          language: 'jinja',
-          automaticLayout: true,
-          theme: 'vs-dark',
-        });
-        const editor = monaco.editor.create(wrap, {
-          value: initial,
-          language: 'jinja',
-          automaticLayout: true,
-          theme: 'vs-dark',
-        });
-
-        editor.onDidChangeModelContent(() => {
-          ta.value = editor.getValue();
-        });
-      }, function(err) {
-        console.error('Monaco failed to load, using textarea fallback:', err);
-        // Keep textarea visible if Monaco fails
-        const ta = document.getElementById('editor-content');
-        const wrap = document.getElementById('editor');
-        if (ta && wrap) {
-          ta.classList.remove('hidden');
-          wrap.classList.add('hidden');
-        }
-      });
-    }
-    
-    tryInit();
-  }
-
-  // For direct page loads: wait for DOM to be ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(initMonaco, 100);
+    const editor = monaco.editor.create(wrap, {
+      value: initial,
+      language: 'jinja',
+      automaticLayout: true,
+      theme: 'vs-dark',
     });
-  } else {
-    // DOM already ready, init with delay
-    setTimeout(initMonaco, 100);
-  }
 
-  // For HTMX navigation: use afterSwap instead of afterSettle
-  document.addEventListener('htmx:afterSwap', function(event) {
-    if (event.target.querySelector('#editor-content')) {
-      // Use longer delay and ensure DOM is ready
-      setTimeout(function() {
-        // Wait for next tick to ensure DOM is fully updated
-        requestAnimationFrame(function() {
-          initMonaco();
-        });
-      }, 100);
-    }
-        editor.onDidChangeModelContent(() => {
-          ta.value = editor.getValue();
-        });
-      }, function(err) {
-        console.error('Monaco failed to load, using textarea fallback:', err);
-        // Keep textarea visible if Monaco fails
-        const ta = document.getElementById('editor-content');
-        const wrap = document.getElementById('editor');
-        if (ta && wrap) {
-          ta.classList.remove('hidden');
-          wrap.classList.add('hidden');
-        }
-      });
-    }
-    
-    tryInit();
-  }
-
-  // For direct page loads: wait for DOM to be ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(initMonaco, 100);
+    editor.onDidChangeModelContent(() => {
+      ta.value = editor.getValue();
     });
-  } else {
-    // DOM already ready, init with delay
-    setTimeout(initMonaco, 100);
-  }
-
-  // For HTMX navigation: use afterSwap instead of afterSettle
-  document.addEventListener('htmx:afterSwap', function(event) {
-    if (event.target.querySelector('#editor-content')) {
-      // Use longer delay and ensure DOM is ready
-      setTimeout(function() {
-        // Wait for next tick to ensure DOM is fully updated
-        requestAnimationFrame(function() {
-          initMonaco();
-        });
-      }, 100);
-    }
   });
 </script>
-
-<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
-  <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
-    <span class="label">Filename</span>
-    <input id="id"
-           type="text"
-           placeholder="{{ placeholder }}"
-           name="id"
-           value="{{ placeholder }}"
-           required
-           pattern="^[\w\.\-]+$"
-           class="input w-full validator"
-           {% if preserve %}hx-preserve{% endif %}
-           {% if template.id != '0' %}readonly disabled{% endif %} />
-    <p class="validator-hint">Must be a valid filename</p>
-  </label>
-
-  <!-- Template Validation Status Display -->
-  {% if validation_status %}
-  <div class="w-3/4 mb-5">
-    {% if validation_status.is_valid is defined and not validation_status.is_valid %}
-    <div role="alert" class="alert alert-warning">
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-      <div>
-        <h3 class="font-bold">Template has validation errors!</h3>
-        <div class="text-xs">
-          <strong>Error Type:</strong> {{ validation_status.error_type }}<br>
-          <strong>Error Message:</strong> {{ validation_status.error_message }}
-        </div>
-      </div>
-    </div>
-    {% elif validation_status.is_valid %}
-    <div role="alert" class="alert alert-success">
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      <span>Template validation passed successfully.</span>
-    </div>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  <!-- Template Validation Status Display -->
-  {% if validation_status %}
-  <div class="w-3/4 mb-5">
-    {% if validation_status.is_valid is defined and not validation_status.is_valid %}
-    <div role="alert" class="alert alert-warning">
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-      <div>
-        <h3 class="font-bold">Template has validation errors!</h3>
-        <div class="text-xs">
-          <strong>Error Type:</strong> {{ validation_status.error_type }}<br>
-          <strong>Error Message:</strong> {{ validation_status.error_message }}
-        </div>
-      </div>
-    </div>
-    {% elif validation_status.is_valid %}
-    <div role="alert" class="alert alert-success">
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      <span>Template validation passed successfully.</span>
-    </div>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
-
-  <div class="bg-base-100 editor w-3/4 min-h-[60vh] hidden" id="editor"></div>
-  <div class="bg-base-100 editor w-3/4 min-h-[60vh] hidden" id="editor"></div>
-
-  <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
-</form>
