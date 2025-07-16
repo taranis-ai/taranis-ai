@@ -1,6 +1,6 @@
 import json
 from typing import Any, Literal
-from flask import render_template, request, Response, redirect, url_for
+from flask import render_template, request, Response, url_for
 
 from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
 from models.types import COLLECTOR_TYPES
@@ -192,18 +192,7 @@ class SourceView(BaseView):
         ), 200
 
     @classmethod
-    def collect_osint_source_preview(cls, osint_source_id: str):
-        response = CoreApi().collect_osint_source_preview(osint_source_id)
-        logger.debug(f"Collect OSINT source preview response: {response}")
-        if not response:
-            logger.error("Failed to load OSINT source preview")
-            return render_template(
-                "notification/index.html", notification={"message": "Failed to load OSINT source preview", "error": True}
-            ), 500
-        DataPersistenceLayer().invalidate_cache_by_object(TaskResult)
-        return redirect(url_for("admin.osint_source_preview", osint_source_id=osint_source_id))
-
-    @classmethod
+    @auth_required()
     def get_osint_source_preview_view(cls, osint_source_id: str):
         task_result = None
         if response := CoreApi().get_osint_source_preview(osint_source_id):
