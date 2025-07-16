@@ -56,10 +56,7 @@ class SourceView(BaseView):
                 "icon": "eye",
                 "method": "post",
                 "url": url_for("admin.osint_source_preview", osint_source_id=""),
-                "hx_target_error": "#notification-bar",
-                "hx_target": None,
-                "hx_swap": None,
-                "confirm": None,
+                "type": "link",
             },
             {
                 "label": "Collect",
@@ -208,11 +205,11 @@ class SourceView(BaseView):
 
     @classmethod
     def get_osint_source_preview_view(cls, osint_source_id: str):
-        dpl = DataPersistenceLayer()
-        if task_result := dpl.get_object(TaskResult, f"source_preview_{osint_source_id}"):
-            return render_template("osint_source/osint_source_preview.html", task_result=task_result)
-
-        return render_template("notification/index.html", notification={"message": "OSINT source preview not found", "error": True}), 404
+        task_result = None
+        if response := CoreApi().get_osint_source_preview(osint_source_id):
+            task_result = TaskResult(**response)
+        logger.debug(f"Task result for OSINT source preview: {task_result}")
+        return render_template("osint_source/osint_source_preview.html", task_result=task_result)
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:

@@ -544,7 +544,7 @@ class OSINTSourcePreview(MethodView):
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
-        return {"error": "Task not found"}, 404
+        return queue_manager.queue_manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id):
