@@ -58,7 +58,7 @@ def serialize_result(result: dict | str | None = None):
     return result["message"] if "message" in result else result
 
 
-def handle_task_specific_result(task_id: str, result: dict, status: str) -> bool:
+def handle_task_specific_result(task_id: str, result: dict, status: str):
     if task_id.startswith("gather_word_list"):
         WordList.update_word_list(**result)
     elif task_id.startswith("cleanup_token_blacklist"):
@@ -68,8 +68,8 @@ def handle_task_specific_result(task_id: str, result: dict, status: str) -> bool
         product_id = result.get("product_id")
         if not product_id or not rendered_product:
             logger.error(f"Product {product_id} not found or no render result")
-            return False
-        Product.update_render_for_id(product_id, rendered_product)
+        else:
+            Product.update_render_for_id(product_id, rendered_product)
     elif task_id.startswith("collect_"):
         source_id = task_id.split("_")[-1]
         if source := OSINTSource.get(source_id):
@@ -78,6 +78,3 @@ def handle_task_specific_result(task_id: str, result: dict, status: str) -> bool
             else:
                 source.update_status(None)
         logger.debug(f"Collector task {task_id} completed with result: {result}")
-    else:
-        return False
-    return True
