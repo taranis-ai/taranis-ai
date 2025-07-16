@@ -204,7 +204,9 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/bots", view_func=BotView.as_view("bots"))
     admin_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotView.as_view("edit_bot"))
-    admin_bp.add_url_rule("/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"])
+    admin_bp.add_url_rule(
+        "/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"], endpoint="bot_parameters"
+    )
     admin_bp.add_url_rule("/bot_execute/<string:bot_id>", view_func=BotView.execute_bot, methods=["POST"])
 
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))

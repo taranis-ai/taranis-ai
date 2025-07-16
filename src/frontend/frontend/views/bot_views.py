@@ -73,7 +73,7 @@ class BotView(BaseView):
         response = CoreApi().execute_bot(bot_id)
         if not response:
             logger.error("Failed to execute bot.")
-            return render_template("notification/index.html", error="Failed to execute bot."), 500
+            return render_template("notification/index.html", notification={"message": "Failed to execute bot.", "error": True}), 500
         return render_template(
             "notification/index.html", notification={"message": "Bot executed successfully", "class": "alert-success"}
         ), 200

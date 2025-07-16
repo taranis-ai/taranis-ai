@@ -256,7 +256,7 @@ class BaseView(MethodView):
 
         if error and is_htmx_request():
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("notification/index.html", error=error), 400
+            return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 400 if error else 200
 
@@ -283,8 +283,8 @@ class BaseView(MethodView):
         If it was ok it should render it as a success message, otherwise it should render it as an error message.
         """
         if response.ok and response.json():
-            return render_template("notification/index.html", notification=response.json(), oob=True)
-        return render_template("notification/index.html", error=response.json(), oob=True)
+            return render_template("notification/index.html", notification={"message": response.json().get("message"), "error": False})
+        return render_template("notification/index.html", notification={"message": response.json().get("error"), "error": True})
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
@@ -301,8 +301,10 @@ class BaseView(MethodView):
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
         if all(r.ok for r in results):
-            return render_template("notification/index.html", notification="Selected items deleted successfully", oob=True), 200
-        return render_template("notification/index.html", error="Failed to delete selected items", oob=True), 500
+            return render_template(
+                "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+            ), 200
+        return render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}), 500
 
     @classmethod
     def _get_object_key(cls) -> str:
