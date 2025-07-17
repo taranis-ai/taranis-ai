@@ -117,8 +117,8 @@ class QueueManager:
 
     def preview_osint_source(self, source_id: str):
         if task := self.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}"):
-            logger.info(f"Collect for source {source_id} scheduled as {task.id}")
-            return {"message": f"Refresh for source {source_id} scheduled", "task_id": task.id}, 200
+            logger.info(f"Collect for source {source_id} scheduled")
+            return {"message": f"Refresh for source {source_id} scheduled", "id": task.id, "status": "STARTED"}, 201
         return {"error": "Could not reach rabbitmq"}, 500
 
     def collect_all_osint_sources(self):
@@ -154,7 +154,7 @@ class QueueManager:
         bot_args: dict[str, int | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
-        if self.send_task("bot_task", kwargs=bot_args, queue="bots"):
+        if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_task_{bot_id}"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -174,7 +174,9 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def get_bot_signature(self, bot_id: str, source_id: str):
-        return self._celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
+        return self._celery.signature(
+            "bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", task_id=f"bot_task_{bot_id}", immutable=True
+        )
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot

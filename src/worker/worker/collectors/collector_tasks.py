@@ -74,7 +74,6 @@ class CollectorTask(Task):
             except NoChangeError as e:
                 return f"Source '{source.get('name')}' with id {osint_source_id}: {str(e)}"
             except Exception as e:
-                self.core_api.update_osintsource_status(osint_source_id, {"error": str(e)})
                 raise RuntimeError(e) from e
 
         self.core_api.run_post_collection_bots(osint_source_id)

@@ -90,16 +90,6 @@ class LoadDefaultOSINTSources(MethodView):
         return SourceView.load_default_osint_sources()
 
 
-class OSINTSourcePreview(MethodView):
-    @auth_required()
-    def post(self, osint_source_id: str):
-        return SourceView.collect_osint_source_preview(osint_source_id)
-
-    @auth_required()
-    def get(self, osint_source_id: str):
-        return SourceView.get_osint_source_preview_view(osint_source_id)
-
-
 class OSINTSourceCollect(MethodView):
     @auth_required()
     def post(self, osint_source_id: str | None = None):
@@ -198,7 +188,12 @@ def init(app: Flask):
     admin_bp.add_url_rule("/export/osint_sources", view_func=ExportOSINTSources.as_view("export_osint_sources"))
     admin_bp.add_url_rule("/import/osint_sources", view_func=ImportOSINTSources.as_view("import_osint_sources"))
     admin_bp.add_url_rule("/load_default_osint_sources", view_func=LoadDefaultOSINTSources.as_view("load_default_osint_sources"))
-    admin_bp.add_url_rule("/source_preview/<string:osint_source_id>", view_func=OSINTSourcePreview.as_view("osint_source_preview"))
+    admin_bp.add_url_rule(
+        "/source_preview/<string:osint_source_id>",
+        view_func=SourceView.get_osint_source_preview_view,
+        methods=["GET"],
+        endpoint="osint_source_preview",
+    )
     admin_bp.add_url_rule("/source_collect", view_func=OSINTSourceCollect.as_view("collect_osint_source_all"))
     admin_bp.add_url_rule("/source_collect/<string:osint_source_id>", view_func=OSINTSourceCollect.as_view("collect_osint_source"))
 
