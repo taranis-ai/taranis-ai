@@ -13,6 +13,7 @@ class TemplateView(BaseView):
     model = Template
     icon = "document-text"
     _index = 160
+    htmx_list_template: str = "template/template_data_table.html"
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -47,25 +48,53 @@ class TemplateView(BaseView):
         )
 
         dpl = DataPersistenceLayer()
-        template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
-
-        validation_status = None
-        if object_id != 0 and str(object_id) != '0':  # Only for existing templates
-            try:
-                validation_response = dpl.api.api_get(f"/config/templates/{object_id}")
-                if validation_response:
-                    # Always assign content from API response, even if invalid
-                    template.content = b64decode(validation_response.get("content", "") or "").decode("utf-8")
-                    validation_status = validation_response.get("validation_status", {})
-            except Exception as e:
-                logger.warning(f"Failed to fetch validation status for template {object_id}: {e}")
+        template_data = dpl.get_object(cls.model, object_id)
+        
+        # Handle both new templates (object_id == 0) and existing templates
+        if object_id == 0 or str(object_id) == '0':
+            # New template - create empty template object with proper defaults
+            template = cls.model.model_construct(id='0', content='')
+            validation_status = None
+        elif template_data:
+            # Existing template - handle both dict and Template object
+            if isinstance(template_data, dict):
+                # template_data is a dict from API (from cache or direct fetch)
+                try:
+                    # Decode base64 content for display
+                    decoded_content = b64decode(template_data.get("content", "") or "").decode("utf-8")
+                    template_data_with_decoded_content = template_data.copy()
+                    template_data_with_decoded_content["content"] = decoded_content
+                    
+                    # Create a template object from the dict with decoded content
+                    template = cls.model.model_construct(**template_data_with_decoded_content)
+                except Exception as e:
+                    logger.warning(f"Failed to decode template content for {object_id}: {e}")
+                    # Create template with original content if decoding fails
+                    template = cls.model.model_construct(**template_data)
+                
+                # Extract validation status from the dict
+                validation_status = template_data.get("validation_status", {})
+            else:
+                # template_data is a Template object
+                template = template_data
+                
+                # Decode base64 content for display if needed
+                content = getattr(template, 'content', None)
+                if content:
+                    try:
+                        # Try to decode base64 content
+                        decoded_content = b64decode(content).decode("utf-8")
+                        setattr(template, 'content', decoded_content)
+                    except Exception as e:
+                        logger.warning(f"Failed to decode template content for {object_id}: {e}")
+                        # Keep original content if decoding fails
+                
+                # Extract validation status from the template object
+                validation_status = getattr(template, 'validation_status', None) or {}
         else:
-            try:
-                template.content = b64decode(template.content or "").decode("utf-8")
-            except Exception:
-                logger.exception()
-                logger.warning(f"Failed to decode template content for {template}")
-                template.content = template.content
+            # Fallback if template not found
+            template = cls.model.model_construct()
+            validation_status = None
 
         context[cls.model_name()] = template
         context["validation_status"] = validation_status

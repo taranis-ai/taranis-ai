@@ -42,7 +42,7 @@
   </label>
 
 
-  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content or '' }}</textarea>
 
   <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
 

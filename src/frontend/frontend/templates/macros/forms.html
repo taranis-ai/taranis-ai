@@ -90,8 +90,20 @@
         {% if value %}
           {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
           {{ selected_option.name }}
-          <span class="badge {{ selected_option.validation_status|badge_class }} badge-sm ml-2">
-            {{ selected_option.validation_status|badge_label }}
+          {% set status = 'unknown' %}
+          {% if selected_option.validation_status is mapping %}
+            {% if selected_option.validation_status.is_valid is defined %}
+              {% if selected_option.validation_status.is_valid %}
+                {% set status = 'valid' %}
+              {% else %}
+                {% set status = 'invalid' %}
+              {% endif %}
+            {% endif %}
+          {% elif selected_option.validation_status is string %}
+            {% set status = selected_option.validation_status %}
+          {% endif %}
+          <span class="badge {{ status|badge_class }} badge-sm ml-2">
+            {{ status|badge_label }}
           </span>
         {% else %}
           Select a template
@@ -103,11 +115,23 @@
     </div>
     <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
       {% for option in options %}
+        {% set status = 'unknown' %}
+        {% if option.validation_status is mapping %}
+          {% if option.validation_status.is_valid is defined %}
+            {% if option.validation_status.is_valid %}
+              {% set status = 'valid' %}
+            {% else %}
+              {% set status = 'invalid' %}
+            {% endif %}
+          {% endif %}
+        {% elif option.validation_status is string %}
+          {% set status = option.validation_status %}
+        {% endif %}
         <a class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
-           onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ option.validation_status }}')">
+           onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ status }}')">
           <span class="flex-1">{{ option.name }}</span>
-          <span class="badge {{ option.validation_status|badge_class }} badge-sm">
-            {{ option.validation_status|badge_label }}
+          <span class="badge {{ status|badge_class }} badge-sm">
+            {{ status|badge_label }}
           </span>
         </a>
       {% endfor %}

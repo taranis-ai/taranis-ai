@@ -128,20 +128,21 @@ def b64decode(value):
 
 def render_validation_status(item) -> str:
     """Render validation status badge for templates."""
-    if hasattr(item, "validation_status") and isinstance(item.validation_status, dict):
-        is_valid = item.validation_status.get("is_valid", True)
-        error_type = item.validation_status.get("error_type", "")
-        error_message = item.validation_status.get("error_message", "")
-        
+    # Accept both dicts and objects with validation_status attribute
+    status = None
+    if isinstance(item, dict):
+        status = item.get("validation_status")
+    elif hasattr(item, "validation_status"):
+        status = getattr(item, "validation_status")
+
+    if isinstance(status, dict):
+        is_valid = status.get("is_valid", True)
+        error_type = status.get("error_type", "")
+        error_message = status.get("error_message", "")
         if is_valid:
             return Markup('<span class="badge badge-success text-xs">Valid</span>')
-        
-        # Create error tooltip with error details
         tooltip_attr = f'title="{error_type}: {error_message}"' if error_message else f'title="{error_type}"'
         return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
-    
-
-    
     return Markup('<span class="badge badge-success text-xs">Valid</span>')
 
 
