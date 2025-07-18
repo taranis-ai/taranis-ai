@@ -8,6 +8,7 @@ from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
+from sqlalchemy_continuum import make_versioned
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -23,10 +24,12 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
 
+make_versioned(user_cls=None)
+
 
 class Story(BaseModel):
+    __versioned__ = {}
     __tablename__ = "story"
-
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
