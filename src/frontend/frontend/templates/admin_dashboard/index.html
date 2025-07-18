@@ -32,6 +32,9 @@
         <br />
         Last successful run <b>{{ data.latest_collected }}</b>
       {% endcall %}
-    </div>
+
+      {% call dashboard_card('Release Info') %}
+        <b>{{ build_info }}</b>
+      {% endcall %}    </div>
   </div>
 {% endblock content %}
