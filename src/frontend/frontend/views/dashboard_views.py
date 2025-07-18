@@ -4,6 +4,7 @@ from flask import render_template, abort
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.config import Config
 
 
 class DashboardView(BaseView):
@@ -38,6 +39,13 @@ class DashboardView(BaseView):
         return render_template(template, **context)
 
     @classmethod
+    def get_build_info(cls):
+        result = {"build_date": Config.BUILD_DATE.isoformat()}
+        if Config.GIT_INFO:
+            result |= Config.GIT_INFO
+        return result
+
+    @classmethod
     def admin_dashboard(cls):
         dashboard = DataPersistenceLayer().get_objects(cls.model)
 
@@ -45,7 +53,7 @@ class DashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()}")
             return render_template("errors/404.html", error="No Dashboard items found")
 
-        return render_template("admin_dashboard/index.html", data=dashboard[0])
+        return render_template("admin_dashboard/index.html", data=dashboard[0], build_info=cls.get_build_info())
 
     def get(self, **kwargs):
         return self.static_view()

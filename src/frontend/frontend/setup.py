@@ -60,13 +60,17 @@ def jinja_setup(app: Flask):
         app.jinja_env.filters[name] = getattr(filters_module, name)
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
+    all_views = dict(sorted(BaseView._registry.items(), key=lambda item: (getattr(item[1], "_index", float("inf")), item[0])))
+    admin_views = {k: v for k, v in all_views.items() if hasattr(v, "is_admin") and v.is_admin}
+
     app.jinja_env.globals.update(
         {
             "heroicon_micro": heroicon_micro,
             "heroicon_mini": heroicon_mini,
             "heroicon_outline": heroicon_outline,
             "heroicon_solid": heroicon_solid,
-            "views": dict(sorted(BaseView._registry.items(), key=lambda item: (getattr(item[1], "_index", float("inf")), item[0]))),
+            "views": all_views,
+            "admin_views": admin_views,
             "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
         }
     )

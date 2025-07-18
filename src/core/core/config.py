@@ -72,7 +72,7 @@ class Settings(BaseSettings):
                 "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
             }
         )
-        self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
+        # self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI) # Disabled due to errornous parsing of complex libpq URIs
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"
