@@ -20,7 +20,12 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_validation_status}
+        ]
+
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -44,14 +49,26 @@ class TemplateView(BaseView):
         dpl = DataPersistenceLayer()
         template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
 
-        try:
-            template.content = b64decode(template.content or "").decode("utf-8")
-        except Exception:
-            logger.exception()
-            logger.warning(f"Failed to decode template content for {template}")
-            template.content = template.content
+        validation_status = None
+        if object_id != 0 and str(object_id) != '0':  # Only for existing templates
+            try:
+                validation_response = dpl.api.api_get(f"/config/templates/{object_id}")
+                if validation_response:
+                    # Always assign content from API response, even if invalid
+                    template.content = b64decode(validation_response.get("content", "") or "").decode("utf-8")
+                    validation_status = validation_response.get("validation_status", {})
+            except Exception as e:
+                logger.warning(f"Failed to fetch validation status for template {object_id}: {e}")
+        else:
+            try:
+                template.content = b64decode(template.content or "").decode("utf-8")
+            except Exception:
+                logger.exception()
+                logger.warning(f"Failed to decode template content for {template}")
+                template.content = template.content
 
         context[cls.model_name()] = template
+        context["validation_status"] = validation_status
         return context
 
     @classmethod

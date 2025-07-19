@@ -57,6 +57,16 @@ def run_core(app):
         _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
 
         yield
+
+        if db_uri := env.get("SQLALCHEMY_DATABASE_URI"):
+            from urllib.parse import urlparse
+
+            parsed_uri = urlparse(db_uri)
+            db_path = parsed_uri.path
+            if os.path.exists(db_path):
+                os.remove(db_path)
+                print(f"Dropped DB after tests: {db_path}")
+
     except Exception as e:
         pytest.fail(str(e))
     finally:
