@@ -1,0 +1,31 @@
+name: Smoke test docker compose
+on:
+  workflow_dispatch:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  test_docker_deployment:
+    if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker images from PR code
+        run: |
+          chmod +x docker/build_container.sh
+          ./docker/build_container.sh
+
+      - name: Run docker compose for last commit
+        working-directory: docker/compose-variations
+        run: |
+          cp ../env.sample .env
+          docker compose pull rabbitmq sse database
+          docker compose -f compose.e2e.yml up --pull=never --wait-timeout=60 --wait
+          echo "Echo docker ps -a:"
+          docker ps -a
+          echo "Echo core logs:"
+          docker compose logs core
+          docker compose down
