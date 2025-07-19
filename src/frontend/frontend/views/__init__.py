@@ -1,7 +1,7 @@
 from .acl_views import ACLView
 from .template_views import TemplateView
 from .bot_views import BotView
-from .dashboard_views import DashboardView
+from .dashboard_views import DashboardView, AdminDashboardView
 from .organization_views import OrganizationView
 from .publisher_views import PublisherView, ProductTypeView
 from .role_views import RoleView
@@ -17,6 +17,7 @@ from .scheduler_views import SchedulerView
 
 __all__ = [
     "ACLView",
+    "AdminDashboardView",
     "TemplateView",
     "BotView",
     "DashboardView",

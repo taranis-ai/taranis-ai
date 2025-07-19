@@ -26,6 +26,7 @@ class BaseView(MethodView):
     base_route: str = ""
     edit_route: str = ""
     icon: str = "wrench"
+    _is_admin: bool = True
     _index: float | int = float("inf")
     _read_only: bool = False
 
