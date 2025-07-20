@@ -36,3 +36,39 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+
+async function delete_osint_source(action_url) {
+  const { value: accept, isConfirmed: confirmed } = await Swal.fire({
+    text: "Are you sure you want to delete this OSINT source?",
+    input: "checkbox",
+    inputValue: 0,
+    inputPlaceholder: `
+      Force Deletion of OSINT source and all its data. This action cannot be undone.
+    `,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: 'Delete'
+  });
+  console.debug(`accept: ${accept}, confirmed: ${confirmed}`);
+  if (accept) {
+    action_url += '?force=true';
+  }
+  if (confirmed) {
+    // send a DELETE request to the action_url
+    const response = await fetch(action_url, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRF-TOKEN': getCSRFToken()
+      }
+    });
+    const html = await response.text();
+    Swal.fire({
+      html: html,
+    });
+  }
+}
+
+</script>

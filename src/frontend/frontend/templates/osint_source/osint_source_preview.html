@@ -2,5 +2,25 @@
 {% from 'assess/story/story_card.html' import story_card %}
 
 {% block content %}
-  {% for story in task_result.result %}{{ story_card(story) }}{% endfor %}
+<div id="source_preview">
+  {% if task_result %}
+  {% if task_result.status == 'STARTED' %}
+  <div class="alert alert-info my-5 mx-5" hx-get hx-trigger="every 20s" hx-target="#source_preview" hx-swap="outerHTML" hx-select="#source_preview">
+    <p>OSINT source preview is currently being processed. Please wait...</p>
+  </div>
+  {% elif task_result.status == 'SUCCESS' %}
+    {% if task_result.result %}
+      {% for story in task_result.result %}{{ story_card(story) }}{% endfor %}
+    {% else %}
+      <div class="alert alert-info my-5 mx-5">
+        <p>No results found for this OSINT source.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+  {% else %}
+  <div class="alert alert-info my-5 mx-5">
+    <p>No results found for this OSINT source.</p>
+  </div>
+  {% endif %}
+</div>
 {% endblock content %}

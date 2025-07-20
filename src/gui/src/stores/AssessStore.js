@@ -124,7 +124,11 @@ export const useAssessStore = defineStore(
     }
 
     async function getStoriesByID(ids) {
-      return ids.map((id) => getStoryByID(id))
+      if (!ids) {
+        return []
+      }
+      const arr = Array.isArray(ids) ? ids : [ids]
+      return Promise.all(arr.map(getStoryByID))
     }
 
     function getStoryByID(id) {

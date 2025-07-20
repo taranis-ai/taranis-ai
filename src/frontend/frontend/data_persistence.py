@@ -1,6 +1,7 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 from typing import Type
+from requests import Response
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
@@ -76,21 +77,21 @@ class DataPersistenceLayer:
         cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 
-    def store_object(self, object: TaranisBaseModel):
+    def store_object(self, object: TaranisBaseModel) -> Response:
         store_object = object.model_dump(mode="json")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
         return response
 
-    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str):
+    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str) -> Response:
         endpoint = self.get_endpoint(object_model)
         response = self.api.api_delete(f"{endpoint}/{object_id}")
         if response.ok:
             self.invalidate_cache_by_object(object_model)
         return response
 
-    def update_object(self, object: TaranisBaseModel, object_id: int | str):
+    def update_object(self, object: TaranisBaseModel, object_id: int | str) -> Response:
         endpoint = self.get_endpoint(object)
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:

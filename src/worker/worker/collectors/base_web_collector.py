@@ -11,19 +11,8 @@ import json
 
 from worker.log import logger
 from worker.types import NewsItem
-from worker.collectors.base_collector import BaseCollector
+from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
-
-
-class NoChangeError(Exception):
-    """Custom exception for when a source didn't change."""
-
-    def __init__(self, message: str = "Not modified"):
-        super().__init__(message)
-        logger.debug(message)
-
-    def __str__(self) -> str:
-        return "Not modified"
 
 
 class BaseWebCollector(BaseCollector):
@@ -63,7 +52,7 @@ class BaseWebCollector(BaseCollector):
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
-            raise NoChangeError(f"Content of {url} was not modified - {response.text}")
+            raise NoChangeError(f"{url} was not modified")
         if response.status_code == 429:
             raise requests.exceptions.HTTPError("Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
         response.raise_for_status()

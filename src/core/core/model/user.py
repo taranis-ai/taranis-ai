@@ -197,3 +197,7 @@ class User(BaseModel):
 class UserRole(BaseModel):
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
     role_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
+
+    @classmethod
+    def has_assigned_user(cls, role_id: int) -> bool:
+        return db.session.execute(db.select(db.exists().where(UserRole.role_id == role_id))).scalar_one()

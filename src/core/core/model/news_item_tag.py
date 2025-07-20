@@ -105,10 +105,6 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
-        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag_type) for tag_name, tag_type in tags.items()}
-
-    @classmethod
-    def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
         """Parse tags from dict format - handles both old and new formats:
         - Old: {"APT75": "UNKNOWN"}
         - New: {"APT75": {"name": "APT75", "tag_type": "UNKNOWN"}}
@@ -123,22 +119,18 @@ class NewsItemTag(BaseModel):
                 name = tag_key
                 tag_type = tag_data
             else:
-                name = tag_key
-                tag_type = "misc"
-
+                raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
+                
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags
 
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:
-        new_tags = {}
+        dict_tags = {}
         for tag in tags:
-            if isinstance(tag, dict):
-                tag_name = tag.get("name")
-                tag_type = tag.get("tag_type", "misc")
-            else:
-                tag_name = tag
-                tag_type = "misc"
-            new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type)
-        return new_tags
+            if isinstance(tag, dict) and "name" in tag:
+                dict_tags[tag["name"]] = tag
+            elif isinstance(tag, str):
+                dict_tags[tag] = {"name": tag, "tag_type": "misc"}
+        return cls._parse_dict_tags(dict_tags)

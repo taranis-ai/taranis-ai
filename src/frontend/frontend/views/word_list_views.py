@@ -7,6 +7,7 @@ from frontend.core_api import CoreApi
 from frontend.log import logger
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.auth import auth_required
 
 
 class WordListView(BaseView):
@@ -46,6 +47,7 @@ class WordListView(BaseView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
+    @auth_required()
     def export_view(cls):
         word_list_ids = request.args.getlist("ids")
         core_resp = CoreApi().export_word_lists(word_list_ids)
@@ -57,11 +59,12 @@ class WordListView(BaseView):
         return CoreApi.stream_proxy(core_resp, "word_lists_export.json")
 
     @classmethod
+    @auth_required()
     def load_default_word_lists(cls):
         response = CoreApi().load_default_word_lists()
         if not response:
             logger.error("Failed to load default word lists")
-            return render_template("partials/error.html", error="Failed to load default word lists")
+            return render_template("notification/index.html", notification={"message": "Failed to load default word lists", "error": True})
 
         response = CoreApi().import_word_lists(response)
 
@@ -69,7 +72,7 @@ class WordListView(BaseView):
             error = response.json().get("error", "Unknown error")
             error_message = f"Failed to import default word lists: {error}"
             logger.error(error_message)
-            return render_template("partials/error.html", error=error_message)
+            return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
         items = DataPersistenceLayer().get_objects(cls.model)

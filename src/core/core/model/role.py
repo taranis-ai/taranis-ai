@@ -127,6 +127,15 @@ class Role(BaseModel):
         db.session.commit()
         return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
 
+    @classmethod
+    def delete(cls, role_id: int) -> tuple[dict[str, str], int]:
+        if item := cls.get(role_id):
+            db.session.delete(item)
+            db.session.commit()
+            return {"message": f"{cls.__name__} {role_id} deleted"}, 200
+        logger.warning(f"{cls.__name__} {role_id} not found")
+        return {"error": f"{cls.__name__} {role_id} not found"}, 404
+
 
 class RolePermission(BaseModel):
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)

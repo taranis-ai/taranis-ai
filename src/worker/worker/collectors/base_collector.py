@@ -11,6 +11,18 @@ from worker.core_api import CoreApi
 from worker.types import NewsItem
 
 
+class NoChangeError(Exception):
+    """Custom exception for when a source didn't change."""
+
+    def __init__(self, message: str = "Not modified"):
+        super().__init__(message)
+        self.message = message
+        logger.debug(message)
+
+    def __str__(self) -> str:
+        return self.message
+
+
 class BaseCollector:
     def __init__(self):
         self.type = "BASE_COLLECTOR"
@@ -114,7 +126,6 @@ class BaseCollector:
         logger.info(f"Publishing {len(news_items)} news items to core api")
         if news_items_dicts := [item.to_dict() for item in news_items]:
             self.core_api.add_news_items(news_items_dicts)
-        self.core_api.update_osintsource_status(source["id"], None)
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """

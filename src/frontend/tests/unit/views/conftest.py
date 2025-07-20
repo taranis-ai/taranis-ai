@@ -390,7 +390,9 @@ def permissions_get_mock(requests_mock):
 
 @pytest.fixture
 def users_delete_mock(requests_mock):
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json={"message": "Success"})
+    response = {"message": "User deleted successfully"}
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json=response)
+    yield response
 
 
 @pytest.fixture
@@ -400,7 +402,9 @@ def users_put_mock(requests_mock):
 
 @pytest.fixture
 def organizations_delete_mock(requests_mock):
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json={"message": "Success"})
+    response = {"message": "Organization deleted successfully"}
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json=response)
+    yield response
 
 
 @pytest.fixture
@@ -410,7 +414,9 @@ def organizations_put_mock(requests_mock):
 
 @pytest.fixture
 def roles_delete_mock(requests_mock):
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json={"message": "Success"})
+    response = {"message": "Role deleted successfully"}
+    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json=response)
+    yield response
 
 
 @pytest.fixture

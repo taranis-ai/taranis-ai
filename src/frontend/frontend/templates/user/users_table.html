@@ -3,6 +3,8 @@
 
 {% set table_container = model_name + '-table-container' %}
 
+{% set actions = actions | default([]) %}
+
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
     <div class="grow-0">
@@ -13,5 +15,5 @@
     </div>
   {% endcall %}
 
-  {{ table(model_name + '-table', users, columns, actions=true, standalone=false, base_url=routes.base_route) }}
+  {{ table(model_name + '-table', users, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
 </div>
