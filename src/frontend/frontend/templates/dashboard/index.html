@@ -1,11 +1,14 @@
 {% extends "base.html" %}
-{% from 'dashboard/cards.html' import dashboard_card, trending_card %}
+{% from 'dashboard/cards.html' import trending_card %}
 
 {% block content %}
   <div class="p-8" id="dashboard">
-    <div class="text-3xl font-bold mb-4">Dashboard</div>
+<div class="flex justify-between items-center w-full">
+      <div class="text-3xl font-bold mb-4">Dashboard X</div>
+      <a href="{{ url_for('base.edit_dashboard') }}" class="btn btn-primary">Edit Dashboard</a>
+    </div>
 
-    {% include 'dashboard/user_item_cards.html' %}
+    {% include "dashboard/user_item_cards.html" %}
 
     <div class="text-3xl font-bold mb-4">Trending Tags</div>
 

@@ -5,6 +5,7 @@ from flask import render_template, abort
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.config import Config
+from frontend.auth import auth_required
 
 
 class DashboardView(BaseView):
@@ -38,6 +39,16 @@ class DashboardView(BaseView):
         template = cls.get_list_template()
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error}
         return render_template(template, **context)
+
+    @classmethod
+    @auth_required()
+    def get_cluster(cls, cluster_name: str):
+        return render_template("dashboard/cluster.html", data=cluster_name)
+
+    @classmethod
+    @auth_required()
+    def edit_dashboard(cls):
+        return render_template("dashboard/edit.html")
 
     @classmethod
     def get_build_info(cls):

@@ -98,3 +98,5 @@ indent=2
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+prerelease = "allow"
+

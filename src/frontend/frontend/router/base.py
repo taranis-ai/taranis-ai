@@ -10,12 +10,6 @@ from frontend.auth import auth_required
 from frontend.views import DashboardView
 
 
-class ClusterAPI(MethodView):
-    @auth_required()
-    def get(self, cluster_name: str):
-        return render_template("dashboard/cluster.html", data=cluster_name)
-
-
 class InvalidateCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self, suffix: str | None = None):
@@ -94,7 +88,8 @@ def init(app: Flask):
 
     base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
-    base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=ClusterAPI.as_view("cluster"))
+    base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
+    base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard")
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))
