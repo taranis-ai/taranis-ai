@@ -324,22 +324,22 @@ export const useAssessStore = defineStore(
       console.debug('Triggerd News items update')
       new_stories.value = true
     }
-    function markStoryAsRead(id, filter = true) {
+    async function markStoryAsRead(id, filter = true) {
       const item = stories.value.items.find((item) => item.id === id)
       item.read = !item.read
+      await readStory(id, item.read)
       if (filter) {
         filterStories()
       }
-      readStory(id, item.read)
     }
 
-    function markStoryAsImportant(id, filter = true) {
+    async function markStoryAsImportant(id, filter = true) {
       const item = stories.value.items.find((item) => item.id === id)
       item.important = !item.important
+      await importantStory(id, item.important)
       if (filter) {
         filterStories()
       }
-      importantStory(id, item.important)
     }
 
     function filterStories() {
