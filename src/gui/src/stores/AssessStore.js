@@ -67,6 +67,7 @@ export const useAssessStore = defineStore(
         console.debug('Updating Stories with Filter', filterQuery)
         const response = await getStories(filterQuery)
         stories.value.items = response.data.items
+        clearSelection()
         if (response.data.counts) {
           storyCounts.value = response.data.counts
           weekChartOptions.value.scales.y2.max =
@@ -142,6 +143,7 @@ export const useAssessStore = defineStore(
     }
 
     function removeStoryByID(id) {
+      clearSelection()
       deleteStory(id)
       stories.value.items = stories.value.items.filter(
         (item) => item?.id !== id
