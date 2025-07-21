@@ -1,7 +1,7 @@
 from celery import Task
 from base64 import b64encode
 from requests.exceptions import ConnectionError
-from jinja2 import Environment, TemplateSyntaxError
+from models.template_validation import validate_template_content
 
 import worker.presenters
 from worker.presenters.base_presenter import BasePresenter
@@ -11,7 +11,7 @@ from worker.core_api import CoreApi
 
 def validate_jinja_template(template_str: str) -> dict:
     """
-    Validates a Jinja2 template string.
+    Validates a Jinja2 template string using unified validation logic.
 
     Args:
         template_str (str): The template string to validate
@@ -19,35 +19,11 @@ def validate_jinja_template(template_str: str) -> dict:
     Returns:
         dict: {
             "is_valid": bool,
-            "error_message": str | None,
-            "error_type": str | None
+            "error_message": str,
+            "error_type": str
         }
     """
-    try:
-        env = Environment(autoescape=False)  # Same settings as BasePresenter
-        env.from_string(template_str)
-        logger.info("Template validation successful")
-        return {
-            "is_valid": True,
-            "error_message": None,
-            "error_type": None
-        }
-    except TemplateSyntaxError as e:
-        error_msg = f"Template syntax error: {str(e)}"
-        logger.warning(error_msg)
-        return {
-            "is_valid": False,
-            "error_message": error_msg,
-            "error_type": "TemplateSyntaxError"
-        }
-    except Exception as e:
-        error_msg = f"Template validation failed: {str(e)}"
-        logger.error(error_msg)
-        return {
-            "is_valid": False,
-            "error_message": error_msg,
-            "error_type": type(e).__name__
-        }
+    return validate_template_content(template_str)
 
 
 class TemplateValidationTask(Task):

@@ -5,7 +5,6 @@ from shutil import copy
 from core.config import Config
 
 import hashlib
-from jinja2 import Environment, TemplateSyntaxError, DebugUndefined, UndefinedError
 import base64
 
 def file_hash(file_path):
@@ -39,30 +38,6 @@ def sync_presenter_templates_to_data() -> None:
 
     with open(hash_file_path, "w") as f:
         json.dump(template_hashes, f, indent=4)
-
-
-def validate_template_content(template_content: str) -> dict:
-    """
-    Validate template content using Jinja2. Returns validation status dict.
-    """
-    try:
-        env = Environment(autoescape=False, undefined=DebugUndefined)
-        # Try to parse
-        env.parse(template_content)
-        # Try to compile and render
-        template = env.from_string(template_content)
-        try:
-            template.render({})
-        except UndefinedError:
-            # Ignore undefined variable errors
-            pass
-        except Exception as e:
-            return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
-        return {"is_valid": True, "error_message": "", "error_type": ""}
-    except TemplateSyntaxError as e:
-        return {"is_valid": False, "error_message": str(e), "error_type": "TemplateSyntaxError"}
-    except Exception as e:
-        return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
 
 
 def get_template_content(template_id: str) -> str | None:
