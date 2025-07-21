@@ -14,6 +14,7 @@ export function getQueryStringFromNestedObject(filterObject) {
     return ''
   }
   return Object.entries(filterObject)
+    .sort(([a], [b]) => a.localeCompare(b))
     .filter(([, val]) => val != null)
     .map(([key, val]) => {
       if (Array.isArray(val)) {
