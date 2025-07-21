@@ -358,3 +358,20 @@ def full_story_with_multiple_items(fake_source):
         StoryNewsItemAttribute.delete_all()
         NewsItem.delete_all()
         Story.delete_all()
+
+
+@pytest.fixture(scope="function")
+def worker_story(client, news_items, api_header, auth_header):
+    story_data = {
+        "title": "Test title",
+        "attributes": [{"key": "hey", "value": "hou"}],
+        "news_items": news_items,
+    }
+    response = client.post("/api/worker/stories", json=story_data, headers=api_header)
+    assert response.status_code == 200, "Story has not been created by using the worker endpoint"
+    story_id = response.get_json().get("story_id")
+    assert story_id is not None
+    yield story_id, story_data
+    # Cleanup after test
+    del_response = client.delete(f"/api/assess/story/{story_id}", headers=auth_header)
+    assert del_response.status_code == 200, "Story has not been deleted by using the assess endpoint"
