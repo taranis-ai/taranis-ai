@@ -228,23 +228,6 @@ class TestWorkerApi:
         assert len(response.get_json()) == 5
 
 
-class TestWorkerStoryApi:
-    base_uri = "/api/worker"
-
-    def test_news_items_to_story(self, client, news_items, api_header, auth_header):
-        story = {
-            "title": "Test title",
-            "attributes": [{"key": "hey", "value": "hou"}],
-            "news_items": news_items,
-        }
-
-        response = client.post(f"{self.base_uri}/stories", json=story, headers=api_header)
-        assert response.status_code == 200
-        assert response.get_json().get("message") == "Story added successfully"
-        response = client.delete(f"api/assess/story/{response.get_json().get('story_id')}", headers=auth_header)
-        assert response.status_code == 200
-
-
 class TestConnector:
     base_uri = "/api/worker"
 

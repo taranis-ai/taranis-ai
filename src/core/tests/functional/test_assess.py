@@ -24,6 +24,20 @@ class TestAssessApi(BaseTest):
         item_ids = [item["id"] for item in items]
         assert "manual" in item_ids
 
+    def test_worker_story_creation_and_persistence(self, client, worker_story, auth_header):
+        story_id, input_data = worker_story
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        assert response.status_code == 200
+        story = response.get_json()
+
+        expected_attributes = sorted(input_data["attributes"] + [{"key": "TLP", "value": "clear"}], key=lambda d: d["key"])
+        actual_attributes = sorted(story["attributes"], key=lambda d: d["key"])
+
+        assert story["title"] == input_data["title"]
+        assert actual_attributes == expected_attributes
+        assert len(story["news_items"]) == len(input_data["news_items"])
+
 
 class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"
