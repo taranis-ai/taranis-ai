@@ -78,6 +78,7 @@ export const useFilterStore = defineStore(
         storyFilterQuery.value = newFilterQuery
         router.push({ query: filter })
         const assessStore = useAssessStore()
+        assessStore.clearSelection()
         assessStore.updateStories()
       },
       { deep: true }
