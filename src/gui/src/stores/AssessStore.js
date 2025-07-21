@@ -248,7 +248,6 @@ export const useAssessStore = defineStore(
           return
         }
         await unGroupAction(stories)
-        clearSelection()
         await updateStories()
       } catch (error) {
         notifyFailure(error)
