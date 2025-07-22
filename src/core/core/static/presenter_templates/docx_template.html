@@ -12,23 +12,28 @@
       <div class="block">
         <h2>Report Items</h2>
         {% for report_item in data.report_items %}
-        <h3>{{ report_item.title }}</h3>
+          <h3>{{ report_item.title }}</h3>
 
-        {{ report_item.attributes }}
-        <p />
-        <a href="url">https://url/</a>
-        <hr>
+          <ul>
+            {% for key, value in report_item.attributes.items() %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
+            {% endfor %}
+          </ul>
 
-        <h3> Stories </h3>
-        {% for story in report_item.stories %}
-        <h4>{{ story.title }}</h4>
+          <h3> Stories </h3>
+          {% for story in report_item.stories %}
+            <h4>{{ story.title }}</h4>
 
-        {{ story }}
-        <p />
-        <a href="url">https://url/</a>
-        <hr>
+            {% for news_item in story.news_items %}
+              <h5> {{ news_item.title }}</h5>
+              <p>{{ news_item.content }}</p>
+              <p>{{ news_item.link }}</p>
+              <hr>
+              <br/>
+            {% endfor %}
+          {% endfor %}
         {% endfor %}
-        {% endfor %}
+
 
       </div>
     </div>
