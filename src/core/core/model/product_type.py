@@ -145,6 +145,8 @@ class ProductType(BaseModel):
     def get_mimetype(self) -> str:
         if self.type.startswith("image"):
             return "image/png"
+        if self.type.startswith("docx"):
+            return "application/msword"
         if self.type.startswith("pdf"):
             return "application/pdf"
         if self.type.startswith("html"):
