@@ -6,18 +6,21 @@ from prefect.testing.utilities import prefect_test_harness
 
 # Add actual paths for imports based on file location
 current_dir = Path(__file__).parent
-worker_path = current_dir.parent.parent
-src_path = worker_path.parent.parent / "src"
+core_path = current_dir.parent.parent.parent  
+src_path = core_path.parent  
+models_path = src_path / "models"  
+worker_path = src_path / "worker"  
 
 # Add paths to sys.path if not already present
-if str(worker_path) not in sys.path:
-    sys.path.insert(0, str(worker_path))
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+paths_to_add = [str(src_path), str(models_path), str(worker_path), str(core_path)]
+for path in paths_to_add:
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 # Set testing environment variables
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("DEBUG", "1")
+os.environ.setdefault("PYTHONPATH", ":".join(paths_to_add))
 
 
 @pytest.fixture(scope="function")
