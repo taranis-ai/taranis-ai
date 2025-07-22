@@ -127,6 +127,11 @@
               width="100%"
             />
 
+            <DocxViewer
+              v-else-if="renderedProductMimeType === 'application/msword'"
+              :base64="renderedProduct"
+            />
+
             <pre v-if="renderedProductMimeType === 'text/plain'">
               {{ renderedProduct }}
             </pre>
@@ -178,12 +183,14 @@ import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useHotkeys } from 'vue-use-hotkeys'
+import DocxViewer from '@/components/common/DocxViewer.vue'
 
 export default {
   name: 'ProductItem',
   components: {
     PopupPublishProduct,
-    PopupDirty
+    PopupDirty,
+    DocxViewer
   },
   props: {
     productProp: {
@@ -324,6 +331,7 @@ export default {
         'text/html': 'html',
         'application/json': 'json',
         'text/plain': 'txt',
+        'application/msword': 'docx',
         'application/pdf': 'pdf'
       }
 

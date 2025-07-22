@@ -30,6 +30,7 @@
     "codemirror": "^6.0.2",
     "js-base64": "^3.7.7",
     "lodash-es": "^4.17.21",
+    "mammoth": "^1.9.1",
     "mergely": "^5.3.6",
     "object-hash": "^3.0.0",
     "pinia": "^3.0.3",
