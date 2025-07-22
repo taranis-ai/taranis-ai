@@ -3,12 +3,16 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import reflection, Engine
 from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
+from sqlalchemy_continuum import make_versioned
 
 from core.managers.db_seed_manager import pre_seed, pre_seed_update
 from core.managers.db_migration_manager import perform_migration
 from core.log import logger
 
 db: SQLAlchemy = SQLAlchemy()
+
+# Initialize Continuum before any models are defined
+make_versioned(user_cls=None)
 
 
 def initial_database_setup(engine: Engine):
@@ -29,10 +33,17 @@ def initialize(app: Flask, initial_setup: bool = True):
     logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
     db.init_app(app)
 
+    # Import versioned models to ensure they're registered with SQLAlchemy-Continuum
+    from core.model.story import Story  # noqa: F401
+
     if initial_setup:
         initial_database_setup(db.engine)
+    
+    # Configure SQLAlchemy mappers
     db.orm.configure_mappers()
+    
     logger.debug(f"DB Engine created with {db.engine.pool.status()}")
+    logger.info("Database initialization complete with versioning support")
 
 
 def is_db_empty(engine: Engine) -> bool:
