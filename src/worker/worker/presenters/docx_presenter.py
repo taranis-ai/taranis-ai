@@ -1,5 +1,5 @@
-from html2docx import HTML2Docx
-from io import BytesIO
+import pypandoc
+import tempfile
 
 from .base_presenter import BasePresenter
 
@@ -13,28 +13,15 @@ class DOCXPresenter(BasePresenter):
         try:
             output_text = super().generate(product, template)
 
-            parser = DOCXParser()
-            parser.feed(output_text.strip())
+            with tempfile.NamedTemporaryFile(suffix=".docx") as tmp:
+                pypandoc.convert_text(output_text, "docx", format="html", outputfile=tmp.name)
+                tmp.seek(0)
+                data = tmp.read()
 
-            buf = BytesIO()
-            parser.doc.save(buf)
-
-            if data := buf.getvalue():
+            if data:
                 return data
-            raise ValueError("DOCX generation failed: No data returned")
+            raise ValueError("Could not convert template to docx")
 
         except Exception as error:
             BasePresenter.print_exception(self, error)
             raise ValueError(f"DOCX generation failed: {error}") from error
-
-
-class DOCXParser(HTML2Docx):
-    def __init__(self, title: str = ""):
-        super().__init__(title)
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
-            level = int(tag[-1]) - 1
-            self.p = self.doc.add_heading(level=level)
-            return
-        super().handle_starttag(tag, attrs)
