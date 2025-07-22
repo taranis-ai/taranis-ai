@@ -33,9 +33,6 @@ def initialize(app: Flask, initial_setup: bool = True):
     logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI_MASK')}")
     db.init_app(app)
 
-    # Import versioned models to ensure they're registered with SQLAlchemy-Continuum
-    from core.model.story import Story  # noqa: F401
-
     if initial_setup:
         initial_database_setup(db.engine)
     
