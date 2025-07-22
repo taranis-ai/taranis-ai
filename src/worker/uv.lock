@@ -626,19 +626,6 @@ wheels = [
 ]
 
 [[package]]
-name = "html2docx"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "python-docx" },
-    { name = "tinycss2" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c0/6c/a1122f2fe5a772b0c63e0a4966c7ae093f81ff23aa8ee04bba6b69c54e40/html2docx-1.6.0.tar.gz", hash = "sha256:13ef5653d7a3ffe625251705f15ae203938ce2f98be93e62f6fdf80630c33d2d", size = 47045, upload-time = "2023-01-19T01:59:07.558Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/f2/291d81ff6699c3874cd4143cd2815bd82f8d4129c6ef7bfdfcd410db6132/html2docx-1.6.0-py3-none-any.whl", hash = "sha256:ec7ceacb53eaf4ad5217d96f61dbd5cd62bc6f28d3830e4721e5428300255bdf", size = 35686, upload-time = "2023-01-19T01:59:06.17Z" },
-]
-
-[[package]]
 name = "htmldate"
 version = "1.4.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1269,6 +1256,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pypandoc-binary"
+version = "1.15"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/59/ad3a065f512c3fc3bdf8d97d30e82fb40a292b3f38b06ef13f9c2f69df29/pypandoc_binary-1.15-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:12a43df66f59cb489a9a2659b6f049ec103132e43e4f284b7e33e7ae4dd9cadb", size = 22145734, upload-time = "2025-01-08T17:39:13.98Z" },
+    { url = "https://files.pythonhosted.org/packages/59/d6/ef3b4927797bbf4146fdcb54b12a8ce766d077b44f37bcef0581a931a8a6/pypandoc_binary-1.15-py3-none-macosx_11_0_arm64.whl", hash = "sha256:79b215279a6470d3e2a24135826b446f44259f6abce361e31d713ac1b0b5aa69", size = 22145735, upload-time = "2025-01-08T17:39:21.562Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/74/970c50ef0f62b69afbae957d7be92072748b1f2d9b690c763c1afc81e326/pypandoc_binary-1.15-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fa29176f4eb9eb93f555dac6926a8d53c6ab4fd2deba3a1edb002e04899b237d", size = 35362526, upload-time = "2025-01-08T17:39:28.48Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/00/dc9377725392fa3c7d5f04dc42ab012d1cd40a0a0705b6eb794444559072/pypandoc_binary-1.15-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:df54edb00331a8fc80516c71cd81de69954512163037c3d4577c315091a0d6f6", size = 32649183, upload-time = "2025-01-08T17:39:34.414Z" },
+    { url = "https://files.pythonhosted.org/packages/80/8b/341d6a298a97ba66b6a5f93583f03e027cb0e3322ce6d46082eca0e95c93/pypandoc_binary-1.15-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:e465a09e8aac18e8fda37516a6d1a891e51cdd1d066ab585f85a81620de575e2", size = 35362516, upload-time = "2025-01-08T17:39:42.438Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/a9/5c3c2fba01a008e7aa784268fa88b612c3ef94b89d60c1e838d96b5a1735/pypandoc_binary-1.15-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:f9ebdf92059e9c1ae5231ee193d1fdafbc0188d5ec9d5f53e95fa21a42339481", size = 32649164, upload-time = "2025-01-08T17:39:49.381Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/a7/2295d4f1036cedbd27b4d6c220fe3bc40601b618245bfd5837623ecee4cb/pypandoc_binary-1.15-py3-none-win_amd64.whl", hash = "sha256:de7a234ffb674a4e650490acc7a5986161e2fd8b5bb106f1c9ffc30d76d2cf23", size = 38577212, upload-time = "2025-01-08T17:39:54.85Z" },
+]
+
+[[package]]
 name = "pyparsing"
 version = "3.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1362,19 +1363,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
-name = "python-docx"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lxml" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/f7/eddfe33871520adab45aaa1a71f0402a2252050c14c7e3009446c8f4701c/python_docx-1.2.0.tar.gz", hash = "sha256:7bc9d7b7d8a69c9c02ca09216118c86552704edc23bac179283f2e38f86220ce", size = 5723256, upload-time = "2025-06-16T20:46:27.921Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/00/1e03a4989fa5795da308cd774f05b704ace555a70f9bf9d3be057b680bcf/python_docx-1.2.0-py3-none-any.whl", hash = "sha256:3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7", size = 252987, upload-time = "2025-06-16T20:46:22.506Z" },
 ]
 
 [[package]]
@@ -1587,7 +1575,6 @@ dependencies = [
     { name = "celery" },
     { name = "click" },
     { name = "feedparser" },
-    { name = "html2docx" },
     { name = "ioc-fanger" },
     { name = "ioc-finder" },
     { name = "jinja2" },
@@ -1599,6 +1586,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pymisp" },
     { name = "pyopenssl" },
+    { name = "pypandoc-binary" },
     { name = "python-dotenv" },
     { name = "python-gnupg" },
     { name = "requests", extra = ["socks"] },
@@ -1628,7 +1616,6 @@ requires-dist = [
     { name = "celery" },
     { name = "click" },
     { name = "feedparser" },
-    { name = "html2docx", specifier = ">=1.6.0" },
     { name = "ioc-fanger" },
     { name = "ioc-finder" },
     { name = "jinja2" },
@@ -1641,6 +1628,7 @@ requires-dist = [
     { name = "pydantic-settings" },
     { name = "pymisp" },
     { name = "pyopenssl" },
+    { name = "pypandoc-binary", specifier = ">=1.15" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-celery", marker = "extra == 'dev'" },
     { name = "python-dotenv" },

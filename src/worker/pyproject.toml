@@ -40,7 +40,7 @@ dependencies = [
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
-    "html2docx>=1.6.0",
+    "pypandoc-binary>=1.15",
 ]
 dynamic = ["version"]
 
