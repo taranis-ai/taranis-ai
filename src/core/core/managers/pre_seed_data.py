@@ -195,6 +195,12 @@ workers = [
         "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
     },
     {
+        "type": "DOCX_PRESENTER",
+        "description": "Presenter for generating DOCX documents",
+        "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
+        "name": "DOCX Presenter",
+    },
+    {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
         "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
@@ -534,6 +540,15 @@ report_types = [
 
 
 product_types = [
+    {
+        "title": "Default DOCX Presenter",
+        "description": "Default DOCX Presenter",
+        "type": "DOCX_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "value": "docx_template.html"},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
     {
         "title": "Default PDF Presenter",
         "description": "Default PDF Presenter",

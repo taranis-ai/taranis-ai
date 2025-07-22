@@ -34,6 +34,7 @@ class BOT_TYPES(StrEnum):
 
 
 class PRESENTER_TYPES(StrEnum):
+    DOCX_PRESENTER = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
@@ -66,6 +67,7 @@ class WORKER_TYPES(StrEnum):
     SENTIMENT_ANALYSIS_BOT = auto()
     CYBERSEC_CLASSIFIER_BOT = auto()
     WORDLIST_BOT = auto()
+    DOCX_PRESENTER = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
