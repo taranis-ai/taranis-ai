@@ -9,7 +9,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
 
-# from core.managers.history_meta import Versioned, versioned_session
+from core.managers.history_meta import Versioned, versioned_session
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.log import logger
@@ -25,7 +25,7 @@ from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
 
 
-class Story(BaseModel):
+class Story(Versioned, BaseModel):
     __tablename__ = "story"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)

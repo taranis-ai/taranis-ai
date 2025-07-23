@@ -79,8 +79,9 @@ def session(db):
     transaction = connection.begin()
 
     db.session = scoped_session(session_factory=sessionmaker(bind=connection))
+    versioned_session(db.session)
 
-    yield versioned_session(db.session)
+    yield db.session
 
     transaction.rollback()
     connection.close()
