@@ -164,7 +164,7 @@ class BaseView(MethodView):
 
     @classmethod
     def edit_view(cls, object_id: int | str = 0):
-        return render_template(cls.get_update_template(), **cls.get_update_context(object_id))
+        return render_template(cls.get_update_template(), **cls.get_update_context(object_id)), 200
 
     @classmethod
     def get_update_context(
@@ -272,9 +272,9 @@ class BaseView(MethodView):
 
         if not items:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error=f"No {cls.model_name()} items found")
+            return render_template("errors/404.html", error=f"No {cls.model_name()} items found"), 404
 
-        return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
+        return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error}), 200
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse) -> str:
@@ -315,7 +315,7 @@ class BaseView(MethodView):
         key = self._get_object_key()
         return kwargs.get(key)
 
-    def get(self, **kwargs):
+    def get(self, **kwargs) -> tuple[str, int]:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return self.list_view()

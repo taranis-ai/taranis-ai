@@ -46,6 +46,7 @@ class User(BaseModel):
             "infinite_scroll": True,
             "advanced_story_options": False,
             "end_of_shift": {"hours": 18, "minutes": 0},
+            "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
             "language": "en",
         }
 
@@ -167,7 +168,10 @@ class User(BaseModel):
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
-        user.profile = data
+        updated_profile = user.profile.copy()
+        updated_profile.update(data)
+
+        user.profile = updated_profile
         db.session.commit()
         return {"message": "Profile updated"}, 200
 

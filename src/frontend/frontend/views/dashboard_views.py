@@ -6,6 +6,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.config import Config
 from frontend.auth import auth_required
+from flask_jwt_extended import current_user
 
 
 class DashboardView(BaseView):
@@ -35,20 +36,27 @@ class DashboardView(BaseView):
 
         if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error="No Dashboard items found")
+            return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error}
-        return render_template(template, **context)
+        return render_template(template, **context), 200
 
     @classmethod
     @auth_required()
     def get_cluster(cls, cluster_name: str):
-        return render_template("dashboard/cluster.html", data=cluster_name)
+        return render_template("dashboard/cluster.html", data=cluster_name), 200
 
     @classmethod
     @auth_required()
     def edit_dashboard(cls):
-        return render_template("dashboard/edit.html")
+        try:
+            trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
+        except Exception:
+            trending_clusters = []
+
+        user_profile = current_user.profile or {}
+        dashboard_config = user_profile.get("dashboard", {})
+        return render_template("dashboard/edit.html", dashboard=dashboard_config, clusters=trending_clusters)
 
     @classmethod
     def get_build_info(cls):
@@ -91,10 +99,10 @@ class AdminDashboardView(BaseView):
 
         if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error="No Dashboard items found")
+            return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
         context = {"data": dashboard[0], "error": error, "build_info": cls.get_build_info()}
-        return render_template(template, **context)
+        return render_template(template, **context), 200
 
     @classmethod
     def get_build_info(cls):

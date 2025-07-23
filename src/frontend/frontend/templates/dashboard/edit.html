@@ -1,9 +1,34 @@
 {% extends "base.html" %}
-{% from 'dashboard/cards.html' import trending_card %}
+{% block head %}
+<link href="{{ url_for('static', filename='vendor/css/tom-select.css') }}" rel="stylesheet">
+<script src="{{ url_for('static', filename='vendor/js/tom-select.complete.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/fuse.js') }}"></script>
+{% endblock head %}
 
 {% block content %}
-  <div class="p-8" id="edit_dashboard">
-    <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
+{% from 'dashboard/cards.html' import trending_card %}
+{% from 'macros/forms.html' import form_input_content %}
+<div class="p-8" id="edit_dashboard">
+  <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
+  <form method="post" action="{{ url_for('base.edit_dashboard') }}">
+    <div class="mb-4">
+      {# show switch with dashboard.get('show_trending_clusters', true) #}
+      <fieldset class="fieldset bg-base-100 w-3/4">
+        <legend class="fieldset-legend">Number of days to look back for trending clusters</legend>
+      {{ form_input_content(label="trending_days", name="Trending Days", value=dashboard.get('trending_cluster_days', 7), type='number') }}
+      </fieldset>
 
-  </div>
+      <fieldset class="fieldset bg-base-100 w-3/4">
+        <legend class="fieldset-legend">Trending Tag Filter</legend>
+        <select name="trending_tags[]" multiple required id="trending-tag-filter-select" class="tomselect">
+          {% for tag in dashboard.get('trending_cluster_filter', []) %}
+          <option value="{{ tag.id }}" {% if tag.id in dashboard.trending_tags %}selected{% endif %}>
+            {{ tag.name }} - {{ tag.tag_type }}
+          </option>
+          {% endfor %}
+        </select>
+      </fieldset>
+    </div>
+  </form>
+</div>
 {% endblock content %}
