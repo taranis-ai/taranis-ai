@@ -1,87 +1,75 @@
 from prefect import flow, task
 from core.log import logger
-from models.bot import BotTaskRequest
-from core.model.bot import Bot
-from worker.bots.registry import BOT_REGISTRY
-import json
+from models.models.bot import BotTaskRequest 
+from worker.core_api import CoreApi
+import worker.bots  
 
 
 @task
-def fetch_bot_info(bot_id: int):
-    logger.info(f"[bot_task] Fetching bot {bot_id}")
+def get_bot_config(bot_id: int):
+    """Get bot configuration from CoreApi"""
+    logger.info(f"[bot_task] Getting bot config for {bot_id}")
+    
+    core_api = CoreApi()
+    bot_config = core_api.get_bot_config(bot_id)
+    
+    if not bot_config:
+        raise ValueError(f"Bot with id {bot_id} not found")
+        
+    return bot_config
 
-    bot = Bot.get(bot_id)
+
+@task
+def execute_bot_by_config(bot_config: dict, filter_params: dict | None = None):
+    """Execute bot using config"""
+    logger.info(f"[bot_task] Executing bot by config")
+    
+    bot_type = bot_config.get("type")
+    if not bot_type:
+        raise ValueError("Bot has no type")
+
+    bots = {
+        "analyst_bot": worker.bots.AnalystBot(),
+        "grouping_bot": worker.bots.GroupingBot(),
+        "tagging_bot": worker.bots.TaggingBot(),
+        "wordlist_bot": worker.bots.WordlistBot(),
+        "nlp_bot": worker.bots.NLPBot(),
+        "story_bot": worker.bots.StoryBot(),
+        "ioc_bot": worker.bots.IOCBot(),
+        "summary_bot": worker.bots.SummaryBot(),
+        "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
+        "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
+    }
+    
+    bot = bots.get(bot_type)
     if not bot:
-        raise ValueError(f"Bot {bot_id} not found")
+        raise ValueError("Bot type not implemented")
 
-    return bot
+    bot_params = bot_config.get("parameters")
+    if not bot_params:
+        raise ValueError("Bot has no parameters")
 
+    if filter_params:
+        bot_params["filter"] = filter_params
 
-@task
-def parse_filters(filter_dict: dict | None):
-    """Parse and prepare filters for bot execution"""
-    if not filter_dict:
-        return {}
-
-    logger.info(f"[bot_task] Parsing filters: {filter_dict}")
-
-    parsed_filters = {}
-    for key, value in filter_dict.items():
-        if isinstance(value, str) and value.startswith("[") and value.endswith("]"):
-            parsed_filters[key] = json.loads(value)
-        else:
-            parsed_filters[key] = value
-
-    return parsed_filters
-
-
-@task
-def execute_bot_logic(bot: Bot, filters: dict):
-    logger.info(f"[bot_task] Executing bot {bot.id} with filters: {filters}")
-
-    bot_class = BOT_REGISTRY.get(bot.type)
-    if not bot_class:
-        raise ValueError(f"Unsupported bot type: {bot.type}")
-
-    bot_instance = bot_class(bot)
-
-    result = bot_instance.execute(filters=filters) if filters else bot_instance.execute()
-
-    logger.info(f"[bot_task] Bot {bot.id} executed successfully")
-    return result
-
-
-@task
-def update_bot_execution_stats(bot: Bot, result):
-    logger.info(f"[bot_task] Updating execution stats for bot {bot.id}")
-
-    bot.update_last_execution()
-    if result:
-        bot.log_execution_result(result)
-
-    return bot
+    return bot.execute(bot_params)
 
 
 @flow(name="bot-task-flow")
 def bot_task_flow(request: BotTaskRequest):
     try:
-        logger.info(f"[bot_task_flow] Starting execution of bot {request.bot_id}")
-
-        bot = fetch_bot_info(request.bot_id)
-        filters = parse_filters(request.filter)
-        result = execute_bot_logic(bot, filters)
-        bot = update_bot_execution_stats(bot, result)
-
-        logger.info(f"[bot_task_flow] Successfully executed bot {request.bot_id}")
-        return {
-            "message": f"Executing Bot {request.bot_id} scheduled",
-            "id": request.bot_id,
-            "result": result,
-        }
+        logger.info(f"[bot_task_flow] Starting bot task")
+        
+        # Get bot config 
+        bot_config = get_bot_config(request.bot_id)
+        
+        # Execute bot 
+        result = execute_bot_by_config(bot_config, request.filter)
+        
+        logger.info(f"[bot_task_flow] Bot task completed successfully")
+        
+        return result
 
     except Exception as e:
-        logger.exception(f"[bot_task_flow] Failed to execute bot {request.bot_id}")
-        return {
-            "error": "Could not reach rabbitmq",
-            "details": str(e),
-        }
+        logger.exception(f"[bot_task_flow] Bot task failed")
+        raise

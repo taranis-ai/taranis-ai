@@ -1,125 +1,140 @@
 from prefect import flow, task
+import re
+import json
 from core.log import logger
-from models.connector import ConnectorTaskRequest
-from core.model.connector import Connector
-from core.model.news_item import NewsItem
-from worker.connectors.registry import CONNECTOR_REGISTRY
-from typing import List, Optional
+from models.models.connector import ConnectorTaskRequest
+from worker.core_api import CoreApi
+import worker.connectors  
 
 
 @task
-def fetch_connector_info(connector_id: str):
-    logger.info(f"[connector_task] Fetching connector {connector_id}")
+def drop_utf16_surrogates(data: str) -> str:
+    """
+    Drop any leftover UTF-16 surrogates (U+D800–U+DFFF).
+    """
+    try:
+        # MISP does not support surrogate pairs. The cleanest way found is to decode with "raw_unicode_escape"
+        # and "backslashreplace" to drop surrogate pairs.
+        decoded = data.encode("utf-8", "surrogatepass").decode("raw_unicode_escape", "backslashreplace")
+    except UnicodeDecodeError:
+        logger.warning("Failed to decode data with surrogatepass")
+        decoded = data
 
-    connector = Connector.get(connector_id)
+    # TODO:  we need to drop the surrogate pairs manually
+    return re.sub(r"[\uD800-\uDFFF]", "", decoded)
+
+
+@task
+def get_connector_config(connector_id: str):
+    """Get connector configuration from CoreApi"""
+    logger.info(f"[connector_task] Getting connector config for {connector_id}")
+    
+    core_api = CoreApi()
+    connector_config = core_api.get_connector_config(connector_id)
+    
+    if not connector_config:
+        raise RuntimeError(f"Connector with id {connector_id} not found")
+    
+    connector_type = connector_config.get("type")
+    if connector_type is None:
+        raise RuntimeError(f"Connector type for id {connector_id} not found")
+    
+    return connector_config, connector_type
+
+
+@task
+def get_connector_instance(connector_type: str):
+    """Get connector instance from registry"""
+    logger.info(f"[connector_task] Getting connector instance for type {connector_type}")
+    
+    connectors = {
+        "misp_connector": worker.connectors.MISPConnector(),
+    }
+    
+    connector = connectors.get(connector_type)
     if not connector:
-        raise ValueError(f"Connector {connector_id} not found")
-
+        raise RuntimeError(f"Connector type {connector_type} not implemented")
+    
     return connector
 
 
 @task
-def fetch_stories_for_push(story_ids: Optional[List[str]] = None):
-    logger.info(f"[connector_task] Fetching stories for push")
-
-    if story_ids:
-        stories = []
-        for story_id in story_ids:
-            story = NewsItem.get(story_id)
-            if story:
-                stories.append(story)
-        logger.info(f"[connector_task] Found {len(stories)} specific stories")
-    else:
-        stories = NewsItem.get_unpushed()
-        logger.info(f"[connector_task] Found {len(stories)} unpushed stories")
-
+def get_stories_by_id(story_ids: list[str]):
+    """
+    Get stories by ID list 
+    Includes UTF-16 surrogate cleaning 
+    """
+    logger.info(f"[connector_task] Getting stories for IDs: {story_ids}")
+    
+    core_api = CoreApi()
+    search_queries = [{"story_id": story_id} for story_id in story_ids]
+    stories = []
+    
+    for query in search_queries:
+        if story := core_api.get_stories(query):
+            # Apply UTF-16 surrogate cleaning 
+            story_json = json.dumps(story)
+            cleaned_story_json = drop_utf16_surrogates(story_json)
+            cleaned_story = json.loads(cleaned_story_json)
+            stories.extend(cleaned_story)
+    
+    if not stories:
+        logger.error(f"Stories {story_ids} not found")
+        raise RuntimeError(f"Story with id {story_ids} not found")
+    
     return stories
 
 
 @task
-def transform_stories_for_connector(stories: List[NewsItem], connector: Connector):
-    logger.info(f"[connector_task] Transforming {len(stories)} stories for connector {connector.id}")
-
-    transformed_stories = []
-
-    for story in stories:
-        if connector.transform_config:
-            transformed_story = connector.apply_transformation(story)
-        else:
-            transformed_story = {
-                "id": story.id,
-                "title": story.title,
-                "content": story.content,
-                "source": story.source,
-                "published_date": story.published_date.isoformat() if story.published_date else None,
-                "web_url": story.web_url,
-                "attributes": story.attributes,
-            }
-
-        transformed_stories.append(transformed_story)
-
-    return transformed_stories
-
-
-@task
-def push_to_connector(connector: Connector, transformed_stories: List[dict]):
-    logger.info(f"[connector_task] Pushing {len(transformed_stories)} stories to connector {connector.id}")
-
-    connector_class = CONNECTOR_REGISTRY.get(connector.type)
-    if not connector_class:
-        raise ValueError(f"Unsupported connector type: {connector.type}")
-
-    connector_instance = connector_class(connector)
-
-    batch_size = connector.batch_size or 100
-    results = []
-
-    for i in range(0, len(transformed_stories), batch_size):
-        batch = transformed_stories[i : i + batch_size]
-        result = connector_instance.push(batch)
-        results.append(result)
-
-    logger.info(f"[connector_task] Successfully pushed stories to connector {connector.id}")
-    return results
-
-
-@task
-def update_story_status(stories: List[NewsItem], connector: Connector, results: List):
-    logger.info(f"[connector_task] Updating status for {len(stories)} stories")
-
-    for story in stories:
-        story.mark_pushed_to_connector(connector.id)
-
-    return len(stories)
+def execute_connector(connector, connector_config: dict, stories: list):
+    """Execute connector with config and stories"""
+    logger.info(f"[connector_task] Executing connector with {len(stories)} stories")
+    
+    try:
+        return connector.execute(connector_config, stories)
+    except Exception as e:
+        connector_id = connector_config.get("id", "unknown")
+        logger.exception(f"Error executing connector with id: {connector_id}")
+        raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
 
 
 @flow(name="connector-task-flow")
 def connector_task_flow(request: ConnectorTaskRequest):
-    """Main flow for pushing data to connectors"""
+
     try:
-        logger.info(f"[connector_task_flow] Starting push to connector {request.connector_id}")
-
-        connector = fetch_connector_info(request.connector_id)
-        stories = fetch_stories_for_push(request.story_ids)
-
-        if not stories:
-            logger.info(f"[connector_task_flow] No stories to push to connector {request.connector_id}")
-            return {"message": f"No stories to push to connector {request.connector_id}", "count": 0}
-
-        transformed_stories = transform_stories_for_connector(stories, connector)
-        results = push_to_connector(connector, transformed_stories)
-        count = update_story_status(stories, connector, results)
-
-        logger.info(f"[connector_task_flow] Successfully pushed {count} stories to connector {request.connector_id}")
-        return {
-            "message": f"Connector with id: {request.connector_id} scheduled",
-            "count": count,
-            "results": results,
-        }
-
+        logger.info(f"[connector_task_flow] Starting connector task - matches Celery behavior")
+        
+        # Get connector config and type 
+        try:
+            connector_config, connector_type = get_connector_config(request.connector_id)
+        except Exception as e:
+            logger.exception(f"Failed to get connector with id: {request.connector_id}")
+            raise RuntimeError(f"Failed to get connector with id: {request.connector_id}") from e
+        
+        # Get connector instance from registry 
+        connector = get_connector_instance(connector_type)
+        
+        if connector:
+            logger.info(f"Sending story {request.story_ids} to connector {request.connector_id}")
+            
+            # Get stories by ID with UTF-16 cleaning 
+            try:
+                stories = get_stories_by_id(request.story_ids)
+            except Exception as e:
+                logger.exception(f"Failed to get stories with id: {request.story_ids}")
+                raise RuntimeError(f"Failed to get stories with id: {request.story_ids}") from e
+            
+            # Execute connector 
+            if connector_config is not None:
+                result = execute_connector(connector, connector_config, stories)
+                logger.info(f"[connector_task_flow] Connector task completed successfully")
+                return result
+            else:
+                raise RuntimeError(f"Connector config for id {request.connector_id} is None")
+        
+        logger.info(f"Connector with id: {request.connector_id} was not found")
+        return None
+        
     except Exception as e:
-        logger.exception(f"[connector_task_flow] Failed to push to connector {request.connector_id}")
-        return {
-            "error": "Could not reach rabbitmq",
-            "details": str(e),
-        }
+        logger.exception(f"[connector_task_flow] Connector task failed")
+        raise

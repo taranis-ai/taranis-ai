@@ -1,97 +1,123 @@
 from prefect import flow, task
+from base64 import b64encode
+from requests.exceptions import ConnectionError
 from core.log import logger
 from models.models.presenter import PresenterTaskRequest
-from core.model.product import Product
-from core.model.presenter import Presenter
-from core.model.report_item import ReportItem
-from worker.presenters.registry import PRESENTER_REGISTRY
-import time
+from worker.core_api import CoreApi
+import worker.presenters  
 
 
 @task
-def fetch_product_data(product_id: str):
-    logger.info("[presenter_task] Fetching product %s", product_id)
-
-    product = Product.get(product_id)
+def get_product_info(product_id: int):
+    """Get product information from CoreApi """
+    logger.info(f"[presenter_task] Getting product info for {product_id}")
+    
+    core_api = CoreApi()
+    product = None
+    
+    try:
+        product = core_api.get_product(product_id)
+    except ConnectionError as e:
+        raise ValueError(f"Unable to connect to core API: {e}") from e
+    
     if not product:
-        raise ValueError("Product %s not found" % product_id)
-
+        raise ValueError(f"Product with id {product_id} not found")
+    
     return product
 
 
-@task
-def get_product_type(product: Product):
-    return product.product_type
+@task 
+def get_template_info(type_id: int):
+    """Get template information from CoreApi """
+    logger.info(f"[presenter_task] Getting template info for type_id {type_id}")
+    
+    core_api = CoreApi()
+    
+    try:
+        template = core_api.get_template(type_id)
+    except ConnectionError as e:
+        raise ValueError(f"Unable to connect to core API: {e}") from e
+    
+    if not template:
+        raise ValueError(f"Template with id {type_id} not found")
+    
+    return template
 
 
 @task
-def fetch_presenter(product_type_id: str):
-    logger.info("[presenter_task] Fetching presenter for product type %s", product_type_id)
-
-    presenter = Presenter.get_for_product_type(product_type_id)
+def get_presenter_instance(product: dict):
+    """Get presenter instance from registry """
+    logger.info(f"[presenter_task] Getting presenter instance for product")
+    
+    presenters = {
+        "html_presenter": worker.presenters.HTMLPresenter(),
+        "json_presenter": worker.presenters.JSONPresenter(),
+        "pdf_presenter": worker.presenters.PDFPresenter(),
+        "text_presenter": worker.presenters.TextPresenter(),
+    }
+    
+    presenter_type = product.get("type")
+    if not presenter_type:
+        raise ValueError(f"Product {product['id']} has no presenter_type")
+    
+    presenter = presenters.get(presenter_type)
     if not presenter:
-        raise ValueError("No presenter found for product type %s" % product_type_id)
-
+        raise ValueError(f"Presenter {presenter_type} not implemented")
+    
     return presenter
 
 
 @task
-def fetch_report_items(product: Product, presenter: Presenter):
-    logger.info("[presenter_task] Fetching report items for product %s", product.id)
-
-    if hasattr(presenter, "with_limit") and presenter.with_limit:
-        return ReportItem.get_for_product(product, limit=presenter.limit)
-    return ReportItem.get_for_product(product)
-
-
-@task
-def generate_rendered_product(presenter: Presenter, product: Product, report_items: list):
-    logger.info("[presenter_task] Generating rendered product for %s", product.id)
-
-    presenter_class = PRESENTER_REGISTRY.get(presenter.type)
-    if not presenter_class:
-        raise ValueError(f"Unsupported presenter type: {presenter.type}")
-
-    presenter_instance = presenter_class(presenter)
-    return presenter_instance.generate(product=product, report_items=report_items)
-
-
-@task
-def save_rendered_product(product: Product, presenter: Presenter, rendered_product):
-    logger.info("[presenter_task] Saving rendered product for %s", product.id)
-
-    product.add_render(presenter.type, rendered_product)
-    return product
+def generate_product_content(presenter, product: dict, template: str, product_id: int):
+    """Generate product content"""
+    logger.info(f"[presenter_task] Generating content for product {product_id}")
+    
+    logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
+    
+    # Generate content 
+    rendered_product = presenter.generate(product, template)
+    
+    if not rendered_product:
+        raise ValueError(f"Presenter {presenter.type} returned no content")
+    
+    # Encode to base64
+    if isinstance(rendered_product, str):
+        encoded_product = b64encode(rendered_product.encode("utf-8")).decode("ascii")
+    else:
+        encoded_product = b64encode(rendered_product).decode("ascii")
+    
+    return encoded_product
 
 
 @flow(name="presenter-task-flow")
 def presenter_task_flow(request: PresenterTaskRequest):
     try:
-        product_id = str(request.product_id) if request and hasattr(request, "product_id") else None
-        if not product_id:
-            raise ValueError("Product ID is required")
-
-        logger.info("[presenter_task_flow] Starting generation of product: %s", product_id)
-
-        countdown_value = getattr(request, "countdown", 0)
-        if countdown_value and countdown_value > 0:
-            logger.info("[presenter_task_flow] Waiting %d seconds before execution", countdown_value)
-            time.sleep(countdown_value)
-
-        product = fetch_product_data(product_id)
-        product_type = get_product_type(product)
-
-        if not product_type or not hasattr(product_type, "id"):
-            raise ValueError("Invalid product type")
-
-        presenter = fetch_presenter(product_type.id)
-        report_items = fetch_report_items(product, presenter)
-        rendered_product = generate_rendered_product(presenter, product, report_items)
-        final_product = save_rendered_product(product, presenter, rendered_product)
-
-        logger.info("[presenter_task_flow] Successfully generated product: %s", product_id)
-        return {"message": f"Generating Product {product_id} scheduled", "result": final_product}
-
+        logger.info(f"[presenter_task_flow] Starting presenter task ")
+        
+        # Convert string product_id to int 
+        product_id = int(request.product_id)
+        
+        # Get product info 
+        product = get_product_info(product_id)
+        
+        # Get presenter instance 
+        presenter = get_presenter_instance(product)
+        
+        # Get template 
+        type_id = int(product["type_id"])
+        template = get_template_info(type_id)
+        
+        # Generate and encode content 
+        encoded_product = generate_product_content(presenter, product, template, product_id)
+        
+        logger.info(f"[presenter_task_flow] Presenter task completed successfully")
+        
+        return {
+            "product_id": product_id,
+            "message": f"Product: {product_id} rendered successfully",
+            "render_result": encoded_product
+        }
+        
     except Exception as e:
-        logger.exception("[presenter_task_flow] Failed to generate product")
-        return {"error": "Could not reach rabbitmq", "details": str(e)}
+        logger.exception(f"[presenter_task_flow] Presenter task failed")
+        raise

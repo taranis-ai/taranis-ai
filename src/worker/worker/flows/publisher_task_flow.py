@@ -1,75 +1,116 @@
 from prefect import flow, task
 from core.log import logger
-from models.publisher import PublisherTaskRequest
-from core.model.product import Product
-from core.model.publisher import Publisher
-from worker.publishers.registry import PUBLISHER_REGISTRY
+from models.models.publisher import PublisherTaskRequest
+from worker.core_api import CoreApi
+from worker.types import Product
+import worker.publishers 
 
 
 @task
-def fetch_product_info(product_id: str):
-    logger.info(f"[publisher_task] Fetching product {product_id}")
-
-    product = Product.get(product_id)
+def get_product_info(product_id: int):
+    """Get product information from CoreApi"""
+    logger.info(f"[publisher_task] Getting product info for {product_id}")
+    
+    core_api = CoreApi()
+    product = core_api.get_product(product_id)
+    
     if not product:
-        raise ValueError(f"Product {product_id} not found")
-
+        logger.error(f"Product with id {product_id} not found")
+        raise RuntimeError(f"Product with id {product_id} not found")
+    
     return product
 
 
 @task
-def fetch_publisher_info(publisher_id: str):
-    logger.info(f"[publisher_task] Fetching publisher {publisher_id}")
-
-    publisher = Publisher.get(publisher_id)
+def get_publisher_info(publisher_id: str):
+    """Get publisher information from CoreApi """
+    logger.info(f"[publisher_task] Getting publisher info for {publisher_id}")
+    
+    core_api = CoreApi()
+    publisher = core_api.get_publisher(publisher_id)
+    
     if not publisher:
-        raise ValueError(f"Publisher {publisher_id} not found")
-
+        logger.error(f"Publisher with id {publisher_id} not found")
+        raise RuntimeError(f"Publisher with id {publisher_id} not found")
+    
     return publisher
 
 
 @task
-def get_rendered_product(product: Product, publisher: Publisher):
-    logger.info(f"[publisher_task] Getting rendered product for {product.id} with publisher type {publisher.type}")
-
-    rendered_product = product.get_render(publisher.type)
+def get_rendered_product_info(product_id: int):
+    """Get rendered product from CoreApi """
+    logger.debug(f"EMAIL Publisher: Getting rendered product for product {product_id}")
+    
+    core_api = CoreApi()
+    rendered_product = core_api.get_product_render(product_id)
+    
+    if rendered_product is None:
+        raise ValueError("Rendered product is None")
+    
     return rendered_product
 
 
 @task
-def dispatch_publisher(publisher: Publisher, rendered_product):
-    logger.info(f"[publisher_task] Dispatching to publisher type: {publisher.type}")
+def get_publisher_instance(publisher: dict):
+    """Get publisher instance from registry """
+    logger.info(f"[publisher_task] Getting publisher instance")
+    
+    
+    publishers = {
+        "email_publisher": worker.publishers.EMAILPublisher(),
+        "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
+        "ftp_publisher": worker.publishers.FTPPublisher(),
+        "sftp_publisher": worker.publishers.SFTPPublisher(),
+        "misp_publisher": worker.publishers.MISPPublisher(),
+    }
+    
+    pub_type = publisher.get("type")
+    if pub_type not in publishers:
+        raise ValueError("Publisher type not found")
+    
+    publisher_instance = publishers[pub_type]
+    return publisher_instance
 
-    publisher_class = PUBLISHER_REGISTRY.get(publisher.type)
-    if not publisher_class:
-        raise ValueError(f"Unsupported publisher type: {publisher.type}")
 
-    publisher_instance = publisher_class()
-    result = publisher_instance.publish(publisher, {}, rendered_product)
-
-    logger.info(f"[publisher_task] Published product successfully")
+@task
+def publish_product(publisher_instance, publisher: dict, product: dict, rendered_product: Product):
+    """Execute publisher.publish() """
+    logger.debug(f"Publishing to {publisher}")
+    logger.debug(f"Product: {product}")
+    
+    result = publisher_instance.publish(publisher, product, rendered_product)
     return result
 
 
 @flow(name="publisher-task-flow")
 def publisher_task_flow(request: PublisherTaskRequest):
+
     try:
-        logger.info(f"[publisher_task_flow] Starting publication of product {request.product_id} with publisher {request.publisher_id}")
-
-        product = fetch_product_info(request.product_id)
-        publisher = fetch_publisher_info(request.publisher_id)
-        rendered_product = get_rendered_product(product, publisher)
-        result = dispatch_publisher(publisher, rendered_product)
-
-        logger.info(f"[publisher_task_flow] Successfully published product {request.product_id}")
-        return {
-            "message": f"Publishing Product: {request.product_id} with publisher: {request.publisher_id} scheduled",
-            "result": result,
-        }
-
+        logger.info(f"[publisher_task_flow] Starting publisher task ")
+        
+        # Convert string IDs to int where needed 
+        product_id = int(request.product_id)
+        publisher_id = request.publisher_id
+        
+        # Get product info 
+        product = get_product_info(product_id)
+        
+        # Get publisher info 
+        publisher = get_publisher_info(publisher_id)
+        
+        # Get rendered product 
+        rendered_product = get_rendered_product_info(product_id)
+        
+        # Get publisher instance from registry 
+        publisher_instance = get_publisher_instance(publisher)
+        
+        # Execute publish 
+        result = publish_product(publisher_instance, publisher, product, rendered_product)
+        
+        logger.info(f"[publisher_task_flow] Publisher task completed successfully")
+        
+        return result
+        
     except Exception as e:
-        logger.exception(f"[publisher_task_flow] Failed to publish product {request.product_id}")
-        return {
-            "error": "Could not reach rabbitmq",
-            "details": str(e),
-        }
+        logger.exception(f"[publisher_task_flow] Publisher task failed")
+        raise
