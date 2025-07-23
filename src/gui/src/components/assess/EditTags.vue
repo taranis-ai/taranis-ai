@@ -13,7 +13,9 @@
     item-value="name"
     item-title="name"
     label="Tags"
+    :menu-props="{ openOnClick: false, openOnFocus: false, modelValue: false }"
     multiple
+    menu-icon=""
   />
 </template>
 
