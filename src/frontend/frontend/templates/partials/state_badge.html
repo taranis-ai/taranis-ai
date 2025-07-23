@@ -4,6 +4,10 @@
   <div class="tooltip" data-tip="{{ state_message }}">
     <div title="Error" class="badge badge-error">Error</div>
   </div>
+{% elif state == 2 %}
+  <div class="tooltip" data-tip="{{ state_message }}">
+    <div title="Not modified" class="badge badge-info">Not modified</div>
+  </div>
 {% elif state == -2 %}
   <div title="Disabled" class="badge badge-warning">Disabled</div>
 {% else %}

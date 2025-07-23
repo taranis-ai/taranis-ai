@@ -30,19 +30,13 @@ class SimpleWebCollector(BaseWebCollector):
             raise ValueError("No WEB_URL set")
 
     def collect(self, source: dict, manual: bool = False):
-        try:
-            self.parse_source(source)
-            self.web_collector(source, manual)
-        except Exception as e:
-            raise RuntimeError(f"Simple Web Collector for {self.web_url} failed with error {e}") from e
+        self.parse_source(source)
+        self.web_collector(source, manual)
 
-    def preview_collector(self, source: dict):
-        try:
-            self.parse_source(source)
-            self.news_items = self.gather_news_items()
-            return self.preview(self.news_items, source)
-        except Exception as e:
-            raise RuntimeError(f"Simple Web Collector for {self.web_url} failed with error {e}") from e
+    def preview_collector(self, source: dict) -> list[dict]:
+        self.parse_source(source)
+        self.news_items = self.gather_news_items()
+        return self.preview(self.news_items, source)
 
     def handle_digests(self) -> list[NewsItem]:
         if not self.xpath:
@@ -81,7 +75,6 @@ class SimpleWebCollector(BaseWebCollector):
         if response.status_code == 429:
             raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
         response.raise_for_status()
-
 
         self.last_attempted = self.get_last_attempted(source)
         if not self.last_attempted:

@@ -58,7 +58,7 @@ def serialize_result(result: dict | str | None = None):
     return result["message"] if "message" in result else result
 
 
-def handle_task_specific_result(task_id: str, result: dict, status: str):
+def handle_task_specific_result(task_id: str, result: dict | str, status: str):
     if task_id.startswith("gather_word_list"):
         WordList.update_word_list(**result)
     elif task_id.startswith("cleanup_token_blacklist"):
@@ -74,7 +74,9 @@ def handle_task_specific_result(task_id: str, result: dict, status: str):
         source_id = task_id.split("_")[-1]
         if source := OSINTSource.get(source_id):
             if status == "FAILURE":
-                source.update_status(result.get("exc_message", "Error"))
+                source.update_status("ERROR", result.get("exc_message", "Error"))
+            elif status == "NOT_MODIFIED":
+                source.update_status("NOT_MODIFIED", result)
             else:
-                source.update_status(None)
+                source.update_status("SUCCESS", None)
         logger.debug(f"Collector task {task_id} completed with result: {result}")
