@@ -263,19 +263,9 @@ export const useAssessStore = defineStore(
         groupAction(storySelection.value)
         // Take all the elements from stories.value where the id matches the storySelection.value except the first one and remove them from stories.value, and add them to the first one
         const firstID = storySelection.value.shift()
-        const firstStory = stories.value.items.find(
-          (item) => item.id === firstID
-        )
-        const storiesToMerge = stories.value.items.filter((item) =>
-          storySelection.value.includes(item.id)
-        )
-        firstStory.news_items = [
-          ...firstStory.news_items,
-          ...storiesToMerge.map((item) => item.news_items).flat()
-        ]
-        firstStory.news_items = firstStory.news_items.sort(
-          (a, b) => new Date(b.published_at) - new Date(a.published_at)
-        )
+
+        updateStoryByID(firstID)
+
         stories.value.items = stories.value.items.filter(
           (item) => !storySelection.value.includes(item.id)
         )
