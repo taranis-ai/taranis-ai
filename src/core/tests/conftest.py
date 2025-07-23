@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 from urllib.parse import urlparse
 
+from core.log import logger
+
+from core.managers.history_meta import versioned_session
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
@@ -22,6 +26,7 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        logger.debug(f"Removing database file: {parsed_uri.path}")
         os.remove(f"{parsed_uri.path}")
 
     app = create_app()
@@ -75,7 +80,7 @@ def session(db):
 
     db.session = scoped_session(session_factory=sessionmaker(bind=connection))
 
-    yield db.session
+    yield versioned_session(db.session)
 
     transaction.rollback()
     connection.close()

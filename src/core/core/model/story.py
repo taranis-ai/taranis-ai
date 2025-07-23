@@ -9,6 +9,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
 
+# from core.managers.history_meta import Versioned, versioned_session
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.log import logger
