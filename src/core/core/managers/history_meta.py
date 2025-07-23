@@ -2,16 +2,13 @@
 
 import datetime
 
-from sqlalchemy import and_
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import event
 from sqlalchemy import ForeignKeyConstraint
-from sqlalchemy import func
 from sqlalchemy import inspect
 from sqlalchemy import Integer
 from sqlalchemy import PrimaryKeyConstraint
-from sqlalchemy import select
 from sqlalchemy import util
 from sqlalchemy.orm import attributes
 from sqlalchemy.orm import object_mapper
@@ -112,7 +109,8 @@ def _history_mapper(local_mapper):
         )
 
         if super_mapper:
-            super_fks.append(("version", super_history_mapper.local_table.c.version))
+            # No version column foreign key since we're not adding version to main table
+            pass
 
         if super_fks:
             history_table.append_constraint(ForeignKeyConstraint(*zip(*super_fks)))
@@ -128,41 +126,9 @@ def _history_mapper(local_mapper):
                 col = Column(column.name, column.type, nullable=column.nullable)
                 super_history_table.append_column(col)
 
-    if not super_mapper:
-
-        def default_version_from_history(context):
-            # Set default value of version column to the maximum of the
-            # version in history columns already present +1
-            # Otherwise re-appearance of deleted rows would cause an error
-            # with the next update
-            current_parameters = context.get_current_parameters()
-            return context.connection.scalar(
-                select(func.coalesce(func.max(history_table.c.version), 0) + 1).where(
-                    and_(
-                        *[
-                            history_table.c[c.name] == current_parameters.get(c.name, None)
-                            for c in inspect(local_mapper.local_table).primary_key
-                        ]
-                    )
-                )
-            )
-
-        local_mapper.local_table.append_column(
-            Column(
-                "version",
-                Integer,
-                # if rows are not being deleted from the main table with
-                # subsequent re-use of primary key, this default can be
-                # "1" instead of running a query per INSERT
-                default=default_version_from_history,
-                nullable=False,
-            ),
-            replace_existing=True,
-        )
-        local_mapper.add_property("version", local_mapper.local_table.c.version)
-
-        if cls.use_mapper_versioning:
-            local_mapper.version_id_col = local_mapper.local_table.c.version
+    # Note: We do NOT add a version column to the main table!
+    # Instead, we track versions only in the history table.
+    # The current object will use a version from memory/session context.
 
     # set the "active_history" flag
     # on on column-mapped attributes so that the old version
@@ -206,6 +172,19 @@ class Versioned:
     __table_args__ = {"sqlite_autoincrement": True}
     """Use sqlite_autoincrement, to ensure unique integer values
     are used for new rows even for rows that have been deleted."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Track version in memory instead of database column
+        self._version = 1
+
+    @property
+    def version(self):
+        return getattr(self, '_version', 1)
+
+    @version.setter
+    def version(self, value):
+        self._version = value
 
     def __init_subclass__(cls) -> None:
         insp = inspect(cls, raiseerr=False)
@@ -297,12 +276,33 @@ def create_version(obj, session, deleted=False):
     if not obj_changed and not deleted:
         return
 
-    attr["version"] = obj.version
+    # Calculate the next version based on history table
+    from sqlalchemy import func, select, and_, inspect
+    
+    history_table = history_mapper.local_table
+    pk_columns = inspect(obj_mapper.local_table).primary_key
+    conditions = []
+    for pk_col in pk_columns:
+        pk_value = getattr(obj, pk_col.name)
+        conditions.append(history_table.c[pk_col.name] == pk_value)
+    
+    if conditions:
+        max_version = session.execute(
+            select(func.coalesce(func.max(history_table.c.version), 0)).where(and_(*conditions))
+        ).scalar()
+        next_version = (max_version or 0) + 1
+    else:
+        next_version = 1
+    
+    attr["version"] = next_version
+    
     hist = history_cls()
     for key, value in attr.items():
         setattr(hist, key, value)
     session.add(hist)
-    obj.version += 1
+    
+    # Update the in-memory version counter
+    obj.version = next_version
 
 
 def versioned_session(session):
