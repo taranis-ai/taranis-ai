@@ -1,93 +1,47 @@
 import pytest
 import sys
 import os
-from pathlib import Path
-from prefect.testing.utilities import prefect_test_harness
+from unittest.mock import Mock, patch, MagicMock
 
-# Add actual paths for imports based on file location
-current_dir = Path(__file__).parent
-core_path = current_dir.parent.parent.parent  
-src_path = core_path.parent  
-models_path = src_path / "models"  
-worker_path = src_path / "worker"  
+current_dir = os.path.dirname(os.path.abspath(__file__))
+models_dir = os.path.join(current_dir, '../../../models')
+src_dir = os.path.join(current_dir, '../../../')
 
-# Add paths to sys.path if not already present
-paths_to_add = [str(src_path), str(models_path), str(worker_path), str(core_path)]
-for path in paths_to_add:
-    if path not in sys.path:
-        sys.path.insert(0, path)
+sys.path.insert(0, os.path.abspath(models_dir))
+sys.path.insert(0, os.path.abspath(src_dir))
 
-# Set testing environment variables
-os.environ.setdefault("TESTING", "1")
-os.environ.setdefault("DEBUG", "1")
-os.environ.setdefault("PYTHONPATH", ":".join(paths_to_add))
+from models.bot import BotTaskRequest
+from models.collector import CollectorTaskRequest 
+from models.connector import ConnectorTaskRequest
+from models.presenter import PresenterTaskRequest
+from models.publisher import PublisherTaskRequest
 
 
 @pytest.fixture(scope="function")
-def prefect_e2e_environment():
-    """Setup Prefect test environment for E2E tests"""
-    with prefect_test_harness():
-        yield
+def mock_core_api():
+    """Mock CoreApi for all flow tests"""
+    with patch('worker.core_api.CoreApi') as mock_api_class:
+        mock_api = Mock()
+        mock_api_class.return_value = mock_api
+        
+        # Default successful responses
+        mock_api.get_bot_config.return_value = {
+            "id": "test_bot_1",
+            "name": "Test Bot",
+            "type": "analyst_bot",
+            "parameters": {
+                "REGULAR_EXPRESSION": "test.*pattern",
+                "ATTRIBUTE_NAME": "test_attribute"
+            }
+        }
+        
+        yield mock_api
 
 
-@pytest.fixture(scope="session")
-def e2e_test_data():
-    """Shared test data for E2E tests"""
-    return {
-        "test_product_id": " TODO",
-        "test_publisher_id": " TODO",
-        "test_connector_id": "TODO",
-        "test_source_id": "TODO",
-        "test_bot_id": 42
-    }
-
-
-@pytest.fixture(autouse=True)
-def setup_test_environment():
-    """Automatically setup test environment for all E2E tests"""
-    # Ensure we have the right working directory
-    original_cwd = os.getcwd()
-    test_dir = Path(__file__).parent
-    os.chdir(test_dir)
-    
-    yield
-    
-    # Restore original working directory
-    os.chdir(original_cwd)
-
-
-def pytest_configure(config):
-    """Configure pytest for E2E tests"""
-    # Add custom markers
-    config.addinivalue_line(
-        "markers", "e2e: End-to-end tests that test complete workflows"
+@pytest.fixture
+def sample_bot_request():
+    """Sample bot task request"""
+    return BotTaskRequest(
+        bot_id=1,
+        filter={"SOURCE": "test_source"}
     )
-    config.addinivalue_line(
-        "markers", "slow: Tests that take longer than 5 seconds"
-    )
-    config.addinivalue_line(
-        "markers", "prefect: Tests that use Prefect functionality"
-    )
-
-
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection for E2E tests"""
-    # Automatically mark all tests in e2e directory
-    for item in items:
-        if "e2e" in str(item.fspath):
-            item.add_marker(pytest.mark.e2e)
-            item.add_marker(pytest.mark.slow)
-            item.add_marker(pytest.mark.prefect)
-
-
-def pytest_sessionstart(session):
-    """Called after the Session object has been created"""
-    print("\nStarting E2E test session for Prefect migration")
-
-
-def pytest_sessionfinish(session, exitstatus):
-    """Called after whole test run finished"""
-    if exitstatus == 0:
-        print("E2E test session completed successfully")
-    else:
-        print("E2E test session completed with failures")
