@@ -326,6 +326,7 @@ class WorkerParameterValue(TaranisBaseModel):
     parent: Literal["parameters"] = "parameters"
     type: str | None = None
     rules: list[str] = Field(default_factory=list)
+    value: str | list
 
 
 class WorkerParameter(TaranisBaseModel):
