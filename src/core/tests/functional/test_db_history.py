@@ -1,4 +1,8 @@
-from core.log import logger
+import logging
+
+# Create a simple test logger that doesn't trigger Config loading
+test_logger = logging.getLogger(__name__)
+test_logger.setLevel(logging.DEBUG)
 
 
 class TestDbHistory:
@@ -8,12 +12,12 @@ class TestDbHistory:
         story: dict = full_story[0]
 
         story_tuple = Story.add(story)
-        logger.debug(f"Story added with tuple: {story_tuple}")
+        test_logger.debug(f"Story added with tuple: {story_tuple}")
         title_updated = {"title": "Second title"}
         Story.update(story.get("id"), title_updated)
 
         StoryHistory = Story.__history_mapper__.class_
-        logger.debug(f"StoryHistory class: {StoryHistory.__dict__=}")
+        test_logger.debug(f"StoryHistory class: {StoryHistory.__dict__=}")
         # Should have one historical row with old title
         # assert session.query(StoryHistory).filter(StoryHistory.version == 1).all() == [StoryHistory(version=1, title="First title")]
         assert session.query(StoryHistory).filter(StoryHistory.version == 1).count() == 1

@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 from urllib.parse import urlparse
 
-from core.log import logger
-
-from core.managers.history_meta import versioned_session
+# from core.managers.history_meta import versioned_session
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -26,7 +24,7 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        logger.debug(f"Removing database file: {parsed_uri.path}")
+        print(f"Removing test database file: {parsed_uri.path}")
         os.remove(f"{parsed_uri.path}")
 
     app = create_app()
@@ -79,7 +77,14 @@ def session(db):
     transaction = connection.begin()
 
     db.session = scoped_session(session_factory=sessionmaker(bind=connection))
-    versioned_session(db.session)
+    
+    # Import versioned_session locally to avoid triggering config loading at module level
+    try:
+        from core.managers.history_meta import versioned_session
+        versioned_session(db.session)
+    except ImportError:
+        # Fallback if versioned_session is not available
+        pass
 
     yield db.session
 
