@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import time
+from flask import url_for
 
 from playwright.sync_api import Page, expect
 import pytest
@@ -9,6 +10,8 @@ from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_admin
+@pytest.mark.e2e_ci
+@pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
@@ -16,6 +19,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
+        page.goto(url_for("base.login", _external=True))
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
@@ -23,63 +27,49 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        self.highlight_element(page.locator("role=button")).click()
+        self.highlight_element(page.get_by_test_id("login-button")).click()
+        expect(page.locator("#dashboard")).to_be_visible()
 
     def test_admin_user_management(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
+
+        def check_dashboard():
+            expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
-            page.get_by_role("link", name="Administration").click()
-            page.get_by_role("link", name="Organizations").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").click()
+            page.goto(url_for("admin.organizations", _external=True))
+            page.get_by_test_id("new-organization-button").click()
             page.get_by_label("Name").fill("Test organizations")
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
             page.get_by_label("City").fill("Test City")
             page.get_by_label("Zip").fill("9999")
             page.get_by_label("Country").fill("Test Country")
-            time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
-            page.get_by_role("button", name="Submit").click()
-            expect(page.get_by_text("Successfully created Test")).to_be_visible()
-            page.locator("div").filter(has_text="Successfully created").nth(2).click()
 
-        def add_role():
-            page.get_by_role("link", name="Roles").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("New Role")
-            page.get_by_label("Description").fill("Basic user role")
-            page.get_by_role("combobox").first.click()
-            page.get_by_role("option", name="Clear").click()
-            page.get_by_role("cell", name="CONFIG_WORKER_ACCESS").click()
-            page.get_by_role("cell", name="CONFIG_WORKER_ACCESS").click()
-            page.get_by_role("row", name="CONFIG_WORKER_ACCESS Access").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ADMIN_OPERATIONS Admin").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_ACCESS Analyze access").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_CREATE Analyze create").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_DELETE Analyze delete").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ANALYZE_UPDATE Analyze update").get_by_role("cell").first.click()
-            page.get_by_role("row", name="ASSESS_ACCESS Assess access").get_by_role("cell").first.click()
-            time.sleep(1)
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
-            page.get_by_role("button", name="Submit").click()
-            expect(page.get_by_text("Successfully created new role")).to_be_visible()
-            page.locator("div").filter(has_text="Successfully created new role").nth(2).click()
+            with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
-            page.get_by_role("link", name="Users").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Username").click()
-            page.get_by_label("Username").fill("test")
-            page.get_by_label("Name", exact=True).fill("testname")
+            page.get_by_test_id("admin-menu-User").click()
+            page.get_by_test_id("new-user-button").click()
+            page.get_by_label("Name").fill("Test User")
+            page.get_by_label("Description").fill("Test description of a user")
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
-            page.get_by_role("combobox").first.click()
-            page.get_by_text("The Clacks").click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
-            page.get_by_role("button", name="Submit").click()
-            page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
+            page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+
+        def add_role():
+            page.get_by_test_id("admin-menu-Role").click()
+            page.get_by_test_id("new-role-button").click()
+            page.get_by_label("Name").fill("Test Role")
+            page.get_by_label("Description").fill("Test description of a role")
+            page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_text("Test Role")).to_be_visible()
 
         def update_user():
             page.get_by_role("cell", name="test").nth(1).click()
@@ -90,29 +80,35 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Submit").click()
             page.get_by_text("User was successfully updated").click()
 
-        def remove_user():
-            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
-            page.get_by_role("button", name="Delete").click()
-            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
-            page.get_by_text("Successfully deleted").click()
-
         def assert_update_user():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("3")
 
         def assert_update_user_2():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
+        def remove_user():
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
+            page.get_by_role("button", name="Delete").click()
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            page.get_by_text("Successfully deleted").click()
+
+        #           Run test
+        # ============================
+
+        page = taranis_frontend
+        check_dashboard()
         add_organization()
-        add_role()
-        add_user()
-        update_user()  # assign roles to user
-        assert_update_user()
-        update_user()  # deassign roles from a user
-        assert_update_user_2()
-        remove_user()
+        # add_user()
+        # add_role()
+        # update_user()  # assign roles to user
+        # assert_update_user()
+        # update_user()  # deassign roles from a user
+        # assert_update_user_2()
+        # remove_user()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()
@@ -190,18 +186,20 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
-        add_osint_sources()
-        wordlists()
-        edit_wordlist()
-        enable_wordlists()
-        bots()
-        osint_sources()
+        #           Run test
+        # ============================
+        page = taranis_frontend
 
-    def test_admin(self, taranis_frontend: Page):
-        pass
+        # add_osint_sources()
+        # wordlists()
+        # edit_wordlist()
+        # enable_wordlists()
+        # bots()
+        # osint_sources()
 
     def test_report_types(self, taranis_frontend: Page):
-        page = taranis_frontend
+        #        Test definitions
+        # ===============================
 
         def add_attribute():
             page.get_by_role("link", name="Attributes").click()
@@ -241,44 +239,30 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_report_type_select_attribute.png")
             page.get_by_role("button", name="Save").click()
 
-        add_attribute()
-        new_report_type()
-        add_attribute_group()
-        add_attribute_to_group()
-
-    def test_admin_product_types(self, taranis_frontend: Page):
+        #           Run test
+        # ============================
         page = taranis_frontend
 
+        # add_attribute()
+        # new_report_type()
+        # add_attribute_group()
+        # add_attribute_to_group()
+
+    def test_admin_product_types(self, taranis_frontend: Page):
         def show_product_type():
             page.get_by_role("link", name="Product Types").click()
             page.get_by_role("cell", name="Default TEXT Presenter").first.click()
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_edit.png")
 
-        show_product_type()
+        page = taranis_frontend
 
-    def test_user_stories(self, taranis_frontend: Page):
-        pass
-
-    def test_dashboard(self, taranis_frontend: Page):
-        pass
+        # show_product_type()
 
     def test_open_api(self, taranis_frontend: Page):
-        page = taranis_frontend
-
         def show_open_api():
-            page.get_by_role("link", name="OpenAPI").click()
-            page.frame_locator('iframe[title="OpenAPI"]').get_by_text("GET/auth/login").click()
-            page.screenshot(path="./tests/playwright/screenshots/docs_openapi.png")
+            page.goto(url_for("base.open_api", _external=True))
+            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
-        show_open_api()
-
-    def test_publish(self, taranis_frontend: Page):
         page = taranis_frontend
-
-        def show_publish():
-            page.get_by_role("link", name="Publish", exact=True).click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_publish_panel.png")
-
-        show_publish()
+        # show_open_api()

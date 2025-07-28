@@ -113,6 +113,7 @@ export default defineComponent({
     }
 
     onMounted(() => {
+      authStore.loginFromCookie()
       if (isAuthenticated.value) {
         router.push('/')
       }

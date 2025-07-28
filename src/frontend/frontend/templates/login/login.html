@@ -1,25 +1,33 @@
 
 <div class="flex justify-center min-h-screen items-center bg-base-100">
-  <form hx-post hx-target="this" hx-swap="innerHTML" class="card w-full max-w-md bg-base-100">
+  <form class="card w-full max-w-md bg-base-100" method="post" data-testid="login-form" id="login-form">
     <figure class="px-10 pt-10">
-      <img src="{{ url_for('static', filename='assets/taranis-logo-login.svg') }}" alt="Taranis Logo"/>
+      <img src="{{ url_for('static', filename='assets/taranis-logo-login.svg') }}" alt="Taranis Logo" height="100%" width="100%" />
     </figure>
 
     <div class="card-body items-center text-center space-y-4">
       <label class="floating-label input w-full mb-5 form-control">
         <span>Username</span>
-        <input id="username" type="text" placeholder="Username" name="username" required/>
+        <input id="username" type="text" placeholder="Username" name="username" required autofocus />
       </label>
 
       <div x-data="{ showPassword: false }" class="w-full">
         <label class="floating-label mb-3 input form-control w-full">
           <span>Password</span>
-          <input id="password" :type="showPassword ? 'text' : 'password'" placeholder="Password" name="password" required/>
-          <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="h-5 w-5 cursor-pointer") }}</div>
-          <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="h-5 w-5 cursor-pointer") }}</div>
+          <input id="password" :type="showPassword ? 'text' : 'password'" placeholder="Password" name="password" required />
+          <div x-show="!showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye", class="cursor-pointer") }}</div>
+          <div x-show="showPassword" x-on:click="showPassword = !showPassword">{{ heroicon_solid("eye-slash", class="cursor-pointer") }}</div>
         </label>
       </div>
-      <input type="submit" class="btn btn-primary btn-block" value="Login" />
+      <input type="submit" class="btn btn-primary btn-block" value="Login" data-testid="login-button" />
+    </div>
+    <div id="login-error-msg">
+      {% if login_error %}
+        <div role="alert" class="alert alert-error">
+          {{ heroicon_outline("exclamation-circle") }}
+          <span>{{ login_error }}</span>
+        </div>
+      {% endif %}
     </div>
   </form>
 </div>

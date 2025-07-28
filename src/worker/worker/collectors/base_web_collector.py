@@ -6,74 +6,60 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup, Tag
-from typing import Any, Optional
+from typing import Any
 import json
 
 from worker.log import logger
 from worker.types import NewsItem
-from worker.collectors.base_collector import BaseCollector
+from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
-
-
-class NoChangeError(Exception):
-    """Custom exception for when a source didn't change."""
-
-    def __init__(self, message="Not modified"):
-        super().__init__(message)
-        logger.debug(message)
-
-    def __str__(self):
-        return "Not modified"
 
 
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
-        self.type = "BASE_WEB_COLLECTOR"
-        self.name = "Base Web Collector"
-        self.description = "Base abstract type for all collectors that use web scraping"
+        self.type: str = "BASE_WEB_COLLECTOR"
+        self.name: str = "Base Web Collector"
+        self.description: str = "Base abstract type for all collectors that use web scraping"
 
-        self.proxies = None
-        self.timeout = 60
-        self.last_attempted = None
-        self.headers = {"User-Agent": "TaranisAI/1.0"}
+        self.proxies: dict | None = None
+        self.timeout: int = 60
+        self.last_attempted: datetime.datetime | None = None
+        self.headers: dict = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
-        self.split_digest_urls = []
+        self.split_digest_urls: list = []
 
         self.playwright_manager: PlaywrightManager | None = None
-        self.browser_mode = None
+        self.browser_mode: str | None = None
         self.web_url: str = ""
 
-    def send_get_request(self, url: str, modified_since: Optional[datetime.datetime] = None) -> requests.Response:
+    def send_get_request(self, url: str, modified_since: datetime.datetime | None = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
         If modified_since is given, make request conditional with If-Modified-Since
         Check for specific status codes and raise rest of errors
         """
 
-        # transform modified_since datetime object to str that is accepted by If-Modified-Since
         request_headers = self.headers.copy()
 
+        # transform modified_since datetime object to str that is accepted by If-Modified-Since
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-        logger.debug(f"{self.name} sending GET request to {url}")
-        try:
-            response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
-            if response.status_code == 200 and not response.content:
-                raise NoChangeError(f"{self.name} request to {url} got Response 200 OK, but returned no content")
-            if response.status_code == 304:
-                raise NoChangeError(f"Content of {url} was not modified - {response.text}")
-            if response.status_code == 429:
-                raise requests.exceptions.HTTPError(f"{self.name} got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise e
+        logger.debug(f"Sending GET request to {url}")
+        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+        if response.status_code == 200 and not response.content:
+            logger.info(f"Request to {url} got Response 200 OK, but returned no content")
+        if response.status_code == 304:
+            raise NoChangeError(f"{url} was not modified")
+        if response.status_code == 429:
+            raise requests.exceptions.HTTPError("Got Response 429 Too Many Requests. Try decreasing REFRESH_INTERVAL.")
+        response.raise_for_status()
 
         return response
 
-    def parse_source(self, source):
+    def parse_source(self, source: dict):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
@@ -91,6 +77,7 @@ class BaseWebCollector(BaseCollector):
             "http": proxy_server,
             "https": proxy_server,
             "ftp": proxy_server,
+            "socks5": proxy_server,
         }
 
     def update_headers(self, headers: str):
@@ -141,9 +128,9 @@ class BaseWebCollector(BaseCollector):
 
         return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
+    def xpath_extraction(self, html_content: str, xpath: str, get_content: bool = True) -> str | None:
+        logger.info(f"Attempting extraction for xpath: {xpath}")
         document = lxml.html.fromstring(html_content)
-        logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
@@ -156,7 +143,7 @@ class BaseWebCollector(BaseCollector):
     def clean_url(self, url: str) -> str:
         return url.split("?")[0].split("#")[0]
 
-    def extract_meta(self, web_content, web_url) -> tuple[str, str]:
+    def extract_meta(self, web_content: str, web_url: str) -> tuple[str, str]:
         metadata = extract_metadata(web_content, default_url=web_url)
         if metadata is None:
             return "", ""
@@ -182,10 +169,10 @@ class BaseWebCollector(BaseCollector):
             review=web_content["review"],
         )
 
-    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
+    def extract_web_content(self, web_url: str, xpath: str = "") -> dict[str, Any]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
-        if xpath:
+        if xpath and web_content:
             content = self.xpath_extraction(web_content, xpath)
         elif web_content:
             content = extract(web_content, url=web_url)
@@ -222,10 +209,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}")
+                logger.warning(f"Failed to parse the digest with error: {str(e)}")
                 continue
             except Exception as e:
-                logger.error(f"{self.type} failed digest splitting with error: {str(e)}")
+                logger.error(f"Failed digest splitting with error: {str(e)}")
                 raise e
 
         return news_items

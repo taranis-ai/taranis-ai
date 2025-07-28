@@ -110,7 +110,12 @@ class Story(BaseModel):
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
-        if item := cls.get(item_id):
+        query = db.select(cls).filter(cls.id == item_id)
+        if user:
+            query = cls._add_ACL_check(query, user)
+            query = cls._add_TLP_check(query, user)
+
+        if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
@@ -421,7 +426,6 @@ class Story(BaseModel):
             return cls.update(data["id"], data, external=True)
 
         result = cls.update_with_conflicts(data["id"], data)
-        logger.debug(f"{result=}")
         return result
 
     @classmethod
@@ -460,7 +464,6 @@ class Story(BaseModel):
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
-            logger.warning("Identical news item found. Skipping...")
             return {"error": "Identical news item found. Skipping..."}, 400
 
         data = {
@@ -524,6 +527,7 @@ class Story(BaseModel):
         }
         if skipped_items:
             result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+        logger.info(f"News items added successfully: {result}")
         return result, 200
 
     @classmethod
@@ -823,6 +827,9 @@ class Story(BaseModel):
     @classmethod
     def group_stories(cls, story_ids: list[str], user: User | None = None):
         try:
+            if not isinstance(story_ids, list):
+                return {"error": "story_ids must be a list"}, 400
+
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 
@@ -1017,9 +1024,10 @@ class Story(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [{"name": tag.name, "tag_type": tag.tag_type} for tag in self.tags]
+        data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
         if attributes := self.attributes:
-            data["attributes"] = [attribute.to_dict() for attribute in attributes]
+            data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
+
         return data
 
 

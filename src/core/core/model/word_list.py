@@ -136,22 +136,20 @@ class WordList(BaseModel):
         data["usage"] = self.get_usage_list()
         data.pop("entries", None)
         return data
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "WordList":
-        if 'entries' in data:
-            data['entries'] = WordListEntry.load_multiple(data['entries'])
+        if "entries" in data:
+            data["entries"] = WordListEntry.load_multiple(data["entries"])
 
-        word_list = cls(
-            id=data.get('id'), 
-            name=data.get('name', ''),
-            description=data.get('description'),
-            usage=data.get('usage', 0),
-            link=data.get('link', ''),
-            entries=data.get('entries', [])
+        return cls(
+            id=data.get("id"),
+            name=data.get("name", ""),
+            description=data.get("description"),
+            usage=data.get("usage", 0),
+            link=data.get("link", ""),
+            entries=data.get("entries", []),
         )
-
-        return word_list
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -251,7 +249,11 @@ class WordList(BaseModel):
     @classmethod
     def import_word_lists(cls, file) -> list | None:
         data = cls.parse_word_list_data(file)
+        return None if data is None else cls.add_multiple(data)
 
+    @classmethod
+    def import_word_lists_from_json(cls, json_data):
+        data = cls.load_json_content(content=json_data)
         return None if data is None else cls.add_multiple(data)
 
     @classmethod

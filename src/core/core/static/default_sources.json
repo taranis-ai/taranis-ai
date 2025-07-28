@@ -16,17 +16,6 @@
             "group_idx": 1
         },
         {
-            "name": "BSI RSS-Newsfeed Presse-, Kurzmitteilungen und Veranstaltungshinweise",
-            "description": "Aktuelle Informationen vom Bundesamt f\u00fcr Sicherheit in der Informationstechnik",
-            "type": "rss_collector",
-            "parameters": [
-                {
-                    "FEED_URL": "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed_Presse_Veranstaltungen.xml"
-                }
-            ],
-            "group_idx": 2
-        },
-        {
             "name": "CERT.org",
             "description": "",
             "type": "rss_collector",
@@ -35,7 +24,7 @@
                     "FEED_URL": "https://www.kb.cert.org/vulfeed"
                 }
             ],
-            "group_idx": 3
+            "group_idx": 2
         },
         {
             "name": "Aktuelles aus dem BM.I",
@@ -46,7 +35,7 @@
                     "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"
                 }
             ],
-            "group_idx": 4
+            "group_idx": 3
         },
         {
             "name": "The CZ.NIC Staff Blog",
@@ -60,7 +49,7 @@
                     "CONTENT_LOCATION": "content:encoded"
                 }
             ],
-            "group_idx": 5
+            "group_idx": 4
         },
         {
             "name": "CERT.at - All",
@@ -74,7 +63,7 @@
                     "CONTENT_LOCATION": "description"
                 }
             ],
-            "group_idx": 6
+            "group_idx": 5
         },
         {
             "name": "Gunnar Haslinger",
@@ -85,7 +74,7 @@
                     "FEED_URL": "https://hitco.at/blog/feed/"
                 }
             ],
-            "group_idx": 7
+            "group_idx": 6
         },
         {
             "name": "futurezone.at",
@@ -96,18 +85,7 @@
                     "FEED_URL": "https://futurezone.at/xml/rss"
                 }
             ],
-            "group_idx": 8
-        },
-        {
-            "name": "Fefes Blog",
-            "description": "Verschw\u00f6rungen und Obskures aus aller Welt",
-            "type": "rss_collector",
-            "parameters": [
-                {
-                    "FEED_URL": "https://blog.fefe.de/rss.xml?html"
-                }
-            ],
-            "group_idx": 9
+            "group_idx": 7
         },
         {
             "name": "Web - derStandard.at",
@@ -118,7 +96,7 @@
                     "FEED_URL": "https://www.derstandard.at/rss/web"
                 }
             ],
-            "group_idx": 10
+            "group_idx": 8
         },
         {
             "name": "news.ORF.at",
@@ -129,7 +107,7 @@
                     "FEED_URL": "https://rss.orf.at/news.xml"
                 }
             ],
-            "group_idx": 11
+            "group_idx": 9
         },
         {
             "name": "oesterreich.ORF.at",
@@ -140,7 +118,7 @@
                     "FEED_URL": "https://rss.orf.at/oesterreich.xml"
                 }
             ],
-            "group_idx": 12
+            "group_idx": 10
         }
     ],
     "groups": [
@@ -148,11 +126,10 @@
             "name": "General News",
             "description": "",
             "osint_sources": [
+                7,
                 8,
                 9,
-                10,
-                11,
-                12
+                10
             ]
         },
         {
@@ -164,8 +141,7 @@
                 3,
                 4,
                 5,
-                6,
-                7
+                6
             ]
         }
     ]

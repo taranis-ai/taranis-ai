@@ -43,6 +43,17 @@ workers = [
         "type": "SIMPLE_WEB_COLLECTOR",
     },
     {
+        "name": "ppn Collector",
+        "description": "Collector for gathering news from the PPN dataset",
+        "parameters": [
+            {"parameter": "PATH", "rules": "required"},
+            {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+            {"parameter": "DIGEST_SPLITTING", "type": "switch"},
+        ],
+        "type": "PPN_COLLECTOR",
+    },
+    {
         "name": "Manual",
         "description": "Manual source for creating news items via UI",
         "parameters": [

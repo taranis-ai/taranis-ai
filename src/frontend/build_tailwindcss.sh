@@ -1,8 +1,8 @@
 #!/bin/bash
 
-set -eu
+set -euo pipefail
 
-cd $(git rev-parse --show-toplevel)/src/frontend
+WATCH_MODE=${1:-}
 
 if [ ! -x tailwindcss ]; then
   arch=$(uname -m)
@@ -11,5 +11,10 @@ if [ ! -x tailwindcss ]; then
   chmod +x tailwindcss
 fi
 
-./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css
+./update_assets.sh
 
+if [ -n "$WATCH_MODE" ]; then
+  ./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
+else
+  ./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify
+fi

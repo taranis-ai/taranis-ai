@@ -1,12 +1,13 @@
+exclude: ^src/frontend/frontend/static/.*$
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.7
+    rev: v0.12.3
     hooks:
       - id: ruff
-        files: ^(src/core|src/worker)
+        files: ^(src/core|src/worker|src/frontend|src/models)
       - id: ruff-format
-        files: ^(src/core|src/worker)
+        files: ^(src/core|src/worker|src/frontend|src/models)
 
   - repo: local
     hooks:
@@ -22,3 +23,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+
+  - repo: https://github.com/djlint/djLint
+    rev: v1.36.4
+    hooks:
+      - id: djlint-reformat-jinja
+

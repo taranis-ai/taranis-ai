@@ -119,6 +119,9 @@ class OSINTSource(BaseModel):
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
+
+        if not (data["parameters"].get("PROXY_SERVER", None)):
+            data["parameters"]["PROXY_SERVER"] = Settings.get_settings().get("default_proxy_server", "")
         return data
 
     def to_assess_dict(self) -> dict[str, Any]:
@@ -130,15 +133,13 @@ class OSINTSource(BaseModel):
         }
 
     def to_task_id(self) -> str:
-        return f"{self.type}_{self.id}"
+        return f"collect_{self.type}_{self.id}"
 
     def get_schedule(self) -> str:
         if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
             return refresh_interval
 
-        # use default interval (0 */8 * * * = 8h) if no REFERESH_INTERVAL was set will be moved to admin settings
-        logger.info(f"REFRESH_INTERVAL for source {self.id} set to default value (8 hours)")
-        return "0 */8 * * *"
+        return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
 
     def to_task_dict(self, crontab_str: str):
         return {
@@ -170,9 +171,9 @@ class OSINTSource(BaseModel):
         if not osint_source:
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
-        if state == "enable":
+        if state.startswith("enable"):
             osint_source.state = -1
-        elif state == "disable":
+        elif state.startswith("disable"):
             osint_source.state = -2
         else:
             return {"error": "Invalid state"}, 400
@@ -221,7 +222,7 @@ class OSINTSource(BaseModel):
     def update_status(self, error_message=None):
         self.last_attempted = datetime.now()
         if error_message:
-            logger.error(f"Updating status for {self.id} with error message {error_message}")
+            logger.error(f"Updating status for source '{self.name}' with id {self.id} with error message: {error_message}")
             self.state = 1
         else:
             self.last_collected = datetime.now()
@@ -236,8 +237,6 @@ class OSINTSource(BaseModel):
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)
         schedule_manager.schedule.add_celery_task(entry)
-
-        logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):
@@ -328,6 +327,10 @@ class OSINTSource(BaseModel):
     def import_osint_sources(cls, file) -> list[str]:
         file_data = file.read()
         json_data = json.loads(file_data.decode("utf8"))
+        return cls.import_osint_sources_from_json(json_data)
+
+    @classmethod
+    def import_osint_sources_from_json(cls, json_data) -> list[str]:
         groups = []
         if json_data["version"] == 1:
             data = cls.parse_version_1(json_data["data"])

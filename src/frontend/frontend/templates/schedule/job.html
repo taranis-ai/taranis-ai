@@ -1,9 +1,14 @@
 {% for job in jobs %}
-<tr hx-get="{{ url_for('admin.scheduler_job_details', job_id=job.id) }}" hx-target="#details-{{ job.id }}" hx-swap="innerHTML" data-expanded="false" onclick="toggleDetails('{{ job.id }}')" id="job-row-{{ job.id }}">
-    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.id }}</td>
-    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.name }}</td>
-    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.trigger }}</td>
-    <td class="px-6 py-4 border-b border-gray-300 text-sm truncate">{{ job.next_run_time }}</td>
-</tr>
-<tr id="details-{{ job.id }}" class="hidden transition-all duration-300 ease-in-out"></tr>
+  <tr class="cursor-pointer hover:bg-base-100" @click="openJobs['{{ job.id }}'] = !openJobs['{{ job.id }}']">
+    <td class="px-6 py-4 border-b text-sm truncate">{{ job.name }}</td>
+    <td class="px-6 py-4 border-b text-sm truncate">{{ job.next_run_time }}</td>
+  </tr>
+  <tr id="details-{{ job.id }}" x-show="openJobs['{{ job.id }}']" x-transition class="transition-all duration-300 ease-in-out">
+    <td colspan="2">
+      <div class="bg-base-200 flex items-center">
+        <span class="text-lg font-semibold mr-4">{{ job.id }} | {{ job.kwargs }}</span>
+        <span class="text-lg font-semibold">{{ job.trigger | human_readable_trigger }}</span>
+      </div>
+    </td>
+  </tr>
 {% endfor %}

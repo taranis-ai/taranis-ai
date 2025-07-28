@@ -18,6 +18,9 @@ permissions:
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-worker
   LATEST: ${{ github.ref == 'refs/heads/master' }}
+  UV_NO_SYNC: true
+  UV_FROZEN: true
+
 
 jobs:
   test:
@@ -29,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           prune-cache: false
@@ -38,7 +41,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras
 
       - name: Install Playwright dependencies
         run: uv run playwright install --with-deps chromium
@@ -57,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           prune-cache: false

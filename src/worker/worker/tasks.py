@@ -6,7 +6,12 @@ def setup_tasks():
     flows = []
     from worker.misc.misc_tasks import debug_flow
 
-    flows.append(debug_flow.to_deployment(name="debug_task"))
+        app.register_task(BotTask())
+    if "Collectors" in Config.WORKER_TYPES:
+        from worker.collectors.collector_tasks import CollectorTask, CollectorPreview
+
+        app.register_task(CollectorTask())
+        app.register_task(CollectorPreview())
 
     if "Presenters" in Config.WORKER_TYPES:
         try:

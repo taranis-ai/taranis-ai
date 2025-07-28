@@ -1,0 +1,20 @@
+<div class="flex gap-8 items-center"
+     x-data="{ usage: {{ word_list.usage|safe }}, get include() { return this.usage.includes('COLLECTOR_INCLUDELIST') }, set include(v) { if (v) { this.usage = [...this.usage.filter(u => u !== 'COLLECTOR_EXCLUDELIST' && u !== 'COLLECTOR_INCLUDELIST'), 'COLLECTOR_INCLUDELIST', ...(this.tagging ? ['TAGGING_BOT'] : [])]; } else { this.usage = this.usage.filter(u => u !== 'COLLECTOR_INCLUDELIST'); } }, get exclude() { return this.usage.includes('COLLECTOR_EXCLUDELIST') }, set exclude(v) { if (v) { this.usage = ['COLLECTOR_EXCLUDELIST']; } else { this.usage = this.usage.filter(u => u !== 'COLLECTOR_EXCLUDELIST'); } }, get tagging() { return this.usage.includes('TAGGING_BOT') }, set tagging(v) { if (v) { // Only add tagging if not excluded if (!this.exclude) { this.usage = [...this.usage.filter(u => u !== 'TAGGING_BOT'), ...(this.include ? ['COLLECTOR_INCLUDELIST'] : []), 'TAGGING_BOT']; } } else { this.usage = this.usage.filter(u => u !== 'TAGGING_BOT'); } } }">
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox" class="checkbox checkbox-primary" name="include" x-model="include" @change="updateState('include')" :disabled="exclude">
+    Collector Includelist
+  </label>
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox"
+           class="checkbox checkbox-error"
+           name="exclude"
+           x-model="exclude"
+           @change="updateState('exclude')"
+           :disabled="include || tagging">
+    Collector Excludelist
+  </label>
+  <label class="cursor-pointer flex items-center gap-2">
+    <input type="checkbox" class="checkbox checkbox-accent" name="tagging" x-model="tagging" @change="updateState('tagging')" :disabled="exclude">
+    Tagging Bot
+  </label>
+</div>

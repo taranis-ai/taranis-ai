@@ -8,7 +8,13 @@ from psycopg.errors import UniqueViolation
 from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
-from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
+from core.managers.data_manager import (
+    get_for_api,
+    write_base64_to_file,
+    get_presenter_templates,
+    delete_template,
+    get_templates_as_base64,
+)
 from core.model import (
     attribute,
     bot,
@@ -182,6 +188,14 @@ class Parameters(MethodView):
         return worker.Worker.get_parameter_map(), 200
 
 
+class WorkerParameters(MethodView):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        x = worker.Worker.get_parameter_map()
+        result = [{"id": key, "parameters": value} for key, value in x.items()]
+        return {"items": result}, 200
+
+
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
     @extract_args("search")
@@ -210,29 +224,43 @@ class Roles(MethodView):
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
+        if user.UserRole.has_assigned_user(role_id):
+            logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
+            return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
         return role.Role.delete(role_id)
 
 
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
+        if request.args.get("list", default=False, type=bool):
+            templates = [{"path": t} for t in get_presenter_templates()]
+            return jsonify({"total_count": len(templates), "items": templates})
         if template_path:
-            template = get_template_as_base64(template_path)
+            template = get_for_api(template_path)
             return (template, 200) or ({"error": "Product type not found"}, 404)
-        templates = [{"path": t} for t in get_presenter_templates()]
-        return jsonify({"total_count": len(templates), "items": templates})
+        templates = get_templates_as_base64()
+        return jsonify({"items": templates, "total_count": len(templates)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
-    def put(self):
+    def post(self, template_path=None):
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_path = request.json.pop("path")
-        if write_base64_to_file(request.json.get("data"), template_path):
+        template_path = request.json.get("id")
+        if write_base64_to_file(request.json.get("content"), template_path):
+            return {"message": "Template updated or created", "path": template_path}, 200
+        return {"error": "Could not write template to file"}, 500
+
+    @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    def put(self, template_path: str):
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        if write_base64_to_file(request.json.get("content"), template_path):
             return {"message": "Template updated or created", "path": template_path}, 200
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, template_path):
+    def delete(self, template_path: str):
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
@@ -423,26 +451,20 @@ class Connectors(MethodView):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
-                return {"message": f"OSINT Source {source.name} updated", "id": f"{connector_id}"}, 200
+                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
-        return {"error": f"OSINT Source with ID: {connector_id} not found"}, 404
+        return {"error": f"Connector with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, connector_id: str):
-        force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(connector_id):
-            return {
-                "error": f"""OSINT Source with ID: {connector_id} has related News Items.
-                To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
-
-        return osint_source.OSINTSource.delete(connector_id, force=force)
+        # TODO: Implement force delete logic if needed
+        return connector.Connector.delete(connector_id)
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
-        return osint_source.OSINTSource.toggle_state(source_id, state)
+    def patch(self, connector_id: str):
+        # TODO: Implement toggle state logic if needed
+        pass
 
 
 class ConnectorsPull(MethodView):
@@ -495,7 +517,11 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str):
-        state = request.args.get("state", default="enabled", type=str)
+        if request.json:
+            state = request.json.get("state")
+        else:
+            state = request.args.get("state", default="enabled", type=str)
+        logger.debug(f"Toggling OSINT source {source_id} to state {state}")
         return osint_source.OSINTSource.toggle_state(source_id, state)
 
 
@@ -505,7 +531,9 @@ class OSINTSourceCollect(MethodView):
         StoryConflict.flush_store()
         NewsItemConflict.flush_store()
         if source_id:
-            return queue_manager.queue_manager.collect_osint_source(source_id)
+            if source := osint_source.OSINTSource.get(source_id):
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.to_task_id())
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 
 
@@ -516,7 +544,7 @@ class OSINTSourcePreview(MethodView):
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
-        return {"error": "Task not found"}, 404
+        return queue_manager.queue_manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id):
@@ -546,10 +574,12 @@ class OSINTSourcesImport(MethodView):
     def post(self):
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
-            if sources is None:
-                return {"error": "Unable to import"}, 400
-            return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
-        return {"error": "No file provided"}, 400
+        if json_data := request.get_json(silent=True):
+            sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        if sources is None:
+            logger.error("Failed to import OSINT sources")
+            return {"error": "Unable to import"}, 400
+        return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
 class OSINTSourceGroups(MethodView):
@@ -574,6 +604,19 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id):
         return osint_source.OSINTSourceGroup.delete(group_id)
+
+
+class TaskResults(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @extract_args("search")
+    def get(self, task_id=None, filter_args=None):
+        if task_id:
+            return task.Task.get_for_api(task_id)
+        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def delete(self, task_id):
+        return task.Task.delete(task_id)
 
 
 class Presenters(MethodView):
@@ -644,10 +687,14 @@ class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
         if file := request.files.get("file"):
-            if wls := word_list.WordList.import_word_lists(file):
-                return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
-            return {"error": "Unable to import"}, 400
-        return {"error": "No file provided"}, 400
+            wls = word_list.WordList.import_word_lists(file)
+        if json_data := request.get_json(silent=True):
+            wls = word_list.WordList.import_word_lists_from_json(json_data)
+        if wls is None:
+            logger.error("Failed to import Word Lists")
+            return {"error": "Unable to import Word Lists"}, 400
+
+        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
 
 class WordListExport(MethodView):
@@ -656,7 +703,7 @@ class WordListExport(MethodView):
         source_ids = request.args.getlist("ids")
         data = word_list.WordList.export(source_ids)
         if data is None:
-            return {"error": "Unable to export"}, 400
+            return {"error": "Unable to export word lists"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="word_list_export.json",
@@ -679,8 +726,13 @@ class WorkerInstances(MethodView):
 
 class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    @extract_args("search", "category", "type")
+    @extract_args("search", "category", "type", "exclude")
     def get(self, filter_args=None):
+        if Config.DISABLE_PPN_COLLECTOR:
+            if filter_args:
+                filter_args["exclude"] = "ppn"
+            else:
+                filter_args = {"exclude": "ppn"}
         return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
@@ -715,6 +767,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
     config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
+    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
     config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))
@@ -723,7 +776,12 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
     config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
     config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
-    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
+    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
+    config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    config_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results"))
+    config_bp.add_url_rule("/task-results/<string:task_id>", view_func=TaskResults.as_view("task_result"))
+
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
     config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
     config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
@@ -743,9 +801,9 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
+    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
     config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
     config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))

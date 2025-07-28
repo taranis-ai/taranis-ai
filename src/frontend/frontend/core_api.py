@@ -29,16 +29,33 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
+    def check_if_api_connected(self):
+        try:
+            url = f"{self.api_url}/isalive"
+            response = requests.get(url=url, verify=self.verify, timeout=self.timeout)
+            if response.ok and response.json().get("isalive") is True:
+                return True
+
+            logger.error(f"API connection failed: {response.status_code} - {response.text}")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API connection failed: {e}")
+        return False
+
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        logger.debug(f"PUT {endpoint} with data: {json_data}")
         return requests.put(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
         return requests.post(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+
+    def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
+        if not json_data:
+            json_data = {}
+        return requests.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
 
     def api_delete(self, endpoint: str) -> requests.Response:
         return requests.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, timeout=self.timeout)
@@ -71,6 +88,85 @@ class CoreApi:
 
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
+
+    def import_word_lists(self, word_lists):
+        return self.api_post("/config/import-word-lists", json_data=word_lists)
+
+    def export_word_lists(self, word_list_ids=None):
+        try:
+            return self.api_download("/config/export-word-lists", params=word_list_ids)
+        except Exception as e:
+            logger.error(f"Export word lists failed: {e}")
+            return None
+
+    def import_sources(self, sources):
+        return self.api_post("/config/import-osint-sources", json_data=sources)
+
+    def export_sources(self, source_ids=None):
+        try:
+            return self.api_download("/config/export-osint-sources", params=source_ids)
+        except Exception as e:
+            logger.error(f"Export sources failed: {e}")
+            return None
+
+    def load_default_osint_sources(self):
+        try:
+            return self.api_get("/static/default_sources.json")
+        except Exception as e:
+            logger.error(f"Load default OSINT sources failed: {e}")
+            return None
+
+    def get_osint_source_preview(self, osint_source_id: str):
+        try:
+            return self.api_get(f"/config/osint-sources/{osint_source_id}/preview")
+        except Exception as e:
+            logger.error(f"Retrieving OSINT source preview failed: {e}")
+            return None
+
+    def collect_osint_source(self, osint_source_id: str):
+        try:
+            return self.api_post(f"/config/osint-sources/{osint_source_id}/collect")
+        except Exception as e:
+            logger.error(f"Collect OSINT source failed: {e}")
+            return None
+
+    def execute_bot(self, bot_id: str):
+        try:
+            return self.api_post(f"/config/bots/{bot_id}/execute")
+        except Exception as e:
+            logger.error(f"Execute bot failed: {e}")
+            return None
+
+    def collect_all_osint_sources(self):
+        try:
+            return self.api_post("/config/osint-sources/collect")
+        except Exception as e:
+            logger.error(f"Collect OSINT sources failed: {e}")
+            return None
+
+    def toggle_osint_source(self, osint_source_id: str, new_state: str):
+        try:
+            return self.api_patch(f"/config/osint-sources/{osint_source_id}", json_data={"state": new_state})
+        except Exception as e:
+            logger.error(f"Toggle OSINT source failed: {e}")
+            return None
+
+    def load_default_word_lists(self):
+        try:
+            return self.api_get("/static/default_word_lists.json")
+        except Exception as e:
+            logger.error(f"Load default word lists failed: {e}")
+            return None
+
+    def import_report_item_types(self, report_item_types):
+        return self.api_post("/config/import-report-item-types", json_data=report_item_types)
+
+    def export_report_item_types(self, report_item_type_ids=None):
+        try:
+            return self.api_download("/config/export-report-item-types", params=report_item_type_ids)
+        except Exception as e:
+            logger.error(f"Export report item types failed: {e}")
+            return None
 
     def login(self, username, password):
         data = {"username": username, "password": password}

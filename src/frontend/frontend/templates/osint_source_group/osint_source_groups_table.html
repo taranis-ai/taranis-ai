@@ -1,8 +1,0 @@
-{% from "macros/table.html" import table with context %}
-
-{% set columns = [
-    {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-    {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
-] %}
-
-{{ table('organizations-table', organizations, columns, url_for('admin.organizations')) }}

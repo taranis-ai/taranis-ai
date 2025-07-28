@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.1.2
+  version: 1.1.7
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -39,10 +39,8 @@ tags:
     description: read/update/delete collectors (OSINT sources)
   - name: config
     description: read/update/delete everything config-related
-  - name: dashboard-data
+  - name: dashboard
     description: get dashboard data
-  - name: tagcloud
-    description: get the tagcloud (grouped words)
   - name: presenters
     description: get all presenters nodes
   - name: publish
@@ -2002,7 +2000,7 @@ paths:
     get:
       tags: [config]
       description: get all publishers
-      operationId: Publishers
+      operationId: config.publishers.get
       security:
         - UserAuth: []
       responses:
@@ -2025,7 +2023,7 @@ paths:
     get:
       tags: [config]
       description: get all bots
-      operationId: BotsGet
+      operationId: config.bots_config.get
       parameters:
         - name: search
           in: query
@@ -2052,7 +2050,7 @@ paths:
     post:
       tags: [config]
       description: add bot
-      operationId: BotsPost
+      operationId: config.bots_config.post
       requestBody:
         content:
           application/json:
@@ -2133,6 +2131,7 @@ paths:
     get:
       tags: [config]
       description: get all wordlists
+      operationId: config.word_lists.get
       parameters:
         - name: search
           in: query
@@ -2161,6 +2160,7 @@ paths:
     post:
       tags: [config]
       description: add wordlist
+      operationId: config.word_lists.post
       requestBody:
         content:
           application/json:
@@ -2188,6 +2188,7 @@ paths:
     put:
       tags: [config]
       description: update wordlist
+      operationId: config.word_list.put
       requestBody:
         content:
           application/json:
@@ -2205,6 +2206,7 @@ paths:
     delete:
       tags: [config]
       description: delete wordlist
+      operationId: config.word_list.delete
       security:
         - UserAuth: []
       responses:
@@ -2218,6 +2220,7 @@ paths:
     get:
       tags: [config]
       description: get all OSINT sources
+      operationId: config.osint_sources.get
       parameters:
         - name: search
           in: query
@@ -2246,6 +2249,7 @@ paths:
     post:
       tags: [config]
       description: add OSINT source
+      operationId: config.osint_sources.post
       requestBody:
         content:
           application/json:
@@ -2574,6 +2578,7 @@ paths:
           $ref: "#/components/responses/404NotFound"
   /dashboard/trending-clusters:
     get:
+      operationId: dashboard.trending-clusters
       tags: [dashboard]
       description: get trending clusters
       security:
@@ -2584,7 +2589,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/trending_clusters'
+                items:
+                  type: array
+                  items:
+                      $ref: '#/components/schemas/trending_clusters'
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':

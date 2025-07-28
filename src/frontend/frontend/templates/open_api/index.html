@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<iframe src="{{ url_for('api_doc.swagger_blueprint_doc_handler') }}"
+        loading="lazy"
+        class="w-full h-[calc(100vh-4rem)] border-none"
+        referrerpolicy="no-referrer"></iframe>
+{% endblock content %}

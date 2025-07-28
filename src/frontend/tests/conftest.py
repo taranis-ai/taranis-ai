@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
-load_dotenv(dotenv_path=env_file, override=True)
+load_dotenv(dotenv_path=env_file, override=False)
 
 
 @pytest.fixture(scope="session")
@@ -16,6 +16,7 @@ def app():
         {
             "TESTING": True,
             "DEBUG": True,
+            "SERVER_NAME": "localhost",
         }
     )
 
@@ -29,10 +30,10 @@ def auth_user():
     debug_user = {
         "id": 1,
         "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "The Earth"},
+        "organization": 1,
         "permissions": [],
         "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
+        "roles": [1],
         "username": "admin",
     }
 
@@ -70,7 +71,7 @@ def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
     group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
-    group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
+    group.addoption("--highlight-delay", action="store", default="1", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
 

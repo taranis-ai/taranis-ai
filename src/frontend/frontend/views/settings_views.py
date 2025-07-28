@@ -14,11 +14,14 @@ class SettingsView(BaseView):
     default_template = "settings/index.html"
     base_route = "admin_settings.settings"
     edit_route = "admin_settings.settings"
+    _read_only = True
+    _index = 190
 
     @classmethod
-    def get_extra_context(cls, object_id: int):
+    def get_extra_context(cls, base_context: dict) -> dict:
         dpl = DataPersistenceLayer()
-        return {"settings": dpl.get_objects(Settings)}
+        base_context["settings"] = dpl.get_objects(Settings)
+        return base_context
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -41,7 +44,9 @@ class SettingsView(BaseView):
         if not response or not response.ok:
             error = "Failed to call settings action: "
             error += response.json().get("error", action_url)
-            return render_template("partials/error.html", error=error), response.status_code if response else 500
+            return render_template(
+                "notification/index.html", notification={"message": error, "error": True}
+            ), response.status_code if response else 500
 
         if method == "post":
             return Response(status=200, headers={"HX-Refresh": "true"})

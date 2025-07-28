@@ -94,10 +94,10 @@ class ParameterValue(BaseModel):
             if rule == "required":
                 if not self.value:
                     raise ValueError("This parameter is required")
-            if rule == "tlp":
+            elif rule == "tlp":
                 if self.value not in ["red", "amber", "amber+strict", "green", "clear", None, ""]:
                     raise ValueError("Invalid TLP allowed values: red, amber, amber+strict, green, clear")
-            if rule == "json":
+            elif rule == "json":
                 if self.value:
                     json_dict = json.loads(self.value)
                     if not isinstance(json_dict, dict):

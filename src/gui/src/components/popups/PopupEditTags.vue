@@ -49,8 +49,8 @@ export default {
       required: true
     },
     tags: {
-      type: Array,
-      default: () => []
+      type: Object,
+      default: () => ({})
     },
     dialog: Boolean
   },
@@ -61,7 +61,8 @@ export default {
     const close = () => {
       emit('close')
     }
-    const updatedTags = ref(props.tags)
+
+    const updatedTags = ref(props.tags || {})
 
     async function editTags() {
       await assessStore.updateTags(props.storyId, updatedTags.value)

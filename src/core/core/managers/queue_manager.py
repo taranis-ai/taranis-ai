@@ -45,6 +45,9 @@ class QueueManager:
         from core.model.word_list import WordList
         from worker.flows.gather_word_list import gather_word_list_flow
 
+        if self.error:
+            return
+
         word_lists = WordList.get_all_empty() or []
         results = []
         for word_list in word_lists:

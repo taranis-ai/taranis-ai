@@ -1,10 +1,26 @@
 from prefect import flow
+from contextlib import contextmanager
 
 import worker.collectors
-from worker.collectors.base_collector import BaseCollector
-from worker.log import logger
+from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
-from requests.exceptions import ConnectionError
+from typing import Any
+
+
+@contextmanager
+def collector_log_fmt(logger: TaranisLogger, collector_formatter: TaranisLogFormatter):
+    stream_handler = logger.get_stream_handler()
+    if stream_handler is None:
+        yield
+        return
+
+    old_fmt = stream_handler.formatter
+    stream_handler.setFormatter(collector_formatter)
+    try:
+        yield
+    finally:
+        stream_handler.setFormatter(old_fmt)
 
 
 class Collector:
@@ -15,71 +31,52 @@ class Collector:
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
             "rt_collector": worker.collectors.RTCollector(),
             "misp_collector": worker.collectors.MISPCollector(),
+            "ppn_collector": worker.collectors.PPNCollector(),
         }
 
-    def get_source(self, osint_source_id: str) -> tuple[dict[str, str] | None, str | None]:
-        try:
-            source = self.core_api.get_osint_source(osint_source_id)
-        except ConnectionError as e:
-            logger.critical(e)
-            return None, str(e)
+    def get_source(self, osint_source_id: str) -> dict[str, Any]:
+        if source := self.core_api.get_osint_source(osint_source_id):
+            return source
+        raise ValueError(f"Source with id {osint_source_id} not found")
 
-        if not source:
-            logger.error(f"Source with id {osint_source_id} not found")
-            return None, f"Source with id {osint_source_id} not found"
-        return source, None
-
-    def get_collector(self, source: dict[str, str]) -> tuple[BaseCollector | None, str | None]:
-        logger.info(source)
-        collector_type = source.get("type")
-        if not collector_type:
-            logger.error(f"Source {source['id']} has no collector_type")
-            return None, f"Source {source['id']} has no collector_type"
-
-        if collector := self.collectors.get(collector_type):
-            return collector, None
-
-        return None, f"Collector {collector_type} not implemented"
-
-    def collect_by_source_id(self, osint_source_id: str, manual: bool = False):
-        err = None
-
-        source, err = self.get_source(osint_source_id)
-        if err or not source:
-            return err
-
-        collector, err = self.get_collector(source)
-        if err or not collector:
-            return err
-
-        if err := collector.collect(source, manual):
-            if err == "Not modified":
-                return "Not modified"
-            self.core_api.update_osintsource_status(osint_source_id, {"error": err})
-            return err
-
-        return "Collection completed successfully"
+    def get_collector(self, source: dict[str, Any]) -> BaseCollector:
+        if collector_type := source.get("type"):
+            if collector := self.collectors.get(collector_type):
+                return collector
+            raise ValueError(f"Collector of type {collector_type} not implemented")
+        raise ValueError(f"Source {source['id']} has no collector_type")
 
 
 @flow(name="collector_task")
 def collector_task(osint_source_id: str, manual: bool = False):
     collector = Collector()
-    if err := collector.collect_by_source_id(osint_source_id, manual):
-        return err
-    return f"Successfully collected source {osint_source_id}"
+    try:
+        source = collector.get_source(osint_source_id)
+        col = collector.get_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{col.name}")
+        logger.info(f"Starting collection for source '{source.get('name')}' (ID: {osint_source_id})")
+        with collector_log_fmt(logger, formatter):
+            col.collect(source, manual)
+        collector.core_api.run_post_collection_bots(osint_source_id)
+        return f"Successfully collected source {osint_source_id}"
+    except NoChangeError as e:
+        logger.info(f"No change for source {osint_source_id}: {str(e)}")
+        return str(e)
+    except Exception as e:
+        logger.exception(f"Failed to collect source {osint_source_id}")
+        return {"error": str(e)}
 
 
 @flow(name="collector_preview")
 def collector_preview(osint_source_id: str):
     collector = Collector()
-    source, err = collector.get_source(osint_source_id)
-    if err or not source:
-        return err
-
-    collector, err = collector.get_collector(source)
-    if err or not collector:
-        return err
-
-    result = collector.preview_collector(source)
-    logger.debug(result)
-    return result
+    try:
+        source = collector.get_source(osint_source_id)
+        col = collector.get_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{col.name}")
+        logger.info(f"Starting preview for source '{source.get('name')}' (ID: {osint_source_id})")
+        with collector_log_fmt(logger, formatter):
+            return col.preview_collector(source)
+    except Exception as e:
+        logger.exception(f"Failed to preview source {osint_source_id}")
+        return {"error": str(e)}

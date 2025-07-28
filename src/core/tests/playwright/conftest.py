@@ -9,7 +9,7 @@ from playwright.sync_api import Browser
 @pytest.fixture(scope="session")
 def build_gui():
     try:
-        if not os.path.isdir("../gui/dist"):
+        if os.getenv("E2E_TEST_GUI_REBUILD") == "true" or not os.path.isdir("../gui/dist"):
             if not os.path.isdir("../gui/node_modules"):
                 print("Building node_modules")
                 print(os.path.isdir("../gui/node_modules"))
@@ -82,7 +82,7 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     page.goto(e2e_server.url())
     yield page
     if request.config.getoption("--e2e-ci") == "e2e_ci":
-        context.tracing.stop(path="trace.zip")
+        context.tracing.stop(path="taranis_ai_core_trace.zip")
 
 
 @pytest.fixture(scope="session")

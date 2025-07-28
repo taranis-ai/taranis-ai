@@ -124,20 +124,25 @@ export const useAssessStore = defineStore(
     }
 
     async function getStoriesByID(ids) {
-      return ids.map((id) => getStoryByID(id))
+      if (!ids) {
+        return []
+      }
+      const arr = Array.isArray(ids) ? ids : [ids]
+      return Promise.all(arr.map(getStoryByID))
     }
 
     function getStoryByID(id) {
       let story = stories.value.items.filter((item) => item?.id === id)[0]
 
       // if not story is undefined or does not have a key called "detail_view" retrieve it from the API
-      if (!story || !story.detail_view) {
-        story = updateStoryByID(id)
+      if (story && story.detail_view) {
+        return story
       }
-      return story
+      return updateStoryByID(id)
     }
 
     function removeStoryByID(id) {
+      clearSelection()
       deleteStory(id)
       stories.value.items = stories.value.items.filter(
         (item) => item?.id !== id
@@ -163,7 +168,6 @@ export const useAssessStore = defineStore(
         stories.value.items.push(updatedItem)
       }
 
-      console.debug('Updated Story', updatedItem)
       return updatedItem
     }
 
@@ -381,7 +385,6 @@ export const useAssessStore = defineStore(
       updateOSINTSourceGroupsList()
       updateStories()
     }
-
 
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
