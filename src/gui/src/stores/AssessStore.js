@@ -142,6 +142,7 @@ export const useAssessStore = defineStore(
     }
 
     function removeStoryByID(id) {
+      clearSelection()
       deleteStory(id)
       stories.value.items = stories.value.items.filter(
         (item) => item?.id !== id
