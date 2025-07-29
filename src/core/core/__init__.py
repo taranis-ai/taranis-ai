@@ -5,6 +5,9 @@ from core.config import Config
 
 
 def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
+    print("=== SETTINGS DEBUG START ===")
+    print("Config.SQLALCHEMY_DATABASE_URI:", Config.SQLALCHEMY_DATABASE_URI)
+    print("=== SETTINGS DEBUG END ===")
     app = Flask(__name__, static_url_path=f"{Config.APPLICATION_ROOT}static")
     app.config.from_object("core.config.Config")
 

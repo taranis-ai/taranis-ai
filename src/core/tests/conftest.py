@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 from urllib.parse import urlparse
 
-from core.log import logger
-
-from core.managers.history_meta import versioned_session
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -19,6 +16,13 @@ if not current_path.endswith("src/core"):
 
 load_dotenv(dotenv_path=env_file, override=True)
 
+print("=== ENV DEBUG START ===")
+print("SQLALCHEMY_DATABASE_URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
+print("API_KEY:", os.getenv("API_KEY"))
+print("DEBUG:", os.getenv("DEBUG"))
+print("SERVER_NAME:", os.getenv("SERVER_NAME"))
+print("=== ENV DEBUG END ===")
+
 
 @pytest.fixture(scope="session")
 def app():
@@ -26,7 +30,6 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        logger.debug(f"Removing database file: {parsed_uri.path}")
         os.remove(f"{parsed_uri.path}")
 
     app = create_app()
@@ -75,6 +78,8 @@ def db(app):
 @pytest.fixture
 def session(db):
     """Creates a new database session for a test."""
+    from core.managers.history_meta import versioned_session
+
     connection = db.engine.connect()
     transaction = connection.begin()
 
