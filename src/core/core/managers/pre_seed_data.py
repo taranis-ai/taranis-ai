@@ -197,7 +197,11 @@ workers = [
     {
         "type": "DOCX_PRESENTER",
         "description": "Presenter for generating DOCX documents",
-        "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "rules": "required"},
+            {"parameter": "CONVERT_FROM", "type": "text", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "rules": "one_of:docx|doc|odt"},
+        ],
         "name": "DOCX Presenter",
     },
     {
@@ -545,7 +549,9 @@ product_types = [
         "description": "Default DOCX Presenter",
         "type": "DOCX_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "docx_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "docx_template.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|doc|odt"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -554,7 +560,7 @@ product_types = [
         "description": "Default PDF Presenter",
         "type": "PDF_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "pdf_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "pdf_template.html"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -563,7 +569,7 @@ product_types = [
         "description": "Default TEXT Presenter",
         "type": "TEXT_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "text_template.txt"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "text_template.txt"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -572,7 +578,7 @@ product_types = [
         "description": "cert.at Daily Report HTML",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
         ],
         "report_types": [4],
     },
