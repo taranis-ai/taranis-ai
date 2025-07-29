@@ -172,6 +172,28 @@ class ProductType(BaseModel):
         db.session.commit()
         return {"message": f"Product type {product_id} deleted"}, 200
 
+    @classmethod
+    def get_parameters(cls):
+        if product_types := cls.get_all_for_collector():
+            return {product_type.type: cls._generate_parameters_data(product_type) for product_type in product_types}
+        return {}
+
+    @classmethod
+    def _generate_parameters_data(cls, product_type):
+        product_type_params = []
+        product_type_params.extend(
+            {
+                "name": param.parameter,
+                "label": param.parameter,
+                "parent": "parameters",
+                "type": param.type,
+                "rules": param.rules.split(",") if param.rules else [],
+                "value": param.value,
+            }
+            for param in product_type.parameters
+        )
+        return product_type_params
+
 
 class ProductTypeParameterValue(BaseModel):
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
