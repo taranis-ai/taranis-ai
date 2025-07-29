@@ -88,14 +88,14 @@ class MISPConnector:
         If you add or remove a key from here, do the same for the respective object definition file.
         """
         return {
-            "attributes": {},
-            "comments": "",
-            "description": "",
             "id": "",
-            "links": {},
-            "summary": "",
-            "tags": {},
-            "title": "",
+            "title": "<no_data>",
+            "description": "<no_data>",
+            "attributes": {"no_data": {"key": "no_data", "value": "<no_data>"}},
+            "comments": "<no_data>",
+            "summary": "<no_data>",
+            "links": [{"link": "no_data", "news_item_id": "<no_data>"}],
+            "tags": {"no_data": {"name": "no_data", "tag_type": "<no_data>"}},
         }
 
     def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
@@ -122,10 +122,18 @@ class MISPConnector:
         story.pop("last_change", None)
 
         object_data = self.get_story_object_dict()
-        object_data.update({k: story[k] for k in object_data if k in story})
+        object_data.update(
+            {property: story[property] for property in object_data if property in story and story[property] not in (None, "", [], {})}
+        )
         object_data["attributes"] = []
-        object_data["links"] = self._process_items(story, "links", self._process_link)
-        object_data["tags"] = self._process_items(story, "tags", self._process_tags)
+
+        links_to_process = story.get("links") or object_data["links"]
+        object_data["links"] = self._process_items({"links": links_to_process}, "links", self._process_link)
+
+        tags_to_process = story.get("tags") or object_data["tags"]
+        object_data["tags"] = self._process_items({"tags": tags_to_process}, "tags", self._process_tags)
+
+        logger.debug(f"Adding story object with data: {object_data}")
 
         story_object = BaseMispObject(
             parameters=object_data,
@@ -133,7 +141,8 @@ class MISPConnector:
             misp_objects_path_custom="worker/connectors/definitions/objects",
         )
         attribute_list = self.add_attributes_from_story(story)
-        story_object.add_attributes("attributes", *attribute_list)
+        if story.get("attributes"):
+            story_object.add_attributes("attributes", *attribute_list)
         event.add_object(story_object)
 
     def set_misp_event_uuid_attribute(self, story: dict) -> None:
