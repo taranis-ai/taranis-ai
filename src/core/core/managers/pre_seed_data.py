@@ -195,14 +195,14 @@ workers = [
         "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
     },
     {
-        "type": "DOCX_PRESENTER",
-        "description": "Presenter for generating DOCX documents",
+        "type": "PANDOC_PRESENTER",
+        "description": "Presenter for generating .odt, .doc & .docx documents",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "rules": "required"},
             {"parameter": "CONVERT_FROM", "type": "text", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "rules": "one_of:docx|doc|odt"},
         ],
-        "name": "DOCX Presenter",
+        "name": "PANDOC Presenter",
     },
     {
         "type": "PDF_PRESENTER",
@@ -545,11 +545,11 @@ report_types = [
 
 product_types = [
     {
-        "title": "Default DOCX Presenter",
-        "description": "Default DOCX Presenter",
-        "type": "DOCX_PRESENTER",
+        "title": "Default .html -> .docx Presenter",
+        "description": "Default .html -> .docx Presenter",
+        "type": "PANDOC_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "docx_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|doc|odt"},
         ],

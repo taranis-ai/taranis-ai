@@ -4,10 +4,10 @@ import tempfile
 from .base_presenter import BasePresenter
 
 
-class DOCXPresenter(BasePresenter):
-    type = "DOCX_PRESENTER"
-    name = "Docx Presenter"
-    description = "Presenter for generating DOCX documents"
+class PANDOCPresenter(BasePresenter):
+    type = "PANDOC_PRESENTER"
+    name = "pandoc Presenter"
+    description = "Presenter for generating .odt, .doc & .docx documents"
 
     def generate(self, product, template) -> str | bytes:
         try:
@@ -24,4 +24,4 @@ class DOCXPresenter(BasePresenter):
 
         except Exception as error:
             BasePresenter.print_exception(self, error)
-            raise ValueError(f"DOCX generation failed: {error}") from error
+            raise ValueError(f"Document generation failed: {error}") from error
