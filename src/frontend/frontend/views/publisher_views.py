@@ -4,7 +4,7 @@ from flask import request, render_template
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType, Template, WorkerParameter, WorkerParameterValue
+from models.admin import PublisherPreset, ProductType, ReportItemType, WorkerParameter, WorkerParameterValue, ProductTypeParameter
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 
 from frontend.filters import render_item_type
@@ -68,10 +68,14 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
+        parameters = {}
+        presenter = base_context.get(cls.model_name())
+        if presenter and (hasattr(presenter, "type") and (presenter_type := presenter.type)):
+            parameters = cls.get_product_type_parameters(presenter_type=presenter_type.name.lower())
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
-            "template_files": [{"id": t.id, "name": t.id} for t in dpl.get_objects(Template)],
+            "parameters": parameters,
         }
         return base_context
 
@@ -94,3 +98,21 @@ class ProductTypeView(BaseView):
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": False, "renderer": render_item_type},
         ]
+
+    @classmethod
+    def get_product_type_parameters(cls, presenter_type: str) -> list[WorkerParameterValue]:
+        dpl = DataPersistenceLayer()
+        endpoint = dpl.get_endpoint(ProductTypeParameter)
+        if result := dpl.api.api_get(endpoint):
+            all_parameters = [ProductTypeParameter(**object) for object in result.get("items", [])]
+            match = next((wp for wp in all_parameters if wp.id == presenter_type), None)
+            return match.parameters if match else []
+        return []
+
+    @classmethod
+    def get_product_type_parameters_view(cls, presenter_type: str):
+        presenter_type = presenter_type.lower()
+        if not presenter_type:
+            logger.warning("No Product Type ID or Presenter Type provided.")
+        parameters = cls.get_product_type_parameters(presenter_type)
+        return render_template("partials/worker_parameters.html", parameters=parameters, preserve=False)
