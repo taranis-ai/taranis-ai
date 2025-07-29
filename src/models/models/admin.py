@@ -338,6 +338,15 @@ class WorkerParameter(TaranisBaseModel):
     parameters: list[WorkerParameterValue]
 
 
+class ProductTypeParameter(TaranisBaseModel):
+    _core_endpoint = "/config/product-type-parameters"
+    _model_name = "product_type_parameter"
+    _pretty_name = "Product Type Parameter"
+
+    id: str
+    parameters: list[WorkerParameterValue]
+
+
 class TaskResult(TaranisBaseModel):
     _core_endpoint = "/config/task-results"
     _model_name = "task_result"
