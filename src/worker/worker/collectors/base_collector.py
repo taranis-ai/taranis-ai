@@ -139,6 +139,7 @@ class BaseCollector:
             return self.publish(news_items, source)
 
         processed_stories = self.process_news_items_in_stories(story_lists, source, story_attribute_key)
+        logger.debug(f"{processed_stories=}")
 
         if story_attribute_key == "misp_event_uuid":
             logger.debug(f"Trying to publish {len(processed_stories)} stories from source {source['name'], source['id']}")

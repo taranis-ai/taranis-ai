@@ -1,6 +1,7 @@
 import pytest
 import requests
 from worker.tests.testdata import news_items
+import worker.collectors as collector
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
@@ -208,6 +209,36 @@ def test_misp_collector_collect(misp_collector_mock, misp_collector):
     result = misp_collector.collect(source)
 
     assert result is None
+
+
+def test_news_item_object_keys_completeness(news_item_template):
+    """Test that the object data keys match the template keys"""
+    object_data = collector.MISPCollector.get_news_item_object_dict()
+
+    template_keys = set(news_item_template["attributes"].keys())
+    object_data_keys = set(object_data.keys())
+
+    missing_keys = template_keys - object_data_keys
+    extra_keys = object_data_keys - template_keys
+
+    assert len(missing_keys) == 0, f"Missing keys in object_data: {missing_keys}"
+    assert len(extra_keys) == 0, f"Extra keys in object_data: {extra_keys}"
+    assert template_keys == object_data_keys, "Object data keys do not match the template"
+
+
+def test_story_object_completion(story_template):
+    """Test that the object data keys match the template keys"""
+    object_data = collector.MISPCollector.get_story_object_dict()
+
+    template_keys = set(story_template["attributes"].keys())
+    object_data_keys = set(object_data.keys())
+
+    missing_keys = template_keys - object_data_keys
+    extra_keys = object_data_keys - template_keys
+
+    assert len(missing_keys) == 0, f"Missing keys in object_data: {missing_keys}"
+    assert len(extra_keys) == 0, f"Extra keys in object_data: {extra_keys}"
+    assert template_keys == object_data_keys, "Object data keys do not match the template"
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])

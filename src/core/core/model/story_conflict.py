@@ -63,8 +63,9 @@ class StoryConflict:
                 "published",
                 "created",
                 "relevance",
-                # "osint_source_id", # TODO: This nested does not work
-                # "language",
+                "osint_source_id",
+                "language",
+                "read",
             }
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
