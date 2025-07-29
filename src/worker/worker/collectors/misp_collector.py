@@ -204,7 +204,58 @@ class MISPCollector(BaseCollector):
                     story_properties["likes"] = int(item.get("value", 0))
                 case "dislikes":
                     story_properties["dislikes"] = int(item.get("value", 0))
-        return story_properties
+
+        return self.clean_no_data_fields(story_properties)
+
+    @staticmethod
+    def clean_no_data_fields(story: dict) -> dict:
+        def is_empty_or_nodata(v):
+            return v in ("<no_data>", "no_data", "", None)
+
+        cleaned = {}
+        for key, value in story.items():
+            if isinstance(value, list):
+                value = [v for v in value if isinstance(v, dict) and not all(is_empty_or_nodata(i) for i in v.values())]
+                cleaned[key] = value
+            elif isinstance(value, dict):
+                cleaned[key] = {k: v for k, v in value.items() if not is_empty_or_nodata(v)}
+            elif not is_empty_or_nodata(value):
+                cleaned[key] = value
+
+        if not cleaned.get("tags"):
+            cleaned["tags"] = {}
+        if not cleaned.get("attributes"):
+            cleaned["attributes"] = {}
+        if not cleaned.get("links"):
+            cleaned["links"] = []
+        if not cleaned.get("news_items"):
+            cleaned["news_items"] = []
+        if not cleaned.get("id"):
+            cleaned["id"] = None
+        if not cleaned.get("created"):
+            cleaned["created"] = None
+        if not cleaned.get("updated"):
+            cleaned["updated"] = None
+        if not cleaned.get("relevance"):
+            cleaned["relevance"] = 0
+        if not cleaned.get("likes"):
+            cleaned["likes"] = 0
+        if not cleaned.get("dislikes"):
+            cleaned["dislikes"] = 0
+        if not cleaned.get("read"):
+            cleaned["read"] = False
+        if not cleaned.get("important"):
+            cleaned["important"] = False
+        if not cleaned.get("summary"):
+            cleaned["summary"] = ""
+        if not cleaned.get("description"):
+            cleaned["description"] = ""
+        if not cleaned.get("comments"):
+            cleaned["comments"] = ""
+        if not cleaned.get("title"):
+            cleaned["title"] = ""
+
+        return cleaned
 
     def get_extended_event_news_items(self, event: dict, misp, source) -> list:
         all_news_items = []
