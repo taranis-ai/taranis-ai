@@ -434,14 +434,21 @@ class Story(Versioned, BaseModel):
         try:
             story = cls.from_dict(data)
             db.session.add(story)
-            db.session.commit()
+            
+            # Prepare search index
             StorySearchIndex.prepare(story)
+            
+            # Update status 
             story.update_status()
+            
+            # Single commit for all operations
+            db.session.commit()
+            
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
                 "story_id": story.id,
-                "news_item_ids": [news_item.id for news_item in story.news_items],
+                "news_item_ids": [item.id for item in story.news_items],
             }, 200
         except IntegrityError:
             logger.exception()
@@ -537,42 +544,54 @@ class Story(Versioned, BaseModel):
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
+        # Handle vote separately as it has its own transaction
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
-        if "important" in data:
-            story.important = data["important"]
+        # Perform all other updates in a single transaction without no_autoflush
+        try:
+            if "important" in data:
+                story.important = data["important"]
 
-        if "read" in data:
-            story.read = data["read"]
+            if "read" in data:
+                story.read = data["read"]
 
-        if "title" in data:
-            story.title = data["title"]
+            if "title" in data:
+                story.title = data["title"]
 
-        if "description" in data:
-            story.description = data["description"]
+            if "description" in data:
+                story.description = data["description"]
 
-        if "comments" in data:
-            story.comments = data["comments"]
+            if "comments" in data:
+                story.comments = data["comments"]
 
-        if "tags" in data:
-            cls.reset_tags(story_id)
-            cls.update_tags(story_id, data["tags"])
+            if "tags" in data:
+                # Handle tags directly without querying existing tags to avoid auto-flushes
+                story.tags = []  # Clear existing tags
+                new_tags = NewsItemTag.parse_tags(data["tags"])
+                for tag_name, new_tag in new_tags.items():
+                    # Simply use the new tag without checking existing ones to avoid queries
+                    story.tags.append(new_tag)
 
-        if summary := data.get("summary"):
-            story.summary = summary
+            if summary := data.get("summary"):
+                story.summary = summary
 
-        if "attributes" in data:
-            story.set_attributes(data["attributes"])
+            if "attributes" in data:
+                story.set_attributes(data["attributes"])
 
-        if "links" in data:
-            story.links = data["links"]
+            if "links" in data:
+                story.links = data["links"]
 
-        story.last_change = "external" if external else "internal"
-
-        story.update_timestamps()
-        db.session.commit()
-        return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
+            story.last_change = "external" if external else "internal"
+            story.update_timestamps()
+            
+            # Single commit for all non-vote changes after all modifications
+            db.session.commit()
+            return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Failed to update story {story_id}")
+            return {"error": f"Failed to update story: {str(e)}"}, 500
 
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
@@ -664,7 +683,6 @@ class Story(Versioned, BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -767,7 +785,6 @@ class Story(Versioned, BaseModel):
                 return {"error": "not_found"}, 404
 
             story.tags = []
-            db.session.commit()
             return {"message": "success"}, 200
         except Exception as e:
             logger.exception("Reset News Item Tags Failed")
@@ -791,7 +808,6 @@ class Story(Versioned, BaseModel):
                 story.tags.append(new_tag)
             if bot_type:
                 story.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
-            db.session.commit()
             return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
@@ -987,7 +1003,8 @@ class Story(Versioned, BaseModel):
 
     def update_timestamps(self):
         self.updated = datetime.now()
-        self.created = min(news_item.published for news_item in self.news_items)
+        if self.news_items:  # Only update if news_items are already loaded
+            self.created = min(news_item.published for news_item in self.news_items)
 
     def get_story_tlp(self, input_tlp: TLPLevel | None = None) -> TLPLevel:
         most_restrictive_tlp = input_tlp or TLPLevel.CLEAR
@@ -1076,7 +1093,6 @@ class StorySearchIndex(BaseModel):
             )
 
         search_index.data = " ".join(data_components).lower()
-        db.session.commit()
 
 
 class NewsItemVote(BaseModel):
