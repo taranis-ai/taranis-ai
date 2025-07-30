@@ -93,6 +93,7 @@ class Product(BaseModel):
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),
             "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
+            "parameters": {param.parameter: param.value for param in self.product_type.parameters},
         }
 
     @classmethod
