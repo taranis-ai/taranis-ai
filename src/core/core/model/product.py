@@ -131,7 +131,7 @@ class Product(BaseModel):
         if product := cls.get(product_id):
             if product.render_result:
                 mime_type = product.product_type.get_mimetype()
-                if mime_type in ["application/pdf", "application/msword"]:
+                if mime_type in ["application/pdf", "application/doc"]:
                     blob = product.render_result
                 else:
                     blob = b64decode(product.render_result).decode("utf-8")

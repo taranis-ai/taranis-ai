@@ -20,7 +20,7 @@ class PresenterTask(Task):
         self.presenters = {
             "html_presenter": worker.presenters.HTMLPresenter(),
             "json_presenter": worker.presenters.JSONPresenter(),
-            "docx_presenter": worker.presenters.PANDOCPresenter(),
+            "pandoc_presenter": worker.presenters.PANDOCPresenter(),
             "pdf_presenter": worker.presenters.PDFPresenter(),
             "text_presenter": worker.presenters.TextPresenter(),
         }
