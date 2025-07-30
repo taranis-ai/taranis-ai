@@ -22,7 +22,12 @@ def fake_source(app):
 
         yield source_id
 
-        OSINTSource.delete(source_id)
+        # Safe teardown that handles closed connections
+        try:
+            OSINTSource.delete(source_id)
+        except Exception:
+            # Connection might be closed during teardown, ignore cleanup errors
+            pass
 
 
 @pytest.fixture(scope="class")
