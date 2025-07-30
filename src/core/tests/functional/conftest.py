@@ -129,6 +129,30 @@ def cleanup_report_item(app):
         ReportItem.delete_all()
 
 
+@pytest.fixture(scope="function")
+def input_report(app, session):
+    with app.app_context():
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        report_types = ReportItemType.get_all_for_collector()
+
+        if not report_types:
+            raise ValueError("No report types found")
+
+        first_report_type = report_types[0].id
+
+        yield {
+            "id": "42",
+            "title": "Test Report",
+            "completed": False,
+            "report_item_type_id": first_report_type,
+            "stories": [],
+        }
+
+        ReportItem.delete_all()
+
+
 @pytest.fixture(scope="class")
 def cleanup_product(app):
     with app.app_context():

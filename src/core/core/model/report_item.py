@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.sql.expression import false
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
+from core.managers.history_meta import Versioned
 
 from typing import Any, Optional
 
@@ -20,7 +21,7 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.service.news_item_tag import NewsItemTagService
 
 
-class ReportItem(BaseModel):
+class ReportItem(Versioned, BaseModel):
     __tablename__ = "report_item"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
@@ -153,7 +154,7 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data, user):
+    def add(cls, report_item_data: dict[str, Any], user):
         report_item = cls.from_dict(report_item_data)
 
         if not report_item.allowed_with_acl(user, True):

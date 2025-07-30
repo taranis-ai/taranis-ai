@@ -25,6 +25,16 @@ print("=== ENV DEBUG END ===")
 
 
 @pytest.fixture(scope="session")
+def logger(app):
+    import logging
+
+    # Create a simple test logger that doesn't trigger Config loading
+    test_logger = logging.getLogger(__name__)
+    test_logger.setLevel(logging.DEBUG)
+    return test_logger
+
+
+@pytest.fixture(scope="session")
 def app():
     from core.__init__ import create_app
 
@@ -91,8 +101,10 @@ def session(db):
         from core.managers.history_meta import versioned_session
 
         versioned_session(db.session)
+        print("Using versioned_session for history tracking @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     except ImportError:
         # Fallback if versioned_session is not available
+        print("versioned_session not available, using regular session @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         pass
 
     yield db.session
