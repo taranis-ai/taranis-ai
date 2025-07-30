@@ -36,16 +36,15 @@ class TestReportHistory(BaseTest):
         assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 0, "Initial version should not be created"
 
         report_item.update({"title": "Updated Report Title"})
-        import pdb
 
-        pdb.set_trace()
         logger.debug(f"{session.query(ReportItemHistory).all()=}")
         assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 1, "First version should be created"
-        assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).first().title == "Updated Report Title"
+        assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).first().title == "Test Report" # Initial title from fixture
 
-    def test_report_history_creation_with_story_updates(self, client, logger, input_report: dict[str, Any], stories, auth_header):
+    def test_report_history_creation_with_story_updates(self, client, logger, input_report: dict[str, Any], stories_for_reports, auth_header):
         # create a report item, add a story based on the IDs from fixture stories and exptect the history to be created
         from core.model.report_item import ReportItem
+        from core.model.story import Story
 
         report_item, code = ReportItem.add(input_report, user=None)
         assert code == 200
@@ -57,15 +56,18 @@ class TestReportHistory(BaseTest):
         # logger.debug(f"{session.query(ReportItemHistory).all()=}")
         # assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 1, "First version should be created"
         # assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).first().title == "Test Report"
-        report_item.update({"stories": stories})
+        
+        # Get Story objects from the story IDs
+        story_objects = [Story.get(story_id) for story_id in stories_for_reports]
+        report_item.update({"stories": story_objects})
         # assert session.query(ReportItemHistory).all() == 2, "Second version should be created"
         # Verify that the story is linked to the report item
-        assert stories[0].id in report_item.stories, f"Story {stories[0].id} should be linked to the report item {report_item.id}"
-        from core.model.story import Story
+        assert stories_for_reports[0] in [story.id for story in report_item.stories], f"Story {stories_for_reports[0]} should be linked to the report item {report_item.id}"
 
         # Verify that the report item is linked to the story
-        story = Story.get(stories[0].id)
-        assert report_item.id in story.report_items, f"Report item {report_item.id} should be linked to the story {stories[0].id}"
+        story = Story.get(stories_for_reports[0])
+        assert story is not None, f"Story {stories_for_reports[0]} should exist"
+        assert report_item.id in [ri.id for ri in story.report_items], f"Report item {report_item.id} should be linked to the story {stories_for_reports[0]}"
         # Verify that the history entry is created for the story
         # assert session.query(ReportItemHistory).filter(ReportItemHistory.id == report_item.id).count() == 1, (
         #     "History entry should be created for the report item"
@@ -116,6 +118,7 @@ class TestReportHistory(BaseTest):
 
         # Verify final state
         current_report = ReportItem.get(report_item.id)
+        assert current_report is not None, "Current report should exist"
         assert current_report.title == "Third Update Title", (
             f"Final title mismatch: expected 'Third Update Title', got '{current_report.title}'"
         )

@@ -39,7 +39,7 @@ class ReportItem(Versioned, BaseModel):
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False
+        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False, back_populates="report_items"
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(

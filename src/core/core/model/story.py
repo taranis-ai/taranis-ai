@@ -50,6 +50,9 @@ class Story(Versioned, BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
+    report_items: Mapped[list["ReportItem"]] = relationship(
+        "ReportItem", secondary="report_item_story", back_populates="stories"
+    )
 
     def __init__(
         self,

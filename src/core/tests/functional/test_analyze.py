@@ -17,6 +17,11 @@ class TestAnalyzeApi(BaseTest):
         GET /api/analyze/report-items endpoint.
         It expects a valid data and a valid status-code
         """
+        # First create a report item to test getting it
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
+        # Now test getting the reports
         response = self.assert_get_ok(client, "report-items", auth_header)
         assert response.get_json()["total_count"] == 1
         items = response.get_json()["items"]
@@ -28,6 +33,11 @@ class TestAnalyzeApi(BaseTest):
         PUT to /api/analyze/report-items/<report_id> endpoint to update an existing report
         It expects the response to reflect the updated report information
         """
+        # First create a report item to test updating it
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
+        # Now update the report
         updated_data = {"title": "Updated Report Title"}
         report_id = cleanup_report_item["id"]
         url = f"report-items/{report_id}"
@@ -41,6 +51,10 @@ class TestAnalyzeApi(BaseTest):
         POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
         It expects the response to include the cloned report's details
         """
+        # First create a report item to test cloning it
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
         report_id = cleanup_report_item["id"]
 
         response = self.assert_post_ok(client, f"report-items/{report_id}/clone", {}, auth_header=auth_header)
@@ -51,6 +65,10 @@ class TestAnalyzeApi(BaseTest):
         GET /api/analyze/report-items/<report_id>/stories to retrieve stories associated with a report.
         It expects a list of stories in the response
         """
+        # First create a report item to test getting its stories
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
         report_id = cleanup_report_item["id"]
 
         response = self.assert_get_ok(client, f"report-items/{report_id}/stories", auth_header=auth_header)
@@ -61,6 +79,10 @@ class TestAnalyzeApi(BaseTest):
         PUT to /api/analyze/report-items/<report_id>/stories endpoint to update stories within a report.
         It expects the updated stories to be reflected in the response
         """
+        # First create a report item to test updating its stories
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
         report_id = cleanup_report_item["id"]
 
         response = self.assert_put_ok(client, f"report-items/{report_id}/stories", json_data=stories, auth_header=auth_header)
@@ -73,6 +95,10 @@ class TestAnalyzeApi(BaseTest):
         DELETE to /api/analyze/report-items/<report_id> endpoint to remove a report.
         It expects a successful deletion indicated by a 204 No Content status code
         """
+        # First create a report item to test deleting it
+        create_response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
+        assert create_response.get_json()["title"] == cleanup_report_item["title"]
+        
         report_id = cleanup_report_item["id"]
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
