@@ -6,5 +6,7 @@ class JSONPresenter(BasePresenter):
     name = "JSON Presenter"
     description = "Presenter for generating JSON files"
 
-    def generate(self, product, template) -> bytes | str:
-        return super().generate(product, template)
+    def generate(self, product, template, parameters: dict[str, str] | None = None) -> bytes | str:
+        if parameters is None:
+            parameters = {}
+        return super().generate(product, template, parameters)

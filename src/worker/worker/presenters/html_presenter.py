@@ -6,5 +6,7 @@ class HTMLPresenter(BasePresenter):
     name = "HTML Presenter"
     description = "Presenter for generating html documents"
 
-    def generate(self, product, template) -> bytes | str:
-        return super().generate(product, template)
+    def generate(self, product, template, parameters: dict[str, str] | None = None) -> bytes | str:
+        if parameters is None:
+            parameters = {}
+        return super().generate(product, template, parameters)
