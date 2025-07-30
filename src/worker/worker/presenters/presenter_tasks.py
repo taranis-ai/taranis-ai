@@ -67,7 +67,7 @@ class PresenterTask(Task):
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
-        if rendered_product := presenter.generate(product, template):
+        if rendered_product := presenter.generate(product, template, parameters=product.get("parameters", {})):
             if isinstance(rendered_product, str):
                 rendered_product = b64encode(rendered_product.encode("utf-8")).decode("ascii")
             else:
