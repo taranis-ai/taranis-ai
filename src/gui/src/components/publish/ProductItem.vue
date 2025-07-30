@@ -128,7 +128,7 @@
             />
 
             <DocxViewer
-              v-else-if="renderedProductMimeType === 'application/msword'"
+              v-else-if="renderedProductMimeType === 'application/doc'"
               :base64="renderedProduct"
             />
 
@@ -331,7 +331,7 @@ export default {
         'text/html': 'html',
         'application/json': 'json',
         'text/plain': 'txt',
-        'application/msword': 'docx',
+        'application/doc': 'docx',
         'application/pdf': 'pdf'
       }
 
