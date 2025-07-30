@@ -1,5 +1,5 @@
 """
-add_docx_presenter
+add_pandoc_presenter
 """
 
 from yoyo import step
