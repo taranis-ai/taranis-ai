@@ -146,7 +146,7 @@ class ProductType(BaseModel):
         if self.type.startswith("image"):
             return "image/png"
         if self.type.startswith("pandoc"):
-            return "application/doc"
+            return "application/msword"
         if self.type.startswith("pdf"):
             return "application/pdf"
         if self.type.startswith("html"):

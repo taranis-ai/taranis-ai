@@ -16,10 +16,10 @@ class PANDOCPresenter(BasePresenter):
         from_format = parameters.get("CONVERT_FROM")
         to_format = parameters.get("CONVERT_TO")
         if from_format is None:
-            raise ValueError("No CONVERT_FROM parameter was set in ProductType")
+            raise ValueError("No CONVERT_FROM parameter was set in Product Type")
 
         if to_format is None:
-            raise ValueError("No CONVERT_TO parameter was set in ProductType")
+            raise ValueError("No CONVERT_TO parameter was set in Product Type")
 
         try:
             output_text = super().generate(product, template, parameters)
