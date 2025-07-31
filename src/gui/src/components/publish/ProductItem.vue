@@ -128,7 +128,18 @@
             />
 
             <DocxViewer
-              v-else-if="renderedProductMimeType === 'application/msword'"
+              v-else-if="
+                renderedProductMimeType ===
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document/msword'
+              "
+              :base64="renderedProduct"
+            />
+
+            <OdfViewer
+              v-else-if="
+                renderedProductMimeType ===
+                'application/vnd.oasis.opendocument.text'
+              "
               :base64="renderedProduct"
             />
 
@@ -184,13 +195,15 @@ import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useHotkeys } from 'vue-use-hotkeys'
 import DocxViewer from '@/components/common/DocxViewer.vue'
+import OdfViewer from '@/components/common/OdfViewer.vue'
 
 export default {
   name: 'ProductItem',
   components: {
     PopupPublishProduct,
     PopupDirty,
-    DocxViewer
+    DocxViewer,
+    OdfViewer
   },
   props: {
     productProp: {
