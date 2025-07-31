@@ -1,4 +1,4 @@
-from pydantic import Field, AnyUrl
+from pydantic import Field, AnyUrl, Extra
 from typing import Literal, Any
 from datetime import datetime
 
@@ -195,6 +195,9 @@ class OSINTSourceGroup(TaranisBaseModel):
 
 class ProductParameterValue(TaranisBaseModel):
     TEMPLATE_PATH: str | None = None
+
+    class Config:
+        extra = Extra.allow
 
 
 class ProductType(TaranisBaseModel):
