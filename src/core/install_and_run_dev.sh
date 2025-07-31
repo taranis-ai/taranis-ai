@@ -3,12 +3,12 @@
 set -eu
 
 if [ ! -d ".venv" ]; then
+    uv python install
     uv venv
     source .venv/bin/activate
-    uv pip install -e ."[dev]"
+    uv sync --all-extras
 fi
 
 source .venv/bin/activate
 
 python -m flask run
-

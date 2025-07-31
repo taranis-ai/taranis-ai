@@ -16,13 +16,15 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "apscheduler",
+    "prefect-client",
+    "pytz",
     "Flask",
+    "Flask[async]",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
     "click",
-    "celery",
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
@@ -32,7 +34,8 @@ dependencies = [
     "authlib",
     "setuptools",
     "sentry-sdk[flask]",
-    "sentry-sdk[sqlalchemy]"
+    "sentry-sdk[sqlalchemy]",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -48,6 +51,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[dependency-groups]
+dev = [
+    "taranis-worker",
+]
+
 [project.scripts]
 taranis-ai = "core.granian:main"
 
@@ -62,7 +70,7 @@ dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "b
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -101,3 +109,7 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
+
+[tool.uv.sources]
+taranis-models = { path = "../models" }
+taranis-worker = { path = "../worker" }
