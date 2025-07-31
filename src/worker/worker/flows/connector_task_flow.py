@@ -2,7 +2,7 @@ from prefect import flow, task
 import re
 import json
 from core.log import logger
-from models.models.connector import ConnectorTaskRequest
+from models.connector import ConnectorTaskRequest
 from worker.core_api import CoreApi
 import worker.connectors  
 

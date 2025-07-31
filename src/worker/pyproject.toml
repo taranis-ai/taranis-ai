@@ -20,7 +20,6 @@ dependencies = [
     "pydantic-settings",
     "requests",
     "requests[socks]",
-
     # Collector
     "beautifulsoup4",
     "trafilatura",
@@ -29,22 +28,19 @@ dependencies = [
     "lxml",
     "playwright",
     "langcodes",
-
     # Publisher
     "paramiko",
     "python-gnupg",
-
     # Presenters
     "weasyprint",
     "jinja2",
-
     # Connectors
     "pymisp",
-
     # Bots
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -99,3 +95,6 @@ disable = """
     missing-class-docstring,
     missing-function-docstring
 """
+
+[tool.uv.sources]
+taranis-models = { path = "../models" }

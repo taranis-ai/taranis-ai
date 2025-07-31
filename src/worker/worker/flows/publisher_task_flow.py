@@ -1,6 +1,6 @@
 from prefect import flow, task
 from core.log import logger
-from models.models.publisher import PublisherTaskRequest
+from models.publisher import PublisherTaskRequest
 from worker.core_api import CoreApi
 from worker.types import Product
 import worker.publishers 

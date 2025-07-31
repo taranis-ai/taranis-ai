@@ -2,7 +2,7 @@ from prefect import flow, task
 from base64 import b64encode
 from requests.exceptions import ConnectionError
 from core.log import logger
-from models.models.presenter import PresenterTaskRequest
+from models.presenter import PresenterTaskRequest
 from worker.core_api import CoreApi
 import worker.presenters  
 
