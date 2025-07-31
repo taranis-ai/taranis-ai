@@ -1,6 +1,6 @@
 taranis.ai - an OSINT application
 
-See [README.md](README.md) for more information.
+See [README.md](../README.md) for more information.
 
 - this project uses uv for managing python and packages
 - the core (the backend, API) is a flask application located in `src/core`, it uses sqlalchemy
@@ -9,5 +9,5 @@ See [README.md](README.md) for more information.
 - there are workers in 'src/workers'
 - see .github/workflows, how tests are run
 - run `uv run pytest` with various options like 'e2e-user' to run tests
-- never use `git -A` or in general do not add "all" files laying around
+- never use `git add -A` or in general do not add "all" files lying around
 
