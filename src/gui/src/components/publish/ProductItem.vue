@@ -143,6 +143,14 @@
               :base64="renderedProduct"
             />
 
+            <div
+              v-else-if="renderedProductMimeType === 'application/msword'"
+              class="unsupported-format-warning"
+            >
+              ⚠️ Cannot display a legacy Word `.doc` document. Please download
+              the file and open it with a compatible application.
+            </div>
+
             <pre v-if="renderedProductMimeType === 'text/plain'">
               {{ renderedProduct }}
             </pre>
@@ -498,5 +506,14 @@ export default {
 <style scoped>
 .pdf-container {
   height: 80vh !important;
+}
+
+.unsupported-format-warning {
+  padding: 1rem;
+  border: 1px solid orange;
+  background-color: #fff8e1;
+  color: #b26a00;
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 </style>
