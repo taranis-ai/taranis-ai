@@ -7,5 +7,5 @@ def main():
     serve(*tasks)
 
 
-if __name__ == "worker":
+if __name__ == "main":
     main()

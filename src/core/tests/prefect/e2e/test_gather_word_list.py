@@ -1,5 +1,5 @@
 import pytest
-from worker.flows.gather_word_list import gather_word_list_flow, gather_word_list_simple, WordListTaskRequest
+from worker.flows.gather_word_list import gather_word_list_flow, WordListTaskRequest, get_word_list_info
 
 
 class TestGatherWordListFlowE2E:
@@ -35,7 +35,7 @@ class TestGatherWordListFlowE2E:
         }
         
         # Act
-        result = gather_word_list_simple(1)
+        result = get_word_list_info.fn(1)
         
         # Assert
         assert result is not None
