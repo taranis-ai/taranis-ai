@@ -25,7 +25,7 @@ class ProductType(BaseModel):
     parameters: Mapped[list["ParameterValue"]] = relationship(
         "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
     )
-    report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
+    report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type")
 
     def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
         if id:
