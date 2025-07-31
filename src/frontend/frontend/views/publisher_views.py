@@ -69,9 +69,9 @@ class ProductTypeView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
         parameters = {}
-        presenter = base_context.get(cls.model_name())
-        if presenter and (hasattr(presenter, "type") and (presenter_type := presenter.type)):
-            parameters = cls.get_product_type_parameters(presenter_type=presenter_type.name.lower())
+        if presenter := base_context.get(cls.model_name()):
+            presenter_type = getattr(presenter, "type", "")
+            parameters = cls.get_product_type_parameters(presenter.id, presenter_type)
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
@@ -100,19 +100,24 @@ class ProductTypeView(BaseView):
         ]
 
     @classmethod
-    def get_product_type_parameters(cls, presenter_type: str) -> list[WorkerParameterValue]:
+    def get_product_type_parameters(cls, product_type_id: int, presenter_type: str) -> list[dict]:
         dpl = DataPersistenceLayer()
-        endpoint = dpl.get_endpoint(ProductTypeParameter)
-        if result := dpl.api.api_get(endpoint):
-            all_parameters = [ProductTypeParameter(**object) for object in result.get("items", [])]
-            match = next((wp for wp in all_parameters if wp.id == presenter_type), None)
-            return match.parameters if match else []
+        product_type_endpoint = dpl.get_endpoint(ProductTypeParameter)
+        worker_endpoint = dpl.get_endpoint(WorkerParameter)
+
+        if result := dpl.api.api_get(product_type_endpoint):
+            for d in result.get("items", []):
+                if d.get("id") == product_type_id:
+                    return d.get("parameters", [])
+
+        if (result := dpl.api.api_get(worker_endpoint)) and presenter_type:
+            for d in result.get("items", []):
+                if d.get("id") == presenter_type.lower():
+                    return d.get("parameters", [])
+
         return []
 
     @classmethod
-    def get_product_type_parameters_view(cls, presenter_type: str):
-        presenter_type = presenter_type.lower()
-        if not presenter_type:
-            logger.warning("No Product Type ID or Presenter Type provided.")
-        parameters = cls.get_product_type_parameters(presenter_type)
+    def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
+        parameters = cls.get_product_type_parameters(product_type_id, presenter_type)
         return render_template("partials/worker_parameters.html", parameters=parameters, preserve=False)

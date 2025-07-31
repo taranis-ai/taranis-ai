@@ -1,4 +1,5 @@
 {% from "macros/forms.html" import form_input %}
+{% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
   var settings = {
@@ -34,7 +35,7 @@
               name="type"
               required
               class="validator select w-full"
-              hx-get="{{ url_for('admin.product_type_parameters') }}"
+              hx-get="{{ url_for('admin.product_type_parameters', product_type_id=product_type_id) }}"
               hx-trigger="change"
               hx-include="#product_type, #title, #description"
               hx-target="#parameters"
