@@ -199,9 +199,7 @@ class WorkerParameters(MethodView):
 class ProductTypeParameters(MethodView):
     @auth_required("CONFIG_ACCESS")
     def get(self):
-        x = product_type.ProductType.get_parameters()
-        result = [{"id": key, "parameters": value} for key, value in x.items()]
-        return {"items": result}, 200
+        return {"items": product_type.ProductType.get_parameters()}, 200
 
 
 class Permissions(MethodView):
