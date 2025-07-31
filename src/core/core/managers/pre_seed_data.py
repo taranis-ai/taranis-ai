@@ -545,6 +545,17 @@ report_types = [
 
 product_types = [
     {
+        "title": "Default .md -> .odt Presenter",
+        "description": "Default .md -> .odt Presenter",
+        "type": "PANDOC_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "md_odt_template.md"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "md", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|doc|odt"},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
         "title": "Default .html -> .docx Presenter",
         "description": "Default .html -> .docx Presenter",
         "type": "PANDOC_PRESENTER",
