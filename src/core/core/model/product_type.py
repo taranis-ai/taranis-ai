@@ -146,7 +146,13 @@ class ProductType(BaseModel):
         if self.type.startswith("image"):
             return "image/png"
         if self.type.startswith("pandoc"):
-            return "application/msword"
+            data_format = next((param.value for param in self.parameters if param.parameter == "CONVERT_TO"), None)
+            if data_format == "doc":
+                return "application/msword"
+            elif data_format == "docx":
+                return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif data_format == "odt":
+                return "application/vnd.oasis.opendocument.text"
         if self.type.startswith("pdf"):
             return "application/pdf"
         if self.type.startswith("html"):
