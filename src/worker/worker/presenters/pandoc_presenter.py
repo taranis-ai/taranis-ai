@@ -7,7 +7,7 @@ from .base_presenter import BasePresenter
 class PANDOCPresenter(BasePresenter):
     type = "PANDOC_PRESENTER"
     name = "pandoc Presenter"
-    description = "Presenter for generating .odt, .doc & .docx documents"
+    description = "Presenter for generating .odt & .docx documents"
 
     def generate(self, product, template, parameters: dict[str, str] | None = None) -> str | bytes:
         if parameters is None:
@@ -31,7 +31,7 @@ class PANDOCPresenter(BasePresenter):
 
             if data:
                 return data
-            raise ValueError("Could not convert template to docx")
+            raise ValueError(f"Could not convert template to {to_format}")
 
         except Exception as error:
             BasePresenter.print_exception(self, error)

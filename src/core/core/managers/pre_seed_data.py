@@ -196,11 +196,11 @@ workers = [
     },
     {
         "type": "PANDOC_PRESENTER",
-        "description": "Presenter for generating .odt, .doc & .docx documents",
+        "description": "Presenter for generating .odt & .docx documents",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "rules": "required"},
             {"parameter": "CONVERT_FROM", "type": "text", "rules": "one_of:html|md"},
-            {"parameter": "CONVERT_TO", "type": "text", "rules": "one_of:docx|doc|odt"},
+            {"parameter": "CONVERT_TO", "type": "text", "rules": "one_of:docx|odt"},
         ],
         "name": "PANDOC Presenter",
     },
@@ -551,7 +551,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "md_odt_template.md"},
             {"parameter": "CONVERT_FROM", "type": "text", "value": "md", "rules": "one_of:html|md"},
-            {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|doc|odt"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|odt"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -562,7 +562,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
-            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|doc|odt"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
         ],
         "report_types": [1, 2, 3, 4],
     },

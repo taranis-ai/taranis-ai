@@ -134,7 +134,6 @@ class Product(BaseModel):
                 mime_type = product.product_type.get_mimetype()
                 if mime_type in [
                     "application/pdf",
-                    "application/msword",
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     "application/vnd.oasis.opendocument.text",
                 ]:

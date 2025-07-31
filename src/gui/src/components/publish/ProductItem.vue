@@ -130,7 +130,7 @@
             <DocxViewer
               v-else-if="
                 renderedProductMimeType ===
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document/msword'
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
               "
               :base64="renderedProduct"
             />
@@ -142,14 +142,6 @@
               "
               :base64="renderedProduct"
             />
-
-            <div
-              v-else-if="renderedProductMimeType === 'application/msword'"
-              class="unsupported-format-warning"
-            >
-              ⚠️ Cannot display a legacy Word `.doc` document. Please download
-              the file and open it with a compatible application.
-            </div>
 
             <pre v-if="renderedProductMimeType === 'text/plain'">
               {{ renderedProduct }}
@@ -352,7 +344,9 @@ export default {
         'text/html': 'html',
         'application/json': 'json',
         'text/plain': 'txt',
-        'application/msword': 'docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+          'docx',
+        'application/vnd.oasis.opendocument.text': 'odt',
         'application/pdf': 'pdf'
       }
 
