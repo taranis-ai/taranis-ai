@@ -1,4 +1,6 @@
-# Sample Report - {{ data.current_date }}
+---
+title: Sample Report - {{ data.current_date }}
+---
 
 ## Report Items
 
