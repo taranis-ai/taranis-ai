@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
 from worker.flows.presenter_task_flow import presenter_task_flow
-from models.models.presenter import PresenterTaskRequest
+from models.presenter import PresenterTaskRequest
 
 
 @patch("worker.flows.presenter_task_flow.PRESENTER_REGISTRY", {"dummy": MagicMock()})

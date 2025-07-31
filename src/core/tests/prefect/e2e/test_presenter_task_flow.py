@@ -1,6 +1,6 @@
 import pytest
 from worker.flows.presenter_task_flow import presenter_task_flow
-from models.models.presenter import PresenterTaskRequest
+from models.presenter import PresenterTaskRequest
 
 
 class TestPresenterTaskFlowE2E:

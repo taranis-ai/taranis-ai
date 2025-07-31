@@ -1,6 +1,6 @@
 import pytest
 from worker.flows.publisher_task_flow import publisher_task_flow
-from models.models.publisher import PublisherTaskRequest
+from models.publisher import PublisherTaskRequest
 
 
 class TestPublisherTaskFlowE2E:

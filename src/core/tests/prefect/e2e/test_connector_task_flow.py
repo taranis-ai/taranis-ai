@@ -1,6 +1,6 @@
 import pytest
 from worker.flows.connector_task_flow import connector_task_flow
-from models.models.connector import ConnectorTaskRequest
+from models.connector import ConnectorTaskRequest
 
 
 class TestConnectorTaskFlowE2E:

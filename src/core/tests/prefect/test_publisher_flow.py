@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
 from worker.flows.publisher_task_flow import publisher_task_flow
-from models.models.publisher import PublisherTaskRequest
+from models.publisher import PublisherTaskRequest
 
 
 @patch("worker.flows.publisher_task_flow.Product")
