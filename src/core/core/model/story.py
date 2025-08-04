@@ -419,6 +419,8 @@ class Story(BaseModel):
 
     @classmethod
     def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
+        logger.debug(f"_handle_existing_story_update called with data: {data}")
+        logger.debug(f"{Story.get(data['id']).to_detail_dict()=}")
         story_ids = [data["id"]]
         news_item_to_delete = data.pop("news_items_to_delete", None)
 
@@ -465,7 +467,7 @@ class Story(BaseModel):
             if data.get("tags"):
                 data["tags"] = NewsItemTag.unify_tags(data["tags"])
             if data.get("attributes"):
-                data["attributes"] = NewsItemAttribute.unify_attributes(data["attributes"])
+                data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(data["attributes"])
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
@@ -626,27 +628,30 @@ class Story(BaseModel):
 
     @classmethod
     def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
-        if current_data := Story.get(id):
-            attibutes = data.get("attributes", {})
-            has_proposals = None
-            if attibutes.get("has_proposals"):
-                has_proposals = attibutes.get("has_proposals", {}).get("value")
-
-            current_data_dict = current_data.to_worker_dict()  # to_worker_dict() is needed to sort keys easily for conflict resolution
-            current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-            conflict = StoryConflict(
-                story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
-            )
-            logger.warning(f"Conflict detected for story {id}")
-            StoryConflict.conflict_store[id] = conflict
+        if not (current_data := Story.get(id)):
             return {
-                "warning": "Conflict detected",
-                "conflict": {
-                    "original": current_data_dict,
-                    "updated": data,
-                },
-            }, 409
-        return {"message": "Update successful"}, 200
+                "message": f"Conflicts were detected, but the internal story with ID {id} was not found. This should not happen, raise an issue"
+            }, 400
+        has_proposals: str | None = None
+        if attributes := data.get("attributes", {}):
+            attributes = NewsItemAttribute.parse_attributes(attributes)
+            if has_proposal_attribute := attributes.get("has_proposals"):
+                has_proposals = has_proposal_attribute.value
+
+        current_data_dict = current_data.to_worker_dict()  # to_worker_dict() is needed to sort keys easily for conflict resolution
+        current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
+        conflict = StoryConflict(
+            story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
+        )
+        logger.warning(f"Story Conflict detected for story {id}")
+        StoryConflict.conflict_store[id] = conflict
+        return {
+            "warning": "Story Conflict detected",
+            "conflict": {
+                "local": current_data_dict,
+                "new": data,
+            },
+        }, 409
 
     @classmethod
     def handle_conflicting_news_items(cls, data: dict) -> tuple[dict, int]:
