@@ -371,7 +371,7 @@ def worker_story(client, news_items, api_header, auth_header):
     assert response.status_code == 200, "Story has not been created by using the worker endpoint"
     story_id = response.get_json().get("story_id")
     assert story_id is not None
-    yield story_id
+    yield story_id, story_data
     # Cleanup after test
     del_response = client.delete(f"/api/assess/story/{story_id}", headers=auth_header)
     assert del_response.status_code == 200, "Story has not been deleted by using the assess endpoint"

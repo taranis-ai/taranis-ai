@@ -6,7 +6,7 @@ class TestStoryAssessWorkerUpdates:
     def test_prevent_item_deletion_on_grouping(
         self, client, worker_story, full_story_with_multiple_items_id, worker_story_update_payload_1, api_header, auth_header
     ):
-        story_id = worker_story
+        story_id, _ = worker_story
         # assert worker story
         response = client.get(f"{self.base_uri_assess}/story/{story_id}", headers=auth_header)
         assert response.status_code == 200, "Worker story should be fetched successfully"

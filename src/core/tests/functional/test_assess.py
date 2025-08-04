@@ -230,14 +230,14 @@ class TestAssessUngroupNewsItem(BaseTest):
 class TestAssessUngroupBigStory(BaseTest):
     base_uri = "/api/assess"
 
-    def test_creation_of_full_story_with_multiple_items(self, client, full_story_with_multiple_items, auth_header):
+    def test_creation_of_full_story_with_multiple_items(self, client, full_story_with_multiple_items_id, auth_header):
         """
         This test creates a full story with multiple news items.
         It expects the story to be created with the correct ID and last_change set to internal.
         """
 
-        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items}", auth_header)
-        assert response.get_json()["id"] == full_story_with_multiple_items
+        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items_id}", auth_header)
+        assert response.get_json()["id"] == full_story_with_multiple_items_id
         assert len(response.get_json()["news_items"]) == 2
         assert response.get_json()["last_change"] == "external"
         assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
@@ -247,7 +247,7 @@ class TestAssessUngroupBigStory(BaseTest):
         assert len(response.get_json()["attributes"]) == 4
         assert len(response.get_json()["tags"]) == 3
 
-    def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items, auth_header):
+    def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items_id, auth_header):
         from core.managers.db_manager import db
 
         """
@@ -258,15 +258,15 @@ class TestAssessUngroupBigStory(BaseTest):
         response = self.assert_put_ok(client, "/news-items/ungroup", ["c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"], auth_header)
         new_story_id = response.get_json()["new_stories_ids"][0]
         assert response.get_json()["message"] == "success"
-        assert new_story_id != full_story_with_multiple_items
+        assert new_story_id != full_story_with_multiple_items_id
 
         # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came too early - before all changes were made.
         # Without this, this problem was not visible and only occured in the real deployment.
         db.session.expunge_all()
 
         # Original story should still exist and change last_change property to internal
-        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items}", auth_header)
-        assert response.get_json()["id"] == full_story_with_multiple_items
+        response = self.assert_get_ok(client, f"/story/{full_story_with_multiple_items_id}", auth_header)
+        assert response.get_json()["id"] == full_story_with_multiple_items_id
         assert response.get_json()["last_change"] == "internal", "after an item was removed, property should be internal"
         assert len(response.get_json()["news_items"]) == 1
         assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
