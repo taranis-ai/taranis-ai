@@ -338,7 +338,7 @@ def full_story(fake_source):
 
 
 @pytest.fixture(scope="class")
-def full_story_with_multiple_items(fake_source):
+def full_story_with_multiple_items_id(fake_source):
     import os
     import json
     from core.model.story import Story, NewsItem, StoryNewsItemAttribute
@@ -371,7 +371,22 @@ def worker_story(client, news_items, api_header, auth_header):
     assert response.status_code == 200, "Story has not been created by using the worker endpoint"
     story_id = response.get_json().get("story_id")
     assert story_id is not None
-    yield story_id, story_data
+    yield story_id
     # Cleanup after test
     del_response = client.delete(f"/api/assess/story/{story_id}", headers=auth_header)
     assert del_response.status_code == 200, "Story has not been deleted by using the assess endpoint"
+
+
+@pytest.fixture(scope="class")
+def worker_story_update_payload_1(news_items, cleanup_news_item):
+    yield {
+        "resolution": {
+            "title": "Updated Test Story Title",
+            "description": "This is an updated test description",
+            "comments": "This is an updated comment",
+            "summary": "This is an updated summary of the story",
+            "attributes": [{"key": "priority", "value": "high"}],
+            "links": ["https://example.com/1", "http://example.com/2"],
+            "news_items": news_items[:2] + [cleanup_news_item],
+        }
+    }
