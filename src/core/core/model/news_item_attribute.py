@@ -60,22 +60,22 @@ class NewsItemAttribute(BaseModel):
         return cls._parse_list_attributes(tags)
 
     @classmethod
-    def _parse_dict_attributes(cls, tags: dict) -> dict[str, "NewsItemAttribute"]:
+    def _parse_dict_attributes(cls, attributes: dict) -> dict[str, "NewsItemAttribute"]:
         """Parse tags from dict format - handles both old and new formats:
         - Old: {"APT75": "UNKNOWN"}
         - New: {"APT75": {"key": "APT75", "value": "UNKNOWN"}}
         """
         parsed_tags = {}
 
-        for tag_key, tag_data in tags.items():
-            if isinstance(tag_data, dict):
-                key = tag_data.get("key", tag_key)
-                value = tag_data.get("value", "")
-            elif isinstance(tag_data, str):
-                key = tag_key
-                value = tag_data
+        for attr_key, attr_value in attributes.items():
+            if isinstance(attr_value, dict):
+                key = attr_value.get("key", attr_key)
+                value = attr_value.get("value", "")
+            elif isinstance(attr_value, str):
+                key = attr_key
+                value = attr_value
             else:
-                key = tag_key
+                key = attr_key
                 value = ""
 
             parsed_tags[key] = NewsItemAttribute(key=key, value=value)
@@ -88,7 +88,7 @@ class NewsItemAttribute(BaseModel):
         return cls._parse_dict_attributes(dict_attributes)
 
     @classmethod
-    def unify_attributes(cls, attributes: list | dict) -> list[dict[str, str]]:
+    def unify_attributes_to_old_format(cls, attributes: list | dict) -> list[dict[str, str]]:
         """Unify attributes to a list of dicts with 'key' and 'value' keys.
         This serves for the __init__ function of NewsItemAttribute
         """
