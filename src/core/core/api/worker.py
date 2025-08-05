@@ -161,10 +161,15 @@ class Tags(MethodView):
         bot_type = request.args.get("bot_type", default="")
         if bot_type:
             next(iter(data.values())).append(bot_type)
+        if not isinstance(data, dict):
+            return {"error": "Expected a dict for tags"}, 400
         for story_id, tags in data.items():
             story = Story.get(story_id)
             if not story:
                 errors[story_id] = "Story not found"
+                continue
+            if not tags:
+                errors[story_id] = "No tags provided"
                 continue
             _, status = story.set_tags(tags)
             if status != 200:

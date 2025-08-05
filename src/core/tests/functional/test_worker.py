@@ -220,6 +220,44 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.get_json().get("message") == "Tags updated"
 
+    def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
+        story_1_id = stories[0]
+
+        # Empty list
+        response = client.put(f"{self.base_uri}/tags", json={story_1_id: []}, headers=api_header)
+        assert response.status_code == 207
+        assert "errors" in response.get_json()
+
+        # Tags not a list
+        response = client.put(f"{self.base_uri}/tags", json={story_1_id: "notalist"}, headers=api_header)
+        assert response.status_code == 207
+        assert "message" in response.get_json()
+
+        # Missing story id
+        response = client.put(f"{self.base_uri}/tags", json={"not_a_story_id": ["tag1"]}, headers=api_header)
+        assert response.status_code == 207
+        assert "errors" in response.get_json()
+
+        # Tags list contains non-string elements
+        response = client.put(f"{self.base_uri}/tags", json={story_1_id: [123, None]}, headers=api_header)
+        assert response.status_code == 207
+        assert "errors" in response.get_json()
+
+        # Story ID is not a string
+        response = client.put(f"{self.base_uri}/tags", json={123: ["tag1"]}, headers=api_header)
+        assert response.status_code == 207
+        assert "errors" in response.get_json()
+
+        # Payload is not a dict
+        response = client.put(f"{self.base_uri}/tags", json=["not", "a", "dict"], headers=api_header)
+        assert response.status_code == 400
+        assert "error" in response.get_json()
+
+        # Empty payload
+        response = client.put(f"{self.base_uri}/tags", json={}, headers=api_header)
+        assert response.status_code == 400
+        assert "error" in response.get_json()
+
     def test_worker_get_tags(self, client, api_header):
         response = client.get(f"{self.base_uri}/tags", headers=api_header)
 

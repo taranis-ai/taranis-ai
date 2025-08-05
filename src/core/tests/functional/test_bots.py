@@ -35,6 +35,8 @@ class TestBotsApi(BaseTest):
         )
         assert check_attributes == expected_attributes
 
+        print(f"Update story data: {update_story_data=}")
+
         response = client.put(f"{self.base_uri}/story/{stories[0]}", json=update_story_data, headers=api_header)
         story_id = response.get_json().get("id")
 
