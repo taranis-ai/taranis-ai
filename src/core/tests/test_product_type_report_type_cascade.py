@@ -191,50 +191,39 @@ class TestProductTypeDeletionCascade:
         remaining_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
         assert len(remaining_associations) == 0
 
-    def test_database_cascade_constraint_analysis(self, app):
+    def test_database_cascade_constraint_analysis(self, sample_report_type, sample_product_type):
         """Analyze the database CASCADE constraints for ProductType deletion"""
-        with app.app_context():
-            # Create test data
-            report_type = ReportItemType(title="Constraint Analysis Report Type")
-            db.session.add(report_type)
-            db.session.flush()
 
-            product_type = ProductType(
-                title="Constraint Analysis Product Type", type=PRESENTER_TYPES.TEXT_PRESENTER, report_types=[report_type.id]
-            )
-            db.session.add(product_type)
-            db.session.commit()
+        product_type_id = sample_product_type.id
+        report_type_id = sample_report_type.id
 
-            product_type_id = product_type.id
-            report_type_id = report_type.id
+        # Verify association exists
+        association = (
+            db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id, report_item_type_id=report_type_id).first()
+        )
+        assert association is not None
 
-            # Verify association exists
-            association = (
-                db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id, report_item_type_id=report_type_id).first()
-            )
-            assert association is not None
+        # Perform direct database deletion (bypassing the delete method)
+        # This tests the actual database constraint behavior
+        db.session.delete(sample_product_type)
+        db.session.commit()
 
-            # Perform direct database deletion (bypassing the delete method)
-            # This tests the actual database constraint behavior
-            db.session.delete(product_type)
-            db.session.commit()
+        # Verify ProductType is deleted
+        assert ProductType.get(product_type_id) is None
 
-            # Verify ProductType is deleted
-            assert ProductType.get(product_type_id) is None
+        # Verify ReportItemType still exists
+        assert ReportItemType.get(report_type_id) is not None
 
-            # Verify ReportItemType still exists
-            assert ReportItemType.get(report_type_id) is not None
+        # Verify association is automatically removed by CASCADE constraint
+        remaining_association = (
+            db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id, report_item_type_id=report_type_id).first()
+        )
+        assert remaining_association is None
 
-            # Verify association is automatically removed by CASCADE constraint
-            remaining_association = (
-                db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id, report_item_type_id=report_type_id).first()
-            )
-            assert remaining_association is None
-
-            print("✓ Database CASCADE constraint working correctly:")
-            print("  - ProductType deleted")
-            print("  - ReportItemType preserved")
-            print("  - Association automatically removed")
+        print("✓ Database CASCADE constraint working correctly:")
+        print("  - ProductType deleted")
+        print("  - ReportItemType preserved")
+        print("  - Association automatically removed")
 
     def test_product_type_deletion_removes_associations(self, app, sample_product_type, additional_product_type, sample_report_type):
         """Test that deleting a ProductType removes its n:m relationship entries (original test)"""
