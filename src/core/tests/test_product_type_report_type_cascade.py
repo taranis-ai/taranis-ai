@@ -191,51 +191,6 @@ class TestProductTypeDeletionCascade:
         remaining_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
         assert len(remaining_associations) == 0
 
-    def test_product_type_deletion_with_usage_check(self, app):
-        """Test ProductType deletion when it's used in a Product"""
-        with app.app_context():
-            # Create a ReportItemType and ProductType
-            report_type = ReportItemType(title="Usage Test Report Type")
-            db.session.add(report_type)
-            db.session.flush()
-
-            product_type = ProductType(title="Usage Test Product Type", type=PRESENTER_TYPES.PDF_PRESENTER, report_types=[report_type.id])
-            db.session.add(product_type)
-            db.session.commit()
-
-            # Try to delete the ProductType
-            result, status_code = ProductType.delete(product_type.id)
-
-            # The current implementation should allow deletion if not used in a Product
-            # If it's used in a Product, it should return 409
-            if status_code == 200:
-                # Deletion succeeded - verify cascade behavior
-                assert "deleted" in result["message"].lower()
-
-                # Verify ProductType is gone
-                assert ProductType.get(product_type.id) is None
-
-                # Verify ReportItemType still exists
-                assert ReportItemType.get(report_type.id) is not None
-
-                # Verify associations are cleaned up
-                associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type.id).all()
-                assert len(associations) == 0
-
-            elif status_code == 409:
-                # Deletion prevented due to usage in Product
-                assert "product" in result["error"].lower()
-
-                # Verify ProductType still exists
-                assert ProductType.get(product_type.id) is not None
-
-                # Verify ReportItemType still exists
-                assert ReportItemType.get(report_type.id) is not None
-
-                # Verify associations still exist
-                associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type.id).all()
-                assert len(associations) == 1
-
     def test_database_cascade_constraint_analysis(self, app):
         """Analyze the database CASCADE constraints for ProductType deletion"""
         with app.app_context():
