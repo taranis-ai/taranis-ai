@@ -419,8 +419,6 @@ class Story(BaseModel):
 
     @classmethod
     def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
-        logger.debug(f"_handle_existing_story_update called with data: {data}")
-        logger.debug(f"{Story.get(data['id']).to_detail_dict()=}")
         story_ids = [data["id"]]
         news_item_to_delete = data.pop("news_items_to_delete", None)
 
