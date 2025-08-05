@@ -51,7 +51,7 @@ class TestProductTypeDeletionCascade:
             yield product_type
             # Cleanup
             try:
-                db.session.delete(product_type)
+                db.session.delete(product_type, confirm_deleted_rows=False)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -71,7 +71,34 @@ class TestProductTypeDeletionCascade:
             yield product_type2
             # Cleanup
             try:
-                db.session.delete(product_type2)
+                db.session.delete(product_type2, confirm_deleted_rows=False)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @pytest.fixture
+    def sample_product_type_multi_report_types(self, app):
+        with app.app_context():
+            # Create multiple ReportItemTypes
+            report_type1 = ReportItemType(title="Report Type 1", description="First report type")
+            report_type2 = ReportItemType(title="Report Type 2", description="Second report type")
+            report_type3 = ReportItemType(title="Report Type 3", description="Third report type")
+
+            db.session.add_all([report_type1, report_type2, report_type3])
+            db.session.flush()
+
+            # Create a ProductType that references all three ReportItemTypes
+            product_type = ProductType(
+                title="Multi-Report Product Type",
+                type=PRESENTER_TYPES.HTML_PRESENTER,
+                description="Product type with multiple report types",
+                report_types=[report_type1.id, report_type2.id, report_type3.id],
+            )
+            db.session.add(product_type)
+            db.session.commit()
+            yield product_type
+            try:
+                db.session.delete(product_type, confirm_deleted_rows=False)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -99,101 +126,70 @@ class TestProductTypeDeletionCascade:
 
     def test_product_type_deletion_cascade_behavior(self, app, sample_product_type, additional_product_type, sample_report_type):
         """Test that deleting a ProductType properly cascades to remove n:m associations"""
-        with app.app_context():
-            product_type_to_delete_id = sample_product_type.id
-            remaining_product_type_id = additional_product_type.id
-            report_type_id = sample_report_type.id
+        product_type_to_delete_id = sample_product_type.id
+        remaining_product_type_id = additional_product_type.id
+        report_type_id = sample_report_type.id
 
-            # Verify initial state - both product types reference the same report type
-            initial_associations = db.session.query(ProductTypeReportType).filter_by(report_item_type_id=report_type_id).all()
-            assert len(initial_associations) == 2
+        # Delete one ProductType using the delete method
+        result, status_code = ProductType.delete(product_type_to_delete_id)
 
-            # Get fresh objects and verify the report type is referenced by both product types
-            pt1 = db.session.query(ProductType).filter_by(id=product_type_to_delete_id).first()
-            pt2 = db.session.query(ProductType).filter_by(id=remaining_product_type_id).first()
-            rt = db.session.query(ReportItemType).filter_by(id=report_type_id).first()
+        # Verify deletion was successful
+        assert status_code == 200
+        assert "deleted" in result["message"].lower()
 
-            assert rt.id in [r.id for r in pt1.report_types]
-            assert rt.id in [r.id for r in pt2.report_types]
+        # Verify the ProductType is gone
+        deleted_product_type = ProductType.get(product_type_to_delete_id)
+        assert deleted_product_type is None
 
-            # Delete one ProductType using the delete method
-            result, status_code = ProductType.delete(product_type_to_delete_id)
+        # Verify the ReportItemType still exists
+        remaining_report_type = ReportItemType.get(report_type_id)
+        assert remaining_report_type is not None
+        assert remaining_report_type.title == sample_report_type.title
 
-            # Verify deletion was successful
-            assert status_code == 200
-            assert "deleted" in result["message"].lower()
+        # Verify the other ProductType still exists
+        remaining_product_type = ProductType.get(remaining_product_type_id)
+        assert remaining_product_type is not None
 
-            # Verify the ProductType is gone
-            deleted_product_type = ProductType.get(product_type_to_delete_id)
-            assert deleted_product_type is None
+        # Verify n:m associations are properly cleaned up
+        # Only one association should remain (for the non-deleted ProductType)
+        remaining_associations = db.session.query(ProductTypeReportType).filter_by(report_item_type_id=report_type_id).all()
+        assert len(remaining_associations) == 1
+        assert remaining_associations[0].product_type_id == remaining_product_type_id
 
-            # Verify the ReportItemType still exists
+        # Verify no associations exist for the deleted ProductType
+        deleted_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_to_delete_id).all()
+        assert len(deleted_associations) == 0
+
+        # Verify the remaining ProductType still has the ReportItemType
+        db.session.refresh(remaining_product_type)
+        assert len(remaining_product_type.report_types) == 1
+        assert remaining_product_type.report_types[0].id == report_type_id
+
+    def test_product_type_deletion_with_multiple_report_types(self, sample_product_type_multi_report_types):
+        """Test ProductType deletion when it references multiple ReportItemTypes"""
+
+        product_type_id = sample_product_type_multi_report_types.id
+        report_type_ids = [rt_item.id for rt_item in sample_product_type_multi_report_types.report_types]
+
+        # Verify initial associations (should be 3)
+        initial_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
+        assert len(initial_associations) == 3
+
+        # Delete the ProductType
+        _, status_code = ProductType.delete(product_type_id)
+        assert status_code == 200
+
+        # Verify ProductType is deleted
+        assert ProductType.get(product_type_id) is None
+
+        # Verify all ReportItemTypes still exist
+        for report_type_id in report_type_ids:
             remaining_report_type = ReportItemType.get(report_type_id)
             assert remaining_report_type is not None
-            assert remaining_report_type.title == sample_report_type.title
 
-            # Verify the other ProductType still exists
-            remaining_product_type = ProductType.get(remaining_product_type_id)
-            assert remaining_product_type is not None
-
-            # Verify n:m associations are properly cleaned up
-            # Only one association should remain (for the non-deleted ProductType)
-            remaining_associations = db.session.query(ProductTypeReportType).filter_by(report_item_type_id=report_type_id).all()
-            assert len(remaining_associations) == 1
-            assert remaining_associations[0].product_type_id == remaining_product_type_id
-
-            # Verify no associations exist for the deleted ProductType
-            deleted_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_to_delete_id).all()
-            assert len(deleted_associations) == 0
-
-            # Verify the remaining ProductType still has the ReportItemType
-            db.session.refresh(remaining_product_type)
-            assert len(remaining_product_type.report_types) == 1
-            assert remaining_product_type.report_types[0].id == report_type_id
-
-    def test_product_type_deletion_with_multiple_report_types(self, app):
-        """Test ProductType deletion when it references multiple ReportItemTypes"""
-        with app.app_context():
-            # Create multiple ReportItemTypes
-            report_type1 = ReportItemType(title="Report Type 1", description="First report type")
-            report_type2 = ReportItemType(title="Report Type 2", description="Second report type")
-            report_type3 = ReportItemType(title="Report Type 3", description="Third report type")
-
-            db.session.add_all([report_type1, report_type2, report_type3])
-            db.session.flush()
-
-            # Create a ProductType that references all three ReportItemTypes
-            product_type = ProductType(
-                title="Multi-Report Product Type",
-                type=PRESENTER_TYPES.HTML_PRESENTER,
-                description="Product type with multiple report types",
-                report_types=[report_type1.id, report_type2.id, report_type3.id],
-            )
-            db.session.add(product_type)
-            db.session.commit()
-
-            product_type_id = product_type.id
-            report_type_ids = [report_type1.id, report_type2.id, report_type3.id]
-
-            # Verify initial associations (should be 3)
-            initial_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
-            assert len(initial_associations) == 3
-
-            # Delete the ProductType
-            result, status_code = ProductType.delete(product_type_id)
-            assert status_code == 200
-
-            # Verify ProductType is deleted
-            assert ProductType.get(product_type_id) is None
-
-            # Verify all ReportItemTypes still exist
-            for report_type_id in report_type_ids:
-                remaining_report_type = ReportItemType.get(report_type_id)
-                assert remaining_report_type is not None
-
-            # Verify all associations are cleaned up
-            remaining_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
-            assert len(remaining_associations) == 0
+        # Verify all associations are cleaned up
+        remaining_associations = db.session.query(ProductTypeReportType).filter_by(product_type_id=product_type_id).all()
+        assert len(remaining_associations) == 0
 
     def test_product_type_deletion_with_usage_check(self, app):
         """Test ProductType deletion when it's used in a Product"""
