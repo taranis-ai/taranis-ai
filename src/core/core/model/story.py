@@ -819,22 +819,30 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.assigned(story_id) for story_id in story_ids)
 
+    def get_tags_to_remove(self, tags: dict[str, NewsItemTag]) -> set[str]:
+        incoming_tag_names = set(tags.keys())
+        existing_tag_names = {tag.name for tag in self.tags}
+        return existing_tag_names - incoming_tag_names
+
     def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
         try:
-            parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-            incoming_tag_names = set(parsed_tags.keys())
-            existing_tag_names = {tag.name for tag in self.tags}
-            tags_to_remove = existing_tag_names - incoming_tag_names
-
-            self.patch_tags(parsed_tags)
-            self.remove_tags(tags_to_remove)
-
-            db.session.commit()
-            return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
+            return self._update_tags(incoming_tags)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
+
+    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
+        if not parsed_tags:
+            return {"error": "No valid tags provided"}, 400
+
+        tags_to_remove = self.get_tags_to_remove(parsed_tags)
+        self.patch_tags(parsed_tags)
+        self.remove_tags(tags_to_remove)
+
+        db.session.commit()
+        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():

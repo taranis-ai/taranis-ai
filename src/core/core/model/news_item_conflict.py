@@ -46,8 +46,7 @@ class NewsItemConflict:
 
     def to_dict(self) -> dict:
         title = None
-        news_item = NewsItem.get(self.news_item_id)
-        if news_item:
+        if news_item := NewsItem.get(self.news_item_id):
             title = news_item.title
         else:
             logger.warning(f"News item {self.news_item_id} not found while resolving conflict display")
