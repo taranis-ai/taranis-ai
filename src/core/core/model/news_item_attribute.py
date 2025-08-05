@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Mapped, deferred
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
@@ -53,11 +54,13 @@ class NewsItemAttribute(BaseModel):
         return TLPLevel(cls.get_by_key(attributes, "TLP"))
 
     @classmethod
-    def parse_attributes(cls, tags: list | dict) -> dict[str, "NewsItemAttribute"]:
-        if isinstance(tags, dict):
-            return cls._parse_dict_attributes(tags)
+    def parse_attributes(cls, attributes: list | dict) -> dict[str, "NewsItemAttribute"]:
+        if not isinstance(attributes, (dict, list)):
+            raise TypeError(f"tags must be a dict or list, got {type(attributes).__name__}")
 
-        return cls._parse_list_attributes(tags)
+        if isinstance(attributes, dict):
+            return cls._parse_dict_attributes(attributes)
+        return cls._parse_list_attributes(attributes)
 
     @classmethod
     def _parse_dict_attributes(cls, attributes: dict) -> dict[str, "NewsItemAttribute"]:
@@ -84,7 +87,13 @@ class NewsItemAttribute(BaseModel):
 
     @classmethod
     def _parse_list_attributes(cls, attributes: list) -> dict[str, "NewsItemAttribute"]:
-        dict_attributes = {attr["key"]: attr for attr in attributes if isinstance(attr, dict) and "key" in attr}
+        dict_attributes = {}
+        for attr in attributes:
+            if isinstance(attr, dict):
+                if "key" in attr:
+                    dict_attributes[attr["key"]] = attr
+                else:
+                    logger.warning(f"Attribute dict missing 'key': {attr}")
         return cls._parse_dict_attributes(dict_attributes)
 
     @classmethod
@@ -96,5 +105,7 @@ class NewsItemAttribute(BaseModel):
             attributes = cls._parse_dict_attributes(attributes)
         elif isinstance(attributes, list):
             attributes = cls._parse_list_attributes(attributes)
+        else:
+            raise TypeError(f"attributes must be a dict or list, got {type(attributes).__name__}")
 
         return [{"key": attr.key, "value": attr.value} for attr in attributes.values()]

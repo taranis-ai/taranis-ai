@@ -268,7 +268,7 @@ class MISPCollector(BaseCollector):
                     continue
                 extended_objects = extended_event.get("Event", {}).get("Object", {})
                 _, story_news_items = self.extract_story_data_from_event_objects(extended_objects, source)
-                all_news_items.append(story_news_items)
+                all_news_items.extend(story_news_items)
 
         return all_news_items
 
@@ -315,7 +315,8 @@ class MISPCollector(BaseCollector):
         for obj_dict in taranis_objects:
             obj_event_id = obj_dict.get("Object", {}).get("Event", {}).get("id")
             logger.debug(f"Object ID: {obj_dict.get('id')}, Event ID: {obj_event_id}")
-            event_ids.add(obj_event_id)
+            if obj_event_id is not None:
+                event_ids.add(obj_event_id)
         return event_ids
 
     def is_sharing_group_match(self, event: dict) -> bool:

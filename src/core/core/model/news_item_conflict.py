@@ -80,7 +80,7 @@ class NewsItemConflict:
         if code != 200:
             return {"error": "Failed to ingest incoming story"}, code
 
-        return response, 200
+        return response, code
 
     @classmethod
     def ingest_incoming_ungroup_internal_clear_store(cls, data: dict, user: User) -> tuple[dict, int]:
@@ -98,14 +98,17 @@ class NewsItemConflict:
         news_items = data_json.get("news_items", [])
         remaining_stories = data_json.get("remaining_stories", [])
         added_ids = []
+        errors = []
 
         for item in news_items:
             result, status = Story.add_single_news_item(item)
             if status == 200:
                 added_ids.extend(result.get("news_item_ids", []))
             else:
-                logger.error(f"Failed to add news item: {result}")
-                return result, status
+                logger.error(f"During ingestion of news items from conflicts view, an error occurred: {result}")
+                errors.append(result)
 
         cls.reevaluate_conflicts(remaining_stories)
+        if errors:
+            return {"message": "Some news items could not be added", "errors": errors}, 207
         return {"message": "News items added successfully", "added_ids": added_ids}, 200

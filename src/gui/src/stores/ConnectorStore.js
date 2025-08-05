@@ -100,18 +100,21 @@ export const useConflictsStore = defineStore('conflicts', () => {
 
   async function resolveIngestUniqueNewsItems(
     storyId,
-    uniqueItems,
+    incomingNewsItems,
     resolvedConflictIds = [],
     remainingStories = []
   ) {
-    if (!Array.isArray(uniqueItems) && !Array.isArray(resolvedConflictIds)) {
+    if (
+      !Array.isArray(incomingNewsItems) &&
+      !Array.isArray(resolvedConflictIds)
+    ) {
       console.warn('No input provided')
       return
     }
 
     const payload = {
       story_id: storyId,
-      news_items: uniqueItems,
+      news_items: incomingNewsItems,
       resolved_conflict_item_ids: resolvedConflictIds,
       remaining_stories: remainingStories
     }

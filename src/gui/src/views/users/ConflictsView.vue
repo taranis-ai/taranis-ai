@@ -484,26 +484,25 @@ function handleKeepInternal(storyId) {
   if (!group) return
   const incomingNewsItems = group.fullStory.news_items || []
   const existing = existingIdsMap.value[storyId] || new Set()
-  const uniqueItems = incomingNewsItems.filter((item) => !existing.has(item.id))
   const skippedConflictingIds = incomingNewsItems
     .filter((item) => existing.has(item.id))
     .map((item) => item.id)
-  keepInternalIngestNewsItems(storyId, uniqueItems, skippedConflictingIds)
+  keepInternalIngestNewsItems(storyId, incomingNewsItems, skippedConflictingIds)
 }
 
 async function keepInternalIngestNewsItems(
   storyId,
-  uniqueItems,
+  incomingNewsItems,
   resolvedConflictIds
 ) {
-  if (!uniqueItems.length && !resolvedConflictIds.length) {
+  if (!incomingNewsItems.length && !resolvedConflictIds.length) {
     showToast('Nothing to ingest or resolve', 'info')
     return
   }
   try {
     const data = await resolveIngestUniqueNewsItems(
       storyId,
-      uniqueItems,
+      incomingNewsItems,
       resolvedConflictIds,
       Object.entries(groupedNewsItemConflicts.value).map(
         ([_, otherGroup]) => otherGroup.fullStory

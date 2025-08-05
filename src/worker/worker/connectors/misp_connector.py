@@ -1,3 +1,4 @@
+import contextlib
 import json
 from datetime import datetime, timezone
 from typing import Callable
@@ -438,18 +439,14 @@ class MISPConnector:
             new_event.sharing_group_id = int(self.sharing_group_id)
         try:
             created = misp.add_event(new_event, pythonify=True)
-            if isinstance(created, dict) and created.get("errors"):
-                return None
-            return created  # type: ignore
+            return None if isinstance(created, dict) and created.get("errors") else created  # type: ignore
         except exceptions.PyMISPError:
             return None
 
     def _delete_stale_objects(self, hashes_to_remove: list[tuple[str, int]], misp: PyMISP) -> None:
         for _, obj_id in hashes_to_remove:
-            try:
+            with contextlib.suppress(Exception):
                 misp.delete_object(obj_id)
-            except Exception:
-                pass
 
     def _add_new_objects(self, extension_event_id: int, incoming_items: list[dict], hashes_to_add: list[str], misp: PyMISP) -> None:
         hash_to_obj: dict[str, MISPObject] = {}
@@ -467,10 +464,8 @@ class MISPConnector:
             obj_to_add = hash_to_obj.get(h)
             if not obj_to_add:
                 continue
-            try:
+            with contextlib.suppress(Exception):
                 misp.add_object(extension_event_id, obj_to_add)
-            except Exception:
-                pass
 
     def add_missing_news_items_as_extension(
         self,
@@ -500,6 +495,7 @@ class MISPConnector:
         return extension_event_id
 
     def _find_existing_extension_by_org(self, misp: PyMISP, parent_event: MISPEvent) -> MISPEvent | None:
+        # sourcery skip: use-next
         """
         Work around the non‐working 'extends_uuid' filter by retrieving a
         reasonable subset of recent events and then returning the first one
