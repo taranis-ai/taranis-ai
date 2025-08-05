@@ -225,35 +225,6 @@ class TestProductTypeDeletionCascade:
         print("  - ReportItemType preserved")
         print("  - Association automatically removed")
 
-    def test_product_type_deletion_removes_associations(self, app, sample_product_type, additional_product_type, sample_report_type):
-        """Test that deleting a ProductType removes its n:m relationship entries (original test)"""
-        with app.app_context():
-            original_product_type_id = sample_product_type.id
-            additional_product_type_id = additional_product_type.id
-            original_report_type_id = sample_report_type.id
-
-            # Verify initial state - 2 associations exist
-            initial_associations = db.session.query(ProductTypeReportType).filter_by(report_item_type_id=original_report_type_id).all()
-            assert len(initial_associations) == 2
-
-            # Delete one ProductType
-            result, status_code = ProductType.delete(original_product_type_id)
-            assert status_code == 200
-
-            # Verify the ProductType is gone
-            deleted_product_type = ProductType.get(original_product_type_id)
-            assert deleted_product_type is None
-
-            # Verify only one association remains (for the other ProductType)
-            remaining_associations = db.session.query(ProductTypeReportType).filter_by(report_item_type_id=original_report_type_id).all()
-            assert len(remaining_associations) == 1
-            assert remaining_associations[0].product_type_id == additional_product_type_id
-
-            # Verify the ReportItemType still exists
-            remaining_report_type = ReportItemType.get(original_report_type_id)
-            assert remaining_report_type is not None
-            assert sample_report_type is not None
-
     def test_current_cascade_behavior_summary(self, app):
         """Summary test demonstrating the current CASCADE behavior"""
         with app.app_context():
