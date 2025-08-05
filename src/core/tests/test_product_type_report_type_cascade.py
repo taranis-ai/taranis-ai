@@ -21,6 +21,9 @@ from core.managers.db_manager import db
 class TestProductTypeDeletionCascade:
     """Test cascade behavior when deleting ProductType"""
 
+    # ignore warning shown when fixtures try to delete already-deleted product types
+    pytestmark = pytest.mark.filterwarnings("ignore:DELETE statement on table 'product_type'.*:sqlalchemy.exc.SAWarning")
+
     @pytest.fixture
     def sample_report_type(self, app):
         """Create a sample ReportItemType for testing"""
@@ -51,7 +54,7 @@ class TestProductTypeDeletionCascade:
             yield product_type
             # Cleanup
             try:
-                db.session.delete(product_type, confirm_deleted_rows=False)
+                db.session.delete(product_type)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -71,7 +74,7 @@ class TestProductTypeDeletionCascade:
             yield product_type2
             # Cleanup
             try:
-                db.session.delete(product_type2, confirm_deleted_rows=False)
+                db.session.delete(product_type2)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -98,7 +101,7 @@ class TestProductTypeDeletionCascade:
             db.session.commit()
             yield product_type
             try:
-                db.session.delete(product_type, confirm_deleted_rows=False)
+                db.session.delete(product_type)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -124,7 +127,7 @@ class TestProductTypeDeletionCascade:
         product_type_ids = {assoc.product_type_id for assoc in associations}
         assert product_type_ids == {product_type_1_id, product_type_2_id}
 
-    def test_product_type_deletion_cascade_behavior(self, app, sample_product_type, additional_product_type, sample_report_type):
+    def test_product_type_deletion_cascade_behavior(self, sample_product_type, additional_product_type, sample_report_type):
         """Test that deleting a ProductType properly cascades to remove n:m associations"""
         product_type_to_delete_id = sample_product_type.id
         remaining_product_type_id = additional_product_type.id
