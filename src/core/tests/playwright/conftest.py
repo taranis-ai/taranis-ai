@@ -1012,8 +1012,11 @@ def create_html_render(app):
                 product_id = "test"
 
             # test html for product rendering
-            test_html = "Thanks to Cybersecurity experts, the world of IT is now safe."
+            test_html_b64 = "VGhhbmtzIHRvIEN5YmVyc2VjdXJpdHkgZXhwZXJ0cywgdGhlIHdvcmxkIG9mIElUIGlzIG5vdyBzYWZlLg=="
 
-            Product.update_render_for_id(product_id, test_html)
+            _, status_code = Product.update_render_for_id(product_id, test_html_b64)
+
+            if status_code != 200:
+                raise RuntimeError(f"Failed to render product with id {product_id}")
 
     return get_product_to_render
