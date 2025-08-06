@@ -154,6 +154,8 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(
                 page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("link").nth(2)
             ).click()
+            self.short_sleep(0.5)
+
             # Mark as read
             self.highlight_element(page.get_by_test_id("mark as read")).click()
             # Remove mark as important
@@ -305,6 +307,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="reset filter")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
+            self.short_sleep(0.5)
             self.highlight_element(page.get_by_text("Test Report").last).click()
             page.get_by_test_id("all-stories-div").click()
             page.keyboard.press("Control+A")
