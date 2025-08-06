@@ -1,5 +1,4 @@
 import ast
-from dateutil.parser import isoparse
 from pymisp import PyMISP
 
 from worker.core_api import CoreApi
@@ -162,7 +161,6 @@ class MISPCollector(BaseCollector):
             "relevance": 0,
             "read": False,
             "important": False,
-            "created": None,
             "links": [],
             "tags": [],
             "attributes": [],
@@ -184,9 +182,6 @@ class MISPCollector(BaseCollector):
                     story_properties["important"] = bool(int(item.get("value", 0)))
                 case "read":
                     story_properties["read"] = bool(int(item.get("value", 0)))
-                case "created":
-                    created_str = item.get("value", "")
-                    story_properties["created"] = isoparse(created_str).isoformat()
                 case "links":
                     if value := item.get("value", None):
                         story_properties["links"].append(ast.literal_eval(value))
@@ -198,8 +193,6 @@ class MISPCollector(BaseCollector):
                     story_properties["attributes"].append(ast.literal_eval(value))
                 case "relevance":
                     story_properties["relevance"] = int(item.get("value", 0))
-                case "updated":
-                    story_properties["updated"] = item.get("value", None)
                 case "likes":
                     story_properties["likes"] = int(item.get("value", 0))
                 case "dislikes":
@@ -232,10 +225,6 @@ class MISPCollector(BaseCollector):
             cleaned["news_items"] = []
         if not cleaned.get("id"):
             cleaned["id"] = None
-        if not cleaned.get("created"):
-            cleaned["created"] = None
-        if not cleaned.get("updated"):
-            cleaned["updated"] = None
         if not cleaned.get("relevance"):
             cleaned["relevance"] = 0
         if not cleaned.get("likes"):

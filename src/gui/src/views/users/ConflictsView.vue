@@ -130,7 +130,12 @@
           :key="storyId"
           class="mb-6"
         >
-          <v-card outlined>
+          <v-card
+            outlined
+            elevation="1"
+            class="mt-8 pa-6"
+            color="grey lighten-4"
+          >
             <v-card-text>
               <v-row>
                 <v-col cols="6">
@@ -242,7 +247,9 @@
                 </v-col>
               </v-row>
 
-              <div class="d-flex mt-4 align-center">
+              <div
+                class="d-flex mt-4 justify-space-between align-start flex-wrap"
+              >
                 <v-btn
                   color="error"
                   @click="
@@ -251,20 +258,28 @@
                 >
                   Ingest Incoming Story & Ungroup Local Stories
                 </v-btn>
-                <v-spacer />
-                <div class="mr-4 text-caption" v-if="!hasUniqueItems(storyId)">
-                  No new News Items to ingest
+
+                <div class="d-flex flex-column align-start">
+                  <v-btn
+                    color="primary"
+                    class="mb-1"
+                    :disabled="!hasUniqueItems(storyId)"
+                    @click="handleKeepInternal(storyId)"
+                  >
+                    Keep Internal & Ingest Unique News Items
+                  </v-btn>
+
+                  <div
+                    class="text-caption text-muted"
+                    v-if="!hasUniqueItems(storyId)"
+                  >
+                    No new News Items to ingest
+                  </div>
                 </div>
-                <v-btn
-                  color="primary"
-                  :disabled="!hasUniqueItems(storyId)"
-                  @click="handleKeepInternal(storyId)"
-                >
-                  Keep Internal & Ingest Unique News Items
-                </v-btn>
               </div>
             </v-card-text>
           </v-card>
+          <v-divider class="my-6"></v-divider>
         </div>
       </v-card-text>
     </v-card>
@@ -647,5 +662,28 @@ onMounted(async () => {
 .item-blue {
   color: #074b86;
   font-weight: 500;
+}
+.news-conflict-group {
+  background: white; /* makes them float on the grey sheet */
+  border-radius: 8px;
+}
+.news-conflict-group + .news-conflict-group {
+  margin-top: 1.5rem; /* extra separation between groups */
+}
+/* If you want a colored accent stripe on the left: */
+.news-conflict-group {
+  position: relative;
+  padding-left: 1rem;
+}
+.news-conflict-group::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #ffc107; /* amber accent */
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
 }
 </style>
