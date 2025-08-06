@@ -34,12 +34,15 @@ class NewsItemConflict:
         cls.conflict_store.clear()
 
     @classmethod
-    def reevaluate_conflicts(cls, remaining_stories: list):
+    def reevaluate_conflicts(cls, remaining_stories: list, story_to_skip: str = ""):
         from core.model.story import Story
 
         cls.flush_store()
         logger.debug("Reevaluation of remaining News Item conflicts starts")
         for story in remaining_stories:
+            if story.get("id") == story_to_skip:
+                logger.debug(f"Skipping story {story} during reevaluation")
+                continue
             logger.debug(f"Adding story {story} to news items")
             Story.add_or_update(story)
         logger.info("Reevaluation of remaining News Item conflicts ended")
@@ -108,7 +111,7 @@ class NewsItemConflict:
                 logger.error(f"During ingestion of news items from conflicts view, an error occurred: {result}")
                 errors.append(result)
 
-        cls.reevaluate_conflicts(remaining_stories)
+        cls.reevaluate_conflicts(remaining_stories, data_json.get("story_id", ""))
         if errors:
             return {"message": "Some news items could not be added", "errors": errors}, 207
         return {"message": "News items added successfully", "added_ids": added_ids}, 200
