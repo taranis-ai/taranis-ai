@@ -307,8 +307,8 @@ def non_admin_user(app):
     with app.app_context():
         user_data = {
             "id": 42,
-            "username": "non-admin",
-            "name": "Test User",
+            "username": "regular-user",
+            "name": "Regular User",
             "organization": 1,
             "roles": [2],
             "password": "testpassword",
@@ -328,8 +328,8 @@ def admin_user(app):
     with app.app_context():
         user_data = {
             "id": 666,
-            "username": "admin",
-            "name": "Test User",
+            "username": "super-admin",
+            "name": "Super Admin",
             "organization": 1,
             "roles": [1],
             "password": "iamadmin",
