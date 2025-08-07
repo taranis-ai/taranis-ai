@@ -17,6 +17,7 @@ from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.managers.decorators import extract_args
 from core.config import Config
+from core.model.settings import Settings
 
 
 class AddNewsItems(MethodView):
@@ -66,11 +67,27 @@ class Sources(MethodView):
     @api_key_required
     def get(self, source_id: str):
         try:
-            if source := OSINTSource.get(source_id):
-                return source.to_worker_dict(), 200
-            return {"error": f"Source with id {source_id} not found"}, 404
+            source = OSINTSource.get(source_id)
+            if not source:
+                return {"error": f"Source with id {source_id} not found"}, 404
+
+            data = source.to_worker_dict()
+            params = data["parameters"]
+            settings = Settings.get_settings()
+
+            # new fallback logic lives here
+            use_global = params.get("USE_GLOBAL_PROXY", "off").lower()
+            if use_global == "on":
+                data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+            # TODO: Check whether following fallback is desired
+            elif not params.get("PROXY_SERVER"):
+                data["parameters"]["PROXY_SERVER"] = settings.get("default_proxy_server", "")
+
+            return data, 200
+
         except Exception:
-            logger.exception()
+            logger.exception(f"Error fetching source {source_id}")
+            return {"error": "Internal server error"}, 500
 
     @api_key_required
     def put(self, source_id: str):
