@@ -41,12 +41,6 @@ def app():
 
 
 @pytest.fixture(scope="session")
-def app_with_jwt_secret(app):
-    app.config["JWT_SECRET_KEY"] = "test-jwt-secret"
-    return app
-
-
-@pytest.fixture(scope="session")
 def client(app):
     yield app.test_client()
 
