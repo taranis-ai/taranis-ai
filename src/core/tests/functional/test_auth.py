@@ -1,31 +1,25 @@
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import verify_jwt_in_request
 
 
 class TestAuth:
-    def test_auth_required_with_permissions(self, admin_user, non_admin_user, app_with_jwt_secret):
+    def test_auth_required_with_permissions(self, app, admin_user, non_admin_user):
         from core.managers.auth_manager import auth_required
+        from flask_jwt_extended import create_access_token
 
-        non_admin_token = create_access_token(identity=non_admin_user)
-        admin_token = create_access_token(identity=admin_user)
-
-        @app_with_jwt_secret.route("/admin-test-endpoint")
         @auth_required(permissions=["ADMIN_OPERATIONS"])
-        def admin_test():
+        def dummy_protected():
             return {"admin": True}, 200
 
-        client = app_with_jwt_secret.test_client()
-        response = client.get(
-            "/admin-test-endpoint",
-            headers={"Authorization": f"Bearer {non_admin_token}"},
-        )
+        # non-admin test
+        token = create_access_token(identity=non_admin_user)
+        with app.test_request_context(headers={"Authorization": f"Bearer {token}"}):
+            verify_jwt_in_request()
+            response = dummy_protected()
+            assert response == ({"error": "forbidden"}, 403)
 
-        assert response.status_code == 403
-        assert response.json == {"error": "forbidden"}
-
-        response = client.get(
-            "/admin-test-endpoint",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-
-        assert response.status_code == 200
-        assert response.json == {"admin": True}
+        # admin test
+        token = create_access_token(identity=admin_user)
+        with app.test_request_context(headers={"Authorization": f"Bearer {token}"}):
+            verify_jwt_in_request()
+            response = dummy_protected()
+            assert response == ({"admin": True}, 200)
