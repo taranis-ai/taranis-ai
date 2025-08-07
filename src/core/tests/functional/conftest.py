@@ -298,3 +298,45 @@ def full_story(fake_source):
         story[0].get("news_items")[0].pop("updated")
         story[0].get("news_items")[0]["osint_source_id"] = fake_source
         yield story
+
+
+@pytest.fixture(scope="session")
+def non_admin_user(app):
+    from core.model.user import User
+
+    with app.app_context():
+        user_data = {
+            "id": 42,
+            "username": "non-admin",
+            "name": "Test User",
+            "organization": 1,
+            "roles": [2],
+            "password": "testpassword",
+        }
+
+        user = User.add(user_data)
+
+        yield user
+
+        User.delete(user.id)
+
+
+@pytest.fixture(scope="session")
+def admin_user(app):
+    from core.model.user import User
+
+    with app.app_context():
+        user_data = {
+            "id": 666,
+            "username": "admin",
+            "name": "Test User",
+            "organization": 1,
+            "roles": [1],
+            "password": "iamadmin",
+        }
+
+        user = User.add(user_data)
+
+        yield user
+
+        User.delete(user.id)
