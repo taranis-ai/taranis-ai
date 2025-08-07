@@ -1000,23 +1000,30 @@ def news_items_list(app, fake_source):
 @pytest.fixture(scope="session")
 def create_html_render(app):
     # fixture returns a callable, so that we can choose the time to execute it
-    def get_product_to_render():
+    def get_product_to_render(timeout=5.0, interval=1.0):
         with app.app_context():
+            import time
             from core.model.product import Product
             from core.managers.db_manager import db
 
             # get id of first product in product table
-            if product := Product.get_first(db.select(Product)):
-                product_id = product.id
+            start_time = time.time()
+            product = None
+
+            while time.time() - start_time < timeout:
+                product = Product.get_first(db.select(Product))
+                if product:
+                    break
+                time.sleep(interval)
             else:
-                product_id = "test"
+                raise RuntimeError("No products found in database")
 
             # test html for product rendering
             test_html_b64 = "VGhhbmtzIHRvIEN5YmVyc2VjdXJpdHkgZXhwZXJ0cywgdGhlIHdvcmxkIG9mIElUIGlzIG5vdyBzYWZlLg=="
 
-            _, status_code = Product.update_render_for_id(product_id, test_html_b64)
+            _, status_code = Product.update_render_for_id(product.id, test_html_b64)
 
             if status_code != 200:
-                raise RuntimeError(f"Failed to render product with id {product_id}")
+                raise RuntimeError(f"Failed to render product with id {product.id}")
 
     return get_product_to_render

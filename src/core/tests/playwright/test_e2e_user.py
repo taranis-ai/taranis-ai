@@ -577,6 +577,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         create_html_render()
 
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
-        self.short_sleep(duration=6)
-        expect(page.get_by_test_id("text-render")).to_contain_text("Thanks to Cybersecurity experts, the world of IT is now safe.")
+        expect(page.get_by_test_id("text-render")).to_contain_text(
+            "Thanks to Cybersecurity experts, the world of IT is now safe.", timeout=10_000
+        )
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
