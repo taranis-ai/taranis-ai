@@ -78,7 +78,6 @@ class BaseView(MethodView):
 
     @classmethod
     def get_htmx_list_template(cls) -> str:
-        logger.debug(f"{cls.htmx_update_template=}")
         path = cls.htmx_list_template or (f"{cls.model_name().lower()}/{cls.model_plural_name().lower()}_table.html")
         return cls._fallback_template(path, "_table.html")
 
@@ -323,9 +322,7 @@ class BaseView(MethodView):
         return self.edit_view(object_id=object_id)
 
     def post(self, *args, **kwargs):
-        result = self.update_view(object_id=0)
-        logger.debug(f"POST result: {result}")
-        return result
+        return self.update_view(object_id=0)
 
     def put(self, **kwargs):
         object_id = self._get_object_id(kwargs)

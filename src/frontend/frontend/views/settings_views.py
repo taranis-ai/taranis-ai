@@ -35,9 +35,7 @@ class SettingsView(BaseView):
 
         if method == "post":
             if request.form:
-                result = cls.update_view(object_id=0)
-                logger.debug(f"Settings action result: {result}")
-                return result
+                return cls.update_view(object_id=0)
             else:
                 response = CoreApi().api_post(action_url)
         else:
