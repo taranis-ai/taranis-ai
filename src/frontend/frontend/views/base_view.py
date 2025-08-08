@@ -235,7 +235,6 @@ class BaseView(MethodView):
         resp_obj, error = cls.process_form_data(object_id)
         if resp_obj and not error:
             return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
-        logger.debug(f"Update view error: {error}")
         return render_template(
             cls.get_update_template(),
             **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
