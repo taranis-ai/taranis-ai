@@ -75,13 +75,9 @@ class Sources(MethodView):
             params = data["parameters"]
             settings = Settings.get_settings()
 
-            # new fallback logic lives here
-            use_global = params.get("USE_GLOBAL_PROXY", "off").lower()
-            if use_global == "on":
+            use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
+            if use_global == "true":
                 data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
-            # TODO: Check whether following fallback is desired
-            elif not params.get("PROXY_SERVER"):
-                data["parameters"]["PROXY_SERVER"] = settings.get("default_proxy_server", "")
 
             return data, 200
 
