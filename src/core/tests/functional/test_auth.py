@@ -1,6 +1,4 @@
 import os
-from flask_jwt_extended import create_access_token, verify_jwt_in_request
-
 from core.managers.auth_manager import auth_required, api_key_required
 
 
@@ -15,25 +13,26 @@ def protected_endpoint():
 
 
 class TestAuth:
-    def test_auth_required_with_permissions(self, app, admin_user, non_admin_user):
+    def test_auth_required_with_permissions(self, app, access_token, access_token_user_permissions, access_token_no_permissions):
         # no token test
         with app.test_request_context(headers={}):
             response = admin_endpoint()
             assert response == ({"error": "not authorized"}, 401)
 
         # non-admin test
-        token = create_access_token(identity=non_admin_user)
-        with app.test_request_context(headers={"Authorization": f"Bearer {token}"}):
-            verify_jwt_in_request()
+        with app.test_request_context(headers={"Authorization": f"Bearer {access_token_user_permissions}"}):
             response = admin_endpoint()
             assert response == ({"error": "forbidden"}, 403)
 
         # admin test
-        token = create_access_token(identity=admin_user)
-        with app.test_request_context(headers={"Authorization": f"Bearer {token}"}):
-            verify_jwt_in_request()
+        with app.test_request_context(headers={"Authorization": f"Bearer {access_token}"}):
             response = admin_endpoint()
             assert response == ({"admin": True}, 200)
+
+        # fake user with no permissions
+        with app.test_request_context(headers={"Authorization": f"Bearer {access_token_no_permissions}"}):
+            response = admin_endpoint()
+            assert response == ({"error": "not authorized"}, 401)
 
     def test_valid_api_key(self, app):
         valid_key = os.getenv("API_KEY")
