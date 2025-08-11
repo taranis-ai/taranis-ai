@@ -66,8 +66,7 @@ class Sources(MethodView):
     @api_key_required
     def get(self, source_id: str):
         try:
-            source = OSINTSource.get(source_id)
-            if not source:
+            if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
             data = source.to_worker_dict()
