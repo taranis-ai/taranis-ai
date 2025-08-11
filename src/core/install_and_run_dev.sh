@@ -9,6 +9,7 @@ if [ ! -d ".venv" ]; then
 fi
 
 source .venv/bin/activate
+uv pip install -e ../models >/dev/null 2>&1
 
 python -m flask run
 

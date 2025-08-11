@@ -45,6 +45,7 @@ dependencies = [
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
+    "taranis-models",
 ]
 dynamic = ["version"]
 

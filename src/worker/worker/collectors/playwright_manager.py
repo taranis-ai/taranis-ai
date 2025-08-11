@@ -1,3 +1,4 @@
+from typing import Optional
 from playwright.sync_api import sync_playwright, BrowserContext, TimeoutError
 from urllib.parse import urlparse
 
@@ -6,12 +7,21 @@ from worker.log import logger
 
 class PlaywrightManager:
     def __init__(self, proxies: dict | None = None, headers: dict | None = None) -> None:
-        self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))  # type: ignore
-        self.context = self.setup_context(headers)
-        self.page = self.context.new_page()
+        self.playwright = None
+        self.browser = None
+        self.context = None
+        self.page = None
+        try:
+            self.playwright = sync_playwright().start()
+            self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))  # type: ignore
+            self.context = self.setup_context(headers)
+            self.page = self.context.new_page()
+        except Exception as e:
+            logger.debug(f"Playwright initialization skipped: {e}")
 
     def setup_context(self, headers: dict | None = None) -> BrowserContext:
+        if not self.browser:
+            raise RuntimeError("Playwright browser is not initialized")
         if headers and None not in headers.values():
             return self.browser.new_context(extra_http_headers=headers)
         return self.browser.new_context()
@@ -28,26 +38,38 @@ class PlaywrightManager:
 
     def stop_playwright_if_needed(self) -> None:
         if self.context:
-            self.context.close()
-            logger.debug("Playwright context closed")
+            try:
+                self.context.close()
+                logger.debug("Playwright context closed")
+            except Exception:
+                logger.debug("Failed closing Playwright context")
         else:
             logger.debug("No Playwright context to close")
 
         if self.browser:
-            self.browser.close()
-            logger.debug("Playwright browser closed")
+            try:
+                self.browser.close()
+                logger.debug("Playwright browser closed")
+            except Exception:
+                logger.debug("Failed closing Playwright browser")
         else:
             logger.debug("No Playwright browser to close")
 
         if self.playwright:
-            self.playwright.stop()
-            logger.debug("Playwright context stopped")
+            try:
+                self.playwright.stop()
+                logger.debug("Playwright context stopped")
+            except Exception:
+                logger.debug("Failed stopping Playwright")
         else:
             logger.debug("No Playwright to stop")
 
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
         logger.debug(f"Getting web content with JS for {url} and XPATH {xpath=}")
         try:
+            if not self.page:
+                logger.error("Playwright page is not initialized")
+                return ""
             self.page.goto(url)
 
             if xpath:

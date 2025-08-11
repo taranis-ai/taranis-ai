@@ -32,7 +32,8 @@ dependencies = [
     "authlib",
     "setuptools",
     "sentry-sdk[flask]",
-    "sentry-sdk[sqlalchemy]"
+    "sentry-sdk[sqlalchemy]",
+    "taranis-models"
 ]
 dynamic = ["version"]
 
@@ -53,6 +54,9 @@ taranis-ai = "core.granian:main"
 
 [tool.setuptools_scm]
 root = "../.."
+
+[tool.uv.sources]
+taranis-models = { path = "../models" }
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]

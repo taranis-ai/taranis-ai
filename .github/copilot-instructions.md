@@ -37,3 +37,5 @@ See [README.md](../README.md) for more information.
 - never use `git add -A` or in general do not add "all" files lying around
 - use specific git add commands for the files you want to commit
 - don't commit how many tests passed (statistics in commit messages are not useful)
+- do not use `pip` for any package installations or management, always use `uv`
+- do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs

@@ -10,12 +10,12 @@ from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    validate_template_content,
     get_template_content,
     list_templates,
     save_template_content,
     delete_template,
 )
+from models.template_validation import validate_template_content
 from core.model import (
     attribute,
     bot,
