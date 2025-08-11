@@ -217,3 +217,105 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)
+
+
+@pytest.fixture
+def sample_report_type(app):
+    """Create a sample ReportItemType for testing"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.report_item_type import ReportItemType
+
+        report_type = ReportItemType(title="Test Report Type", description="A test report type for cascade testing")
+        db.session.add(report_type)
+        db.session.commit()
+        yield report_type
+        # Cleanup
+        try:
+            db.session.delete(report_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def sample_product_type(app, sample_report_type):
+    """Create a sample ProductType linked to the ReportItemType"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.product_type import ProductType
+        from core.model.worker import PRESENTER_TYPES
+
+        product_type = ProductType(
+            title="Test Product Type",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="A test product type",
+            report_types=[sample_report_type.id],
+        )
+        db.session.add(product_type)
+        db.session.commit()
+        yield product_type
+        # Cleanup
+        try:
+            db.session.delete(product_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def additional_product_type(app, sample_report_type):
+    """Create another ProductType linked to the same ReportItemType"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.product_type import ProductType
+        from core.model.worker import PRESENTER_TYPES
+
+        product_type2 = ProductType(
+            title="Second Test Product Type",
+            type=PRESENTER_TYPES.PDF_PRESENTER,
+            description="A second test product type",
+            report_types=[sample_report_type.id],
+        )
+        db.session.add(product_type2)
+        db.session.commit()
+        yield product_type2
+        # Cleanup
+        try:
+            db.session.delete(product_type2)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def sample_product_type_multi_report_types(app):
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.report_item_type import ReportItemType
+        from core.model.worker import PRESENTER_TYPES
+        from core.model.product_type import ProductType
+
+        # Create multiple ReportItemTypes
+        report_type1 = ReportItemType(title="Report Type 1", description="First report type")
+        report_type2 = ReportItemType(title="Report Type 2", description="Second report type")
+        report_type3 = ReportItemType(title="Report Type 3", description="Third report type")
+
+        db.session.add_all([report_type1, report_type2, report_type3])
+        db.session.flush()
+
+        # Create a ProductType that references all three ReportItemTypes
+        product_type = ProductType(
+            title="Multi-Report Product Type",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="Product type with multiple report types",
+            report_types=[report_type1.id, report_type2.id, report_type3.id],
+        )
+        db.session.add(product_type)
+        db.session.commit()
+        yield product_type
+        try:
+            db.session.delete(product_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()

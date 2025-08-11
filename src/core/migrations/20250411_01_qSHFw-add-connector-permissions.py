@@ -9,7 +9,7 @@ __depends__ = {"20250324_02_vL3hN-add-last-change-column"}
 steps = [
     step(
         """
-        INSERT INTO public.permission (id, name, description)
+        INSERT INTO permission (id, name, description)
         VALUES
             ('CONFIG_CONNECTOR_ACCESS', 'Config connector access', 'Access to connector configuration'),
             ('CONFIG_CONNECTOR_CREATE', 'Config connector create', 'Create to connector configuration'),
@@ -19,7 +19,7 @@ steps = [
         ON CONFLICT (id) DO NOTHING;
         """,
         """
-        DELETE FROM public.permission
+        DELETE FROM permission
         WHERE id IN (
             'CONFIG_CONNECTOR_ACCESS',
             'CONFIG_CONNECTOR_CREATE',
