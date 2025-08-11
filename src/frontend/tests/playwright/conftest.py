@@ -59,8 +59,6 @@ def run_core(app):
         yield
 
         if db_uri := env.get("SQLALCHEMY_DATABASE_URI"):
-            from urllib.parse import urlparse
-
             parsed_uri = urlparse(db_uri)
             db_path = parsed_uri.path
             if os.path.exists(db_path):
