@@ -12,16 +12,16 @@ class PDFPresenter(BasePresenter):
         if parameters is None:
             parameters = {}
 
+        output_text = super().generate(product, template, parameters)
+
         try:
-            output_text = super().generate(product, template, parameters)
-
             html = HTML(string=output_text)
-
-            if data := html.write_pdf(target=None):
-                return data
-
-            raise ValueError("PDF generation failed: No data returned")
-
+            data = html.write_pdf(target=None)
         except Exception as error:
             BasePresenter.print_exception(self, error)
             raise ValueError(f"PDF generation failed: {error}") from error
+
+        if not data:
+            raise ValueError("PDF generation failed: No data returned")
+
+        return data
