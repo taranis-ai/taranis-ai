@@ -44,8 +44,8 @@ def auth_required(permissions: list | str | None = None):
                 logger.debug("JWT verification failed")
                 return redirect(url_for("base.login"), code=302)
 
-            identity = get_jwt_identity()
-            if not identity:
+            user_name = get_jwt_identity()
+            if not user_name:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
                 return redirect(url_for("base.login"), code=302)
 
@@ -54,7 +54,7 @@ def auth_required(permissions: list | str | None = None):
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.error(
-                    f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
+                    f"user {user_name} Insufficient permissions in JWT for identity",
                 )
                 return redirect("/forbidden", code=403)
 
@@ -80,7 +80,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "User"):
+def user_identity_lookup(user: "User") -> str:
     return user.username
 
 

@@ -71,8 +71,8 @@ def auth_required(permissions: list | str | None = None):
                 logger.exception(str(ex))
                 return error
 
-            identity = get_jwt_identity()
-            if not identity:
+            user_name = get_jwt_identity()
+            if not user_name:
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
@@ -81,7 +81,7 @@ def auth_required(permissions: list | str | None = None):
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.store_auth_error_activity(
-                    f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
+                    f"user {user_name} Insufficient permissions in JWT for identity",
                 )
                 return {"error": "forbidden"}, 403
 
@@ -121,7 +121,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "User"):
+def user_identity_lookup(user: "User") -> str:
     return user.username
 
 
