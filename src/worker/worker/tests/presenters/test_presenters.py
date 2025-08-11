@@ -115,11 +115,11 @@ def test_pandoc_presenter_failed_render(pandoc_presenter, fixed_datetime, monkey
 
     product = {"title": "A Test Report"}
     template = "<h1>{{ data.title }}</h1><small>{{ data.current_date }}</small>"
-    params = {"CONVERT_FROM": "md", "CONVERT_TO": "doc"}
+    params = {"CONVERT_FROM": "md", "CONVERT_TO": "odt"}
 
     with pytest.raises(ValueError) as exception:
         _ = pandoc_presenter.generate(product, template, params)
-    assert str(exception.value) == "Document generation failed for doc format: Serious Error!"
+    assert str(exception.value) == "Document generation failed for odt format: Serious Error!"
 
 
 def test_pandoc_presenter_no_data(pandoc_presenter, fixed_datetime, monkeypatch):
@@ -130,8 +130,8 @@ def test_pandoc_presenter_no_data(pandoc_presenter, fixed_datetime, monkeypatch)
 
     product = {"title": "A Test Report"}
     template = "<h1>{{ data.title }}</h1><small>{{ data.current_date }}</small>"
-    params = {"CONVERT_FROM": "md", "CONVERT_TO": "doc"}
+    params = {"CONVERT_FROM": "md", "CONVERT_TO": "odt"}
 
     with pytest.raises(ValueError) as exception:
         _ = pandoc_presenter.generate(product, template, params)
-    assert str(exception.value) == "Document generation failed: No data returned for doc format."
+    assert str(exception.value) == "Document generation failed: No data returned for odt format."
