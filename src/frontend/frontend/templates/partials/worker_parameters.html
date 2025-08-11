@@ -12,7 +12,7 @@
   {% elif field.type == 'textarea' %}
     {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required, preserve=preserve) }}
   {% elif field.type == 'switch' %}
-    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required, preserve=preserve) }}
+    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=required, preserve=preserve) }}
   {% elif field.type == 'cron_interval' %}
     {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, error=field.error, required=required) }}
   {% endif %}
