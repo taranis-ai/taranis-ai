@@ -13,7 +13,7 @@ def protected_endpoint():
 
 
 class TestAuth:
-    def test_auth_required_with_permissions(self, app, access_token, access_token_user_permissions, access_token_no_permissions):
+    def test_auth_required(self, app, access_token, access_token_user_permissions, access_token_no_permissions):
         # no token test
         with app.test_request_context(headers={}):
             response = admin_endpoint()
@@ -34,25 +34,26 @@ class TestAuth:
             response = admin_endpoint()
             assert response == ({"error": "not authorized"}, 401)
 
-    def test_valid_api_key(self, app):
+    def test_api_key_required(self, app):
         valid_key = os.getenv("API_KEY")
         assert valid_key == "test_key"
 
+        # test with valid API key
         with app.test_request_context(headers={"Authorization": f"Bearer {valid_key}"}):
             response = protected_endpoint()
             assert response == ({"ok": True}, 200)
 
-    def test_missing_authorization_header(self, app):
+        # missing authorization header
         with app.test_request_context(headers={}):
             response = protected_endpoint()
             assert response == ({"error": "not authorized"}, 401)
 
-    def test_malformed_authorization_header(self, app):
+        # malformed authorization header
         with app.test_request_context(headers={"Authorization": "Token abc123"}):
             response = protected_endpoint()
             assert response == ({"error": "not authorized"}, 401)
 
-    def test_invalid_api_key(self, app):
+        # invalid API key
         with app.test_request_context(headers={"Authorization": "Bearer wrong-key"}):
             response = protected_endpoint()
             assert response == ({"error": "not authorized"}, 401)
