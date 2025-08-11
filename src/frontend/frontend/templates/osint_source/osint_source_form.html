@@ -41,14 +41,3 @@
   <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
 </form>
 </div>
-
-<script>
-  document.body.addEventListener('htmx:beforeSend', evt => {
-    const fd = evt.detail.requestConfig.parameters; // this is a FormData
-    console.group('🔍 HTMX Payload');
-    for (const [key, value] of fd.entries()) {
-      console.log(`${key} =`, value);
-    }
-    console.groupEnd();
-  });
-</script>
