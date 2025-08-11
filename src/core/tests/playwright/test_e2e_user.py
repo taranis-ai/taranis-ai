@@ -4,6 +4,7 @@ import pytest
 import time
 from playwright.sync_api import expect, Page, Locator
 from playwright_helpers import PlaywrightHelpers
+from typing import Callable
 
 
 @pytest.mark.e2e_user
@@ -555,13 +556,13 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
 
     @pytest.mark.e2e_publish
-    def test_e2e_publish(self, taranis_frontend: Page):
+    def test_e2e_publish(self, taranis_frontend: Page, create_html_render: Callable):
         page = taranis_frontend
-        self.add_keystroke_overlay(page)
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         expect(page).to_have_title("Taranis AI | Publish")
+
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
         self.highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product Type").locator("div")).click()
         self.highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
@@ -570,6 +571,12 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).click()
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
-        page.get_by_text("Product created").click()
-        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product"))
+
+        self.short_sleep(duration=1)
+        create_html_render()
+
+        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
+        expect(page.get_by_test_id("text-render")).to_contain_text(
+            "Thanks to Cybersecurity experts, the world of IT is now safe.", timeout=10_000
+        )
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
