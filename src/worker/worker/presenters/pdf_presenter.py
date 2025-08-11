@@ -8,7 +8,7 @@ class PDFPresenter(BasePresenter):
     name = "PDF Presenter"
     description = "Presenter for generating PDF documents"
 
-    def generate(self, product, template, parameters: dict[str, str] | None = None) -> str | bytes:
+    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
         if parameters is None:
             parameters = {}
 

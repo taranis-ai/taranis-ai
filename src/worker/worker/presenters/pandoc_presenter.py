@@ -9,7 +9,7 @@ class PANDOCPresenter(BasePresenter):
     name = "pandoc Presenter"
     description = "Presenter for generating .odt & .docx documents"
 
-    def generate(self, product, template, parameters: dict[str, str] | None = None) -> str | bytes:
+    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
         if parameters is None:
             parameters = {}
 
