@@ -23,16 +23,16 @@ class PANDOCPresenter(BasePresenter):
 
         try:
             output_text = super().generate(product, template, parameters)
-
             with tempfile.NamedTemporaryFile(suffix=f".{to_format}") as tmp:
                 pypandoc.convert_text(output_text, to_format, format=from_format, outputfile=tmp.name)
                 tmp.seek(0)
                 data = tmp.read()
 
-            if data:
-                return data
-            raise ValueError(f"Could not convert template to {to_format}")
-
         except Exception as error:
             BasePresenter.print_exception(self, error)
-            raise ValueError(f"Document generation failed: {error}") from error
+            raise ValueError(f"Document generation failed for {to_format} format: {error}") from error
+
+        if not data:
+            raise ValueError(f"Document generation failed: No data returned for {to_format} format.")
+
+        return data
