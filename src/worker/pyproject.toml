@@ -78,6 +78,9 @@ build-backend = "setuptools.build_meta"
 fallback_version = "0.0.0"
 root = "../.."
 
+[tool.uv.sources]
+taranis-models = { path = "../models" }
+
 [tool.ruff]
 line-length = 142
 target-version = "py311"

@@ -1555,18 +1555,27 @@ wheels = [
 
 [[package]]
 name = "taranis-models"
-version = "1.2.2"
-source = { registry = "https://pypi.org/simple" }
+source = { directory = "../models" }
 dependencies = [
+    { name = "jinja2" },
     { name = "langcodes" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/4e/42d0dd450dc52036dbb7f6ddb2225d71f54b17bb1a8623a71f11bc5f9d89/taranis_models-1.2.2.tar.gz", hash = "sha256:f3ca855dee871994199592070ca3f9ba152ad11f08c684a1abe6b920d2014fc6", size = 24724, upload-time = "2025-07-18T10:28:02.743Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/9f/9eda7a9068d9331f7f0e4a46b11ae39ada228db4bd2a6b800bfa9ef187f8/taranis_models-1.2.2-py3-none-any.whl", hash = "sha256:c88d81c3f091477b6c1555cc26b82e51dfa4fb2213fd6000b38d087071778b87", size = 13489, upload-time = "2025-07-18T10:28:01.244Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2" },
+    { name = "langcodes" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "python-dotenv" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "wheel", marker = "extra == 'dev'" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-worker"
@@ -1639,7 +1648,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
-    { name = "taranis-models" },
+    { name = "taranis-models", directory = "../models" },
     { name = "trafilatura" },
     { name = "watchdog", marker = "extra == 'dev'" },
     { name = "weasyprint" },
