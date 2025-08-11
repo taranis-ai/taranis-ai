@@ -120,8 +120,17 @@ class OSINTSource(BaseModel):
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
 
-        if not (data["parameters"].get("PROXY_SERVER", None)):
-            data["parameters"]["PROXY_SERVER"] = Settings.get_settings().get("default_proxy_server", "")
+        return data
+
+    @staticmethod
+    def get_with_defaults(data) -> dict[str, Any]:
+        params = data["parameters"]
+        settings = Settings.get_settings()
+
+        use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
+        if use_global == "true":
+            data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+
         return data
 
     def to_assess_dict(self) -> dict[str, Any]:
