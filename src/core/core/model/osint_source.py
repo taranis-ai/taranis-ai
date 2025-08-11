@@ -122,6 +122,17 @@ class OSINTSource(BaseModel):
 
         return data
 
+    @staticmethod
+    def get_with_defaults(data) -> dict[str, Any]:
+        params = data["parameters"]
+        settings = Settings.get_settings()
+
+        use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
+        if use_global == "true":
+            data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+
+        return data
+
     def to_assess_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,

@@ -17,7 +17,6 @@ from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.managers.decorators import extract_args
 from core.config import Config
-from core.model.settings import Settings
 
 
 class AddNewsItems(MethodView):
@@ -72,14 +71,8 @@ class Sources(MethodView):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
             data = source.to_worker_dict()
-            params = data["parameters"]
-            settings = Settings.get_settings()
-
-            use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
-            if use_global == "true":
-                data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
-
-            return data, 200
+            data_with_defaults = OSINTSource.get_with_defaults(data)
+            return data_with_defaults, 200
 
         except Exception:
             logger.exception(f"Error fetching source {source_id}")
