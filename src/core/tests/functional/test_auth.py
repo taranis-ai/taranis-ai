@@ -37,7 +37,7 @@ class TestAuth:
 
     def test_valid_api_key(self, app):
         valid_key = os.getenv("API_KEY")
-        assert valid_key, "API_KEY must be set in .env for this test to work"
+        assert valid_key == "test_key"
 
         with app.test_request_context(headers={"Authorization": f"Bearer {valid_key}"}):
             response = protected_endpoint()
