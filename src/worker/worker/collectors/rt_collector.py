@@ -56,22 +56,15 @@ class RTCollector(BaseWebCollector):
             self.parse_fields_to_include(fields_to_include)
 
     def preview_collector(self, source: dict) -> list[dict]:
-        try:
-            self.setup_collector(source)
-            if story_list := self.rt_collector(source):
-                return self.preview([item for story in story_list for item in story.get("news_items", [])], source)
-        except Exception as e:
-            raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {e}") from e
-
+        self.setup_collector(source)
+        if story_list := self.rt_collector(source):
+            return self.preview([item for story in story_list for item in story.get("news_items", [])], source)
         return []
 
     def collect(self, source: dict, manual: bool = False):
-        try:
-            self.setup_collector(source)
-            if story_dicts := self.rt_collector(source):
-                return self.publish_or_update_stories(story_dicts, source, "rt_id")
-        except Exception as e:
-            raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {e}") from e
+        self.setup_collector(source)
+        if story_dicts := self.rt_collector(source):
+            self.publish_or_update_stories(story_dicts, source, "rt_id")
 
     @staticmethod
     def to_story_dict(title: str, news_items_list: list[NewsItem], attributes: list[dict]) -> dict:
