@@ -69,14 +69,19 @@
 {% endmacro %}
 
 {% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='') %}
-  <input id="{{ name }}"
-         name="{{ name }}"
-         type="checkbox"
-         class="toggle toggle-primary {{ input_class }}"
-         {% if required %}required{% endif %}
-         {% if value %}checked{% endif %}
-         onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';" />
-  <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value else no_val }}</span>
+  <!--checkbox does not emit falsy states - this makes sure it is included in form submission if unchecked-->
+  <input type="hidden" name="{{ name }}" value="{{ no_val }}" />
+  <input
+    id="{{ name }}"
+    name="{{ name }}"
+    type="checkbox"
+    value="{{ yes_val }}"
+    class="toggle toggle-primary {{ input_class }}"
+    {% if required %}required{% endif %}
+    {% if value == yes_val %}checked{% endif %}
+    onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';"
+  />
+  <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value == yes_val else no_val }}</span>
 {% endmacro %}
 
 {% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
