@@ -13,7 +13,7 @@ class BaseMispObject(MISPObject):
         """Contains the logic where all the values of the object are gathered"""
         if not self._definition or not hasattr(self, "_parameters") or not self._definition.get("attributes"):
             return
-        logger.debug(f"{self._definition=}")
+        logger.debug(f"BaseMispObject payload data: {self._definition=}")
         for object_relation in self._definition["attributes"]:
             logger.debug(f"{object_relation=}")
             value = self._parameters.pop(object_relation)

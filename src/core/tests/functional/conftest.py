@@ -35,7 +35,7 @@ def news_items(fake_source):
     yield [
         {
             "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
-            "content": "TEST CONTENT YYYY",
+            "content": "TEST CONTENT ZZZZ",
             "source": "https: //www.some.link/RSSNewsfeed.xml",
             "title": "Mobile World Congress 2023",
             "author": "",
@@ -44,11 +44,11 @@ def news_items(fake_source):
             "review": "",
             "link": "https://www.some.other.link/2023.html",
             "osint_source_id": fake_source,
-            "published": "2022-02-21T15:01:14.086285",
+            "published": "2024-02-21T15:01:14.086285",
         },
         {
             "id": "0a129597-592d-45cb-9a80-3218108b29a0",
-            "content": "TEST CONTENT XXXX",
+            "content": "TEST CONTENT YYYY",
             "source": "https: //www.content.xxxx.link/RSSNewsfeed.xml",
             "title": "Bundesinnenministerin Nancy Faeser wird Claudia Plattner zur neuen BSI-Präsidentin berufen",
             "author": "",
@@ -58,6 +58,20 @@ def news_items(fake_source):
             "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
             "osint_source_id": fake_source,
             "published": "2023-01-20T19:15:00+01:00",
+        },
+        {
+            "id": "04129597-592d-45cb-9a80-3218108b29a1",
+            "content": "TEST CONTENT XXXX",
+            "source": "manual",
+            "title": "Anonymous News Item",
+            "author": "",
+            "collected": "2023-01-20T13:00:14.086285",
+            "hash": "e270c3a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da1",
+            "review": "Dummy review from an anonymous user.",
+            "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
+            "osint_source_id": "manual",
+            "last_change": "internal",
+            "published": "2022-01-10T12:13:00+01:00",
         },
     ]
 
@@ -75,6 +89,29 @@ def cleanup_news_item(fake_source):
         "source": "https://url/13",
         "link": "https://url/13",
         "content": "CVE-2020-1234 - Test Story 1",
+        "collected": "2023-08-01T17:01:04.802015",
+        "published": "2023-08-01T17:01:04.801998",
+        "osint_source_id": fake_source,
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
+@pytest.fixture(scope="class")
+def cleanup_news_item_2(fake_source):
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebt",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c46",
+        "title": "Test News Item 14",
+        "review": "CVE-2020-5678 - Test Story 1 - news item 2",
+        "author": "John Doe",
+        "source": "https://url/13",
+        "link": "https://url/13",
+        "content": "CVE-2020-5678 - Test Story 1",
         "collected": "2023-08-01T17:01:04.802015",
         "published": "2023-08-01T17:01:04.801998",
         "osint_source_id": fake_source,
@@ -298,3 +335,58 @@ def full_story(fake_source):
         story[0].get("news_items")[0].pop("updated")
         story[0].get("news_items")[0]["osint_source_id"] = fake_source
         yield story
+
+
+@pytest.fixture(scope="class")
+def full_story_with_multiple_items_id(fake_source):
+    import os
+    import json
+    from core.model.story import Story, NewsItem, StoryNewsItemAttribute
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    story_json = os.path.join(dir_path, "../test_data/story_list.json")
+    with open(story_json) as f:
+        story = json.load(f)
+        story[1].get("news_items")[0].pop("updated")
+        story[1].get("news_items")[1].pop("updated")
+        story[1].get("news_items")[0]["osint_source_id"] = fake_source
+        story[1].get("news_items")[1]["osint_source_id"] = fake_source
+
+        result = Story.add(story[1])
+        yield result[0].get("story_id")
+
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()
+
+
+@pytest.fixture(scope="function")
+def worker_story(client, news_items, api_header, auth_header):
+    story_data = {
+        "title": "Test title",
+        "attributes": [{"key": "hey", "value": "hou"}],
+        "news_items": news_items,
+    }
+    response = client.post("/api/worker/stories", json=story_data, headers=api_header)
+    assert response.status_code == 200, "Story has not been created by using the worker endpoint"
+    story_id = response.get_json().get("story_id")
+    assert story_id is not None
+    yield story_id, story_data
+    # Cleanup after test
+    del_response = client.delete(f"/api/assess/story/{story_id}", headers=auth_header)
+    assert del_response.status_code == 200, "Story has not been deleted by using the assess endpoint"
+
+
+@pytest.fixture(scope="class")
+def worker_story_update_payload_1(news_items, cleanup_news_item):
+    yield {
+        "resolution": {
+            "title": "Updated Test Story Title",
+            "description": "This is an updated test description",
+            "comments": "This is an updated comment",
+            "summary": "This is an updated summary of the story",
+            "attributes": [{"key": "priority", "value": "high"}],
+            "links": ["https://example.com/1", "http://example.com/2"],
+            "news_items": news_items[:2] + [cleanup_news_item],
+        }
+    }

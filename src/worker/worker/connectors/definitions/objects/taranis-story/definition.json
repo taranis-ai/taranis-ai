@@ -6,18 +6,8 @@
             "misp-attribute": "text",
             "ui-priority": 0
         },
-        "created": {
-            "description": "Creation date/time of the story",
-            "misp-attribute": "datetime",
-            "ui-priority": 0
-        },
         "description": {
             "description": "Longer descriptive text of the story",
-            "misp-attribute": "text",
-            "ui-priority": 0
-        },
-        "dislikes": {
-            "description": "Count of dislikes (integer)",
             "misp-attribute": "text",
             "ui-priority": 0
         },
@@ -26,30 +16,10 @@
             "misp-attribute": "text",
             "ui-priority": 0
         },
-        "important": {
-            "description": "Flag indicating importance",
-            "misp-attribute": "boolean",
-            "ui-priority": 0
-        },
-        "likes": {
-            "description": "Count of likes (integer)",
-            "misp-attribute": "text",
-            "ui-priority": 0
-        },
         "links": {
             "description": "One or more links associated with the story",
             "misp-attribute": "text",
             "multiple": true,
-            "ui-priority": 0
-        },
-        "read": {
-            "description": "Flag indicating if the story was read",
-            "misp-attribute": "boolean",
-            "ui-priority": 0
-        },
-        "relevance": {
-            "description": "Relevance score or level (integer)",
-            "misp-attribute": "text",
             "ui-priority": 0
         },
         "summary": {

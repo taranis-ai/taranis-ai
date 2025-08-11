@@ -61,7 +61,7 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Story with id {query} not found")
         return stories
 
-    def run(self, connector_id: str, story_id: list):
+    def run(self, connector_id: str, story_ids: list):
         try:
             connector, connector_config = self.get_connector(connector_id)
         except Exception as e:
@@ -69,12 +69,12 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
 
         if connector:
-            logger.info(f"Sending story {story_id} to connector {connector_id}")
+            logger.info(f"Sending story {story_ids} to connector {connector_id}")
             try:
-                stories = self.get_story_by_id(story_id)
+                stories = self.get_story_by_id(story_ids)
             except Exception as e:
-                logger.exception(f"Failed to get stories with id: {story_id}")
-                raise RuntimeError(f"Failed to get stories with id: {story_id}") from e
+                logger.exception(f"Failed to get stories with id: {story_ids}")
+                raise RuntimeError(f"Failed to get stories with id: {story_ids}") from e
 
             if connector_config is not None:
                 try:
