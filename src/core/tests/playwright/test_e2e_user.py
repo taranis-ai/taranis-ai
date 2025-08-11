@@ -149,7 +149,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_label("Tags", exact=True).press("Enter")
             page.get_by_label("Tags", exact=True).fill("APT81")
             page.get_by_label("Tags", exact=True).press("Enter")
-            self.highlight_element(page.get_by_title("Close")).click()
             self.highlight_element(page.get_by_role("button", name="Add New Key-Value"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).click()
             self.highlight_element(page.get_by_label("Key"), scroll=False).fill("test_key")
