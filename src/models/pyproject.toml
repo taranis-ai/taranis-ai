@@ -17,7 +17,8 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
-    "langcodes"
+    "langcodes",
+    "jinja2"
 ]
 dynamic = ["version"]
 

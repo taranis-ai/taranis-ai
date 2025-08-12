@@ -83,3 +83,107 @@
   />
   <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value == yes_val else no_val }}</span>
 {% endmacro %}
+
+{% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+<div class="mb-5 {{ width }}">
+  <label class="label">
+    <span class="label-text">{{ label }}</span>
+  </label>
+  <div class="dropdown dropdown-bottom w-full">
+    <div tabindex="0" role="button" class="btn btn-outline w-full justify-between">
+      <span id="{{ name }}_display">
+        {% if value %}
+          {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
+          {{ selected_option.name }}
+          {% set status = 'unknown' %}
+          {% if selected_option.validation_status is mapping %}
+            {% if selected_option.validation_status.is_valid is defined %}
+              {% if selected_option.validation_status.is_valid %}
+                {% set status = 'valid' %}
+              {% else %}
+                {% set status = 'invalid' %}
+              {% endif %}
+            {% endif %}
+          {% elif selected_option.validation_status is string %}
+            {% set status = selected_option.validation_status %}
+          {% endif %}
+          <span class="badge {{ status|badge_class }} badge-sm ml-2">
+            {{ status|badge_label }}
+          </span>
+        {% else %}
+          Select a template
+        {% endif %}
+      </span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    </div>
+    <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
+      {% for option in options %}
+        {% set status = 'unknown' %}
+        {% if option.validation_status is mapping %}
+          {% if option.validation_status.is_valid is defined %}
+            {% if option.validation_status.is_valid %}
+              {% set status = 'valid' %}
+            {% else %}
+              {% set status = 'invalid' %}
+            {% endif %}
+          {% endif %}
+        {% elif option.validation_status is string %}
+          {% set status = option.validation_status %}
+        {% endif %}
+        <a class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
+           onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ status }}')">
+          <span class="flex-1">{{ option.name }}</span>
+          <span class="badge {{ status|badge_class }} badge-sm">
+            {{ status|badge_label }}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="hidden">
+    {% if not value %}
+    <option value="" selected disabled>Select a template</option>
+    {% endif %}
+    {% for option in options %}
+    <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<script>
+function selectTemplateOption(fieldName, id, name, status) {
+  // Update the hidden select
+  const select = document.getElementById(fieldName);
+  if (select) {
+    select.value = id;
+    
+    // Update the display
+    const display = document.getElementById(fieldName + '_display');
+    if (display) {
+      let badgeClass = 'badge-neutral';
+      let badgeText = 'Unknown';
+      
+      if (status === 'valid') {
+        badgeClass = 'badge-success';
+        badgeText = 'Valid';
+      } else if (status === 'invalid') {
+        badgeClass = 'badge-error';
+        badgeText = 'Invalid';
+      }
+      
+      display.innerHTML = name + ' <span class="badge ' + badgeClass + ' badge-sm ml-2">' + badgeText + '</span>';
+    }
+    
+    // Close dropdown
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+    
+    // Trigger change event
+    select.dispatchEvent(new Event('change'));
+  }
+}
+</script>
+{% endmacro %}
