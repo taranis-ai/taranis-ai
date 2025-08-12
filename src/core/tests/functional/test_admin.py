@@ -50,8 +50,10 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "id" in data[0]
     assert "news_items" in data[0]
     assert data[0]["id"] == story_id
+    assert data[0]["news_items"][0].get("author") is None
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
+    assert len(exported_news_item_ids) == len(news_item_ids)
     assert news_item_ids.issubset(exported_news_item_ids)
 
     # Should not include metadata fields
@@ -78,6 +80,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert isinstance(data[0], dict)
     assert "id" in data[0]
     assert data[0]["id"] == story_id
+    assert data[0]["news_items"][0].get("author") == full_story[0]["news_items"][0].get("author")
 
     # Must include metadata fields now
     assert "title" in data[0]
@@ -95,6 +98,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "updated" in data[0]
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
+    assert len(exported_news_item_ids) == len(news_item_ids)
     assert news_item_ids.issubset(exported_news_item_ids)
 
     # Attribute we set should be present
