@@ -4,7 +4,7 @@ from flask import request, render_template
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType, Template, WorkerParameter, WorkerParameterValue
+from models.admin import PublisherPreset, ProductType, ReportItemType, WorkerParameter, WorkerParameterValue, ProductTypeParameter
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 
 from frontend.filters import render_item_type
@@ -68,10 +68,14 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
+        parameters = {}
+        if presenter := base_context.get(cls.model_name()):
+            presenter_type = getattr(presenter, "type", "")
+            parameters = cls.get_product_type_parameters(presenter.id, presenter_type)
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
-            "template_files": [{"id": t.id, "name": t.id} for t in dpl.get_objects(Template)],
+            "parameters": parameters,
         }
         return base_context
 
@@ -94,3 +98,26 @@ class ProductTypeView(BaseView):
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": False, "renderer": render_item_type},
         ]
+
+    @classmethod
+    def get_product_type_parameters(cls, product_type_id: int, presenter_type: str) -> list[dict]:
+        dpl = DataPersistenceLayer()
+        product_type_endpoint = dpl.get_endpoint(ProductTypeParameter)
+        worker_endpoint = dpl.get_endpoint(WorkerParameter)
+
+        if result := dpl.api.api_get(product_type_endpoint):
+            for d in result.get("items", []):
+                if d.get("id") == product_type_id:
+                    return d.get("parameters", [])
+
+        if (result := dpl.api.api_get(worker_endpoint)) and presenter_type:
+            for d in result.get("items", []):
+                if d.get("id") == presenter_type.lower():
+                    return d.get("parameters", [])
+
+        return []
+
+    @classmethod
+    def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
+        parameters = cls.get_product_type_parameters(product_type_id, presenter_type)
+        return render_template("partials/worker_parameters.html", parameters=parameters, preserve=False)

@@ -1,6 +1,7 @@
 from celery import Task
 from base64 import b64encode
 from requests.exceptions import ConnectionError
+from typing import Any
 
 import worker.presenters
 from worker.presenters.base_presenter import BasePresenter
@@ -20,11 +21,12 @@ class PresenterTask(Task):
         self.presenters = {
             "html_presenter": worker.presenters.HTMLPresenter(),
             "json_presenter": worker.presenters.JSONPresenter(),
+            "pandoc_presenter": worker.presenters.PANDOCPresenter(),
             "pdf_presenter": worker.presenters.PDFPresenter(),
             "text_presenter": worker.presenters.TextPresenter(),
         }
 
-    def get_product(self, product_id: int) -> dict[str, str]:
+    def get_product(self, product_id: int) -> dict[str, Any]:
         product = None
         try:
             product = self.core_api.get_product(product_id)
@@ -66,7 +68,7 @@ class PresenterTask(Task):
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
-        if rendered_product := presenter.generate(product, template):
+        if rendered_product := presenter.generate(product, template, parameters=product.get("parameters", {})):
             if isinstance(rendered_product, str):
                 rendered_product = b64encode(rendered_product.encode("utf-8")).decode("ascii")
             else:

@@ -1,4 +1,4 @@
-from pydantic import Field, AnyUrl
+from pydantic import Field, AnyUrl, Extra
 from typing import Literal, Any
 from datetime import datetime
 
@@ -196,6 +196,9 @@ class OSINTSourceGroup(TaranisBaseModel):
 class ProductParameterValue(TaranisBaseModel):
     TEMPLATE_PATH: str | None = None
 
+    class Config:
+        extra = Extra.allow
+
 
 class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
@@ -326,12 +329,22 @@ class WorkerParameterValue(TaranisBaseModel):
     parent: Literal["parameters"] = "parameters"
     type: str | None = None
     rules: list[str] = Field(default_factory=list)
+    value: str | list
 
 
 class WorkerParameter(TaranisBaseModel):
     _core_endpoint = "/config/worker-parameters"
     _model_name = "worker_parameter"
     _pretty_name = "Worker Parameter"
+
+    id: str
+    parameters: list[WorkerParameterValue]
+
+
+class ProductTypeParameter(TaranisBaseModel):
+    _core_endpoint = "/config/product-type-parameters"
+    _model_name = "product_type_parameter"
+    _pretty_name = "Product Type Parameter"
 
     id: str
     parameters: list[WorkerParameterValue]

@@ -1,0 +1,43 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sample Report - {{ data.current_date }}</title>
+  </head>
+<body>
+<div id="content-section">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="block">
+        <h2>Report Items</h2>
+        {% for report_item in data.report_items %}
+          <h3>{{ report_item.title }}</h3>
+
+          <ul>
+            {% for key, value in report_item.attributes.items() %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
+            {% endfor %}
+          </ul>
+
+          <h3> Stories </h3>
+          {% for story in report_item.stories %}
+            <h4>{{ story.title }}</h4>
+
+            {% for news_item in story.news_items %}
+              <h5> {{ news_item.title }}</h5>
+              <p>{{ news_item.content }}</p>
+              <p>{{ news_item.link }}</p>
+              <hr>
+              <br/>
+            {% endfor %}
+          {% endfor %}
+        {% endfor %}
+
+
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

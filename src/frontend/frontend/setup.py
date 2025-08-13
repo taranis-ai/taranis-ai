@@ -1,3 +1,4 @@
+import re
 from flask import Flask, redirect, url_for
 from flask_htmx import HTMX
 from flask.json.provider import DefaultJSONProvider
@@ -52,7 +53,14 @@ def get_html5_pattern_from_rule(rules: list[str]) -> tuple[str, str] | str:
     if len(rules) > 1:
         logger.warning(f"Multiple rules provided: {rules}. Only the first rule will be considered for pattern generation.")
 
-    return html5_patterns.get(rules[0], ("", ""))
+    rule = rules[0]
+    if rule.startswith("one_of:"):
+        values = rule[len("one_of:") :].split("|")
+        escaped_values = [re.escape(v.strip()) for v in values]
+        pattern = "|".join(escaped_values)
+        return (pattern, f"Input must be one of: {', '.join(values)}")
+
+    return html5_patterns.get(rule, ("", ""))
 
 
 def jinja_setup(app: Flask):

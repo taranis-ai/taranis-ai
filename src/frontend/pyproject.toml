@@ -98,3 +98,6 @@ indent=2
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+
+[tool.uv.sources]
+taranis-models = { path = "../models", editable = true }

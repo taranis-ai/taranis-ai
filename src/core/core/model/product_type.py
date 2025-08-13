@@ -145,6 +145,12 @@ class ProductType(BaseModel):
     def get_mimetype(self) -> str:
         if self.type.startswith("image"):
             return "image/png"
+        if self.type.startswith("pandoc"):
+            data_format = next((param.value for param in self.parameters if param.parameter == "CONVERT_TO"), None)
+            if data_format == "docx":
+                return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif data_format == "odt":
+                return "application/vnd.oasis.opendocument.text"
         if self.type.startswith("pdf"):
             return "application/pdf"
         if self.type.startswith("html"):
@@ -169,6 +175,32 @@ class ProductType(BaseModel):
         db.session.delete(product_type)
         db.session.commit()
         return {"message": f"Product type {product_id} deleted"}, 200
+
+    @classmethod
+    def get_parameters(cls) -> list[dict]:
+        if not (product_types := cls.get_all_for_collector()):
+            return []
+        product_type_param_list = []
+        for product_type in product_types:
+            param_dict = {"id": product_type.id, "parameters": cls._generate_parameters_data(product_type), "type": product_type.type}
+            product_type_param_list.append(param_dict)
+        return product_type_param_list
+
+    @classmethod
+    def _generate_parameters_data(cls, product_type: "ProductType") -> list[dict]:
+        product_type_params = []
+        product_type_params.extend(
+            {
+                "name": param.parameter,
+                "label": param.parameter,
+                "parent": "parameters",
+                "type": param.type,
+                "rules": param.rules.split(",") if param.rules else [],
+                "value": param.value,
+            }
+            for param in product_type.parameters
+        )
+        return product_type_params
 
 
 class ProductTypeParameterValue(BaseModel):

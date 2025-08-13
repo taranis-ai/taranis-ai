@@ -128,6 +128,24 @@
               data-testid="pdf-render"
             />
 
+            <DocxViewer
+              v-else-if="
+                renderedProductMimeType ===
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              "
+              :base64="renderedProduct"
+              data-testid="docx-render"
+            />
+
+            <OdfViewer
+              v-else-if="
+                renderedProductMimeType ===
+                'application/vnd.oasis.opendocument.text'
+              "
+              :base64="renderedProduct"
+              data-testid="odf-render"
+            />
+
             <pre
               v-if="renderedProductMimeType === 'text/plain'"
               data-testid="text-render"
@@ -182,12 +200,16 @@ import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useHotkeys } from 'vue-use-hotkeys'
+import DocxViewer from '@/components/common/DocxViewer.vue'
+import OdfViewer from '@/components/common/OdfViewer.vue'
 
 export default {
   name: 'ProductItem',
   components: {
     PopupPublishProduct,
-    PopupDirty
+    PopupDirty,
+    DocxViewer,
+    OdfViewer
   },
   props: {
     productProp: {
@@ -328,6 +350,9 @@ export default {
         'text/html': 'html',
         'application/json': 'json',
         'text/plain': 'txt',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+          'docx',
+        'application/vnd.oasis.opendocument.text': 'odt',
         'application/pdf': 'pdf'
       }
 
@@ -481,5 +506,14 @@ export default {
 <style scoped>
 .pdf-container {
   height: 80vh !important;
+}
+
+.unsupported-format-warning {
+  padding: 1rem;
+  border: 1px solid orange;
+  background-color: #fff8e1;
+  color: #b26a00;
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 </style>
