@@ -25,6 +25,7 @@ class BaseView(MethodView):
     edit_template: str = ""
     base_route: str = ""
     edit_route: str = ""
+    import_route: str = ""
     icon: str = "wrench"
     _is_admin: bool = True
     _index: float | int = float("inf")
@@ -108,7 +109,7 @@ class BaseView(MethodView):
 
     @classmethod
     def get_import_route(cls, **kwargs) -> str:
-        route = f"admin.import_{cls.model_plural_name().lower()}"
+        route = cls.import_route or f"admin.import_{cls.model_plural_name().lower()}"
         return url_for(route, **kwargs)
 
     @classmethod

@@ -139,4 +139,45 @@ class TestSourceView:
             assert resp.status_code == 200
 
             # Assert that CoreApi().import_sources was called with the correct data
-            mock_api_instance.import_sources.assert_called_once_with(json.dumps(dummy_export_data["sources"]))
+            mock_api_instance.import_sources.assert_called_once_with(dummy_export_data["sources"])
+
+    def test_import_post_view_no_file(self, authenticated_client):
+        """
+        Test that the import_post_view method returns an error when no file is provided.
+        """
+        resp = authenticated_client.post(
+            SourceView.get_import_route(),
+            data={},
+            content_type='multipart/form-data'
+        )
+
+        assert resp.status_code == 200  # The view returns a 200 but with an error message in the HTML
+        html = resp.get_data(as_text=True)
+        assert "No file or organization provided" in html
+
+    def test_import_post_view_api_failure(self, authenticated_client):
+        """
+        Test that the import_post_view method returns an error when the CoreApi call fails.
+        """
+        dummy_export_data = {
+            "version": 3,
+            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]
+        }
+        dummy_file_content = json.dumps(dummy_export_data).encode('utf-8')
+        dummy_file = BytesIO(dummy_file_content)
+        dummy_file.name = "test.json"
+
+        with patch('frontend.views.source_views.CoreApi') as mock_core_api:
+            mock_api_instance = MagicMock()
+            mock_core_api.return_value = mock_api_instance
+            mock_api_instance.import_sources.return_value = None  # Simulate API failure
+
+            resp = authenticated_client.post(
+                SourceView.get_import_route(),
+                data={'file': (dummy_file, 'test.json')},
+                content_type='multipart/form-data'
+            )
+
+            assert resp.status_code == 200
+            html = resp.get_data(as_text=True)
+            assert "Failed to import sources" in html
