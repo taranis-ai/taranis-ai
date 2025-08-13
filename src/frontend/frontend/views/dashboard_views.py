@@ -1,12 +1,14 @@
-from models.dashboard import Dashboard, TrendingCluster
-from frontend.views.base_view import BaseView
-from flask import render_template, abort
+from flask import render_template, abort, request
+from flask_jwt_extended import current_user
 
+from models.dashboard import Dashboard, TrendingCluster
+from frontend.core_api import CoreApi
+from frontend.views.base_view import BaseView
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.config import Config
 from frontend.auth import auth_required
-from flask_jwt_extended import current_user
 
 
 class DashboardView(BaseView):
@@ -57,6 +59,21 @@ class DashboardView(BaseView):
         user_profile = current_user.profile or {}
         dashboard_config = user_profile.get("dashboard", {})
         return render_template("dashboard/edit.html", dashboard=dashboard_config, clusters=trending_clusters)
+
+    @classmethod
+    @auth_required()
+    def update_dashboard(cls):
+        logger.debug(f"Updating {current_user} {request.form}")
+        form_data = parse_formdata(request.form)
+
+        if core_response := CoreApi().update_user_profile(form_data):
+            response = cls.get_notification_from_response(core_response)
+            table, table_response = cls.list_view()
+            if table_response == 200:
+                response += table
+            return response, table_response
+
+        return render_template("notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}), 400
 
     @classmethod
     def get_build_info(cls):

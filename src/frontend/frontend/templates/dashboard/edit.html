@@ -10,24 +10,28 @@
 {% from 'macros/forms.html' import form_input_content %}
 <div class="p-8" id="edit_dashboard">
   <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
-  <form method="post" action="{{ url_for('base.edit_dashboard') }}">
+  <form method="post" action="{{ url_for('base.edit_dashboard_view') }}">
     <div class="mb-4">
       {# show switch with dashboard.get('show_trending_clusters', true) #}
-      <fieldset class="fieldset bg-base-100 w-3/4">
-        <legend class="fieldset-legend">Number of days to look back for trending clusters</legend>
-      {{ form_input_content(label="trending_days", name="Trending Days", value=dashboard.get('trending_cluster_days', 7), type='number') }}
-      </fieldset>
+      <div class="flex gap-2">
+        <fieldset class="fieldset bg-base-100 flex-none w-1/8">
+          <legend class="fieldset-legend">Days to look back for trending clusters</legend>
+          {{ form_input_content(label="trending_days", name="Trending Days", value=dashboard.get('trending_cluster_days', 7), type='number') }}
+        </fieldset>
 
-      <fieldset class="fieldset bg-base-100 w-3/4">
-        <legend class="fieldset-legend">Trending Tag Filter</legend>
-        <select name="trending_tags[]" multiple required id="trending-tag-filter-select" class="tomselect">
-          {% for tag in dashboard.get('trending_cluster_filter', []) %}
-          <option value="{{ tag.id }}" {% if tag.id in dashboard.trending_tags %}selected{% endif %}>
-            {{ tag.name }} - {{ tag.tag_type }}
-          </option>
-          {% endfor %}
-        </select>
-      </fieldset>
+        <fieldset class="fieldset bg-base-100 flex-none w-2/8">
+          <legend class="fieldset-legend">Trending Tag Filter</legend>
+          <select name="trending_tags[]" multiple id="trending-tag-filter-select" class="tomselect w-full">
+            {% for cluster in clusters %}
+            <option value="{{ cluster }}" {% if cluster in dashboard.get('trending_cluster_filter', []) %}selected{% endif %}>
+              {{ cluster.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </fieldset>
+      </div>
+
+      <input type="submit" class="btn btn-primary w-2/4 mt-4" value="Update Dashboard Settings" />
     </div>
   </form>
 </div>
