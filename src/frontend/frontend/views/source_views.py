@@ -124,9 +124,9 @@ class SourceView(BaseView):
             return cls.import_view("No file or organization provided")
         data = sources.read()
         data = json.loads(data)
-        data = json.dumps(data["data"])
+        data = json.dumps(data["sources"])
 
-        response = CoreApi().import_sources(json.loads(data))
+        response = CoreApi().import_sources(data)
 
         if not response:
             error = "Failed to import sources"

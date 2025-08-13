@@ -107,6 +107,11 @@ class BaseView(MethodView):
         return url_for(route, **kwargs)
 
     @classmethod
+    def get_import_route(cls, **kwargs) -> str:
+        route = f"admin.import_{cls.model_plural_name().lower()}"
+        return url_for(route, **kwargs)
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "ID", "field": "id", "sortable": False, "renderer": None},
