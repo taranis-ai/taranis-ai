@@ -14,6 +14,7 @@ Report Items:
       {% for news_item in story.news_items %}
         {{ news_item.title }} ({{ news_item.link }}):
           {{ news_item.content }}
+
       {% endfor %}
     {% endfor %}
 {% endfor %}
@@ -97,39 +98,27 @@ rendered_report = """
 Test Report - 2025-01-02
 
 Report Items:
-
   The very best report you have ever seen:
-
         date: 1977-01-01
-
         author: Jim Jarmuush
 
-
   Stories:
-
     City Council Approves New Housing Plan:
-
         Council votes 9-2 for zoning update (https://example.com/city-housing-plan):
           Measure expands affordable units; vote was 9-2.
 
-
     Tech Company Announces Quarterly Earnings:
-
         Q2 revenue rises 12 percent (https://example.com/tech-q2):
           Company raises full-year guidance.
 
         Shares jump after the report (https://example.com/tech-shares):
           Stock up 4 percent in after-hours trading.
 
-
     Regional Rail Service Disruption:
-
         Signal fault delays morning trains (https://example.com/rail-delays):
           Operator advises 20-minute delays on main line.
 
-
     Severe Weather Hits Coastal Towns:
-
         Storm brings heavy rain and wind (https://example.com/storm):
           Flood warnings issued for low-lying areas.
 

@@ -15,7 +15,14 @@ class BasePresenter:
         if parameters is None:
             parameters = {}
 
-        env = jinja2.Environment(autoescape=False)
+        env = jinja2.Environment(
+            autoescape=False,
+            trim_blocks=True,
+            lstrip_blocks=True,
+            keep_trailing_newline=True,
+            newline_sequence="\n",
+            undefined=jinja2.StrictUndefined,
+        )
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
