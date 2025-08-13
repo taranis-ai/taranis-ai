@@ -130,7 +130,7 @@ def cleanup_report_item(app):
 
 
 @pytest.fixture(scope="function")
-def input_report(app, session):
+def input_report(app, db_global_session):
     with app.app_context():
         from core.model.report_item import ReportItem
         from core.model.report_item_type import ReportItemType

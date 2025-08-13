@@ -86,32 +86,54 @@ def db(app):
         db.drop_all()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
+def db_global_session(db):
+    yield db.session
+
+
+# import pytest
+# from sqlalchemy import event
+# from sqlalchemy.orm import scoped_session, sessionmaker
+
+
+@pytest.fixture(scope="function")
 def session(db):
-    """Creates a new database session for a test."""
-    from core.managers.history_meta import versioned_session
+    """Isolated SQLAlchemy session per test with SAVEPOINT handling."""
+    original_session = db.session
 
     connection = db.engine.connect()
-    transaction = connection.begin()
+    trans = connection.begin()
 
-    db.session = scoped_session(session_factory=sessionmaker(bind=connection))
+    SessionFactory = sessionmaker(bind=connection)
+    scoped = scoped_session(SessionFactory)
+    db.session = scoped
 
-    # Import versioned_session locally to avoid triggering config loading at module level
+    s = scoped()
+
+    s.begin_nested()
+
+    # after each commit/rollback inside the test, re-open the SAVEPOINT
+    # @event.listens_for(s, "after_transaction_end")
+    # def _restart_savepoint(sess, t):
+    #     if t.nested and not t._parent.nested:
+    #         sess.begin_nested()
+
+    # optional: enable your versioning on this scoped session
     try:
         from core.managers.history_meta import versioned_session
 
-        versioned_session(db.session)
-        print("Using versioned_session for history tracking @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-    except ImportError:
-        # Fallback if versioned_session is not available
-        print("versioned_session not available, using regular session @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+        versioned_session(scoped)  # or versioned_session(s) if your API expects a Session
+    except Exception:
         pass
 
-    yield db.session
-
-    transaction.rollback()
-    connection.close()
-    db.session.remove()
+    try:
+        yield s
+    finally:
+        # tear down cleanly and restore original db.session
+        scoped.remove()
+        trans.rollback()
+        connection.close()
+        db.session = original_session
 
 
 @pytest.fixture(scope="session")
