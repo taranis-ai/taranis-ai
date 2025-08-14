@@ -197,4 +197,4 @@ class CoreApi:
         )
 
     def update_user_profile(self, form_data: dict) -> requests.Response:
-        return self.api_post("/user/profile", json_data=form_data)
+        return self.api_post("/users/profile", json_data=form_data)

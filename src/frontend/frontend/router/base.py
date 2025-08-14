@@ -1,6 +1,6 @@
 from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for
 from flask.views import MethodView
-from flask_jwt_extended import set_access_cookies
+from flask_jwt_extended import unset_jwt_cookies
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
@@ -46,18 +46,16 @@ class LoginView(MethodView):
 
         try:
             core_response = CoreApi().login(username, password)
-            core_json = core_response.json()
-            jwt_token = core_json.get("access_token")
         except Exception:
             return render_template("login/index.html", login_error="Login failed, no response from server"), 500
 
         if not core_response.ok:
-            return render_template("login/index.html", login_error=core_json.get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
 
-        set_access_cookies(response, jwt_token)
-        response.set_cookie("access_token", jwt_token, httponly=False)
+        for h in core_response.raw.headers.getlist("Set-Cookie"):
+            response.headers.add("Set-Cookie", h)
 
         return response
 
@@ -68,6 +66,7 @@ class LoginView(MethodView):
 
         response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
         response.delete_cookie("access_token")
+        unset_jwt_cookies(response)
         return response
 
 
@@ -90,7 +89,7 @@ def init(app: Flask):
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
-    base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.update_dashboard, methods=["POST"], endpoint="update_dashboard_view")
+    base_bp.add_url_rule("/dashboard/update", view_func=DashboardView.update_dashboard, methods=["POST"], endpoint="update_dashboard_view")
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))

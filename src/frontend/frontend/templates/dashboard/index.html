@@ -10,7 +10,9 @@
 
   {% include "dashboard/user_item_cards.html" %}
 
-  <div class="text-3xl font-bold mb-4">Trending Tags</div>
+  {{ dashboard_config['show_trending_clusters'] }}
+  {% if dashboard_config['show_trending_clusters'] == 'Yes' %}
+  <div class="text-3xl font-bold mb-4">Trending Tags (last {{ dashboard_config['trending_cluster_days'] }} days)</div>
 
   <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
     {% for cluster in clusters %}
@@ -18,6 +20,7 @@
     {% endcall %}
     {% endfor %}
   </div>
+  {% endif %}
 
 </div>
 {% endblock content %}

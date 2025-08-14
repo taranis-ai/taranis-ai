@@ -8,7 +8,7 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.config import Config
-from frontend.auth import auth_required
+from frontend.auth import auth_required, update_current_user_cache
 
 
 class DashboardView(BaseView):
@@ -40,7 +40,14 @@ class DashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error}
+        user_profile = current_user.profile or {}
+        logger.debug(f"User profile: {user_profile}")
+        dashboard_config = user_profile.get("dashboard", {})
+
+        if cluster_filter := dashboard_config.get("trending_cluster_filter"):
+            trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
+
+        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": dashboard_config}
         return render_template(template, **context), 200
 
     @classmethod
@@ -63,17 +70,22 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def update_dashboard(cls):
-        logger.debug(f"Updating {current_user} {request.form}")
         form_data = parse_formdata(request.form)
+        form_data = {"dashboard": form_data.get("dashboard", {})}
+        logger.debug(f"Updating dashboard with data: {form_data}")
 
         if core_response := CoreApi().update_user_profile(form_data):
             response = cls.get_notification_from_response(core_response)
-            table, table_response = cls.list_view()
-            if table_response == 200:
-                response += table
-            return response, table_response
+        else:
+            response = render_template(
+                "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
+            )
 
-        return render_template("notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}), 400
+        update_current_user_cache()
+        dashboard, table_response = cls.static_view()
+        if table_response == 200:
+            response += dashboard
+        return response, table_response
 
     @classmethod
     def get_build_info(cls):
