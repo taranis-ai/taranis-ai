@@ -1,5 +1,7 @@
 from flask import render_template, abort, request
 from flask_jwt_extended import current_user
+import plotly.express as px
+import pandas as pd
 
 from models.dashboard import Dashboard, TrendingCluster
 from frontend.core_api import CoreApi
@@ -41,7 +43,6 @@ class DashboardView(BaseView):
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
         user_profile = current_user.profile or {}
-        logger.debug(f"User profile: {user_profile}")
         dashboard_config = user_profile.get("dashboard", {})
 
         if cluster_filter := dashboard_config.get("trending_cluster_filter"):
@@ -53,7 +54,27 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def get_cluster(cls, cluster_name: str):
-        return render_template("dashboard/cluster.html", data=cluster_name), 200
+        try:
+            trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
+        except Exception:
+            trending_clusters = []
+
+        cluster = [c for c in trending_clusters if c.name == cluster_name]
+        user_profile = current_user.profile or {}
+        dashboard_config = user_profile.get("dashboard", {})
+
+        if not cluster:
+            logger.error(f"Error retrieving {cluster_name}")
+            return render_template("errors/404.html", error="No cluster found"), 404
+
+        if cluster_name == "Country":
+            country_data = cluster[0].model_dump().get("tags", [])
+            logger.debug(f"Country data for cluster '{cluster_name}': {country_data}")
+            country_chart = cls.render_country_chart(country_data)
+        else:
+            country_chart = None
+
+        return render_template("dashboard/cluster.html", data=cluster[0], country_chart=country_chart, dashboard_config=dashboard_config), 200
 
     @classmethod
     @auth_required()
@@ -73,6 +94,17 @@ class DashboardView(BaseView):
         if Config.GIT_INFO:
             result |= Config.GIT_INFO
         return result
+
+    @classmethod
+    def render_country_chart(cls, country_data: list[dict]) -> str:
+        df = pd.DataFrame(country_data)
+
+        fig = px.scatter_geo(df, locations="name", locationmode="country names", size="size", hover_name="name", projection="natural earth")
+        fig.update_traces(marker=dict(sizemode="area", sizemin=4))
+        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+
+        # Return only the div/JS part so it can be used in Jinja directly
+        return fig.to_html(full_html=False, include_plotlyjs="cdn")
 
     def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()

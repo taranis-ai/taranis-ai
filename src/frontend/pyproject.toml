@@ -30,6 +30,8 @@ dependencies = [
     "polyfactory",
     "uuid7",
     "heroicons[jinja]>=2.11.0",
+    "plotly[express]",
+    "pandas",
     "taranis-models"
 ]
 dynamic = ["version"]
