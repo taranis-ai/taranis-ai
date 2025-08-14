@@ -89,7 +89,6 @@ def init(app: Flask):
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
-    base_bp.add_url_rule("/dashboard/update", view_func=DashboardView.update_dashboard, methods=["POST"], endpoint="update_dashboard_view")
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))

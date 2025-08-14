@@ -25,7 +25,7 @@
 
 <div class="p-8 bg-base-100" id="edit_dashboard">
   <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
-  <form method="post" action="{{ url_for('base.update_dashboard_view') }}">
+  <form method="post" action="{{ url_for('base.dashboard') }}">
     <div class="mb-4">
       <div class="flex gap-2">
         <fieldset class="fieldset bg-base-100 flex-none w-1/8">
@@ -35,9 +35,9 @@
         </fieldset>
 
         {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]",
-        value=dashboard.get('show_trending_clusters', 'No'), width='w-1/8') }}
+        value=dashboard.get('show_trending_clusters', 'Yes'), required=False, width='w-1/8') }}
         {{ form_switch(label="Show Charts in Dashboard", name="dashboard[show_charts]",
-        value=dashboard.get('show_charts', 'No'), width='w-1/8') }}
+        value=dashboard.get('show_charts', 'Yes'), required=False, width='w-1/8') }}
 
       </div>
 

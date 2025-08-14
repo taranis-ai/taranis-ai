@@ -337,10 +337,10 @@ class BaseView(MethodView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs) -> tuple[str, int]:
         return self.update_view(object_id=0)
 
-    def put(self, **kwargs):
+    def put(self, **kwargs) -> tuple[str, int]:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             abort(405)

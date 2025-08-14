@@ -25,14 +25,21 @@
     <span class="caption">Cluster size: {{ cluster.size }}</span>
   </div>
   <div class="divider"></div>
-  <div>
-    {% for tag in cluster.tags %}
-    <div class="justify-between flex items-center">
-      <p>{{ tag.name }}</p>
-      <p>{{ tag.size }}</p>
+  <div class="flex">
+    <div class="flex-grow">
+      {% for tag in cluster.tags %}
+      <div class="justify-between flex items-center">
+        <p>{{ tag.name }}</p>
+        <p>{{ tag.size }}</p>
+      </div>
+      {% endfor %}
+      <span class="caption">{{ caller() }}</span>
     </div>
-    {% endfor %}
-    <span class="caption">{{ caller() }}</span>
+    {% if dashboard_config['show_charts'] == 'Yes' and cluster.name == 'Country' %}
+    <div class="flex-grow">
+      Charts: {{ dashboard_config['show_charts'] }}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endmacro %}

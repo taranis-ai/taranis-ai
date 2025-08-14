@@ -68,37 +68,34 @@ class DashboardView(BaseView):
         return render_template("dashboard/edit.html", dashboard=dashboard_config, clusters=trending_clusters)
 
     @classmethod
-    @auth_required()
-    def update_dashboard(cls):
-        form_data = parse_formdata(request.form)
-        form_data = {"dashboard": form_data.get("dashboard", {})}
-        logger.debug(f"Updating dashboard with data: {form_data}")
-
-        if core_response := CoreApi().update_user_profile(form_data):
-            response = cls.get_notification_from_response(core_response)
-        else:
-            response = render_template(
-                "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
-            )
-
-        update_current_user_cache()
-        dashboard, table_response = cls.static_view()
-        if table_response == 200:
-            response += dashboard
-        return response, table_response
-
-    @classmethod
     def get_build_info(cls):
         result = {"build_date": Config.BUILD_DATE.isoformat()}
         if Config.GIT_INFO:
             result |= Config.GIT_INFO
         return result
 
-    def get(self, **kwargs):
+    def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()
 
-    def post(self):
-        abort(405)
+    def post(self, *args, **kwargs) -> tuple[str, int]:
+        form_data = parse_formdata(request.form)
+        form_data = {"dashboard": form_data.get("dashboard", {})}
+        logger.debug(f"Updating dashboard with data: {form_data}")
+
+        if core_response := CoreApi().update_user_profile(form_data):
+            response = self.get_notification_from_response(core_response)
+        else:
+            response = render_template(
+                "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
+            )
+
+        update_current_user_cache()
+        DataPersistenceLayer().invalidate_cache_by_object(self.model)
+        DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
+        dashboard, table_response = self.static_view()
+        if table_response == 200:
+            response += dashboard
+        return response, table_response
 
     def put(self, **kwargs):
         abort(405)
