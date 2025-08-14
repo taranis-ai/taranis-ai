@@ -22,7 +22,6 @@ class DashboardView(BaseView):
     base_route = "base.dashboard"
     _is_admin = False
     _read_only = True
-    _index = 10
 
     @classmethod
     def static_view(cls):
@@ -35,15 +34,16 @@ class DashboardView(BaseView):
 
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
+            user_profile = current_user.profile or {}
+            dashboard_config = user_profile.get("dashboard", {})
         except Exception:
             trending_clusters = []
+            dashboard_config = {}
 
         if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-        user_profile = current_user.profile or {}
-        dashboard_config = user_profile.get("dashboard", {})
 
         if cluster_filter := dashboard_config.get("trending_cluster_filter"):
             trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
