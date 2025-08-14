@@ -68,7 +68,6 @@
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
 import { defineComponent, ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
 export default defineComponent({
@@ -78,7 +77,6 @@ export default defineComponent({
     const username = ref('')
     const password = ref('')
     const login_error = ref(undefined)
-    const router = useRouter()
     const authStore = useAuthStore()
     const userfield = ref(null)
 
@@ -101,7 +99,7 @@ export default defineComponent({
           password: password.value
         })
         login_error.value = undefined
-        router.push('/frontend')
+        window.location.replace('/frontend')
       } catch (error) {
         if (error.status > 500) {
           login_error.value = 'login.backend_error'
@@ -115,7 +113,7 @@ export default defineComponent({
     onMounted(() => {
       authStore.loginFromCookie()
       if (isAuthenticated.value) {
-        router.push('/frontend')
+        window.location.replace('/frontend')
       }
       userfield.value.focus()
     })

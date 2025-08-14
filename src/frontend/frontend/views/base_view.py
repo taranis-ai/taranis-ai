@@ -279,7 +279,9 @@ class BaseView(MethodView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error=f"No {cls.model_name()} items found"), 404
 
-        return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error}), 200
+        context = {f"{cls.model_plural_name()}": items, "error": error}
+        context = cls.get_extra_context(context)
+        return render_template(cls.get_list_template(), **context), 200
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse) -> str:

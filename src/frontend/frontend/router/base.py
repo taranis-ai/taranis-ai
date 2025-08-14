@@ -18,6 +18,13 @@ class InvalidateCache(MethodView):
         DataPersistenceLayer().invalidate_cache(suffix)
         return "Cache invalidated"
 
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self, suffix: str | None = None):
+        if not suffix:
+            DataPersistenceLayer().invalidate_cache(None)
+        DataPersistenceLayer().invalidate_cache(suffix)
+        return Response(status=204, headers={"HX-Refresh": "true"})
+
 
 class ListCacheKeys(MethodView):
     @auth_required("ADMIN_OPERATIONS")

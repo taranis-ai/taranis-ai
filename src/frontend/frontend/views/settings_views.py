@@ -1,4 +1,4 @@
-from flask import request, render_template
+from flask import request, render_template, url_for
 
 from models.admin import Settings
 from frontend.views.base_view import BaseView
@@ -21,6 +21,12 @@ class SettingsView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict:
         dpl = DataPersistenceLayer()
         base_context["settings"] = dpl.get_objects(Settings)
+        base_context["frontend_actions"] = [
+            {
+                "label": "Invalidate Cache",
+                "url": url_for("base.invalidate_cache"),
+            }
+        ]
         return base_context
 
     @classmethod

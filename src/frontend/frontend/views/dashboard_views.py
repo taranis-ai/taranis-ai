@@ -115,6 +115,10 @@ class AdminDashboardView(BaseView):
     _index = 10
 
     @classmethod
+    def pretty_name(cls) -> str:
+        return "Admin Dashboard"
+
+    @classmethod
     def static_view(cls):
         error = None
         try:
