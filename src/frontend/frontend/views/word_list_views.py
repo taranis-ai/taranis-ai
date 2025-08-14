@@ -19,9 +19,7 @@ class WordListView(BaseView):
         "name": {},
         "description": {},
         "link": {},
-        "include": {},
-        "exclude": {},
-        "tagging": {},
+        "usage[]": {},
     }
 
     @classmethod

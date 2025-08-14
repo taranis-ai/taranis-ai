@@ -73,7 +73,7 @@ def test_roles_form_get(roles_get_mock, permissions_get_mock, form_data, authent
     assert form_data(response.text).get_cleaned_keys() == {"name", "description", "permissions[]", "tlp_level"}
 
 
-def test_roles_form_put(roles_put_mock, authenticated_client, htmx_header):
+def test_roles_form_put(roles_put_mock, roles_get_mock, authenticated_client, htmx_header):
     role = {"name": "Test Role", "description": "Test Description", "permissions[]": [1], "tlp_level": "clear"}
     response = authenticated_client.put(url_for("admin.edit_role", role_id=1), headers=htmx_header, data=role)
     assert response.status_code == 200

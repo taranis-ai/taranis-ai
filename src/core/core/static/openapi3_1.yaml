@@ -1885,7 +1885,7 @@ paths:
           content:
             'application/json': { }
             'application/xml': { }
-  /config/word-lists/{word_list_id}/gather:
+  /config/word-lists/gather/{word_list_id}:
     parameters:
       - name: word_list_id
         in: path
@@ -1894,7 +1894,7 @@ paths:
           type: integer
           minimum: 1
           maximum: 100000
-    put:
+    post:
       tags: [config]
       operationId: WordListGather
       description: gather wordlist entries
