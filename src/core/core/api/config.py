@@ -678,7 +678,6 @@ class WordLists(MethodView):
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
-        logger.debug(f"Updating word list {word_list_id} with data: {request.json}")
         if data := request.json:
             return word_list.WordList.update(word_list_id, data)
         return {"error": "No data provided"}, 400
