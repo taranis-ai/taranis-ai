@@ -175,7 +175,7 @@ export default defineComponent({
         title: 'main_menu.dashboard',
         icon: 'mdi-view-dashboard-variant-outline',
         permission: 'ASSESS_ACCESS',
-        route: '/'
+        href: '/frontend'
       },
       {
         title: 'main_menu.assess',

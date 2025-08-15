@@ -1,10 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="p-8" id="cluster">
-    <div class="text-3xl font-bold mb-4">Cluster: {{ data }}</div>
+{% from 'dashboard/cards.html' import trending_card with context %}
 
-    <span>TODO: IMPLEMENT</span>
-
+<div class="p-8" id="cluster">
+  {% call trending_card(data) %}
+  {% if dashboard_config['show_charts'] == 'Yes' and data.name == 'Country' %}
+  <div class="flex-grow">
+    {{ country_chart | safe }}
   </div>
+  {% endif %}
+  {% endcall %}
+</div>
 {% endblock content %}

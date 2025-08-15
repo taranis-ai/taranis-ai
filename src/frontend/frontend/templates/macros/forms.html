@@ -77,8 +77,8 @@
     type="checkbox"
     value="{{ yes_val }}"
     class="toggle toggle-primary {{ input_class }}"
-    {% if required %}required{% endif %}
-    {% if value == yes_val %}checked{% endif %}
+    {% if required %} required{% endif %}
+    {% if value == yes_val %} checked{% endif %}
     onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';"
   />
   <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value == yes_val else no_val }}</span>

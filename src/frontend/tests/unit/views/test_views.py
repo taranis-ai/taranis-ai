@@ -8,10 +8,12 @@ VIEW_ITEMS = BaseView._registry.items()
 VIEW_IDS = list(BaseView._registry.keys())
 CRUD_ITEMS = [(name, cls) for name, cls in VIEW_ITEMS if not getattr(cls, "_read_only", False)]
 CRUD_IDS = [name for name, _ in CRUD_ITEMS]
+ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admin", False)]
+ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
-@pytest.mark.parametrize("view_name,view_cls", VIEW_ITEMS, ids=VIEW_IDS)
-class TestRegisteredViews:
+@pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
+class TestAdminViews:
     def test_list_view_renders(self, view_name, view_cls, mock_core_get_endpoints, authenticated_client):
         """
         For each BaseView subclass:

@@ -62,10 +62,12 @@ class WordList(BaseModel):
                 self.add_usage(WordListUsage[usage])
 
     def update_usage(self, usage: list[str] | int):
+        logger.debug(f"before update usage {self.usage}")
         if isinstance(usage, list):
             self.from_usage_list(usage)
         elif isinstance(usage, int) and self.is_valid_usage(usage):
             self.usage = usage
+        logger.debug(f"after update usage {self.usage}")
 
     def is_valid_usage(self, usage: int) -> bool:
         if usage == WordListUsage.COLLECTOR_INCLUDELIST and self.usage & WordListUsage.COLLECTOR_EXCLUDELIST:
