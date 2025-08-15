@@ -360,21 +360,32 @@ def full_story_with_multiple_items_id(fake_source):
         Story.delete_all()
 
 
-@pytest.fixture(scope="function")
-def worker_story(client, news_items, api_header, auth_header):
-    story_data = {
-        "title": "Test title",
-        "attributes": [{"key": "hey", "value": "hou"}],
-        "news_items": news_items,
-    }
-    response = client.post("/api/worker/stories", json=story_data, headers=api_header)
-    assert response.status_code == 200, "Story has not been created by using the worker endpoint"
-    story_id = response.get_json().get("story_id")
-    assert story_id is not None
-    yield story_id, story_data
-    # Cleanup after test
-    del_response = client.delete(f"/api/assess/story/{story_id}", headers=auth_header)
-    assert del_response.status_code == 200, "Story has not been deleted by using the assess endpoint"
+@pytest.fixture(scope="class")
+def misp_story_from_news_items(app, news_items):
+    # TODO this function should be a class fixture but some tests fail even though the creation of the data should be the same as before this commit
+
+    from core.model.story import Story, NewsItem, StoryNewsItemAttribute
+
+    story_data = [
+        {
+            "id": "c285fe34-474d-4197-8b1a-564ee46e13f5",
+            "title": "Test title",
+            "attributes": [{"key": "hey", "value": "hou"}],
+            "news_items": news_items,
+        }
+    ]
+    story_ids = []
+    with app.app_context():
+        result, _ = Story.add_or_update_for_misp(story_data)
+        story_ids = result.get("details", {}).get("story_ids", [])
+        assert story_ids, f"Should be story ids, got {result.get('details', {}).get('errors')}"
+        assert len(story_ids) == 1
+
+        yield story_ids[0], story_data[0]
+
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()
 
 
 @pytest.fixture(scope="class")

@@ -4,9 +4,9 @@ class TestStoryAssessWorkerUpdates:
     base_uri_connectors = "/api/connectors"
 
     def test_prevent_item_deletion_on_grouping(
-        self, client, worker_story, full_story_with_multiple_items_id, worker_story_update_payload_1, api_header, auth_header
+        self, client, misp_story_from_news_items, full_story_with_multiple_items_id, worker_story_update_payload_1, api_header, auth_header
     ):
-        story_id, _ = worker_story
+        story_id, _ = misp_story_from_news_items
         # assert worker story
         response = client.get(f"{self.base_uri_assess}/story/{story_id}", headers=auth_header)
         assert response.status_code == 200, "Worker story should be fetched successfully"
@@ -51,8 +51,8 @@ class TestStoryAssessWorkerUpdates:
         story_data["id"] = story_id
         update_resp = client.post(f"{self.base_uri_worker}/stories/misp", json=[story_data], headers=api_header)
         assert update_resp.status_code == 409
-        assert isinstance(update_resp.get_json().get("details"), list)
-        assert update_resp.get_json().get("details")[0].get("conflict", {}).get("local", {}).get("id") == story_id
+        assert isinstance(update_resp.get_json().get("details"), dict)
+        assert update_resp.get_json().get("details").get("errors")[0].get("conflict", {}).get("local", {}).get("id") == story_id
 
         # Check if story stayed intact
         response = client.get(f"{self.base_uri_assess}/story/{story_id}", headers=auth_header)
@@ -97,3 +97,10 @@ class TestStoryAssessWorkerUpdates:
         assert response_data.get("news_items")[0].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]
         assert response_data.get("news_items")[1].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]
         assert response_data.get("news_items")[2].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]
+
+    def test_story_conflict_store_update(
+        self, client, misp_story_from_news_items, full_story_with_multiple_items_id, worker_story_update_payload_1, api_header, auth_header
+    ):
+        story_id, _ = misp_story_from_news_items
+        # assert
+        # response = client.get(f"{self.base_uri_assess}/story/{story_id}", headers=auth_header)

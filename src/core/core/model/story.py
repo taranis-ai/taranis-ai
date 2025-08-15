@@ -462,17 +462,17 @@ class Story(BaseModel):
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
         try:
-            if data.get("tags"):
-                data["tags"] = NewsItemTag.unify_tags(data["tags"])
-            if data.get("attributes"):
-                data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(data["attributes"])
+            if tags := data.get("tags"):
+                data["tags"] = NewsItemTag.unify_tags(tags)
+            if attributes := data.get("attributes"):
+                data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
             StorySearchIndex.prepare(story)
             if (
                 story.news_items[0].osint_source_id == "manual"
-            ):  # TODO: This is a suboptimal check covering normal use cases, but will be refactored within PR#523
+            ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
                 story.update_status()
             else:
                 story.update_status(change="external")
@@ -519,14 +519,17 @@ class Story(BaseModel):
             return {"error": "No data provided"}, 400
         prepared_stories = cls.prepare_misp_stories(data, force=force)
         results = []
+        story_ids = []
         for story in prepared_stories:
             result, status = cls.add_or_update(story)
             if status != 200:
                 results.append(result)
+            elif status == 200:
+                story_ids.append(result.get("story_id", result.get("id", result)))
 
         if results:
-            return {"error": "Some stories could not be added", "details": results}, status
-        return {"message": "Stories added successfully"}, 200
+            return {"error": "Some stories could not be added", "details": {"errors": results}}, status
+        return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:

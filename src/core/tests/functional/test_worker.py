@@ -211,6 +211,34 @@ class TestWorkerApi:
         assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1  # TLP is automatically added
 
+    def test_worker_post_to_misp_endpoint(self, client, full_story: list[dict], api_header):
+        """Test if MISP endpoint handles updates without conflicts correctly"""
+        story_id = full_story[0].get("id")
+
+        response = client.post(
+            f"{self.base_uri}/stories/misp",
+            json=[full_story[0]],
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        result = response.get_json()
+        assert result.get("message") == "Stories added or updated successfully"
+        assert result.get("details").get("story_ids")[0] == story_id
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            headers=api_header,
+            query_string={"story_id": story_id},
+        )
+        assert response.status_code == 200
+        story = response.get_json()[0]
+        assert story.get("id") == story_id
+        assert story.get("title") == full_story[0].get("title")
+        assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
+        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
+
     def test_worker_put_tags(self, client, stories, api_header):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]

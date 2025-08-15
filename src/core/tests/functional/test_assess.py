@@ -24,8 +24,8 @@ class TestAssessApi(BaseTest):
         item_ids = [item["id"] for item in items]
         assert "manual" in item_ids
 
-    def test_worker_story_creation_and_persistence(self, client, worker_story, auth_header):
-        story_id, input_data = worker_story
+    def test_worker_story_creation_and_persistence(self, client, misp_story_from_news_items, auth_header):
+        story_id, input_data = misp_story_from_news_items
 
         response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
         assert response.status_code == 200
@@ -43,6 +43,9 @@ class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"
 
     def test_post_AddNewsItem(self, client, cleanup_news_item, auth_header):
+        response = self.assert_get_ok(client, "news-items", auth_header)
+        assert len(response.get_json()["items"]) == 0, f"No news items should exist, found {response.get_json()['items']}"
+
         response = self.assert_post_ok(client, "news-items", cleanup_news_item, auth_header)
         assert uuid.UUID(response.get_json()["story_id"], version=4)
 
