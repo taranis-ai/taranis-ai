@@ -31,8 +31,6 @@ from core.model import (
     task,
     worker,
 )
-from core.model.news_item_conflict import NewsItemConflict
-from core.model.story_conflict import StoryConflict
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
@@ -528,8 +526,6 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
-        StoryConflict.flush_store()
-        NewsItemConflict.flush_store()
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
                 return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.to_task_id())

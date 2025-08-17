@@ -44,7 +44,6 @@ class StoryConflicts(MethodView):
             return {"error": "No story_id provided"}, 400
         resolved_story = request.json.get("resolution", {})
         incoming_story_original = request.json.get("incoming_story_original", {})
-        remaining_stories = request.json.get("remaining_stories", [])
         conflict = StoryConflict.conflict_store.get(story_id)
         if conflict is None:
             logger.error(f"No conflict found for story {story_id}")
@@ -54,7 +53,7 @@ class StoryConflicts(MethodView):
         if code != 200:
             Story.add_or_update(incoming_story_original)
         else:
-            NewsItemConflict.reevaluate_conflicts(remaining_stories)
+            NewsItemConflict.reevaluate_conflicts()
         return response, code
 
 

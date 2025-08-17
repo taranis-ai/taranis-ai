@@ -29,7 +29,10 @@
           >
             <v-expansion-panel-title>
               <div class="d-flex justify-space-between align-center w-100">
-                <span>Story ID: {{ conflict.storyId }}</span>
+                <span class="truncate-story-title">
+                  Story ID: {{ conflict.storyId }} —
+                  {{ getConflictTitle(conflict) }}
+                </span>
                 <v-btn
                   v-if="conflict.hasProposals"
                   small
@@ -53,6 +56,18 @@
             </v-expansion-panel-title>
 
             <v-expansion-panel-text>
+              <!-- left/right legend -->
+              <div
+                class="mergely-legend d-flex justify-space-between align-center"
+              >
+                <v-chip small color="grey" text-color="white" label
+                  >Local (left)</v-chip
+                >
+                <v-chip small color="primary" text-color="white" label>
+                  Incoming / External (right) — used for resolution
+                </v-chip>
+              </div>
+
               <div
                 :id="`mergely-editor-${conflict.storyId}`"
                 class="mergely-editor"
@@ -63,7 +78,7 @@
                   color="primary"
                   @click="getMergedContentForConflict(conflict.storyId)"
                 >
-                  Get Right Side
+                  Get Right Side (Incoming)
                 </v-btn>
 
                 <v-btn
@@ -141,6 +156,9 @@
                 <v-col cols="6">
                   <v-card outlined>
                     <v-card-subtitle>Incoming Story</v-card-subtitle>
+                    <v-card-subtitle class="pt-0 text-caption text--secondary">
+                      ID: {{ group.fullStory.id }}
+                    </v-card-subtitle>
                     <v-card-text>
                       <div class="text-h6 mb-2">{{ group.title }}</div>
                       <ul class="news-item-list">
@@ -168,51 +186,47 @@
                   >
                     <v-card outlined class="mb-4">
                       <v-card-subtitle class="pb-0">
-                        <div
-                          class="d-flex flex-wrap justify-space-between align-start w-100"
-                        >
-                          <div style="min-width: 0; max-width: 70%">
-                            <div class="font-weight-medium">Internal Story</div>
-                            <div class="text-caption text-muted">
-                              ID: {{ cluster.id }} — Items:
-                              {{ cluster.summary?.news_item_count ?? 0 }} —
-                              Relevance:
-                              {{ cluster.summary?.relevance ?? 'n/a' }}
-                            </div>
-                          </div>
-                          <div
-                            class="d-flex flex-wrap justify-end"
-                            style="gap: 6px; max-width: 30%"
+                        Internal Story
+                      </v-card-subtitle>
+                      <v-card-subtitle
+                        class="pt-0 text-caption text--secondary d-flex justify-space-between align-start"
+                      >
+                        <span class="truncate-meta">
+                          ID: {{ cluster.id }} — Items:
+                          {{ cluster.summary?.news_item_count ?? 0 }} —
+                          Relevance:
+                          {{ cluster.summary?.relevance ?? 'n/a' }}
+                        </span>
+
+                        <span class="d-flex flex-wrap justify-end chip-group">
+                          <v-chip
+                            v-if="duplicateInternalStoryIds.has(cluster.id)"
+                            color="info"
+                            text-color="white"
+                            small
+                            label
                           >
-                            <v-chip
-                              v-if="duplicateInternalStoryIds.has(cluster.id)"
-                              color="info"
-                              text-color="white"
-                              small
-                              label
-                            >
-                              Appears in multiple conflicts
-                            </v-chip>
-                            <v-chip
-                              v-if="conflictingStoryIds.has(cluster.id)"
-                              color="error"
-                              text-color="white"
-                              small
-                              label
-                            >
-                              Has conflicting update
-                            </v-chip>
-                            <v-chip
-                              v-if="cluster.summary?.is_misp_story"
-                              color="deep-purple"
-                              text-color="white"
-                              small
-                              label
-                            >
-                              MISP
-                            </v-chip>
-                          </div>
-                        </div>
+                            Appears in multiple conflicts
+                          </v-chip>
+                          <v-chip
+                            v-if="conflictingStoryIds.has(cluster.id)"
+                            color="error"
+                            text-color="white"
+                            small
+                            label
+                          >
+                            Has conflicting update
+                          </v-chip>
+                          <v-chip
+                            v-if="cluster.summary?.is_misp_story"
+                            color="deep-purple"
+                            text-color="white"
+                            small
+                            label
+                          >
+                            MISP
+                          </v-chip>
+                        </span>
                       </v-card-subtitle>
                       <v-card-text>
                         <div class="mb-2">
@@ -283,8 +297,22 @@
         </div>
       </v-card-text>
     </v-card>
+    <!-- Snackbar -->
+    <v-snackbar
+      v-model="snackbar"
+      :timeout="snackbarTimeout"
+      :color="snackbarColor"
+      location="bottom right"
+      elevation="4"
+    >
+      {{ snackbarMessage }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar = false">Close</v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
+
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -309,28 +337,49 @@ const mergedContents = ref({})
 const snackbar = ref(false)
 const snackbarMessage = ref('')
 const snackbarColor = ref('error')
+const snackbarTimeout = ref(3000)
 
-function showToast(message, color = 'error') {
+function showToast(message, color = 'error', timeoutMs = 3000) {
   snackbarMessage.value = message
   snackbarColor.value = color
+  snackbarTimeout.value = timeoutMs
   snackbar.value = true
 }
 
+function extractTitleFromJsonString(jsonString) {
+  try {
+    const parsed = JSON.parse(jsonString || '{}')
+    return parsed?.title || parsed?.summary?.title || 'Untitled'
+  } catch {
+    return 'Untitled'
+  }
+}
+
+function getConflictTitle(conflict) {
+  if (conflict?._title) return conflict._title
+  const preferred = extractTitleFromJsonString(conflict?.updated)
+  const fallback = extractTitleFromJsonString(conflict?.original)
+  const resolved = preferred !== 'Untitled' ? preferred : fallback
+  conflict._title = resolved
+  return resolved
+}
+
 function initMergelyForConflict(conflict) {
-  const id = `mergely-editor-${conflict.storyId}`
-  const el = document.getElementById(id)
-  if (!el) return
-  const waitVisible = (cb) => {
+  const elementId = `mergely-editor-${conflict.storyId}`
+  const editorElement = document.getElementById(elementId)
+  if (!editorElement) return
+  const waitVisible = (callback) => {
     const isVisible = () => {
-      const rect = el.getBoundingClientRect()
-      return rect.width && rect.height && el.offsetParent
+      const rect = editorElement.getBoundingClientRect()
+      return rect.width && rect.height && editorElement.offsetParent
     }
-    const check = () => (isVisible() ? cb() : requestAnimationFrame(check))
+    const check = () =>
+      isVisible() ? callback() : requestAnimationFrame(check)
     requestAnimationFrame(check)
   }
   waitVisible(() => {
     try {
-      const doc = new Mergely(`#${id}`, {
+      const doc = new Mergely(`#${elementId}`, {
         license: 'gpl',
         lhs: conflict.original,
         rhs: conflict.updated,
@@ -338,8 +387,8 @@ function initMergelyForConflict(conflict) {
       })
       doc.once('updated', () => doc.scrollToDiff('next'))
       conflict.mergelyInstance = doc
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      console.error(error)
     }
   })
 }
@@ -354,13 +403,16 @@ function destroyMergely(conflict) {
 }
 
 async function getMergedContentForConflict(storyId) {
-  const c = storyConflicts.value.find((x) => x.storyId === storyId)
-  if (!c?.mergelyInstance) return showToast(`Editor not ready for ${storyId}`)
+  const foundConflict = storyConflicts.value.find(
+    (conf) => conf.storyId === storyId
+  )
+  if (!foundConflict?.mergelyInstance)
+    return showToast(`Editor not ready for ${storyId}`)
   await nextTick()
-  const text = c.mergelyInstance.get('rhs')
+  const rightText = foundConflict.mergelyInstance.get('rhs')
   try {
-    JSON.parse(text)
-    mergedContents.value[storyId] = text
+    JSON.parse(rightText)
+    mergedContents.value[storyId] = rightText
     showToast(`Valid JSON for ${storyId}`, 'success')
   } catch {
     showToast(`Invalid JSON for ${storyId}`, 'error')
@@ -369,23 +421,23 @@ async function getMergedContentForConflict(storyId) {
 
 const groupedNewsItemConflicts = computed(() => {
   const groups = {}
-  for (const c of newsItemConflicts.value) {
-    const id = c.incoming_story_id
-    if (!groups[id]) {
-      groups[id] = {
-        title: c.incoming_story?.title || 'Untitled',
-        fullStory: c.incoming_story,
+  for (const conflict of newsItemConflicts.value) {
+    const incomingId = conflict.incoming_story_id
+    if (!groups[incomingId]) {
+      groups[incomingId] = {
+        title: conflict.incoming_story?.title || 'Untitled',
+        fullStory: conflict.incoming_story,
         conflicts: []
       }
     }
-    groups[id].conflicts.push(c)
+    groups[incomingId].conflicts.push(conflict)
   }
   Object.values(groups).forEach((group) => {
     group.existingClusters = [
-      ...new Set(group.conflicts.map((x) => x.existing_story_id))
-    ].map((id) => ({
-      id,
-      summary: storySummaries.value[id]
+      ...new Set(group.conflicts.map((entry) => entry.existing_story_id))
+    ].map((existingId) => ({
+      id: existingId,
+      summary: storySummaries.value[existingId]
     }))
   })
   return groups
@@ -394,24 +446,38 @@ const groupedNewsItemConflicts = computed(() => {
 const allNewsItemConflictStories = computed(() =>
   Object.values(groupedNewsItemConflicts.value).map((group) => group.fullStory)
 )
+function dropStoryConflictCard(storyId) {
+  const indexToRemove = storyConflicts.value.findIndex(
+    (conflictItem) => conflictItem.storyId === storyId
+  )
+  if (indexToRemove !== -1) {
+    destroyMergely(storyConflicts.value[indexToRemove])
+    storyConflicts.value.splice(indexToRemove, 1)
+  }
+  openPanels.value = []
+  prevPanels.value = []
+  delete mergedContents.value[storyId]
+}
 
 async function submitResolution(storyId) {
-  const conflict = storyConflicts.value.find((x) => x.storyId === storyId)
-  if (!conflict) return showToast('Conflict not found')
+  const conflict = storyConflicts.value.find(
+    (conflictItem) => conflictItem.storyId === storyId
+  )
+  if (!conflict) return showToast('Conflict not found', 'error')
 
-  const txt = mergedContents.value[storyId]
-  if (!txt) return showToast('Get right side first')
+  const editedText = mergedContents.value[storyId]
+  if (!editedText) return showToast('Get right side first', 'warning')
 
   let editedResolution
   try {
-    editedResolution = JSON.parse(txt)
+    editedResolution = JSON.parse(editedText)
   } catch {
     return showToast('Invalid JSON after editing', 'error')
   }
 
-  let originalRHS
+  let originalRightJson
   try {
-    originalRHS = JSON.parse(conflict.updated)
+    originalRightJson = JSON.parse(conflict.updated)
   } catch {
     return showToast('Invalid original RHS JSON (unedited)', 'error')
   }
@@ -419,27 +485,45 @@ async function submitResolution(storyId) {
   try {
     await resolveStoryConflictById(storyId, {
       resolution: editedResolution,
-      incoming_story_original: originalRHS,
+      incoming_story_original: originalRightJson,
       remaining_stories: allNewsItemConflictStories.value
     })
 
-    destroyMergely(conflict)
-    const idx = storyConflicts.value.findIndex((x) => x.storyId === storyId)
-    storyConflicts.value.splice(idx, 1)
-    openPanels.value = []
-    prevPanels.value = []
-    delete mergedContents.value[storyId]
-    showToast(`Story ${storyId} resolved`, 'success')
-  } catch (err) {
-    console.error(err)
-    showToast(`Failed resolving ${storyId}`, 'error')
+    await reloadNewsItemConflictViewState()
+    showToast(`Story ${storyId} resolved`, 'success', 3000)
+  } catch (error) {
+    const statusCode = error?.response?.status
+
+    if (statusCode === 404) {
+      showToast(
+        'Conflict is not there anymore. It may have been resolved elsewhere.',
+        'info',
+        4000
+      )
+    } else if (statusCode === 409) {
+      await reloadNewsItemConflictViewState()
+      showToast(
+        'There is a news item conflict. Resolve it below.',
+        'warning',
+        6000
+      )
+    } else {
+      const serverText =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unknown error'
+      showToast(`Failed to update ${storyId}: ${serverText}`, 'error', 6000)
+    }
+  } finally {
+    dropStoryConflictCard(storyId)
   }
 }
 
 function scrollToNextDiff(storyId) {
   try {
     storyConflicts.value
-      .find((x) => x.storyId === storyId)
+      .find((conf) => conf.storyId === storyId)
       ?.mergelyInstance.scrollToDiff('next')
   } catch {
     showToast('Scroll error', 'error')
@@ -448,12 +532,12 @@ function scrollToNextDiff(storyId) {
 
 function onPanelsUpdated(panels) {
   prevPanels.value
-    .filter((i) => !panels.includes(i))
-    .forEach((i) => destroyMergely(storyConflicts.value[i]))
+    .filter((indexValue) => !panels.includes(indexValue))
+    .forEach((indexValue) => destroyMergely(storyConflicts.value[indexValue]))
   panels
-    .filter((i) => !prevPanels.value.includes(i))
-    .forEach((i) =>
-      nextTick(() => initMergelyForConflict(storyConflicts.value[i]))
+    .filter((indexValue) => !prevPanels.value.includes(indexValue))
+    .forEach((indexValue) =>
+      nextTick(() => initMergelyForConflict(storyConflicts.value[indexValue]))
     )
   prevPanels.value = [...panels]
 }
@@ -465,33 +549,43 @@ async function reloadNewsItemConflictViewState() {
 }
 
 const conflictingStoryIds = computed(
-  () => new Set(storyConflicts.value.map((c) => c.storyId))
+  () => new Set(storyConflicts.value.map((conf) => conf.storyId))
 )
 
 const incomingIdsMap = computed(() => {
   const map = {}
-  Object.entries(groupedNewsItemConflicts.value).forEach(([id, group]) => {
-    map[id] = new Set(group.fullStory.news_items?.map((x) => x.id) || [])
-  })
+  Object.entries(groupedNewsItemConflicts.value).forEach(
+    ([incomingId, group]) => {
+      map[incomingId] = new Set(
+        group.fullStory.news_items?.map((item) => item.id) || []
+      )
+    }
+  )
   return map
 })
 
 const existingIdsMap = computed(() => {
   const map = {}
-  Object.entries(groupedNewsItemConflicts.value).forEach(([id, group]) => {
-    const set = new Set()
-    group.existingClusters.forEach((cluster) => {
-      cluster.summary?.news_item_data?.forEach((ni) => ni.id && set.add(ni.id))
-    })
-    map[id] = set
-  })
+  Object.entries(groupedNewsItemConflicts.value).forEach(
+    ([incomingId, group]) => {
+      const idSet = new Set()
+      group.existingClusters.forEach((cluster) => {
+        cluster.summary?.news_item_data?.forEach(
+          (newsItem) => newsItem.id && idSet.add(newsItem.id)
+        )
+      })
+      map[incomingId] = idSet
+    }
+  )
   return map
 })
 
 function hasUniqueItems(storyId) {
   const group = groupedNewsItemConflicts.value[storyId]
   const existing = existingIdsMap.value[storyId] || new Set()
-  return group.fullStory.news_items?.some((item) => !existing.has(item.id))
+  return group.fullStory.news_items?.some(
+    (newsItem) => !existing.has(newsItem.id)
+  )
 }
 
 function handleKeepInternal(storyId) {
@@ -500,8 +594,8 @@ function handleKeepInternal(storyId) {
   const incomingNewsItems = group.fullStory.news_items || []
   const existing = existingIdsMap.value[storyId] || new Set()
   const skippedConflictingIds = incomingNewsItems
-    .filter((item) => existing.has(item.id))
-    .map((item) => item.id)
+    .filter((newsItem) => existing.has(newsItem.id))
+    .map((newsItem) => newsItem.id)
   keepInternalIngestNewsItems(storyId, incomingNewsItems, skippedConflictingIds)
 }
 
@@ -515,15 +609,15 @@ async function keepInternalIngestNewsItems(
     return
   }
   try {
-    const data = await resolveIngestUniqueNewsItems(
+    const result = await resolveIngestUniqueNewsItems(
       storyId,
       incomingNewsItems,
       resolvedConflictIds,
       Object.entries(groupedNewsItemConflicts.value).map(
-        ([_, otherGroup]) => otherGroup.fullStory
+        ([, otherGroup]) => otherGroup.fullStory
       )
     )
-    showToast(`Ingested ${data.added?.length || 0} item(s)`, 'success')
+    showToast(`Ingested ${result.added?.length || 0} item(s)`, 'success')
     await reloadNewsItemConflictViewState()
   } catch (error) {
     console.error('Error ingesting unique news items:', error)
@@ -533,8 +627,8 @@ async function keepInternalIngestNewsItems(
 
 async function replaceWithIncoming(storyId, newsItems) {
   const group = groupedNewsItemConflicts.value[storyId]
-  const existingIds = group.existingClusters.map((c) => c.id)
-  const newsItemIds = (newsItems || []).map((item) => item.id)
+  const existingIds = group.existingClusters.map((cluster) => cluster.id)
+  const newsItemIds = (newsItems || []).map((newsItem) => newsItem.id)
   snackbarMessage.value = 'Reevaluating conflicts...'
   snackbarColor.value = 'info'
   snackbar.value = true
@@ -545,14 +639,14 @@ async function replaceWithIncoming(storyId, newsItems) {
       existing_story_ids: existingIds,
       incoming_news_item_ids: newsItemIds,
       remaining_stories: Object.entries(groupedNewsItemConflicts.value).map(
-        ([_, otherGroup]) => otherGroup.fullStory
+        ([, otherGroup]) => otherGroup.fullStory
       )
     })
     snackbarMessage.value = `Replaced clusters for ${storyId}`
     snackbarColor.value = 'success'
     await reloadNewsItemConflictViewState()
-  } catch (err) {
-    console.error(err)
+  } catch (error) {
+    console.error(error)
     snackbarMessage.value = 'Failed to resolve conflict'
     snackbarColor.value = 'error'
   } finally {
@@ -577,23 +671,23 @@ const duplicateInternalStoryIds = computed(() => {
   }
   return new Set(
     Object.entries(mapping)
-      .filter(([_, set]) => set.size > 1)
-      .map(([storyId]) => storyId)
+      .filter(([, incomingSet]) => incomingSet.size > 1)
+      .map(([storyKey]) => storyKey)
   )
 })
 
 const duplicateIncomingNewsItemIds = computed(() => {
   const idCounts = {}
   Object.values(groupedNewsItemConflicts.value).forEach((group) => {
-    for (const item of group.fullStory.news_items || []) {
-      if (!item?.id) continue
-      idCounts[item.id] = (idCounts[item.id] || 0) + 1
+    for (const newsItem of group.fullStory.news_items || []) {
+      if (!newsItem?.id) continue
+      idCounts[newsItem.id] = (idCounts[newsItem.id] || 0) + 1
     }
   })
   return new Set(
     Object.entries(idCounts)
-      .filter(([_, count]) => count > 1)
-      .map(([id]) => id)
+      .filter(([, count]) => count > 1)
+      .map(([newsItemId]) => newsItemId)
   )
 })
 
@@ -609,6 +703,10 @@ onMounted(async () => {
   border: 1px solid #ccc;
   height: 1000px;
 }
+.mergely-legend {
+  margin-bottom: 6px;
+}
+
 .merged-pre {
   white-space: pre-wrap;
   word-break: break-word;
@@ -626,51 +724,42 @@ onMounted(async () => {
   color: inherit;
   transition: color 0.2s ease;
 }
-
 .story-link:hover {
   text-decoration: underline;
   color: #1976d2;
 }
-
 .internal-story-meta {
   line-height: 1.3;
 }
-
 .text-muted {
   color: #6c757d;
   font-size: 0.85rem;
 }
-
 .news-item-list {
   padding-left: 1.25rem;
   margin: 0;
 }
-
 .news-item-list li {
   margin-bottom: 0.25rem;
 }
-
 .item-grey {
   color: grey;
   opacity: 0.6;
 }
-
 .item-red {
   color: red;
 }
-
 .item-blue {
   color: #074b86;
   font-weight: 500;
 }
 .news-conflict-group {
-  background: white; /* makes them float on the grey sheet */
+  background: white;
   border-radius: 8px;
 }
 .news-conflict-group + .news-conflict-group {
-  margin-top: 1.5rem; /* extra separation between groups */
+  margin-top: 1.5rem;
 }
-/* If you want a colored accent stripe on the left: */
 .news-conflict-group {
   position: relative;
   padding-left: 1rem;
@@ -682,8 +771,29 @@ onMounted(async () => {
   top: 0;
   width: 4px;
   height: 100%;
-  background-color: #ffc107; /* amber accent */
+  background-color: #ffc107;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
 }
+
+.truncate-meta {
+  min-width: 0;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-group {
+  gap: 6px;
+  max-width: 30%;
+}
+
+.truncate-story-title {
+  min-width: 0;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
+```

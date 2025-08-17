@@ -66,6 +66,10 @@ class StoryConflict:
                 "osint_source_id",
                 "language",
                 "read",
+                "important",
+                "story_id",
+                "likes",
+                "dislikes",
             }
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]

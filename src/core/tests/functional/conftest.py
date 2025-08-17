@@ -353,7 +353,7 @@ def full_story_with_multiple_items_id(fake_source):
         story[1].get("news_items")[1]["osint_source_id"] = fake_source
 
         result = Story.add(story[1])
-        yield result[0].get("story_id")
+        yield result[0].get("story_id"), story[1]
 
         StoryNewsItemAttribute.delete_all()
         NewsItem.delete_all()
@@ -361,9 +361,7 @@ def full_story_with_multiple_items_id(fake_source):
 
 
 @pytest.fixture(scope="class")
-def misp_story_from_news_items(app, news_items):
-    # TODO this function should be a class fixture but some tests fail even though the creation of the data should be the same as before this commit
-
+def misp_story_from_news_items_id(app, news_items):
     from core.model.story import Story, NewsItem, StoryNewsItemAttribute
 
     story_data = [
@@ -389,7 +387,7 @@ def misp_story_from_news_items(app, news_items):
 
 
 @pytest.fixture(scope="class")
-def worker_story_update_payload_1(news_items, cleanup_news_item):
+def story_conflict_resolution_1(news_items, cleanup_news_item):
     yield {
         "resolution": {
             "title": "Updated Test Story Title",

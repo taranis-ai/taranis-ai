@@ -412,9 +412,9 @@ class Story(BaseModel):
     def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
         message, code = cls.add(data)
         if code != 200 and message.get("error") == "Story already exists":
-            logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
+            logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
             cls.handle_conflicting_news_items(data)
-            return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, 409
+            return {"error": f"Story being added {data['id']} contains existing content. A news item conflict is raised."}, 409
         return message, code
 
     @classmethod
@@ -628,30 +628,44 @@ class Story(BaseModel):
         return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
 
     @classmethod
-    def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
-        if not (current_data := Story.get(id)):
-            return {
-                "message": f"Conflicts were detected, but the internal story with ID {id} was not found. This should not happen, raise an issue"
-            }, 400
-        has_proposals: str | None = None
-        if attributes := data.get("attributes", {}):
-            attributes = NewsItemAttribute.parse_attributes(attributes)
-            if has_proposal_attribute := attributes.get("has_proposals"):
-                has_proposals = has_proposal_attribute.value
+    def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:
+        from core.model.story import Story
+        from core.model.news_item import NewsItemAttribute  # adjust import if needed
 
-        current_data_dict = current_data.to_worker_dict()  # to_worker_dict() is needed to sort keys easily for conflict resolution
-        current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-        conflict = StoryConflict(
-            story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
-        )
-        logger.warning(f"Story Conflict detected for story {id}")
-        StoryConflict.conflict_store[id] = conflict
+        current_story = Story.get(story_id)
+        if not current_story:
+            return {
+                "message": f"Conflicts were detected, but the internal story with ID {story_id} was not found. This should not happen, raise an issue"
+            }, 400
+
+        has_proposals_value: str | None = None
+        if attributes_map := upstream_data.get("attributes", {}):
+            attributes_map = NewsItemAttribute.parse_attributes(attributes_map)
+            if proposals_attr := attributes_map.get("has_proposals"):
+                has_proposals_value = proposals_attr.value
+
+        current_full = current_story.to_worker_dict()
+
+        original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
+
+        existing_conflict = StoryConflict.conflict_store.get(story_id)
+        if existing_conflict:
+            existing_conflict.original = original_str
+            existing_conflict.updated = updated_str
+            existing_conflict.has_proposals = has_proposals_value
+            logger.debug(f"Updated existing conflict for story {story_id}")
+        else:
+            StoryConflict.conflict_store[story_id] = StoryConflict(
+                story_id=story_id,
+                original=original_str,
+                updated=updated_str,
+                has_proposals=has_proposals_value,
+            )
+            logger.warning(f"Story Conflict detected for story {story_id}")
+
         return {
             "warning": "Story Conflict detected",
-            "conflict": {
-                "local": current_data_dict,
-                "new": data,
-            },
+            "conflict": {"local": current_full, "new": upstream_data},
         }, 409
 
     @classmethod
@@ -664,28 +678,28 @@ class Story(BaseModel):
         if not incoming_story_id:
             return {"error": "Missing story ID"}, 400
 
-        conflicts = []
-
+        # Build the new conflict set for this story (dedup by news_item_id)
+        entries: list[dict] = []
         for news_item in news_items:
-            news_item_id = news_item.get("id")
-            if not news_item_id:
-                continue
+            if news_item_id := news_item.get("id"):
+                if existing_item := NewsItem.get(news_item_id):
+                    existing_story_id = existing_item.story_id
+                    # # optional guard: don't flag “self-conflict”
+                    # if existing_story_id == incoming_story_id:
+                    #     continue
+                    entries.append(
+                        {
+                            "news_item_id": news_item_id,
+                            "existing_story_id": existing_story_id,
+                            "incoming_story_data": data,  # set_for_story/register will deep-copy
+                        }
+                    )
 
-            if existing_item := NewsItem.get(news_item_id):
-                existing_news_item = existing_item
-                existing_story_id = existing_news_item.story_id
-                logger.debug(f"CONFLICT: incoming {news_item_id} already in story {existing_story_id}")
-                conflict = NewsItemConflict.register(
-                    incoming_story_id=incoming_story_id,
-                    news_item_id=news_item_id,
-                    existing_story_id=existing_story_id,
-                    incoming_story_data=data,
-                )
-                conflicts.append(conflict.to_dict())
+        # Atomically replace all conflicts for this incoming story
+        count = NewsItemConflict.set_for_story(incoming_story_id, entries)
 
-        if conflicts:
-            return {"error": {"conflicts_number": len(conflicts)}}, 409
-
+        if count:
+            return {"error": {"conflicts_number": count}}, 409
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
