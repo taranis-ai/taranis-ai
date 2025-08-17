@@ -63,7 +63,6 @@
     <div class="card bg-base-100 shadow-xl p-3">
       <div class="card-body">
         <h2 class="card-title">Frontend Actions</h2>
-        {{ frontend_actions }}
           {% for action in frontend_actions %}
             <button class="btn btn-primary" hx-post="{{ action.url }}">{{ action.label }}</button>
           {% endfor %}

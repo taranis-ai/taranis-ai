@@ -2,6 +2,7 @@ import json
 import secrets
 from werkzeug.security import generate_password_hash
 from typing import Any, Sequence
+from copy import deepcopy
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
 
@@ -168,7 +169,7 @@ class User(BaseModel):
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
-        updated_profile = user.profile.copy()
+        updated_profile = deepcopy(user.profile)
         updated_profile.update(data)
 
         user.profile = updated_profile
