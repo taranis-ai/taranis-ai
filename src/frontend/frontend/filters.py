@@ -21,6 +21,7 @@ __all__ = [
     "render_validation_status",
     "badge_class",
     "badge_label",
+    "normalize_validation_status",
 ]
 def badge_class(status):
     """Return the CSS class for a badge based on validation status."""
@@ -38,6 +39,23 @@ def badge_label(status):
     elif status == "invalid":
         return "Invalid"
     return "Unknown"
+
+def normalize_validation_status(status) -> str:
+    """Normalize validation status input to 'valid' | 'invalid' | 'unknown'.
+    Accepts dicts like {is_valid: bool, ...} or strings.
+    """
+    if isinstance(status, dict):
+        is_valid = status.get("is_valid")
+        if is_valid is True:
+            return "valid"
+        if is_valid is False:
+            return "invalid"
+        return "unknown"
+    if isinstance(status, str):
+        s = status.lower().strip()
+        if s in {"valid", "invalid", "unknown"}:
+            return s
+    return "unknown"
 
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")

@@ -95,18 +95,7 @@
         {% if value %}
           {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
           {{ selected_option.name }}
-          {% set status = 'unknown' %}
-          {% if selected_option.validation_status is mapping %}
-            {% if selected_option.validation_status.is_valid is defined %}
-              {% if selected_option.validation_status.is_valid %}
-                {% set status = 'valid' %}
-              {% else %}
-                {% set status = 'invalid' %}
-              {% endif %}
-            {% endif %}
-          {% elif selected_option.validation_status is string %}
-            {% set status = selected_option.validation_status %}
-          {% endif %}
+          {% set status = selected_option.validation_status | normalize_validation_status %}
           <span class="badge {{ status|badge_class }} badge-sm ml-2">
             {{ status|badge_label }}
           </span>
@@ -120,18 +109,7 @@
     </div>
     <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
       {% for option in options %}
-        {% set status = 'unknown' %}
-        {% if option.validation_status is mapping %}
-          {% if option.validation_status.is_valid is defined %}
-            {% if option.validation_status.is_valid %}
-              {% set status = 'valid' %}
-            {% else %}
-              {% set status = 'invalid' %}
-            {% endif %}
-          {% endif %}
-        {% elif option.validation_status is string %}
-          {% set status = option.validation_status %}
-        {% endif %}
+        {% set status = option.validation_status | normalize_validation_status %}
         <a class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
            onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ status }}')">
           <span class="flex-1">{{ option.name }}</span>
