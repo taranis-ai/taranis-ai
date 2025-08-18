@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app/
@@ -21,7 +21,7 @@ RUN /app/build_tailwindcss.sh && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen
 
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 LABEL description="Taranis AI Python Flask HTMX Frontend"
 WORKDIR /app/
