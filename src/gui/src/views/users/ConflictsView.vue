@@ -4,7 +4,7 @@
       <v-card-title>
         Conflicts of the same stories (internal vs external)
         <v-chip v-if="proposalCount" class="ml-2" color="primary" small>
-          You should resolve {{ proposalCount }} proposal(s) before proceeding.
+          Note: {{ proposalCount }} storie(s) have proposal(s).
         </v-chip>
       </v-card-title>
 
@@ -277,8 +277,10 @@
                   <v-btn
                     color="primary"
                     class="mb-1"
-                    :disabled="!hasUniqueItems(storyId)"
-                    @click="handleKeepInternal(storyId)"
+                    :disabled="
+                      !hasUniqueItems(storyId) || ingestInProgress.has(storyId)
+                    "
+                    @click="keepInternalDebounced(storyId)"
                   >
                     Keep Internal & Ingest Unique News Items
                   </v-btn>
@@ -402,6 +404,21 @@ function destroyMergely(conflict) {
   }
 }
 
+let refreshEpoch = 0
+const ingestInProgress = ref(new Set())
+
+function debounce(callback, waitMs = 400) {
+  let timeoutId
+  return (...args) => {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => callback(...args), waitMs)
+  }
+}
+
+const keepInternalDebounced = debounce((storyId) => {
+  handleKeepInternal(storyId)
+}, 400)
+
 async function getMergedContentForConflict(storyId) {
   const foundConflict = storyConflicts.value.find(
     (conf) => conf.storyId === storyId
@@ -489,7 +506,7 @@ async function submitResolution(storyId) {
       remaining_stories: allNewsItemConflictStories.value
     })
 
-    await reloadNewsItemConflictViewState()
+    reloadNewsItemConflictViewStateDebounced()
     showToast(`Story ${storyId} resolved`, 'success', 3000)
   } catch (error) {
     const statusCode = error?.response?.status
@@ -501,7 +518,7 @@ async function submitResolution(storyId) {
         4000
       )
     } else if (statusCode === 409) {
-      await reloadNewsItemConflictViewState()
+      reloadNewsItemConflictViewStateDebounced()
       showToast(
         'There is a news item conflict. Resolve it below.',
         'warning',
@@ -543,10 +560,18 @@ function onPanelsUpdated(panels) {
 }
 
 async function reloadNewsItemConflictViewState() {
+  const localEpoch = ++refreshEpoch
   await loadNewsItemConflicts()
+  if (localEpoch !== refreshEpoch) return
   storySummaries.value = {}
   await loadSummariesPerConflict()
+  if (localEpoch !== refreshEpoch) return
 }
+
+const reloadNewsItemConflictViewStateDebounced = debounce(
+  reloadNewsItemConflictViewState,
+  400
+)
 
 const conflictingStoryIds = computed(
   () => new Set(storyConflicts.value.map((conf) => conf.storyId))
@@ -608,20 +633,25 @@ async function keepInternalIngestNewsItems(
     showToast('Nothing to ingest or resolve', 'info')
     return
   }
+  if (ingestInProgress.value.has(storyId)) return // drop duplicates
+  ingestInProgress.value.add(storyId)
+
   try {
     const result = await resolveIngestUniqueNewsItems(
       storyId,
       incomingNewsItems,
       resolvedConflictIds,
-      Object.entries(groupedNewsItemConflicts.value).map(
-        ([, otherGroup]) => otherGroup.fullStory
+      Object.values(groupedNewsItemConflicts.value).map(
+        (group) => group.fullStory
       )
     )
-    showToast(`Ingested ${result.added?.length || 0} item(s)`, 'success')
-    await reloadNewsItemConflictViewState()
+    showToast(`Ingested ${result.added_ids?.length || 0} item(s)`, 'success')
+    reloadNewsItemConflictViewStateDebounced()
   } catch (error) {
     console.error('Error ingesting unique news items:', error)
     showToast('Failed to ingest unique news items')
+  } finally {
+    ingestInProgress.value.delete(storyId)
   }
 }
 
@@ -644,7 +674,7 @@ async function replaceWithIncoming(storyId, newsItems) {
     })
     snackbarMessage.value = `Replaced clusters for ${storyId}`
     snackbarColor.value = 'success'
-    await reloadNewsItemConflictViewState()
+    reloadNewsItemConflictViewStateDebounced()
   } catch (error) {
     console.error(error)
     snackbarMessage.value = 'Failed to resolve conflict'
@@ -694,7 +724,7 @@ const duplicateIncomingNewsItemIds = computed(() => {
 onMounted(async () => {
   await store.loadStoryConflicts()
   await store.fetchProposalCount()
-  await reloadNewsItemConflictViewState()
+  reloadNewsItemConflictViewStateDebounced()
 })
 </script>
 
@@ -796,4 +826,3 @@ onMounted(async () => {
   white-space: nowrap;
 }
 </style>
-```

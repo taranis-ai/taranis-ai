@@ -13,6 +13,7 @@ class NewsItemConflict:
     news_item_id: str
     existing_story_id: str
     incoming_story_data: dict[str, Any]
+    misp_address: str = ""
 
     conflict_store: ClassVar[Dict[str, "NewsItemConflict"]] = {}
     story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
@@ -28,6 +29,7 @@ class NewsItemConflict:
         news_item_id: str,
         existing_story_id: str,
         incoming_story_data: dict[str, Any],
+        misp_address: str = "",
     ) -> "NewsItemConflict":
         key = cls._key(incoming_story_id, news_item_id)
         story_data_copy = copy.deepcopy(incoming_story_data)
@@ -46,6 +48,7 @@ class NewsItemConflict:
             news_item_id=news_item_id,
             existing_story_id=existing_story_id,
             incoming_story_data=story_data_copy,
+            misp_address=misp_address,
         )
         cls.conflict_store[key] = conflict
         logger.debug(f"Registered conflict {key}")
@@ -70,6 +73,7 @@ class NewsItemConflict:
                     news_item_id=entry["news_item_id"],
                     existing_story_id=entry["existing_story_id"],
                     incoming_story_data=payload,
+                    misp_address=entry.get("misp_address", ""),
                 )
                 count += 1
             else:

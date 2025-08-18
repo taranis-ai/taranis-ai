@@ -45,9 +45,8 @@ class MISPCollector(BaseCollector):
 
     def check_for_proposal_existence(self, misp: PyMISP, event_uuid: str) -> bool:
         resp = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
-        data: list = misp._check_json_response(resp)
-        if data and data[0].get("ShadowAttribute").get("org_id") == self.org_id:
-            logger.debug(f"Proposal found for your organisation's event {event_uuid}")
+        if data := misp._check_json_response(resp):
+            logger.debug(f"Proposal found for your organisation's event {event_uuid} and data: {data=}")
             return True
         return False
 
@@ -122,15 +121,14 @@ class MISPCollector(BaseCollector):
         hash_list = []
         unique_news_item_list = []
         for news_item in news_items:
-            if news_item not in hash_list:
+            if news_item.hash not in hash_list:
                 unique_news_item_list.append(news_item)
                 hash_list.append(news_item.hash)
         return unique_news_item_list
 
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
-        MISPCollector.remove_duplicate_news_items(news_items_list)
-        story_properties["news_items"] = news_items_list
+        story_properties["news_items"] = MISPCollector.remove_duplicate_news_items(news_items_list)
         if story_properties.get("attributes"):
             story_properties["attributes"] = MISPCollector.to_new_attribute_dict(story_properties.get("attributes", []))
         if story_properties.get("tags"):
@@ -268,8 +266,7 @@ class MISPCollector(BaseCollector):
 
         if event_object_dicts := event.get("Event", {}).get("Object", {}):
             story_properties, news_items = self.extract_story_data_from_event_objects(event_object_dicts, source)
-            story_news_items = news_items + extended_news_items  # Keep extended events at the end for deduplication
-
+            story_news_items = news_items + extended_news_items  # Adding extended events might be obsolete here
         if not story_properties:
             logger.error(
                 f"The Taranis event is malformed or is just an extended event and does not contain the required properties: {story_properties=}"
@@ -308,6 +305,7 @@ class MISPCollector(BaseCollector):
                 event_ids.add(obj_event_id)
         return event_ids
 
+    # TODO: this looks wrong in general for distribution options (this community and so on)
     def is_sharing_group_match(self, event: dict) -> bool:
         event_sg_id = str(event.get("Event", {}).get("sharing_group_id"))
         return not self.sharing_group_id or event_sg_id == self.sharing_group_id
@@ -324,7 +322,7 @@ class MISPCollector(BaseCollector):
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
         event_ids: set[int] = self.get_taranis_event_ids(misp)
 
-        events: list[dict] = [misp.get_event(event_id, extended=False, pythonify=False) for event_id in event_ids]  # type: ignore
+        events: list[dict] = [misp.get_event(event_id, extended=True, pythonify=False) for event_id in event_ids]  # type: ignore
         story_dicts = self.get_taranis_story_dicts(misp, events, source)
         logger.info(f"{len(story_dicts)} stories have been collected from MISP")
         self.set_story_proposal_status(misp, story_dicts)

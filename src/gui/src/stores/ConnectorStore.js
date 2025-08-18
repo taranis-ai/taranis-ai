@@ -122,7 +122,7 @@ export const useConflictsStore = defineStore('conflicts', () => {
     try {
       const { data } = await resolveAddUniqueNewsItems(payload)
       console.log(
-        `Added: ${data.added?.length || 0}, Skipped: ${resolvedConflictIds.length}`
+        `Added: ${data.added_ids?.length || 0}, Skipped: ${resolvedConflictIds.length}`
       )
       await loadNewsItemConflicts()
       return data

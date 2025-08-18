@@ -82,7 +82,7 @@ class Story(BaseModel):
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
         self.links = links or []
-        self.last_change = last_change
+        self.last_change = "external" if last_change is None else last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
@@ -678,24 +678,20 @@ class Story(BaseModel):
         if not incoming_story_id:
             return {"error": "Missing story ID"}, 400
 
-        # Build the new conflict set for this story (dedup by news_item_id)
         entries: list[dict] = []
         for news_item in news_items:
             if news_item_id := news_item.get("id"):
                 if existing_item := NewsItem.get(news_item_id):
                     existing_story_id = existing_item.story_id
-                    # # optional guard: don't flag “self-conflict”
-                    # if existing_story_id == incoming_story_id:
-                    #     continue
+
                     entries.append(
                         {
                             "news_item_id": news_item_id,
                             "existing_story_id": existing_story_id,
-                            "incoming_story_data": data,  # set_for_story/register will deep-copy
+                            "incoming_story_data": data,
                         }
                     )
 
-        # Atomically replace all conflicts for this incoming story
         count = NewsItemConflict.set_for_story(incoming_story_id, entries)
 
         if count:
