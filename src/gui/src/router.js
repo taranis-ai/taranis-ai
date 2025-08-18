@@ -21,7 +21,6 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: Permissions.ASSESS_ACCESS,
         title: 'Assess'
       }
     },

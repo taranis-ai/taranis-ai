@@ -94,9 +94,11 @@ export function assessHotkeys() {
       return
     }
     console.debug(`You pressed ${handler.key}`)
+    const selected_story = assessStore.storySelection[0]
+    assessStore.clearSelection()
     router.push({
       name: 'storyedit',
-      params: { storyId: assessStore.storySelection[0] }
+      params: { storyId: selected_story }
     })
   })
 

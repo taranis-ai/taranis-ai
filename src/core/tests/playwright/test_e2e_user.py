@@ -476,21 +476,21 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{stories_relevance_descending[4]}").get_by_test_id("add to report")
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{stories_relevance_descending[0]}").get_by_test_id("add to report")
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
@@ -522,18 +522,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).all_inner_texts()  #  Locate all rows of column `stories`
             assert "3" in texts
 
-        def tag_filter(base_url):
-            page.goto(f"{base_url}")  # needed for a refresh; any other reload is failing to load from the live_server
+        def tag_filter():
+            page.reload()
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
-            self.highlight_element(page.locator("#v-menu-v-42").get_by_text("APT75")).click()
+            self.highlight_element(page.get_by_test_id("tag-option-APT75").get_by_text("APT75")).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         #           Run test
         # ============================
 
-        base_url = e2e_server.url()
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
@@ -553,7 +552,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         go_to_analyze()
         assert_analyze()
 
-        tag_filter(base_url)
+        tag_filter()
         go_to_analyze()
 
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
