@@ -89,11 +89,13 @@ class ProductTypeView(BaseView):
                 {"id": t.id, "name": t.id, "validation_status": "unknown"}
                 for t in templates
             )
-        base_context.update({
+        base_context |= {
             "presenter_types": cls.presenter_types.values(),
-            "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
+            "report_types": [
+                rt.model_dump() for rt in dpl.get_objects(ReportItemType)
+            ],
             "template_files": template_files,
-        })
+        }
         return base_context
 
     @classmethod
