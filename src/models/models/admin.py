@@ -329,7 +329,6 @@ class WorkerParameterValue(TaranisBaseModel):
     parent: Literal["parameters"] = "parameters"
     type: str | None = None
     rules: list[str] = Field(default_factory=list)
-    value: str | list
 
 
 class WorkerParameter(TaranisBaseModel):
@@ -341,13 +340,22 @@ class WorkerParameter(TaranisBaseModel):
     parameters: list[WorkerParameterValue]
 
 
+class ProductTypeParameterValue(TaranisBaseModel):
+    name: str
+    label: str | None = None
+    parent: Literal["parameters"] = "parameters"
+    type: str | None = None
+    rules: list[str] = Field(default_factory=list)
+    value: str | list
+
+
 class ProductTypeParameter(TaranisBaseModel):
     _core_endpoint = "/config/product-type-parameters"
     _model_name = "product_type_parameter"
     _pretty_name = "Product Type Parameter"
 
     id: str
-    parameters: list[WorkerParameterValue]
+    parameters: list[ProductTypeParameterValue]
 
 
 class TaskResult(TaranisBaseModel):
