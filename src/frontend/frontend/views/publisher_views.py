@@ -68,27 +68,10 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        template_files = []
-        try:
-            from frontend.core_api import CoreApi
-            core_api = CoreApi()
-            api_result = core_api.api_get("/config/templates", params={"list": True})
-            if api_result and "items" in api_result:
-                template_files.extend(
-                    {
-                        "id": item.get("id"),
-                        "name": item.get("id"),
-                        "validation_status": item.get("validation_status", "unknown"),
-                    }
-                    for item in api_result["items"]
-                )
-        except Exception as e:
-            logger.warning(f"Failed to get template validation status from API: {e}")
-            templates = dpl.get_objects(Template)
-            template_files.extend(
-                {"id": t.id, "name": t.id, "validation_status": "unknown"}
-                for t in templates
-            )
+        template_files = [
+            {"id": t.id, "name": t.id, "validation_status": getattr(t, "validation_status", None)}
+            for t in dpl.get_objects(Template)
+        ]
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [
