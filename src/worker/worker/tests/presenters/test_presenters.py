@@ -32,27 +32,6 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
     assert product["current_date"] == "2025-01-02"
 
 
-def test_pdf_presenter_succesful_render(pdf_presenter, fixed_datetime, monkeypatch):
-    class FakeHTML:
-        def __init__(self, string):
-            self.string = string
-
-        def write_pdf(self, target=None):
-            assert target is None
-            return b"%PDF-1.7\n%fake\n"
-
-    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
-
-    product = {"title": "A Test Report"}
-    template = "<h1>{{ data.title }}</h1><small>{{ data.current_date }}</small>"
-
-    out = pdf_presenter.generate(product, template)
-
-    assert isinstance(out, (bytes, bytearray))
-    assert out == b"%PDF-1.7\n%fake\n"
-    assert product["current_date"] == "2025-01-02"
-
-
 def test_pdf_presenter_failed_render(pdf_presenter, fixed_datetime, monkeypatch):
     class FakeHTML:
         def __init__(self, string):
