@@ -154,6 +154,8 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(
                 page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("link").nth(2)
             ).click()
+            self.short_sleep(0.5)
+
             # Mark as read
             self.highlight_element(page.get_by_test_id("mark as read")).click()
             # Remove mark as important
@@ -305,6 +307,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="reset filter")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
+            self.short_sleep(0.5)
             self.highlight_element(page.get_by_text("Test Report").last).click()
             page.get_by_test_id("all-stories-div").click()
             page.keyboard.press("Control+A")
@@ -355,5 +358,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         create_html_render()
 
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
-        self.short_sleep(duration=6)
+        expect(page.get_by_test_id("text-render")).to_contain_text(
+            "Thanks to Cybersecurity experts, the world of IT is now safe.", timeout=10_000
+        )
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")

@@ -125,9 +125,13 @@
               :data="'data:application/pdf;base64,' + renderedProduct"
               type="application/pdf"
               width="100%"
+              data-testid="pdf-render"
             />
 
-            <pre v-if="renderedProductMimeType === 'text/plain'">
+            <pre
+              v-if="renderedProductMimeType === 'text/plain'"
+              data-testid="text-render"
+            >
               {{ renderedProduct }}
             </pre>
           </div>
