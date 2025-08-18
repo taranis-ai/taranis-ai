@@ -230,13 +230,12 @@ export default {
         return
       }
       if (props.edit) {
-        const flattened_attributes = {}
-
-        for (const group of Object.values(report_item.value.attributes)) {
-          for (const [key, obj] of Object.entries(group)) {
-            flattened_attributes[key] = { value: obj.value }
-          }
-        }
+        const flattened_attributes = Object.fromEntries(
+          report_item.value.attributes.map((attr) => [
+            attr.id,
+            { value: attr.value }
+          ])
+        )
 
         const update_report_item = {
           title: report_item.value.title,
