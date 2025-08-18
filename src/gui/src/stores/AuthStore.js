@@ -122,7 +122,7 @@ export const useAuthStore = defineStore(
     function reset() {
       localStorage.ACCESS_TOKEN = ''
       document.cookie =
-        'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
+        'access_token_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
       jwt.value = ''
       user.value = {}
       sub.value = ''
