@@ -24,7 +24,7 @@
     "@sentry/vue": "^10.5.0",
     "@vue-js-cron/vuetify": "^5.0.11",
     "@vuepic/vue-datepicker": "^11.0.2",
-    "@vueuse/core": "^13.6.0",
+    "@vueuse/core": "^13.7.0",
     "axios": "^1.11.0",
     "chart.js": "^4.5.0",
     "codemirror": "^6.0.2",

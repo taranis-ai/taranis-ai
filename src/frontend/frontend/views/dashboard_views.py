@@ -163,7 +163,7 @@ class AdminDashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-        context = {"data": dashboard[0], "error": error, "build_info": cls.get_build_info()}
+        context = {"data": dashboard[0], "error": error, "build_info": cls.get_build_info(), "_is_admin": cls._is_admin}
         return render_template(template, **context), 200
 
     @classmethod

@@ -19,8 +19,12 @@
 
   <body class="flex bg-base-300 min-h-screen"
         hx-ext="response-targets"
-        x-data="{ sidebarOpen: true }"
-        x-init="if (window.self !== window.top) sidebarOpen = false">
+        x-data="{
+            sidebarOpen: {{ 'true' if _is_admin else 'false' }},
+            init() {
+              if (window.self !== window.top) this.sidebarOpen = false
+            }
+         }">
     <!-- Sidebar -->
     {% include "partials/sidebar.html" %}
 

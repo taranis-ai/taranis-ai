@@ -20,6 +20,7 @@ class SettingsView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict:
         dpl = DataPersistenceLayer()
+        base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_objects(Settings)
         base_context["frontend_actions"] = [
             {

@@ -43,6 +43,7 @@ class BaseView(MethodView):
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
+            "_is_admin": cls._is_admin,
             "routes": {
                 "base_route": cls.get_base_route(),
                 "edit_route": cls.get_edit_route(**{cls._get_object_key(): object_id}),

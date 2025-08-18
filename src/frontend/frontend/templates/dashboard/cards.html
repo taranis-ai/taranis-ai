@@ -29,7 +29,7 @@
     <div class="flex-grow">
       {% for tag in cluster.tags %}
       <div class="justify-between flex items-center">
-        <p>{{ tag.name }}</p>
+        <a href="/assess?tags={{ tag.name }}" class="underline">{{ tag.name }}</a>
         <p>{{ tag.size }}</p>
       </div>
       {% endfor %}
