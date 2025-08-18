@@ -19,9 +19,7 @@ class WordListView(BaseView):
         "name": {},
         "description": {},
         "link": {},
-        "include": {},
-        "exclude": {},
-        "tagging": {},
+        "usage[]": {},
     }
 
     @classmethod
@@ -66,14 +64,24 @@ class WordListView(BaseView):
             logger.error("Failed to load default word lists")
             return render_template("notification/index.html", notification={"message": "Failed to load default word lists", "error": True})
 
-        response = CoreApi().import_word_lists(response)
+        core_response = CoreApi().import_word_lists(response)
 
-        if not response.ok:
-            error = response.json().get("error", "Unknown error")
-            error_message = f"Failed to import default word lists: {error}"
-            logger.error(error_message)
-            return render_template("notification/index.html", notification={"message": error_message, "error": True})
+        response = cls.get_notification_from_response(core_response)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
-        items = DataPersistenceLayer().get_objects(cls.model)
-        return render_template(cls.get_list_template(), **cls.get_view_context(items))
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code
+
+    @classmethod
+    @auth_required()
+    def update_word_lists(cls, word_list_id: int | None = None):
+        core_response = CoreApi().update_word_lists(word_list_id)
+        response = cls.get_notification_from_response(core_response)
+
+        DataPersistenceLayer().invalidate_cache_by_object(WordList)
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code

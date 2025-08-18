@@ -179,6 +179,14 @@ def auth_header_user_permissions(access_token_user_permissions):
     }
 
 
+def _is_vscode(config) -> bool:
+    # Primary: pytest plugin loaded by the VS Code Python extension
+    if config.pluginmanager.hasplugin("vscode_pytest"):
+        return True
+    # Fallbacks (sometimes present when launched from VS Code)
+    return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
+
+
 def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-user", action="store_const", const="e2e_user", default=None, help="run e2e tests")
@@ -197,6 +205,9 @@ def skip_tests(items, keyword, reason):
 
 
 def pytest_collection_modifyitems(config, items):
+    if _is_vscode(config):
+        return
+
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-user": ("e2e_user", "skip for --e2e-user test"),

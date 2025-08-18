@@ -1,5 +1,4 @@
 import { createWebHistory, createRouter } from 'vue-router'
-import Home from '@/views/Home.vue'
 import { useAuthStore } from './stores/AuthStore'
 import Permissions from '@/services/auth/permissions'
 
@@ -9,8 +8,9 @@ export const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: Home,
-      meta: { requiresAuth: true }
+      beforeEnter() {
+        location.href = '/frontend'
+      }
     },
     {
       path: '/assess',
@@ -21,7 +21,6 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: Permissions.ASSESS_ACCESS,
         title: 'Assess'
       }
     },
@@ -151,14 +150,6 @@ export const router = createRouter({
       meta: {
         requiresAuth: true,
         requiresPerm: Permissions.CONNECTOR_USER_ACCESS
-      }
-    },
-    {
-      path: '/cluster/:cluster',
-      name: 'cluster',
-      props: true,
-      components: {
-        default: () => import('@/views/users/ClusterView.vue')
       }
     },
     {

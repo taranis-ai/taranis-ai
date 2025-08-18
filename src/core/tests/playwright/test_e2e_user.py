@@ -111,7 +111,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.short_sleep(duration=1)
             self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_role("textbox", name="search")).click()
-            self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_role("textbox", name="Items per page")).click()
+            self.highlight_element(page.get_by_test_id("filter-navigation-div").get_by_test_id("itemsPerPage")).click()
             self.highlight_element(page.get_by_role("option", name="100")).click()
 
         def hotkeys():
@@ -425,13 +425,13 @@ class TestEndToEndUser(PlaywrightHelpers):
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
             page.wait_for_url("**/report/", wait_until="domcontentloaded")
-            self.highlight_element(page.get_by_role("combobox")).click()
+            report_item_type_box = page.get_by_test_id("reportItemType")
+            self.highlight_element(report_item_type_box).click()
             time.sleep(0.5)
-
-            expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
-            expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
-            expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
-            expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
+            expect(page.get_by_role("option", name="CERT Report")).to_be_visible()
+            expect(page.get_by_role("option", name="Disinformation")).to_be_visible()
+            expect(page.get_by_role("option", name="OSINT Report")).to_be_visible()
+            expect(page.get_by_role("option", name="Vulnerability Report")).to_be_visible()
 
             time.sleep(0.5)
             page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}report_item_add.png")
@@ -443,7 +443,8 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def report_2():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
-            self.highlight_element(page.get_by_role("combobox")).click()
+            report_item_type_box = page.get_by_test_id("reportItemType")
+            self.highlight_element(report_item_type_box).click()
             self.highlight_element(page.get_by_text("Disinformation")).click()
             self.highlight_element(page.get_by_label("Title")).fill("Test Disinformation Title")
             self.highlight_element(page.get_by_role("button", name="Save")).click()
@@ -451,7 +452,8 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def report_3():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
-            page.get_by_role("combobox").click()
+            report_item_type_box = page.get_by_test_id("reportItemType")
+            self.highlight_element(report_item_type_box).click()
             page.get_by_text("OSINT Report").click()
             page.get_by_label("Title").fill("Test OSINT Title")
             page.get_by_role("button", name="Save").click()
@@ -459,7 +461,8 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def report_4():
             page.get_by_role("button", name="New Report").click()
-            page.get_by_role("combobox").click()
+            report_item_type_box = page.get_by_test_id("reportItemType")
+            self.highlight_element(report_item_type_box).click()
             page.get_by_text("Vulnerability Report").click()
             page.get_by_label("Title").fill("Test Vulnerability Title")
             page.get_by_role("button", name="Save").click()
@@ -473,21 +476,21 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{stories_relevance_descending[4]}").get_by_test_id("add to report")
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{stories_relevance_descending[0]}").get_by_test_id("add to report")
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="add to report")).click()
+            self.highlight_element(page.get_by_role("button", name="Add to Report", exact=True)).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
@@ -519,18 +522,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).all_inner_texts()  #  Locate all rows of column `stories`
             assert "3" in texts
 
-        def tag_filter(base_url):
-            page.goto(f"{base_url}")  # needed for a refresh; any other reload is failing to load from the live_server
+        def tag_filter():
+            page.reload()
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
-            self.highlight_element(page.locator("#v-menu-v-42").get_by_text("APT75")).click()
+            self.highlight_element(page.get_by_test_id("tag-option-APT75").get_by_text("APT75")).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         #           Run test
         # ============================
 
-        base_url = e2e_server.url()
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
@@ -550,7 +552,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         go_to_analyze()
         assert_analyze()
 
-        tag_filter(base_url)
+        tag_filter()
         go_to_analyze()
 
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
