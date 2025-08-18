@@ -94,11 +94,11 @@
       <span id="{{ name }}_display">
         {% if value %}
           {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
-          {{ selected_option.name }}
-          {% set status = selected_option.validation_status | normalize_validation_status %}
-          <span class="badge {{ status|badge_class }} badge-sm ml-2">
-            {{ status|badge_label }}
-          </span>
+          {% if selected_option %}
+            {{ selected_option.name }}
+            {% set status = selected_option.validation_status | normalize_validation_status %}
+            <span class="badge {{ status|badge_class }} badge-sm ml-2">{{ status|badge_label }}</span>
+          {% endif %}
         {% else %}
           Select a template
         {% endif %}
@@ -110,58 +110,29 @@
     <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
       {% for option in options %}
         {% set status = option.validation_status | normalize_validation_status %}
-        <a class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
-           onclick="selectTemplateOption('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ status }}')">
+        <div class="flex justify-between items-center p-2 rounded">
           <span class="flex-1">{{ option.name }}</span>
-          <span class="badge {{ status|badge_class }} badge-sm">
-            {{ status|badge_label }}
-          </span>
-        </a>
+          <span class="badge {{ status|badge_class }} badge-sm">{{ status|badge_label }}</span>
+        </div>
       {% endfor %}
     </div>
   </div>
-  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="hidden">
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="select w-full">
     {% if not value %}
     <option value="" selected disabled>Select a template</option>
     {% endif %}
     {% for option in options %}
-    <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
+      {% set status = option.validation_status | normalize_validation_status %}
+      <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} — {{ status|badge_label }}</option>
     {% endfor %}
   </select>
+  {% if value %}
+    {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
+    {% if selected_option %}
+      <div class="mt-2">
+        {{ selected_option.name }} {{ selected_option|render_validation_status }}
+      </div>
+    {% endif %}
+  {% endif %}
 </div>
-
-<script>
-function selectTemplateOption(fieldName, id, name, status) {
-  // Update the hidden select
-  const select = document.getElementById(fieldName);
-  if (select) {
-    select.value = id;
-    
-    // Update the display
-    const display = document.getElementById(fieldName + '_display');
-    if (display) {
-      let badgeClass = 'badge-neutral';
-      let badgeText = 'Unknown';
-      
-      if (status === 'valid') {
-        badgeClass = 'badge-success';
-        badgeText = 'Valid';
-      } else if (status === 'invalid') {
-        badgeClass = 'badge-error';
-        badgeText = 'Invalid';
-      }
-      
-      display.innerHTML = name + ' <span class="badge ' + badgeClass + ' badge-sm ml-2">' + badgeText + '</span>';
-    }
-    
-    // Close dropdown
-    if (document.activeElement) {
-      document.activeElement.blur();
-    }
-    
-    // Trigger change event
-    select.dispatchEvent(new Event('change'));
-  }
-}
-</script>
 {% endmacro %}
