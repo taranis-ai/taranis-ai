@@ -29,11 +29,11 @@ def run_core(app):
     process = None
     try:
         core_path = os.path.abspath("../core")
-        env = {}
+        # Start with OS env and then overlay values from tests/.env so tests control the config
+        env = os.environ.copy()
         if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
-            config = {k: v for k, v in config.items() if v}
-            env = config
-        env |= os.environ.copy()
+            config = {k: v for k, v in config.items() if v is not None}
+            env.update(config)
         env["PYTHONPATH"] = core_path
         env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
