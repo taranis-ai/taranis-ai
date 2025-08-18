@@ -8,7 +8,7 @@ env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
 
 if not current_path.endswith("src/frontend"):
-    sys.exit("Tests must be run from within src/frontend")
+    pytest.skip("Tests must be run from within src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
 
