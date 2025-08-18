@@ -2,7 +2,7 @@ from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from models.admin import OSINTSource
 
 __all__ = [
@@ -136,14 +136,20 @@ def render_validation_status(item) -> str:
         status = getattr(item, "validation_status")
 
     if isinstance(status, dict):
-        is_valid = status.get("is_valid", True)
-        error_type = status.get("error_type", "")
-        error_message = status.get("error_message", "")
-        if is_valid:
+        # Don't default to valid; treat missing/None as unknown
+        is_valid = status.get("is_valid")
+        error_type = status.get("error_type") or ""
+        error_message = status.get("error_message") or ""
+        if is_valid is True:
             return Markup('<span class="badge badge-success text-xs">Valid</span>')
-        tooltip_attr = f'title="{error_type}: {error_message}"' if error_message else f'title="{error_type}"'
-        return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
-    return Markup('<span class="badge badge-success text-xs">Valid</span>')
+        if is_valid is False:
+            # Escape tooltip content to avoid HTML issues
+            et = escape(error_type)
+            em = escape(error_message)
+            tooltip_attr = f'title="{et}: {em}"' if em else f'title="{et}"'
+            return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
+    # Unknown if status missing or not a dict
+    return Markup('<span class="badge badge-neutral text-xs">Unknown</span>')
 
 
 @pass_context
