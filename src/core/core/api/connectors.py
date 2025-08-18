@@ -114,6 +114,15 @@ class StoryInfo(MethodView):
         return {"error": "Story not found"}, 404
 
 
+class ConflictStore(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    def post(self):
+        StoryConflict.flush_store()
+        NewsItemConflict.flush_store()
+        logger.info("Cleared all conflicts from the store.")
+        return {"message": "All conflicts cleared"}, 200
+
+
 def initialize(app: Flask):
     conflicts_bp = Blueprint("connectors", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/connectors")
 
@@ -121,6 +130,7 @@ def initialize(app: Flask):
     conflicts_bp.add_url_rule("/conflicts/stories/<string:story_id>", view_func=StoryConflicts.as_view("story_conflict"))
     conflicts_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
+    conflicts_bp.add_url_rule("/conflicts/clear", view_func=ConflictStore.as_view("clear_conflicts"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)

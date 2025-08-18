@@ -7,7 +7,8 @@ import {
   getAllNewsItemConflicts,
   getStorySummary,
   resolveIngestIncomingStory,
-  resolveAddUniqueNewsItems
+  resolveAddUniqueNewsItems,
+  clearConflictStore
 } from '@/api/connectors'
 
 export const useConflictsStore = defineStore('conflicts', () => {
@@ -132,11 +133,26 @@ export const useConflictsStore = defineStore('conflicts', () => {
     }
   }
 
+  async function clearStoresWrapper() {
+    try {
+      const data = await clearConflictStore()
+      storyConflicts.value = []
+      newsItemConflicts.value = []
+      proposalCount.value = 0
+      storySummaries.value = {}
+      return data
+    } catch (error) {
+      console.error('Error clearing conflict store:', error)
+      throw error
+    }
+  }
+
   return {
     storyConflicts,
     newsItemConflicts,
     proposalCount,
     storySummaries,
+    clearStoresWrapper,
     loadStoryConflicts,
     fetchProposalCount,
     loadNewsItemConflicts,

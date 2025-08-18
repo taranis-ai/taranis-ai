@@ -39,3 +39,8 @@ export function resolveAddUniqueNewsItems(payload) {
     headers: { 'Content-Type': 'application/json' }
   })
 }
+
+export async function clearConflictStore() {
+  const { data } = await apiService.post('/connectors/conflicts/clear')
+  return data
+}

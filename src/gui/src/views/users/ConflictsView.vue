@@ -1,4 +1,20 @@
 <template>
+  <v-tooltip text="Clear all conflict caches">
+    <template #activator="{ props: tooltipProps }">
+      <div class="fixed-top-right">
+        <v-btn
+          v-bind="tooltipProps"
+          color="error"
+          variant="outlined"
+          :loading="clearInProgress"
+          :disabled="clearInProgress"
+          @click="onClearConflicts"
+        >
+          Clear All Conflicts
+        </v-btn>
+      </div>
+    </template>
+  </v-tooltip>
   <v-container>
     <v-card outlined>
       <v-card-title>
@@ -330,7 +346,8 @@ const {
   resolveIngestUniqueNewsItems,
   loadNewsItemConflicts,
   loadSummariesPerConflict,
-  resolveStoryConflictById
+  resolveStoryConflictById,
+  clearStoresWrapper
 } = store
 
 const openPanels = ref([])
@@ -346,6 +363,38 @@ function showToast(message, color = 'error', timeoutMs = 3000) {
   snackbarColor.value = color
   snackbarTimeout.value = timeoutMs
   snackbar.value = true
+}
+
+const clearInProgress = ref(false)
+
+async function onClearConflicts() {
+  if (clearInProgress.value) return
+  if (!window.confirm('Clear all conflict caches? This cannot be undone.'))
+    return
+
+  clearInProgress.value = true
+  try {
+    for (const conflictItem of storyConflicts.value) {
+      destroyMergely(conflictItem)
+    }
+
+    await clearStoresWrapper()
+
+    reloadNewsItemConflictViewStateDebounced()
+    await store.loadStoryConflicts()
+    await store.fetchProposalCount()
+
+    showToast('Conflict store cleared', 'success')
+  } catch (error) {
+    const errorText =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Unknown error'
+    showToast(`Failed to clear conflict store: ${errorText}`, 'error', 6000)
+  } finally {
+    clearInProgress.value = false
+  }
 }
 
 function extractTitleFromJsonString(jsonString) {
@@ -824,5 +873,12 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fixed-top-right {
+  position: fixed;
+  inset-block-start: calc(var(--v-layout-top, 0px) + 12px);
+  inset-inline-end: 16px;
+  z-index: 2000;
 }
 </style>
