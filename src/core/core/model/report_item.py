@@ -98,7 +98,7 @@ class ReportItem(BaseModel):
         data["stories"] = [story.id for story in self.stories]
         return data
 
-    def get_attribute_dict(self) -> list[dict[str, dict[str, Any]]]:
+    def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
     def get_attribute_groups(self) -> list[str]:
