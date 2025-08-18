@@ -570,6 +570,7 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
+        StorySearchIndex.prepare(story)
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
 

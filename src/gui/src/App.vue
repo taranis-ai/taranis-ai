@@ -12,7 +12,7 @@
 
     <v-main class="d-flex">
       <router-view v-slot="{ Component }">
-        <keep-alive :include="[]">
+        <keep-alive :include="['AssessView']">
           <component :is="Component" />
         </keep-alive>
       </router-view>
