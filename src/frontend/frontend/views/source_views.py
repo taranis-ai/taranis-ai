@@ -91,6 +91,7 @@ class SourceView(BaseView):
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         return [
             {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
             {"title": "State", "field": "state", "sortable": False, "renderer": render_state},
