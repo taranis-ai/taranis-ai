@@ -43,7 +43,7 @@
               {% if product_type.type %}disabled{% endif %}>
         {% if not product_type.type %}<option value="" selected disabled>Select a presenter type</option>{% endif %}
         {% for option in presenter_types -%}
-          <option value="{{ option.id }}" {% if option.id == product_type.type|upper %}selected{% endif %}>{{ option.name }}</option>
+          <option value="{{ option.id }}" {% if option.id == product_type.type %}selected{% endif %}>{{ option.name }}</option>
         {% endfor -%}
       </select>
     </label>

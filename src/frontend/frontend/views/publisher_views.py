@@ -17,7 +17,7 @@ class PublisherView(BaseView):
     _index = 140
 
     publisher_types = {
-        member.name.lower(): {"id": member.name.upper(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
+        member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in PUBLISHER_TYPES
     }
 
@@ -61,7 +61,7 @@ class ProductTypeView(BaseView):
     _index = 150
 
     presenter_types = {
-        member.name.lower(): {"id": member.name.upper(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
+        member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in PRESENTER_TYPES
     }
 
