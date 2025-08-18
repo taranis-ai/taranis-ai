@@ -15,8 +15,7 @@ class _DummyLoader(BaseLoader):
     """
 
     def get_source(self, environment, template):  # type: ignore[override]
-        source = ""
-        return source, template, lambda: True
+        return "", template, lambda: True
 
 
 def validate_template_content(template_content: str) -> dict:
@@ -48,10 +47,7 @@ def validate_template_content(template_content: str) -> dict:
         # that gracefully handles includes/extends without touching the FS.
         env = Environment(autoescape=False, undefined=DebugUndefined, loader=_DummyLoader())
 
-        # Step 1: Parse the template to check syntax
-        env.parse(template_content)
-
-        # Step 2: Compile and attempt to render with empty context
+    # Compile and attempt to render with empty context
         template = env.from_string(template_content)
         try:
             template.render({})
