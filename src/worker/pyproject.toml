@@ -8,19 +8,18 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "Framework :: Celery",
+    "Framework :: Prefect",
     "Topic :: Security",
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core
-    "celery",
+    "prefect-client",
     "click",
     "python-dotenv",
     "pydantic-settings",
     "requests",
     "requests[socks]",
-
     # Collector
     "beautifulsoup4",
     "trafilatura",
@@ -29,22 +28,19 @@ dependencies = [
     "lxml",
     "playwright",
     "langcodes",
-
     # Publisher
     "paramiko",
     "python-gnupg",
-
     # Presenters
     "weasyprint",
     "jinja2",
-
     # Connectors
     "pymisp",
-
     # Bots
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -52,7 +48,6 @@ dynamic = ["version"]
 dev = [
     "ruff",
     "pytest",
-    "pytest-celery",
     "requests-mock",
     "watchdog",
     "build",
@@ -64,6 +59,9 @@ dev = [
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
+
+[project.scripts]
+taranis-worker = "worker:main"
 
 [build-system]
 requires = [
@@ -79,7 +77,7 @@ root = "../.."
 
 [tool.ruff]
 line-length = 142
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -97,3 +95,6 @@ disable = """
     missing-class-docstring,
     missing-function-docstring
 """
+
+[tool.uv.sources]
+taranis-models = { path = "../models" }

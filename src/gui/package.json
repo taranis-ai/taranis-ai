@@ -23,6 +23,8 @@
     "@mdi/font": "^7.4.47",
     "@sentry/vue": "^9.35.0",
     "@vue-js-cron/vuetify": "^5.0.11",
+    "@sentry/vue": "^9.17.0",
+    "@vue-js-cron/vuetify": "^5.0.9",
     "@vuepic/vue-datepicker": "^11.0.2",
     "@vueuse/core": "^13.5.0",
     "axios": "^1.10.0",
