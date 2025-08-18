@@ -30,6 +30,8 @@ dependencies = [
     "polyfactory",
     "uuid7",
     "heroicons[jinja]>=2.11.0",
+    "plotly[express]",
+    "pandas",
     "taranis-models"
 ]
 dynamic = ["version"]
@@ -58,7 +60,7 @@ dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_s
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -94,7 +96,9 @@ exclude = [
 preserve_blank_lines=true
 max_line_length=142
 max_attribute_length=142
+ignore = "J018"
 indent=2
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+prerelease = "allow"

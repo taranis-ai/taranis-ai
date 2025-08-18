@@ -21,6 +21,7 @@
         v-bind="props"
         :prepend-icon="tagIcon(item.raw.tag_type)"
         :text="shortText(item.raw.name)"
+        :data-testid="`tag-option-${item.title}`"
       />
     </template>
     <template #chip="{ props, item }">
