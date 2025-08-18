@@ -57,7 +57,7 @@ def get_html5_pattern_from_rule(rules: list[str]) -> tuple[str, str] | str:
     if rule.startswith("one_of:"):
         values = rule[len("one_of:") :].split("|")
         escaped_values = [re.escape(v.strip()) for v in values]
-        pattern = "|".join(escaped_values)
+        pattern = f"^({'|'.join(escaped_values)})$"
         return (pattern, f"Input must be one of: {', '.join(values)}")
 
     return html5_patterns.get(rule, ("", ""))
