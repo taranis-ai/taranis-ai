@@ -31,7 +31,7 @@ class QueueManager:
     def post_init(self):
         self.clear_queues()
         self.update_task_queue_from_osint_sources()
-        self.gather_all_word_lists()
+        self.update_empty_word_lists()
 
     def clear_queues(self):
         if self.error:
@@ -52,13 +52,24 @@ class QueueManager:
 
         [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
 
-    def gather_all_word_lists(self):
+    def update_empty_word_lists(self):
         from core.model.word_list import WordList
 
         if self.error:
             return
 
         word_lists = WordList.get_all_empty() or []
+        for word_list in word_lists:
+            self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+        logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
+
+    def gather_all_word_lists(self):
+        from core.model.word_list import WordList
+
+        if self.error:
+            return
+
+        word_lists = WordList.get_all_for_collector() or []
         for word_list in word_lists:
             self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
         return {"message": "Gathering for all WordLists scheduled"}, 200

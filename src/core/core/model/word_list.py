@@ -104,10 +104,7 @@ class WordList(BaseModel):
         else:
             query = cls.get_filter_query(filter_args)
         items = cls.get_filtered(query) or []
-        if filter_args.get("with_entries"):
-            result_items = [item.to_dict() for item in items]
-        else:
-            result_items = [item.to_small_dict() for item in items]
+        result_items = [item.to_dict() for item in items]
         if with_count:
             count = cls.get_filtered_count(query)
             return {"total_count": count, "items": result_items}, 200
