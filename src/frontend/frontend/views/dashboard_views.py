@@ -2,6 +2,7 @@ from flask import render_template, abort, request
 from flask_jwt_extended import current_user
 import plotly.express as px
 import pandas as pd
+from typing import Any
 
 from models.dashboard import Dashboard, TrendingCluster
 from frontend.core_api import CoreApi
@@ -24,7 +25,7 @@ class DashboardView(BaseView):
     _read_only = True
 
     @classmethod
-    def static_view(cls):
+    def static_view(cls, dashboard_config: dict | None = None):
         error = None
         try:
             dashboard = DataPersistenceLayer().get_objects(cls.model)
@@ -32,20 +33,24 @@ class DashboardView(BaseView):
             dashboard = None
             error = str(exc)
 
+        user_dashboard: dict[str, Any] = {}
+
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
-            user_profile = current_user.profile or {}
-            dashboard_config = user_profile.get("dashboard", {})
+            if dashboard_config is None:
+                user_dashboard = current_user.profile.get("dashboard", {})
+            else:
+                user_dashboard = dashboard_config
         except Exception:
             trending_clusters = []
-            dashboard_config = {}
+            user_dashboard = {}
 
         if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
 
-        if cluster_filter := dashboard_config.get("trending_cluster_filter"):
+        if cluster_filter := user_dashboard.get("trending_cluster_filter"):
             trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
 
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": dashboard_config}
@@ -121,10 +126,11 @@ class DashboardView(BaseView):
                 "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
             )
 
-        update_current_user_cache()
-        DataPersistenceLayer().invalidate_cache_by_object(self.model)
-        DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
-        dashboard, table_response = self.static_view()
+        dashboard_config = None
+        if updated_user := update_current_user_cache():
+            if user_profile := updated_user.profile:
+                dashboard_config = user_profile.get("dashboard", {})
+        dashboard, table_response = self.static_view(dashboard_config)
         if table_response == 200:
             response += dashboard
         return response, table_response
