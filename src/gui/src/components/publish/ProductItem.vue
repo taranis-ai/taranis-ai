@@ -137,14 +137,31 @@
               data-testid="docx-render"
             />
 
-            <OdfViewer
+            <div
               v-else-if="
                 renderedProductMimeType ===
                 'application/vnd.oasis.opendocument.text'
               "
-              :base64="renderedProduct"
-              data-testid="odf-render"
-            />
+              class="unsupported-format-warning"
+              data-testid="odt-render"
+            >
+              <v-row justify="center">
+                <p class="mb-4">
+                  .odt preview is not supported. Please download the file
+                  instead.
+                </p>
+              </v-row>
+              <v-row justify="center">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-download"
+                  @click="downloadProduct"
+                >
+                  Download .odt
+                </v-btn>
+              </v-row>
+            </div>
 
             <pre
               v-if="renderedProductMimeType === 'text/plain'"
@@ -201,15 +218,13 @@ import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useHotkeys } from 'vue-use-hotkeys'
 import DocxViewer from '@/components/common/DocxViewer.vue'
-import OdfViewer from '@/components/common/OdfViewer.vue'
 
 export default {
   name: 'ProductItem',
   components: {
     PopupPublishProduct,
     PopupDirty,
-    DocxViewer,
-    OdfViewer
+    DocxViewer
   },
   props: {
     productProp: {
