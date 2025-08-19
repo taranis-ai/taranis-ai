@@ -1,5 +1,3 @@
-import os
-
 from flask import Flask, send_from_directory
 from flask.views import MethodView
 from core.log import logger
@@ -11,7 +9,7 @@ class Frontend(MethodView):
             return send_from_directory("../../gui/dist", filename)
         except Exception as e:
             logger.warning(f"Error: {e}")
-            return os.listdir(".")
+            return send_from_directory("../../gui/dist", "index.html")
 
 
 def initialize(app: Flask):

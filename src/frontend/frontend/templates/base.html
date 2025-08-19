@@ -19,14 +19,14 @@
 
   <body class="flex bg-base-300 min-h-screen"
         hx-ext="response-targets"
-        x-data="{ sidebarOpen: true }"
-        x-init="if (window.self !== window.top) sidebarOpen = false">
+        x-data="{
+            sidebarOpen: {{ 'true' if _is_admin else 'false' }},
+            init() {
+              if (window.self !== window.top) this.sidebarOpen = false
+            }
+         }">
     <!-- Sidebar -->
-    <aside id="admin_menu"
-           x-bind:class="sidebarOpen ? 'w-64' : 'w-0'"
-            class="fixed top-16 left-0 bg-base-200 transition-all duration-300 z-20 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden min-w-0">
-      {% include "partials/admin_menu.html" %}
-    </aside>
+    {% include "partials/sidebar.html" %}
 
     <!-- Navigation Bar -->
     <header id="navbar" class="fixed top-0 left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar">
