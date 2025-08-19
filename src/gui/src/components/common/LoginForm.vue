@@ -112,8 +112,8 @@ export default defineComponent({
       }
     }
 
-    onMounted(() => {
-      authStore.loginFromCookie()
+    onMounted(async () => {
+      await authStore.refresh()
       if (isAuthenticated.value) {
         router.push('/assess')
       }

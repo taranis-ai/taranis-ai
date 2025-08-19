@@ -48,7 +48,11 @@
       {{ form_select(label='Attribute Type', name=name_prefix ~ '[attribute_id]', value=attribute.attribute_id or '', options=attribute_types, width="w-full select-sm") }}
       {{ form_input_content(label='Attribute Index', name=name_prefix ~ '[index]', value=attribute_index, type="number", input_class="input-sm", width="w-xs") }}
       {{ form_input_content(label='Attribute Description', name=name_prefix ~ '[description]', value=attribute.description or '', input_class="input-sm", required=false) }}
-      {{ form_switch_content(name=name_prefix ~ '[required]', value=attribute.required or false, yes_val="Required", no_val="Not Required", required=false, input_class="input-sm") }}
+      <fieldset class="fieldset bg-base-100 border-base-300 px-2 -mt-6">
+        <legend class="fieldset-legend text-xs mb-0">Required</legend>
+        <label class="label -mt-2 w-10 inline-block">{{ form_switch_content(name=name_prefix ~ '[required]', value=attribute.required or false, yes_val="true", no_val="false", required=false, input_class="input-xs") }}</label>
+      </fieldset>
+
       <button type="button"
               name="delete_attribute"
               class="btn btn-ghost btn-sm btn-error"

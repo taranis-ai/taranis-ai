@@ -105,24 +105,10 @@ export const useAuthStore = defineStore(
       exp.value = data.exp
     }
 
-    function loginFromCookie() {
-      const cookies = document.cookie.split(';')
-      const tokenCookie = cookies.find((cookie) =>
-        cookie.trim().startsWith('access_token_cookie=')
-      )
-
-      if (tokenCookie) {
-        const cookieValue = tokenCookie.split('=')[1]
-        if (cookieValue && cookieValue.trim() !== '') {
-          setJwtToken(cookieValue)
-        }
-      }
-    }
-
     function reset() {
       localStorage.ACCESS_TOKEN = ''
       document.cookie =
-        'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
+        'access_token_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
       jwt.value = ''
       user.value = {}
       sub.value = ''
@@ -155,7 +141,6 @@ export const useAuthStore = defineStore(
       refresh,
       hasAccess,
       setJwtToken,
-      loginFromCookie,
       reset
     }
   },

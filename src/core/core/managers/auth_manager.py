@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Response, request, Flask
+from flask import Response, request, Flask, jsonify
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
 from core.log import logger
@@ -46,7 +46,13 @@ def authenticate(credentials: dict[str, str]) -> Response:
 
 
 def refresh(user: "User"):
-    return current_authenticator.refresh(user)
+    exp_timestamp = get_jwt()["exp"]
+    now = datetime.now(timezone.utc)
+    target_timestamp = datetime.timestamp(now + timedelta(minutes=30))
+    if target_timestamp > exp_timestamp:
+        return current_authenticator.refresh(user)
+    encoded_token = request.cookies.get("access_token_cookie")
+    return jsonify({"access_token": encoded_token})
 
 
 def logout(jti):
