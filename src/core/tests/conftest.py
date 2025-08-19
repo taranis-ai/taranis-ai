@@ -205,8 +205,11 @@ def skip_tests(items, keyword, reason):
 
 
 def pytest_collection_modifyitems(config, items):
+    config.option.start_live_server = False
+
     if _is_vscode(config):
         config.option.trace = True
+        config.option.headed = False
         return
 
     options = {
