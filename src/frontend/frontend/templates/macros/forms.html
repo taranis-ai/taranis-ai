@@ -60,11 +60,11 @@
   </label>
 {% endmacro %}
 
-{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full') %}
+{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='') %}
   {% from "macros/forms.html" import form_switch_content %}
   <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
     <legend class="fieldset-legend">{{ label }}</legend>
-    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve) }}</label>
+    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class) }}</label>
   </fieldset>
 {% endmacro %}
 
