@@ -700,6 +700,9 @@ class WordListImport(MethodView):
             logger.error("Failed to import Word Lists")
             return {"error": "Unable to import Word Lists"}, 400
 
+        for wl in wls:
+            queue_manager.queue_manager.gather_word_list(wl.id)
+
         return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
 
@@ -720,7 +723,9 @@ class WordListExport(MethodView):
 
 class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
+    def post(self, word_list_id: int | None = None):
+        if not word_list_id:
+            return queue_manager.queue_manager.gather_all_word_lists()
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
@@ -801,7 +806,8 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view("user"))
     config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists"))
     config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
-    config_bp.add_url_rule("/word-lists/<int:word_list_id>/gather", view_func=WordListGather.as_view("word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view("word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view("word_list_gather_all"))
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))

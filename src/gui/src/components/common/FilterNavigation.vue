@@ -32,6 +32,7 @@
           density="compact"
           hide-details
           menu-icon="mdi-chevron-down"
+          data-testid="itemsPerPage"
         />
       </v-row>
 
