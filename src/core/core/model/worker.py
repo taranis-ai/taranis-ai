@@ -218,6 +218,7 @@ class Worker(BaseModel):
             "parent": "parameters",
             "type": parameter.type,
             "rules": parameter.rules.split(",") if parameter.rules else [],
+            "value": parameter.value,
         }
 
         if parameter.parameter in ["TAGGING_WORDLISTS"]:

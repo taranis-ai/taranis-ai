@@ -1,0 +1,21 @@
+{% from "macros/forms.html" import form_input %}
+
+<div class="bg-base-100 p-4">
+  <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <div role="alert" aria-live="polite" class="mb-6 w-3/4">
+    <div class="flex items-start gap-3 rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4">
+      <svg class="h-5 w-5 flex-none text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 5.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13z" />
+      </svg>
+      <div class="text-sm text-yellow-800">
+        <p class="font-semibold">Worker types cannot be changed</p>
+        <p class="mt-1">This setting is read-only — changes to worker types aren’t permitted from this interface.</p>
+      </div>
+    </div>
+  </div>
+  <div>
+    {{ form_input('Name', 'name', worker_type.name) }}
+    {{ form_input('Description', 'description', worker_type.description, required=false) }}
+
+  </div>
+</div>
