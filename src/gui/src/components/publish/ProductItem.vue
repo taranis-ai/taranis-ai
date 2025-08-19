@@ -137,18 +137,17 @@
               data-testid="docx-render"
             />
 
-            <div
-              v-else-if="
-                renderedProductMimeType ===
-                'application/vnd.oasis.opendocument.text'
-              "
-              class="unsupported-format-warning"
-              data-testid="odt-render"
+            <pre
+              v-if="renderedProductMimeType === 'text/plain'"
+              data-testid="text-render"
             >
+              {{ renderedProduct }}
+            </pre>
+            <div v-else class="unsupported-format-warning">
               <v-row justify="center">
                 <p class="mb-4">
-                  .odt preview is not supported. Please download the file
-                  instead.
+                  Preview for {{ unsupportedTypeLabel }} is not supported.
+                  Please download the file instead.
                 </p>
               </v-row>
               <v-row justify="center">
@@ -158,17 +157,10 @@
                   prepend-icon="mdi-download"
                   @click="downloadProduct"
                 >
-                  Download .odt
+                  Download
                 </v-btn>
               </v-row>
             </div>
-
-            <pre
-              v-if="renderedProductMimeType === 'text/plain'"
-              data-testid="text-render"
-            >
-              {{ renderedProduct }}
-            </pre>
           </div>
           <div v-else-if="renderError">
             <v-row class="justify-center mb-4">
@@ -270,6 +262,8 @@ export default {
     const { renderedProduct, renderedProductMimeType, renderError } =
       storeToRefs(publishStore)
 
+    renderedProductMimeType.value = null
+    renderError.value = null
     renderedProduct.value = null
 
     const product_types = computed(() => {
@@ -373,6 +367,13 @@ export default {
 
       return mimeToExtension[mimeType] || null
     }
+
+    const unsupportedTypeLabel = computed(() => {
+      const ct = renderedProductMimeType.value
+      const ext = ct ? getExtensionFromMimeType(ct) : null
+      if (ext) return `file extension ".${ext}"`
+      return `MIME type "` + ct + '"'
+    })
 
     function downloadProduct() {
       let bytes
@@ -511,6 +512,8 @@ export default {
       saveProduct,
       downloadProduct,
       rerenderProduct,
+      getExtensionFromMimeType,
+      unsupportedTypeLabel,
       handleCancel,
       handleSaveAndContinue
     }
