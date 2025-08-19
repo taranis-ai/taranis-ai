@@ -12,8 +12,8 @@ class SourceGroupView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        word_lists = [w.model_dump() for w in dpl.get_objects(WordList) if "COLLECTOR_INCLUDELIST" in w.usage]
+        word_lists = [w.model_dump(mode="json") for w in dpl.get_objects(WordList) if "COLLECTOR_INCLUDELIST" in w.usage]
 
-        base_context["osint_sources"] = [p.model_dump() for p in dpl.get_objects(OSINTSource)]
+        base_context["osint_sources"] = [p.model_dump(mode="json") for p in dpl.get_objects(OSINTSource)]
         base_context["word_lists"] = word_lists
         return base_context
