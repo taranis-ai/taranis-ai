@@ -113,6 +113,7 @@ class ReportItemLock(MethodView):
             logger.exception()
             return str(ex), 500
 
+    @auth_required("ANALYZE_UPDATE")
     def delete(self, report_item_id):
         user = current_user
         if not user:

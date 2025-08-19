@@ -105,20 +105,6 @@ export const useAuthStore = defineStore(
       exp.value = data.exp
     }
 
-    function loginFromCookie() {
-      const cookies = document.cookie.split(';')
-      const tokenCookie = cookies.find((cookie) =>
-        cookie.trim().startsWith('access_token_cookie=')
-      )
-
-      if (tokenCookie) {
-        const cookieValue = tokenCookie.split('=')[1]
-        if (cookieValue && cookieValue.trim() !== '') {
-          setJwtToken(cookieValue)
-        }
-      }
-    }
-
     function reset() {
       localStorage.ACCESS_TOKEN = ''
       document.cookie =
@@ -155,7 +141,6 @@ export const useAuthStore = defineStore(
       refresh,
       hasAccess,
       setJwtToken,
-      loginFromCookie,
       reset
     }
   },
