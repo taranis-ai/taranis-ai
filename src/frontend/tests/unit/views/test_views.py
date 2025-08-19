@@ -141,7 +141,7 @@ class TestSourceView:
             assert resp.status_code == 200
 
             # Assert that CoreApi().import_sources was called with the correct data
-            mock_api_instance.import_sources.assert_called_once_with(dummy_export_data["sources"])
+            mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 
     def test_import_post_view_no_file(self, authenticated_client):
         """
