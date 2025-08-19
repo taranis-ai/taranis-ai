@@ -113,10 +113,7 @@ class ReportItemLock(MethodView):
             logger.exception()
             return str(ex), 500
 
-
-class ReportItemUnlock(MethodView):
-    @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def delete(self, report_item_id):
         user = current_user
         if not user:
             abort(401, "User not found")
@@ -137,6 +134,5 @@ def initialize(app: Flask):
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
-    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))
 
     app.register_blueprint(analyze_bp)

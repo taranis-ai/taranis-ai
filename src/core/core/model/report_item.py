@@ -141,7 +141,11 @@ class ReportItem(BaseModel):
             return {"error": "Permission Denied"}, 403
 
         new_report = report.clone_report()
-        return {"message": f"Successfully cloned Report {report_id} to new Report {new_report.id}", "id": new_report.id}, 200
+        return {
+            "message": f"Successfully cloned Report '{new_report.title}'",
+            "report": new_report.to_detail_dict(),
+            "id": new_report.id,
+        }, 200
 
     @classmethod
     def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
@@ -380,7 +384,7 @@ class ReportItem(BaseModel):
 
         db.session.delete(report)
         db.session.commit()
-        return {"message": "Report successfully deleted"}, 200
+        return {"message": f"Successfully deleted report '{report.title}'"}, 200
 
 
 class ReportItemAttribute(BaseModel):
