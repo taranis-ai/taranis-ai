@@ -12,8 +12,6 @@ class ReportItemTypeView(BaseView):
     icon = "presentation-chart-bar"
     _index = 120
 
-    form_fields = {"title": {}, "description": {}}
-
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [

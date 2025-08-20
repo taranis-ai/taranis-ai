@@ -6,6 +6,8 @@ from urllib.parse import urlparse, urlunparse
 
 
 def mask_db_uri(uri: str) -> str:
+    if not isinstance(uri, str) or not uri:
+        return "<masked>"
     parsed = urlparse(uri)
 
     if parsed.password:

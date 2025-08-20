@@ -1,5 +1,6 @@
 import json
 from sqlalchemy.orm import Mapped
+from datetime import datetime, timezone
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -11,6 +12,8 @@ class Task(BaseModel):
     id: Mapped[str] = db.Column(db.String, primary_key=True)
     result: Mapped[str] = db.Column(db.String, nullable=True)
     status: Mapped[str] = db.Column(db.String, nullable=True)
+    last_change: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
     def __init__(self, result=None, status=None, id=None):
         if id:
@@ -18,12 +21,16 @@ class Task(BaseModel):
         if status:
             self.status = status
         self.result = json.dumps(result) if result else ""
+        if status == "SUCCESS":
+            self.last_success = datetime.now(timezone.utc)
 
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get(entry_data["id"]):
             entry.result = json.dumps(entry_data["result"]) if entry_data["result"] else ""
             entry.status = entry_data.get("status")
+            if entry.status == "SUCCESS":
+                entry.last_success = datetime.now(timezone.utc)
             db.session.commit()
             return entry, 200
         return cls.add(entry_data)

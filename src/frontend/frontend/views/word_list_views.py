@@ -17,13 +17,6 @@ class WordListView(BaseView):
     icon = "chat-bubble-bottom-center-text"
     _index = 170
 
-    form_fields = {
-        "name": {},
-        "description": {},
-        "link": {},
-        "usage[]": {},
-    }
-
     @classmethod
     def import_view(cls, error=None):
         return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)

@@ -33,6 +33,13 @@ class Bot(BaseModel):
         self.index = Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
+    @property
+    def status(self):
+        if task_result := TaskModel.get(self.to_task_id()):
+            logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
+            return task_result.to_dict()
+        return None
+
     @classmethod
     def update(cls, bot_id, data) -> "Bot | None":
         bot = cls.get(bot_id)
@@ -87,9 +94,11 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
-        if task_result := TaskModel.get(self.to_task_id()):
-            logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
-            data["status"] = task_result.to_dict()
+        # if task_result := TaskModel.get(self.to_task_id()):
+        #     logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
+        #     data["status"] = task_result.to_dict()
+        if self.status:
+            data["status"] = self.status
         return data
 
     def to_task_id(self) -> str:
