@@ -25,3 +25,15 @@ def test_models_validator_empty_file():
 def test_models_validator_undefined_ignored():
     res = validate_template_content("Value: {{ missing }}")
     assert res["is_valid"] is True
+
+
+def test_models_validator_handles_include_without_fs():
+    # The validation loader should allow includes without real files
+    res = validate_template_content("{% include 'partial.html' %}")
+    assert res["is_valid"] is True
+
+
+def test_models_validator_handles_extends_without_fs():
+    # The validation loader should allow extends without real files
+    res = validate_template_content("{% extends 'base.html' %}{% block body %}x{% endblock %}")
+    assert res["is_valid"] is True
