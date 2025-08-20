@@ -41,11 +41,12 @@ def auth_required(permissions: list | str | None = None):
             try:
                 verify_jwt_in_request()
             except Exception:
+                logger.exception("JWT verification failed")
                 logger.debug("JWT verification failed")
                 return redirect(url_for("base.login"), code=302)
 
-            identity = get_jwt_identity()
-            if not identity:
+            user_name = get_jwt_identity()
+            if not user_name:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
                 return redirect(url_for("base.login"), code=302)
 
@@ -54,7 +55,7 @@ def auth_required(permissions: list | str | None = None):
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.error(
-                    f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
+                    f"user {user_name} Insufficient permissions in JWT for identity",
                 )
                 return redirect("/forbidden", code=403)
 
@@ -65,10 +66,8 @@ def auth_required(permissions: list | str | None = None):
     return auth_required_wrap
 
 
-def get_user_details():
-    api = CoreApi()
-    # read userdetails from core on route /users
-    if result := api.api_get("/users"):
+def update_current_user_cache():
+    if result := CoreApi().api_get("/users"):
         return add_user_to_cache(result)
     return None
 
@@ -76,11 +75,11 @@ def get_user_details():
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
-    return get_user_from_cache(identity) or get_user_details()
+    return get_user_from_cache(identity) or update_current_user_cache()
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "User"):
+def user_identity_lookup(user: "User") -> str:
     return user.username
 
 

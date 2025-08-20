@@ -17,6 +17,7 @@ from frontend.auth import auth_required
 class SourceView(BaseView):
     model = OSINTSource
     icon = "book-open"
+    import_route = "admin.import_osint_sources"
     _index = 63
 
     collector_types = {
@@ -123,10 +124,9 @@ class SourceView(BaseView):
         if not sources:
             return cls.import_view("No file or organization provided")
         data = sources.read()
-        data = json.loads(data)
-        data = json.dumps(data["data"])
+        json_data = json.loads(data)
 
-        response = CoreApi().import_sources(json.loads(data))
+        response = CoreApi().import_sources(json_data)
 
         if not response:
             error = "Failed to import sources"

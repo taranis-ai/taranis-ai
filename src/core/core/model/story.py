@@ -570,6 +570,7 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
+        StorySearchIndex.prepare(story)
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
 
@@ -827,6 +828,9 @@ class Story(BaseModel):
     @classmethod
     def group_stories(cls, story_ids: list[str], user: User | None = None):
         try:
+            if not isinstance(story_ids, list):
+                return {"error": "story_ids must be a list"}, 400
+
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 

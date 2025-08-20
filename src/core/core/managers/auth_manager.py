@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Response, request, Flask
+from flask import Response, request, Flask, jsonify
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
 from core.log import logger
@@ -46,7 +46,13 @@ def authenticate(credentials: dict[str, str]) -> Response:
 
 
 def refresh(user: "User"):
-    return current_authenticator.refresh(user)
+    exp_timestamp = get_jwt()["exp"]
+    now = datetime.now(timezone.utc)
+    target_timestamp = datetime.timestamp(now + timedelta(minutes=30))
+    if target_timestamp > exp_timestamp:
+        return current_authenticator.refresh(user)
+    encoded_token = request.cookies.get("access_token_cookie")
+    return jsonify({"access_token": encoded_token})
 
 
 def logout(jti):
@@ -71,8 +77,8 @@ def auth_required(permissions: list | str | None = None):
                 logger.exception(str(ex))
                 return error
 
-            identity = get_jwt_identity()
-            if not identity:
+            user_name = get_jwt_identity()
+            if not user_name:
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
@@ -81,7 +87,7 @@ def auth_required(permissions: list | str | None = None):
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.store_auth_error_activity(
-                    f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
+                    f"user {user_name} Insufficient permissions in JWT for identity",
                 )
                 return {"error": "forbidden"}, 403
 
@@ -121,7 +127,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "User"):
+def user_identity_lookup(user: "User") -> str:
     return user.username
 
 
