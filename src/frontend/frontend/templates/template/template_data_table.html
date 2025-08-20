@@ -2,7 +2,7 @@
 
 {% set columns = columns | default([
   {'title': 'Template Name', 'field': 'id', 'sortable': True, 'renderer': None},
-  {'title': 'Validation Status', 'field': 'validation_status', 'sortable': False, 'renderer': render_validation_status}
+  {'title': 'Validation Status', 'field': 'validation_status', 'sortable': False, 'renderer': render_item_validation_status}
 ]) %}
 
 {% set actions = actions | default([]) %}

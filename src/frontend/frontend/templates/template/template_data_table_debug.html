@@ -25,7 +25,7 @@
       {% for item in data %}
       <tr>
         <td>{{ item.id }}</td>
-        <td>{{ item | render_validation_status }}</td>
+  <td>{{ item.validation_status | render_validation_status }}</td>
         <td><pre>{{ (item.validation_status or {}) | tojson }}</pre></td>
       </tr>
       {% endfor %}

@@ -23,10 +23,10 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        from frontend.filters import render_validation_status
+        from frontend.filters import render_item_validation_status
         return [
             {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
-            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_validation_status}
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_item_validation_status}
         ]
 
 

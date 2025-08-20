@@ -20,6 +20,7 @@ __all__ = [
     "render_source_parameter",
     "render_item_type",
     "render_validation_status",
+    "render_item_validation_status",
     "badge_class",
     "badge_label",
     "normalize_validation_status",
@@ -144,30 +145,32 @@ def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
 
 
-def render_validation_status(item) -> str:
-    """Render validation status badge for templates."""
-    # Accept both dicts and objects for the item; the validation_status itself must be a dict
-    status = None
-    if isinstance(item, dict):
-        status = item.get("validation_status")
-    elif hasattr(item, "validation_status"):
-        status = getattr(item, "validation_status")
-
+def render_validation_status(status) -> str:
+    """Render validation status badge for a status dict.
+    Expected: dict with keys is_valid, error_type?, error_message?; anything else -> Unknown.
+    """
     if isinstance(status, dict):
-        # Don't default to valid; treat missing/None as unknown
         is_valid = status.get("is_valid")
         error_type = status.get("error_type") or ""
         error_message = status.get("error_message") or ""
         if is_valid is True:
             return Markup('<span class="badge badge-success text-xs">Valid</span>')
         if is_valid is False:
-            # Escape tooltip content to avoid HTML issues
             et = escape(error_type)
             em = escape(error_message)
             tooltip_attr = f'title="{et}: {em}"' if em else f'title="{et}"'
             return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
-    # Unknown if status missing or not a dict
     return Markup('<span class="badge badge-neutral text-xs">Unknown</span>')
+
+
+def render_item_validation_status(item) -> str:
+    """Adapter for table renderers: extract item.validation_status and render."""
+    status = None
+    if isinstance(item, dict):
+        status = item.get("validation_status")
+    elif hasattr(item, "validation_status"):
+        status = getattr(item, "validation_status")
+    return render_validation_status(status)
 
 
 @pass_context
