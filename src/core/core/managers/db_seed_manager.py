@@ -1,4 +1,6 @@
+from copy import deepcopy
 from sqlalchemy.engine import Engine
+
 from core.log import logger
 from core.config import Config
 from core.managers.db_enum_manager import sync_enum_with_db
@@ -63,6 +65,7 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_source_groups()
     pre_seed_manual_source()
     migrate_refresh_intervals()
+    migrate_user_profiles()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -76,6 +79,26 @@ def pre_seed_update(db_engine: Engine):
             Bot.add(b)
 
     Settings.initialize()
+
+
+def migrate_user_profile(user_profile: dict, template: dict) -> dict:
+    out = dict(user_profile)  # avoid mutating input
+    for key, value in template.items():
+        if key in out and isinstance(value, dict) and not isinstance(out[key], dict) or key not in out:
+            out[key] = deepcopy(value)
+        elif isinstance(value, dict):
+            out[key] = migrate_user_profile(out[key], value)
+    return out
+
+
+def migrate_user_profiles():
+    from core.model.user import User, PROFILE_TEMPLATE
+
+    users = User.get_all_for_collector() or []
+    for user in users:
+        current = user.profile if isinstance(user.profile, dict) else {}
+        updated = migrate_user_profile(current, PROFILE_TEMPLATE)
+        User.update_profile(user=user, data=updated)
 
 
 def migrate_refresh_intervals():

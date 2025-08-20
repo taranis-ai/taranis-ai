@@ -15,7 +15,7 @@ class AttributeView(BaseView):
     _index = 130
 
     attribute_types = {
-        member.name.lower(): {"id": member.name.upper(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
+        member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in AttributeType
     }
 

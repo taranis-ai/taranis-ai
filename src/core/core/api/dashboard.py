@@ -1,4 +1,4 @@
-from flask import Blueprint, request, Flask
+from flask import Blueprint, jsonify, request, Flask
 from flask.views import MethodView
 
 from core.model.news_item import NewsItem
@@ -56,7 +56,7 @@ class StoryClusters(MethodView):
     def get(self):
         days = int(request.args.get("days", 7))
         limit = int(request.args.get("limit", 12))
-        return StoryService.get_story_clusters(days, limit)
+        return jsonify(StoryService.get_story_clusters(days, limit))
 
 
 class ClusterByType(MethodView):

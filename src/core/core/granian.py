@@ -11,8 +11,6 @@ from sqlalchemy.exc import OperationalError
 
 from core import create_app
 from core.config import Config
-from core.managers.db_seed_manager import sync_enums
-from core.managers.db_manager import is_db_empty
 
 loglevel = LogLevels.info
 log_access = False
@@ -23,11 +21,6 @@ if Config.DEBUG:
 workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
 address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
 port = int(os.getenv("GRANIAN_PORT", 8080))
-
-
-def pre_seed_update_db(engine):
-    if not is_db_empty(engine):
-        sync_enums(engine)
 
 
 def wait_for_db(max_retries=5):
@@ -41,7 +34,6 @@ def wait_for_db(max_retries=5):
     while retry_count < max_retries:
         try:
             with engine.connect():
-                pre_seed_update_db(engine)
                 return
         except OperationalError:
             retry_count += 1

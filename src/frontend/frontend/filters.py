@@ -5,6 +5,7 @@ from heroicons.jinja import heroicon_outline
 
 from markupsafe import Markup
 from models.admin import OSINTSource
+from models.types import OSINTState
 
 __all__ = [
     "human_readable_trigger",
@@ -78,9 +79,13 @@ def render_source_parameter(item: OSINTSource) -> str:
     return source_parameter
 
 
-def render_state(item) -> str:
+def render_state(item: OSINTSource) -> str:
     if hasattr(item, "state"):
-        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=item.last_error_message or ""))
+        if item.state == OSINTState.NOT_MODIFIED:
+            state_message = f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}" if hasattr(item, "last_collected") else ""
+        else:
+            state_message = item.last_error_message or ""
+        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=state_message))
     return Markup(render_template("partials/state_badge.html", state=-1))
 
 

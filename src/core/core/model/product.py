@@ -93,6 +93,7 @@ class Product(BaseModel):
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),
             "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
+            "parameters": {param.parameter: param.value for param in self.product_type.parameters},
         }
 
     @classmethod
@@ -131,7 +132,11 @@ class Product(BaseModel):
         if product := cls.get(product_id):
             if product.render_result:
                 mime_type = product.product_type.get_mimetype()
-                if mime_type == "application/pdf":
+                if mime_type in [
+                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/vnd.oasis.opendocument.text",
+                ]:
                     blob = product.render_result
                 else:
                     blob = b64decode(product.render_result).decode("utf-8")

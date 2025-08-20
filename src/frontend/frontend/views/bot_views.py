@@ -2,9 +2,8 @@ from typing import Any
 from flask import render_template, url_for, request
 
 from frontend.views.base_view import BaseView
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from models.admin import Bot, WorkerParameter, WorkerParameterValue
+from models.admin import Bot
 from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
 from frontend.auth import auth_required
@@ -30,13 +29,6 @@ class BotView(BaseView):
         ]
 
     @classmethod
-    def get_worker_parameters(cls, bot_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == bot_type), None)
-        return match.parameters if match else []
-
-    @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
@@ -55,7 +47,7 @@ class BotView(BaseView):
         bot = base_context.get(cls.model_name())
         if bot and (hasattr(bot, "type") and (bot_type := bot.type)):
             parameter_values = bot.parameters
-            parameters = cls.get_worker_parameters(bot_type=bot_type.name.lower())
+            parameters = cls.get_worker_parameters(bot_type.name.lower())
 
         base_context |= {
             "bot_types": cls.bot_types.values(),

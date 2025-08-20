@@ -21,7 +21,6 @@ dependencies = [
     "pydantic-settings",
     "requests",
     "requests[socks]",
-
     # Collector
     "beautifulsoup4",
     "trafilatura",
@@ -30,22 +29,19 @@ dependencies = [
     "lxml",
     "playwright",
     "langcodes",
-
     # Publisher
     "paramiko",
     "python-gnupg",
-
     # Presenters
     "weasyprint",
     "jinja2",
-
     # Connectors
     "pymisp",
-
     # Bots
     "ioc-finder",
     "ioc-fanger",
     "langdetect",
+    "pypandoc-binary>=1.15",
 ]
 dynamic = ["version"]
 

@@ -8,17 +8,20 @@ class PDFPresenter(BasePresenter):
     name = "PDF Presenter"
     description = "Presenter for generating PDF documents"
 
-    def generate(self, product, template) -> str | bytes:
+    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
+        if parameters is None:
+            parameters = {}
+
+        output_text = super().generate(product, template, parameters)
+
         try:
-            output_text = super().generate(product, template)
-
             html = HTML(string=output_text)
-
-            if data := html.write_pdf(target=None):
-                return data
-
-            raise ValueError("PDF generation failed: No data returned")
-
+            data = html.write_pdf(target=None)
         except Exception as error:
             BasePresenter.print_exception(self, error)
             raise ValueError(f"PDF generation failed: {error}") from error
+
+        if not data:
+            raise ValueError("PDF generation failed: No data returned")
+
+        return data
