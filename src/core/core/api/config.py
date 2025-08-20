@@ -196,12 +196,6 @@ class WorkerParameters(MethodView):
         return {"items": result}, 200
 
 
-class ProductTypeParameters(MethodView):
-    @auth_required("CONFIG_ACCESS")
-    def get(self):
-        return {"items": product_type.ProductType.get_parameters()}, 200
-
-
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
     @extract_args("search")
@@ -779,7 +773,6 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
     config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
     config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
-    config_bp.add_url_rule("/product-type-parameters", view_func=ProductTypeParameters.as_view("product_type_parameters"))
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
     config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))

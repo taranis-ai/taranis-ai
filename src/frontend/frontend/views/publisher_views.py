@@ -4,7 +4,7 @@ from flask import request, render_template
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType, WorkerParameter, WorkerParameterValue, ProductTypeParameter
+from models.admin import PublisherPreset, ProductType, ReportItemType
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 
 from frontend.filters import render_item_type
@@ -22,20 +22,13 @@ class PublisherView(BaseView):
     }
 
     @classmethod
-    def get_worker_parameters(cls, publisher_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == publisher_type), None)
-        return match.parameters if match else []
-
-    @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
         publisher = base_context.get(cls.model_name())
         if publisher and (hasattr(publisher, "type") and (publisher_type := publisher.type)):
             parameter_values = publisher.parameters
-            parameters = cls.get_worker_parameters(publisher_type=publisher_type.name.lower())
+            parameters = cls.get_worker_parameters(worker_type=publisher_type.name.lower())
 
         base_context |= {
             "publisher_types": cls.publisher_types.values(),
@@ -51,7 +44,6 @@ class PublisherView(BaseView):
             logger.warning("No Publisher ID or Publisher Type provided.")
 
         parameters = cls.get_worker_parameters(publisher_type)
-
         return render_template("partials/worker_parameters.html", parameters=parameters)
 
 
@@ -69,13 +61,16 @@ class ProductTypeView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
         parameters = {}
-        if presenter := base_context.get(cls.model_name()):
-            presenter_type = getattr(presenter, "type", "")
-            parameters = cls.get_product_type_parameters(presenter.id, presenter_type)
+        parameter_values = {}
+        presenter = base_context.get(cls.model_name())
+        if presenter and (hasattr(presenter, "type") and (presenter_type := presenter.type)):
+            parameter_values = presenter.parameters
+            parameters = cls.get_worker_parameters(worker_type=presenter_type.name.lower())
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
             "parameters": parameters,
+            "parameter_values": parameter_values,
         }
         return base_context
 
@@ -100,21 +95,10 @@ class ProductTypeView(BaseView):
         ]
 
     @classmethod
-    def get_product_type_parameters(cls, product_type_id: int, presenter_type: str) -> list[dict]:
-        dpl = DataPersistenceLayer()
-
-        # when creating a new product, product_id is 0
-        if product_type_id == 0:
-            all_parameters = dpl.get_objects(WorkerParameter)
-            match = next((wp for wp in all_parameters if wp.id == presenter_type.lower()), None)
-
-        else:
-            all_parameters = dpl.get_objects(ProductTypeParameter)
-            match = next((wp for wp in all_parameters if wp.type == presenter_type), None)
-
-        return match.parameters if match else []
-
-    @classmethod
     def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
-        parameters = cls.get_product_type_parameters(product_type_id, presenter_type)
-        return render_template("partials/worker_parameters.html", parameters=parameters, preserve=False)
+        if not product_type_id and not presenter_type:
+            logger.warning("No Product Type ID or Presenter Type provided.")
+
+        parameters = cls.get_worker_parameters(worker_type=presenter_type)
+
+        return render_template("partials/worker_parameters.html", parameters=parameters)

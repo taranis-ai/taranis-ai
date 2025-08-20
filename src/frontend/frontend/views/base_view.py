@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
 
-from models.admin import TaranisBaseModel
+from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
@@ -132,6 +132,13 @@ class BaseView(MethodView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @classmethod
+    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
+        dpl = DataPersistenceLayer()
+        all_parameters = dpl.get_objects(WorkerParameter)
+        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
+        return match.parameters if match else []
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):

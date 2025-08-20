@@ -34,22 +34,20 @@
       <select id="product_type"
               name="type"
               required
-              class="validator select w-full"
+              class="validator select w-full {% if product_type.type %}pointer-events-none opacity-60{% endif %}"
               hx-get="{{ url_for('admin.product_type_parameters', product_type_id=product_type_id) }}"
               hx-trigger="change"
               hx-include="#product_type, #title, #description"
               hx-target="#parameters"
-              hx-swap="innerHTML"
-              {% if product_type.type %}disabled{% endif %}>
+              hx-swap="innerHTML">
         {% if not product_type.type %}<option value="" selected disabled>Select a presenter type</option>{% endif %}
-        {% for option in presenter_types -%}
+        {% for option in presenter_types %}
           <option value="{{ option.id }}" {% if option.id == product_type.type %}selected{% endif %}>{{ option.name }}</option>
         {% endfor -%}
       </select>
     </label>
 
-    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
-
+    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
 
     <fieldset class="fieldset bg-base-100 w-3/4 mb-5">
       <legend class="fieldset-legend">Report Types</legend>
