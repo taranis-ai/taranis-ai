@@ -55,7 +55,7 @@
       <legend class="fieldset-legend">Report Types</legend>
       <select name="report_types[]" multiple required type="number" id="report_types-select" class="tomselect">
         {% for report_type in report_types %}
-          <option value="{{ report_type.id }}" {% if report_type.id in selected_report_types %}selected{% endif %}>{{ report_type.title }}</option>
+          <option value="{{ report_type.id }}" {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
         {% endfor %}
       </select>
     </fieldset>
