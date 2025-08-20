@@ -168,7 +168,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
 
     admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("worker_types"))
-    admin_bp.add_url_rule("/workers/<int:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
+    admin_bp.add_url_rule("/workers/<string:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
 
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupView.as_view("osint_source_groups"))
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
@@ -217,6 +217,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
     admin_bp.add_url_rule("/export/word_lists", view_func=WordListView.export_view, methods=["GET"], endpoint="export_word_lists")
     admin_bp.add_url_rule("/import/word_lists", view_func=ImportWordLists.as_view("import_word_lists"))
+    admin_bp.add_url_rule("/update-word_lists", view_func=WordListView.update_word_lists, methods=["POST"], endpoint="update_all_word_lists")
     admin_bp.add_url_rule(
         "/load_default_word_lists", view_func=WordListView.load_default_word_lists, methods=["POST"], endpoint="load_default_word_lists"
     )

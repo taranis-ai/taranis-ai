@@ -46,7 +46,7 @@ dev = ["ruff", "pytest", "wheel"]
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

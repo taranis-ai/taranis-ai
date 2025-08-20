@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import jsonify, request
 from flask_cors import CORS
 
 import core.api as core_api
@@ -43,7 +43,7 @@ def handle_unauthorized(e):
 
 
 def handle_not_found(e):
-    logger.debug(f"404 not found: {e}")
+    logger.debug(f"404 not found: {request.path} ({e})")
     if hasattr(e, "item"):
         return jsonify(error=f"{e.item} not found"), 404
     return jsonify(error="Not found"), 404

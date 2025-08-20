@@ -46,7 +46,7 @@ def core_payloads():
 
         expect_object = None
 
-        if view_name == "Dashboard":
+        if view_name in ["Dashboard", "Admin Dashboard"]:
             expect_object = str(items[0].get("total_news_items"))
         elif view_name == "Settings":
             expect_object = items[0].get("settings", {}).get("default_collector_proxy")
@@ -409,6 +409,7 @@ def organizations_delete_mock(requests_mock):
 
 @pytest.fixture
 def organizations_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
 
 

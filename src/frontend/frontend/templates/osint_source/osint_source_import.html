@@ -1,6 +1,7 @@
 
 
 <div class="p-5">
+  {% include 'partials/admin_form_error.html' %}
   <form id="form" hx-trigger="submit" hx-post="{{ url_for('admin.import_osint_sources') }}" hx-target="#result" enctype="multipart/form-data">
     <div class="grid">
       <div>

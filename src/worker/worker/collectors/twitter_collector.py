@@ -22,11 +22,8 @@ class TwitterCollector(BaseWebCollector):
         self.search_keyword = source["parameters"].get("SEARCH_KEYWORD", "")
 
     def collect(self, source: dict, manual: bool = False):
-        try:
-            self.parse_source(source)
-            return self.twitter_collector(source, manual)
-        except Exception as e:
-            raise RuntimeError(f"Twitter Collector failed with error: {e}") from e
+        self.parse_source(source)
+        self.twitter_collector(source, manual)
 
     def twitter_collector(self, source: dict, manual: bool = False):
         news_items = []
