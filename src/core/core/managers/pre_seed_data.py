@@ -198,6 +198,16 @@ workers = [
         "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
     },
     {
+        "type": "PANDOC_PRESENTER",
+        "description": "Presenter for generating .odt & .docx documents",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "rules": "required"},
+            {"parameter": "CONVERT_FROM", "type": "text", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "rules": "one_of:docx|odt"},
+        ],
+        "name": "PANDOC Presenter",
+    },
+    {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
         "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
@@ -540,11 +550,33 @@ report_types = [
 
 product_types = [
     {
+        "title": "Default .md -> .odt Presenter",
+        "description": "Default .md -> .odt Presenter",
+        "type": "PANDOC_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "md_odt_template.md"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "md", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|odt"},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
+        "title": "Default .html -> .docx Presenter",
+        "description": "Default .html -> .docx Presenter",
+        "type": "PANDOC_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
         "title": "Default PDF Presenter",
         "description": "Default PDF Presenter",
         "type": "PDF_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "pdf_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "pdf_template.html"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -553,7 +585,7 @@ product_types = [
         "description": "Default TEXT Presenter",
         "type": "TEXT_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "text_template.txt"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "text_template.txt"},
         ],
         "report_types": [1, 2, 3, 4],
     },
@@ -562,7 +594,7 @@ product_types = [
         "description": "cert.at Daily Report HTML",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
         ],
         "report_types": [4],
     },

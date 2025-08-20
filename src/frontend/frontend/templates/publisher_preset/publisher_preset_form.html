@@ -18,7 +18,7 @@
       <select id="publisher_type"
               name="type"
               required
-              class="validator select w-full pointer-events-none opacity-60"
+              class="validator select w-full {% if publisher_preset.type %}pointer-events-none opacity-60{% endif %}"
               hx-get="{{ url_for('admin.publisher_parameters', publisher_id=publisher_id) }}"
               hx-trigger="change"
               hx-include="#publisher_type"

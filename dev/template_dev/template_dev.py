@@ -126,7 +126,11 @@ def render(template_path):
     return generate(example_product, template)
 
 
-def generate(product, template) -> dict[str, bytes | str]:
+def generate(product, template, parameters: dict[str, str] | None = None) -> dict[str, bytes | str]:
+
+    if parameters is None:
+        parameters = {}
+
     try:
         env = jinja2.Environment(autoescape=False)
         tmpl = env.from_string(template)
