@@ -4,14 +4,15 @@ from typing import Any, Sequence
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
+from apscheduler.triggers.cron import CronTrigger
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
-from apscheduler.triggers.cron import CronTrigger
 from core.managers import schedule_manager
+from core.model.task import Task as TaskModel
 
 
 class Bot(BaseModel):
@@ -86,10 +87,13 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        if task_result := TaskModel.get(self.to_task_id()):
+            logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
+            data["status"] = task_result.to_dict()
         return data
 
     def to_task_id(self) -> str:
-        return f"{self.__tablename__}_{self.id}_{self.type}"
+        return f"bot_{self.id}"
 
     def schedule_bot(self):
         if crontab_str := self.get_schedule():

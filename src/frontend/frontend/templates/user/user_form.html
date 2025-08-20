@@ -42,6 +42,7 @@
       {% include "user/user_form_warning.html" %}
     {% endif -%}
   </div>
+  <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ user_id }}</p>
 
   <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}

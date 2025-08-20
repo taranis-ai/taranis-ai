@@ -16,14 +16,13 @@ from core.managers.db_manager import is_db_empty
 
 loglevel = LogLevels.info
 log_access = False
-if os.getenv("DEBUG", "false").lower() == "true":
+if Config.DEBUG:
     loglevel = LogLevels.debug
     log_access = True
 
 workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
 address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
 port = int(os.getenv("GRANIAN_PORT", 8080))
-connect_timeout = int(os.getenv("SQLALCHEMY_CONNECT_TIMEOUT", 10))
 
 
 def pre_seed_update_db(engine):

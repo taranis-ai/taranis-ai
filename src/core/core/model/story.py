@@ -870,6 +870,8 @@ class Story(BaseModel):
     @classmethod
     def ungroup_story(cls, story_id: int, user: User | None = None):
         try:
+            if ReportItemStory.assigned(story_id):
+                return {"error": f"Story {story_id} is assigned to a report"}, 400
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404

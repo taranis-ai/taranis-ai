@@ -54,6 +54,14 @@ class PublisherView(BaseView):
 
         return render_template("partials/worker_parameters.html", parameters=parameters)
 
+    @classmethod
+    def get_columns(cls):
+        return [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "Type", "field": "type", "sortable": False, "renderer": render_item_type},
+        ]
+
 
 class ProductTypeView(BaseView):
     model = ProductType
@@ -89,7 +97,6 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_columns(cls):
         return [
-            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": False, "renderer": render_item_type},

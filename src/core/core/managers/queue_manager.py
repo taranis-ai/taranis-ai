@@ -167,7 +167,7 @@ class QueueManager:
         bot_args: dict[str, int | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
-        if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_task_{bot_id}"):
+        if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_{bot_id}"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -188,7 +188,7 @@ class QueueManager:
 
     def get_bot_signature(self, bot_id: str, source_id: str):
         return self._celery.signature(
-            "bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", task_id=f"bot_task_{bot_id}", immutable=True
+            "bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", task_id=f"bot_{bot_id}", immutable=True
         )
 
     def post_collection_bots(self, source_id: str):

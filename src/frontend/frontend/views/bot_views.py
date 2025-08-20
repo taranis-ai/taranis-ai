@@ -8,6 +8,7 @@ from models.admin import Bot, WorkerParameter, WorkerParameterValue
 from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
 from frontend.auth import auth_required
+from frontend.filters import render_item_type
 
 
 class BotView(BaseView):
@@ -19,6 +20,14 @@ class BotView(BaseView):
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in BOT_TYPES
     }
+
+    @classmethod
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
+        ]
 
     @classmethod
     def get_worker_parameters(cls, bot_type: str) -> list[WorkerParameterValue]:
