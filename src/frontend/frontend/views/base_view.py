@@ -116,9 +116,9 @@ class BaseView(MethodView):
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
             {"title": "Name", "field": "name", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
         ]
 
     @classmethod

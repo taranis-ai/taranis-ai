@@ -86,23 +86,20 @@
             <v-row>
               <v-col v-if="edit" cols="12" class="pa-0 ma-0">
                 <v-expansion-panels
-                  v-for="(
-                    attributes, attribute_group
-                  ) in report_item.attributes"
-                  :key="attribute_group"
-                  v-model="expand_panel_groups"
+                  v-for="group_title in report_item.attribute_groups"
+                  :model-value="[group_title]"
+                  :key="group_title"
                   class="mb-1"
                   multiple
                   eager
                 >
-                  <v-expansion-panel
-                    :title="attribute_group"
-                    :value="attribute_group"
-                  >
+                  <v-expansion-panel :title="group_title" :value="group_title">
                     <v-expansion-panel-text>
                       <div
-                        v-for="(attribute, attribute_id) in attributes"
-                        :key="attribute_id"
+                        v-for="attribute in report_item.attributes.filter(
+                          (attr) => attr.group_title === group_title
+                        )"
+                        :key="attribute.id"
                       >
                         <attribute-item
                           v-model:value="attribute.value"
@@ -172,11 +169,6 @@ export default {
 
     const verticalView = ref(useUserStore().split_view)
     const report_item = ref(props.reportItemProp)
-    const expand_panel_groups = ref(
-      report_item.value.attributes
-        ? Object.keys(report_item.value.attributes)
-        : []
-    )
     const required = ref([(v) => !!v || 'Required'])
     const { report_item_types, report_item_stories } = storeToRefs(store)
     const newProductProps = ref({
@@ -238,13 +230,12 @@ export default {
         return
       }
       if (props.edit) {
-        const flattened_attributes = {}
-
-        for (const group of Object.values(report_item.value.attributes)) {
-          for (const [key, obj] of Object.entries(group)) {
-            flattened_attributes[key] = { value: obj.value }
-          }
-        }
+        const flattened_attributes = Object.fromEntries(
+          report_item.value.attributes.map((attr) => [
+            attr.id,
+            { value: attr.value }
+          ])
+        )
 
         const update_report_item = {
           title: report_item.value.title,
@@ -306,7 +297,6 @@ export default {
 
     return {
       verticalView,
-      expand_panel_groups,
       report_item,
       form,
       required,
