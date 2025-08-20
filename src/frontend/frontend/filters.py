@@ -2,8 +2,7 @@ from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
-
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from models.admin import OSINTSource
 from models.types import OSINTState
 
@@ -20,8 +19,44 @@ __all__ = [
     "render_count",
     "render_source_parameter",
     "render_item_type",
+    "render_validation_status",
+    "badge_class",
+    "badge_label",
+    "normalize_validation_status",
 ]
+def badge_class(status):
+    """Return the CSS class for a badge based on validation status."""
+    if status == "valid":
+        return "badge-success"
+    elif status == "invalid":
+        return "badge-error"
+    return "badge-neutral"
 
+
+def badge_label(status):
+    """Return the label for a badge based on validation status."""
+    if status == "valid":
+        return "Valid"
+    elif status == "invalid":
+        return "Invalid"
+    return "Unknown"
+
+def normalize_validation_status(status) -> str:
+    """Normalize validation status input to 'valid' | 'invalid' | 'unknown'.
+    Accepts dicts like {is_valid: bool, ...} or strings.
+    """
+    if isinstance(status, dict):
+        is_valid = status.get("is_valid")
+        if is_valid is True:
+            return "valid"
+        if is_valid is False:
+            return "invalid"
+        return "unknown"
+    if isinstance(status, str):
+        s = status.lower().strip()
+        if s in {"valid", "invalid", "unknown"}:
+            return s
+    return "unknown"
 
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
@@ -112,6 +147,32 @@ def admin_action(value):
 
 def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
+
+
+def render_validation_status(item) -> str:
+    """Render validation status badge for templates."""
+    # Accept both dicts and objects with validation_status attribute
+    status = None
+    if isinstance(item, dict):
+        status = item.get("validation_status")
+    elif hasattr(item, "validation_status"):
+        status = getattr(item, "validation_status")
+
+    if isinstance(status, dict):
+        # Don't default to valid; treat missing/None as unknown
+        is_valid = status.get("is_valid")
+        error_type = status.get("error_type") or ""
+        error_message = status.get("error_message") or ""
+        if is_valid is True:
+            return Markup('<span class="badge badge-success text-xs">Valid</span>')
+        if is_valid is False:
+            # Escape tooltip content to avoid HTML issues
+            et = escape(error_type)
+            em = escape(error_message)
+            tooltip_attr = f'title="{et}: {em}"' if em else f'title="{et}"'
+            return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
+    # Unknown if status missing or not a dict
+    return Markup('<span class="badge badge-neutral text-xs">Unknown</span>')
 
 
 @pass_context

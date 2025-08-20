@@ -28,12 +28,19 @@ See [README.md](../README.md) for more information.
 
 ## Testing
 
-- see .github/workflows for how tests are configured in CI
-- run `uv run pytest` with various options like 'e2e-user' to run specific test suites
-- tests are located in each component's `tests/` directory
+See .github/workflows for how tests are configured in CI.
+To run tests locally or in CI:
+1. In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
+	- `uv sync --all-extras --dev` to install all dependencies and dev extras.
+2. Then run:
+	- `uv run pytest` to execute the tests for that component.
+You must run these commands separately in each src directory to ensure all dependencies are installed and tests are run in the correct environment.
+Tests are located in each component's `tests/` directory.
 
 ## Development Guidelines
 
 - never use `git add -A` or in general do not add "all" files lying around
 - use specific git add commands for the files you want to commit
 - don't commit how many tests passed (statistics in commit messages are not useful)
+- do not use `pip` for any package installations or management, always use `uv`
+- do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs

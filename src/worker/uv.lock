@@ -177,7 +177,7 @@ name = "build"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "os_name == 'nt'" },
+    { name = "colorama", marker = "os_name == 'nt' and sys_platform != 'darwin'" },
     { name = "packaging" },
     { name = "pyproject-hooks" },
 ]
@@ -1558,6 +1558,30 @@ wheels = [
 ]
 
 [[package]]
+name = "taranis-models"
+source = { directory = "../models" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "langcodes" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-dotenv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2" },
+    { name = "langcodes" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "python-dotenv" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "wheel", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "taranis-worker"
 source = { editable = "." }
 dependencies = [
@@ -1579,6 +1603,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-gnupg" },
     { name = "requests", extra = ["socks"] },
+    { name = "taranis-models" },
     { name = "trafilatura", version = "1.6.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "trafilatura", version = "1.6.3", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin'" },
     { name = "weasyprint" },
@@ -1627,6 +1652,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
+    { name = "taranis-models", directory = "../models" },
     { name = "trafilatura" },
     { name = "watchdog", marker = "extra == 'dev'" },
     { name = "weasyprint" },

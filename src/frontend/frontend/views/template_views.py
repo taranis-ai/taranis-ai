@@ -1,4 +1,6 @@
+from base64 import b64encode
 from typing import Any
+from flask import request, render_template, Response
 from base64 import b64decode, b64encode
 from flask import request
 
@@ -13,6 +15,7 @@ class TemplateView(BaseView):
     model = Template
     icon = "document-text"
     _index = 160
+    htmx_list_template: str = "template/template_data_table.html"
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -20,7 +23,12 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_validation_status}
+        ]
+
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -42,16 +50,10 @@ class TemplateView(BaseView):
         )
 
         dpl = DataPersistenceLayer()
-        template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
-
-        try:
-            template.content = b64decode(template.content or "").decode("utf-8")
-        except Exception:
-            logger.exception()
-            logger.warning(f"Failed to decode template content for {template}")
-            template.content = template.content
-
+        template = dpl.get_object(cls.model, object_id) or cls.model.model_construct(id=str(object_id), content='')
+        validation_status = getattr(template, 'validation_status', None) or {}
         context[cls.model_name()] = template
+        context["validation_status"] = validation_status
         return context
 
     @classmethod

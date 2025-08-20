@@ -68,10 +68,16 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
+        template_files = [
+            {"id": t.id, "name": t.id, "validation_status": getattr(t, "validation_status", None)}
+            for t in dpl.get_objects(Template)
+        ]
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
-            "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
-            "template_files": [{"id": t.id, "name": t.id} for t in dpl.get_objects(Template)],
+            "report_types": [
+                rt.model_dump() for rt in dpl.get_objects(ReportItemType)
+            ],
+            "template_files": template_files,
         }
         return base_context
 
