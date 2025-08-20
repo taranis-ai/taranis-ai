@@ -96,7 +96,7 @@ exclude = [
 preserve_blank_lines=true
 max_line_length=142
 max_attribute_length=142
-ignore = "J018"
+ignore = "J018,T028"
 indent=2
 
 [tool.uv]

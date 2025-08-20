@@ -216,6 +216,7 @@ class OSINTState(IntEnum):
     UNKNOWN = -1
     OK = 0
     ERROR = 1
+    NOT_MODIFIED = 2
 
 
 class AttributeType(StrEnum):

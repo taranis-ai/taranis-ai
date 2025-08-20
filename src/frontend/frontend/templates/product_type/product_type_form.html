@@ -26,7 +26,7 @@
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', product_type.description, form_error.description, width="w-3/4") }}
     <label class="select w-3/4 mb-5">

@@ -205,7 +205,11 @@ def skip_tests(items, keyword, reason):
 
 
 def pytest_collection_modifyitems(config, items):
+    config.option.start_live_server = False
+
     if _is_vscode(config):
+        config.option.trace = True
+        config.option.headed = False
         return
 
     options = {
@@ -220,6 +224,7 @@ def pytest_collection_modifyitems(config, items):
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":
+                config.option.trace = True
                 config.option.headed = False
             skip_tests(items, keyword, reason)
             return
