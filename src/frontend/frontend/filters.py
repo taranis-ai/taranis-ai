@@ -82,7 +82,11 @@ def render_source_parameter(item: OSINTSource) -> str:
 def render_state(item: OSINTSource) -> str:
     if hasattr(item, "state"):
         if item.state == OSINTState.NOT_MODIFIED:
-            state_message = f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}" if hasattr(item, "last_collected") else ""
+            state_message = (
+                f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}"
+                if (hasattr(item, "last_collected") and item.last_collected)
+                else ""
+            )
         else:
             state_message = item.last_error_message or ""
         return Markup(render_template("partials/state_badge.html", state=item.state, state_message=state_message))

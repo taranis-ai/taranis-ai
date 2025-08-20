@@ -38,6 +38,8 @@ class TaskResult(TaranisBaseModel):
     id: str | None = None
     result: Any | None = None
     status: str | None = None
+    last_change: datetime | None = None
+    last_success: datetime | None = None
 
 
 class Address(TaranisBaseModel):
@@ -219,6 +221,7 @@ class ProductType(TaranisBaseModel):
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
     report_types: list[int] = Field(default_factory=list)
+    status: TaskResult | None = None
 
 
 class PublisherPreset(TaranisBaseModel):
@@ -232,6 +235,7 @@ class PublisherPreset(TaranisBaseModel):
     type: PUBLISHER_TYPES
     description: str | None = ""
     parameters: dict[str, str] | None = Field(default_factory=dict)
+    status: TaskResult | None = None
 
 
 class ReportItemAttribute(TaranisBaseModel):
