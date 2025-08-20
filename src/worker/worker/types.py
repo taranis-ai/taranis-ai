@@ -25,7 +25,6 @@ class NewsItem:
         published_date: datetime | None = None,
         collected_date: datetime | None = None,
         attributes: list | None = None,
-        last_change: str = "external",
         story_id: str = "",
     ):
         self.osint_source_id = osint_source_id
@@ -45,7 +44,6 @@ class NewsItem:
             published_date = collected_date
         self.published_date = published_date
         self.attributes = attributes or []
-        self.last_change = last_change
         self.story_id = story_id
 
     def to_dict(self):
@@ -60,7 +58,6 @@ class NewsItem:
             "collected": self.collected_date.isoformat(),
             "content": self.content,
             "osint_source_id": self.osint_source_id,
-            "last_change": self.last_change,
             "story_id": self.story_id,
             "review": self.review,
             "language": self.language,
