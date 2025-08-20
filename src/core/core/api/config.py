@@ -10,11 +10,10 @@ from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    get_template_content,
-    list_templates,
     save_template_content,
     delete_template,
 )
+from core.service.template_service import build_template_response, build_templates_list
 from models.template_validation import validate_template_content
 from core.model import (
     attribute,
@@ -235,109 +234,12 @@ class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
         if template_path:
-            content = get_template_content(template_path)
-            if content is None:
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file not found.",
-                    "error_type": "NotFound"
-                }
-                encoded_content = None
-            elif content == "__INVALID_UTF8__":
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file is not valid UTF-8.",
-                    "error_type": "UnicodeDecodeError"
-                }
-                encoded_content = None
-            elif content == "__EMPTY__":
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file is empty.",
-                    "error_type": "EmptyFile"
-                }
-                encoded_content = ""
-            else:
-                if isinstance(content, bytes):
-                    try:
-                        content = content.decode("utf-8")
-                    except Exception:
-                        validation_status = {
-                            "is_valid": False,
-                            "error_message": "Template file is not valid UTF-8.",
-                            "error_type": "UnicodeDecodeError"
-                        }
-                        encoded_content = None
-                        return {
-                            "id": template_path,
-                            "content": encoded_content,
-                            "validation_status": validation_status
-                        }, 200
-                validation_status = validate_template_content(content)
-                encoded_content = base64.b64encode(content.encode("utf-8")).decode("utf-8")
-            
-            return jsonify({
-                "id": template_path,
-                "content": encoded_content,
-                "validation_status": validation_status
-            }), 200
+            resp = build_template_response(template_path)
+            return jsonify(resp), 200
 
         # List all templates
-        template_ids = list_templates()
-        items = []
-        for tid in template_ids:
-            content = get_template_content(tid)
-            if content is None:
-                # Still list the template, but mark as not found
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file not found.",
-                    "error_type": "NotFound"
-                }
-                encoded_content = None
-            elif content == "__INVALID_UTF8__":
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file is not valid UTF-8.",
-                    "error_type": "UnicodeDecodeError"
-                }
-                encoded_content = None
-            elif content == "__EMPTY__":
-                validation_status = {
-                    "is_valid": False,
-                    "error_message": "Template file is empty.",
-                    "error_type": "EmptyFile"
-                }
-                encoded_content = ""
-            else:
-                # Ensure content is str
-                if isinstance(content, bytes):
-                    try:
-                        content = content.decode("utf-8")
-                    except Exception:
-                        validation_status = {
-                            "is_valid": False,
-                            "error_message": "Template file is not valid UTF-8.",
-                            "error_type": "UnicodeDecodeError"
-                        }
-                        encoded_content = None
-                        items.append({
-                            "id": tid,
-                            "content": encoded_content,
-                            "validation_status": validation_status
-                        })
-                        continue
-                validation_status = validate_template_content(content)
-                encoded_content = base64.b64encode(content.encode("utf-8")).decode("utf-8")
-            items.append({
-                "id": tid,
-                "content": encoded_content,
-                "validation_status": validation_status
-            })
-        return jsonify({
-            "items": items,
-            "total_count": len(items)
-        }), 200
+        items = build_templates_list()
+        return jsonify({"items": items, "total_count": len(items)}), 200
 
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
