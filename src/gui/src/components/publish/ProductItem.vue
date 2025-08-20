@@ -120,7 +120,7 @@
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <object
-              v-if="renderedProductMimeType === 'application/pdf'"
+              v-else-if="renderedProductMimeType === 'application/pdf'"
               class="pdf-container"
               :data="'data:application/pdf;base64,' + renderedProduct"
               type="application/pdf"
@@ -138,7 +138,7 @@
             />
 
             <pre
-              v-if="renderedProductMimeType === 'text/plain'"
+              v-else-if="renderedProductMimeType === 'text/plain'"
               data-testid="text-render"
             >
               {{ renderedProduct }}
