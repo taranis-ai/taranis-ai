@@ -102,20 +102,17 @@ class ProductTypeView(BaseView):
     @classmethod
     def get_product_type_parameters(cls, product_type_id: int, presenter_type: str) -> list[dict]:
         dpl = DataPersistenceLayer()
-        product_type_endpoint = dpl.get_endpoint(ProductTypeParameter)
-        worker_endpoint = dpl.get_endpoint(WorkerParameter)
 
-        if result := dpl.api.api_get(product_type_endpoint):
-            for d in result.get("items", []):
-                if d.get("id") == product_type_id:
-                    return d.get("parameters", [])
+        # when creating a new product, product_id is 0
+        if product_type_id == 0:
+            all_parameters = dpl.get_objects(WorkerParameter)
+            match = next((wp for wp in all_parameters if wp.id == presenter_type.lower()), None)
 
-        if (result := dpl.api.api_get(worker_endpoint)) and presenter_type:
-            for d in result.get("items", []):
-                if d.get("id") == presenter_type.lower():
-                    return d.get("parameters", [])
+        else:
+            all_parameters = dpl.get_objects(ProductTypeParameter)
+            match = next((wp for wp in all_parameters if wp.type == presenter_type), None)
 
-        return []
+        return match.parameters if match else []
 
     @classmethod
     def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:

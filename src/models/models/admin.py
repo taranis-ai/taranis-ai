@@ -351,7 +351,8 @@ class ProductTypeParameter(TaranisBaseModel):
     _model_name = "product_type_parameter"
     _pretty_name = "Product Type Parameter"
 
-    id: str
+    id: int
+    type: str
     parameters: list[ProductTypeParameterValue]
 
 
