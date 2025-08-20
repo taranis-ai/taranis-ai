@@ -89,7 +89,8 @@ class Sources(MethodView):
                 if request_json := request.json:
                     error_msg = request_json.get("error", None)
 
-            source.update_status(error_msg)
+            state = "SUCCESS" if error_msg is None else "ERROR"
+            source.update_status(state, error_msg)
             return {"message": "Status updated"}
         except Exception:
             logger.exception()

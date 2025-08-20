@@ -40,13 +40,11 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data_not_modified
     from worker.tests.testdata import rss_collector_source_data_no_content
     from worker.tests.testdata import rss_collector_url_not_modified
+    from worker.collectors.base_web_collector import NoChangeError
 
-    with pytest.raises(RuntimeError) as exception:
+    with pytest.raises(NoChangeError) as exception:
         result = rss_collector.collect(rss_collector_source_data_not_modified)
-    assert (
-        str(exception.value)
-        == f"RSS Collector for {rss_collector_url_not_modified} failed with error: {rss_collector_url_not_modified} was not modified"
-    )
+    assert str(exception.value) == f"{rss_collector_url_not_modified} was not modified"
 
     result = rss_collector.collect(rss_collector_source_data_no_content)
     assert result is None
@@ -186,7 +184,7 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query did not return tickets
-    error_msg = f"RT Collector for {rt_testdata.rt_base_url} failed with error: No tickets available for {rt_testdata.rt_base_url}"
+    error_msg = f"No tickets available for {rt_testdata.rt_base_url}"
 
     with pytest.raises(RuntimeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_collector_no_tickets_source_data)
@@ -194,12 +192,13 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
 
 
 def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
+    import json
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query response contains malformed json
-    error_msg = f"RT Collector for {rt_testdata.rt_base_url} failed with error: Expecting ':' delimiter: line 1 column 13 (char 12)"
+    error_msg = "Expecting ':' delimiter: line 1 column 13 (char 12)"
 
-    with pytest.raises(RuntimeError) as exception:
+    with pytest.raises(json.decoder.JSONDecodeError) as exception:
         _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)
     assert str(exception.value) == error_msg
 

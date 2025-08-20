@@ -228,11 +228,13 @@ class OSINTSource(BaseModel):
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
-    def update_status(self, error_message=None):
+    def update_status(self, state: str, error_message: str | None = None):
         self.last_attempted = datetime.now()
-        if error_message:
+        if state == "ERROR":
             logger.error(f"Updating status for source '{self.name}' with id {self.id} with error message: {error_message}")
             self.state = 1
+        elif state == "NOT_MODIFIED":
+            self.state = 2
         else:
             self.last_collected = datetime.now()
             self.state = 0

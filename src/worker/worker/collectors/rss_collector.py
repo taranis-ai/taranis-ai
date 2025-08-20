@@ -47,11 +47,8 @@ class RSSCollector(BaseWebCollector):
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
     def collect(self, source: dict, manual: bool = False):
-        try:
-            self.parse_source(source)
-            self.rss_collector(source, manual)
-        except Exception as e:
-            raise RuntimeError(f"RSS Collector for {self.feed_url} failed with error: {e}") from e
+        self.parse_source(source)
+        self.rss_collector(source, manual)
 
     def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -199,13 +196,10 @@ class RSSCollector(BaseWebCollector):
         return feedparser.parse(self.feed_content.content)
 
     def preview_collector(self, source: dict):
-        try:
-            self.parse_source(source)
-            feed = self.get_feed(manual=True)
-            self.news_items = self.gather_news_items(feed, source)
-            return self.preview(self.news_items, source)
-        except Exception as e:
-            raise RuntimeError(f"RSS Collector for {self.feed_url} failed with error: {e}") from e
+        self.parse_source(source)
+        feed = self.get_feed(manual=True)
+        self.news_items = self.gather_news_items(feed, source)
+        return self.preview(self.news_items, source)
 
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
