@@ -31,7 +31,7 @@ class QueueManager:
     def post_init(self):
         self.clear_queues()
         self.update_task_queue_from_osint_sources()
-        self.schedule_word_list_gathering()
+        self.update_empty_word_lists()
 
     def clear_queues(self):
         if self.error:
@@ -52,7 +52,7 @@ class QueueManager:
 
         [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
 
-    def schedule_word_list_gathering(self):
+    def update_empty_word_lists(self):
         from core.model.word_list import WordList
 
         if self.error:
@@ -61,6 +61,18 @@ class QueueManager:
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
             self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+        logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
+
+    def gather_all_word_lists(self):
+        from core.model.word_list import WordList
+
+        if self.error:
+            return
+
+        word_lists = WordList.get_all_for_collector() or []
+        for word_list in word_lists:
+            self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+        return {"message": "Gathering for all WordLists scheduled"}, 200
 
     def get_queued_tasks(self):
         if self.error:
@@ -113,6 +125,7 @@ class QueueManager:
         if self.send_task("collector_task", args=[source_id, True], queue="collectors", task_id=task_id):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
+        logger.error(f"Could not schedule collection for source {source_id}")
         return {"error": "Could not reach rabbitmq"}, 500
 
     def preview_osint_source(self, source_id: str):

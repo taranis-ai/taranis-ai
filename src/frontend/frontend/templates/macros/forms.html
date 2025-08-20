@@ -11,11 +11,10 @@
 {% macro form_select(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
   <label class="select mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
-    <select id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" name="{{ name }}" {% if required %}required{% endif %} class="
-            validator
-            select
-            w-full
-            ">
+    <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
+            name="{{ name }}"
+            {% if required %}required{% endif %}
+            class="validator select w-full">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options -%}
         <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }}</option>
@@ -27,7 +26,10 @@
 {% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='') %}
   <label class="floating-label {{ width }}">
     <span class="label">{{ label }}</span>
-    <input id="{%- if input_id -%}{{ input_id }}{%- else -%}{{ name }}{%- endif -%}" type="{{ type }}" placeholder="{{ placeholder if placeholder is not none else label }}" class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
+    <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
+           type="{{ type }}"
+           placeholder="{{ placeholder if placeholder is not none else label }}"
+           class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
            name="{{ name }}"
            {% if pattern %}pattern="{{ pattern }}"{% endif %}
            {% if invalid_msg %} x-on:input=" $el.setCustomValidity(''); if (!$el.validity.valid) { $el.setCustomValidity('{{ invalid_msg }}'); } " {% endif %}
@@ -60,26 +62,24 @@
   </label>
 {% endmacro %}
 
-{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full') %}
+{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='') %}
   {% from "macros/forms.html" import form_switch_content %}
   <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
     <legend class="fieldset-legend">{{ label }}</legend>
-    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve) }}</label>
+    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class) }}</label>
   </fieldset>
 {% endmacro %}
 
 {% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='') %}
   <!--checkbox does not emit falsy states - this makes sure it is included in form submission if unchecked-->
   <input type="hidden" name="{{ name }}" value="{{ no_val }}" />
-  <input
-    id="{{ name }}"
-    name="{{ name }}"
-    type="checkbox"
-    value="{{ yes_val }}"
-    class="toggle toggle-primary {{ input_class }}"
-    {% if required %}required{% endif %}
-    {% if value == yes_val %}checked{% endif %}
-    onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';"
-  />
+  <input id="{{ name }}"
+         name="{{ name }}"
+         type="checkbox"
+         value="{{ yes_val }}"
+         class="toggle toggle-primary {{ input_class }}"
+         {% if required %}required{% endif %}
+         {% if value == yes_val %}checked{% endif %}
+         onchange="document.getElementById('{{ name }}_status').textContent = this.checked ? '{{ yes_val }}' : '{{ no_val }}';" />
   <span class="text-base-content {{ input_class }}" id="{{ name }}_status">{{ yes_val if value == yes_val else no_val }}</span>
 {% endmacro %}

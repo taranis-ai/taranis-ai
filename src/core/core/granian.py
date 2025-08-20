@@ -35,7 +35,7 @@ def wait_for_db(max_retries=5):
     db_url = Config.SQLALCHEMY_DATABASE_URI
     if not db_url:
         raise RuntimeError("SQLALCHEMY_DATABASE_URI is not set")
-    engine = create_engine(db_url, connect_args={"connect_timeout": connect_timeout})
+    engine = create_engine(db_url, **Config.SQLALCHEMY_ENGINE_OPTIONS)
     retry_count = 0
     wait_time = 1  # Start with a 1 second wait
 

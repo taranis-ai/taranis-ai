@@ -24,6 +24,12 @@ class UserProfile(MethodView):
             return {"error": "No input data provided"}, 400
         return User.update_profile(current_user, json_data)
 
+    @jwt_required()
+    def post(self):
+        if not (json_data := request.json):
+            return {"error": "No input data provided"}, 400
+        return User.update_profile(current_user, json_data)
+
 
 class SSEConnected(MethodView):
     @jwt_required()
