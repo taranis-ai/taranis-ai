@@ -42,8 +42,8 @@ def badge_label(status):
     return "Unknown"
 
 def normalize_validation_status(status) -> str:
-    """Normalize validation status input to 'valid' | 'invalid' | 'unknown'.
-    Accepts dicts like {is_valid: bool, ...} or strings.
+    """Normalize to 'valid' | 'invalid' | 'unknown'.
+    Expected input: dict with key 'is_valid' or None. Any other type -> 'unknown'.
     """
     if isinstance(status, dict):
         is_valid = status.get("is_valid")
@@ -51,11 +51,6 @@ def normalize_validation_status(status) -> str:
             return "valid"
         if is_valid is False:
             return "invalid"
-        return "unknown"
-    if isinstance(status, str):
-        s = status.lower().strip()
-        if s in {"valid", "invalid", "unknown"}:
-            return s
     return "unknown"
 
 def parse_interval_trigger(trigger):
@@ -151,7 +146,7 @@ def b64decode(value):
 
 def render_validation_status(item) -> str:
     """Render validation status badge for templates."""
-    # Accept both dicts and objects with validation_status attribute
+    # Accept both dicts and objects for the item; the validation_status itself must be a dict
     status = None
     if isinstance(item, dict):
         status = item.get("validation_status")
