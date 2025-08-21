@@ -150,10 +150,9 @@ class BaseCollector:
             return self.publish(news_items, source)
 
         processed_stories = self.process_news_items_in_stories(story_lists, source, story_attribute_key)
-        logger.debug(f"{processed_stories=}")
 
         if story_attribute_key == "misp_event_uuid":
-            logger.debug(f"Trying to publish {len(processed_stories)} stories from source {source['name'], source['id']}")
+            logger.debug(f"Trying to publish {len(processed_stories)} stories from source {source.get('name'), source.get('id')}")
             self.core_api.add_or_update_for_misp(processed_stories)
         else:
             processed_stories = self.set_attr_key_to_existing_stories(processed_stories, story_attribute_key, source)
@@ -161,13 +160,13 @@ class BaseCollector:
                 self.core_api.add_or_update_story(story)
 
     def set_attr_key_to_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
+        # sourcery skip: use-next
         existing_stories = self.core_api.get_stories({"source": source["id"]})
         if not existing_stories:
             return new_stories
 
         for story in new_stories:
             story_attributes = story.get("attributes", [])
-            # Find the attribute dict where key = story_attribute_key and get its value
             story_attr_value = None
             for attr in story_attributes:
                 if attr.get("key") == story_attribute_key:

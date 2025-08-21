@@ -29,7 +29,6 @@ class MISPConnector:
         self.distribution: str = "1"
 
     def parse_parameters(self, parameters: dict) -> None:
-        logger.debug(f"{parameters=}")
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
@@ -640,7 +639,7 @@ class MISPConnector:
         )
         event_to_add = self._create_event(story_prepared, misp_event_uuid, existing_event)
         shadow_attributes = self.add_story_proposal(existing_event, event_to_add, misp)
-        logger.debug(f"{shadow_attributes=}")
+        logger.debug(f"Proposed attributes (shadow attributes): {shadow_attributes=}")
         return shadow_attributes
 
     def _create_event(self, story_prepared, misp_event_uuid, existing_event):
