@@ -125,7 +125,7 @@ def misp_collector_mock(requests_mock):
     requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
     requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
     requests_mock.post("https://test.misp.test/objects/restSearch", json=taranis_objects)
-    requests_mock.get("https://test.misp.test/events/view/49", json=misp_event)
+    requests_mock.post("https://test.misp.test/events/view/49", json=misp_event)
     requests_mock.get("https://test.misp.test/shadow_attributes/index/a5fd9136-59ee-4178-8139-742130ed50a7", json={})
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?source=b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=a5fd9136-59ee-4178-8139-742130ed50a7", json={})
