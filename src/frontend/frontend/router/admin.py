@@ -123,6 +123,13 @@ class PublisherParameterAPI(MethodView):
         return PublisherView.get_publisher_parameters_view(publisher_id, publisher_type)
 
 
+class ProductTypeParameterAPI(MethodView):
+    @auth_required()
+    def get(self, product_type_id: int) -> str:
+        presenter_type = request.args.get("type", "")
+        return ProductTypeView.get_product_type_parameters_view(product_type_id, presenter_type)
+
+
 class ReportItemTypeGroupsAPI(MethodView):
     @auth_required()
     def post(self):
@@ -168,7 +175,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
 
     admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("worker_types"))
-    admin_bp.add_url_rule("/workers/<int:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
+    admin_bp.add_url_rule("/workers/<string:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
 
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupView.as_view("osint_source_groups"))
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))
@@ -205,6 +212,9 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/product_types", view_func=ProductTypeView.as_view("product_types"))
     admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
+    admin_bp.add_url_rule(
+        "/product_type_parameters/<int:product_type_id>", view_func=ProductTypeParameterAPI.as_view("product_type_parameters")
+    )
 
     admin_bp.add_url_rule("/templates", view_func=TemplateView.as_view("template_data"))
     admin_bp.add_url_rule("/templates/<string:template>", view_func=TemplateView.as_view("edit_template"))

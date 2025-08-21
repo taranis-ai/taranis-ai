@@ -2,7 +2,7 @@ import json
 from typing import Any, Literal
 from flask import render_template, request, Response, url_for
 
-from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
+from models.admin import OSINTSource, TaskResult
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
@@ -17,19 +17,13 @@ from frontend.auth import auth_required
 class SourceView(BaseView):
     model = OSINTSource
     icon = "book-open"
+    import_route = "admin.import_osint_sources"
     _index = 63
 
     collector_types = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in COLLECTOR_TYPES
     }
-
-    @classmethod
-    def get_worker_parameters(cls, collector_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == collector_type), None)
-        return match.parameters if match else []
 
     @classmethod
     def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
@@ -81,7 +75,7 @@ class SourceView(BaseView):
         collector = base_context.get(cls.model_name())
         if collector and (collector_type := collector.type):
             parameter_values = collector.parameters
-            parameters = cls.get_worker_parameters(collector_type=collector_type.name.lower())
+            parameters = cls.get_worker_parameters(worker_type=collector_type.name.lower())
 
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
@@ -123,10 +117,9 @@ class SourceView(BaseView):
         if not sources:
             return cls.import_view("No file or organization provided")
         data = sources.read()
-        data = json.loads(data)
-        data = json.dumps(data["data"])
+        json_data = json.loads(data)
 
-        response = CoreApi().import_sources(json.loads(data))
+        response = CoreApi().import_sources(json_data)
 
         if not response:
             error = "Failed to import sources"

@@ -1,4 +1,5 @@
 import importlib.util
+import pytest
 import os
 import sys
 
@@ -345,3 +346,92 @@ class TestConnector:
             f"Expected attributes {story_attributes}, but got {attribute_list}"
         )
         assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {story_tags}, but got {tag_list}"
+
+
+class TestOSINTSourceScheduling:
+    base_uri = "/api/worker"
+
+    PER_SOURCE = "per-source"
+    DEFAULT = "default"
+    NONE = "none"
+
+    @pytest.mark.parametrize(
+        "row, per_source_proxy_set, default_proxy_set, use_global, expected",
+        [
+            # Row, per-source, default, use_global, expected result
+            (1, False, False, False, NONE),
+            (2, True, False, False, PER_SOURCE),
+            (3, False, True, False, NONE),
+            (4, True, True, False, PER_SOURCE),
+            (5, False, False, True, NONE),
+            (6, True, False, True, NONE),
+            (7, False, True, True, DEFAULT),
+            (8, True, True, True, DEFAULT),
+        ],
+        ids=[f"row-{i}" for i in range(1, 9)],
+    )
+    def test_proxy_selection_matrix(
+        self, app, client, auth_header, api_header, row, per_source_proxy_set, default_proxy_set, use_global, expected
+    ):
+        """
+        Verifies that PROXY_SERVER in the worker payload follows the 2x2x2 matrix:
+
+        - use_global = true  -> PROXY_SERVER should be the default proxy (or empty if not set)
+        - use_global = false -> PROXY_SERVER should be the per-source proxy if set; otherwise absent/empty
+        """
+        per_proxy = "http://per-source:1234"
+        default_proxy = "http://default-proxy:9999"
+        settings_payload = {
+            "settings": {
+                "default_collector_proxy": default_proxy if default_proxy_set else "",
+                "default_collector_interval": "5 5 * * *",
+                "default_tlp_level": "clear",
+            }
+        }
+
+        response = client.put("/api/admin/settings", json=settings_payload, headers=auth_header)
+        assert response.status_code == 200, f"Failed to set settings for row {row}: {response}"
+
+        source_id = "test_id"
+        with app.app_context():
+            from core.model.osint_source import OSINTSource
+
+            params = [
+                {"FEED_URL": "https://example.org/feed.xml"},
+                {"USE_GLOBAL_PROXY": "true" if use_global else "false"},
+            ]
+            if per_source_proxy_set:
+                params.append({"PROXY_SERVER": per_proxy})
+
+            source_data = {
+                "id": source_id,
+                "description": f"Matrix test row {row}",
+                "name": f"Matrix Test {row}",
+                "parameters": params,
+                "type": "rss_collector",
+            }
+
+            if OSINTSource.get(source_id):
+                OSINTSource.delete(source_id)
+            OSINTSource.add(source_data)
+
+        try:
+            response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
+            assert response.status_code == 200, f"Worker GET failed for row {row}: {response}"
+            payload = response.get_json()
+            params = payload.get("parameters", {})
+
+            effective_proxy = params.get("PROXY_SERVER", None)
+
+            if expected == self.PER_SOURCE:
+                assert effective_proxy == per_proxy, f"Row {row}: expected per-source proxy, got {effective_proxy!r}"
+            elif expected == self.DEFAULT:
+                assert effective_proxy == default_proxy, f"Row {row}: expected default proxy, got {effective_proxy!r}"
+            else:
+                assert not effective_proxy, f"Row {row}: expected no proxy, got {effective_proxy!r}"
+
+        finally:
+            with app.app_context():
+                from core.model.osint_source import OSINTSource
+
+                OSINTSource.delete(source_id)

@@ -104,14 +104,16 @@ class AttributeGroup(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["attribute_group_items"] = [attribute_group_item.to_dict() for attribute_group_item in self.attribute_group_items]
+        sorted_items = sorted(self.attribute_group_items, key=AttributeGroupItem.sort)
+        data["attribute_group_items"] = [attribute_group_item.to_dict() for attribute_group_item in sorted_items]
         return data
 
     def to_export_dict(self):
         data = super().to_dict()
         data.pop("id", None)
         data.pop("report_item_type_id", None)
-        data["attribute_group_items"] = [attribute_group_item.to_export_dict() for attribute_group_item in self.attribute_group_items]
+        sorted_items = sorted(self.attribute_group_items, key=AttributeGroupItem.sort)
+        data["attribute_group_items"] = [attribute_group_item.to_export_dict() for attribute_group_item in sorted_items]
         return data
 
     @staticmethod
@@ -205,13 +207,15 @@ class ReportItemType(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["attribute_groups"] = [attribute_group.to_dict() for attribute_group in self.attribute_groups]
+        sorted_groups = sorted(self.attribute_groups, key=AttributeGroup.sort)
+        data["attribute_groups"] = [attribute_group.to_dict() for attribute_group in sorted_groups]
         return data
 
     def to_export_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("id", None)
-        data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in self.attribute_groups]
+        sorted_groups = sorted(self.attribute_groups, key=AttributeGroup.sort)
+        data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in sorted_groups]
         return data
 
     @classmethod

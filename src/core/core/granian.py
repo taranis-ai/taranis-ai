@@ -11,8 +11,6 @@ from sqlalchemy.exc import OperationalError
 
 from core import create_app
 from core.config import Config
-from core.managers.db_seed_manager import sync_enums
-from core.managers.db_manager import is_db_empty
 
 loglevel = LogLevels.info
 log_access = False
@@ -26,23 +24,17 @@ port = int(os.getenv("GRANIAN_PORT", 8080))
 connect_timeout = int(os.getenv("SQLALCHEMY_CONNECT_TIMEOUT", 10))
 
 
-def pre_seed_update_db(engine):
-    if not is_db_empty(engine):
-        sync_enums(engine)
-
-
 def wait_for_db(max_retries=5):
     db_url = Config.SQLALCHEMY_DATABASE_URI
     if not db_url:
         raise RuntimeError("SQLALCHEMY_DATABASE_URI is not set")
-    engine = create_engine(db_url, connect_args={"connect_timeout": connect_timeout})
+    engine = create_engine(db_url, **Config.SQLALCHEMY_ENGINE_OPTIONS)
     retry_count = 0
     wait_time = 1  # Start with a 1 second wait
 
     while retry_count < max_retries:
         try:
             with engine.connect():
-                pre_seed_update_db(engine)
                 return
         except OperationalError:
             retry_count += 1

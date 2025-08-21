@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input %}
 {% set publisher_id = publisher_preset.id | default("0", true) %}
+{% set publisher_type = publisher_preset.type | upper %}
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
@@ -9,25 +10,24 @@
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', publisher_preset.name, form_error.name, width="w-3/4") }}
-    {{ form_input('Description', 'description', publisher_preset.description, form_error.description, width="w-3/4") }}
+    {{ form_input('Description', 'description', publisher_preset.description, form_error.description, required=false, width="w-3/4") }}
     <label class="select w-3/4 mb-5">
       <span class="label">Publisher Type</span>
       <select id="publisher_type"
               name="type"
               required
-              class="validator select w-full"
+              class="validator select w-full {% if publisher_preset.type %}pointer-events-none opacity-60{% endif %}"
               hx-get="{{ url_for('admin.publisher_parameters', publisher_id=publisher_id) }}"
               hx-trigger="change"
               hx-include="#publisher_type"
               hx-target="#parameters"
-              hx-swap="innerHTML"
-              {% if publisher_preset.type %}disabled{% endif %}>
+              hx-swap="innerHTML">
         {% if not publisher_preset.type %}<option value="" selected disabled>Select a publisher type</option>{% endif %}
-        {% for option in publisher_types -%}
-          <option value="{{ option.id }}" {% if option.id == publisher_preset.type %}selected{% endif %}>{{ option.name }}</option>
-        {% endfor -%}
+        {% for option in publisher_types %}
+          <option value="{{ option.id }}" {% if option.id == publisher_type %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor %}
       </select>
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
