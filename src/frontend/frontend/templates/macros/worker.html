@@ -1,0 +1,26 @@
+{% macro status_class(status) %}
+  {% if status == "FAILURE" %}
+    alert-error
+  {% elif status == "SUCCESS" %}
+    alert-success
+  {% elif status == "PENDING" %}
+    alert-warning
+  {% else %}
+    alert-info
+  {% endif %}
+{% endmacro %}
+
+{% macro worker_status(status) %}
+{% set result_class=status_class(status.status) %}
+<div class="alert {{ result_class }}">
+  <span class="badge">{{ status.status }}</span>
+  {{ status.result }}
+</div>
+{% endmacro %}
+
+{% macro worker_badge(status) %}
+{% set result_class=status_class(status.status) %}
+  <div class="tooltip" data-tip="{{ status.result }}">
+    <div title="{{ status.status }}" class="badge {{ result_class }}">{{ status.status }}</div>
+  </div>
+{% endmacro %}

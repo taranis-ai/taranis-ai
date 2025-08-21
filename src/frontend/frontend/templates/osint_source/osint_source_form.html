@@ -5,7 +5,9 @@
 <div class="bg-base-100 p-4">
   <div class="join gap-4 mb-5 w-3/4 ml-[10%]">
     <h1 class="text-3xl font-bold">{{ submit_text }}</h1>
+    {% if osint_id != "0" %}
     {% include "osint_source/state_button.html" %}
+    {% endif %}
   </div>
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>

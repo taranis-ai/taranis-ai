@@ -1,3 +1,4 @@
+# type: ignore
 from flask import request, Flask, Blueprint
 from flask.views import MethodView
 from datetime import datetime

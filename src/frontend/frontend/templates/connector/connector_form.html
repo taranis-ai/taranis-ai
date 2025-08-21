@@ -43,7 +43,7 @@
       </select>
       {% if connector.type %}<input type="hidden" name="type" value="{{ connector.type }}">{% endif %}
     </label>
-    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
+    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
 
     <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>

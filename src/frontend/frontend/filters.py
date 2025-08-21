@@ -106,6 +106,12 @@ def render_item_type(item) -> str:
     return "Unknown"
 
 
+def render_worker_status(item) -> str:
+    if hasattr(item, "status") and item.status:
+        return Markup(render_template("partials/status_badge.html", status=item.status))
+    return Markup(render_template("partials/status_badge.html"))
+
+
 def last_path_segment(value):
     return value.strip("/").split("/")[-1]
 

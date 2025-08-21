@@ -123,9 +123,6 @@ def form_formats_from_models():
             "required": required_keys,
         }
 
-        if view_name == "Bot":
-            print(f"Model: {view_name} Allowed keys: {allowed_keys} Required keys: {required_keys}")
-
     yield payloads
 
 

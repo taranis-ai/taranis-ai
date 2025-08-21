@@ -7,7 +7,7 @@ from models.admin import Bot
 from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
 from frontend.auth import auth_required
-from frontend.filters import render_item_type
+from frontend.filters import render_item_type, render_worker_status
 
 
 class BotView(BaseView):
@@ -23,6 +23,7 @@ class BotView(BaseView):
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
+            {"title": "Status", "field": "status", "sortable": True, "renderer": render_worker_status},
             {"title": "Name", "field": "name", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
