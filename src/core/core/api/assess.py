@@ -243,22 +243,6 @@ class Connectors(MethodView):
         except Exception as e:
             return {"error": str(e)}, 500
 
-    @auth_required("ASSESS_UPDATE")
-    @validate_json
-    def patch(self, story_id):
-        if not request.json:
-            return {"error": "Invalid JSON payload"}, 400
-        if not story_id:
-            return {"error": "No story_id provided"}, 400
-
-        conflict = StoryConflict.conflict_store.get(story_id)
-        if conflict is None:
-            logger.error(f"No conflict found for story {story_id}")
-            return {"error": "No conflict found", "id": story_id}, 404
-
-        response, code = conflict.resolve(request.json, user=current_user)
-        return response, code
-
 
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")

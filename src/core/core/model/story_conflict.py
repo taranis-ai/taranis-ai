@@ -25,12 +25,18 @@ class StoryConflict:
             return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400
 
         updated_data.update(resolution)
-
-        response, code = Story.update(self.story_id, updated_data, user=user, external=True)
+        story = Story.get(self.story_id)
+        if not story:
+            logger.error(f"Story with id {self.story_id} not found for resolution.")
+            return {"error": "Story not found", "id": self.story_id}, 404
+        response, code = story.add_or_update_for_misp([updated_data], force=True)
 
         if code == 200:
             StoryConflict.conflict_store.pop(self.story_id, None)
             logger.debug(f"Removed conflict for story {self.story_id} after successful update.")
+        elif code == 409:
+            StoryConflict.conflict_store.pop(self.story_id, None)
+            logger.warning(f"Conflict resolution for story {self.story_id}.")
 
         return response, code
 
@@ -40,16 +46,31 @@ class StoryConflict:
         logger.debug("Conflict store flushed")
 
     @classmethod
-    def get_proposal_count(cls):
+    def get_proposal_count(cls) -> int:
         logger.debug(f"with count {len(cls.conflict_store.values())}")
-        for conflict in cls.conflict_store.values():
-            logger.debug(f"{conflict.has_proposals} ")
         return sum(bool(conflict.has_proposals) for conflict in cls.conflict_store.values())
 
     @classmethod
     def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
         if keys_to_remove is None:
-            keys_to_remove = {"updated", "last_change", "has_proposals"}
+            keys_to_remove = {
+                "updated",
+                "last_change",
+                "has_proposals",
+                "detail_view",
+                "news_items_to_delete",
+                "collected",
+                "published",
+                "created",
+                "relevance",
+                "osint_source_id",
+                "language",
+                "read",
+                "important",
+                "story_id",
+                "likes",
+                "dislikes",
+            }
         if isinstance(obj, list):
             return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
         elif isinstance(obj, dict):
@@ -63,7 +84,5 @@ class StoryConflict:
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
         normalized_current = cls.remove_keys_deep(current_data)
-        logger.debug(f"{normalized_current=}")
         normalized_new = cls.remove_keys_deep(new_data)
-        logger.debug(f"{normalized_new=}")
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
