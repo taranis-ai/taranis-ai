@@ -20,6 +20,8 @@ __all__ = [
     "render_count",
     "render_source_parameter",
     "render_item_type",
+    "render_worker_status",
+    "format_datetime",
 ]
 
 
@@ -122,6 +124,10 @@ def admin_action(value):
 
 def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
+
+
+def format_datetime(value):
+    return value.strftime("%A, %d. %B %Y %H:%M") if value else ""
 
 
 @pass_context

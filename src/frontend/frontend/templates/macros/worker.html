@@ -1,18 +1,22 @@
 {% macro status_class(status) %}
-  {% if status == "FAILURE" %}
-    alert-error
-  {% elif status == "SUCCESS" %}
-    alert-success
-  {% elif status == "PENDING" %}
-    alert-warning
-  {% else %}
-    alert-info
-  {% endif %}
+{% if status == "FAILURE" %}
+error
+{% elif status == "SUCCESS" %}
+success
+{% elif status == "PENDING" %}
+neutral
+{% else %}
+info
+{% endif %}
 {% endmacro %}
 
 {% macro worker_status(status) %}
 {% set result_class=status_class(status.status) %}
-<div class="alert {{ result_class }}">
+<div class="join gap-8 mb-1">
+<p class="text-base-content/60 text-[0.7rem]">Last Change: <b>{{ status.last_change | format_datetime }}</b></p>
+<p class="text-base-content/60 text-[0.7rem]">Last Success: <b>{{ status.last_success | format_datetime }}</b></p>
+</div>
+<div class="alert alert-{{ result_class }}">
   <span class="badge">{{ status.status }}</span>
   {{ status.result }}
 </div>
@@ -20,7 +24,7 @@
 
 {% macro worker_badge(status) %}
 {% set result_class=status_class(status.status) %}
-  <div class="tooltip" data-tip="{{ status.result }}">
-    <div title="{{ status.status }}" class="badge {{ result_class }}">{{ status.status }}</div>
-  </div>
+<div class="tooltip" data-tip="{{ status.result }}">
+  <div title="{{ status.status }}" class="badge badge-{{ result_class }}">{{ status.status }}</div>
+</div>
 {% endmacro %}
