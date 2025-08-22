@@ -12,7 +12,7 @@ class Task(BaseModel):
     id: Mapped[str] = db.Column(db.String, primary_key=True)
     result: Mapped[str] = db.Column(db.String, nullable=True)
     status: Mapped[str] = db.Column(db.String, nullable=True)
-    last_change: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
     def __init__(self, result=None, status=None, id=None):
@@ -23,7 +23,7 @@ class Task(BaseModel):
         self.result = json.dumps(result) if result else ""
         if status == "SUCCESS":
             self.last_success = datetime.now(timezone.utc)
-        self.last_change = datetime.now(timezone.utc)
+        self.last_run = datetime.now(timezone.utc)
 
     @classmethod
     def add_or_update(cls, entry_data):
@@ -32,7 +32,7 @@ class Task(BaseModel):
             entry.status = entry_data.get("status")
             if entry.status == "SUCCESS":
                 entry.last_success = datetime.now(timezone.utc)
-            entry.last_change = datetime.now(timezone.utc)
+            entry.last_run = datetime.now(timezone.utc)
             db.session.commit()
             return entry, 200
         return cls.add(entry_data)
@@ -43,7 +43,7 @@ class Task(BaseModel):
             "id": self.id,
             "result": result,
             "status": self.status,
-            "last_change": self.last_change.isoformat() if self.last_change else None,
+            "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_success": self.last_success.isoformat() if self.last_success else None,
         }
 

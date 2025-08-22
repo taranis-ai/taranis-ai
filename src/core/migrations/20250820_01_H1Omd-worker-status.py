@@ -10,13 +10,21 @@ steps = [
     step(
         """
     ALTER TABLE task
-    ADD COLUMN last_change timestamp without time zone;
+    ADD COLUMN IF NOT EXISTS last_run timestamp without time zone;
     ALTER TABLE task
-    ADD COLUMN last_success timestamp without time zone;
+    ADD COLUMN IF NOT EXISTS last_success timestamp without time zone;
+    ALTER TABLE bot
+    ADD COLUMN IF NOT EXISTS state smallint DEFAULT -1;
+    ALTER TABLE osint_source
+    DROP COLUMN IF EXISTS last_collected;
+    ALTER TABLE osint_source
+    DROP COLUMN IF EXISTS last_attempted;
+    ALTER TABLE osint_source
+    DROP COLUMN IF EXISTS last_error_message;
     """,
         """
     ALTER TABLE task
-    DROP COLUMN IF EXISTS last_change;
+    DROP COLUMN IF EXISTS last_run;
     ALTER TABLE task
     DROP COLUMN IF EXISTS last_success;
     """,

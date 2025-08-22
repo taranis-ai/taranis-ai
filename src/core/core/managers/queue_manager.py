@@ -141,7 +141,7 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
-            self.send_task("collector_task", args=[source.id, True], queue="collectors", task_id=source.to_task_id())
+            self.send_task("collector_task", args=[source.id, True], queue="collectors", task_id=source.task_id)
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 

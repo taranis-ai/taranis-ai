@@ -2,8 +2,9 @@ from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
-
 from markupsafe import Markup
+from datetime import datetime
+
 from models.admin import OSINTSource
 from models.types import OSINTState
 
@@ -126,8 +127,12 @@ def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
 
 
-def format_datetime(value):
-    return value.strftime("%A, %d. %B %Y %H:%M") if value else ""
+def format_datetime(value: datetime | str) -> str:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    if isinstance(value, datetime):
+        return value.strftime("%A, %d. %B %Y %H:%M")
+    return ""
 
 
 @pass_context

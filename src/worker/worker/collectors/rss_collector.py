@@ -101,7 +101,7 @@ class RSSCollector(BaseWebCollector):
         if content == description:
             description = ""
 
-        for_hash: str = author + title + self.clean_url(link)
+        for_hash: str = title + self.clean_url(link)
 
         return NewsItem(
             osint_source_id=source["id"],
@@ -183,7 +183,9 @@ class RSSCollector(BaseWebCollector):
 
     def get_digest_url_list(self, feed_entries: list[feedparser.FeedParserDict]) -> list:
         return [
-            result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))
+            result
+            for feed_entry in feed_entries
+            for result in self.get_urls(self.feed_url, feed_entry.get("summary"))  # type: ignore
         ]  # Flat list of URLs
 
     def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:

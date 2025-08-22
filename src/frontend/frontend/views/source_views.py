@@ -2,7 +2,7 @@ import json
 from typing import Any, Literal
 from flask import render_template, request, Response, url_for
 
-from models.admin import OSINTSource, TaskResult
+from models.admin import OSINTSource, TaskResult, Job
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
@@ -159,30 +159,41 @@ class SourceView(BaseView):
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
     @classmethod
-    def collect_osint_source(cls, osint_source_id: str):
-        response = CoreApi().collect_osint_source(osint_source_id)
+    def _collect_source_view(cls, response):
         if not response:
             logger.error("Failed to start OSINT source collection")
-            return render_template(
-                "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
-            ), 500
-        return render_template(
-            "notification/index.html",
-            notification={"message": "OSINT source collection started successfully", "icon": "check-circle", "class": "alert-success"},
-        ), 200
+            notification, status = (
+                render_template(
+                    "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
+                ),
+                500,
+            )
+        else:
+            notification, status = (
+                render_template(
+                    "notification/index.html",
+                    notification={
+                        "message": "OSINT source collection started successfully",
+                        "icon": "check-circle",
+                        "class": "alert-success",
+                    },
+                ),
+                200,
+            )
+
+        table, table_response = cls.list_view()
+        status = table_response if table_response != 200 else status
+        return notification + table, status
+
+    @classmethod
+    def collect_osint_source(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source(osint_source_id)
+        return cls._collect_source_view(response)
 
     @classmethod
     def collect_all_osint_sources(cls):
         response = CoreApi().collect_all_osint_sources()
-        if not response:
-            logger.error("Failed to start OSINT sources collection")
-            return render_template(
-                "notification/index.html", notification={"message": "Failed to start OSINT sources collection", "error": True}
-            ), 500
-        return render_template(
-            "notification/index.html",
-            notification={"message": "OSINT sources collection started successfully", "icon": "check-circle", "class": "alert-success"},
-        ), 200
+        return cls._collect_source_view(response)
 
     @classmethod
     @auth_required()
@@ -212,6 +223,7 @@ class SourceView(BaseView):
             ), 500
 
         dpl.invalidate_cache_by_object(OSINTSource)
+        dpl.invalidate_cache_by_object(Job)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

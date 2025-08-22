@@ -8,16 +8,19 @@ from urllib.parse import urlparse, urlunparse
 def mask_db_uri(uri: str) -> str:
     if not isinstance(uri, str) or not uri:
         return "<masked>"
-    parsed = urlparse(uri)
+    try:
+        parsed = urlparse(uri)
 
-    if parsed.password:
-        netloc = f"{parsed.username}:***@{parsed.hostname}"
-        if parsed.port:
-            netloc += f":{parsed.port}"
-    else:
-        netloc = parsed.netloc
+        if parsed.password:
+            netloc = f"{parsed.username}:***@{parsed.hostname}"
+            if parsed.port:
+                netloc += f":{parsed.port}"
+        else:
+            netloc = parsed.netloc
 
-    return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+        return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+    except Exception:
+        return "<masked>"
 
 
 class Settings(BaseSettings):
@@ -74,7 +77,7 @@ class Settings(BaseSettings):
                 "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
             }
         )
-        # self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI) # Disabled due to errornous parsing of complex libpq URIs
+        self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"

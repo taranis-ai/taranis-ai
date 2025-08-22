@@ -12,13 +12,17 @@ info
 
 {% macro worker_status(status) %}
 {% set result_class=status_class(status.status) %}
-<div class="join gap-8 mb-1">
-<p class="text-base-content/60 text-[0.7rem]">Last Change: <b>{{ status.last_change | format_datetime }}</b></p>
-<p class="text-base-content/60 text-[0.7rem]">Last Success: <b>{{ status.last_success | format_datetime }}</b></p>
-</div>
-<div class="alert alert-{{ result_class }}">
-  <span class="badge">{{ status.status }}</span>
-  {{ status.result }}
+<div class="alert alert-{{ result_class }} flex flex-col gap-1 items-start">
+  <div class="flex flex-row items-center">
+    <p class="text-base-content/60 text-[0.7rem]">Last Run <span class="mx-2 badge badge-xs">{{ status.status }}</span> at <b>'{{ status.last_run | format_datetime }}'</b></p>
+  </div>
+  <div class="flex flex-row items-center">
+    <p class="text-base-content/60 text-[0.7rem]">Last successful run: <b>{{ status.last_success | format_datetime }}</b></p>
+  </div>
+  <div class="divider my-0"></div>
+  <div class="flex flex-row">
+    <span class="text-left">{{ status.result }}</span>
+  </div>
 </div>
 {% endmacro %}
 

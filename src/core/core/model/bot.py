@@ -23,6 +23,7 @@ class Bot(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
+    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
@@ -35,10 +36,13 @@ class Bot(BaseModel):
 
     @property
     def status(self):
-        if task_result := TaskModel.get(self.to_task_id()):
-            logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
+        if task_result := TaskModel.get(self.task_id):
             return task_result.to_dict()
         return None
+
+    @property
+    def task_id(self):
+        return f"bot_{self.id}"
 
     @classmethod
     def update(cls, bot_id, data) -> "Bot | None":
@@ -94,15 +98,9 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
-        # if task_result := TaskModel.get(self.to_task_id()):
-        #     logger.debug(f"Getting TaskModel: {self.to_task_id()}: {task_result}")
-        #     data["status"] = task_result.to_dict()
         if self.status:
             data["status"] = self.status
         return data
-
-    def to_task_id(self) -> str:
-        return f"bot_{self.id}"
 
     def schedule_bot(self):
         if crontab_str := self.get_schedule():
@@ -113,7 +111,7 @@ class Bot(BaseModel):
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
-        entry_id = self.to_task_id()
+        entry_id = self.task_id
         schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
@@ -123,7 +121,7 @@ class Bot(BaseModel):
 
     def to_task_dict(self, crontab_str: str) -> dict[str, Any]:
         return {
-            "id": self.to_task_id(),
+            "id": self.task_id,
             "name": f"{self.type}_{self.name}",
             "jobs_params": {
                 "trigger": CronTrigger.from_crontab(crontab_str),
@@ -133,7 +131,7 @@ class Bot(BaseModel):
                 "name": "bot_task",
                 "args": [self.id],
                 "queue": "bots",
-                "task_id": self.to_task_id(),
+                "task_id": self.task_id,
             },
         }
 
