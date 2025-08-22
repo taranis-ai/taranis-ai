@@ -28,6 +28,7 @@ class BaseCollector:
         self.type = "BASE_COLLECTOR"
         self.name = "Base Collector"
         self.description = "Base abstract type for all collectors"
+        self.transient_error = False
 
         self.core_api = CoreApi()
 
