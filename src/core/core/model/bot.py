@@ -23,7 +23,7 @@ class Bot(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
-    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):

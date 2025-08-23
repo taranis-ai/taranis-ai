@@ -11,7 +11,6 @@ from models.types import (
     WORKER_TYPES,
     WORKER_CATEGORY,
     PRESENTER_TYPES,
-    OSINTState,
     AttributeType,
     BOT_TYPES,
     PUBLISHER_TYPES,
@@ -184,10 +183,8 @@ class OSINTSource(TaranisBaseModel):
     parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
-    state: OSINTState | None = OSINTState.UNKNOWN
-    last_collected: datetime | None = None
-    last_attempted: datetime | None = None
-    last_error_message: str | None = None
+    enabled: bool = True
+    status: TaskResult | None = None
 
 
 class OSINTSourceGroup(TaranisBaseModel):

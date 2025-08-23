@@ -14,7 +14,9 @@ steps = [
     ALTER TABLE task
     ADD COLUMN IF NOT EXISTS last_success timestamp without time zone;
     ALTER TABLE bot
-    ADD COLUMN IF NOT EXISTS state smallint DEFAULT -1;
+    ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+    ALTER TABLE osint_source
+    ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
     ALTER TABLE osint_source
     DROP COLUMN IF EXISTS last_collected;
     ALTER TABLE osint_source
@@ -27,6 +29,8 @@ steps = [
     DROP COLUMN IF EXISTS last_run;
     ALTER TABLE task
     DROP COLUMN IF EXISTS last_success;
+    ALTER TABLE bot
+    DROP COLUMN IF EXISTS state;
     """,
     )
 ]

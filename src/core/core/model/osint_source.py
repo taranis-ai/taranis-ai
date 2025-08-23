@@ -40,7 +40,7 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
@@ -82,7 +82,7 @@ class OSINTSource(BaseModel):
             db.select(cls)
             .outerjoin(TaskModel, TaskModel.id == task_id_expr)
             .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
-            .where(cls.state != -2)
+            .where(cls.enabled)
             .order_by(
                 TaskModel.last_success.asc().nulls_first(),
                 TaskModel.last_run.asc().nulls_first(),
@@ -116,7 +116,7 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["state"]
+        drop_keys = ["enabled"]
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
@@ -195,17 +195,20 @@ class OSINTSource(BaseModel):
         if not osint_source:
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
-        if state.startswith("enable"):
-            osint_source.state = 1 if osint_source.status == "FAILURE" else 0
+        if state == "enabled":
+            logger.debug(f"Enabling OSINT Source: {osint_source.name}")
+            osint_source.enabled = True
             osint_source.schedule_osint_source()
-        elif state.startswith("disable"):
-            osint_source.state = -2
+        elif state == "disabled":
+            logger.debug(f"Disabling OSINT Source: {osint_source.name}")
+            osint_source.enabled = False
             osint_source.unschedule_osint_source()
         else:
+            logger.warning(f"Unknown state {state} for OSINT Source: {osint_source.name}")
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        return {"message": f"OSINT Source {osint_source.name} state toggled", "id": f"{source_id}", "state": osint_source.state}, 200
+        return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
     def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
@@ -245,27 +248,14 @@ class OSINTSource(BaseModel):
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
-    def update_status(self, state: str, error_message: str | None = None):
-        if self.status == -2:
-            logger.info(f"Source {self.name} is disabled, skipping status update")
-            return
-        if state == "ERROR":
-            logger.error(f"Updating status for source '{self.name}' with id {self.id} with error message: {error_message}")
-            self.state = 1
-        elif state == "NOT_MODIFIED":
-            self.state = 2
-        else:
-            self.state = 0
-        db.session.commit()
-
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
 
-        if self.state == -2:
+        if not self.enabled:
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
-            return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}", "state": self.state}, 400
+            return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)

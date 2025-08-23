@@ -6,7 +6,6 @@ from markupsafe import Markup
 from datetime import datetime
 
 from models.admin import OSINTSource
-from models.types import OSINTState
 
 __all__ = [
     "human_readable_trigger",
@@ -14,7 +13,6 @@ __all__ = [
     "admin_action",
     "get_var",
     "b64decode",
-    "render_state",
     "render_truncated",
     "render_icon",
     "render_parameter",
@@ -80,20 +78,6 @@ def render_source_parameter(item: OSINTSource) -> str:
         if item.type == "misp_collector":
             source_parameter = item.parameters.get("URL", "")
     return source_parameter
-
-
-def render_state(item: OSINTSource) -> str:
-    if hasattr(item, "state"):
-        if item.state == OSINTState.NOT_MODIFIED:
-            state_message = (
-                f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}"
-                if (hasattr(item, "last_collected") and item.last_collected)
-                else ""
-            )
-        else:
-            state_message = item.last_error_message or ""
-        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=state_message))
-    return Markup(render_template("partials/state_badge.html", state=-1))
 
 
 def render_truncated(item, field: str) -> str:

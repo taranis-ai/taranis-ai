@@ -217,7 +217,10 @@ class RSSCollector(BaseWebCollector):
 
         self.news_items = self.gather_news_items(feed, source)
 
-        self.publish(self.news_items, source)
+        if publish_result := self.publish(self.news_items, source):
+            logger.info(publish_result)
+            if publish_result.get("message") == "All news items were skipped":
+                raise NoChangeError("All news items were skipped")
         return None
 
     def detect_language_from_feed(self, feed: dict):

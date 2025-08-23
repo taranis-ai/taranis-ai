@@ -9,7 +9,6 @@ from core.log import logger
 from core.model.word_list import WordList
 from core.model.token_blacklist import TokenBlacklist
 from core.model.product import Product
-from core.model.osint_source import OSINTSource
 from core.config import Config
 
 
@@ -72,12 +71,4 @@ def handle_task_specific_result(task_id: str, result: dict | str, status: str):
         else:
             Product.update_render_for_id(product_id, rendered_product)
     elif task_id.startswith("collect_"):
-        source_id = task_id.split("_")[-1]
-        if source := OSINTSource.get(source_id):
-            if status == "FAILURE":
-                source.update_status("ERROR", result.get("exc_message", "Error"))
-            elif status == "NOT_MODIFIED":
-                source.update_status("NOT_MODIFIED", result)
-            else:
-                source.update_status("SUCCESS", None)
-        logger.debug(f"Collector task {task_id} completed with result: {result}")
+        logger.info(f"Collector task {task_id} completed with result: {result}")

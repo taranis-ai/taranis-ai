@@ -511,7 +511,6 @@ class Story(BaseModel):
                 message, status = cls.add_from_news_item(news_item)
                 if status > 299:
                     error_message = message.get("error", "Unknown error")
-                    logger.warning(error_message)
                     skipped_items.append(error_message)
                     continue
                 story_ids.append(message["story_id"])
@@ -521,12 +520,14 @@ class Story(BaseModel):
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        result = {
-            "story_ids": story_ids,
-            "news_item_ids": news_item_ids,
-        }
+        result = {"story_ids": story_ids, "news_item_ids": news_item_ids}
+        if len(skipped_items) == len(news_items_list):
+            result["message"] = "All news items were skipped"
+            logger.warning(result)
+            return result, 200
         if skipped_items:
             result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+            logger.warning(result)
         logger.info(f"News items added successfully: {result}")
         return result, 200
 

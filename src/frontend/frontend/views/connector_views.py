@@ -1,6 +1,6 @@
 from frontend.views.base_view import BaseView
 from models.admin import Connector
-from frontend.filters import render_icon, render_source_parameter, render_state, render_truncated
+from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
 
 from typing import Any
 
@@ -16,7 +16,7 @@ class ConnectorView(BaseView):
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
-            {"title": "State", "field": "state", "sortable": False, "renderer": render_state},
+            {"title": "State", "field": "state", "sortable": False, "renderer": render_worker_status},
             {
                 "title": "Name",
                 "field": "name",

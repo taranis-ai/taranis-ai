@@ -194,9 +194,10 @@ class QueueManager:
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
 
-        post_collection_bots = list(Bot.get_post_collection())
-
-        current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
+        if post_collection_bots := list(Bot.get_post_collection()):
+            current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
+        else:
+            return {"message": "No post collection bots found"}, 200
 
         try:
             bot_chain = [self.get_bot_signature(bot_id, source_id) for bot_id in post_collection_bots]

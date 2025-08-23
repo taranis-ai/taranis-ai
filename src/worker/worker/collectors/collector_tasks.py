@@ -84,6 +84,7 @@ class CollectorTask(Task):
         return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
 
     def on_success(self, retval, task_id, args, kwargs):
+        logger.debug(f"Collector task with id: {task_id} completed successfully. - {retval} - {kwargs}")
         if getattr(self.request, "no_change", False):
             self.backend.store_result(task_id=task_id, result=retval, state="NOT_MODIFIED")
 

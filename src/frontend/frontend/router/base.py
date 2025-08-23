@@ -89,9 +89,15 @@ class NotificationView(MethodView):
         return render_template("notification/index.html")
 
 
+class HealthView(MethodView):
+    def get(self):
+        return render_template("health/index.html")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
+    base_bp.add_url_rule("/health", view_func=HealthView.as_view("health"))
     base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")

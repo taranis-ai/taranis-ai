@@ -125,7 +125,7 @@ class BaseCollector:
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
         if news_items_dicts := [item.to_dict() for item in news_items]:
-            self.core_api.add_news_items(news_items_dicts)
+            return self.core_api.add_news_items(news_items_dicts)
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """
