@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     SQLALCHEMY_CONNECT_TIMEOUT: int = 10
     SQLALCHEMY_MAX_OVERFLOW: int = 10
     SQLALCHEMY_POOL_SIZE: int = 20
+    SQLALCHEMY_SCHEDULER_POOL_SIZE: int = 5
+    SQLALCHEMY_SCHEDULER_MAX_OVERFLOW: int = 2
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None

@@ -48,6 +48,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
+
 [project.scripts]
 taranis-ai = "core.granian:main"
 

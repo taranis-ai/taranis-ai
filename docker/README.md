@@ -109,6 +109,10 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_DATABASE`                 | PostgreSQL database name                   | `taranis`     |
 | `DB_USER`                     | PostgreSQL database user                   | `taranis`     |
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
+| `SQLALCHEMY_POOL_SIZE`        | Main application database connection pool size | `20`     |
+| `SQLALCHEMY_MAX_OVERFLOW`     | Main application database connection overflow  | `10`     |
+| `SQLALCHEMY_SCHEDULER_POOL_SIZE` | Scheduler database connection pool size    | `5`      |
+| `SQLALCHEMY_SCHEDULER_MAX_OVERFLOW` | Scheduler database connection overflow  | `2`      |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |

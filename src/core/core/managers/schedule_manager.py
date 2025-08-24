@@ -3,6 +3,7 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
 from datetime import datetime, timedelta
+from sqlalchemy import create_engine
 
 from core.managers import queue_manager
 from core.log import logger
@@ -30,7 +31,21 @@ schedule: "Scheduler"
 
 class Scheduler:
     def __init__(self):
-        self._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(engine=db.engine)})
+        # Create a separate SQLAlchemy engine for the scheduler to avoid connection pool contention
+        scheduler_engine_options = {
+            "pool_size": Config.SQLALCHEMY_SCHEDULER_POOL_SIZE,
+            "max_overflow": Config.SQLALCHEMY_SCHEDULER_MAX_OVERFLOW,
+        }
+        
+        # Add connection timeout settings based on database type
+        if Config.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
+            scheduler_engine_options.update({"connect_args": {"timeout": Config.SQLALCHEMY_CONNECT_TIMEOUT}})
+        elif Config.SQLALCHEMY_DATABASE_URI.startswith("postgresql:"):
+            scheduler_engine_options.update({"connect_args": {"connect_timeout": Config.SQLALCHEMY_CONNECT_TIMEOUT}})
+        
+        scheduler_engine = create_engine(Config.SQLALCHEMY_DATABASE_URI, **scheduler_engine_options)
+        
+        self._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(engine=scheduler_engine)})
         self.start()
 
     def start(self):
