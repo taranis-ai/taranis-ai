@@ -17,7 +17,6 @@ class NoChangeError(Exception):
     def __init__(self, message: str = "Not modified"):
         super().__init__(message)
         self.message = message
-        logger.debug(message)
 
     def __str__(self) -> str:
         return self.message
@@ -125,7 +124,10 @@ class BaseCollector:
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
         if news_items_dicts := [item.to_dict() for item in news_items]:
-            return self.core_api.add_news_items(news_items_dicts)
+            if core_response := self.core_api.add_news_items(news_items_dicts):
+                if core_message := core_response.get("message"):
+                    return core_message
+        return None
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """

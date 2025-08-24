@@ -1,7 +1,4 @@
-{% if osint_source %}
-{% set enabled = osint_source.state > -2 %}
-<div class="join join-horizontal" id="state_buttons">
-  <button class="btn rounded-l join-item {% if enabled %}btn-primary{% endif %}" hx-post="/frontend/admin/toggle_source_state/{{ osint_source.id }}/enabled" hx-target="#state_buttons">Enabled</button>
-  <button class="btn rounded-r join-item {% if not enabled %}btn-warning{% endif %}" hx-post="/frontend/admin/toggle_source_state/{{ osint_source.id }}/disabled" hx-target="#state_buttons">Disabled</button>
-</div>
+{% if osint_source.id != '0' %}
+{% from "macros/worker.html" import worker_state %}
+{{ worker_state(osint_source.id, "source", osint_source.enabled) }}
 {% endif %}

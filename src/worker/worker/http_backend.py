@@ -1,6 +1,8 @@
 from celery.backends.base import BaseBackend
-from worker.core_api import CoreApi
 from celery.app.task import Context
+
+from worker.core_api import CoreApi
+from worker.log import logger
 
 
 class HTTPBackend(BaseBackend):
@@ -17,11 +19,13 @@ class HTTPBackend(BaseBackend):
         request: Context | None = None,
         **kwargs,
     ):
+        logger.info(f"Storing result for task {task_id}: {self._serialize_context(request)}")
         data = {
             "task_id": task_id,
             "status": state,
             "result": self.encode_result(result, state),
             "traceback": traceback,
+            "task": self._serialize_context(request),
         }
         self.core_api.store_task_result(data)
 
@@ -31,3 +35,11 @@ class HTTPBackend(BaseBackend):
             return {"status": "PENDING", "result": default}
         data = response.json()
         return self.decode_result(data["result"])
+
+    def _serialize_context(self, request: Context | None) -> dict | None:
+        if not request:
+            return None
+        try:
+            return request.task  # type: ignore
+        except Exception:
+            return None

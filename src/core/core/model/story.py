@@ -520,7 +520,7 @@ class Story(BaseModel):
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        result = {"story_ids": story_ids, "news_item_ids": news_item_ids}
+        result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
         if len(skipped_items) == len(news_items_list):
             result["message"] = "All news items were skipped"
             logger.warning(result)
@@ -757,7 +757,7 @@ class Story(BaseModel):
 
     @classmethod
     def is_assigned_to_report(cls, story_ids: list) -> bool:
-        return any(ReportItemStory.assigned(story_id) for story_id in story_ids)
+        return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
     @classmethod
     def reset_tags(cls, story_id: str) -> tuple[dict, int]:
@@ -871,7 +871,7 @@ class Story(BaseModel):
     @classmethod
     def ungroup_story(cls, story_id: int, user: User | None = None):
         try:
-            if ReportItemStory.assigned(story_id):
+            if ReportItemStory.is_assigned(story_id):
                 return {"error": f"Story {story_id} is assigned to a report"}, 400
             story = cls.get(story_id)
             if not story:
@@ -1140,7 +1140,7 @@ class ReportItemStory(BaseModel):
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
-    def assigned(cls, story_id):
+    def is_assigned(cls, story_id):
         return db.session.query(db.exists().where(cls.story_id == story_id)).scalar()
 
     @classmethod

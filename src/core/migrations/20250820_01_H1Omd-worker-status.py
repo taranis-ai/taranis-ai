@@ -13,6 +13,8 @@ steps = [
     ADD COLUMN IF NOT EXISTS last_run timestamp without time zone;
     ALTER TABLE task
     ADD COLUMN IF NOT EXISTS last_success timestamp without time zone;
+    ALTER TABLE task
+    ADD COLUMN IF NOT EXISTS task character varying;
     ALTER TABLE bot
     ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
     ALTER TABLE osint_source
@@ -29,6 +31,8 @@ steps = [
     DROP COLUMN IF EXISTS last_run;
     ALTER TABLE task
     DROP COLUMN IF EXISTS last_success;
+    ALTER TABLE task
+    DROP COLUMN IF EXISTS task;
     ALTER TABLE bot
     DROP COLUMN IF EXISTS state;
     """,

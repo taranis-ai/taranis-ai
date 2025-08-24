@@ -32,3 +32,10 @@ info
   <div title="{{ status.status }}" class="badge badge-{{ result_class }}">{{ status.status }}</div>
 </div>
 {% endmacro %}
+
+{% macro worker_state(worker_id, worker_type, enabled) %}
+<div class="join join-horizontal" id="state_buttons">
+  <button class="btn rounded-l join-item {% if enabled %}btn-primary{% endif %}" hx-post="/frontend/admin/toggle_{{ worker_type }}_state/{{ worker_id }}/enabled" hx-target="#state_buttons">Enabled</button>
+  <button class="btn rounded-r join-item {% if not enabled %}btn-warning{% endif %}" hx-post="/frontend/admin/toggle_{{ worker_type }}_state/{{ worker_id }}/disabled" hx-target="#state_buttons">Disabled</button>
+</div>
+{% endmacro %}

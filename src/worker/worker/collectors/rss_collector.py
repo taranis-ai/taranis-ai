@@ -48,7 +48,7 @@ class RSSCollector(BaseWebCollector):
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
-        self.rss_collector(source, manual)
+        return self.rss_collector(source, manual)
 
     def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -219,9 +219,9 @@ class RSSCollector(BaseWebCollector):
 
         if publish_result := self.publish(self.news_items, source):
             logger.info(publish_result)
-            if publish_result.get("message") == "All news items were skipped":
+            if publish_result == "All news items were skipped":
                 raise NoChangeError("All news items were skipped")
-        return None
+        return publish_result
 
     def detect_language_from_feed(self, feed: dict):
         if language := feed.get("feed", {}).get("language"):

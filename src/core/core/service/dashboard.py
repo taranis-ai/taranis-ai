@@ -4,6 +4,7 @@ from core.model.product import Product
 from core.model.news_item import NewsItem
 from core.managers import schedule_manager
 from core.model.story_conflict import StoryConflict
+from core.model.task import Task
 
 
 class DashboardService:
@@ -15,7 +16,7 @@ class DashboardService:
         report_items_completed = ReportItem.count_all(True)
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
-        schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
+        schedule_length = schedule_manager.schedule.get_periodic_tasks().get("total_count", 0)
         return {
             "items": [
                 {
@@ -34,4 +35,4 @@ class DashboardService:
 
     @classmethod
     def get_worker_status(cls):
-        return {"bots": {}, "collectors": {}, "publishers": {}}
+        return Task.get_status_counts_by_task()
