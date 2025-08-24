@@ -183,7 +183,7 @@ class OSINTSource(TaranisBaseModel):
     parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
-    enabled: bool = True
+    enabled: bool | None = True
     status: TaskResult | None = None
 
 
