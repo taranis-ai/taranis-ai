@@ -51,6 +51,7 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
+    "ruff>=0.12.8",
 ]
 
 [project.scripts]

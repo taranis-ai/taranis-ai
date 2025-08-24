@@ -7,7 +7,6 @@ from sqlalchemy import create_engine
 
 from core.managers import queue_manager
 from core.log import logger
-from core.managers.db_manager import db
 from core.config import Config
 
 
