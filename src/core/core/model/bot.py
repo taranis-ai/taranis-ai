@@ -102,6 +102,18 @@ class Bot(BaseModel):
             data["status"] = self.status
         return data
 
+    @classmethod
+    def delete(cls, id: str) -> tuple[dict[str, Any], int]:
+        bot = cls.get(id)
+        if not bot:
+            return {"error": "Bot not found"}, 404
+
+        TaskModel.delete(bot.task_id)
+        bot.unschedule_bot()
+        db.session.delete(bot)
+        db.session.commit()
+        return {"message": "Bot deleted"}, 200
+
     def schedule_bot(self):
         if crontab_str := self.get_schedule():
             entry = self.to_task_dict(crontab_str)

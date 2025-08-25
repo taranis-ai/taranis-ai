@@ -241,6 +241,7 @@ class OSINTSource(BaseModel):
 
         try:
             source.unschedule_osint_source()
+            TaskModel.delete(source.task_id)
             db.session.delete(source)
             db.session.commit()
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
