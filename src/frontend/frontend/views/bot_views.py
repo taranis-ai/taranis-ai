@@ -8,6 +8,8 @@ from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
 from frontend.auth import auth_required
 from frontend.filters import render_item_type, render_worker_status
+from frontend.data_persistence import DataPersistenceLayer
+from models.dashboard import Dashboard
 
 
 class BotView(BaseView):
@@ -28,6 +30,14 @@ class BotView(BaseView):
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
         ]
+
+    @classmethod
+    def get_admin_menu_badge(cls):
+        if dashboard := DataPersistenceLayer().get_first(Dashboard):
+            if worker_status := dashboard.worker_status:
+                return worker_status.get("bot_task", {}).get("failures", None)
+
+        return None
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:

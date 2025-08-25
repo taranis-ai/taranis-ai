@@ -3,6 +3,7 @@ from typing import Any, Literal
 from flask import render_template, request, Response, url_for
 
 from models.admin import OSINTSource, TaskResult, Job
+from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
@@ -24,6 +25,14 @@ class SourceView(BaseView):
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in COLLECTOR_TYPES
     }
+
+    @classmethod
+    def get_admin_menu_badge(cls):
+        if dashboard := DataPersistenceLayer().get_first(Dashboard):
+            if worker_status := dashboard.worker_status:
+                return worker_status.get("collector_task", {}).get("failures", None)
+
+        return None
 
     @classmethod
     def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
