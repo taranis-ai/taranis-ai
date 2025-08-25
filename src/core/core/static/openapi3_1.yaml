@@ -3388,19 +3388,6 @@ components:
         id:
           type: string
 
-    osint_source_update_status:
-      type: object
-      properties:
-        last_collected:
-          type: string
-          format: date-time
-        last_attempted:
-          type: string
-          format: date-time
-        last_error_message:
-          type: string
-        last_data:
-          type: string
     osint_source:
       type: object
       properties:

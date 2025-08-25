@@ -78,14 +78,6 @@ def form_formats_from_models():
     payloads: dict[str, dict[str, set[str]]] = {}
 
     for view_name, view_cls in BaseView._registry.items():
-        # custom override
-        form_fields = getattr(view_cls, "form_fields", None)
-        if isinstance(form_fields, dict):
-            keys = set(form_fields.keys())
-            # if you want to detect required in form_fields, you'll have to mark them in that dict
-            payloads[view_name] = {"allowed": keys, "required": keys.copy()}
-            continue
-
         model = getattr(view_cls, "model", None)
         if not model:
             continue

@@ -238,7 +238,7 @@
     <v-menu
       v-if="!reportView && !openSummary"
       location="bottom"
-      offset-y
+      :offset="[0, 40]"
       :data-testid="`story-actions-menu-${story.id}`"
     >
       <template #activator="{ props }">
@@ -254,7 +254,7 @@
         />
       </template>
 
-      <v-list density="compact" width="56px">
+      <v-list density="compact">
         <v-list-item v-if="compactView" :to="'/story/' + story.id">
           <v-tooltip
             activator="parent"
@@ -262,6 +262,7 @@
             location="start"
           />
           <v-icon icon="mdi-magnify" data-testid="open detail view" />
+          open detail view
         </v-list-item>
         <v-list-item
           v-if="compactView && !reportView"
@@ -272,16 +273,18 @@
             icon="mdi-google-circles-communities"
             data-testid="add to report"
           />
+          add to report
         </v-list-item>
         <v-list-item
           v-if="detailView || compactView"
-          :prepend-icon="
-            !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-          "
-          class="hidden-xl-only"
           @click.stop="markAsRead()"
-          data-testid="mark as read"
-        />
+        >
+          <v-icon
+            :icon="!story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
+            data-testid="mark as read"
+          />
+          mark as read
+        </v-list-item>
         <v-list-item @click.stop="markAsImportant()">
           <v-tooltip
             activator="parent"
@@ -294,28 +297,32 @@
             "
             data-testid="mark as important"
           />
+          mark as important
         </v-list-item>
 
         <v-list-item @click.stop="shareViaMail">
           <v-tooltip activator="parent" location="start" text="send via mail" />
           <v-icon icon="mdi-email-outline" title="send via mail" />
+          send via mail
         </v-list-item>
         <v-list-item
           v-if="!reportView && news_item_length > 1"
           @click.stop="ungroup()"
         >
           <v-icon icon="mdi-ungroup" title="ungroup" />
+          ungroup
         </v-list-item>
         <v-list-item
           v-if="!reportView && news_item_length === 1"
           :to="'/newsitem/' + story.news_items[0].id"
         >
-          <v-icon icon="mdi-open-in-app" title="open news item" />
           <v-tooltip
             activator="parent"
             location="start"
             text="open news item"
           />
+          <v-icon icon="mdi-open-in-app" title="open news item" />
+          open news item
         </v-list-item>
         <v-list-item
           v-if="!reportView && newsItemSelection.length > 0"
@@ -327,10 +334,12 @@
             location="start"
             text="move selection to story"
           />
+          move selection to story
         </v-list-item>
         <v-list-item :to="`/story/${story.id}/edit`">
           <v-tooltip activator="parent" text="edit story" location="start" />
           <v-icon icon="mdi-book-edit-outline" title="edit story" />
+          edit story
         </v-list-item>
 
         <v-list-item
@@ -343,6 +352,7 @@
             location="start"
             text="edit news item"
           />
+          edit news item
         </v-list-item>
         <v-list-item :to="`/enter/${story.id}`">
           <v-icon icon="mdi-pencil-outline" />
@@ -351,6 +361,7 @@
             location="start"
             text="create news item and attach to this story"
           />
+          create item in story
         </v-list-item>
         <v-list-item
           v-if="hasConnectorPermissions"
@@ -362,10 +373,12 @@
             location="start"
             text="share story to connector"
           />
+          share story
         </v-list-item>
         <v-list-item @click.stop="deleteDialog = true">
           <v-icon icon="mdi-delete-outline" />
           <v-tooltip activator="parent" location="start" text="delete" />
+          delete
         </v-list-item>
       </v-list>
     </v-menu>

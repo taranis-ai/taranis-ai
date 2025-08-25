@@ -1,0 +1,25 @@
+{% if data.worker_status %}
+{% for worker, stats in data.worker_status.items() %}
+  {% set card_title = worker.split('_')[0] | capitalize %}
+  {% call dashboard_card(card_title ~ ' Tasks', None) %}
+    <div class="flex flex-col gap-1 text-sm">
+      <div>
+        <span class="badge badge-success">{{ stats.successes }}</span>
+        <span class="ml-1">success</span>
+      </div>
+      <div>
+        <span class="badge badge-error">{{ stats.failures }}</span>
+        <span class="ml-1">failure</span>
+      </div>
+
+      <div class="mt-2 text-xs">Success rate: {{ stats.success_pct }}%</div>
+      <div class="w-full h-2 rounded bg-base-300 overflow-hidden">
+        <div class="h-full bg-success" style="width: {{ stats.success_pct }}%"></div>
+      </div>
+      <div class="mt-1 text-[0.7rem] text-base-content/60">
+        Total: {{ stats.total }}
+      </div>
+    </div>
+  {% endcall %}
+{% endfor %}
+{% endif %}

@@ -71,6 +71,10 @@ class CacheObject(list[T], Generic[T]):
     def current_range(self):
         return f"{self.offset + 1}-{min(self.offset + self.limit, self._total_count)}"
 
+    @property
+    def items(self) -> list[T]:
+        return list(self)
+
     def search(self, query: str) -> "CacheObject[T]":
         if not query:
             return self

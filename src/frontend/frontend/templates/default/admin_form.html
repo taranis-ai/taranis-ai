@@ -2,7 +2,7 @@
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
-{% set form_fields = {} %}
+{% set form_fields = form_fields | default({}) %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
 
@@ -12,7 +12,7 @@
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {% for field_name, field in form_fields.items() %}
       {% if field.type == 'text' or field.type == 'number' %}
         {{ form_input(field.label, field_name, field.value, form_error[field_name], type=field.type, required=field.required) }}

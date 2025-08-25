@@ -2,11 +2,15 @@ import re
 from flask import Flask, redirect, url_for
 from flask_htmx import HTMX
 from flask.json.provider import DefaultJSONProvider
+from flask_jwt_extended import current_user, verify_jwt_in_request
 from pydantic import BaseModel
+from typing import Any
+
 import frontend.filters as filters_module
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
+from models.admin import User
 
 from heroicons.jinja import (
     heroicon_micro,
@@ -87,6 +91,29 @@ def jinja_setup(app: Flask):
         app.add_url_rule("/", view_func=index_redirect)
 
 
+def is_user_admin(user: User) -> bool:
+    """
+    Checks if the current user has admin privileges.
+    """
+    return any(p.startswith("CONFIG_") for p in user.permissions or [])
+
+
+def inject_current_user() -> dict[str, Any]:
+    """
+    Makes `current_user` available in all Jinja templates.
+    If no JWT is present, it will be None.
+    """
+    try:
+        verify_jwt_in_request(optional=True)
+    except Exception:
+        return {"current_user": None, "is_admin": False}
+
+    if current_user:
+        return {"current_user": current_user, "is_admin": is_user_admin(current_user)}
+
+    return {"current_user": None, "is_admin": False}
+
+
 def init(app: Flask):
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
@@ -96,4 +123,5 @@ def init(app: Flask):
     app.url_map.strict_slashes = False
 
     jinja_setup(app)
+    app.context_processor(inject_current_user)
     logger.debug(f"Listening on {Config.APPLICATION_ROOT} and Core URL {Config.TARANIS_CORE_URL}")

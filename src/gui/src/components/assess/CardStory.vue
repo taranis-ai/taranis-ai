@@ -79,7 +79,7 @@
 
               <summarized-content
                 :compact="compactView"
-                :open="openSummary"
+                :open="detailView"
                 :is-summarized="is_summarized"
                 :content="getDescription"
               />

@@ -31,7 +31,7 @@ class SimpleWebCollector(BaseWebCollector):
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
-        self.web_collector(source, manual)
+        return self.web_collector(source, manual)
 
     def preview_collector(self, source: dict) -> list[dict]:
         self.parse_source(source)
@@ -80,7 +80,7 @@ class SimpleWebCollector(BaseWebCollector):
         if not self.last_attempted:
             self.update_favicon(self.web_url, self.osint_source_id)
         self.news_items = self.gather_news_items()
-        self.publish(self.news_items, source)
+        return self.publish(self.news_items, source)
 
 
 def browser_mode_test():
