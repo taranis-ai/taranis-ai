@@ -7,11 +7,10 @@ class TestBotTaskFlowE2E:
     """Essential E2E tests for bot task flow"""
     
     def test_bot_flow_success(self):
-        """Test successful bot execution - matches original Celery behavior"""
+        """Test successful bot execution """
         # Arrange
         request = BotTaskRequest(bot_id=1, filter={"SOURCE": "test_source"})
         
-        # Mock the flow execution to avoid prefect server issues
         with patch.object(bot_task_flow, 'fn') as mock_flow_fn:
             mock_flow_fn.return_value = {
                 "status": "success",
@@ -53,7 +52,6 @@ class TestBotTaskFlowE2E:
         # Arrange
         request = BotTaskRequest(bot_id=999, filter={})
         
-        # Mock the flow execution to simulate bot not found
         with patch.object(bot_task_flow, 'fn') as mock_flow_fn:
             mock_flow_fn.return_value = {
                 "status": "error",
@@ -73,7 +71,6 @@ class TestBotTaskFlowE2E:
         # Arrange
         request = BotTaskRequest(bot_id=1, filter={})
         
-        # Mock the flow execution to simulate invalid bot type
         with patch.object(bot_task_flow, 'fn') as mock_flow_fn:
             mock_flow_fn.return_value = {
                 "status": "error", 

@@ -51,7 +51,6 @@ class TestConnectorTaskFlowE2E:
         mock_core_api.get_connector_config.return_value = {
             "type": "misp_connector"
         }
-        # Story with UTF-16 surrogates (would be cleaned in original)
         mock_core_api.get_stories.return_value = [{"id": "story_1", "content": "test content"}]
         
         # Act

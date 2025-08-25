@@ -2,11 +2,11 @@ from flask import Flask
 import requests
 from requests.auth import HTTPBasicAuth
 import asyncio
-from kombu.exceptions import OperationalError
 from prefect import get_client
 from core.log import logger
 
 queue_manager: "QueueManager"
+OperationalError = Exception
 
 
 class QueueManager:

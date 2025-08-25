@@ -1,0 +1,129 @@
+name: Prefect Migration E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - 'src/worker/flows/**'
+      - 'src/worker/worker/**'
+      - 'src/models/models/**'
+      - 'docker/compose-variations/compose.e2e.yml'
+      - '.github/workflows/prefect_migration_e2e.yaml'
+      - 'tests/e2e/prefect_migration/**'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/worker/flows/**'
+      - 'src/worker/worker/**'
+      - 'src/models/models/**'
+
+env:
+  COMPOSE_FILE: docker/compose-variations/compose.e2e.yml
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  prefect-migration-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install test dependencies
+      run: |
+        pip install pytest pytest-asyncio pytest-timeout pytest-xdist
+        pip install playwright docker-compose
+        pip install prefect httpx pydantic
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Create test environment file
+      run: |
+        cp docker/env.sample docker/.env
+        echo "ENABLE_PREFECT=true" >> docker/.env
+        echo "ENABLE_CELERY=true" >> docker/.env
+        echo "TEST_MODE=e2e" >> docker/.env
+
+    - name: Build Docker images
+      run: |
+        cd docker
+        ./build_container.sh --all
+
+    - name: Start services with health checks
+      run: |
+        docker-compose up -d
+        echo "Waiting for services to be healthy..."
+        
+        # Wait for database
+        timeout 120 bash -c 'until docker-compose exec -T database pg_isready; do sleep 2; done'
+        
+        # Wait for RabbitMQ
+        timeout 120 bash -c 'until docker-compose exec -T rabbitmq rabbitmq-diagnostics ping; do sleep 2; done'
+        
+        # Wait for Core service
+        timeout 120 bash -c 'until curl -f http://localhost:5000/health; do sleep 2; done'
+        
+        # Wait for Worker services
+        timeout 120 bash -c 'until docker-compose ps | grep -E "(worker|prefect)" | grep -v Exit; do sleep 2; done'
+
+    - name: Run database migrations
+      run: |
+        docker-compose exec -T core python -m yoyo apply --database postgresql://taranis:taranis@database/taranis
+
+    - name: Run Prefect migration E2E tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
+        pytest tests/e2e/prefect_migration/ \
+          -v \
+          --tb=short \
+          --timeout=300 \
+          --junit-xml=test-results/prefect-migration-e2e.xml \
+          --html=test-results/prefect-migration-e2e.html \
+          --self-contained-html
+
+    - name: Collect logs on failure
+      if: failure()
+      run: |
+        mkdir -p logs
+        docker-compose logs > logs/docker-compose.log
+        docker-compose ps > logs/docker-ps.log
+        docker-compose exec -T core cat /app/logs/*.log > logs/core.log || true
+        docker-compose exec -T worker cat /app/logs/*.log > logs/worker.log || true
+        docker-compose exec -T prefect cat /app/logs/*.log > logs/prefect.log || true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: prefect-migration-test-results
+        path: |
+          test-results/
+          logs/
+
+    - name: Upload coverage reports
+      if: always()
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        flags: prefect-migration-e2e
+
+    - name: Stop services
+      if: always()
+      run: docker-compose down -v
+
+    - name: Post test summary
+      if: always()
+      uses: test-summary/action@v2
+      with:
+        paths: 'test-results/*.xml'
