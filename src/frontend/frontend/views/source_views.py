@@ -27,12 +27,12 @@ class SourceView(BaseView):
     }
 
     @classmethod
-    def get_admin_menu_badge(cls):
+    def get_admin_menu_badge(cls) -> int:
         if dashboard := DataPersistenceLayer().get_first(Dashboard):
             if worker_status := dashboard.worker_status:
-                return worker_status.get("collector_task", {}).get("failures", None)
+                return worker_status.get("collector_task", {}).get("failures", 0)
 
-        return None
+        return 0
 
     @classmethod
     def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:

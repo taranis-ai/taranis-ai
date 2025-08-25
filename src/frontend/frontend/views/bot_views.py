@@ -32,12 +32,12 @@ class BotView(BaseView):
         ]
 
     @classmethod
-    def get_admin_menu_badge(cls):
+    def get_admin_menu_badge(cls) -> int:
         if dashboard := DataPersistenceLayer().get_first(Dashboard):
             if worker_status := dashboard.worker_status:
-                return worker_status.get("bot_task", {}).get("failures", None)
+                return worker_status.get("bot_task", {}).get("failures", 0)
 
-        return None
+        return 0
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
