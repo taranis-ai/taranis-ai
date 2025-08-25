@@ -276,7 +276,7 @@ class TestBotConfigApi(BaseTest):
     def test_delete_bot(self, client, auth_header, cleanup_bot):
         bot_id = cleanup_bot["id"]
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Bot {bot_id} deleted"
+        assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 
 
 class TestReportTypeConfigApi(BaseTest):

@@ -112,7 +112,7 @@ class Bot(BaseModel):
         bot.unschedule_bot()
         db.session.delete(bot)
         db.session.commit()
-        return {"message": "Bot deleted"}, 200
+        return {"message": f"Bot {bot.name} deleted"}, 200
 
     def schedule_bot(self):
         if crontab_str := self.get_schedule():
