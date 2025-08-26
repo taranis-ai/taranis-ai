@@ -11,7 +11,7 @@
     {% include "acl/acl_form_warning.html" %}
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', acl.name, form_error.name) }}
-    {{ form_input('Description', 'description', acl.description, required=False, form_error.description) }}
+    {{ form_input('Description', 'description', acl.description, required=False, invalid_msg=form_error.description) }}
 
     <div class="join gap-1 w-3/4">
       <label class="select w-full">
