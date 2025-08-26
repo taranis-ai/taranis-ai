@@ -6,7 +6,6 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
-from sqlalchemy import cast, String, literal, func
 
 from core.managers.db_manager import db
 from core.managers import schedule_manager
@@ -71,16 +70,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
-        task_id_expr = func.concat(
-            literal("collect_"),
-            cast(cls.type, String),
-            literal("_"),
-            cls.id,
-        )
-
         query = (
             db.select(cls)
-            .outerjoin(TaskModel, TaskModel.id == task_id_expr)
+            .outerjoin(TaskModel, TaskModel.task == "collector_task")
             .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
             .where(cls.enabled)
             .order_by(

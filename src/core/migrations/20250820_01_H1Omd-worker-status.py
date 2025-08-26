@@ -25,6 +25,8 @@ steps = [
     DROP COLUMN IF EXISTS last_attempted;
     ALTER TABLE osint_source
     DROP COLUMN IF EXISTS last_error_message;
+    ALTER TABLE osint_source
+    DROP COLUMN IF EXISTS state;
     """,
         """
     ALTER TABLE task
@@ -34,7 +36,15 @@ steps = [
     ALTER TABLE task
     DROP COLUMN IF EXISTS task;
     ALTER TABLE bot
-    DROP COLUMN IF EXISTS state;
+    DROP COLUMN IF EXISTS enabled;
+    ALTER TABLE osint_source
+    DROP COLUMN IF EXISTS enabled;
+    ALTER TABLE osint_source
+    ADD COLUMN IF NOT EXISTS last_collected timestamp without time zone;
+    ALTER TABLE osint_source
+    ADD COLUMN IF NOT EXISTS last_attempted timestamp without time zone;
+    ALTER TABLE osint_source
+    ADD COLUMN IF NOT EXISTS last_error_message character varying;
     """,
     )
 ]
