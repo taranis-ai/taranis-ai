@@ -2,24 +2,27 @@
 {% from 'dashboard/cards.html' import dashboard_card %}
 
 {% block content %}
-  <div class="p-4" id="dashboard">
-    <div class="text-3xl font-bold mb-4">Admin Dashboard</div>
+<div class="p-4" id="dashboard">
+  <div class="text-3xl font-bold mb-4">Admin Dashboard</div>
 
-    {% include 'dashboard/user_item_cards.html' %}
+  {% include "dashboard/user_item_cards.html" %}
 
-    <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-      {% call dashboard_card('Connectors', '/connectors') %}
-        There are <b>{{ data.conflict_count }}</b> conflicts detected.
-      {% endcall %}
+  <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
+    {% call dashboard_card('Connectors', '/connectors') %}
+      There are <b>{{ data.conflict_count }}</b> conflicts detected.
+    {% endcall %}
 
-      {% call dashboard_card('Workers', '/config/workers') %}
-        There are <b>{{ data.schedule_length }}</b> tasks scheduled.
-        <br />
-        Last successful run <b>{{ data.latest_collected }}</b>
-      {% endcall %}
+    {% call dashboard_card('Queue', url_for('admin.scheduler')) %}
+      There are <b>{{ data.schedule_length }}</b> tasks scheduled.
+      <br />
+      Most recent News Item: <b>{{ data.latest_collected | format_datetime }}</b>
+    {% endcall %}
 
-      {% call dashboard_card('Release Info') %}
-        <b>{{ build_info }}</b>
-      {% endcall %}    </div>
+    {% call dashboard_card('Release Info') %}
+      Build date: <b>{{ build_info.get('build_date') | format_datetime }}</b>
+    {% endcall %}
+
+    {% include "admin_dashboard/worker_stats.html" %}
   </div>
+</div>
 {% endblock content %}

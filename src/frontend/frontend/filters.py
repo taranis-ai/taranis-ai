@@ -2,10 +2,10 @@ from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
-
 from markupsafe import Markup
+from datetime import datetime
+
 from models.admin import OSINTSource
-from models.types import OSINTState
 
 __all__ = [
     "human_readable_trigger",
@@ -13,13 +13,14 @@ __all__ = [
     "admin_action",
     "get_var",
     "b64decode",
-    "render_state",
     "render_truncated",
     "render_icon",
     "render_parameter",
     "render_count",
     "render_source_parameter",
     "render_item_type",
+    "render_worker_status",
+    "format_datetime",
 ]
 
 
@@ -79,16 +80,6 @@ def render_source_parameter(item: OSINTSource) -> str:
     return source_parameter
 
 
-def render_state(item: OSINTSource) -> str:
-    if hasattr(item, "state"):
-        if item.state == OSINTState.NOT_MODIFIED:
-            state_message = f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}" if hasattr(item, "last_collected") else ""
-        else:
-            state_message = item.last_error_message or ""
-        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=state_message))
-    return Markup(render_template("partials/state_badge.html", state=-1))
-
-
 def render_truncated(item, field: str) -> str:
     if hasattr(item, field) and isinstance(getattr(item, field), str):
         value = getattr(item, field)
@@ -102,6 +93,12 @@ def render_item_type(item) -> str:
     return "Unknown"
 
 
+def render_worker_status(item) -> str:
+    if hasattr(item, "status") and item.status:
+        return Markup(render_template("partials/status_badge.html", status=item.status))
+    return Markup(render_template("partials/status_badge.html"))
+
+
 def last_path_segment(value):
     return value.strip("/").split("/")[-1]
 
@@ -112,6 +109,14 @@ def admin_action(value):
 
 def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
+
+
+def format_datetime(value: datetime | str) -> str:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    if isinstance(value, datetime):
+        return value.strftime("%A, %d. %B %Y %H:%M")
+    return ""
 
 
 @pass_context

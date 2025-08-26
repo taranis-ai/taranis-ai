@@ -1,5 +1,6 @@
 import json
 from flask import request, render_template, Response
+from typing import Any
 
 from models.admin import WordList
 from frontend.views.base_view import BaseView
@@ -8,19 +9,13 @@ from frontend.log import logger
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
+from frontend.filters import render_count
 
 
 class WordListView(BaseView):
     model = WordList
     icon = "chat-bubble-bottom-center-text"
     _index = 170
-
-    form_fields = {
-        "name": {},
-        "description": {},
-        "link": {},
-        "usage[]": {},
-    }
 
     @classmethod
     def import_view(cls, error=None):
@@ -85,3 +80,17 @@ class WordListView(BaseView):
         if table_response == 200:
             response += table
         return response, core_response.status_code
+
+    @classmethod
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {
+                "title": "Words",
+                "field": "entries",
+                "sortable": False,
+                "renderer": render_count,
+                "render_args": {"field": "entries"},
+            },
+        ]

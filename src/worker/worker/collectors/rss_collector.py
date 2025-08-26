@@ -48,7 +48,7 @@ class RSSCollector(BaseWebCollector):
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
-        self.rss_collector(source, manual)
+        return self.rss_collector(source, manual)
 
     def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -101,7 +101,7 @@ class RSSCollector(BaseWebCollector):
         if content == description:
             description = ""
 
-        for_hash: str = author + title + self.clean_url(link)
+        for_hash: str = title + self.clean_url(link)
 
         return NewsItem(
             osint_source_id=source["id"],
@@ -183,7 +183,9 @@ class RSSCollector(BaseWebCollector):
 
     def get_digest_url_list(self, feed_entries: list[feedparser.FeedParserDict]) -> list:
         return [
-            result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))
+            result
+            for feed_entry in feed_entries
+            for result in self.get_urls(self.feed_url, feed_entry.get("summary"))  # type: ignore
         ]  # Flat list of URLs
 
     def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:
@@ -215,8 +217,11 @@ class RSSCollector(BaseWebCollector):
 
         self.news_items = self.gather_news_items(feed, source)
 
-        self.publish(self.news_items, source)
-        return None
+        if publish_result := self.publish(self.news_items, source):
+            logger.info(publish_result)
+            if publish_result == "All news items were skipped":
+                raise NoChangeError("All news items were skipped")
+        return publish_result
 
     def detect_language_from_feed(self, feed: dict):
         if language := feed.get("feed", {}).get("language"):

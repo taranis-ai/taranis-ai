@@ -1,10 +1,11 @@
 from functools import wraps
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
-from flask import redirect, url_for
+from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
+from flask import redirect, url_for, Response, render_template
 
 from frontend.config import Config
 from frontend.log import logger
 from frontend.cache import add_user_to_cache, get_user_from_cache
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.core_api import CoreApi
 from models.admin import User
 
@@ -23,8 +24,18 @@ def init(app):
 #     return current_authenticator.refresh(user)
 
 
-# def logout(jti):
-#     return current_authenticator.logout(jti)
+def logout():
+    core_response = CoreApi().logout()
+    if not core_response.ok:
+        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+
+    response = Response(status=302, headers={"Location": url_for("base.login")})
+    if is_htmx_request():
+        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
+
+    response.delete_cookie("access_token")
+    unset_jwt_cookies(response)
+    return response
 
 
 def auth_required(permissions: list | str | None = None):
