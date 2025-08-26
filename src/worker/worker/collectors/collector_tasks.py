@@ -58,9 +58,6 @@ class CollectorTask(Task):
         self.core_api = CoreApi()
 
     def run(self, osint_source_id: str, manual: bool = False):
-        if hasattr(self.request, "no_change"):
-            del self.request.no_change
-
         self.collector = Collector()
         source = self.collector.get_source(osint_source_id)
         collector = self.collector.get_collector(source)
@@ -75,7 +72,6 @@ class CollectorTask(Task):
             try:
                 collection_result = collector.collect(source, manual)
             except NoChangeError as e:
-                self.request.no_change = True
                 self.update_state(state="NOT_MODIFIED")
                 return f"'{source.get('name')}': {str(e)}"
             except Exception as e:
@@ -95,9 +91,6 @@ class CollectorPreview(Task):
     priority = 8
 
     def run(self, osint_source_id: str):
-        if hasattr(self.request, "no_change"):
-            del self.request.no_change
-
         collector = Collector()
         source = collector.get_source(osint_source_id)
         collector = collector.get_collector(source)
@@ -110,15 +103,11 @@ class CollectorPreview(Task):
             try:
                 preview_result = collector.preview_collector(source)
             except NoChangeError as e:
-                self.request.no_change = True
+                self.update_state(state="NOT_MODIFIED")
                 return f"'{source.get('name')}': {str(e)}"
             except Exception as e:
                 raise RuntimeError(e) from e
         return preview_result
-
-    def on_success(self, retval, task_id, args, kwargs):
-        if getattr(self.request, "no_change", False):
-            self.backend.store_result(task_id=task_id, result=retval, state="NOT_MODIFIED")
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}")

@@ -40,6 +40,6 @@ class HTTPBackend(BaseBackend):
         if not request:
             return None
         try:
-            return request.task  # type: ignore
+            return getattr(request, "task", None)
         except Exception:
             return None
