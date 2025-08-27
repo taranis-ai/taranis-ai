@@ -22,7 +22,6 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', connector.name, form_error.name) }}
     {{ form_textarea('Description', 'description', connector.description, form_error.description, required=False) }}
-    {{ form_fileinput('Icon', 'icon', connector.icon, type='file', required=False) }}
 
     <label class="select w-full mb-5">
       <span class="label">Connector Type</span>
