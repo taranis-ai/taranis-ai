@@ -1008,7 +1008,7 @@ class Story(BaseModel):
                         logger.info(f"Internal changes detected in story {existing_story.id}, story conflict raised.")
                         story["conflict"] = True
 
-                    if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story.to_detail_dict()):
+                    elif news_items_to_delete := cls.get_news_items_to_delete(story, existing_story.to_detail_dict()):
                         story["news_items_to_delete"] = news_items_to_delete
             else:
                 logger.debug(f"Story does not have an ID: {story}")
@@ -1019,9 +1019,7 @@ class Story(BaseModel):
 
     @classmethod
     def check_internal_changes(cls, existing_story: dict) -> bool:
-        if existing_story.get("last_change") == "internal":
-            return True
-        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items", []))
+        return existing_story.get("last_change") == "internal"
 
     @classmethod
     def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list:

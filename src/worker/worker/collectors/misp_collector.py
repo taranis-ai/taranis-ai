@@ -66,11 +66,6 @@ class MISPCollector(BaseCollector):
             match item.get("object_relation", ""):
                 case "title":
                     title = item.get("value", "")
-                # case "published":
-                #     published_str = item.get("value", "")
-                #     published = (
-                #         datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
-                #     )
                 case "content":
                     content = item.get("value", "")
                 case "author":
@@ -79,10 +74,6 @@ class MISPCollector(BaseCollector):
                     link = item.get("value", "")
                 case "id":
                     news_item_id = item.get("value", "")
-                # TODO: Here we need to reuse the hash from the original news item,
-                # because only then it is possible to handle conflicts reasonably on the originators side.
-                # Obviously, there is still a case when the various Taranis AI instances could ingest
-                # the same news item from same/different sources and create different hashes.
                 case "hash":
                     hash_value = item.get("value", "")
                 case "source":

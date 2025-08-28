@@ -56,7 +56,7 @@ class NewsItemAttribute(BaseModel):
     @classmethod
     def parse_attributes(cls, attributes: list | dict) -> dict[str, "NewsItemAttribute"]:
         if not isinstance(attributes, (dict, list)):
-            raise TypeError(f"tags must be a dict or list, got {type(attributes).__name__}")
+            raise TypeError(f"attributes must be a dict or list, got {type(attributes).__name__}")
 
         if isinstance(attributes, dict):
             return cls._parse_dict_attributes(attributes)
@@ -64,11 +64,11 @@ class NewsItemAttribute(BaseModel):
 
     @classmethod
     def _parse_dict_attributes(cls, attributes: dict) -> dict[str, "NewsItemAttribute"]:
-        """Parse tags from dict format - handles both old and new formats:
+        """Parse attributes from dict format - handles both old and new formats:
         - Old: {"APT75": "UNKNOWN"}
         - New: {"APT75": {"key": "APT75", "value": "UNKNOWN"}}
         """
-        parsed_tags = {}
+        parsed_attributes = {}
 
         for attr_key, attr_value in attributes.items():
             if isinstance(attr_value, dict):
@@ -81,9 +81,9 @@ class NewsItemAttribute(BaseModel):
                 key = attr_key
                 value = ""
 
-            parsed_tags[key] = NewsItemAttribute(key=key, value=value)
+            parsed_attributes[key] = NewsItemAttribute(key=key, value=value)
 
-        return parsed_tags
+        return parsed_attributes
 
     @classmethod
     def _parse_list_attributes(cls, attributes: list) -> dict[str, "NewsItemAttribute"]:
