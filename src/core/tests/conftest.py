@@ -218,7 +218,6 @@ def pytest_collection_modifyitems(config, items):
         "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
     }
 
-    config.option.start_live_server = False
     config.option.headed = True
 
     for option, (keyword, reason) in options.items():

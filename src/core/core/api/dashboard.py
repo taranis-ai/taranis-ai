@@ -1,48 +1,18 @@
 from flask import Blueprint, jsonify, request, Flask
 from flask.views import MethodView
 
-from core.model.news_item import NewsItem
-from core.model.story import Story
-from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
-from core.model.product import Product
-from core.model.report_item import ReportItem
 from core.managers.auth_manager import auth_required
-from core.managers import schedule_manager
 from core.config import Config
-from core.model.story_conflict import StoryConflict
-from core.log import logger
+from core.service.dashboard import DashboardService
 
 
 class Dashboard(MethodView):
     @auth_required()
     def get(self):
-        total_news_items = NewsItem.get_count()
-        total_story_items = Story.get_count()
-        total_products = Product.get_count()
-        report_items_completed = ReportItem.count_all(True)
-        report_items_in_progress = ReportItem.count_all(False)
-        latest_collected = NewsItem.latest_collected()
-        schedule_length = len(schedule_manager.schedule.get_periodic_tasks())
-        logger.debug(f"Story conflict count: {len(StoryConflict.conflict_store)}")
-        logger.debug(f"News item conflict count: {len(NewsItemConflict.conflict_store)}")
-        conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
-        return {
-            "items": [
-                {
-                    "total_news_items": total_news_items,
-                    "total_story_items": total_story_items,
-                    "total_products": total_products,
-                    "report_items_completed": report_items_completed,
-                    "report_items_in_progress": report_items_in_progress,
-                    "latest_collected": latest_collected,
-                    "schedule_length": schedule_length,
-                    "conflict_count": conflict_count,
-                }
-            ]
-        }, 200
+        return DashboardService.get_dashboard_data(), 200
 
 
 class TrendingClusters(MethodView):

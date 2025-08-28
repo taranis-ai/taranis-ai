@@ -303,10 +303,6 @@ export default {
         })
     }
 
-    async function toggleState(connector) {
-      await configStore.toggleOSINTSSourceState(connector)
-    }
-
     return {
       parameters,
       connector_options,
@@ -329,7 +325,6 @@ export default {
       // importData,
       previewSource,
       forceDeleteItem,
-      toggleState,
       selectionChange
     }
   }

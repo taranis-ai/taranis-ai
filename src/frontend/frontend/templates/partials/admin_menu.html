@@ -3,7 +3,8 @@
     <li>
       <a href="{{ view.get_base_route() }}" data-testid="admin-menu-{{ view_name }}">
         {{ heroicon_outline(view.icon) }}
-        {{ view_name }}
+        {% from "macros/admin_menu_badge.html" import admin_menu_badge %}
+        {{ view_name }}{{ admin_menu_badge(view) }}
       </a>
     </li>
   {% endfor %}

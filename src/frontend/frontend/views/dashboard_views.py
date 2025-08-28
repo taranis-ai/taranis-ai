@@ -53,7 +53,7 @@ class DashboardView(BaseView):
         if cluster_filter := user_dashboard.get("trending_cluster_filter"):
             trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
 
-        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": dashboard_config}
+        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": user_dashboard}
         return render_template(template, **context), 200
 
     @classmethod

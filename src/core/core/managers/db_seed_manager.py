@@ -82,7 +82,7 @@ def pre_seed_update(db_engine: Engine):
 
 
 def migrate_user_profile(user_profile: dict, template: dict) -> dict:
-    out = dict(user_profile)  # avoid mutating input
+    out = dict(user_profile)
     for key, value in template.items():
         if key in out and isinstance(value, dict) and not isinstance(out[key], dict) or key not in out:
             out[key] = deepcopy(value)
@@ -98,7 +98,9 @@ def migrate_user_profiles():
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
         updated = migrate_user_profile(current, PROFILE_TEMPLATE)
-        User.update_profile(user=user, data=updated)
+        if current != updated:
+            logger.debug(f"Migrating user profile for user {user.name}")
+            User.update_profile(user=user, data=updated)
 
 
 def migrate_refresh_intervals():

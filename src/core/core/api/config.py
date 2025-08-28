@@ -528,7 +528,7 @@ class OSINTSourceCollect(MethodView):
     def post(self, source_id=None):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.to_task_id())
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 

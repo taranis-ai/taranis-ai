@@ -104,10 +104,10 @@ class NewsItem(BaseModel):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
 
     @classmethod
-    def latest_collected(cls):
+    def latest_collected(cls) -> str | None:
         if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
             return news_item.collected.astimezone().isoformat()
-        return ""
+        return None
 
     def has_attribute(self, key) -> bool:
         return any(attribute.key == key for attribute in self.attributes)
