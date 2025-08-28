@@ -703,11 +703,24 @@ class MISPConnector:
             # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
                 logger.debug(f"Update the story {story.get('id')} to last_change=external")
-                self.core_api.api_post("/worker/stories", story)
+                self._set_last_change_external(story)
                 self.core_api.api_patch(
                     f"/bots/story/{story.get('id', '')}/attributes",
                     {"misp_event_uuid": {"key": "misp_event_uuid", "value": f"{result.uuid}"}},
                 )
+
+    def _set_last_change_external(self, story: dict):
+        story_changes: dict[str, str] = {story.get("id", ""): "external"}
+
+        news_item_changes: dict[str, str] = {
+            item.get("id", ""): "external" for item in story.get("news_items", []) if item.get("last_change") == "internal"
+        }
+
+        payload: dict[str, dict[str, str]] = {
+            "stories": story_changes,
+            "news_items": news_item_changes,
+        }
+        self.core_api.api_post("/connectors/last-change", payload)
 
 
 def sending():

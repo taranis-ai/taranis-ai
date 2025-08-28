@@ -10,6 +10,7 @@ from core.managers.sse_manager import sse_manager
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
+from core.model.connector import Connector
 from core.audit import audit_logger
 
 
@@ -123,6 +124,20 @@ class ConflictStore(MethodView):
         return {"message": "All conflicts cleared"}, 200
 
 
+class LastChange(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    def post(self):
+        data = request.json
+        if not data:
+            return {"error": "Missing story_ids or news_item_ids"}, 400
+        if story_ids := data.get("stories"):
+            result, code = Connector.update_story_last_change(story_ids)
+        if news_item_ids := data.get("news_items"):
+            result, code = Connector.update_news_item_last_change(news_item_ids)
+        sse_manager.news_items_updated()
+        return result, code
+
+
 def initialize(app: Flask):
     conflicts_bp = Blueprint("connectors", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/connectors")
 
@@ -131,6 +146,7 @@ def initialize(app: Flask):
     conflicts_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
     conflicts_bp.add_url_rule("/conflicts/clear", view_func=ConflictStore.as_view("clear_conflicts"))
+    conflicts_bp.add_url_rule("/last-change", view_func=LastChange.as_view("last_change"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)
