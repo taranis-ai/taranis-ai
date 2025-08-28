@@ -241,8 +241,7 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        last_change = data.get("last_change", "internal")
-        self._update_status(last_change)
+        self._update_status("internal")
 
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
