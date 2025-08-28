@@ -1002,17 +1002,17 @@ class Story(BaseModel):
     def prepare_misp_stories(cls, story_lists: list[dict], force) -> list[dict]:
         stories = []
         for story in story_lists:
-            if existing_story := cls.get(story.get("id", {})):
-                if isinstance(existing_story, Story):
+            if story_id := story.get("id"):
+                if existing_story := cls.get(story_id):
                     if not force and cls.check_internal_changes(existing_story.to_detail_dict()):
-                        logger.info(f"Internal changes detected in story {existing_story.id}, skipping update")
+                        logger.info(f"Internal changes detected in story {existing_story.id}, story conflict raised.")
                         story["conflict"] = True
 
                     if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story.to_detail_dict()):
                         story["news_items_to_delete"] = news_items_to_delete
-                else:
-                    logger.warning(f"Story get by UUID - {story.get('id')} - returned a non-story object.")
-                    continue
+            else:
+                logger.debug(f"Story does not have an ID: {story}")
+                continue
 
             stories.append(story)
         return stories
