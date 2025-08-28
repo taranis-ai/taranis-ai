@@ -37,7 +37,7 @@ class RoleBasedAccessService:
 
     @classmethod
     def filter_query_with_tlp(cls, query: Select, user: User) -> Select:
-        from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.story import Story
         from core.model.news_item_attribute import NewsItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
@@ -46,15 +46,9 @@ class RoleBasedAccessService:
 
         accessible_tlps = user_tlp_level.get_accessible_levels()
 
-        TLPAttr = aliased(NewsItemAttribute)
-        SNA = aliased(StoryNewsItemAttribute)
-
-        query = (
-            query.outerjoin(SNA, SNA.story_id == Story.id)
-            .outerjoin(TLPAttr, db.and_(TLPAttr.id == SNA.news_item_attribute_id, TLPAttr.key == "TLP"))
-            .filter(db.or_(TLPAttr.value.in_(accessible_tlps), TLPAttr.id.is_(None)))
+        query = query.filter(
+            db.not_(Story.attributes.any(db.and_(NewsItemAttribute.key == "TLP", ~NewsItemAttribute.value.in_(accessible_tlps))))
         )
-
         return query
 
     @classmethod

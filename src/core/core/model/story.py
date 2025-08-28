@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy import or_, func
-from sqlalchemy.orm import aliased, Mapped, relationship
+from sqlalchemy.orm import aliased, Mapped, relationship, defer
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -44,7 +44,6 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
-    last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
@@ -67,7 +66,6 @@ class Story(BaseModel):
         attributes: list[dict] | None = None,
         tags=None,
         news_items=None,
-        last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
         self.likes = likes
@@ -82,7 +80,6 @@ class Story(BaseModel):
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
         self.links = links or []
-        self.last_change = last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
@@ -144,7 +141,7 @@ class Story(BaseModel):
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
+        query = db.select(cls).options(defer(Story.links)).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
         query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
 
         if item_id := filter_args.get("story_id"):
@@ -353,6 +350,7 @@ class Story(BaseModel):
         biggest_story = 0
         query = cls.enhance_with_user_votes(query, user.id)
         query = cls.enhance_with_report_count(query)
+        query = query.distinct()
 
         for story, user_vote, report_count in db.session.execute(query):
             story_data = story.to_dict()
@@ -423,7 +421,7 @@ class Story(BaseModel):
                         story_ids.append(story_id)
 
             cls.group_stories(story_ids)
-            return cls.update(data["id"], data, external=True)
+            return cls.update(data["id"], data)
 
         result = cls.update_with_conflicts(data["id"], data)
         return result
@@ -466,12 +464,18 @@ class Story(BaseModel):
         if NewsItem.identical(news_item.get("hash")):
             return {"error": "Identical news item found. Skipping..."}, 400
 
+        news_item_attributes = news_item.get("attibutes", [])
+        overriden_by: str = next(
+            (attribute.get("value") for attribute in news_item_attributes if attribute.get("key") == "overridden_by"),
+            "unknown",
+        )
+
         data = {
             "title": news_item.get("title"),
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "last_change": "internal" if news_item.get("source") == "manual" else "external",
+            "attributes": [{"key": "overridden_by", "value": overriden_by}],
         }
 
         return cls.add(data)
@@ -498,7 +502,7 @@ class Story(BaseModel):
             return {"error": f"Failed to add news items: {e}"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict]):
+    def add_news_items(cls, news_items_list: list[dict]) -> tuple[dict, int]:
         story_ids = []
         news_item_ids = []
         skipped_items = []
@@ -532,7 +536,9 @@ class Story(BaseModel):
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
+    def update(cls, story_id: str, data=None, user=None) -> tuple[dict, int]:
+        if not data:
+            data = {}
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -567,8 +573,6 @@ class Story(BaseModel):
 
         if "links" in data:
             story.links = data["links"]
-
-        story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
         StorySearchIndex.prepare(story)
@@ -881,7 +885,7 @@ class Story(BaseModel):
                     return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
-                    cls.create_from_item(news_item)
+                    cls.create_from_item(news_item, user)
             story.update_status()
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
@@ -904,7 +908,7 @@ class Story(BaseModel):
                     continue
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                cls.create_from_item(news_item)
+                cls.create_from_item(news_item, user)
             db.session.commit()
             cls.update_stories(processed_stories)
             return {"message": "success"}, 200
@@ -921,12 +925,13 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def create_from_item(cls, news_item):
+    def create_from_item(cls, news_item, user: User | None):
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
             description=news_item.review or news_item.content,
             news_items=[news_item.id],
+            attributes=[{"key": "overridden_by", "value": cls.get_story_override(user)}],
         )
         db.session.add(new_story)
         db.session.commit()
@@ -1010,6 +1015,14 @@ class Story(BaseModel):
     @property
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), TLPLevel.CLEAR)
+
+    @classmethod
+    def get_story_override(cls, change_source: str | User | None) -> str:
+        if not change_source:
+            return ""
+        if isinstance(change_source, User):
+            return str(change_source.id)
+        return change_source
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

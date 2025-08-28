@@ -202,9 +202,11 @@ class BaseCollector:
                 self.core_api.add_or_update_story(story)
 
     def check_internal_changes(self, existing_story: dict) -> bool:
-        if existing_story.get("last_change") == "internal":
+        # TODO: This should change and work with attributes (probably)
+        overridden_by_value = existing_story.get("overridden_by")
+        if overridden_by_value not in ["unknown", "collector"] or overridden_by_value.startswith("misp"):
             return True
-        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items", []))
+        return any(news_item.get("overridden_by") != "no" for news_item in existing_story.get("news_items", []))
 
     def get_news_items_to_delete(self, new_story: dict, existing_story: dict) -> list:
         existing_news_items = existing_story.get("news_items", [])
