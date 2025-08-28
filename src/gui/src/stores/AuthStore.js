@@ -4,7 +4,7 @@ import {
   authLogout,
   getAuthMethod
 } from '@/api/auth'
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 import { Base64 } from 'js-base64'
 import { useUserStore } from './UserStore'
 import { useAssessStore } from './AssessStore'
@@ -76,11 +76,13 @@ export const useAuthStore = defineStore(
 
     async function refresh() {
       try {
-        console.debug('Refreshing token')
-        const response = await authRefresh()
-        setJwtToken(response.data.access_token)
-        const userStore = useUserStore()
-        userStore.loadUser()
+        if (!isAuthenticated.value || needTokenRefresh.value) {
+          console.debug('Refreshing token')
+          const response = await authRefresh()
+          setJwtToken(response.data.access_token)
+          const userStore = useUserStore()
+          userStore.loadUser()
+        }
       } catch {
         reset()
       }

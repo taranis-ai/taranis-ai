@@ -1,338 +1,347 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getAllAttributes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/attributes?${filter}`)
+  return getApiService().get(`/config/attributes?${filter}`)
 }
 
 export function createAttribute(attribute) {
-  return apiService.post('/config/attributes', attribute)
+  return getApiService().post('/config/attributes', attribute)
 }
 
 export function updateAttribute(attribute) {
-  return apiService.put(`/config/attributes/${attribute.id}`, attribute)
+  return getApiService().put(`/config/attributes/${attribute.id}`, attribute)
 }
 
 export function deleteAttribute(attribute) {
-  return apiService.delete(`/config/attributes/${attribute.id}`)
+  return getApiService().delete(`/config/attributes/${attribute.id}`)
 }
 
 export function getAttributeEnums(filter) {
-  return apiService.get(
+  return getApiService().get(
     `/config/attributes/${filter.attribute_id}/enums?search=${filter.search}&offset=${filter.offset}&limit=${filter.limit}`
   )
 }
 
 export function addAttributeEnum(attribute_id, data) {
-  return apiService.post(`/config/attributes/${attribute_id}/enums`, data)
+  return getApiService().post(`/config/attributes/${attribute_id}/enums`, data)
 }
 
 export function updateAttributeEnum(attribute_id, data) {
-  return apiService.put(
+  return getApiService().put(
     `/config/attributes/${attribute_id}/enums/${data.id}`,
     data
   )
 }
 
 export function deleteAttributeEnum(attribute_id, attribute_enum_id) {
-  return apiService.delete(
+  return getApiService().delete(
     `/config/attributes/${attribute_id}/enums/${attribute_enum_id}`
   )
 }
 
 export function getAllReportTypes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/report-item-types?${filter}`)
+  return getApiService().get(`/config/report-item-types?${filter}`)
 }
 
 export function createReportItemType(report_item_type) {
-  return apiService.post('/config/report-item-types', report_item_type)
+  return getApiService().post('/config/report-item-types', report_item_type)
 }
 
 export function deleteReportItemType(report_item_type) {
-  return apiService.delete(`/config/report-item-types/${report_item_type.id}`)
+  return getApiService().delete(
+    `/config/report-item-types/${report_item_type.id}`
+  )
 }
 
 export function updateReportItemType(report_item_type) {
-  return apiService.put(
+  return getApiService().put(
     `/config/report-item-types/${report_item_type.id}`,
     report_item_type
   )
 }
 
 export function importReportTypes(form_data) {
-  return apiService.upload('/config/import-report-item-types', form_data)
+  return getApiService().upload('/config/import-report-item-types', form_data)
 }
 
 export function exportReportTypes(filter) {
-  return apiService.download(
+  return getApiService().download(
     `/config/export-report-item-types?${filter}`,
     'report_types_export.json'
   )
 }
 
 export function getAllTemplates(filter_data) {
-  return apiService.get(`/config/templates?list=true`)
+  return getApiService().get(`/config/templates?list=true`)
 }
 
 export function deleteTemplate(template_path) {
-  return apiService.delete(`/config/templates/${template_path}`)
+  return getApiService().delete(`/config/templates/${template_path}`)
 }
 
 export function updateTemplate(template) {
-  return apiService.put('/config/templates', template)
+  return getApiService().put('/config/templates', template)
 }
 
 export function getTemplate(template_path) {
-  return apiService.get(`/config/templates/${template_path}`)
+  return getApiService().get(`/config/templates/${template_path}`)
 }
 
 export function getAllProductTypes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/product-types?${filter}`)
+  return getApiService().get(`/config/product-types?${filter}`)
 }
 
 export function createProductType(product_type) {
-  return apiService.post('/config/product-types', product_type)
+  return getApiService().post('/config/product-types', product_type)
 }
 
 export function deleteProductType(product_type) {
-  return apiService.delete(`/config/product-types/${product_type.id}`)
+  return getApiService().delete(`/config/product-types/${product_type.id}`)
 }
 
 export function updateProductType(product_type) {
-  return apiService.put(
+  return getApiService().put(
     `/config/product-types/${product_type.id}`,
     product_type
   )
 }
 
 export function getProductType(product_type_id) {
-  return apiService.get(`/config/product-types/${product_type_id}`)
+  return getApiService().get(`/config/product-types/${product_type_id}`)
 }
 
 export function getAllPermissions(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/permissions?${filter}`)
+  return getApiService().get(`/config/permissions?${filter}`)
 }
 
 export function getAllRoles(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/roles?${filter}`)
+  return getApiService().get(`/config/roles?${filter}`)
 }
 
 export function createRole(role) {
-  return apiService.post('/config/roles', role)
+  return getApiService().post('/config/roles', role)
 }
 
 export function updateRole(role) {
-  return apiService.put(`/config/roles/${role.id}`, role)
+  return getApiService().put(`/config/roles/${role.id}`, role)
 }
 
 export function deleteRole(role) {
-  return apiService.delete(`/config/roles/${role.id}`)
+  return getApiService().delete(`/config/roles/${role.id}`)
 }
 
 export function getAllWorkerTypes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/worker-types?${filter}`)
+  return getApiService().get(`/config/worker-types?${filter}`)
 }
 
 export function patchWorkerType(worker_data) {
-  return apiService.patch(`/config/worker-types/${worker_data.id}`, worker_data)
+  return getApiService().patch(
+    `/config/worker-types/${worker_data.id}`,
+    worker_data
+  )
 }
 
 export function getAllParameters() {
-  return apiService.get('/config/parameters')
+  return getApiService().get('/config/parameters')
 }
 
 export function getAllBots(bot) {
-  return apiService.get('/config/bots', bot)
+  return getApiService().get('/config/bots', bot)
 }
 
 export function createBot(bot) {
-  return apiService.post('/config/bots', bot)
+  return getApiService().post('/config/bots', bot)
 }
 
 export function updateBot(bot) {
-  return apiService.put(`/config/bots/${bot.id}`, bot)
+  return getApiService().put(`/config/bots/${bot.id}`, bot)
 }
 
 export function deleteBot(bot) {
-  return apiService.delete(`/config/bots/${bot.id}`)
+  return getApiService().delete(`/config/bots/${bot.id}`)
 }
 
 export function executeBotTask(bot_id) {
-  return apiService.post(`/config/bots/${bot_id}/execute`)
+  return getApiService().post(`/config/bots/${bot_id}/execute`)
 }
 
 export function getAllACLEntries(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/acls?${filter}`)
+  return getApiService().get(`/config/acls?${filter}`)
 }
 
 export function createACLEntry(acl) {
-  return apiService.post('/config/acls', acl)
+  return getApiService().post('/config/acls', acl)
 }
 
 export function updateACLEntry(acl) {
-  return apiService.put(`/config/acls/${acl.id}`, acl)
+  return getApiService().put(`/config/acls/${acl.id}`, acl)
 }
 
 export function deleteACLEntry(acl) {
-  return apiService.delete(`/config/acls/${acl.id}`)
+  return getApiService().delete(`/config/acls/${acl.id}`)
 }
 
 export function getAllOrganizations(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/organizations?${filter}`)
+  return getApiService().get(`/config/organizations?${filter}`)
 }
 
 export function createOrganization(organization) {
-  return apiService.post('/config/organizations', organization)
+  return getApiService().post('/config/organizations', organization)
 }
 
 export function updateOrganization(organization) {
-  return apiService.put(
+  return getApiService().put(
     `/config/organizations/${organization.id}`,
     organization
   )
 }
 
 export function deleteOrganization(organization) {
-  return apiService.delete(`/config/organizations/${organization.id}`)
+  return getApiService().delete(`/config/organizations/${organization.id}`)
 }
 
 export function getAllUsers(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/users?${filter}`)
+  return getApiService().get(`/config/users?${filter}`)
 }
 
 export function createUser(user) {
-  return apiService.post('/config/users', user)
+  return getApiService().post('/config/users', user)
 }
 
 export function updateUser(user) {
-  return apiService.put(`/config/users/${user.id}`, user)
+  return getApiService().put(`/config/users/${user.id}`, user)
 }
 
 export function deleteUser(user) {
-  return apiService.delete(`/config/users/${user.id}`)
+  return getApiService().delete(`/config/users/${user.id}`)
 }
 
 export function importUsers(form_data) {
-  return apiService.post('/config/users-import', form_data)
+  return getApiService().post('/config/users-import', form_data)
 }
 
 export function exportUsers(filter) {
-  return apiService.download(
+  return getApiService().download(
     `/config/users-export?${filter}`,
     'users_export.json'
   )
 }
 
 export function getDetailedWordList(word_list_id) {
-  return apiService.get(`/config/word-lists/${word_list_id}`)
+  return getApiService().get(`/config/word-lists/${word_list_id}`)
 }
 
 export function getAllWordLists(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/word-lists?${filter}`)
+  return getApiService().get(`/config/word-lists?${filter}`)
 }
 
 export function createWordList(word_list) {
-  return apiService.post('/config/word-lists', word_list)
+  return getApiService().post('/config/word-lists', word_list)
 }
 
 export function updateWordList(word_list) {
-  return apiService.put(`/config/word-lists/${word_list.id}`, word_list)
+  return getApiService().put(`/config/word-lists/${word_list.id}`, word_list)
 }
 
 export function deleteWordList(word_list) {
-  return apiService.delete(`/config/word-lists/${word_list.id}`)
+  return getApiService().delete(`/config/word-lists/${word_list.id}`)
 }
 
 export function importWordList(form_data) {
-  return apiService.upload('/config/import-word-lists', form_data)
+  return getApiService().upload('/config/import-word-lists', form_data)
 }
 
 export function exportWordList(filter) {
-  return apiService.download(
+  return getApiService().download(
     `/config/export-word-lists?${filter}`,
     'word_lists_export.json'
   )
 }
 
 export function gatherWordListEntries(word_list) {
-  return apiService.put(`/config/word-lists/${word_list.id}/gather`)
+  return getApiService().put(`/config/word-lists/${word_list.id}/gather`)
 }
 
 export function getQueueStatus() {
-  return apiService.get('/config/workers/queue-status')
+  return getApiService().get('/config/workers/queue-status')
 }
 
 export function getQueueTasks() {
-  return apiService.get('/config/workers/tasks')
+  return getApiService().get('/config/workers/tasks')
 }
 
 export function getAllSchedule() {
-  return apiService.get('/config/workers/schedule')
+  return getApiService().get('/config/workers/schedule')
 }
 
 export function getNextFireOn(cronExpression) {
-  return apiService.post('/config/refresh-interval', {
+  return getApiService().post('/config/refresh-interval', {
     cron: cronExpression
   })
 }
 
 export function getAllWorkers() {
-  return apiService.get('/config/workers')
+  return getApiService().get('/config/workers')
 }
 
 export function getAllOSINTSources(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/osint-sources?${filter}`)
+  return getApiService().get(`/config/osint-sources?${filter}`)
 }
 
 export function createOSINTSource(source) {
-  return apiService.post('/config/osint-sources', source)
+  return getApiService().post('/config/osint-sources', source)
 }
 
 export function collectOSINTSSource(source_id) {
-  return apiService.post(`/config/osint-sources/${source_id}/collect`)
+  return getApiService().post(`/config/osint-sources/${source_id}/collect`)
 }
 
 export function previewOSINTSSource(source_id) {
-  return apiService.post(`/config/osint-sources/${source_id}/preview`)
+  return getApiService().post(`/config/osint-sources/${source_id}/preview`)
 }
 
 export function toggleOSINTSSource(source_id, action) {
-  return apiService.patch(`/config/osint-sources/${source_id}?state=${action}`)
+  return getApiService().patch(
+    `/config/osint-sources/${source_id}?state=${action}`
+  )
 }
 
 export function getOSINTSSourcePreview(source_id) {
-  return apiService.get(`/config/osint-sources/${source_id}/preview`)
+  return getApiService().get(`/config/osint-sources/${source_id}/preview`)
 }
 
 export function collectAllOSINTSSources() {
-  return apiService.post('/config/osint-sources/collect')
+  return getApiService().post('/config/osint-sources/collect')
 }
 
 export function updateOSINTSource(source) {
-  return apiService.put(`/config/osint-sources/${source.id}`, source)
+  return getApiService().put(`/config/osint-sources/${source.id}`, source)
 }
 
 export function deleteOSINTSource(source, force = false) {
   const force_query = force ? '?force=true' : ''
-  return apiService.delete(`/config/osint-sources/${source.id}${force_query}`)
+  return getApiService().delete(
+    `/config/osint-sources/${source.id}${force_query}`
+  )
 }
 
 export function importOSINTSources(form_data) {
-  return apiService.upload('/config/import-osint-sources', form_data)
+  return getApiService().upload('/config/import-osint-sources', form_data)
 }
 
 export function exportOSINTSources(filter) {
-  return apiService.download(
+  return getApiService().download(
     `/config/export-osint-sources?${filter}`,
     'osint_sources_export.json'
   )
@@ -340,47 +349,47 @@ export function exportOSINTSources(filter) {
 
 export function getAllOSINTSourceGroups(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/osint-source-groups?${filter}`)
+  return getApiService().get(`/config/osint-source-groups?${filter}`)
 }
 
 export function createOSINTSourceGroup(group) {
-  return apiService.post('/config/osint-source-groups', group)
+  return getApiService().post('/config/osint-source-groups', group)
 }
 
 export function updateOSINTSourceGroup(group) {
-  return apiService.put(`/config/osint-source-groups/${group.id}`, group)
+  return getApiService().put(`/config/osint-source-groups/${group.id}`, group)
 }
 
 export function deleteOSINTSourceGroup(group) {
-  return apiService.delete(`/config/osint-source-groups/${group.id}`)
+  return getApiService().delete(`/config/osint-source-groups/${group.id}`)
 }
 
 export function getAllPublisher(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/publishers-presets?${filter}`)
+  return getApiService().get(`/config/publishers-presets?${filter}`)
 }
 
 export function createPublisher(preset) {
-  return apiService.post('/config/publishers-presets', preset)
+  return getApiService().post('/config/publishers-presets', preset)
 }
 
 export function updatePublisher(node) {
-  return apiService.put(`/config/publishers-presets/${node.id}`, node)
+  return getApiService().put(`/config/publishers-presets/${node.id}`, node)
 }
 
 export function deletePublisher(node) {
-  return apiService.delete(`/config/publishers-presets/${node.id}`)
+  return getApiService().delete(`/config/publishers-presets/${node.id}`)
 }
 
 export function getAllConnectors(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/config/connectors?${filter}`)
+  return getApiService().get(`/config/connectors?${filter}`)
 }
 
 export function createConnector(connector) {
-  return apiService.post('/config/connectors', connector)
+  return getApiService().post('/config/connectors', connector)
 }
 
 export function updateConnector(connector) {
-  return apiService.put(`/config/connectors/${connector.id}`, connector)
+  return getApiService().put(`/config/connectors/${connector.id}`, connector)
 }

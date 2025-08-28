@@ -26,6 +26,11 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
+      input: {
+        assess: path.resolve(__dirname, 'assess/index.html'),
+        analyze: path.resolve(__dirname, 'analyze/index.html'),
+        publish: path.resolve(__dirname, 'publish/index.html')
+      },
       // https://rollupjs.org/guide/en/#outputmanualchunks
       output: {
         manualChunks: {

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/AuthStore'
+import { useMainStore } from '@/stores/MainStore'
 import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export class ApiService {
@@ -78,4 +79,14 @@ export class ApiService {
       console.error(error)
     }
   }
+}
+
+let apiServiceInstance = null
+
+export function getApiService() {
+  if (!apiServiceInstance) {
+    const mainStore = useMainStore()
+    apiServiceInstance = new ApiService(mainStore.coreAPIURL)
+  }
+  return apiServiceInstance
 }

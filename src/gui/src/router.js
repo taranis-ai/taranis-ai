@@ -191,6 +191,7 @@ export const router = createRouter({
 router.beforeEach((to) => {
   const authstore = useAuthStore()
   if (to.meta.requiresAuth && !authstore.isAuthenticated) {
+    authstore.refresh()
     return { name: 'login' }
   }
   if (to.meta.requiresPerm && !authstore.hasAccess(to.meta.requiresPerm)) {

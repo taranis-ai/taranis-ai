@@ -1,39 +1,39 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getAllProducts(filter = '') {
-  return apiService.get(`/publish/products?${filter}`)
+  return getApiService().get(`/publish/products?${filter}`)
 }
 
 export function createProduct(data) {
-  return apiService.post('/publish/products', data)
+  return getApiService().post('/publish/products', data)
 }
 
 export function updateProduct(data) {
-  return apiService.put(`/publish/products/${data.id}`, data)
+  return getApiService().put(`/publish/products/${data.id}`, data)
 }
 
 export function getProduct(product) {
-  return apiService.get(`/publish/products/${product}`)
+  return getApiService().get(`/publish/products/${product}`)
 }
 
 export function getRenderdProduct(product) {
-  return apiService.get(`/publish/products/${product}/render`)
+  return getApiService().get(`/publish/products/${product}/render`)
 }
 
 export function triggerRenderProduct(product) {
-  return apiService.post(`/publish/products/${product}/render`)
+  return getApiService().post(`/publish/products/${product}/render`)
 }
 
 export function deleteProduct(product_id) {
-  return apiService.delete(`/publish/products/${product_id}`)
+  return getApiService().delete(`/publish/products/${product_id}`)
 }
 
 export function getAllProductTypes() {
-  return apiService.get('/publish/product-types')
+  return getApiService().get('/publish/product-types')
 }
 
 export function publishProduct(product_id, publisher_id) {
-  return apiService.post(
+  return getApiService().post(
     `/publish/products/${product_id}/publishers/${publisher_id}`,
     {}
   )

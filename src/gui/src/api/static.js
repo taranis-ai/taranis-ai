@@ -1,9 +1,9 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getDefaultSoures() {
-  return apiService.getBlob('/static/default_sources.json')
+  return getApiService().getBlob('/static/default_sources.json')
 }
 
 export function getDefaultWordLists() {
-  return apiService.getBlob('/static/default_word_lists.json')
+  return getApiService().getBlob('/static/default_word_lists.json')
 }

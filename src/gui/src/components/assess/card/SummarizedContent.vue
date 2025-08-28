@@ -1,16 +1,16 @@
 <template>
-  <span :class="contentClass">
+  <div :class="contentClass">
     <v-tooltip v-if="isSummarized" text="Summary">
       <template #activator="{ props }">
         <v-icon v-bind="props" icon="mdi-text-short" />
       </template>
     </v-tooltip>
-    <span
+    <article
       v-dompurify-html="highlighted"
       style="word-wrap: anywhere"
       data-testid="summarized-content-span"
     />
-  </span>
+  </div>
 </template>
 
 <script>

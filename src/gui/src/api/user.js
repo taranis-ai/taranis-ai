@@ -1,17 +1,17 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getProfile() {
-  return apiService.get('/users/profile')
+  return getApiService().get('/users/profile')
 }
 
 export function updateProfile(data) {
-  return apiService.put('/users/profile', data)
+  return getApiService().put('/users/profile', data)
 }
 
 export function getUserDetails() {
-  return apiService.get('/users/')
+  return getApiService().get('/users/')
 }
 
 export function sseConnected() {
-  return apiService.post('/users/sse-connected')
+  return getApiService().post('/users/sse-connected')
 }

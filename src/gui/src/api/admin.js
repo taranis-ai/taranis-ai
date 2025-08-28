@@ -1,25 +1,25 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getAdminSettings() {
-  return apiService.get('/admin/')
+  return getApiService().get('/admin/')
 }
 
 export function updateAdminSettings(data) {
-  return apiService.put('/admin/', data)
+  return getApiService().put('/admin/', data)
 }
 
 export function deleteAllTags() {
-  return apiService.post('/admin/delete-tags')
+  return getApiService().post('/admin/delete-tags')
 }
 
 export function clearQueues() {
-  return apiService.post('/admin/clear-queues')
+  return getApiService().post('/admin/clear-queues')
 }
 
 export function ungroupAllStories() {
-  return apiService.post('/admin/ungroup-stories')
+  return getApiService().post('/admin/ungroup-stories')
 }
 
 export function resetDatabase() {
-  return apiService.post('/admin/reset-database')
+  return getApiService().post('/admin/reset-database')
 }

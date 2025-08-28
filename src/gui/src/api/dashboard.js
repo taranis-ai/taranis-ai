@@ -1,27 +1,27 @@
-import { apiService } from '@/main'
+import { getApiService } from '@/services/api_service'
 
 export function getDashboardData() {
-  return apiService.get('/dashboard')
+  return getApiService().get('/dashboard')
 }
 
 export function getTrendingClusters(days = null) {
   if (days) {
-    return apiService.get(
+    return getApiService().get(
       `/dashboard/trending-clusters?days=${days}&legacy=true`
     )
   }
-  return apiService.get('/dashboard/trending-clusters?legacy=true')
+  return getApiService().get('/dashboard/trending-clusters?legacy=true')
 }
 
 export function getClusterByType(tag_type, filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/dashboard/cluster/${tag_type}?${filter}`)
+  return getApiService().get(`/dashboard/cluster/${tag_type}?${filter}`)
 }
 
 export function getCoreBuildInfo() {
-  return apiService.get('/dashboard/build-info')
+  return getApiService().get('/dashboard/build-info')
 }
 
 export function deleteTag(tag_name) {
-  return apiService.delete(`/dashboard/delete-tag/${tag_name}`)
+  return getApiService().delete(`/dashboard/delete-tag/${tag_name}`)
 }

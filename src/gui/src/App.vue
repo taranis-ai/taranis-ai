@@ -1,22 +1,6 @@
 <template>
   <v-app class="grey lighten-2">
-    <keep-alive>
-      <MainMenu v-if="isAuthenticated" />
-    </keep-alive>
-
-    <router-view v-slot="{ Component }" name="nav">
-      <keep-alive>
-        <component :is="Component" />
-      </keep-alive>
-    </router-view>
-
-    <v-main class="d-flex">
-      <router-view v-slot="{ Component }">
-        <keep-alive :include="['AssessView']">
-          <component :is="Component" />
-        </keep-alive>
-      </router-view>
-    </v-main>
+    <v-main class="d-flex"> MAIN VIEW </v-main>
 
     <HotKeysDialog v-if="isAuthenticated" />
     <Notification v-if="isAuthenticated" />
@@ -41,7 +25,7 @@ export default defineComponent({
     HotKeysDialog
   },
   setup() {
-    const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
+    const { isAuthenticated } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
     const { name: display } = useDisplay()
 
@@ -50,19 +34,9 @@ export default defineComponent({
     })
 
     onMounted(() => {
+      authStore.refresh()
       isAuthenticated.value || authStore.logout()
-
-      if (timeToRefresh.value > 0) {
-        setTimeout(() => {
-          console.debug('Refreshing token')
-          if (isAuthenticated.value) {
-            authStore.refresh()
-          }
-        }, timeToRefresh.value)
-      }
-      if (isAuthenticated.value) {
-        sseHandler()
-      }
+      sseHandler()
     })
 
     return {

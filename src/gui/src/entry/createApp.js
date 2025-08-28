@@ -1,8 +1,5 @@
 import '@mdi/font/css/materialdesignicons.css'
 import { createApp } from 'vue'
-import App from './App.vue'
-import { router } from './router'
-import { ApiService } from '@/services/api_service'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { createPinia } from 'pinia'
@@ -13,16 +10,15 @@ import '@vuepic/vue-datepicker/dist/main.css'
 
 import * as Sentry from '@sentry/vue'
 import { useMainStore } from '@/stores/MainStore'
-export const app = createApp(App)
 
-export let apiService = null
-async function initializeApp() {
+export async function initializeApp(RootComponent) {
+  const app = createApp(RootComponent)
+
   app.use(i18n)
 
   const pinia = createPinia()
   pinia.use(piniaPluginPersistedstate)
   app.component('VueDatePicker', VueDatePicker)
-  app.use(router)
   app.use(pinia)
   app.use(vuetify)
   app.use(VueDOMPurifyHTML)
@@ -32,7 +28,6 @@ async function initializeApp() {
 
   console.debug('CoreAPI initialized ', coreAPIURL, sentryDSN)
 
-  apiService = new ApiService(coreAPIURL)
   app.provide('$coreAPIURL', coreAPIURL)
 
   if (sentryDSN) {
@@ -41,18 +36,12 @@ async function initializeApp() {
       dsn: sentryDSN,
       replaysOnErrorSampleRate: 1.0,
       autoSessionTracking: true,
-      integrations: [
-        Sentry.browserTracingIntegration({ router }),
-        Sentry.replayIntegration()
-      ],
+      integrations: [Sentry.replayIntegration()],
       environment: import.meta.env.DEV ? 'development' : 'production',
       tracesSampleRate: 1.0
     })
   }
 
   app.mount('#app')
+  return { app }
 }
-
-initializeApp().then(() => {
-  console.debug('App initialized')
-})
