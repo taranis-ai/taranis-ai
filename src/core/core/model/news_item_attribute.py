@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Mapped, deferred
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
@@ -51,3 +52,60 @@ class NewsItemAttribute(BaseModel):
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
         return TLPLevel(cls.get_by_key(attributes, "TLP"))
+
+    @classmethod
+    def parse_attributes(cls, attributes: list | dict) -> dict[str, "NewsItemAttribute"]:
+        if not isinstance(attributes, (dict, list)):
+            raise TypeError(f"attributes must be a dict or list, got {type(attributes).__name__}")
+
+        if isinstance(attributes, dict):
+            return cls._parse_dict_attributes(attributes)
+        return cls._parse_list_attributes(attributes)
+
+    @classmethod
+    def _parse_dict_attributes(cls, attributes: dict) -> dict[str, "NewsItemAttribute"]:
+        """Parse attributes from dict format - handles both old and new formats:
+        - Old: {"APT75": "UNKNOWN"}
+        - New: {"APT75": {"key": "APT75", "value": "UNKNOWN"}}
+        """
+        parsed_attributes = {}
+
+        for attr_key, attr_value in attributes.items():
+            if isinstance(attr_value, dict):
+                key = attr_value.get("key", attr_key)
+                value = attr_value.get("value", "")
+            elif isinstance(attr_value, str):
+                key = attr_key
+                value = attr_value
+            else:
+                key = attr_key
+                value = ""
+
+            parsed_attributes[key] = NewsItemAttribute(key=key, value=value)
+
+        return parsed_attributes
+
+    @classmethod
+    def _parse_list_attributes(cls, attributes: list) -> dict[str, "NewsItemAttribute"]:
+        dict_attributes = {}
+        for attr in attributes:
+            if isinstance(attr, dict):
+                if "key" in attr:
+                    dict_attributes[attr["key"]] = attr
+                else:
+                    logger.warning(f"Attribute dict missing 'key': {attr}")
+        return cls._parse_dict_attributes(dict_attributes)
+
+    @classmethod
+    def unify_attributes_to_old_format(cls, attributes: list | dict) -> list[dict[str, str]]:
+        """Unify attributes to a list of dicts with 'key' and 'value' keys.
+        This serves for the __init__ function of NewsItemAttribute
+        """
+        if isinstance(attributes, dict):
+            attributes = cls._parse_dict_attributes(attributes)
+        elif isinstance(attributes, list):
+            attributes = cls._parse_list_attributes(attributes)
+        else:
+            raise TypeError(f"attributes must be a dict or list, got {type(attributes).__name__}")
+
+        return [{"key": attr.key, "value": attr.value} for attr in attributes.values()]

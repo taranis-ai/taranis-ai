@@ -1,10 +1,11 @@
+from core.model.task import Task
 from core.model.story import Story
-from core.model.report_item import ReportItem
 from core.model.product import Product
 from core.model.news_item import NewsItem
-from core.managers import schedule_manager
+from core.model.report_item import ReportItem
 from core.model.story_conflict import StoryConflict
-from core.model.task import Task
+from core.model.news_item_conflict import NewsItemConflict
+from core.managers import schedule_manager
 
 
 class DashboardService:
@@ -17,6 +18,7 @@ class DashboardService:
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
         schedule_length = schedule_manager.schedule.get_periodic_tasks().get("total_count", 0)
+        conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         return {
             "items": [
                 {
@@ -27,7 +29,7 @@ class DashboardService:
                     "report_items_in_progress": report_items_in_progress,
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
-                    "conflict_count": len(StoryConflict.conflict_store),
+                    "conflict_count": conflict_count,
                     "worker_status": cls.get_worker_status(),
                 }
             ]

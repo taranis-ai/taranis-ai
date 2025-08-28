@@ -41,13 +41,25 @@ class TestBotsApi(BaseTest):
         assert response.status_code == 200
         assert story_id == stories[0], "Response ID should match request ID"
 
-    def test_attribute_update(self, client, stories, api_header):
+    def test_old_format_attribute_update(self, client, stories, api_header):
         """
         This test queries the story update authenticated.
         It expects a valid data and a valid status-code
         """
         response = client.patch(
             f"{self.base_uri}/story/{stories[0]}/attributes", json=[{"key": "tech", "value": "in_progress"}], headers=api_header
+        )
+        assert response.status_code == 200
+
+    def test_new_format_attribute_update(self, client, stories, api_header):
+        """
+        This test queries the story update authenticated.
+        It expects a valid data and a valid status-code
+        """
+        response = client.patch(
+            f"{self.base_uri}/story/{stories[0]}/attributes",
+            json={"point": {"key": "point", "value": "making"}, "tree": {"key": "tree", "value": "green"}},
+            headers=api_header,
         )
         assert response.status_code == 200
 
@@ -68,7 +80,13 @@ class TestBotsApi(BaseTest):
 
         attributes = sorted(response.get_json()["attributes"], key=lambda d: d["key"])
         expected_attributes = sorted(
-            cleanup_story_update_data["attributes"] + [{"key": "tech", "value": "in_progress"}, {"key": "TLP", "value": "clear"}],
+            cleanup_story_update_data["attributes"]
+            + [
+                {"key": "tech", "value": "in_progress"},
+                {"key": "TLP", "value": "clear"},
+                {"key": "point", "value": "making"},
+                {"key": "tree", "value": "green"},
+            ],
             key=lambda d: d["key"],
         )
 
