@@ -2,6 +2,7 @@ import json
 import secrets
 from werkzeug.security import generate_password_hash
 from typing import Any, Sequence
+from copy import deepcopy
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
 
@@ -11,6 +12,19 @@ from core.model.organization import Organization
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
 from core.log import logger
+
+PROFILE_TEMPLATE = {
+    "dark_theme": False,
+    "hotkeys": {},
+    "split_view": False,
+    "compact_view": False,
+    "show_charts": False,
+    "infinite_scroll": True,
+    "advanced_story_options": False,
+    "end_of_shift": {"hours": 18, "minutes": 0},
+    "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
+    "language": "en",
+}
 
 
 class User(BaseModel):
@@ -37,17 +51,7 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.profile = {
-            "dark_theme": False,
-            "hotkeys": {},
-            "split_view": False,
-            "compact_view": False,
-            "show_charts": False,
-            "infinite_scroll": True,
-            "advanced_story_options": False,
-            "end_of_shift": {"hours": 18, "minutes": 0},
-            "language": "en",
-        }
+        self.profile = PROFILE_TEMPLATE.copy()
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -167,7 +171,10 @@ class User(BaseModel):
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
-        user.profile = data
+        updated_profile = deepcopy(user.profile)
+        updated_profile.update(data)
+
+        user.profile = updated_profile
         db.session.commit()
         return {"message": "Profile updated"}, 200
 

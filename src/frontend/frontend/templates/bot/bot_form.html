@@ -1,8 +1,15 @@
 {% from "macros/forms.html" import form_input, form_select, form_input_content, form_switch %}
+{% from "macros/worker.html" import worker_status %}
 {% set bot_id = bot.id | default("0", true) %}
 
 <div class="bg-base-100 p-4">
-
+  <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ bot.id }}</p>
+  {% if bot.status %}
+  <div class="mb-5 w-3/4 ml-[10%]">
+  {{ worker_status(bot.status) }}
+  </div>
+  {% endif %}
   <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
@@ -27,7 +34,7 @@
       </select>
       {% if bot.type %}<input type="hidden" name="type" value="{{ bot.type }}">{% endif %}
     </label>
-    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
+    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

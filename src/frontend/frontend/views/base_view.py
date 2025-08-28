@@ -1,11 +1,11 @@
-from flask import render_template, request, Response, url_for, current_app, abort
+from flask import render_template, request, url_for, current_app, abort
 from jinja2 import TemplateNotFound
 from typing import Type, Any
 from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
 
-from models.admin import TaranisBaseModel
+from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
@@ -25,6 +25,7 @@ class BaseView(MethodView):
     edit_template: str = ""
     base_route: str = ""
     edit_route: str = ""
+    import_route: str = ""
     icon: str = "wrench"
     _is_admin: bool = True
     _index: float | int = float("inf")
@@ -43,6 +44,7 @@ class BaseView(MethodView):
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
+            "_is_admin": cls._is_admin,
             "routes": {
                 "base_route": cls.get_base_route(),
                 "edit_route": cls.get_edit_route(**{cls._get_object_key(): object_id}),
@@ -107,11 +109,16 @@ class BaseView(MethodView):
         return url_for(route, **kwargs)
 
     @classmethod
+    def get_import_route(cls, **kwargs) -> str:
+        route = cls.import_route or f"admin.import_{cls.model_plural_name().lower()}"
+        return url_for(route, **kwargs)
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
             {"title": "Name", "field": "name", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
         ]
 
     @classmethod
@@ -127,12 +134,19 @@ class BaseView(MethodView):
             return None, str(exc)
 
     @classmethod
+    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
+        dpl = DataPersistenceLayer()
+        all_parameters = dpl.get_objects(WorkerParameter)
+        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
+        return match.parameters if match else []
+
+    @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
         try:
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
-            return (result.json(), None) if result.ok else (None, result.json().get("error"))
+            return (result.json(), None) if result.ok else (None, result.json())
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
@@ -164,7 +178,7 @@ class BaseView(MethodView):
 
     @classmethod
     def edit_view(cls, object_id: int | str = 0):
-        return render_template(cls.get_update_template(), **cls.get_update_context(object_id))
+        return render_template(cls.get_update_template(), **cls.get_update_context(object_id)), 200
 
     @classmethod
     def get_update_context(
@@ -232,13 +246,18 @@ class BaseView(MethodView):
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
-        resp_obj, error = cls.process_form_data(object_id)
-        if resp_obj and not error:
-            return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
+        logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
+        core_response, error = cls.process_form_data(object_id)
+        if core_response and not error:
+            response = cls.get_notification_from_dict(core_response)
+            table, table_response = cls.list_view()
+            if table_response == 200:
+                response += table
+            return response, table_response
 
         return render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
         ), 400
 
     @classmethod
@@ -272,9 +291,11 @@ class BaseView(MethodView):
 
         if not items:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error=f"No {cls.model_name()} items found")
+            return render_template("errors/404.html", error=f"No {cls.model_name()} items found"), 404
 
-        return render_template(cls.get_list_template(), **{f"{cls.model_plural_name()}": items, "error": error})
+        context = {f"{cls.model_plural_name()}": items, "error": error}
+        context = cls.get_extra_context(context)
+        return render_template(cls.get_list_template(), **context), 200
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse) -> str:
@@ -286,6 +307,17 @@ class BaseView(MethodView):
         if response.ok and response.json():
             return render_template("notification/index.html", notification={"message": response.json().get("message"), "error": False})
         return render_template("notification/index.html", notification={"message": response.json().get("error"), "error": True})
+
+    @classmethod
+    def get_notification_from_dict(cls, response: dict) -> str:
+        """
+        Extracts the notification from the response object.
+        If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
+        If it was ok it should render it as a success message, otherwise it should render it as an error message.
+        """
+        if response.get("message"):
+            return render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
+        return render_template("notification/index.html", notification={"message": response.get("error"), "error": True})
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
@@ -315,16 +347,16 @@ class BaseView(MethodView):
         key = self._get_object_key()
         return kwargs.get(key)
 
-    def get(self, **kwargs):
+    def get(self, **kwargs) -> tuple[str, int]:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs):
+    def post(self, *args, **kwargs) -> tuple[str, int]:
         return self.update_view(object_id=0)
 
-    def put(self, **kwargs):
+    def put(self, **kwargs) -> tuple[str, int]:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             abort(405)

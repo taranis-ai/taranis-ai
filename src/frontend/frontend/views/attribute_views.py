@@ -6,6 +6,7 @@ from models.admin import Attribute
 from models.types import AttributeType
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.filters import render_item_type
 
 
 class AttributeView(BaseView):
@@ -14,7 +15,7 @@ class AttributeView(BaseView):
     _index = 130
 
     attribute_types = {
-        member.name.lower(): {"id": member.name.upper(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
+        member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in AttributeType
     }
 
@@ -34,3 +35,11 @@ class AttributeView(BaseView):
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
         except Exception as exc:
             return None, str(exc)
+
+    @classmethod
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
+        ]

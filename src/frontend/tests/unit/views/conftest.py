@@ -46,7 +46,7 @@ def core_payloads():
 
         expect_object = None
 
-        if view_name == "Dashboard":
+        if view_name in ["Dashboard", "Admin Dashboard"]:
             expect_object = str(items[0].get("total_news_items"))
         elif view_name == "Settings":
             expect_object = items[0].get("settings", {}).get("default_collector_proxy")
@@ -78,14 +78,6 @@ def form_formats_from_models():
     payloads: dict[str, dict[str, set[str]]] = {}
 
     for view_name, view_cls in BaseView._registry.items():
-        # custom override
-        form_fields = getattr(view_cls, "form_fields", None)
-        if isinstance(form_fields, dict):
-            keys = set(form_fields.keys())
-            # if you want to detect required in form_fields, you'll have to mark them in that dict
-            payloads[view_name] = {"allowed": keys, "required": keys.copy()}
-            continue
-
         model = getattr(view_cls, "model", None)
         if not model:
             continue
@@ -409,6 +401,7 @@ def organizations_delete_mock(requests_mock):
 
 @pytest.fixture
 def organizations_put_mock(requests_mock):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
 
 

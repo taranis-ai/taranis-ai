@@ -8,11 +8,11 @@
   {% set required = pattern == 'required' %}
   {% set pattern = "" if required else pattern %}
   {% if field.type == 'text' or field.type == 'number' %}
-    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=required, pattern=pattern, invalid_msg=invalid_msg) }}
+    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=required, pattern=pattern, invalid_msg=invalid_msg, preserve=preserve) }}
   {% elif field.type == 'textarea' %}
-    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required) }}
+    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required, preserve=preserve) }}
   {% elif field.type == 'switch' %}
-    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required) }}
+    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=required, preserve=preserve) }}
   {% elif field.type == 'cron_interval' %}
     {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, error=field.error, required=required) }}
   {% endif %}

@@ -2,13 +2,7 @@
 
 set -eu
 
-if [ ! -d ".venv" ]; then
-    uv python install
-    uv venv
-    source .venv/bin/activate
-    uv sync --all-extras
-fi
+uv sync --all-extras --frozen --python 3.13
 
 source .venv/bin/activate
-
 python -m flask run

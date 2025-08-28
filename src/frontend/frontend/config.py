@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_CSRF_CHECK_FORM: bool = True
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
     JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True

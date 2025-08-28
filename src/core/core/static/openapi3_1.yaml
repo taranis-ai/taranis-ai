@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.1.7
+  version: 1.2.2
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -246,6 +246,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get the types of report items
+      operationId: analyze.report_types.get
       responses:
         '200':
           description: the types of report items
@@ -270,6 +271,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get the report items
+      operationId: analyze.report_items.get
       parameters:
         - name: search
           in: query
@@ -327,6 +329,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: add report item
+      operationId: analyze.report_items.post
       requestBody:
         required: true
         content:
@@ -361,6 +364,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get a specific report item
+      operationId: analyze.report_item.get
       responses:
         '200':
           description: the report item
@@ -379,6 +383,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: modify a specific report item
+      operationId: analyze.report_item.put
       requestBody:
         required: true
         content:
@@ -403,6 +408,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: delete a specific report item
+      operationId: analyze.report_item.delete
       responses:
         '200':
           description: the report item was deleted
@@ -427,7 +433,7 @@ paths:
       security:
       - UserAuth: []
       tags: [analyze]
-      operationId: ReportItemLocks
+      operationId: analyze.report_item_locks.get
       description: get a report item's field locks
       responses:
         '200':
@@ -454,6 +460,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: lock the specified field
+      operationId: analyze.report_item_lock.put
       responses:
         '200':
           description: the locked field as a SSE
@@ -467,31 +474,53 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
-  /analyze/report-items/{report_item_id}/unlock:
+    delete:
+      security:
+      - UserAuth: []
+      tags: [analyze]
+      description: unlock the specified field
+      operationId: analyze.report_item_lock.delete
+      responses:
+        '200':
+          description: the locked field as a SSE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+
+  /analyze/report-items/{report_item_id}/clone:
     parameters:
       - name: report_item_id
         in: path
         required: true
         schema:
           type: string
-    put:
+    post:
       security:
       - UserAuth: []
       tags: [analyze]
-      description: unlock the specified field
+      description: clone the specified report item
+      operationId: analyze.clone_report_item.post
       responses:
         '200':
-          description: the locked field as a SSE
+          description: the cloned report item
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/report_item_lock'
+                $ref: '#/components/schemas/report_item'
         '400':
           description: invalid request
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+
   /assess/osint-source-group-list:
     get:
       security:
@@ -1885,7 +1914,7 @@ paths:
           content:
             'application/json': { }
             'application/xml': { }
-  /config/word-lists/{word_list_id}/gather:
+  /config/word-lists/gather/{word_list_id}:
     parameters:
       - name: word_list_id
         in: path
@@ -1894,7 +1923,7 @@ paths:
           type: integer
           minimum: 1
           maximum: 100000
-    put:
+    post:
       tags: [config]
       operationId: WordListGather
       description: gather wordlist entries
@@ -2468,6 +2497,7 @@ paths:
     put:
       tags: [config]
       description: update OSINT source group
+      operationId: config.osint_source_group.put
       requestBody:
         content:
           application/json:
@@ -2485,6 +2515,7 @@ paths:
     delete:
       tags: [config]
       description: delete OSINT source group
+      operationId: config.osint_source_group.delete
       security:
         - UserAuth: []
       responses:
@@ -2498,6 +2529,7 @@ paths:
     get:
       tags: [config]
       description: get all publisher preset
+      operationId: config.publisher_presets.get
       parameters:
         - name: search
           in: query
@@ -2526,6 +2558,7 @@ paths:
     post:
       tags: [config]
       description: add publisher preset
+      operationId: config.publisher_presets.post
       requestBody:
         content:
           application/json:
@@ -2550,6 +2583,7 @@ paths:
     put:
       tags: [config]
       description: update publisher preset
+      operationId: config.publisher_preset.put
       requestBody:
         content:
           application/json:
@@ -2567,6 +2601,7 @@ paths:
     delete:
       tags: [config]
       description: delete publisher preset
+      operationId: config.publisher_preset.delete
       security:
         - UserAuth: []
       responses:
@@ -3108,11 +3143,6 @@ components:
       allOf:
         - $ref: '#/components/schemas/report_item_type'
         - $ref: '#/components/schemas/presentation'
-    report_item_type.id:
-      type: object
-      properties:
-        id:
-          type: integer
 
     report_item_attribute:
       type: object
@@ -3127,14 +3157,14 @@ components:
           type: string
         index:
           type: integer
-        multiple:
-          type: boolean
         type:
           $ref: '#/components/schemas/attribute_type'
         group_title:
           type: string
         render_data:
           type: string
+        required:
+          type: boolean
 
     report_item.base:
       type: object
@@ -3169,6 +3199,10 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/report_item_attribute'
+            attribute_groups:
+              type: array
+              items:
+                type: string
 
     parameter_value:
       type: object
@@ -3354,19 +3388,6 @@ components:
         id:
           type: string
 
-    osint_source_update_status:
-      type: object
-      properties:
-        last_collected:
-          type: string
-          format: date-time
-        last_attempted:
-          type: string
-          format: date-time
-        last_error_message:
-          type: string
-        last_data:
-          type: string
     osint_source:
       type: object
       properties:

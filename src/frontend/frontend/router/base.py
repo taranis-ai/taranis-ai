@@ -1,19 +1,12 @@
 from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for
 from flask.views import MethodView
-from flask_jwt_extended import set_access_cookies
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.auth import auth_required
+from frontend.auth import auth_required, logout
 from frontend.views import DashboardView
-
-
-class ClusterAPI(MethodView):
-    @auth_required()
-    def get(self, cluster_name: str):
-        return render_template("dashboard/cluster.html", data=cluster_name)
 
 
 class InvalidateCache(MethodView):
@@ -23,6 +16,13 @@ class InvalidateCache(MethodView):
             DataPersistenceLayer().invalidate_cache(None)
         DataPersistenceLayer().invalidate_cache(suffix)
         return "Cache invalidated"
+
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self, suffix: str | None = None):
+        if not suffix:
+            DataPersistenceLayer().invalidate_cache(None)
+        DataPersistenceLayer().invalidate_cache(suffix)
+        return Response(status=204, headers={"HX-Refresh": "true"})
 
 
 class ListCacheKeys(MethodView):
@@ -52,29 +52,29 @@ class LoginView(MethodView):
 
         try:
             core_response = CoreApi().login(username, password)
-            core_json = core_response.json()
-            jwt_token = core_json.get("access_token")
         except Exception:
             return render_template("login/index.html", login_error="Login failed, no response from server"), 500
 
         if not core_response.ok:
-            return render_template("login/index.html", login_error=core_json.get("error")), core_response.status_code
+            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
         response = Response(status=302, headers={"Location": url_for("base.dashboard")})
 
-        set_access_cookies(response, jwt_token)
-        response.set_cookie("access_token", jwt_token, httponly=False)
+        for h in core_response.raw.headers.getlist("Set-Cookie"):
+            response.headers.add("Set-Cookie", h)
 
         return response
 
     def delete(self):
-        core_response = CoreApi().logout()
-        if not core_response.ok:
-            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        return logout()
 
-        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
-        response.delete_cookie("access_token")
-        return response
+
+class LogoutView(MethodView):
+    def get(self):
+        return logout()
+
+    def delete(self):
+        return logout()
 
 
 class OpenAPIView(MethodView):
@@ -89,15 +89,22 @@ class NotificationView(MethodView):
         return render_template("notification/index.html")
 
 
+class HealthView(MethodView):
+    def get(self):
+        return render_template("health/index.html")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
+    base_bp.add_url_rule("/health", view_func=HealthView.as_view("health"))
     base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
-    base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=ClusterAPI.as_view("cluster"))
+    base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
+    base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
-    base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))
+    base_bp.add_url_rule("/logout", view_func=LogoutView.as_view("logout"))
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
 

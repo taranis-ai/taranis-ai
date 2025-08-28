@@ -1,5 +1,5 @@
 from flask import Response, jsonify
-from flask_jwt_extended import create_access_token, set_access_cookies
+from flask_jwt_extended import create_access_token, set_access_cookies, create_refresh_token, set_refresh_cookies
 
 from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
@@ -37,9 +37,11 @@ class BaseAuthenticator:
                 identity=user,
                 additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
             )
+            refresh_token = create_refresh_token(identity=user)
             response = jsonify({"access_token": access_token})
             response.status_code = 200
             set_access_cookies(response, access_token)
+            set_refresh_cookies(response, refresh_token)
             return response
 
         logger.store_auth_error_activity(f"User doesn't exists: {username}")

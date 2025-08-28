@@ -120,16 +120,47 @@
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <object
-              v-if="renderedProductMimeType === 'application/pdf'"
+              v-else-if="renderedProductMimeType === 'application/pdf'"
               class="pdf-container"
               :data="'data:application/pdf;base64,' + renderedProduct"
               type="application/pdf"
               width="100%"
+              data-testid="pdf-render"
             />
 
-            <pre v-if="renderedProductMimeType === 'text/plain'">
+            <DocxViewer
+              v-else-if="
+                renderedProductMimeType ===
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              "
+              :base64="renderedProduct"
+              data-testid="docx-render"
+            />
+
+            <pre
+              v-else-if="renderedProductMimeType === 'text/plain'"
+              data-testid="text-render"
+            >
               {{ renderedProduct }}
             </pre>
+            <div v-else class="unsupported-format-warning">
+              <v-row justify="center">
+                <p class="mb-4">
+                  Preview for {{ unsupportedTypeLabel }} is not supported.
+                  Please download the file instead.
+                </p>
+              </v-row>
+              <v-row justify="center">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-download"
+                  @click="downloadProduct"
+                >
+                  Download
+                </v-btn>
+              </v-row>
+            </div>
           </div>
           <div v-else-if="renderError">
             <v-row class="justify-center mb-4">
@@ -178,12 +209,14 @@ import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useHotkeys } from 'vue-use-hotkeys'
+import DocxViewer from '@/components/common/DocxViewer.vue'
 
 export default {
   name: 'ProductItem',
   components: {
     PopupPublishProduct,
-    PopupDirty
+    PopupDirty,
+    DocxViewer
   },
   props: {
     productProp: {
@@ -229,6 +262,8 @@ export default {
     const { renderedProduct, renderedProductMimeType, renderError } =
       storeToRefs(publishStore)
 
+    renderedProductMimeType.value = null
+    renderError.value = null
     renderedProduct.value = null
 
     const product_types = computed(() => {
@@ -324,11 +359,21 @@ export default {
         'text/html': 'html',
         'application/json': 'json',
         'text/plain': 'txt',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+          'docx',
+        'application/vnd.oasis.opendocument.text': 'odt',
         'application/pdf': 'pdf'
       }
 
       return mimeToExtension[mimeType] || null
     }
+
+    const unsupportedTypeLabel = computed(() => {
+      const ct = renderedProductMimeType.value
+      const ext = ct ? getExtensionFromMimeType(ct) : null
+      if (ext) return `file extension ".${ext}"`
+      return `MIME type "` + ct + '"'
+    })
 
     function downloadProduct() {
       let bytes
@@ -467,6 +512,8 @@ export default {
       saveProduct,
       downloadProduct,
       rerenderProduct,
+      getExtensionFromMimeType,
+      unsupportedTypeLabel,
       handleCancel,
       handleSaveAndContinue
     }
@@ -477,5 +524,14 @@ export default {
 <style scoped>
 .pdf-container {
   height: 80vh !important;
+}
+
+.unsupported-format-warning {
+  padding: 1rem;
+  border: 1px solid orange;
+  background-color: #fff8e1;
+  color: #b26a00;
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 </style>

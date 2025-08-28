@@ -179,6 +179,14 @@ def auth_header_user_permissions(access_token_user_permissions):
     }
 
 
+def _is_vscode(config) -> bool:
+    # Primary: pytest plugin loaded by the VS Code Python extension
+    if config.pluginmanager.hasplugin("vscode_pytest"):
+        return True
+    # Fallbacks (sometimes present when launched from VS Code)
+    return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
+
+
 def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-user", action="store_const", const="e2e_user", default=None, help="run e2e tests")
@@ -197,18 +205,25 @@ def skip_tests(items, keyword, reason):
 
 
 def pytest_collection_modifyitems(config, items):
+    config.option.start_live_server = False
+
+    if _is_vscode(config):
+        config.option.trace = True
+        config.option.headed = False
+        return
+
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-user": ("e2e_user", "skip for --e2e-user test"),
         "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
     }
 
-    config.option.start_live_server = False
     config.option.headed = True
 
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":
+                config.option.trace = True
                 config.option.headed = False
             skip_tests(items, keyword, reason)
             return
@@ -217,3 +232,105 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)
+
+
+@pytest.fixture
+def sample_report_type(app):
+    """Create a sample ReportItemType for testing"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.report_item_type import ReportItemType
+
+        report_type = ReportItemType(title="Test Report Type", description="A test report type for cascade testing")
+        db.session.add(report_type)
+        db.session.commit()
+        yield report_type
+        # Cleanup
+        try:
+            db.session.delete(report_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def sample_product_type(app, sample_report_type):
+    """Create a sample ProductType linked to the ReportItemType"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.product_type import ProductType
+        from core.model.worker import PRESENTER_TYPES
+
+        product_type = ProductType(
+            title="Test Product Type",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="A test product type",
+            report_types=[sample_report_type.id],
+        )
+        db.session.add(product_type)
+        db.session.commit()
+        yield product_type
+        # Cleanup
+        try:
+            db.session.delete(product_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def additional_product_type(app, sample_report_type):
+    """Create another ProductType linked to the same ReportItemType"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.product_type import ProductType
+        from core.model.worker import PRESENTER_TYPES
+
+        product_type2 = ProductType(
+            title="Second Test Product Type",
+            type=PRESENTER_TYPES.PDF_PRESENTER,
+            description="A second test product type",
+            report_types=[sample_report_type.id],
+        )
+        db.session.add(product_type2)
+        db.session.commit()
+        yield product_type2
+        # Cleanup
+        try:
+            db.session.delete(product_type2)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def sample_product_type_multi_report_types(app):
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.report_item_type import ReportItemType
+        from core.model.worker import PRESENTER_TYPES
+        from core.model.product_type import ProductType
+
+        # Create multiple ReportItemTypes
+        report_type1 = ReportItemType(title="Report Type 1", description="First report type")
+        report_type2 = ReportItemType(title="Report Type 2", description="Second report type")
+        report_type3 = ReportItemType(title="Report Type 3", description="Third report type")
+
+        db.session.add_all([report_type1, report_type2, report_type3])
+        db.session.flush()
+
+        # Create a ProductType that references all three ReportItemTypes
+        product_type = ProductType(
+            title="Multi-Report Product Type",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="Product type with multiple report types",
+            report_types=[report_type1.id, report_type2.id, report_type3.id],
+        )
+        db.session.add(product_type)
+        db.session.commit()
+        yield product_type
+        try:
+            db.session.delete(product_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()

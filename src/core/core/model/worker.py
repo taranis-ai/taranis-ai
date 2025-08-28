@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, relationship
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
 from core.model.base_model import BaseModel
+from core.log import logger
 
 
 class COLLECTOR_TYPES(StrEnum):
@@ -34,6 +35,7 @@ class BOT_TYPES(StrEnum):
 
 
 class PRESENTER_TYPES(StrEnum):
+    PANDOC_PRESENTER = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
@@ -66,6 +68,7 @@ class WORKER_TYPES(StrEnum):
     SENTIMENT_ANALYSIS_BOT = auto()
     CYBERSEC_CLASSIFIER_BOT = auto()
     WORDLIST_BOT = auto()
+    PANDOC_PRESENTER = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
@@ -196,8 +199,11 @@ class Worker(BaseModel):
 
     @classmethod
     def get_parameter_map(cls):
-        if workers := cls.get_all_for_collector():
-            return {worker.type: cls._generate_parameters_data(worker) for worker in workers}
+        try:
+            if workers := cls.get_all_for_collector():
+                return {worker.type: cls._generate_parameters_data(worker) for worker in workers}
+        except Exception as e:
+            logger.error(f"Error getting parameter map: {e}")
         return {}
 
     @classmethod

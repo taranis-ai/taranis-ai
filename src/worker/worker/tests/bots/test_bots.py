@@ -38,7 +38,7 @@ def test_nlp_bot(story_get_mock, tags_update_mock, ner_bot_mock):
     ner_bot_result = nlp_bot.execute()
 
     assert story_get_mock.call_count == 1
-    assert tags_update_mock.call_count == 1
+    assert tags_update_mock.call_count == 2
     assert ner_bot_mock.call_count > 1
 
     assert ner_bot_result

@@ -66,29 +66,16 @@ class Sources(MethodView):
     @api_key_required
     def get(self, source_id: str):
         try:
-            if source := OSINTSource.get(source_id):
-                return source.to_worker_dict(), 200
-            return {"error": f"Source with id {source_id} not found"}, 404
+            if not (source := OSINTSource.get(source_id)):
+                return {"error": f"Source with id {source_id} not found"}, 404
+
+            data = source.to_worker_dict()
+            data_with_defaults = OSINTSource.get_with_defaults(data)
+            return data_with_defaults, 200
+
         except Exception:
-            logger.exception()
-
-    @api_key_required
-    def put(self, source_id: str):
-        try:
-            source = OSINTSource.get(source_id)
-            if not source:
-                return {"error": f"OSINTSource with ID: {source_id} not found"}, 404
-
-            error_msg = None
-            if request.is_json:
-                if request_json := request.json:
-                    error_msg = request_json.get("error", None)
-
-            source.update_status(error_msg)
-            return {"message": "Status updated"}
-        except Exception:
-            logger.exception()
-            return {"error": "Could not update status"}, 500
+            logger.exception(f"Error fetching source {source_id}")
+            return {"error": "Internal server error"}, 500
 
 
 class SourceIcon(MethodView):
