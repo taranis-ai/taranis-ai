@@ -152,7 +152,7 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data, user):
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", int]:
         report_item = cls.from_dict(report_item_data)
 
         if not report_item.allowed_with_acl(user, True):
@@ -161,6 +161,10 @@ class ReportItem(BaseModel):
         if user:
             report_item.user_id = user.id
         report_item.add_attributes()
+
+        if stories := report_item.stories:
+            for story in stories:
+                NewsItemTagService.add_report_tag(story, report_item)
 
         db.session.add(report_item)
         db.session.commit()
