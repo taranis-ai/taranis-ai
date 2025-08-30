@@ -32,7 +32,7 @@ dependencies = [
     "authlib",
     "setuptools",
     "sentry-sdk[flask]",
-    "sentry-sdk[sqlalchemy]"
+    "sentry-sdk[sqlalchemy]",
 ]
 dynamic = ["version"]
 

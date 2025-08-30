@@ -241,6 +241,13 @@ class OSINTSource(BaseModel):
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
+    @classmethod
+    def schedule_all_osint_sources(cls):
+        for source in cls.get_all_for_collector():
+            interval = source.get_schedule()
+            entry = source.to_task_dict(interval)
+            schedule_manager.schedule.add_celery_task(entry)
+
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")

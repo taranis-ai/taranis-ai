@@ -5,4 +5,5 @@ worker_init.flag
 __pycache__/
 *.pyc
 videos/
+.granian.env
 taranis_ai_core_trace.zip

@@ -3,24 +3,12 @@
 import os
 import time
 import multiprocessing
-from granian.server import Server as Granian
-from granian.constants import Interfaces
-from granian.log import LogLevels
+from granian.cli import cli
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
 from core import create_app
 from core.config import Config
-
-loglevel = LogLevels.info
-log_access = False
-if Config.DEBUG:
-    loglevel = LogLevels.debug
-    log_access = True
-
-workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
-address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
-port = int(os.getenv("GRANIAN_PORT", 8080))
 
 
 def wait_for_db(max_retries=5):
@@ -56,9 +44,8 @@ def main():
     print("Starting Taranis AI")
     wait_for_db()
     create_app(db_setup=True)
-    Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers, log_access=log_access).serve(
-        target_loader=app_loader
-    )
+    os.environ["GRANIAN_WORKERS"] = str(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
+    cli(["--interface", "wsgi", "--factory", "core:create_app"], auto_envvar_prefix="GRANIAN")
 
 
 if __name__ == "__main__":
