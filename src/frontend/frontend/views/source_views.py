@@ -35,18 +35,15 @@ class SourceView(BaseView):
         return 0
 
     @classmethod
-    def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
-        if objects is not None:
-            filtered = [obj for obj in (objects or []) if isinstance(obj, OSINTSource) and obj.id != "manual"]
-            objects = CacheObject(
-                filtered,
-                page=objects.page,
-                limit=objects.limit,
-                order=objects.order,
-                links=objects._links,
-                total_count=len(filtered),
-            )
-        return super().get_view_context(objects, error)
+    def filter_manual_source(cls, cache: CacheObject[OSINTSource]) -> CacheObject[OSINTSource]:
+        return CacheObject(
+            [obj for obj in (cache or []) if isinstance(obj, OSINTSource) and obj.id != "manual"],
+            page=cache.page,
+            limit=cache.limit,
+            order=cache.order,
+            links=cache._links,
+            total_count=cache._total_count,
+        )
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
@@ -90,6 +87,7 @@ class SourceView(BaseView):
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
         base_context["actions"] = osint_source_actions
+        base_context[cls.model_plural_name()] = cls.filter_manual_source(base_context[cls.model_plural_name()])
         return base_context
 
     @classmethod

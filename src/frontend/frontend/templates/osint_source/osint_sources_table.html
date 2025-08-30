@@ -7,9 +7,7 @@
 ]) %}
 
 {% set data = model_plural_name | get_var %}
-
 {% set table_container = model_name + '-table-container' %}
-
 {% set actions = actions | default([]) %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">

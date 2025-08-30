@@ -53,6 +53,7 @@ def app_loader(target):
 
 
 def main():
+    print("Starting Taranis AI")
     wait_for_db()
     create_app(db_setup=True)
     Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers, log_access=log_access).serve(
