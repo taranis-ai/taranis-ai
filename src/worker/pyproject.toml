@@ -19,6 +19,7 @@ dependencies = [
     "click",
     "python-dotenv",
     "pydantic-settings",
+    "taranis-models",
     "requests",
     "requests[socks]",
     # Collector

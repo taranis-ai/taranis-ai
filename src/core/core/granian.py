@@ -45,7 +45,7 @@ def main():
     wait_for_db()
     create_app(db_setup=True)
     os.environ["GRANIAN_WORKERS"] = str(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
-    cli(["--interface", "wsgi", "--factory", "core:create_app"], auto_envvar_prefix="GRANIAN")
+    cli(["--interface", "wsgi", "--factory", "core:granian_app"], auto_envvar_prefix="GRANIAN")
 
 
 if __name__ == "__main__":
