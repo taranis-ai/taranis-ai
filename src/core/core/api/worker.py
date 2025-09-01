@@ -121,6 +121,18 @@ class Stories(MethodView):
         return Story.add_or_update(request.json)
 
 
+class MISPStories(MethodView):
+    @api_key_required
+    def post(self):
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        if not isinstance(data, list):
+            return {"error": "Expected a list of stories"}, 400
+        result, status = Story.add_or_update_for_misp(data)
+        sse_manager.news_items_updated()
+        return result, status
+
+
 class Tags(MethodView):
     @api_key_required
     def get(self):
@@ -134,8 +146,19 @@ class Tags(MethodView):
             return {"error": "No data provided"}, 400
         errors = {}
         bot_type = request.args.get("bot_type", default="")
+        if bot_type:
+            next(iter(data.values())).append(bot_type)
+        if not isinstance(data, dict):
+            return {"error": "Expected a dict for tags"}, 400
         for story_id, tags in data.items():
-            _, status = Story.update_tags(story_id, tags, bot_type)
+            story = Story.get(story_id)
+            if not story:
+                errors[story_id] = "Story not found"
+                continue
+            if not tags:
+                errors[story_id] = "No tags provided"
+                continue
+            _, status = story.set_tags(tags)
             if status != 200:
                 errors[story_id] = status
         if errors:
@@ -226,6 +249,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
+    worker_bp.add_url_rule("/stories/misp", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
 

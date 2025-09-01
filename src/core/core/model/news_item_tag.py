@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, relationship
 from typing import Any, TYPE_CHECKING
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.log import logger
 
 if TYPE_CHECKING:
     from core.model.story import Story
@@ -18,8 +19,12 @@ class NewsItemTag(BaseModel):
     story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
     story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
-    def __init__(self, name, tag_type):
+    def __init__(self, name: str, tag_type: str = "misc"):
+        if not isinstance(name, str):
+            raise TypeError(f"Tag name must be a string, got {type(name)}")
         self.name = name
+        if not isinstance(tag_type, str):
+            raise TypeError(f"Tag type must be a string, got {type(tag_type)}")
         self.tag_type = tag_type
 
     @classmethod
@@ -98,6 +103,9 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
+        if not tags:
+            logger.warning("No tags provided for parsing.")
+            return {}
         if isinstance(tags, dict):
             return cls._parse_dict_tags(tags)
 
@@ -110,6 +118,11 @@ class NewsItemTag(BaseModel):
         - New: {"APT75": {"name": "APT75", "tag_type": "UNKNOWN"}}
         """
         parsed_tags = {}
+        if not isinstance(tags, dict):
+            raise TypeError(f"Expected a dict for tags, got {type(tags).__name__}")
+        if not tags:
+            logger.warning("Entered tags might have been parsed out, likely due to a wrong format.")
+            raise ValueError("Tags cannot be empty or None.")
 
         for tag_key, tag_data in tags.items():
             if isinstance(tag_data, dict):
@@ -120,7 +133,7 @@ class NewsItemTag(BaseModel):
                 tag_type = tag_data
             else:
                 raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
-                
+
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags
@@ -128,9 +141,23 @@ class NewsItemTag(BaseModel):
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:
         dict_tags = {}
+        if not isinstance(tags, list):
+            raise TypeError(f"Expected a list for tags, got {type(tags).__name__}")
         for tag in tags:
             if isinstance(tag, dict) and "name" in tag:
                 dict_tags[tag["name"]] = tag
             elif isinstance(tag, str):
                 dict_tags[tag] = {"name": tag, "tag_type": "misc"}
         return cls._parse_dict_tags(dict_tags)
+
+    @classmethod
+    def unify_tags(cls, tags: list | dict) -> list[dict[str, str]]:
+        """Unify tags to a list of dicts with 'name' and 'tag_type' keys.
+        This serves for the __init__ function of NewsItemTag
+        """
+        if isinstance(tags, dict):
+            tags = cls._parse_dict_tags(tags)
+        elif isinstance(tags, list):
+            tags = cls._parse_list_tags(tags)
+
+        return [{"name": tag.name, "tag_type": tag.tag_type} for tag in tags.values()]
