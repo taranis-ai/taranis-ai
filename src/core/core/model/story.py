@@ -510,8 +510,7 @@ class Story(BaseModel):
                     continue
                 message, status = cls.add_from_news_item(news_item)
                 if status > 299:
-                    error_message = message.get("error", "Unknown error")
-                    skipped_items.append(error_message)
+                    skipped_items.append(news_item.get("title", "Unknown Title"))
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]

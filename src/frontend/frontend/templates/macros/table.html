@@ -96,7 +96,7 @@
   </td>
 {% endmacro %}
 
-{% macro table_decoration(name, model_name, container_id, add_route, delete_route, searchbar=true) %}
+{% macro table_decoration(name, model_name, container_id, base_route, add_route, delete_route, searchbar=true) %}
   <div class="flex gap-4 mb-4">
     {% if add_route %}
       <div class="grow-0">
@@ -105,7 +105,7 @@
         </button>
       </div>
     {% endif %}
-    {% if searchbar %}{{ table_search_bar(container_id) }}{% endif %}
+    {% if searchbar %}{{ table_search_bar(container_id, base_route) }}{% endif %}
     {% if delete_route %}
       <div class="grow-0">
         <button type="button"
@@ -148,11 +148,11 @@
   {% endif %}
 {% endmacro %}
 
-{% macro table_search_bar(table_id) %}
+{% macro table_search_bar(table_id, base_url) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
-    <form hx-get="{{ request.path }}" hx-push-url="true" hx-target="#{{ table_id }}" hx-target-error="#notification-bar" hx-trigger="input delay:500ms">
-      <input type="search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
+    <form hx-get="{{ base_url }}" hx-push-url="true" hx-select="#{{ table_id }}" hx-target="#{{ table_id }}" hx-target-error="#notification-bar" hx-trigger="input delay:500ms" hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
+      <input type="search" id="{{ table_id }}-search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
     </form>
   </div>
 {% endmacro %}

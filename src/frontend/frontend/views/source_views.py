@@ -87,14 +87,15 @@ class SourceView(BaseView):
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
         base_context["actions"] = osint_source_actions
-        base_context[cls.model_plural_name()] = cls.filter_manual_source(base_context[cls.model_plural_name()])
+        if cls.model_plural_name() in base_context:
+            base_context[cls.model_plural_name()] = cls.filter_manual_source(base_context[cls.model_plural_name()])
         return base_context
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
-            {"title": "State", "field": "state", "sortable": False, "renderer": render_worker_status},
+            {"title": "State", "field": "status", "sortable": True, "renderer": render_worker_status},
             {
                 "title": "Name",
                 "field": "name",
@@ -102,7 +103,7 @@ class SourceView(BaseView):
                 "renderer": render_truncated,
                 "render_args": {"field": "name"},
             },
-            {"title": "Feed", "field": "parameters", "sortable": True, "renderer": render_source_parameter},
+            {"title": "Feed", "field": "parameters", "sortable": False, "renderer": render_source_parameter},
         ]
 
     @classmethod

@@ -164,12 +164,3 @@
     <th>{{ title|capitalize }}</th>
   {% endif %}
 {% endmacro %}
-
-{% macro datatable_search_bar(table_id) %}
-  {% set current_search = request.args.get('search', '') %}
-  <div class="grow">
-    <form hx-get="{{ request.path }}" hx-push-url="true" hx-target="#{{ table_id }}" hx-trigger="input delay:500ms">
-      <input type="search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
-    </form>
-  </div>
-{% endmacro %}

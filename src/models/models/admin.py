@@ -1,4 +1,4 @@
-from pydantic import Field, AnyUrl
+from pydantic import Field, AnyUrl, computed_field
 from typing import Literal, Any
 from datetime import datetime
 
@@ -185,6 +185,10 @@ class OSINTSource(TaranisBaseModel):
     icon: str | None = None
     enabled: bool | None = True
     status: TaskResult | None = None
+
+    @computed_field
+    def search_field(self) -> str:
+        return f"{self.name} {self.description} {' '.join(self.parameters.values())}"
 
 
 class OSINTSourceGroup(TaranisBaseModel):

@@ -81,7 +81,10 @@ class CollectorTask(Task):
         return f"'{source.get('name')}': {collection_result}"
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
+        if hasattr(self.request, "task_description"):
+            logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
+        else:
+            logger.error(f"Collector task with id: {task_id} failed.")
 
 
 class CollectorPreview(Task):
