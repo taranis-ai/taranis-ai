@@ -719,7 +719,8 @@ class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self, word_list_id: int | None = None):
         if not word_list_id:
-            return queue_manager.queue_manager.gather_all_word_lists()
+            return
+            #return queue_manager.queue_manager.gather_all_word_lists()
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
