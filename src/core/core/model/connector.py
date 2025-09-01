@@ -1,12 +1,14 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Type
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 
 
 from core.managers.db_manager import db
 from core.log import logger
+from core.model.story import Story
+from core.model.news_item import NewsItem
 from core.model.parameter_value import ParameterValue
 from core.model.base_model import BaseModel
 from core.model.worker import COLLECTOR_TYPES, CONNECTOR_TYPES, Worker
@@ -89,6 +91,30 @@ class Connector(BaseModel):
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting Connector with ID: {connector_id} failed {str(e)}"}, 500
+
+    @staticmethod
+    def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:
+        if not data:
+            return {"error": "No data provided"}, 400
+
+        for object_id, target_value in data.items():
+            if target_value not in ["internal", "external"]:
+                return {"error": f"Invalid value {target_value} for ID {object_id}, must be 'internal' or 'external'"}, 400
+
+            if instance := model_class.get(object_id):
+                instance.last_change = target_value
+                logger.debug(f"Updated last_change for {model_class.__name__} with ID {object_id} to {target_value}")
+
+        db.session.commit()
+        return {"message": "Last change status updated for"}, 200
+
+    @staticmethod
+    def update_news_item_last_change(data: dict[str, str]):
+        return Connector._update_last_change(NewsItem, data)
+
+    @staticmethod
+    def update_story_last_change(data: dict[str, str]):
+        return Connector._update_last_change(Story, data)
 
 
 class ConnectorParameterValue(BaseModel):

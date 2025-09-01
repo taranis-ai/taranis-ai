@@ -16,20 +16,10 @@
             "multiple": true,
             "ui-priority": 0
         },
-        "published": {
-            "description": "Publish date of the Taranis news item",
-            "misp-attribute": "datetime",
-            "ui-priority": 0
-        },
         "author": {
             "description": "Author(s) of the news item",
             "misp-attribute": "text",
             "multiple": true,
-            "ui-priority": 0
-        },
-        "collected": {
-            "description": "Date and time when the news item was collected",
-            "misp-attribute": "datetime",
             "ui-priority": 0
         },
         "hash": {
@@ -52,14 +42,14 @@
             "misp-attribute": "text",
             "ui-priority": 0
         },
-        "review": {
-            "description": "Review or analysis notes of the news item",
-            "misp-attribute": "text",
-            "ui-priority": 0
-        },
         "source": {
             "description": "Source feed or page that provided the news item",
             "misp-attribute": "link",
+            "ui-priority": 0
+        },
+        "review": {
+            "description": "Review or analysis notes of the news item",
+            "misp-attribute": "text",
             "ui-priority": 0
         },
         "story_id": {

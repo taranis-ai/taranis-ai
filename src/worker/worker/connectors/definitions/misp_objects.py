@@ -13,9 +13,9 @@ class BaseMispObject(MISPObject):
         """Contains the logic where all the values of the object are gathered"""
         if not self._definition or not hasattr(self, "_parameters") or not self._definition.get("attributes"):
             return
-        logger.debug(f"{self._definition=}")
+        payload_summary = {"object_type": self._definition.get("name"), "attribute_count": len(self._definition.get("attributes", []))}
+        logger.debug(f"BaseMispObject payload summary: {payload_summary}")
         for object_relation in self._definition["attributes"]:
-            logger.debug(f"{object_relation=}")
             value = self._parameters.pop(object_relation)
             # if not value:
             #     logger.debug(f"Skipping object_relation={object_relation} as value is empty or None")
