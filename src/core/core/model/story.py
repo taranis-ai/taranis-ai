@@ -613,8 +613,8 @@ class Story(BaseModel):
         if "tags" in data:
             story.set_tags(data["tags"])
 
-        if summary := data.get("summary"):
-            story.summary = summary
+        if "summary" in data:
+            story.summary = data["summary"]
 
         if "attributes" in data:
             story.set_attributes(data["attributes"])
