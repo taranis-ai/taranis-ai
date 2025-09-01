@@ -1,4 +1,5 @@
 from celery import Task
+from celery.exceptions import Ignore
 from contextlib import contextmanager
 
 import worker.collectors
@@ -72,8 +73,8 @@ class CollectorTask(Task):
             try:
                 collection_result = collector.collect(source, manual)
             except NoChangeError as e:
-                self.update_state(state="NOT_MODIFIED")
-                return f"'{source.get('name')}': {str(e)}"
+                self.update_state(state="NOT_MODIFIED", meta={"reason": str(e)})
+                raise Ignore()
             except Exception as e:
                 raise RuntimeError(e) from e
 

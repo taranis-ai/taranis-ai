@@ -174,7 +174,6 @@ class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"
     _pretty_name = "OSINT Source"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
