@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-
-  <div class="p-8" id="schedule">
-    <table id="scheduleTable" class="p-8">
-      <thead>
-        <tr>
-          <th class="w-2-6 px-6 py-3 text-left text-xs text-base-600">Name</th>
-          <th class="w-1/6 px-6 py-3 text-left text-xs text-base-600">Next Run Time</th>
-        </tr>
-      </thead>
-      <tbody id="jobs-body" x-data="{ openJobs: {} }">
-        {% include "schedule/job.html" %}
-      </tbody>
-    </table>
-  </div>
+<div class="p-8" id="schedule">
+  <table id="scheduleTable" class="p-8">
+    <thead>
+      <tr>
+        <th class="w-2-6 px-6 py-3 text-left text-xs text-base-600">Name</th>
+        <th class="w-1/6 px-6 py-3 text-left text-xs text-base-600">Next Run Time</th>
+      </tr>
+    </thead>
+    <tbody id="jobs-body" x-data="{ openJobs: {} }">
+      {% include "schedule/job.html" %}
+    </tbody>
+  </table>
+</div>
 {% endblock content %}

@@ -11,5 +11,4 @@ class PublishView(BaseView):
 
     base_route = "publish.publish"
     edit_route = "publish.publish"
-    _is_admin = False
     _read_only = False

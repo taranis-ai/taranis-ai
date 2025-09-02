@@ -40,6 +40,16 @@ class TaskResult(TaranisBaseModel):
     last_change: datetime | None = None
     last_success: datetime | None = None
 
+    def __eq__(self, other: object) -> bool:
+        return self.status == (other.status if isinstance(other, TaskResult) else other)
+
+    def __lt__(self, other: object) -> bool:
+        other_status = other.status if isinstance(other, TaskResult) else other
+
+        if self.status is None:
+            return other_status is not None
+        return False if other_status is None else self.status < other_status
+
 
 class Address(TaranisBaseModel):
     city: str = ""

@@ -2,9 +2,10 @@ from typing import Any
 from models.admin import OSINTSourceGroup, OSINTSource, WordList
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.views.admin_mixin import AdminMixin
 
 
-class SourceGroupView(BaseView):
+class SourceGroupView(AdminMixin, BaseView):
     model = OSINTSourceGroup
     icon = "building-library"
     _index = 65

@@ -5,9 +5,10 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
 from frontend.filters import render_count
 from frontend.log import logger
+from frontend.views.admin_mixin import AdminMixin
 
 
-class RoleView(BaseView):
+class RoleView(AdminMixin, BaseView):
     model = Role
     icon = "user-group"
     _index = 40

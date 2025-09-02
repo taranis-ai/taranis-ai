@@ -7,9 +7,10 @@ from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.views.admin_mixin import AdminMixin
 
 
-class TemplateView(BaseView):
+class TemplateView(AdminMixin, BaseView):
     model = Template
     icon = "document-text"
     _index = 160

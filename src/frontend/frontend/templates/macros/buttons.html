@@ -44,7 +44,8 @@
           {% if action.hx_target %}hx-target="{{ action.hx_target }}" {% endif %}
           {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}" {% endif %}
           {% if action.confirm %}hx-confirm="{{ action.confirm }}" {% endif %}
-          @click.stop>
+          {% if action.data_attr %}{{ action.data_attr }} {% endif %}
+          >
        {{ heroicon_outline(action.icon) }}
   </button>
   {% endif %}
