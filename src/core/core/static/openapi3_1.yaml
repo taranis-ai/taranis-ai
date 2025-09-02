@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.2.2
+  version: 1.2.4
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/

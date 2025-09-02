@@ -73,7 +73,7 @@ class CollectorTask(Task):
             try:
                 collection_result = collector.collect(source, manual)
             except NoChangeError as e:
-                self.update_state(state="NOT_MODIFIED", meta={"reason": str(e)})
+                self.update_state(state="NOT_MODIFIED", meta=str(e))
                 raise Ignore()
             except Exception as e:
                 raise RuntimeError(e) from e

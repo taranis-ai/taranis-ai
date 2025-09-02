@@ -1,4 +1,5 @@
-from pydantic import Field, AnyUrl, computed_field
+from pydantic import Field, AnyUrl
+from functools import cached_property
 from typing import Literal, Any
 from datetime import datetime
 
@@ -195,7 +196,7 @@ class OSINTSource(TaranisBaseModel):
     enabled: bool | None = True
     status: TaskResult | None = None
 
-    @computed_field
+    @cached_property
     def search_field(self) -> str:
         search = f"{self.name} {self.description} "
         if self.parameters:
