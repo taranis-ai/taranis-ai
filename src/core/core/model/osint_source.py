@@ -506,6 +506,8 @@ class OSINTSourceGroup(BaseModel):
 
         if description := data.get("description"):
             osint_source_group.description = description
+
+        osint_source_group.default = data.get("default", False)
         osint_sources = data.get("osint_sources", [])
         osint_source_group.osint_sources = OSINTSource.get_bulk(osint_sources)
         word_lists = data.get("word_lists", [])
