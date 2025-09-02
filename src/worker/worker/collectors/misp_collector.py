@@ -1,7 +1,5 @@
 import ast
-import datetime
-from dateutil.parser import isoparse
-from pymisp import PyMISP, MISPObject
+from pymisp import PyMISP
 
 from worker.core_api import CoreApi
 from worker.collectors.base_collector import BaseCollector
@@ -24,18 +22,15 @@ class MISPCollector(BaseCollector):
         self.url: str = ""
         self.api_key: str = ""
         self.ssl: bool = False
-        self.request_timeout: int
         self.sharing_group_id: str = ""
         self.org_id: str = ""
 
     def parse_parameters(self, parameters: dict) -> None:
-        logger.debug(f"{parameters=}")
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.ssl = parameters.get("SSL", False)
-        self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
-        self.proxies = parameters.get("PROXIES", {})
-        self.headers = parameters.get("HEADERS", {})
+        self.proxies = parameters.get("PROXIES", "")
+        self.headers = parameters.get("HEADERS", "")
         self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
 
@@ -46,67 +41,31 @@ class MISPCollector(BaseCollector):
 
     def collect(self, source: dict, manual: bool = False) -> None:
         self.parse_parameters(source.get("parameters", ""))
-
-        misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
-
-        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
-        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[MISPObject] = misp.search(controller="objects", object_name="taranis-news-item", pythonify=True)  # type: ignore
-
-        logger.debug(f"{taranis_objects=}")
-        event_ids = set()
-        for obj in taranis_objects:
-            event_ids.add(obj.event_id)  # type: ignore
-            logger.debug(f"Object ID: {obj.id}, Event ID: {obj.event_id}, Object Name: {obj.name}")  # type: ignore
-
-        events: list[dict] = [misp.get_event(event_id) for event_id in event_ids]  # type: ignore
-        logger.debug(f"{events=}")
-        story_dicts = [
-            self.get_story(event, source)
-            for event in events
-            if (not self.sharing_group_id or str(event.get("Event", {}).get("sharing_group_id")) == str(self.sharing_group_id))
-        ]
-        story_dicts: list[dict] = [s for s in story_dicts if s is not None]
-
-        for story in story_dicts:
-            if self.check_for_proposal_existence(misp, story.get("id", "")):
-                story["has_proposals"] = f"{self.url}/events/view/{story.get('id')}"
-        logger.debug(f"{story_dicts=}")
-        self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
+        return self.misp_collector(source)
 
     def check_for_proposal_existence(self, misp: PyMISP, event_uuid: str) -> bool:
         resp = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
-        data: list = misp._check_json_response(resp)
-        logger.debug(f"{data=}")
-        if data and data[0].get("ShadowAttribute").get("org_id") == self.org_id:
-            logger.debug(f"Proposal found for your organisation's event {event_uuid}")
+        if data := misp._check_json_response(resp):
+            logger.debug(f"Proposal found for your organisation's event {event_uuid} and data: {data=}")
             return True
         return False
 
     def create_news_item(self, event: dict, source: dict) -> NewsItem:
-        logger.debug("Creating news item from MISP event ")
         author = ""
         title = ""
-        published: datetime.datetime | None = None
         content = ""
         link = ""
         news_item_id = ""
-        orig_source = ""
+        orig_source = "manual"
         story_id = ""
         hash_value = ""
         language = ""
-        collected_str = ""
         review = ""
         news_items_properties = event.pop("Attribute", [])
         for item in news_items_properties:
             match item.get("object_relation", ""):
                 case "title":
                     title = item.get("value", "")
-                case "published":
-                    published_str = item.get("value", "")
-                    published = (
-                        datetime.datetime.strptime(published_str, "%Y-%m-%dT%H:%M:%S.%f%z") if published_str else datetime.datetime.now()
-                    )
                 case "content":
                     content = item.get("value", "")
                 case "author":
@@ -115,10 +74,6 @@ class MISPCollector(BaseCollector):
                     link = item.get("value", "")
                 case "id":
                     news_item_id = item.get("value", "")
-                # TODO: Here we need to reuse the hash from the original news item,
-                # because only then it is possible to handle conflicts reasonably on the originators side.
-                # Obviously, there is still a case when the various Taranis AI instances could ingest
-                # the same news item from same/different sources and create different hashes.
                 case "hash":
                     hash_value = item.get("value", "")
                 case "source":
@@ -127,11 +82,10 @@ class MISPCollector(BaseCollector):
                     story_id = item.get("value", "")
                 case "language":
                     language = item.get("value", "")
-                case "collected":
-                    collected_str = item.get("value")
                 case "review":
                     review = item.get("value")
 
+        logger.debug(f"Creating news item from MISP event with UUID: {news_item_id} story_id: {story_id}")
         return NewsItem(
             source=orig_source,
             id=news_item_id,
@@ -140,12 +94,10 @@ class MISPCollector(BaseCollector):
             title=title,
             content=content,
             web_url=link,
-            published_date=published,
             story_id=story_id,
             language=language,
             review=review,
             osint_source_id=source.get("id", ""),
-            collected_date=datetime.datetime.strptime(collected_str, "%Y-%m-%dT%H:%M:%S.%f%z"),
         )
 
     def get_internal_osint_source_id(self, osint_source_id: str) -> str:
@@ -156,11 +108,33 @@ class MISPCollector(BaseCollector):
             return ""
 
     @staticmethod
-    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem], event_uuid: str) -> dict:
-        story_properties["news_items"] = news_items_list
+    def remove_duplicate_news_items(news_items: list[NewsItem]) -> list[NewsItem]:
+        hash_list = []
+        unique_news_item_list = []
+        for news_item in news_items:
+            if news_item.hash not in hash_list:
+                unique_news_item_list.append(news_item)
+                hash_list.append(news_item.hash)
+        return unique_news_item_list
+
+    @staticmethod
+    def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
+        story_properties["news_items"] = MISPCollector.remove_duplicate_news_items(news_items_list)
+        if story_properties.get("attributes"):
+            story_properties["attributes"] = MISPCollector.to_new_attribute_dict(story_properties.get("attributes", []))
+        if story_properties.get("tags"):
+            story_properties["tags"] = MISPCollector.to_new_tag_dict(story_properties.get("tags", []))
         return story_properties
 
-    def get_story_properties_from_story_object(self, event: dict) -> dict:
+    @staticmethod
+    def to_new_attribute_dict(input_list):
+        return {item["key"]: item for item in input_list}
+
+    @staticmethod
+    def to_new_tag_dict(input_list):
+        return {item["name"]: item for item in input_list}
+
+    def get_story_properties_from_story_object(self, object: dict) -> dict:
         """
         Useful for unit testing.
         If you add or remove a key from here, do the same for the respective object definition file.
@@ -176,13 +150,12 @@ class MISPCollector(BaseCollector):
             "relevance": 0,
             "read": False,
             "important": False,
-            "created": None,
             "links": [],
             "tags": [],
             "attributes": [],
         }
 
-        for item in event.get("Attribute", []):
+        for item in object.get("Attribute", []):
             match item.get("object_relation", ""):
                 case "id":
                     story_properties["id"] = item.get("value", None)
@@ -198,9 +171,6 @@ class MISPCollector(BaseCollector):
                     story_properties["important"] = bool(int(item.get("value", 0)))
                 case "read":
                     story_properties["read"] = bool(int(item.get("value", 0)))
-                case "created":
-                    created_str = item.get("value", "")
-                    story_properties["created"] = isoparse(created_str).isoformat()
                 case "links":
                     if value := item.get("value", None):
                         story_properties["links"].append(ast.literal_eval(value))
@@ -212,52 +182,141 @@ class MISPCollector(BaseCollector):
                     story_properties["attributes"].append(ast.literal_eval(value))
                 case "relevance":
                     story_properties["relevance"] = int(item.get("value", 0))
-                case "updated":
-                    story_properties["updated"] = item.get("value", None)
                 case "likes":
                     story_properties["likes"] = int(item.get("value", 0))
                 case "dislikes":
                     story_properties["dislikes"] = int(item.get("value", 0))
-        return story_properties
 
-    def get_story(self, event: dict, source: dict) -> dict:
+        return self.clean_no_data_fields(story_properties)
+
+    @staticmethod
+    def clean_no_data_fields(story: dict) -> dict:
+        def is_empty_or_nodata(v):
+            return v in ("<no_data>", "no_data", "", None)
+
+        cleaned = {}
+        for key, value in story.items():
+            if isinstance(value, list):
+                value = [v for v in value if isinstance(v, dict) and not all(is_empty_or_nodata(i) for i in v.values())]
+                cleaned[key] = value
+            elif isinstance(value, dict):
+                cleaned[key] = {k: v for k, v in value.items() if not is_empty_or_nodata(v)}
+            elif not is_empty_or_nodata(value):
+                cleaned[key] = value
+
+        if not cleaned.get("tags"):
+            cleaned["tags"] = {}
+        if not cleaned.get("attributes"):
+            cleaned["attributes"] = {}
+        if not cleaned.get("links"):
+            cleaned["links"] = []
+        if not cleaned.get("news_items"):
+            cleaned["news_items"] = []
+        if not cleaned.get("id"):
+            cleaned["id"] = None
+        if not cleaned.get("relevance"):
+            cleaned["relevance"] = 0
+        if not cleaned.get("likes"):
+            cleaned["likes"] = 0
+        if not cleaned.get("dislikes"):
+            cleaned["dislikes"] = 0
+        if not cleaned.get("read"):
+            cleaned["read"] = False
+        if not cleaned.get("important"):
+            cleaned["important"] = False
+        if not cleaned.get("summary"):
+            cleaned["summary"] = ""
+        if not cleaned.get("description"):
+            cleaned["description"] = ""
+        if not cleaned.get("comments"):
+            cleaned["comments"] = ""
+        if not cleaned.get("title"):
+            cleaned["title"] = ""
+
+        return cleaned
+
+    def get_extended_event_news_items(self, event: dict, misp, source) -> list:
+        all_news_items = []
+        if extending_events := event.get("Event", {}).get("extensionEvents", {}):
+            for extended_event_id, _ in extending_events.items():
+                logger.debug(f"Extending event with ID: {extended_event_id}")
+                extended_event = misp.get_event(extended_event_id, pythonify=False)
+                if not self.is_sharing_group_match(extended_event):
+                    logger.debug(f"Skipping extended event with ID {extended_event_id} due to sharing group mismatch")
+                    continue
+                extended_objects = extended_event.get("Event", {}).get("Object", {})
+                _, story_news_items = self.extract_story_data_from_event_objects(extended_objects, source)
+                all_news_items.extend(story_news_items)
+
+        return all_news_items
+
+    def get_story(self, misp, event: dict, source: dict) -> dict | None:
+        story_properties = {}
+        story_news_items = []
+        extended_news_items = self.get_extended_event_news_items(event, misp, source)
+
+        if event_object_dicts := event.get("Event", {}).get("Object", {}):
+            story_properties, news_items = self.extract_story_data_from_event_objects(event_object_dicts, source)
+            story_news_items = news_items + extended_news_items  # Adding extended events might be obsolete here
+        if not story_properties:
+            logger.error(
+                f"The Taranis event is malformed or is just an extended event and does not contain the required properties: {story_properties=}"
+            )
+            return None
+        return self.to_story_dict(story_properties, story_news_items)
+
+    def extract_story_data_from_event_objects(self, event_object_dicts: list[dict], source) -> tuple[dict, list]:  # TODO: check this
         story_news_items = []
         story_properties = {}
-        if event_objects := event.get("Event", {}).get("Object", {}):
-            for object in event_objects:
-                logger.debug(f"{object=}")
-                if object.get("name") == "taranis-story":
-                    story_properties = self.get_story_properties_from_story_object(object)
-                else:
-                    story_news_items.append(self.create_news_item(object, source))
+        for object in event_object_dicts:
+            if object.get("name") == "taranis-story":
+                story_properties = self.get_story_properties_from_story_object(object)
+            elif object.get("name") == "taranis-news-item":
+                news_item = self.create_news_item(object, source)
+                story_news_items.append(news_item)
+            else:
+                logger.warning(f"Unknown object type in MISP event: {object.get('name')}")
+        return story_properties, story_news_items
 
-        logger.debug(f"{story_properties=}")
-        if not story_properties:
-            logger.error(f"The Taranis event is malformed and does not contain the required properties: {story_properties=}")
-            raise RuntimeError("The Taranis event is malformed and does not contain the required properties")
-        return self.to_story_dict(story_properties, story_news_items, event.get("Event", {}).get("uuid"))
+    def get_taranis_event_ids(self, misp) -> set[int]:
+        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
+        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
+        taranis_objects: list[dict] = misp.search(
+            controller="objects", object_name="taranis-news-item", sharinggroup=self.sharing_group_id or None, pythonify=False
+        )
+        if isinstance(taranis_objects, dict):
+            logger.error(f"Error fetching objects from MISP: {taranis_objects.get('message', 'Unknown error')}")
+            return set()
 
+        event_ids = set()
+        for obj_dict in taranis_objects:
+            obj_event_id = obj_dict.get("Object", {}).get("Event", {}).get("id")
+            logger.debug(f"Object ID: {obj_dict.get('id')}, Event ID: {obj_event_id}")
+            if obj_event_id is not None:
+                event_ids.add(obj_event_id)
+        return event_ids
 
-if __name__ == "__main__":
-    collector = MISPCollector()
-    source = {
-        "description": "",
-        "icon": None,
-        "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        "last_attempted": None,
-        "last_collected": None,
-        "last_error_message": None,
-        "name": "https",
-        "parameters": {
-            "ADDITIONAL_HEADERS": "",
-            "API_KEY": "bXSZEtpNQL6somSCz08x3IzEnDx1bkM6wwZRd0uZ",
-            "PROXY_SERVER": "",
-            "REFRESH_INTERVAL": "",
-            "URL": "https://localhost",
-            "USER_AGENT": "",
-            # "SHARING_GROUP_ID": "1",
-        },
-        "state": -1,
-        "type": "misp_connector",
-    }
-    collector.collect(source)
+    # TODO: this looks wrong in general for distribution options (this community and so on)
+    def is_sharing_group_match(self, event: dict) -> bool:
+        event_sg_id = str(event.get("Event", {}).get("sharing_group_id"))
+        return not self.sharing_group_id or event_sg_id == self.sharing_group_id
+
+    def get_taranis_story_dicts(self, misp, events: list[dict], source) -> list[dict]:
+        return [story for event in events if self.is_sharing_group_match(event) if (story := self.get_story(misp, event, source)) is not None]
+
+    def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
+        for story in story_dicts:
+            if self.check_for_proposal_existence(misp, story.get("id", "")):
+                story["attributes"]["has_proposals"] = {"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"}
+
+    def misp_collector(self, source: dict) -> None:
+        misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
+        event_ids: set[int] = self.get_taranis_event_ids(misp)
+
+        events: list[dict] = [misp.get_event(event_id, extended=True, pythonify=False) for event_id in event_ids]  # type: ignore
+        story_dicts = self.get_taranis_story_dicts(misp, events, source)
+        logger.info(f"{len(story_dicts)} stories have been collected from MISP")
+        self.set_story_proposal_status(misp, story_dicts)
+
+        self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
+        return None

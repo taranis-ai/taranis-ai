@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Sequence
+from typing import Any
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
@@ -82,7 +82,7 @@ class Story(BaseModel):
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
         self.links = links or []
-        self.last_change = last_change
+        self.last_change = "external" if last_change is None else last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
@@ -399,43 +399,84 @@ class Story(BaseModel):
         if "id" not in data:
             return cls.add(data)
 
-        story_ids = [data.get("id")]
-        conflict = data.pop("conflict", None)
+        story_id = data.get("id")
+        if Story.get(story_id) is None:
+            return cls._handle_new_story_add(data)
 
-        if Story.get(data["id"]) is None:
-            message, code = cls.add(data)
-            if code != 200 and message.get("error") == "Story already exists":
-                logger.warning(f"Story being added {data['id']} contains existing content. A conflict is raised.")
-                cls.handle_conflicting_news_items(data)
-                return {"error": f"Story being added {data['id']} contains existing content. A conflict is raised."}, code
-            return message, code
+        if data.pop("conflict", None):
+            return cls.update_with_conflicts(story_id, data)
+        else:
+            return cls._handle_existing_story_update(data)
 
-        if not conflict:
-            if "news_items_to_delete" in data:
-                cls.delete_news_items(data.pop("news_items_to_delete"))
+    @classmethod
+    def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
+        message, code = cls.add(data)
+        if code != 200 and message.get("error") == "Story already exists":
+            logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
+            cls.handle_conflicting_news_items(data)
+            return {"error": f"Story being added {data['id']} contains existing content. A news item conflict is raised."}, 409
+        return message, code
 
-            for news_item in data.get("news_items", []):
-                logger.debug(f"{NewsItem.get(news_item.get('id'))}")
-                if not NewsItem.get(news_item.get("id")):
-                    result, _ = cls.add_single_news_item(news_item)
-                    story_id = result.get("story_id")
-                    if story_id is not None:
-                        story_ids.append(story_id)
+    @classmethod
+    def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
+        story_ids = [data["id"]]
+        news_item_to_delete = data.pop("news_items_to_delete", None)
 
-            cls.group_stories(story_ids)
-            return cls.update(data["id"], data, external=True)
+        skipped_story_ids, added_story_ids = cls._process_news_items(data)
+        story_ids += added_story_ids
 
-        result = cls.update_with_conflicts(data["id"], data)
-        return result
+        if cls._has_cross_story_conflict(data["id"], skipped_story_ids):
+            cls._remove_conflicting_stories(data["id"], story_ids[1:])
+            return cls.handle_conflicting_news_items(data)
+
+        if news_item_to_delete:
+            cls.delete_news_items(news_item_to_delete)
+
+        cls.group_stories(story_ids)
+        return cls.update(data["id"], data, external=True)
+
+    @classmethod
+    def _process_news_items(cls, data) -> "tuple[list[str], list[str]]":
+        skipped = []
+        added = []
+        for news_item in data.get("news_items", []):
+            result, code = cls.add_single_news_item(news_item)
+            if skipped_id := result.get("skipped_news_item_story_id"):
+                skipped.append(skipped_id)
+            if story_id := result.get("story_id"):
+                added.append(story_id)
+            logger.debug(f"News item {news_item.get('id')} added with result: {result}")
+        return skipped, added
+
+    @classmethod
+    def _has_cross_story_conflict(cls, target_id: str, skipped_story_ids: list[str]) -> bool:
+        return any(sid != target_id for sid in skipped_story_ids)
+
+    @classmethod
+    def _remove_conflicting_stories(cls, target_id: str, story_ids: list[str]) -> None:
+        for story_id in story_ids:
+            if story := cls.get(story_id):
+                logger.debug(f"Deleting story {story_id} due to incoming conflict with target story {target_id}.")
+                story.delete(story_id)
 
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
         try:
+            if tags := data.get("tags"):
+                data["tags"] = NewsItemTag.unify_tags(tags)
+            if attributes := data.get("attributes"):
+                data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
             StorySearchIndex.prepare(story)
-            story.update_status()
+            if (
+                story.news_items[0].osint_source_id == "manual"
+            ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
+                story.update_status()
+            else:
+                story.update_status(change="external")
+
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -453,28 +494,42 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_multiple(cls, json_data) -> Sequence["Story"]:
-        items = cls.load_multiple(json_data)
-        db.session.add_all(items)
-        db.session.commit()
-        for item in items:
-            StorySearchIndex.prepare(item)
-        return items
-
-    @classmethod
     def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
         if NewsItem.identical(news_item.get("hash")):
-            return {"error": "Identical news item found. Skipping..."}, 400
+            logger.warning("Identical news item found. Skipping...")
+            news_item_obj = NewsItem.get(news_item.get("id", ""))
+            return {
+                "error": "Identical news item found. Skipping...",
+                "skipped_news_item_story_id": news_item_obj.story_id if news_item_obj else None,
+            }, 400
 
         data = {
             "title": news_item.get("title"),
             "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
-            "last_change": "internal" if news_item.get("source") == "manual" else "external",
+            "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
         }
 
         return cls.add(data)
+
+    @classmethod
+    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict, int]":
+        if not data:
+            return {"error": "No data provided"}, 400
+        prepared_stories = cls.prepare_misp_stories(data, force=force)
+        results = []
+        story_ids = []
+        for story in prepared_stories:
+            result, status = cls.add_or_update(story)
+            if status != 200:
+                results.append(result)
+            elif status == 200:
+                story_ids.append(result.get("story_id", result.get("id", result)))
+
+        if results:
+            return {"error": "Some stories could not be added", "details": {"errors": results}}, status
+        return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -555,8 +610,7 @@ class Story(BaseModel):
             story.comments = data["comments"]
 
         if "tags" in data:
-            cls.reset_tags(story_id)
-            cls.update_tags(story_id, data["tags"])
+            story.set_tags(data["tags"])
 
         if "summary" in data:
             story.summary = data["summary"]
@@ -575,24 +629,45 @@ class Story(BaseModel):
         return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
 
     @classmethod
-    def update_with_conflicts(cls, id: str, data: dict) -> tuple[dict, int]:
-        if current_data := Story.get(id):
-            has_proposals = data.pop("has_proposals", None)
-            current_data_dict = current_data.to_detail_dict()
-            current_data_dict_normalized, new_data_dict_normalized = StoryConflict.normalize_data(current_data_dict, data)
-            conflict = StoryConflict(
-                story_id=id, original=current_data_dict_normalized, updated=new_data_dict_normalized, has_proposals=has_proposals
-            )
-            logger.warning(f"Conflict detected for story {id}")
-            StoryConflict.conflict_store[id] = conflict
+    def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:
+        from core.model.story import Story
+        from core.model.news_item import NewsItemAttribute  # adjust import if needed
+
+        current_story = Story.get(story_id)
+        if not current_story:
             return {
-                "warning": "Conflict detected",
-                "conflict": {
-                    "original": current_data_dict,
-                    "updated": data,
-                },
-            }, 409
-        return {"message": "Update successful"}, 200
+                "message": f"Conflicts were detected, but the internal story with ID {story_id} was not found. This should not happen, raise an issue"
+            }, 400
+
+        has_proposals_value: str | None = None
+        if attributes_map := upstream_data.get("attributes", {}):
+            attributes_map = NewsItemAttribute.parse_attributes(attributes_map)
+            if proposals_attr := attributes_map.get("has_proposals"):
+                has_proposals_value = proposals_attr.value
+
+        current_full = current_story.to_worker_dict()
+
+        original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
+
+        existing_conflict = StoryConflict.conflict_store.get(story_id)
+        if existing_conflict:
+            existing_conflict.original = original_str
+            existing_conflict.updated = updated_str
+            existing_conflict.has_proposals = has_proposals_value
+            logger.debug(f"Updated existing conflict for story {story_id}")
+        else:
+            StoryConflict.conflict_store[story_id] = StoryConflict(
+                story_id=story_id,
+                original=original_str,
+                updated=updated_str,
+                has_proposals=has_proposals_value,
+            )
+            logger.warning(f"Story Conflict detected for story {story_id}")
+
+        return {
+            "warning": "Story Conflict detected",
+            "conflict": {"local": current_full, "new": upstream_data},
+        }, 409
 
     @classmethod
     def handle_conflicting_news_items(cls, data: dict) -> tuple[dict, int]:
@@ -604,28 +679,24 @@ class Story(BaseModel):
         if not incoming_story_id:
             return {"error": "Missing story ID"}, 400
 
-        conflicts = []
-
+        entries: list[dict] = []
         for news_item in news_items:
-            news_item_id = news_item.get("id")
-            if not news_item_id:
-                continue
+            if news_item_id := news_item.get("id"):
+                if existing_item := NewsItem.get(news_item_id):
+                    existing_story_id = existing_item.story_id
 
-            if existing_item := NewsItem.get(news_item_id):
-                existing_news_item = existing_item
-                existing_story_id = existing_news_item.story_id
-                logger.debug(f"CONFLICT: incoming {news_item_id} already in story {existing_story_id}")
-                conflict = NewsItemConflict.register(
-                    incoming_story_id=incoming_story_id,
-                    news_item_id=news_item_id,
-                    existing_story_id=existing_story_id,
-                    incoming_story_data=data,
-                )
-                conflicts.append(conflict.to_dict())
+                    entries.append(
+                        {
+                            "news_item_id": news_item_id,
+                            "existing_story_id": existing_story_id,
+                            "incoming_story_data": data,
+                        }
+                    )
 
-        if conflicts:
-            return {"conflicts": conflicts}, 409
+        count = NewsItemConflict.set_for_story(incoming_story_id, entries)
 
+        if count:
+            return {"error": {"conflicts_number": count}}, 409
         return {"message": "Update successful"}, 200
 
     def set_attributes(self, attributes: list[dict]):
@@ -634,28 +705,32 @@ class Story(BaseModel):
         Calls patch_attributes() for add/update,
         remove_attributes() for deletions.
         """
-        input_keys = {attr["key"] for attr in attributes}
+        parsed_attributes = NewsItemAttribute.parse_attributes(attributes)
+        input_keys = set(parsed_attributes.keys())
         existing_keys = {attr.key for attr in self.attributes}
 
-        self.patch_attributes(attributes)
+        self.patch_attributes(list(parsed_attributes.values()))
 
         keys_to_remove = existing_keys - input_keys
         self.remove_attributes(list(keys_to_remove))
 
-    def patch_attributes(self, attributes: list[dict]):
+    def patch_attributes(self, attributes: list[NewsItemAttribute] | dict[str, dict]):
+        if isinstance(attributes, dict) or not isinstance(attributes[0], NewsItemAttribute):
+            attributes = list(NewsItemAttribute.parse_attributes(attributes).values())
         for attribute in attributes:
-            attr_key = attribute.get("key")
-            attr_value = attribute.get("value")
-            if attr_key == "TLP":
-                attr_value = self.get_story_tlp(TLPLevel.get_tlp_level(attr_value))  # type: ignore
-            self.upsert_attribute(NewsItemAttribute(key=attr_key, value=attr_value))
+            if isinstance(attribute, NewsItemAttribute):
+                if attribute.key == "TLP":
+                    attribute.value = self.get_story_tlp(TLPLevel.get_tlp_level(attribute.value))
+                self.upsert_attribute(attribute)
+            else:
+                logger.warning(f"Expected NewsItemAttribute, got {type(attribute)}")
 
     def remove_attributes(self, keys: list[str]):
         """
         Remove attributes from the story whose keys are in the provided list.
         """
         for key in keys:
-            if attr := self.find_attribute_by_key(key):
+            if (attr := self.find_attribute_by_key(key)) and key != "TLP":
                 self.attributes.remove(attr)
                 db.session.delete(attr)
 
@@ -758,44 +833,49 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
-    @classmethod
-    def reset_tags(cls, story_id: str) -> tuple[dict, int]:
+    def get_tags_to_remove(self, tags: dict[str, NewsItemTag]) -> set[str]:
+        incoming_tag_names = set(tags.keys())
+        existing_tag_names = {tag.name for tag in self.tags}
+        return existing_tag_names - incoming_tag_names
+
+    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
         try:
-            story = cls.get(story_id)
-            if not story:
-                logger.error(f"Story {story_id} not found")
-                return {"error": "not_found"}, 404
-
-            story.tags = []
-            db.session.commit()
-            return {"message": "success"}, 200
-        except Exception as e:
-            logger.exception("Reset News Item Tags Failed")
-            return {"error": str(e)}, 500
-
-    @classmethod
-    def update_tags(cls, story_id: str, tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
-        try:
-            story = cls.get(story_id)
-            if not story:
-                logger.error(f"Story {story_id} not found")
-                return {"error": "not_found"}, 404
-
-            new_tags = NewsItemTag.parse_tags(tags)
-            for tag_name, new_tag in new_tags.items():
-                if tag_name in [tag.name for tag in story.tags]:
-                    continue
-                if existing_tag := NewsItemTag.find_by_name(tag_name):
-                    new_tag.name = existing_tag.name
-                    new_tag.tag_type = existing_tag.tag_type
-                story.tags.append(new_tag)
-            if bot_type:
-                story.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
-            db.session.commit()
-            return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
+            return self._update_tags(incoming_tags)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
+            db.session.rollback()
             return {"error": str(e)}, 500
+
+    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
+        if not parsed_tags:
+            return {"error": "No valid tags provided"}, 400
+
+        tags_to_remove = self.get_tags_to_remove(parsed_tags)
+        self.patch_tags(parsed_tags)
+        self.remove_tags(tags_to_remove)
+
+        db.session.commit()
+        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
+
+    def patch_tags(self, tags: dict[str, NewsItemTag]):
+        for tag in tags.values():
+            self.upsert_tag(tag)
+
+    def remove_tags(self, keys: set[str]):
+        for key in keys:
+            if tag := self.find_tag_by_name(key):
+                self.tags.remove(tag)
+                db.session.delete(tag)
+
+    def upsert_tag(self, tag: NewsItemTag) -> None:
+        if existing_tag := self.find_tag_by_name(tag.name):
+            existing_tag.tag_type = tag.tag_type
+        else:
+            self.tags.append(tag)
+
+    def find_tag_by_name(self, name: str) -> NewsItemTag | None:
+        return next((tag for tag in self.tags if tag.name == name), None)
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]]):
@@ -892,6 +972,7 @@ class Story(BaseModel):
     def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
+            new_stories_ids = []
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -903,10 +984,10 @@ class Story(BaseModel):
                     continue
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                cls.create_from_item(news_item)
-            db.session.commit()
+                new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
-            return {"message": "success"}, 200
+            db.session.commit()
+            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
@@ -920,7 +1001,40 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def create_from_item(cls, news_item):
+    def prepare_misp_stories(cls, story_lists: list[dict], force) -> list[dict]:
+        stories = []
+        for story in story_lists:
+            if story_id := story.get("id"):
+                if existing_story := cls.get(story_id):
+                    if not force and cls.check_internal_changes(existing_story.to_detail_dict()):
+                        logger.info(f"Internal changes detected in story {existing_story.id}, story conflict raised.")
+                        story["conflict"] = True
+                    else:
+                        if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story.to_detail_dict()):
+                            story["news_items_to_delete"] = news_items_to_delete
+            else:
+                logger.debug(f"Story does not have an ID: {story}")
+                continue
+
+            stories.append(story)
+        return stories
+
+    @classmethod
+    def check_internal_changes(cls, existing_story: dict) -> bool:
+        return existing_story.get("last_change") == "internal"
+
+    @classmethod
+    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list:
+        existing_news_items = existing_story.get("news_items", [])
+        new_news_items = new_story.get("news_items", [])
+
+        existing_ids = {item.get("id") for item in existing_news_items if item.get("id") is not None}
+        new_ids = {item.get("id") for item in new_news_items if item.get("id") is not None}
+
+        return list(existing_ids - new_ids)
+
+    @classmethod
+    def create_from_item(cls, news_item) -> str | None:
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -932,6 +1046,7 @@ class Story(BaseModel):
 
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
+        return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
         status_list = [news_item.get_cybersecurity_status() for news_item in self.news_items]
@@ -971,11 +1086,12 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self):
+    def update_status(self, change: str = "internal"):
         if self.remove_empty_story():
             return
         self.update_timestamps()
         self.update_status_attributes()
+        self.last_change = change
 
     def update_status_attributes(self):
         attributes = [
@@ -998,6 +1114,7 @@ class Story(BaseModel):
         for news_item in self.news_items:
             if not news_item.tlp_level:
                 news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+            logger.debug(f"News item {news_item.id} has TLP level")
             tlp_levels.append(news_item.tlp_level)
         tlp_levels += [input_tlp] if input_tlp else []
 

@@ -73,7 +73,7 @@ class ProductTypeView(AdminMixin, BaseView):
         parameter_values = {}
         presenter = base_context.get(cls.model_name())
         if presenter and (hasattr(presenter, "type") and (presenter_type := presenter.type)):
-            parameter_values = presenter.parameters
+            parameter_values = presenter.parameters.dict()
             parameters = cls.get_worker_parameters(worker_type=presenter_type.name.lower())
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
