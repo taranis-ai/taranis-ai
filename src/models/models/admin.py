@@ -48,7 +48,7 @@ class TaskResult(TaranisBaseModel):
 
         if self.status is None:
             return other_status is not None
-        return False if other_status is None else self.status < other_status
+        return False if other_status is None else str(self.status) < str(other_status)
 
 
 class Address(TaranisBaseModel):
@@ -197,7 +197,10 @@ class OSINTSource(TaranisBaseModel):
 
     @computed_field
     def search_field(self) -> str:
-        return f"{self.name} {self.description} {' '.join(self.parameters.values())}"
+        search = f"{self.name} {self.description} "
+        if self.parameters:
+            search += " ".join(self.parameters.values())
+        return search
 
 
 class OSINTSourceGroup(TaranisBaseModel):

@@ -1,5 +1,6 @@
 import pytest
 from typing import get_origin
+import responses
 
 from frontend.log import logger
 from frontend.config import Config
@@ -18,6 +19,25 @@ def form_data():
     return html_form_to_dict
 
 
+@pytest.fixture
+def responses_mock():
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        yield rsps
+
+
+def get_items_from_factory(view_name, model):
+    factory = ModelFactory.create_factory(model=model)
+
+    try:
+        instance = factory.build(factory_use_construct=True)
+        items = [instance.model_dump(mode="json")]
+    except ParameterException as e:
+        logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
+        items = [{"id": 1, "name": f"test_{view_name.lower()}"}]
+
+    return items
+
+
 @pytest.fixture(scope="class")
 def core_payloads():
     """
@@ -27,6 +47,7 @@ def core_payloads():
       - Mock the endpoint so your list-views always get {"items": [...], "total_count": 1}
     """
     payloads: dict[str, dict] = {}
+    url_items: dict[str, list[dict]] = {}
 
     for view_name, view_cls in BaseView._registry.items():
         model = getattr(view_cls, "model", None)
@@ -34,15 +55,10 @@ def core_payloads():
         if not model or not endpoint:
             continue
 
-        # Make a factory for this model
-        factory = ModelFactory.create_factory(model=model)
-
-        try:
-            instance = factory.build(factory_use_construct=True)
-            items = [instance.model_dump(mode="json")]
-        except ParameterException as e:
-            logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
-            items = [{"id": 1, "name": f"test_{view_name.lower()}"}]
+        url = f"{Config.TARANIS_CORE_URL}{endpoint}"
+        if url not in url_items:
+            url_items[url] = get_items_from_factory(view_name, model)
+        items = url_items[url]
 
         expect_object = None
 
@@ -127,14 +143,16 @@ def form_formats_from_models():
 
 
 @pytest.fixture
-def mock_core_get_endpoints(requests_mock, core_payloads):
+def mock_core_get_endpoints(responses_mock, core_payloads):
     for data in core_payloads.values():
-        requests_mock.get(
+        responses_mock.get(
             data["_url"],
             json={
                 "items": data["items"],
                 "total_count": data["total_count"],
             },
+            status=200,
+            content_type="application/json",
         )
     yield core_payloads
 
@@ -170,46 +188,46 @@ def mock_core_get_item_endpoint_data(core_payloads):
 
 
 @pytest.fixture
-def mock_core_get_item_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+def mock_core_get_item_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
             continue
-        requests_mock.get(f"{url}/{data_id}", json=view_data)
+        responses_mock.get(f"{url}/{data_id}", json=view_data)
     yield mock_core_get_item_endpoint_data
 
 
 @pytest.fixture
-def mock_core_delete_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
             continue
-        requests_mock.delete(f"{url}/{data_id}", json={"message": "Successfully deleted"})
+        responses_mock.delete(f"{url}/{data_id}", json={"message": "Successfully deleted"})
     yield mock_core_get_item_endpoint_data
 
 
 @pytest.fixture
-def mock_core_create_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
             continue
-        requests_mock.post(f"{url}", json=view_data)
+        responses_mock.post(f"{url}", json=view_data)
     yield mock_core_get_item_endpoint_data
 
 
 @pytest.fixture
-def mock_core_update_endpoints(requests_mock, mock_core_get_item_endpoint_data):
+def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data):
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
             continue
-        requests_mock.put(f"{url}/{data_id}", json=view_data)
+        responses_mock.put(f"{url}/{data_id}", json=view_data)
     yield mock_core_get_item_endpoint_data
 
 
@@ -217,7 +235,7 @@ def mock_core_update_endpoints(requests_mock, mock_core_get_item_endpoint_data):
 
 
 @pytest.fixture
-def dashboard_get_mock(requests_mock):
+def dashboard_get_mock(responses_mock):
     mock_data = {
         "items": [
             {
@@ -232,12 +250,12 @@ def dashboard_get_mock(requests_mock):
         ]
     }
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
     yield mock_data
 
 
 @pytest.fixture
-def users_get_mock(requests_mock, organizations_get_mock, roles_get_mock):
+def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
     mock_data = {
         "items": [
             {
@@ -288,12 +306,12 @@ def users_get_mock(requests_mock, organizations_get_mock, roles_get_mock):
         "total_count": 2,
     }
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/users", json=mock_data)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/users", json=mock_data)
     yield mock_data
 
 
 @pytest.fixture
-def organizations_get_mock(requests_mock):
+def organizations_get_mock(responses_mock):
     mock_data = {
         "items": [
             {
@@ -317,12 +335,12 @@ def organizations_get_mock(requests_mock):
         "total_count": 2,
     }
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/organizations", json=mock_data)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/organizations", json=mock_data)
     yield mock_data
 
 
 @pytest.fixture
-def roles_get_mock(requests_mock):
+def roles_get_mock(responses_mock):
     mock_data = {
         "items": [
             {
@@ -354,12 +372,12 @@ def roles_get_mock(requests_mock):
         "total_count": 2,
     }
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/roles", json=mock_data)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/roles", json=mock_data)
     yield mock_data
 
 
 @pytest.fixture
-def permissions_get_mock(requests_mock):
+def permissions_get_mock(responses_mock):
     mock_data = {
         "items": [
             {
@@ -376,42 +394,42 @@ def permissions_get_mock(requests_mock):
         "total_count": 2,
     }
 
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/config/permissions", json=mock_data)
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/permissions", json=mock_data)
     yield mock_data
 
 
 @pytest.fixture
-def users_delete_mock(requests_mock):
+def users_delete_mock(responses_mock):
     response = {"message": "User deleted successfully"}
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json=response)
     yield response
 
 
 @pytest.fixture
-def users_put_mock(requests_mock):
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/1", json={"message": "Success"})
+def users_put_mock(responses_mock):
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/1", json={"message": "Success"})
 
 
 @pytest.fixture
-def organizations_delete_mock(requests_mock):
+def organizations_delete_mock(responses_mock):
     response = {"message": "Organization deleted successfully"}
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json=response)
     yield response
 
 
 @pytest.fixture
-def organizations_put_mock(requests_mock):
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
+def organizations_put_mock(responses_mock):
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
 
 
 @pytest.fixture
-def roles_delete_mock(requests_mock):
+def roles_delete_mock(responses_mock):
     response = {"message": "Role deleted successfully"}
-    requests_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json=response)
     yield response
 
 
 @pytest.fixture
-def roles_put_mock(requests_mock):
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})
+def roles_put_mock(responses_mock):
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})
