@@ -4,19 +4,19 @@
   {# djlint:off #}
   <div id="dataTableDiv"
        class="{{ width }}"
-       x-data="{
-            data: {{ data }},
+       x-data='{
+            data: {{ data | tojson }},
             items: [],
             filteredItems: [],
-            selectedItems: {{ selected_items }},
+            selectedItems: {{ selected_items | tojson }},
             view: 5,
-            searchInput: '',
+            searchInput: "",
             pagination: {},
             fuse: null,
-            searchKeys: {{ safe_search_keys }},
+            searchKeys: {{ safe_search_keys | tojson }},
 
             init() {
-              console.debug('Initializing dataTable: ', this.selectedItems);
+              console.debug("Initializing dataTable: ", this.selectedItems);
               this.filteredItems = this.data
               this.pagination = {
                 total: this.data.length,
@@ -27,7 +27,7 @@
                 to: this.view
               };
               this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
-              this.$watch('searchInput', value => this.search(value));
+              this.$watch("searchInput", value => this.search(value));
               this.changePage(1)
             },
             search(value) {
@@ -76,7 +76,7 @@
               if (this.items.length === 0) return false;
               return this.items.every(item => this.selectedItems.includes(item.id));
             }
-          }">
+          }'>
   <div>
   {# djlint:on #}
   {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}

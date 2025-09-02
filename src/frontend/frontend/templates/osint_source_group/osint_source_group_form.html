@@ -16,8 +16,8 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source_group.name, form_error.name) }}
     {{ form_input('Description', 'description', osint_source_group.description, form_error.description, required=False) }}
-    {{ form_switch('Default', 'default', osint_source_group.default, required=false, width='w-1/4') }}
-
+    {{ osint_source_group.default }}
+    {{ form_switch('Default', 'default', osint_source_group.default, yes_val=True, no_val=False, required=false, width='w-1/4') }}
     {{ datatable(table_id='osint_sources', data=osint_sources, columns=columns, selected_items=osint_source_group.osint_sources, selectable=true, input_name="osint_sources[]", headline="OSINT Sources") }}
     {{ datatable(table_id='word_lists', data=word_lists, columns=columns, selected_items=osint_source_group.word_lists, selectable=true, input_name="word_lists[]", headline="Word Lists") }}
     <input type="submit" class="btn btn-primary mt-5 w-full" value="{{ submit_text }}" />
