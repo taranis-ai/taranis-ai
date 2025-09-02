@@ -65,6 +65,13 @@
                 this.selectedItems = [...new Set([...this.selectedItems, ...newIds])];
               }
             },
+            updateView() {
+              this.pagination.perPage = this.view;
+              this.pagination.total = this.filteredItems.length;
+              this.pagination.lastPage = Math.max(1, Math.ceil(this.pagination.total / this.view));
+              this.pagination.currentPage = Math.min(this.pagination.currentPage, this.pagination.lastPage);
+              this.changePage(this.pagination.currentPage);
+            },
             toggleItem(id) {
               if (this.selectedItems.includes(id)) {
                 this.selectedItems = this.selectedItems.filter(item => item !== id)
@@ -120,7 +127,7 @@
           <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
             <div class="items-center gap-2">
               <span class="text-sm font-medium">Items per page:</span>
-              <select x-model="view" @change="changePage(1)" class="select select-bordered w-18">
+              <select x-model.number="view" @change="updateView" class="select select-bordered w-18">
                 {% set current_limit = request.args.get('limit', 5) %}
                 {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
               </select>
