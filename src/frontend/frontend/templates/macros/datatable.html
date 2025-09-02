@@ -5,15 +5,15 @@
   <div id="dataTableDiv"
        class="{{ width }}"
        x-data='{
-            data: {{ data | tojson }},
+            data: {{ (data or []) | tojson }},
             items: [],
             filteredItems: [],
-            selectedItems: {{ selected_items | tojson }},
+            selectedItems: {{ (selected_items or []) | tojson }},
             view: 5,
             searchInput: "",
             pagination: {},
             fuse: null,
-            searchKeys: {{ safe_search_keys | tojson }},
+            searchKeys: {{ (safe_search_keys or []) | tojson }},
 
             init() {
               console.debug("Initializing dataTable: ", this.selectedItems);
