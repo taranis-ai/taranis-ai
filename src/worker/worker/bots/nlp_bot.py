@@ -35,8 +35,12 @@ class NLPBot(BaseBot):
         update_result = {}
 
         for story in stories:
+            if "attributes" in story and story.get("attributes", {}):
+                is_cybersecurity = story["attributes"].get("cybersecurity", {}).get("value", "no") == "yes"
+            else:
+                is_cybersecurity = False
             story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
-            current_keywords = self.extract_ner(story_content)
+            current_keywords = self.extract_ner(story_content, is_cybersecurity)
             update_result[story["id"]] = current_keywords
 
         return self.update_tags(update_result)
@@ -46,8 +50,8 @@ class NLPBot(BaseBot):
         self.core_api.update_tags(update_result, self.type)
         return update_result
 
-    def extract_ner(self, text: str) -> dict:
-        if keywords := self.bot_api.api_post("/", {"text": text}):
+    def extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
+        if keywords := self.bot_api.api_post("/", {"text": text, "cybersecurity": is_cybersecurity}):
             return keywords
         return {}
 
