@@ -331,11 +331,12 @@ class OSINTSource(BaseModel):
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
+        items_to_schedule: list[OSINTSource] = []
         for data in sources:
             idx = data.pop("group_idx", None)
             item = cls.from_dict(data)
             db.session.add(item)
-            item.schedule_osint_source()
+            items_to_schedule.append(item)
             OSINTSourceGroup.add_source_to_default(item)
 
             index_to_id_mapping[idx or item.id] = item.id
@@ -345,6 +346,8 @@ class OSINTSource(BaseModel):
             OSINTSourceGroup.add(group)
 
         db.session.commit()
+        for item in items_to_schedule:
+            item.schedule_osint_source()
         return list(index_to_id_mapping.values())
 
     @classmethod
