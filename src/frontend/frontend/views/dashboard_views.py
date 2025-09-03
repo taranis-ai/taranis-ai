@@ -5,6 +5,7 @@ import pandas as pd
 from typing import Any
 
 from models.dashboard import Dashboard, TrendingCluster
+from frontend.views.admin_mixin import AdminMixin
 from frontend.core_api import CoreApi
 from frontend.views.base_view import BaseView
 from frontend.utils.form_data_parser import parse_formdata
@@ -142,7 +143,7 @@ class DashboardView(BaseView):
         abort(405)
 
 
-class AdminDashboardView(BaseView):
+class AdminDashboardView(AdminMixin, BaseView):
     model = Dashboard
     icon = "home"
     htmx_list_template = "admin_dashboard/index.html"
@@ -169,7 +170,7 @@ class AdminDashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-        context = {"data": dashboard[0], "error": error, "build_info": cls.get_build_info(), "_is_admin": cls._is_admin}
+        context = {"data": dashboard[0], "build_info": cls.get_build_info(), **cls._common_context(error)}
         return render_template(template, **context), 200
 
     @classmethod

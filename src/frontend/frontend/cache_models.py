@@ -78,12 +78,15 @@ class CacheObject(list[T], Generic[T]):
     def search(self, query: str) -> "CacheObject[T]":
         if not query:
             return self
-        q = query.lower()
+        q = query
         hits = []
         for item in self:
+            if hasattr(item, "search_field") and q in getattr(item, "search_field", ""):
+                hits.append(item)
+                continue
             for fld in getattr(item, "_search_fields", []):
                 val = getattr(item, fld, None)
-                if val is not None and q in str(val).lower():
+                if val is not None and q in str(val):
                     hits.append(item)
                     break
         return CacheObject(
@@ -101,16 +104,24 @@ class CacheObject(list[T], Generic[T]):
             raise ValueError(f"Direction must be 'asc' or 'desc', got {direction!r}")
 
         reverse = direction == "desc"
+
+        nones: list[T] = []
+        non_nones: list[T] = []
         try:
-            sorted_items = sorted(self, key=lambda x: getattr(x, key), reverse=reverse)
+            for item in self:
+                (nones if getattr(item, key) is None else non_nones).append(item)
         except AttributeError as e:
             raise ValueError(f"Cannot sort by '{key}': {e}") from e
-        new_order = f"{key}_{direction}"
+
+        non_nones.sort(key=lambda x: getattr(x, key), reverse=reverse)
+
+        sorted_items = (non_nones + nones) if reverse else (nones + non_nones)
+
         return CacheObject(
             sorted_items,
             page=1,
             limit=self.limit,
-            order=new_order,
+            order=paging_order,
             links=self._links,
             total_count=self._total_count,
         )

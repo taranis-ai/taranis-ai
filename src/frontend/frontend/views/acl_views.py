@@ -4,9 +4,10 @@ from flask import render_template
 from models.admin import ACL, Role, OSINTSource, OSINTSourceGroup, ProductType, ReportItemType, WordList
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
+from frontend.views.admin_mixin import AdminMixin
 
 
-class ACLView(BaseView):
+class ACLView(AdminMixin, BaseView):
     model = ACL
     _index = 50
     icon = "lock-closed"

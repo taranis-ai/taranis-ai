@@ -10,9 +10,10 @@ from frontend.auth import auth_required
 from frontend.filters import render_item_type, render_worker_status
 from frontend.data_persistence import DataPersistenceLayer
 from models.dashboard import Dashboard
+from frontend.views.admin_mixin import AdminMixin
 
 
-class BotView(BaseView):
+class BotView(AdminMixin, BaseView):
     model = Bot
     icon = "calculator"
     _index = 110

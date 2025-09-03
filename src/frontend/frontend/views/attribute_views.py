@@ -7,9 +7,10 @@ from models.types import AttributeType
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.filters import render_item_type
+from frontend.views.admin_mixin import AdminMixin
 
 
-class AttributeView(BaseView):
+class AttributeView(AdminMixin, BaseView):
     model = Attribute
     icon = "document-arrow-up"
     _index = 130

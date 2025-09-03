@@ -42,6 +42,7 @@ class QueueManager:
         from models.collector import CollectorTaskRequest
         from worker.flows.collector_task_flow import collector_task_flow
 
+<<<<<<< HEAD
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
             request = CollectorTaskRequest(source_id=source.id, preview=False)
@@ -54,6 +55,9 @@ class QueueManager:
         """
         async with get_client() as client:
             return await client.read_flow_runs()
+=======
+        OSINTSource.schedule_all_osint_sources()
+>>>>>>> 1be2d41f (Fix/various (#658))
 
     def update_empty_word_lists(self):
         """

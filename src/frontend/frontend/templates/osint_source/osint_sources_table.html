@@ -7,13 +7,11 @@
 ]) %}
 
 {% set data = model_plural_name | get_var %}
-
 {% set table_container = model_name + '-table-container' %}
-
 {% set actions = actions | default([]) %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
-  {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.base_route) %}
+  {% call table_decoration(name, model_name, table_container, base_route=routes.base_route, add_route=routes.edit_route, delete_route=routes.base_route) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
@@ -27,6 +25,13 @@
   {% endcall %}
   {% if data and data | length > 0 %}
     {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
+  {% elif request.args %}
+    <div class="text-center p-4">
+      <p class="text-gray-500">No {{ name }} available.</p>
+      <button class="mt-2 btn btn-primary" hx-get="{{ routes.base_route }}" hx-target="#{{ table_container }}" hx-push-url="true">
+        Reset Filter
+      </button>
+    </div>
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
@@ -39,36 +44,38 @@
 
 <script>
 
-async function delete_osint_source(action_url) {
-  const { value: accept, isConfirmed: confirmed } = await Swal.fire({
+document.body.addEventListener('htmx:confirm', async (e) => {
+  const elt = e.detail.elt;
+  if (!elt.matches('[data-swal-confirm]')) {
+    return;
+  }
+
+  console.debug('Confirmation needed');
+
+  e.preventDefault();
+
+  const { isConfirmed, value: accept } = await Swal.fire({
     text: "Are you sure you want to delete this OSINT source?",
     input: "checkbox",
     inputValue: 0,
-    inputPlaceholder: `
-      Force Deletion of OSINT source and all its data. This action cannot be undone.
-    `,
+    inputPlaceholder: "Force Deletion of OSINT source and all its data. This action cannot be undone.",
     icon: "question",
     showCancelButton: true,
-    confirmButtonText: 'Delete'
+    confirmButtonText: "Delete"
   });
-  console.debug(`accept: ${accept}, confirmed: ${confirmed}`);
+
+  if (!isConfirmed) return;
+
   if (accept) {
-    action_url += '?force=true';
-  }
-  if (confirmed) {
-    // send a DELETE request to the action_url
-    const response = await fetch(action_url, {
-      method: 'DELETE',
-      credentials: 'same-origin',
-      headers: {
-        'X-CSRF-TOKEN': getCSRFToken()
+    const addForceParam = (evt) => {
+      if (evt.detail.elt === elt) {
+        evt.detail.parameters.force = true;
       }
-    });
-    const html = await response.text();
-    Swal.fire({
-      html: html,
-    });
+    };
+    document.body.addEventListener('htmx:configRequest', addForceParam, { once: true });
   }
-}
+
+  e.detail.issueRequest(true);
+});
 
 </script>

@@ -5,9 +5,10 @@ from frontend.views.base_view import BaseView
 from frontend.log import logger
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.views.admin_mixin import AdminMixin
 
 
-class SettingsView(BaseView):
+class SettingsView(AdminMixin, BaseView):
     model = Settings
     htmx_list_template = "settings/index.html"
     htmx_update_template = "settings/index.html"

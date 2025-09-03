@@ -33,6 +33,7 @@ dependencies = [
     "requests",
     "authlib",
     "setuptools",
+    "taranis-models",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
     "taranis-models",

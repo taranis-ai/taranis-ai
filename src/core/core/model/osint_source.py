@@ -42,14 +42,14 @@ class OSINTSource(BaseModel):
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
 
-    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
+    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
-
+        self.enabled = enabled
         self.parameters = Worker.parse_parameters(self.type, parameters)
 
     @property
@@ -241,6 +241,13 @@ class OSINTSource(BaseModel):
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
+    @classmethod
+    def schedule_all_osint_sources(cls):
+        for source in cls.get_all_for_collector():
+            interval = source.get_schedule()
+            entry = source.to_task_dict(interval)
+            schedule_manager.schedule.add_celery_task(entry)
+
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
@@ -324,11 +331,12 @@ class OSINTSource(BaseModel):
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
+        items_to_schedule: list[OSINTSource] = []
         for data in sources:
             idx = data.pop("group_idx", None)
             item = cls.from_dict(data)
             db.session.add(item)
-            item.schedule_osint_source()
+            items_to_schedule.append(item)
             OSINTSourceGroup.add_source_to_default(item)
 
             index_to_id_mapping[idx or item.id] = item.id
@@ -338,6 +346,8 @@ class OSINTSource(BaseModel):
             OSINTSourceGroup.add(group)
 
         db.session.commit()
+        for item in items_to_schedule:
+            item.schedule_osint_source()
         return list(index_to_id_mapping.values())
 
     @classmethod

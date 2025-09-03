@@ -10,6 +10,11 @@ class WorkerProduct(TaranisBaseModel):
 
 
 class Product(TaranisBaseModel):
+    _core_endpoint = "/publish/products"
+    _model_name = "product"
+    _search_fields = ["title", "description"]
+    _pretty_name = "Product"
+
     id: str | None = None
     title: str
     description: str | None = None

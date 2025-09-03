@@ -1,4 +1,5 @@
 from pydantic import Field, AnyUrl
+from functools import cached_property
 from typing import Literal, Any
 from datetime import datetime
 
@@ -39,6 +40,16 @@ class TaskResult(TaranisBaseModel):
     status: str | None = None
     last_change: datetime | None = None
     last_success: datetime | None = None
+
+    def __eq__(self, other: object) -> bool:
+        return self.status == (other.status if isinstance(other, TaskResult) else other)
+
+    def __lt__(self, other: object) -> bool:
+        other_status = other.status if isinstance(other, TaskResult) else other
+
+        if self.status is None:
+            return other_status is not None
+        return False if other_status is None else str(self.status) < str(other_status)
 
 
 class Address(TaranisBaseModel):
@@ -174,7 +185,6 @@ class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"
     _pretty_name = "OSINT Source"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
@@ -185,6 +195,13 @@ class OSINTSource(TaranisBaseModel):
     icon: str | None = None
     enabled: bool | None = True
     status: TaskResult | None = None
+
+    @cached_property
+    def search_field(self) -> str:
+        search = f"{self.name} {self.description} "
+        if self.parameters:
+            search += " ".join(self.parameters.values())
+        return search
 
 
 class OSINTSourceGroup(TaranisBaseModel):

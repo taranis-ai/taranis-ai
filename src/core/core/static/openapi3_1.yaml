@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.2.2
+  version: 1.2.4
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -340,11 +340,9 @@ paths:
         '200':
           description: the ID of the newly created report item
           content:
-            application/text:
+            application/json:
               schema:
-                type: string
-                examples:
-                  - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                  $ref: '#/components/schemas/report_item'
         '400':
           description: invalid input data
         '401':
@@ -413,7 +411,7 @@ paths:
         '200':
           description: the report item was deleted
           content:
-            application/text:
+            application/json:
               schema:
                 type: string
         '400':
@@ -3310,10 +3308,10 @@ components:
           type: string
         published:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         collected:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         updated:
           type: string
           format: date-time
@@ -3323,6 +3321,8 @@ components:
         osint_source_id:
           type: string
         content:
+          type: string
+        last_change:
           type: string
         attributes:
           type: array
@@ -3353,7 +3353,7 @@ components:
           type: string
         created:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         comments:
           type: string
         likes:
@@ -3366,6 +3366,8 @@ components:
           type: boolean
         in_reports_count:
           type: integer
+        last_change:
+          type: string
         tags:
           type: array
           items:

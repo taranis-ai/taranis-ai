@@ -10,9 +10,10 @@ from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
 from frontend.filters import render_count
+from frontend.views.admin_mixin import AdminMixin
 
 
-class WordListView(BaseView):
+class WordListView(AdminMixin, BaseView):
     model = WordList
     icon = "chat-bubble-bottom-center-text"
     _index = 170

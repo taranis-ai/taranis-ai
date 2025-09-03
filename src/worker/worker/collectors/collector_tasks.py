@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 from prefect import flow
+=======
+from celery import Task
+from celery.exceptions import Ignore
+>>>>>>> 1be2d41f (Fix/various (#658))
 from contextlib import contextmanager
 
 import worker.collectors
@@ -47,10 +52,61 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
+<<<<<<< HEAD
 @flow(name="collector_task")
 def collector_task(osint_source_id: str, manual: bool = False):
     collector = Collector()
     try:
+=======
+class CollectorTask(Task):
+    name = "collector_task"
+    max_retries = 3
+    priority = 5
+    default_retry_delay = 60
+    time_limit = 300
+
+    def __init__(self):
+        self.core_api = CoreApi()
+
+    def run(self, osint_source_id: str, manual: bool = False):
+        self.collector = Collector()
+        source = self.collector.get_source(osint_source_id)
+        collector = self.collector.get_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
+        task_description = (
+            f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
+        )
+        self.request.task_description = task_description
+
+        logger.info(f"Starting collector task: {task_description}")
+        with collector_log_fmt(logger, formatter):
+            try:
+                collection_result = collector.collect(source, manual)
+            except NoChangeError as e:
+                self.update_state(state="NOT_MODIFIED", meta=str(e))
+                raise Ignore()
+            except Exception as e:
+                raise RuntimeError(e) from e
+
+        self.core_api.run_post_collection_bots(osint_source_id)
+        return f"'{source.get('name')}': {collection_result}"
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        if hasattr(self.request, "task_description"):
+            logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
+        else:
+            logger.error(f"Collector task with id: {task_id} failed.")
+
+
+class CollectorPreview(Task):
+    name = "collector_preview"
+    track_started = True
+    acks_late = True
+    priority = 8
+
+    def run(self, osint_source_id: str):
+        collector = Collector()
+>>>>>>> 1be2d41f (Fix/various (#658))
         source = collector.get_source(osint_source_id)
         col = collector.get_collector(source)
         formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{col.name}")
