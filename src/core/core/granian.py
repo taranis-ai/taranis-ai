@@ -43,7 +43,7 @@ def app_loader(target):
 def main():
     print("Starting Taranis AI")
     wait_for_db()
-    create_app(db_setup=True)
+    create_app(initial_setup=True, db_setup=True)
     os.environ["GRANIAN_WORKERS"] = str(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
     cli(["--interface", "wsgi", "--factory", "core:granian_app"], auto_envvar_prefix="GRANIAN")
 

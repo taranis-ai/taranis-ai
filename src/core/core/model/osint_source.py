@@ -6,6 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
+from sqlalchemy import and_, cast, String, literal, func
 
 from core.managers.db_manager import db
 from core.managers import schedule_manager
@@ -70,17 +71,31 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
+        task_id_expr = func.concat(
+            literal("collect_"),
+            cast(cls.type, String()),
+            literal("_"),
+            cls.id,
+        )
+
         query = (
             db.select(cls)
-            .outerjoin(TaskModel, TaskModel.task == "collector_task")
+            .outerjoin(
+                TaskModel,
+                and_(
+                    TaskModel.task == "collector_task",
+                    TaskModel.id == task_id_expr,
+                ),
+            )
             .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
-            .where(cls.enabled)
+            .where(cls.enabled.is_(True))
+            .distinct(cls.id)
             .order_by(
+                cls.id,
                 TaskModel.last_success.asc().nulls_first(),
                 TaskModel.last_run.asc().nulls_first(),
             )
         )
-
         return db.session.execute(query).scalars().all()
 
     @classmethod
@@ -243,10 +258,12 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def schedule_all_osint_sources(cls):
-        for source in cls.get_all_for_collector():
+        sources = cls.get_all_for_collector()
+        for source in sources:
             interval = source.get_schedule()
             entry = source.to_task_dict(interval)
             schedule_manager.schedule.add_celery_task(entry)
+        logger.info(f"Gathering for {len(sources)} OSINT Sources scheduled")
 
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
