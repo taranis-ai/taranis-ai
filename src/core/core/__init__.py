@@ -4,6 +4,10 @@ from core.managers import db_manager, auth_manager, api_manager, queue_manager, 
 from core.config import Config
 
 
+def granian_app() -> Flask:
+    return create_app(False, False)
+
+
 def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
     app = Flask(__name__, static_url_path=f"{Config.APPLICATION_ROOT}static")
     app.config.from_object("core.config.Config")

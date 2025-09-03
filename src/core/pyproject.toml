@@ -31,8 +31,9 @@ dependencies = [
     "requests",
     "authlib",
     "setuptools",
+    "taranis-models",
     "sentry-sdk[flask]",
-    "sentry-sdk[sqlalchemy]"
+    "sentry-sdk[sqlalchemy]",
 ]
 dynamic = ["version"]
 

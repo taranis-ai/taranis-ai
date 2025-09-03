@@ -50,7 +50,7 @@ class QueueManager:
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
-        [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
+        OSINTSource.schedule_all_osint_sources()
 
     def update_empty_word_lists(self):
         from core.model.word_list import WordList

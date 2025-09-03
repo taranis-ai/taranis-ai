@@ -17,6 +17,12 @@ services:
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:8080${TARANIS_BASE_PATH:-/}api/isalive'"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -109,6 +115,12 @@ services:
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:8080${APPLICATION_ROOT:-/}health'"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -181,6 +193,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -199,6 +217,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -217,24 +241,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_BOT_TAG:-latest}"
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  sentiment_analysis_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"

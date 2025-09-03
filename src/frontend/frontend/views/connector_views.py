@@ -2,11 +2,12 @@ from frontend.views.base_view import BaseView
 from models.admin import Connector
 from models.types import CONNECTOR_TYPES
 from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
+from frontend.views.admin_mixin import AdminMixin
 
 from typing import Any
 
 
-class ConnectorView(BaseView):
+class ConnectorView(AdminMixin, BaseView):
     model = Connector
     icon = "link"
     _index = 115

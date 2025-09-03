@@ -11,7 +11,7 @@
 {% set table_container = model_name + '-table-container' %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
-  {% call table_decoration(name, model_name, table_container, add_route=routes.edit_route, delete_route=routes.edit_route) %}
+  {% call table_decoration(name, model_name, table_container, base_route=routes.base_route, add_route=routes.edit_route, delete_route=routes.edit_route) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         <button hx-post="{{ url_for('admin.update_all_word_lists') }}" class="btn btn-outline">
