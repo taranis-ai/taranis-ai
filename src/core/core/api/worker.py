@@ -145,6 +145,8 @@ class Tags(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         errors = {}
+        if not isinstance(data, dict):
+            return {"error": "Expected a dict for tags"}, 400
         for story_id, tags in data.items():
             story = Story.get(story_id)
             if not story:
