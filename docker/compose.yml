@@ -117,7 +117,7 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000${APPLICATION_ROOT}/health', timeout=5).raise_for_status()\""]
       interval: 1m30s
       timeout: 30s
       retries: 5
