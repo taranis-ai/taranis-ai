@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% from 'dashboard/cards.html' import trending_card with context %}
+{% from 'macros/table.html' import table %}
+{% set cluster_id = 'cluster-' ~ cluster_name %}
 
-<div class="p-8" id="cluster">
-  {% call trending_card(data) %}
-  {% if dashboard_config['show_charts'] == 'Yes' and data.name == 'Country' %}
-  <div class="flex-grow">
-    {{ country_chart | safe }}
-  </div>
-  {% endif %}
-  {% endcall %}
+<div class="p-8" id="{{ cluster_id }}">
+{{ table(table_id=cluster_name, data=cluster, columns=columns, actions=None, base_url='/assess', selected_items=[], selectable=false) }}
 </div>
+
+{% if country_chart %}
+<div class="flex-grow">
+  {{ country_chart | safe }}
+</div>
+{% endif %}
 {% endblock content %}

@@ -41,6 +41,7 @@ class DataPersistenceLayer:
                 if object.id == object_id:  # type: ignore
                     return object
         if result := self.api.api_get(f"{endpoint}/{object_id}"):
+            logger.debug(f"Fetched object from {endpoint}: {result}")
             return object_model(**result)
 
         logger.warning(f"Failed to fetch object from: {endpoint}")

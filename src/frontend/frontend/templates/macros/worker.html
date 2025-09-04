@@ -26,11 +26,19 @@ info
 </div>
 {% endmacro %}
 
-{% macro worker_badge(status) %}
+{% macro worker_status_badge(status) %}
 {% set result_class=status_class(status.status) %}
 <div class="tooltip" data-tip="{{ status.result }}">
   <div title="{{ status.status }}" class="badge badge-{{ result_class }}">{{ status.status }}</div>
 </div>
+{% endmacro %}
+
+{% macro worker_badge(status, enabled=True) %}
+{% if not enabled %}
+<div title="Disabled" class="badge badge-warning">Disabled</div>
+{% else %}
+{{ worker_status_badge(status) }}
+{% endif %}
 {% endmacro %}
 
 {% macro worker_state(worker_id, worker_type, enabled) %}

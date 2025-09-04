@@ -97,7 +97,8 @@ def render_item_type(item) -> str:
 
 def render_worker_status(item) -> str:
     if hasattr(item, "status") and item.status:
-        return Markup(render_template("partials/status_badge.html", status=item.status))
+        enabled = item.enabled if hasattr(item, "enabled") else True
+        return Markup(render_template("partials/status_badge.html", status=item.status, enabled=enabled))
     return Markup(render_template("partials/status_badge.html"))
 
 
