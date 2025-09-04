@@ -102,7 +102,7 @@ class DashboardView(BaseView):
 
         return render_template(
             "dashboard/cluster.html",
-            cluster=cluster,
+            data=cluster,
             columns=columns,
             cluster_name=cluster_name,
             country_chart=country_chart,
