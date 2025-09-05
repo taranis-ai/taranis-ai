@@ -1,4 +1,4 @@
-{% macro table(table_id, data, columns, actions, base_url, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
+{% macro table(table_id, data, columns, actions, routes, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
 {% from "macros/table.html" import table_header %}
 {% from "macros/buttons.html" import action_button %}
 {% set item_ids = data | map(attribute='id') | list %}
@@ -21,7 +21,7 @@
   <tbody>
     {% if data %}
       {% for item in data %}
-        {% set edit_route = base_url ~ '/' ~ item.id %}
+        {% set edit_route = routes.base_route ~ '/' ~ item.id %}
         <tr class="hover:bg-info">
           {% if selectable %}
             <td>
@@ -43,7 +43,7 @@
           {% endfor %}
           {% if actions %}
             {% from "macros/table.html" import table_actions %}
-            {{ table_actions(actions, item.id, base_url) }}
+            {{ table_actions(actions, item.id, routes.base_route) }}
           {% else %}
           {% endif %}
         </tr>
@@ -96,17 +96,17 @@
   </td>
 {% endmacro %}
 
-{% macro table_decoration(name, model_name, container_id, base_route, add_route, delete_route, searchbar=true) %}
+{% macro table_decoration(name, model_name, container_id, routes, searchbar=true) %}
   <div class="flex gap-4 mb-4">
-    {% if add_route %}
+    {% if routes.edit_route %}
       <div class="grow-0">
-        <button hx-get="{{ add_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+        <button hx-get="{{ routes.edit_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
           New {{ name }}
         </button>
       </div>
     {% endif %}
-    {% if searchbar %}{{ table_search_bar(container_id, base_route) }}{% endif %}
-    {% if delete_route %}
+    {% if searchbar %}{{ table_search_bar(container_id, routes.base_route) }}{% endif %}
+    {% if routes.edit_route %}
       <div class="grow-0">
         <button type="button"
                 class="btn btn-error"

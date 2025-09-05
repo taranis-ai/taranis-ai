@@ -6,7 +6,7 @@
 {% set actions = actions | default([]) %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
-  {% call table_decoration(name, model_name, table_container, base_route=routes.base_route, add_route=routes.edit_route, delete_route=routes.edit_route) %}
+  {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         {{ import_button(url_for('admin.import_users') ) }}
@@ -15,5 +15,5 @@
     </div>
   {% endcall %}
 
-  {{ table(model_name + '-table', users, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
+  {{ table(model_name + '-table', users, columns, actions=actions, standalone=false, routes=routes) }}
 </div>

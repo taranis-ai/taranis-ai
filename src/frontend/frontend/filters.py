@@ -95,6 +95,13 @@ def render_item_type(item) -> str:
     return "Unknown"
 
 
+def render_datetime(item, field: str) -> str:
+    if hasattr(item, field) and getattr(item, field):
+        value = getattr(item, field)
+        return format_datetime(value)
+    return "N/A"
+
+
 def render_worker_status(item) -> str:
     if hasattr(item, "status") and item.status:
         enabled = item.enabled if hasattr(item, "enabled") else True
@@ -119,7 +126,7 @@ def format_datetime(value: datetime | str) -> str:
         value = datetime.fromisoformat(value)
     if isinstance(value, datetime):
         return value.strftime("%A, %d. %B %Y %H:%M")
-    return ""
+    return value
 
 
 @pass_context

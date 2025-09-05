@@ -11,7 +11,7 @@
 {% set actions = actions | default([]) %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
-  {% call table_decoration(name, model_name, table_container, base_route=routes.base_route, add_route=routes.edit_route, delete_route=routes.base_route) %}
+  {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
@@ -24,7 +24,7 @@
     </div>
   {% endcall %}
   {% if data and data | length > 0 %}
-    {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
+    {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
   {% elif request.args %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
