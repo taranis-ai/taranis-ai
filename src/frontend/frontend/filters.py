@@ -103,10 +103,9 @@ def render_datetime(item, field: str) -> str:
 
 
 def render_worker_status(item) -> str:
-    if hasattr(item, "status") and item.status:
-        enabled = item.enabled if hasattr(item, "enabled") else True
-        return Markup(render_template("partials/status_badge.html", status=item.status, enabled=enabled))
-    return Markup(render_template("partials/status_badge.html"))
+    enabled = item.enabled if hasattr(item, "enabled") else True
+    status = item.status if hasattr(item, "status") else None
+    return Markup(render_template("partials/status_badge.html", status=status, enabled=enabled))
 
 
 def last_path_segment(value):

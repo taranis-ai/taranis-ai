@@ -1,3 +1,3 @@
 {% from "macros/worker.html" import worker_badge %}
-{% set status = status | default({"status": "Unknown", "result": ""}) %}
+{% set status = status | default({"status": "Unknown", "result": ""}, true) %}
 {{ worker_badge(status, enabled) }}
