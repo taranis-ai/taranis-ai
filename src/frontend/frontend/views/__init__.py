@@ -10,10 +10,12 @@ from .word_list_views import WordListView
 from .attribute_views import AttributeView
 from .worker_views import WorkerView
 from .source_groups_views import SourceGroupView
-from .report_views import ReportItemTypeView
+from .report_type_views import ReportItemTypeView
 from .source_views import SourceView
 from .connector_views import ConnectorView
 from .scheduler_views import SchedulerView
+from .report_views import ReportItemView
+from .product_views import ProductView
 
 __all__ = [
     "ACLView",
@@ -34,4 +36,6 @@ __all__ = [
     "ReportItemTypeView",
     "ConnectorView",
     "SchedulerView",
+    "ReportItemView",
+    "ProductView",
 ]

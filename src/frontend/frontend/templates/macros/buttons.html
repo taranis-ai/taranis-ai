@@ -1,15 +1,15 @@
 {% macro export_button(export_url, text="Export") %}
-  <a class="btn btn-outline btn-info" href="{{ export_url }}" download>
-    {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
-    {{ text }}
-  </a>
+<a class="btn btn-outline btn-info" href="{{ export_url }}" download>
+  {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
+  {{ text }}
+</a>
 {% endmacro %}
 
 {% macro import_button(import_url) %}
-  <button hx-get="{{ import_url }}" class="btn btn-outline btn-accent">
-    {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
-    Import
-  </button>
+<button hx-get="{{ import_url }}" class="btn btn-outline btn-accent">
+  {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
+  Import
+</button>
 {% endmacro %}
 
 {% macro action_button(action, item_id) %}

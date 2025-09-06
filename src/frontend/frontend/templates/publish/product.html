@@ -11,7 +11,6 @@
 
 {% set product_types = product_types | default([]) %}
 
-{# Build report items dataset for the datatable (filtered by selected product type's supported report types, if present) #}
 {% set supported_reports = product.supported_reports | default([]) | tojson %}
 
 
@@ -22,8 +21,6 @@
   {"title": "created", "field": "created", "sortable": True, "searchable": False, "renderer": None},
   {"title": "completed", "field": "completed", "sortable": True, "searchable": False, "renderer": None},
 ] %}
-
-{% set is_edit = (product.id is not none and product.id != 0) %}
 
 <div class="p-6" id="product"
      x-data="{
@@ -54,22 +51,23 @@
     <div class="card-body gap-3">
       <div class="flex items-center gap-3">
         <h2 class="card-title">
-          {% if is_edit %}Edit product - {{ product.title }}{% else %}Create product{% endif %}
+          {{ submit_text }}
         </h2>
         <div class="flex-1"></div>
         {% if is_edit and rendered_product %}
           <a id="download-button"
              class="btn btn-outline"
-             href="#" aria-label="Download"
+             href="{{ url_for('publish.product_download', product_id=product.id) }}"
+             aria-label="Download"
              title="Download"
              data-testid="download-product"
-             onclick="Swal.fire('Not wired yet', 'Add backend route to stream rendered product', 'info'); return false;">
+             download>
             Download
           </a>
         {% endif %}
         <button type="button"
                 class="btn btn-outline"
-                @click="triggerAction('render')">
+                hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
           Render
         </button>
         <button class="btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="document.getElementById('product-form').requestSubmit()">
@@ -103,7 +101,6 @@
 
               {% if product.product_type_id %}
                 <div class="mt-2">
-                {{ supported_reports }}
                   {{ datatable('Report Items', supported_reports, columns, selected_items=product.report_items | default([]), input_name='report_items', headline='Report Items') }}
                 </div>
               {% endif %}
@@ -119,9 +116,7 @@
               {% endif %}
 
               <button id="render-button" type="button" class="hidden"
-                      hx-post="/publish/products/{{ product.id | default('') }}/render"
-                      hx-target="#product"
-                      hx-swap="outerHTML">
+                      hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
                 Render
               </button>
             </div>
