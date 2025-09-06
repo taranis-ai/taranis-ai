@@ -2,7 +2,7 @@
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
-{% set roles = roles | default([]) %}
+{% set roles = roles | default([]) | tojson %}
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ acl.id }}</p>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block head %}<script src="{{ url_for('static', filename='vendor/js/fuse.js') }}"></script>{% endblock head %}
+
 {% block content %}
 {% from "macros/forms.html" import form_input, form_textarea, form_select %}
 {% from "macros/datatable.html" import datatable %}
@@ -7,33 +9,16 @@
 {% set form_error = form_error | default({}) %}
 {% set product = product | default({}) %}
 
-{# Build options for product types: expects `product_types` in context #}
-{% set product_type_options = [] %}
-{% for pt in product_types | default([]) %}
-  {% set _ = product_type_options.append({"id": pt.id, "name": pt.title}) %}
-{% endfor %}
+{% set product_types = product_types | default([]) %}
 
 {# Build report items dataset for the datatable (filtered by selected product type's supported report types, if present) #}
-{% set report_items_data = [] %}
-{% set supported_types = [] %}
-{% if product.product_type_id and product_types %}
-  {% for pt in product_types %}
-    {% if pt.id == product.product_type_id %}
-      {% for rid in pt.report_types %}{% set _ = supported_types.append(rid) %}{% endfor %}
-    {% endif %}
-  {% endfor %}
-{% endif %}
-{% for ri in report_items | default([]) %}
-  {% if supported_types and ri.report_item_type_id in supported_types or not supported_types %}
-    {% set _ = report_items_data.append(ri.model_dump(mode='json')) %}
-  {% endif %}
-{% endfor %}
+{% set supported_reports = product.supported_reports | default([]) | tojson %}
+
 
 {# Define columns for the datatable #}
 {% set columns = [
   {"title": "id", "field": "id", "sortable": True, "searchable": True, "renderer": None},
   {"title": "title", "field": "title", "sortable": True, "searchable": True, "renderer": None},
-  {"title": "type", "field": "report_item_type_id", "sortable": True, "searchable": True, "renderer": None},
   {"title": "created", "field": "created", "sortable": True, "searchable": False, "renderer": None},
   {"title": "completed", "field": "completed", "sortable": True, "searchable": False, "renderer": None},
 ] %}
@@ -46,14 +31,9 @@
         showPublish: false,
         showDirty: false,
         pendingAction: null,
+        hasIncompleteReports: {{ has_incomplete_reports | default(false) | tojson }},
         renderedProduct: {{ (rendered_product | default('') | tojson) if rendered_product is defined else 'null' }},
-        renderedMime: {{ (rendered_mime_type | default('') | tojson) if rendered_mime_type is defined else 'null' }},
         renderError: {{ (render_error | default('') | tojson) if render_error is defined else 'null' }},
-        hasIncompleteReports() {
-          const selected = Array.from(document.querySelectorAll('input[name=\'report_items\']')).map(i => i.value)
-          const map = new Map({{ report_items_data | tojson }}.map(i => [String(i.id), i.completed]))
-          return selected.some(id => map.get(String(id)) === false)
-        },
         triggerAction(action) {
           if (this.dirty) {
             this.pendingAction = action; this.showDirty = true; return;
@@ -70,7 +50,6 @@
           if (form) { form.requestSubmit(); }
         }
      }">
-
   <div class="card bg-base-100 shadow">
     <div class="card-body gap-3">
       <div class="flex items-center gap-3">
@@ -112,10 +91,7 @@
               {% include "partials/admin_form_error.html" %}
               <div class="grid grid-cols-12 gap-4">
                 <div class="col-span-12 md:col-span-6">
-                  {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_type_options, required=true, width='w-full') }}
-                  {% if is_edit %}
-                  <script>document.getElementById('product_type_id').setAttribute('disabled', 'disabled');</script>
-                  {% endif %}
+                  {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
                 </div>
                 <div class="col-span-12 md:col-span-6">
                   {{ form_input('Title', 'title', product.title, form_error.title) }}
@@ -127,7 +103,8 @@
 
               {% if product.product_type_id %}
                 <div class="mt-2">
-                  {{ datatable('Report Items', report_items_data, columns, selected_items=product.report_items | default([]), input_name='report_items', headline='Report Items') }}
+                {{ supported_reports }}
+                  {{ datatable('Report Items', supported_reports, columns, selected_items=product.report_items | default([]), input_name='report_items', headline='Report Items') }}
                 </div>
               {% endif %}
 
@@ -166,7 +143,7 @@
           <dialog x-show="showPublish" class="modal" @click.outside="showPublish=false">
             <div class="modal-box min-w-[28rem]">
               <h3 class="font-bold text-lg mb-2">Publish Product</h3>
-              <div x-show="hasIncompleteReports()" class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
+              <div x-show="hasIncompleteReports" class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
               <label class="select w-full">
                 <span class="label">Publisher</span>
                 {% set publisher_options = [] %}

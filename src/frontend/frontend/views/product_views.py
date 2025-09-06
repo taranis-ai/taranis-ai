@@ -1,8 +1,10 @@
 from typing import Any
+from venv import logger
 
 from models.product import Product
 from frontend.views.base_view import BaseView
 from frontend.filters import render_datetime, render_count, render_item_type
+from models.types import PUBLISHER_TYPES
 
 
 class ProductView(BaseView):
@@ -17,6 +19,10 @@ class ProductView(BaseView):
     edit_route = "publish.product"
     _read_only = True
     _show_sidebar = False
+
+    product_types = [
+        {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))} for member in PUBLISHER_TYPES
+    ]
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -35,4 +41,11 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+        base_context["product_types"] = cls.product_types
         return base_context
+
+    @classmethod
+    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+        context = super().get_item_context(object_id)
+        logger.debug(f"Product item context: {context}")
+        return context

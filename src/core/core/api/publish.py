@@ -59,20 +59,10 @@ class ProductsRender(MethodView):
         return ProductService.get_render(product_id)
 
 
-class SupportedReports(MethodView):
-    @auth_required("PUBLISH_ACCESS")
-    def get(self, product_id: str):
-        if product_data := product.Product.get(product_id):
-            report_items = product_data.get_supported_reports()
-            return {"items": [item.to_dict() for item in report_items], "total_count": len(report_items)}
-        return {"error": f"Product {product_id} not found"}, 404
-
-
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
 
     publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("render_product"))
-    publish_bp.add_url_rule("/products/<string:product_id>/supported_reports", view_func=SupportedReports.as_view("supported_reports"))
     publish_bp.add_url_rule(
         "/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )

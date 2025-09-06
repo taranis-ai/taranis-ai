@@ -98,6 +98,12 @@ class Product(BaseModel):
         data.pop("render_result", None)
         return data
 
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports()]
+        logger.debug(f"Product detail dict: {data}")
+        return data
+
     def to_worker_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,

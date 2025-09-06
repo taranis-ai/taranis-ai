@@ -85,6 +85,9 @@ class BaseModel(db.Model):
     def from_dict(cls: Type[T], data: dict[str, Any]) -> T:
         return cls(**data)
 
+    def to_detail_dict(self) -> dict[str, Any]:
+        return self.to_dict()
+
     @classmethod
     def load_multiple(cls: Type[T], json_data: list[dict[str, Any]]) -> list[T]:
         return [cls.from_dict(data) for data in json_data]
@@ -110,7 +113,7 @@ class BaseModel(db.Model):
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
-            return item.to_dict(), 200
+            return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
     @classmethod
