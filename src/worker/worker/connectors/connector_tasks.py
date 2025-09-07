@@ -2,7 +2,7 @@ import re
 from celery import Task
 import json
 
-from worker.connectors import MISPConnector
+from worker.connectors import MISPConnector, ReportToStix
 from worker.log import logger
 from worker.core_api import CoreApi
 
@@ -19,6 +19,7 @@ class ConnectorTask(Task):
         self.core_api = CoreApi()
         self.connectors = {
             "misp_connector": MISPConnector(),
+            "report_to_stix": ReportToStix(),
         }
 
     def drop_utf16_surrogates(self, data: str) -> str:
@@ -38,6 +39,8 @@ class ConnectorTask(Task):
         return re.sub(r"[\uD800-\uDFFF]", "", decoded)
 
     def get_connector(self, connector_id: str) -> tuple[MISPConnector | None, dict | None]:
+        if connector_id == "report-to-stix":
+            return self.connectors.get("report_to_stix", ""), None
         connector_config = self.core_api.get_connector_config(connector_id)
         if not connector_config:
             raise RuntimeError(f"Connector with id {connector_id} not found")
@@ -61,27 +64,30 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Story with id {query} not found")
         return stories
 
-    def run(self, connector_id: str, story_ids: list):
+    def run(self, connector_id: str, data: dict):
         try:
             connector, connector_config = self.get_connector(connector_id)
         except Exception as e:
             logger.exception(f"Failed to get connector with id: {connector_id}")
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
 
-        if connector:
+        if story_ids := data.get("story_ids"):
             logger.info(f"Sending story {story_ids} to connector {connector_id}")
             try:
-                stories = self.get_story_by_id(story_ids)
+                connector_data = []
+                connector_data = self.get_story_by_id(story_ids)
             except Exception as e:
                 logger.exception(f"Failed to get stories with id: {story_ids}")
                 raise RuntimeError(f"Failed to get stories with id: {story_ids}") from e
-
-            if connector_config is not None:
-                try:
-                    return connector.execute(connector_config, stories)
-                except Exception as e:
-                    logger.exception(f"Error executing connector with id: {connector_id}")
-                    raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
+        elif report_id := data.get("report_id"):
+            logger.info(f"Sending report {report_id} to connector {connector_id}")
+            connector_data = [report_id]
+            try:
+                if connector is not None:
+                    return connector.execute(connector_config, connector_data)
+            except Exception as e:
+                logger.exception(f"Error executing connector with id: {connector_id}")
+                raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
             else:
                 raise RuntimeError(f"Connector config for id {connector_id} is None")
 

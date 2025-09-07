@@ -62,3 +62,7 @@ export function removeAttachment(data) {
     `/analyze/report-items/${data.report_item_id}/file-attributes/${data.attribute_id}`
   )
 }
+
+export function getStix(data) {
+  return apiService.post(`/analyze/report-items/${data.id}/stix`)
+}

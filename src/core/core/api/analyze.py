@@ -8,6 +8,7 @@ from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
 from core.config import Config
+from core.managers import queue_manager
 
 
 class ReportTypes(MethodView):
@@ -128,6 +129,16 @@ class ReportItemLock(MethodView):
             return str(ex), 500
 
 
+class ReportItemStix(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def post(self, report_item_id):
+        try:
+            response, code = queue_manager.queue_manager.push_to_connector(connector_id="report-to-stix", data={"report_id": report_item_id})
+            return response, code
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+
 def initialize(app: Flask):
     analyze_bp = Blueprint("analyze", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/analyze")
 
@@ -138,5 +149,6 @@ def initialize(app: Flask):
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stix", view_func=ReportItemStix.as_view("report_item_stix"))
 
     app.register_blueprint(analyze_bp)

@@ -38,6 +38,7 @@ dependencies = [
     "jinja2",
     # Connectors
     "pymisp",
+    "misp-stix",
     # Bots
     "ioc-finder",
     "ioc-fanger",

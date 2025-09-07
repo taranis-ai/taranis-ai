@@ -121,7 +121,7 @@ def test_connector_story_processing(core_mock, caplog):
 
     connector = ConnectorTask()
 
-    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", data={"story_ids": ["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"]})
 
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
