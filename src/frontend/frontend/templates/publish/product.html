@@ -54,7 +54,8 @@
           {{ submit_text }}
         </h2>
         <div class="flex-1"></div>
-        {% if is_edit and rendered_product %}
+        {% if is_edit %}
+        {% if rendered_product %}
           <a id="download-button"
              class="btn btn-outline"
              href="{{ url_for('publish.product_download', product_id=product.id) }}"
@@ -70,7 +71,8 @@
                 hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
           Render
         </button>
-        <button class="btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="document.getElementById('product-form').requestSubmit()">
+        {% endif %}
+        <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="document.getElementById('product-form').requestSubmit()">
           <span x-show="dirty" class="mr-1">!</span>
           Save
         </button>
@@ -113,12 +115,12 @@
                   <span x-show="renderedProduct">Publish</span>
                   <span x-show="!renderedProduct">Render Product first, to enable publishing</span>
                 </button>
-              {% endif %}
 
               <button id="render-button" type="button" class="hidden"
                       hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
                 Render
               </button>
+              {% endif %}
             </div>
           </form>
 
@@ -155,9 +157,7 @@
               <div class="modal-action">
                 <button class="btn" @click="showPublish=false">Abort</button>
                 <button class="btn btn-primary"
-                        :disabled="!document.getElementById('publisher_select') || !document.getElementById('publisher_select').value"
                         hx-post="/publish/products/{{ product.id | default('') }}/publishers/"
-                        hx-vals='{ "publisher_id": document.getElementById("publisher_select") ? document.getElementById("publisher_select").value : "" }'
                         hx-target="#notification-bar"
                         hx-swap="outerHTML"
                         @htmx:afterRequest="showPublish=false">

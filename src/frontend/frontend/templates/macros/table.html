@@ -96,11 +96,11 @@
   </td>
 {% endmacro %}
 
-{% macro table_decoration(name, model_name, container_id, routes, searchbar=true) %}
+{% macro table_decoration(name, model_name, container_id, routes, searchbar=true, new_item_target="#form-container") %}
   <div class="flex gap-4 mb-4">
     {% if routes.edit_route %}
       <div class="grow-0">
-        <button hx-get="{{ routes.edit_route }}" hx-push-url="true" hx-target="#form-container" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
+        <button hx-get="{{ routes.edit_route }}" hx-push-url="true" hx-target="{{ new_item_target }}" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
           New {{ name }}
         </button>
       </div>

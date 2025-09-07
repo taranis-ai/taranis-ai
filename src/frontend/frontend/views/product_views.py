@@ -2,11 +2,12 @@ from typing import Any
 from flask import render_template
 
 from models.product import Product
+from models.admin import ProductType
 from frontend.views.base_view import BaseView
 from frontend.filters import render_datetime, render_count, render_item_type
-from models.types import PUBLISHER_TYPES
 from frontend.core_api import CoreApi
 from frontend.log import logger
+from frontend.data_persistence import DataPersistenceLayer
 
 
 class ProductView(BaseView):
@@ -21,10 +22,6 @@ class ProductView(BaseView):
     edit_route = "publish.product"
     _read_only = True
     _show_sidebar = False
-
-    product_types = [
-        {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))} for member in PUBLISHER_TYPES
-    ]
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -43,7 +40,8 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        base_context["product_types"] = cls.product_types
+        product_types = DataPersistenceLayer().get_objects(ProductType)
+        base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         return base_context
 
     @classmethod

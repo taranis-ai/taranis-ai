@@ -31,11 +31,11 @@ class ReportItemView(BaseView):
             {"title": "Created", "field": "created", "sortable": True, "renderer": render_datetime, "render_args": {"field": "created"}},
             {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
             {
-                "title": "Reports",
-                "field": "report_items",
+                "title": "Stories",
+                "field": "stories",
                 "sortable": True,
                 "renderer": render_count,
-                "render_args": {"field": "report_items"},
+                "render_args": {"field": "stories"},
             },
         ]
 
