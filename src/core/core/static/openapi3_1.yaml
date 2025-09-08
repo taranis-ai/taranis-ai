@@ -2724,19 +2724,6 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '500':
           description: Internal server error
-    delete:
-      tags: [config]
-      description: delete publisher preset
-      operationId: config.publisher_preset.delete
-      security:
-        - UserAuth: []
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-        '404':
-          $ref: "#/components/responses/404NotFound"
   /dashboard/trending-clusters:
     get:
       operationId: dashboard.trending-clusters
