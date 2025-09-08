@@ -29,13 +29,90 @@ See [README.md](../README.md) for more information.
 ## Testing
 
 See .github/workflows for how tests are configured in CI.
-To run tests locally or in CI:
-1. In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
-	- `uv sync --all-extras --dev` to install all dependencies and dev extras.
-2. Then run:
-	- `uv run pytest` to execute the tests for that component.
-You must run these commands separately in each src directory to ensure all dependencies are installed and tests are run in the correct environment.
-Tests are located in each component's `tests/` directory.
+
+### Complete Testing Workflow (Mirror CI)
+
+To run the complete test suite as executed in CI, follow these steps:
+
+**1. Core Tests:**
+```bash
+cd src/core
+uv sync --all-extras
+uv run ruff check --output-format=github .
+uv run pytest
+```
+
+**2. Frontend Tests:**
+```bash
+cd src/frontend
+uv sync --all-extras
+uv run ruff check --output-format=github .
+uv run pytest
+```
+
+**3. GUI Tests:**
+```bash
+cd src/gui
+pnpm install
+pnpm run lint_and_format
+pnpm run build
+```
+
+**4. Worker Tests:**
+```bash
+cd src/worker
+uv sync --all-extras
+uv run playwright install --with-deps chromium
+uv run ruff check --output-format=github .
+uv run pytest
+```
+
+**5. End-to-End Tests:**
+```bash
+# First run core e2e tests
+cd src/core
+uv run pytest --e2e-ci
+
+# Then run frontend e2e tests
+cd src/frontend
+uv sync --all-extras
+./build_tailwindcss.sh
+uv run pytest --e2e-ci
+```
+
+### Running Tests Locally
+
+**Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
+- `uv sync --all-extras --dev` to install all dependencies and dev extras.
+
+**Unit Tests:** In each component directory, run:
+- `uv run pytest` - run all tests for that component
+- `uv run pytest tests/unit/` - run only unit tests
+- `uv run pytest tests/functional/` - run only functional tests
+- `uv run pytest -v` - verbose output
+- `uv run pytest -x` - stop on first failure
+- `uv run pytest tests/test_specific.py::test_function_name` - run specific test
+
+**End-to-End (E2E) Tests:** Located in `src/core/tests/playwright/` and `src/frontend/tests/playwright/`
+- `uv run pytest tests/playwright/ --e2e-ci` - run e2e tests in CI mode
+- `uv run pytest tests/playwright/test_e2e_admin.py --e2e-ci` - run specific e2e test file
+- `uv run pytest tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_login --e2e-ci` - run specific test
+- `--e2e-ci` flag is required for e2e tests to run properly
+- Add `--record-video` to record test execution videos
+- Add `--highlight-delay=2` to slow down test execution for debugging
+
+**Linting:** In each component directory:
+- `uv run ruff check` - check for linting issues
+- `uv run ruff check --fix` - fix auto-fixable linting issues
+- `uv run ruff format` - format code
+
+**Important Notes:**
+- You must run commands separately in each src directory to ensure all dependencies are installed
+- E2E tests require the application to be running (they start their own test server)
+- Tests are located in each component's `tests/` directory
+- E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
+- Models package does not have unit tests
+- Worker package includes Playwright browser installation for web scraping tests
 
 ## Development Guidelines
 
