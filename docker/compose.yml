@@ -22,12 +22,38 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
+    
+  prefect-server:
+    image: prefecthq/prefect:2-python3.11
+    command: prefect server start
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+    ports:
+      - "4200:4200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      restart_policy:
+        condition: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
 
   core:
     depends_on:
       database:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      prefect-server:
         condition: service_healthy
     deploy:
       restart_policy:
