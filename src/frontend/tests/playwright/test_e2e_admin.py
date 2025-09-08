@@ -365,8 +365,17 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             content_value = template_content.input_value()
             assert len(content_value) > 0, "Invalid template content should still be accessible"
             
+            # The content might be Base64 encoded, so decode it first
+            import base64
+            try:
+                decoded_content = base64.b64decode(content_value).decode('utf-8')
+                content_to_check = decoded_content
+            except Exception:
+                # If not Base64, use the original content
+                content_to_check = content_value
+            
             # Verify we can see some expected content (the test_invalid.html contains "user.name")
-            assert "user.name" in content_value, "Should contain template content"
+            assert "user.name" in content_to_check, f"Should contain template content, got: {content_to_check}"
 
         def test_monaco_editor_loads_on_htmx_navigation():
             """Test Monaco editor loads properly on HTMX navigation."""
