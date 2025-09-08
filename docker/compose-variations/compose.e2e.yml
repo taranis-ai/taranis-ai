@@ -27,6 +27,9 @@ services:
   prefect-server:
     image: prefecthq/prefect:3-latest
     command: prefect server start
+    depends_on: 
+      database:
+        condition: service_healthy
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@database:5432/prefect
@@ -34,7 +37,7 @@ services:
     ports:
       - "4200:4200"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4200/api/health"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4200/api/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 5s
       retries: 3
