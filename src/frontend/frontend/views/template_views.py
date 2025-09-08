@@ -1,7 +1,5 @@
 from base64 import b64encode
 from typing import Any
-from flask import request, render_template, Response
-from base64 import b64decode, b64encode
 from flask import request
 
 from frontend.views.base_view import BaseView
