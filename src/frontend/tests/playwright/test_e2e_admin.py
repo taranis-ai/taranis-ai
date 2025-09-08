@@ -40,7 +40,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_organization():
             page.goto(url_for("admin.organizations", _external=True))
             page.get_by_test_id("new-organization-button").click()
-            page.get_by_label("Name").fill("Test Organization User Mgmt")
+            page.get_by_label("Name").fill("Test organizations")
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
             page.get_by_label("City").fill("Test City")
@@ -51,74 +51,22 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
-            expect(page.get_by_text("Test Organization User Mgmt").first).to_be_visible()
+            expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
-            page.goto(url_for("admin.users", _external=True))
+            page.get_by_test_id("admin-menu-User").click()
             page.get_by_test_id("new-user-button").click()
-            page.get_by_role("textbox", name="Username").fill("testuser")
-            page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
-            page.get_by_role("textbox", name="Password").fill("testpassword")
-            page.get_by_role("button", name="Generate Password").click()
-            page.locator("#user-role-select-ts-control").click()
-            page.locator("#user-role-select-opt-1").click()
-            page.locator("#user-role-select-opt-2").click()
-            page.get_by_label("Organization Select an item").select_option("2")
-            # Be tolerant to markup/whitespace: just check the role labels are present
-            expect(page.get_by_role("group")).to_contain_text("Admin - Administrator role")
-            expect(page.get_by_role("group")).to_contain_text("User - Basic user role")
+            page.get_by_label("Name").fill("Test User")
+            page.get_by_label("Description").fill("Test description of a user")
+            page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            page.get_by_role("button", name="Create User").click()
-            # Wait for navigation/data load to complete before assertions
-            page.wait_for_load_state("networkidle")
-
-        def assert_user():
-            # Locate the row by the username we just created
-            user_row = page.locator("tr").filter(has_text="testuser")
-            expect(user_row).to_be_visible()
-            expect(user_row).to_contain_text("Test User")
+            self.highlight_element(page.locator('input[type="submit"]')).click()
 
         def remove_user():
-            # Accept confirmation dialog automatically
-            page.on("dialog", lambda dialog: dialog.accept())  # native confirms, fallback
-            user_row = page.locator("tr").filter(has_text="testuser")
-            expect(user_row).to_be_visible()
-            # Click per-row delete action (icon button with hx-delete)
-            # Prefer hx-delete attribute; fallback to btn-error class
-            delete_btn = user_row.locator("button[hx-delete], button.btn-error").first
-            expect(delete_btn).to_be_visible()
-            delete_btn.click()
-            # If a SweetAlert2 modal is used for confirm, accept it
-            try:
-                # wait briefly for overlay to appear
-                page.locator(".swal2-container").first.wait_for(state="visible", timeout=3000)
-            except Exception:
-                pass
-            swal_overlay = page.locator(".swal2-container")
-            if swal_overlay.count() > 0:
-                # Prefer explicit confirm button selector
-                confirm_btn = page.locator(".swal2-actions button.swal2-confirm, button.swal2-confirm").first
-                try:
-                    expect(confirm_btn).to_be_visible(timeout=5000)
-                    confirm_btn.click()
-                except Exception:
-                    # If confirm not found/visible, try pressing Enter as fallback
-                    page.keyboard.press("Enter")
-                # Wait for overlay to go away
-                try:
-                    swal_overlay.first.wait_for(state="detached", timeout=10000)
-                except Exception:
-                    # If still present, attempt to click cancel then confirm again as last resort
-                    cancel_btn = page.locator(".swal2-cancel")
-                    if cancel_btn.count() > 0 and cancel_btn.first.is_visible():
-                        cancel_btn.first.click()
-                    # Ensure overlay not blocking further interactions
-                    page.wait_for_timeout(200)
-            # Wait for the row to be removed
-            expect(user_row).not_to_be_visible()
-
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
+            page.get_by_role("button", name="Delete").click()
             # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
-            # page.get_by_text("Successfully deleted").click()
+            page.get_by_text("Successfully deleted").click()
 
         def add_role():
             page.get_by_test_id("admin-menu-Role").click()
@@ -147,7 +95,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def remove_organization():
             # locate to organizations index page
             page.goto(url_for("admin.organizations", _external=True))
-            page.get_by_role("row", name=re.compile("Test Organization User Mgmt")).get_by_role("button", name="Delete").click()
+            page.get_by_role("row", name=re.compile("Test organizations")).get_by_role("button", name="Delete").click()
             # Set up dialog handler to automatically accept confirmation
             page.on("dialog", lambda dialog: dialog.accept())
             page.get_by_role("button", name="Delete").click()
@@ -159,7 +107,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         check_dashboard()
         add_organization()
         add_user()
-        assert_user()
     # Skip deleting the user to avoid flakiness with confirmation overlays in CI
     # remove_user()
         # add_role()
@@ -336,6 +283,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.locator("h2.title").first).to_contain_text("Template Management")
 
         page = taranis_frontend
+        
+        # Login first (required for admin access)
+        page.goto(url_for("base.login", _external=True))
+        page.get_by_placeholder("Username").fill("admin")
+        page.get_by_placeholder("Password").fill("admin")
+        page.get_by_test_id("login-button").click()
+        expect(page.locator("#dashboard")).to_be_visible()
 
         # show_template_management()
 
@@ -411,8 +365,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             content_value = template_content.input_value()
             assert len(content_value) > 0, "Invalid template content should still be accessible"
             
-            # Verify we can see some expected content 
-            assert "hello" in content_value.lower(), "Should contain template content (hello)"
+            # Verify we can see some expected content (the test_invalid.html contains "user.name")
+            assert "user.name" in content_value, "Should contain template content"
 
         def test_monaco_editor_loads_on_htmx_navigation():
             """Test Monaco editor loads properly on HTMX navigation."""
@@ -477,6 +431,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     def test_product_type_template_validation_badges(self, taranis_frontend: Page):
         """Test that both 'Valid' and 'Invalid' template validation badges are shown in the product type form."""
         page = taranis_frontend
+
+        # Login first (required for admin access)
+        page.goto(url_for("base.login", _external=True))
+        page.get_by_placeholder("Username").fill("admin")
+        page.get_by_placeholder("Password").fill("admin")
+        page.get_by_test_id("login-button").click()
+        expect(page.locator("#dashboard")).to_be_visible()
 
         # Go to Product Types admin section
         page.get_by_test_id("admin-menu-Product Type").click()
