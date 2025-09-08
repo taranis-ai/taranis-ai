@@ -1,59 +1,11 @@
 from celery import Task
 from base64 import b64encode
 from requests.exceptions import ConnectionError
-from models.template_validation import validate_template_content
 
 import worker.presenters
 from worker.presenters.base_presenter import BasePresenter
 from worker.log import logger
 from worker.core_api import CoreApi
-
-
-def validate_jinja_template(template_str: str) -> dict:
-    """
-    Validates a Jinja2 template string using unified validation logic.
-
-    Args:
-        template_str (str): The template string to validate
-
-    Returns:
-        dict: {
-            "is_valid": bool,
-            "error_message": str,
-            "error_type": str
-        }
-    """
-    return validate_template_content(template_str)
-
-
-class TemplateValidationTask(Task):
-    """
-    Dedicated Celery task for template validation.
-    This allows template validation to be called independently as a separate task.
-    """
-    name = "template_validation_task"
-    
-    def validate_template(self, template_str: str) -> dict:
-        """
-        Validates a Jinja2 template string.
-
-        Args:
-            template_str (str): The template string to validate
-
-        Returns:
-            dict: {
-                "is_valid": bool,
-                "error_message": str | None,
-                "error_type": str | None
-            }
-        """
-        return validate_jinja_template(template_str)
-
-    def run(self, template_str: str) -> dict:
-        """
-        Main task execution method.
-        """
-        return self.validate_template(template_str)
 
 
 class PresenterTask(Task):
@@ -71,22 +23,6 @@ class PresenterTask(Task):
             "pdf_presenter": worker.presenters.PDFPresenter(),
             "text_presenter": worker.presenters.TextPresenter(),
         }
-
-    def validate_template(self, template_str: str) -> dict:
-        """
-        Validates a Jinja2 template string.
-
-        Args:
-            template_str (str): The template string to validate
-
-        Returns:
-            dict: {
-                "is_valid": bool,
-                "error_message": str | None,
-                "error_type": str | None
-            }
-        """
-        return validate_jinja_template(template_str)
 
     def get_product(self, product_id: int) -> dict[str, str]:
         product = None

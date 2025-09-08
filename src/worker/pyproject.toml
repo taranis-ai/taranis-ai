@@ -45,8 +45,7 @@ dependencies = [
     # Bots
     "ioc-finder",
     "ioc-fanger",
-    "langdetect",
-    "taranis-models",
+    "langdetect"
 ]
 dynamic = ["version"]
 
@@ -78,9 +77,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 fallback_version = "0.0.0"
 root = "../.."
-
-[tool.uv.sources]
-taranis-models = { path = "../models" }
 
 [tool.ruff]
 line-length = 142

@@ -5,7 +5,7 @@ from core.managers.data_manager import (
     get_template_content,
     list_templates,
 )
-from models.template_validation import validate_template_content
+from core.service.template_validation import validate_template_content
 
 
 ContentType = Optional[Union[bytes, bytearray, memoryview, str]]

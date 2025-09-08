@@ -85,12 +85,13 @@
 {% endmacro %}
 
 {% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+{% set dropdown_id = (input_id or name) + '_dropdown' %}
 <div class="mb-5 {{ width }}">
   <label class="label">
     <span class="label-text">{{ label }}</span>
   </label>
-  <div class="dropdown dropdown-bottom w-full">
-    <div tabindex="0" role="button" class="btn btn-outline w-full justify-between">
+  <div id="{{ dropdown_id }}" class="dropdown dropdown-bottom w-full">
+    <div tabindex="0" role="button" class="btn btn-outline w-full justify-between" id="{{ dropdown_id }}_trigger">
       <span id="{{ name }}_display">
         {% if value %}
           {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
@@ -107,17 +108,18 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
       </svg>
     </div>
-    <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
+    <div tabindex="0" class="dropdown-content bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
       {% for option in options %}
         {% set status = option.validation_status | normalize_validation_status %}
-        <div class="flex justify-between items-center p-2 rounded">
+        <div class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
+             onclick="selectTemplate('{{ name }}', '{{ option.id }}', '{{ option.name }}', '{{ status|badge_class }}', '{{ status|badge_label }}', '{{ dropdown_id }}')">
           <span class="flex-1">{{ option.name }}</span>
           <span class="badge {{ status|badge_class }} badge-sm">{{ status|badge_label }}</span>
         </div>
       {% endfor %}
     </div>
   </div>
-  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="select w-full">
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="sr-only">
     {% if not value %}
     <option value="" selected disabled>Select a template</option>
     {% endif %}
@@ -135,4 +137,41 @@
     {% endif %}
   {% endif %}
 </div>
+
+<script>
+function selectTemplate(fieldName, value, name, badgeClass, badgeLabel, dropdownId) {
+  // Update hidden select element
+  const select = document.getElementById(fieldName) || document.querySelector(`select[name="${fieldName}"]`);
+  if (select) {
+    select.value = value;
+    // Trigger change event for any listeners
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  
+  // Update display
+  const display = document.getElementById(fieldName + '_display');
+  if (display) {
+    display.innerHTML = name + ' <span class="badge ' + badgeClass + ' badge-sm ml-2">' + badgeLabel + '</span>';
+  }
+  
+  // Close dropdown by removing focus from both trigger and content
+  const dropdown = document.getElementById(dropdownId);
+  const trigger = document.getElementById(dropdownId + '_trigger');
+  
+  if (trigger) {
+    trigger.blur();
+  }
+  
+  // Force remove focus from any focused elements in dropdown
+  const focusedElement = document.activeElement;
+  if (focusedElement && dropdown && dropdown.contains(focusedElement)) {
+    focusedElement.blur();
+  }
+  
+  // Alternative: click outside to close dropdown
+  setTimeout(() => {
+    document.body.click();
+  }, 10);
+}
+</script>
 {% endmacro %}

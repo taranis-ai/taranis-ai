@@ -55,22 +55,6 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
-### Template validation endpoints
-
-Taranis AI exposes endpoints to manage and validate presenter templates.
-
-- List templates with validation status: GET `/api/config/templates`
-- Get a specific template (base64-encoded content) with validation: GET `/api/config/templates/{template_path}`
-- Create or update a template by id in body: POST `/api/config/templates`
-  - Body: `{ "id": "my_template.html", "content": "<base64>" }`
-- Update a template by path: PUT `/api/config/templates/{template_path}`
-  - Body: `{ "content": "<base64>" }`
-- Validate a template without saving: POST `/api/config/templates/validate`
-  - Body: `{ "content": "...", "is_base64": false }`
-
-Responses include a `validation_status` object with fields `is_valid`, `error_message`, and `error_type`.
-The `content` field in template responses is base64-encoded; for empty files it may be an empty string and for unreadable files it may be null.
-
 ### Hardware requirements
 
 To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.

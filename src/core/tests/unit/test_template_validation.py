@@ -1,4 +1,4 @@
-from models.template_validation import validate_template_content
+from core.service.template_validation import validate_template_content
 
 
 def test_validate_template_valid_syntax():

@@ -14,7 +14,7 @@ from core.managers.data_manager import (
     delete_template,
 )
 from core.service.template_service import build_template_response, build_templates_list
-from models.template_validation import validate_template_content
+from core.service.template_validation import validate_template_content
 from core.model import (
     attribute,
     bot,
