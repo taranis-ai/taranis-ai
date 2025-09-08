@@ -26,7 +26,7 @@
   </label>
 
 
-  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content or '' }}</textarea>
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content | b64decode if template.content else '' }}</textarea>
 
   <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
 
