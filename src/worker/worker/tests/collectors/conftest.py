@@ -7,18 +7,6 @@ from worker.config import Config
 from worker.collectors.base_web_collector import BaseWebCollector
 
 
-# Skip Playwright tests gracefully when Chromium isn't available locally
-@pytest.fixture(scope="session")
-def playwright_available():
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:  # type: ignore
-            browser = p.chromium.launch()
-            browser.close()
-    except Exception:
-        pytest.skip("Playwright browser not available in test environment")
-
-
 def file_loader(filename):
     try:
         dir_path = os.path.dirname(os.path.realpath(__file__))
