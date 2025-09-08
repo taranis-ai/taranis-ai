@@ -1,10 +1,5 @@
 {% from "macros/table.html" import table, table_decoration %}
 
-{% set columns = columns | default([
-  {'title': 'Template Name', 'field': 'id', 'sortable': True, 'renderer': None},
-  {'title': 'Validation Status', 'field': 'validation_status', 'sortable': False, 'renderer': render_item_validation_status}
-]) %}
-
 {% set actions = actions | default([]) %}
 
 {% set data = model_plural_name | get_var %}
