@@ -4,18 +4,7 @@ Template validation logic for Taranis AI core.
 This module provides Jinja2 template validation for the core API.
 """
 
-from jinja2 import Environment, TemplateSyntaxError, DebugUndefined, UndefinedError, BaseLoader
-
-
-class _DummyLoader(BaseLoader):
-    """A loader that returns an empty template for any requested name.
-
-    This allows validating templates using {% include %} or {% extends %}
-    without requiring actual template files on disk.
-    """
-
-    def get_source(self, environment, template):  # type: ignore[override]
-        return "", template, lambda: True
+from jinja2 import Environment, TemplateSyntaxError, DebugUndefined, UndefinedError
 
 
 def validate_template_content(template_content: str) -> dict:
@@ -43,9 +32,8 @@ def validate_template_content(template_content: str) -> dict:
         }
 
     try:
-        # Create Jinja2 environment with DebugUndefined and a dummy loader
-        # that gracefully handles includes/extends without touching the FS.
-        env = Environment(autoescape=False, undefined=DebugUndefined, loader=_DummyLoader())
+        # Create Jinja2 environment with DebugUndefined for better error messages
+        env = Environment(autoescape=False, undefined=DebugUndefined)
 
         # Compile and attempt to render with empty context
         template = env.from_string(template_content)
