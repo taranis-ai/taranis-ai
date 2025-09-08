@@ -38,9 +38,7 @@ class DataPersistenceLayer:
         if cache_object := cache.get(key=self.make_user_key(endpoint)):
             logger.debug(f"Cache hit for {endpoint}")
             for object in cache_object:
-                # Handle both dict and object formats
-                obj_id = object.get('id') if isinstance(object, dict) else getattr(object, 'id', None)
-                if obj_id == object_id:
+                if object.id == object_id:
                     return object
         if result := self.api.api_get(f"{endpoint}/{object_id}"):
             if object_model.__name__ == "Template":
