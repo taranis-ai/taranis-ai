@@ -4,7 +4,7 @@
 
 
 <!-- Template Validation Status Display -->
-{% if validation_status %}
+{% if validation_status and template.id != '0' %}
 <div class="w-3/4 mb-5">
   {{ validation_status | render_validation_status }}
 </div>
