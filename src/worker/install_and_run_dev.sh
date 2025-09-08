@@ -2,16 +2,9 @@
 
 set -eu
 
-if [ ! -d ".venv" ]; then
-    uv venv
-    source .venv/bin/activate
-    uv pip install -e ."[dev]" -e ../models
-fi
-
-uv sync --all-extras --frozen --python 3.13
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 source .venv/bin/activate
-
-uv pip install -e ../models >/dev/null 2>&1
 
 python ./start_dev_worker.py

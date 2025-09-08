@@ -18,19 +18,24 @@ ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
 class TestAdminViews:
-    def test_list_view_renders(self, view_name, view_cls, mock_core_get_endpoints, authenticated_client):
+    def test_admin_views(self, view_name, view_cls):
+        assert view_cls._is_admin
+        assert view_cls.pretty_name() == view_name
+
+    def test_list_view_renders(self, view_name, view_cls, authenticated_client, mock_core_get_endpoints):
         """
         For each BaseView subclass:
           - GET its base route (list view) → 200
           - the unique name we injected in mock_data appears in the HTML
         """
+
+        payload = mock_core_get_endpoints[view_name]
         target_url = view_cls.get_base_route()
         resp = authenticated_client.get(target_url)
 
         assert resp.status_code == 200, f"{view_name!r} list-view did not return 200 (got {resp.status_code})"
 
         html = resp.get_data(as_text=True)
-        payload = mock_core_get_endpoints[view_name]
 
         expected = payload.get("_expect_object", None)
         assert expected is not None, f"Expected: {expected} item in {view_name!r} not found in payload: {payload!r}"
@@ -116,25 +121,20 @@ class TestSourceView:
         from the uploaded JSON file.
         """
         # Create a dummy export file with a "sources" key
-        dummy_export_data = {
-            "version": 3,
-            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]
-        }
-        dummy_file_content = json.dumps(dummy_export_data).encode('utf-8')
+        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
         # Mock the CoreApi().import_sources method
-        with patch('frontend.views.source_views.CoreApi') as mock_core_api:
+        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
             mock_api_instance.import_sources.return_value = MagicMock(ok=True)
 
             # Simulate the POST request
             resp = authenticated_client.post(
-                SourceView.get_import_route(),
-                data={'file': (dummy_file, 'test.json')},
-                content_type='multipart/form-data'
+                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
             # Assert that the response is successful
@@ -147,11 +147,7 @@ class TestSourceView:
         """
         Test that the import_post_view method returns an error when no file is provided.
         """
-        resp = authenticated_client.post(
-            SourceView.get_import_route(),
-            data={},
-            content_type='multipart/form-data'
-        )
+        resp = authenticated_client.post(SourceView.get_import_route(), data={}, content_type="multipart/form-data")
 
         assert resp.status_code == 200  # The view returns a 200 but with an error message in the HTML
         html = resp.get_data(as_text=True)
@@ -161,23 +157,18 @@ class TestSourceView:
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
-        dummy_export_data = {
-            "version": 3,
-            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]
-        }
-        dummy_file_content = json.dumps(dummy_export_data).encode('utf-8')
+        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        with patch('frontend.views.source_views.CoreApi') as mock_core_api:
+        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
             mock_api_instance.import_sources.return_value = None  # Simulate API failure
 
             resp = authenticated_client.post(
-                SourceView.get_import_route(),
-                data={'file': (dummy_file, 'test.json')},
-                content_type='multipart/form-data'
+                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
             assert resp.status_code == 200

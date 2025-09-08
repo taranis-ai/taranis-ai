@@ -1,12 +1,11 @@
 from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for
 from flask.views import MethodView
-from flask_jwt_extended import unset_jwt_cookies
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.cache import get_cached_users, list_cache_keys
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.auth import auth_required
+from frontend.auth import auth_required, logout
 from frontend.views import DashboardView
 
 
@@ -67,14 +66,15 @@ class LoginView(MethodView):
         return response
 
     def delete(self):
-        core_response = CoreApi().logout()
-        if not core_response.ok:
-            return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        return logout()
 
-        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
-        response.delete_cookie("access_token")
-        unset_jwt_cookies(response)
-        return response
+
+class LogoutView(MethodView):
+    def get(self):
+        return logout()
+
+    def delete(self):
+        return logout()
 
 
 class OpenAPIView(MethodView):
@@ -89,16 +89,22 @@ class NotificationView(MethodView):
         return render_template("notification/index.html")
 
 
+class HealthView(MethodView):
+    def get(self):
+        return render_template("health/index.html")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
+    base_bp.add_url_rule("/health", view_func=HealthView.as_view("health"))
     base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
 
     base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
-    base_bp.add_url_rule("/logout", view_func=LoginView.as_view("logout"))
+    base_bp.add_url_rule("/logout", view_func=LogoutView.as_view("logout"))
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
 

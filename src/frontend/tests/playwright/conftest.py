@@ -1,8 +1,10 @@
 import os
+import re
 import pytest
 import time
 import subprocess
 import requests
+import responses
 import contextlib
 from dotenv import dotenv_values
 from urllib.parse import urlparse
@@ -11,6 +13,9 @@ from playwright.sync_api import Browser
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
     for _ in range(timeout_seconds):
         try:
             response = requests.get(url, timeout=timeout_seconds)
@@ -126,9 +131,9 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     # Drop timeout from 30s to 10s
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
-    if request.config.getoption("--e2e-ci") == "e2e_ci":
+    if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
     yield context.new_page()
-    if request.config.getoption("--e2e-ci") == "e2e_ci":
+    if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_frontend_trace.zip")

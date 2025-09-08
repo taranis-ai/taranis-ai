@@ -13,6 +13,19 @@ from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
 from core.log import logger
 
+PROFILE_TEMPLATE = {
+    "dark_theme": False,
+    "hotkeys": {},
+    "split_view": False,
+    "compact_view": False,
+    "show_charts": False,
+    "infinite_scroll": True,
+    "advanced_story_options": False,
+    "end_of_shift": {"hours": 18, "minutes": 0},
+    "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
+    "language": "en",
+}
+
 
 class User(BaseModel):
     __tablename__ = "user"
@@ -38,18 +51,7 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.profile = {
-            "dark_theme": False,
-            "hotkeys": {},
-            "split_view": False,
-            "compact_view": False,
-            "show_charts": False,
-            "infinite_scroll": True,
-            "advanced_story_options": False,
-            "end_of_shift": {"hours": 18, "minutes": 0},
-            "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
-            "language": "en",
-        }
+        self.profile = PROFILE_TEMPLATE.copy()
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":

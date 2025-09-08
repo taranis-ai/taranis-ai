@@ -52,16 +52,23 @@ export const usePublishStore = defineStore(
     }
 
     async function loadRenderedProduct(product_id) {
+      renderError.value = null
+      renderedProduct.value = null
+      renderedProductMimeType.value = null
+
       try {
         const response = await getRenderdProduct(product_id)
-        if (response.data.error !== undefined) {
+
+        if (response?.data?.error !== undefined) {
           renderError.value = response.data.error
           return
         }
+
         renderedProduct.value = response.data
-        renderedProductMimeType.value = response.headers['content-type']
+        const ct = response.headers?.['content-type'] || null
+        renderedProductMimeType.value = ct ? ct.split(';')[0] : null
       } catch (error) {
-        renderError.value = error.message
+        renderError.value = error?.message ?? 'Failed to load rendered product'
       }
     }
 

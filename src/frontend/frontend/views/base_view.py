@@ -1,11 +1,11 @@
 from flask import render_template, request, url_for, current_app, abort
 from jinja2 import TemplateNotFound
-from typing import Type, Any
+from typing import ClassVar, Type, Any
 from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
 
-from models.admin import TaranisBaseModel
+from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
@@ -16,22 +16,23 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class BaseView(MethodView):
-    model: Type[TaranisBaseModel]
+    model: ClassVar[Type[TaranisBaseModel]]
 
     decorators = [auth_required()]
-    htmx_update_template: str = ""
-    htmx_list_template: str = ""
-    default_template: str = ""
-    edit_template: str = ""
-    base_route: str = ""
-    edit_route: str = ""
-    import_route: str = ""
-    icon: str = "wrench"
-    _is_admin: bool = True
-    _index: float | int = float("inf")
-    _read_only: bool = False
+    htmx_update_template: ClassVar[str] = ""
+    htmx_list_template: ClassVar[str] = ""
+    default_template: ClassVar[str] = ""
+    edit_template: ClassVar[str] = ""
+    base_route: ClassVar[str] = ""
+    edit_route: ClassVar[str] = ""
+    import_route: ClassVar[str] = ""
+    icon: ClassVar[str] = "wrench"
+    _is_admin: ClassVar[bool] = False
+    _show_sidebar: ClassVar[bool] = True
+    _index: ClassVar[float | int] = float("inf")
+    _read_only: ClassVar[bool] = False
 
-    _registry: dict[str, Any] = {}
+    _registry: ClassVar[dict[str, Any]] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -45,6 +46,7 @@ class BaseView(MethodView):
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
             "_is_admin": cls._is_admin,
+            "_show_sidebar": cls._show_sidebar,
             "routes": {
                 "base_route": cls.get_base_route(),
                 "edit_route": cls.get_edit_route(**{cls._get_object_key(): object_id}),
@@ -100,18 +102,15 @@ class BaseView(MethodView):
 
     @classmethod
     def get_base_route(cls, **kwargs) -> str:
-        route = cls.base_route or f"admin.{cls.model_plural_name().lower()}"
-        return url_for(route, **kwargs)
+        return url_for(cls.base_route, **kwargs) if cls.base_route else ""
 
     @classmethod
     def get_edit_route(cls, **kwargs) -> str:
-        route = cls.edit_route or f"admin.edit_{cls.model_name().lower()}"
-        return url_for(route, **kwargs)
+        return url_for(cls.edit_route, **kwargs) if cls.edit_route else ""
 
     @classmethod
     def get_import_route(cls, **kwargs) -> str:
-        route = cls.import_route or f"admin.import_{cls.model_plural_name().lower()}"
-        return url_for(route, **kwargs)
+        return url_for(cls.import_route, **kwargs) if cls.import_route else ""
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -132,6 +131,13 @@ class BaseView(MethodView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @classmethod
+    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
+        dpl = DataPersistenceLayer()
+        all_parameters = dpl.get_objects(WorkerParameter)
+        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
+        return match.parameters if match else []
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
@@ -167,7 +173,12 @@ class BaseView(MethodView):
             "update_template": cls.get_update_template(),
             "list_template": cls.get_list_template(),
             "default_template": cls.get_default_template(),
+            "sidebar_template": cls.get_sidebar_template(),
         }
+
+    @classmethod
+    def get_sidebar_template(cls) -> str:
+        return ""
 
     @classmethod
     def edit_view(cls, object_id: int | str = 0):
@@ -286,7 +297,8 @@ class BaseView(MethodView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error=f"No {cls.model_name()} items found"), 404
 
-        context = {f"{cls.model_plural_name()}": items, "error": error}
+        context = cls._common_context(error)
+        context[f"{cls.model_plural_name()}"] = items
         context = cls.get_extra_context(context)
         return render_template(cls.get_list_template(), **context), 200
 
@@ -326,11 +338,15 @@ class BaseView(MethodView):
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
+        response, status_code = cls.list_view()
         if all(r.ok for r in results):
-            return render_template(
+            response += render_template(
                 "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
-            ), 200
-        return render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}), 500
+            )
+            return response, status_code
+
+        response += render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True})
+        return response, 500
 
     @classmethod
     def _get_object_key(cls) -> str:

@@ -82,6 +82,14 @@ def pytest_addoption(parser):
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
 
 
+def _is_vscode(config) -> bool:
+    # Primary: pytest plugin loaded by the VS Code Python extension
+    if config.pluginmanager.hasplugin("vscode_pytest"):
+        return True
+    # Fallbacks (sometimes present when launched from VS Code)
+    return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
+
+
 def skip_tests(items, keyword, reason):
     skip_marker = pytest.mark.skip(reason=reason)
     for item in items:
@@ -90,17 +98,24 @@ def skip_tests(items, keyword, reason):
 
 
 def pytest_collection_modifyitems(config, items):
+    config.option.start_live_server = False
+
+    if _is_vscode(config):
+        config.option.trace = True
+        config.option.headed = False
+        return
+
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
     }
 
-    config.option.start_live_server = False
     config.option.headed = True
 
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":
+                config.option.trace = True
                 config.option.headed = False
             skip_tests(items, keyword, reason)
             return

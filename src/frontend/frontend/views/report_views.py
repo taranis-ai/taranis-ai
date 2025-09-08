@@ -5,19 +5,17 @@ from frontend.views.base_view import BaseView
 from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup, ReportItemAttribute
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.views.admin_mixin import AdminMixin
 
 
-class ReportItemTypeView(BaseView):
+class ReportItemTypeView(AdminMixin, BaseView):
     model = ReportItemType
     icon = "presentation-chart-bar"
     _index = 120
 
-    form_fields = {"title": {}, "description": {}}
-
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
         ]

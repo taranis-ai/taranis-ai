@@ -1,6 +1,29 @@
+import pytest
 import json
 import worker.connectors as connectors
+
 from worker.connectors import connector_tasks
+from worker.config import Config
+
+
+@pytest.fixture
+def core_mock(requests_mock, stories):
+    from worker.tests.misp_connector_test_data import misp_connector
+
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/connectors/last-change", json={})
+    requests_mock.patch(f"{Config.TARANIS_CORE_URL}/bots/story/ed13a0b1-4f5f-4c43-bdf2-820ee0d43448/attributes", json={})
+    requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
+    requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
+    requests_mock.get(
+        "https://test.misp.test/users/view/me",
+        json={
+            "Role": {},
+            "UserSetting": {"items": "test"},
+        },
+    )
+    requests_mock.post("https://test.misp.test/events/add", json={"Event": {"id": "49", "info": "Test Event"}})
 
 
 def test_news_item_object_keys_completeness(news_item_template):
@@ -86,3 +109,21 @@ def test_drop_utf16_surrogates_edge_cases():
     # cleaned_emoji = task.drop_utf16_surrogates(input_emoji)
     # print(f"cleaned_emoji: {cleaned_emoji}")
     # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
+
+
+def test_connector_story_processing(core_mock, caplog):
+    import logging
+
+    # Set the logging level to ERROR to capture only error logs and fail properly
+    caplog.set_level(logging.ERROR, logger="root")
+
+    from worker.connectors.connector_tasks import ConnectorTask
+
+    connector = ConnectorTask()
+
+    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
+
+    assert result is None

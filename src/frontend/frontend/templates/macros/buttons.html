@@ -14,7 +14,15 @@
 
 {% macro action_button(action, item_id) %}
   {# djlint:off #}
-  {% set action_url = action.url ~ '/' ~ item_id if item_id else action.url %}
+  {% if item_id %}
+    {% if action.url.endswith('/') %}
+      {% set action_url = action.url ~ item_id %}
+    {% else %}
+      {% set action_url = action.url ~ '/' ~ item_id %}
+    {% endif %}
+  {% else %}
+    {% set action_url = action.url %}
+  {% endif %}
   <div class="tooltip" data-tip="{{ action.label }}">
   {% if action.type == 'link' %}
   <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}">
@@ -36,7 +44,8 @@
           {% if action.hx_target %}hx-target="{{ action.hx_target }}" {% endif %}
           {% if action.hx_swap %}hx-swap="{{ action.hx_swap }}" {% endif %}
           {% if action.confirm %}hx-confirm="{{ action.confirm }}" {% endif %}
-          @click.stop>
+          {% if action.data_attr %}{{ action.data_attr }} {% endif %}
+          >
        {{ heroicon_outline(action.icon) }}
   </button>
   {% endif %}

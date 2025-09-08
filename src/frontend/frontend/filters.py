@@ -3,8 +3,8 @@ from flask import url_for, render_template
 import base64
 from heroicons.jinja import heroicon_outline
 from markupsafe import Markup, escape
+from datetime import datetime
 from models.admin import OSINTSource
-from models.types import OSINTState
 
 __all__ = [
     "human_readable_trigger",
@@ -12,7 +12,6 @@ __all__ = [
     "admin_action",
     "get_var",
     "b64decode",
-    "render_state",
     "render_truncated",
     "render_icon",
     "render_parameter",
@@ -24,6 +23,8 @@ __all__ = [
     "badge_class",
     "badge_label",
     "normalize_validation_status",
+    "render_worker_status",
+    "format_datetime",
 ]
 def badge_class(status):
     """Return the CSS class for a badge based on validation status."""
@@ -103,21 +104,13 @@ def render_parameter(item, key):
 def render_source_parameter(item: OSINTSource) -> str:
     source_parameter = ""
     if hasattr(item, "parameters") and isinstance(item.parameters, dict):
-        if item.type in ["rss_collector", "simple_web_collector"]:
+        if item.type in ["rss_collector"]:
             source_parameter = item.parameters.get("FEED_URL", "")
+        if item.type == "simple_web_collector":
+            source_parameter = item.parameters.get("WEB_URL", "")
         if item.type == "misp_collector":
             source_parameter = item.parameters.get("URL", "")
     return source_parameter
-
-
-def render_state(item: OSINTSource) -> str:
-    if hasattr(item, "state"):
-        if item.state == OSINTState.NOT_MODIFIED:
-            state_message = f"Last collected: {item.last_collected.strftime('%Y-%m-%d %H:%M:%S')}" if hasattr(item, "last_collected") else ""
-        else:
-            state_message = item.last_error_message or ""
-        return Markup(render_template("partials/state_badge.html", state=item.state, state_message=state_message))
-    return Markup(render_template("partials/state_badge.html", state=-1))
 
 
 def render_truncated(item, field: str) -> str:
@@ -131,6 +124,12 @@ def render_item_type(item) -> str:
     if hasattr(item, "type") and item.type:
         return item.type.split("_")[0].capitalize()
     return "Unknown"
+
+
+def render_worker_status(item) -> str:
+    if hasattr(item, "status") and item.status:
+        return Markup(render_template("partials/status_badge.html", status=item.status))
+    return Markup(render_template("partials/status_badge.html"))
 
 
 def last_path_segment(value):
@@ -171,6 +170,14 @@ def render_item_validation_status(item) -> str:
     elif hasattr(item, "validation_status"):
         status = getattr(item, "validation_status")
     return render_validation_status(status)
+
+
+def format_datetime(value: datetime | str) -> str:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    if isinstance(value, datetime):
+        return value.strftime("%A, %d. %B %Y %H:%M")
+    return ""
 
 
 @pass_context

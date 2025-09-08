@@ -1,4 +1,5 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_fileinput, form_select %}
+{% from "macros/worker.html" import worker_status %}
 {% set osint_id = osint_source.id | default("0", true) %}
 {% set form_error = form_error | default({}) %}
 
@@ -9,10 +10,10 @@
   </div>
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>
-  {% if osint_source.state == 1 and osint_source.last_error_message %}
-  <div class="alert alert-error mb-5 w-1/2 ml-[10%]">{{ osint_source.last_error_message }}</div>
-  {% elif osint_source.state == 2 and osint_source.last_error_message %}
-  <div class="alert alert-info mb-5 w-1/2 ml-[10%]">{{ osint_source.last_error_message }}</div>
+  {% if osint_source.status %}
+  <div class="mb-5 w-1/2 ml-[10%]">
+  {{ worker_status(osint_source.status) }}
+  </div>
   {% endif %}
 
   <form id="{{ model_name }}-form"

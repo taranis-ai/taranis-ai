@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input, form_select, form_select_with_badges %}
 {% set template_path = product_type.parameters.TEMPLATE_PATH if product_type.parameters else None %}
+{% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
   var settings = {
@@ -20,6 +21,7 @@
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ product_type.id }}</p>
   <form id="product_type-form"
         class="w-3/4 ml-[10%]"
         {{ form_action }}
@@ -29,14 +31,31 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', product_type.description, form_error.description, width="w-3/4") }}
-    {{ form_select('Presenter Type', 'type', product_type.type, options=presenter_types, width="w-3/4") }}
-    {{ form_select_with_badges('Template', 'parameters[TEMPLATE_PATH]', template_path, options=template_files, width="w-3/4") }}
+    <label class="select w-3/4 mb-5">
+      <span class="label">Presenter Type</span>
+      <select id="product_type"
+              name="type"
+              required
+              class="validator select w-full {% if product_type.type %}pointer-events-none opacity-60{% endif %}"
+              hx-get="{{ url_for('admin.product_type_parameters', product_type_id=product_type_id) }}"
+              hx-trigger="change"
+              hx-include="#product_type, #title, #description"
+              hx-target="#parameters"
+              hx-swap="innerHTML">
+        {% if not product_type.type %}<option value="" selected disabled>Select a presenter type</option>{% endif %}
+        {% for option in presenter_types %}
+          <option value="{{ option.id }}" {% if option.id == product_type.type %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor -%}
+      </select>
+    </label>
+
+    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
 
     <fieldset class="fieldset bg-base-100 w-3/4 mb-5">
       <legend class="fieldset-legend">Report Types</legend>
       <select name="report_types[]" multiple required type="number" id="report_types-select" class="tomselect">
         {% for report_type in report_types %}
-          <option value="{{ report_type.id }}" {% if report_type.id in selected_report_types %}selected{% endif %}>{{ report_type.title }}</option>
+          <option value="{{ report_type.id }}" {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
         {% endfor %}
       </select>
     </fieldset>

@@ -4,6 +4,11 @@ from worker.bot_api import BotApi
 from worker.log import logger
 
 
+def batched(stories: list, batch_size=10):
+    for i in range(0, len(stories), batch_size):
+        yield stories[i : i + batch_size]
+
+
 class NLPBot(BaseBot):
     def __init__(self, language="en"):
         super().__init__()
@@ -12,12 +17,15 @@ class NLPBot(BaseBot):
         self.bot_api = BotApi(Config.NLP_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
+        update_result = {}
+
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
             self.bot_api.update_parameters(parameters=parameters)
-            return self.process_stories(stories)
-
+            for story_batch in batched(stories):
+                update_result |= self.process_stories(story_batch)
+            return update_result
         return {"message": "No new stories found"}
 
     def collect_keywords(self, stories: list) -> dict:
@@ -27,8 +35,12 @@ class NLPBot(BaseBot):
         update_result = {}
 
         for story in stories:
+            if "attributes" in story and story.get("attributes", {}):
+                is_cybersecurity = story["attributes"].get("cybersecurity", {}).get("value", "no") == "yes"
+            else:
+                is_cybersecurity = False
             story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
-            current_keywords = self.extract_ner(story_content)
+            current_keywords = self.extract_ner(story_content, is_cybersecurity)
             update_result[story["id"]] = current_keywords
 
         return self.update_tags(update_result)
@@ -38,8 +50,8 @@ class NLPBot(BaseBot):
         self.core_api.update_tags(update_result, self.type)
         return update_result
 
-    def extract_ner(self, text: str) -> dict:
-        if keywords := self.bot_api.api_post("/", {"text": text}):
+    def extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
+        if keywords := self.bot_api.api_post("/", {"text": text, "cybersecurity": is_cybersecurity}):
             return keywords
         return {}
 

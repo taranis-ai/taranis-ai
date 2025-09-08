@@ -1,4 +1,5 @@
 from pydantic import Field, AnyUrl
+from functools import cached_property
 from typing import Literal, Any
 from datetime import datetime
 
@@ -11,7 +12,6 @@ from models.types import (
     WORKER_TYPES,
     WORKER_CATEGORY,
     PRESENTER_TYPES,
-    OSINTState,
     AttributeType,
     BOT_TYPES,
     PUBLISHER_TYPES,
@@ -28,6 +28,28 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
+
+
+class TaskResult(TaranisBaseModel):
+    _core_endpoint = "/config/task-results"
+    _model_name = "task_result"
+    _pretty_name = "Task Result"
+
+    id: str | None = None
+    result: Any | None = None
+    status: str | None = None
+    last_change: datetime | None = None
+    last_success: datetime | None = None
+
+    def __eq__(self, other: object) -> bool:
+        return self.status == (other.status if isinstance(other, TaskResult) else other)
+
+    def __lt__(self, other: object) -> bool:
+        other_status = other.status if isinstance(other, TaskResult) else other
+
+        if self.status is None:
+            return other_status is not None
+        return False if other_status is None else str(self.status) < str(other_status)
 
 
 class Address(TaranisBaseModel):
@@ -156,14 +178,13 @@ class WordList(TaranisBaseModel):
     description: str = ""
     usage: list[str] = Field(default_factory=list)
     link: str = ""
-    entries: list[WordListEntry] = Field(default_factory=list)
+    entries: list[WordListEntry] | None = Field(default_factory=list)
 
 
 class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"
     _pretty_name = "OSINT Source"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
@@ -172,10 +193,15 @@ class OSINTSource(TaranisBaseModel):
     parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
-    state: OSINTState | None = OSINTState.UNKNOWN
-    last_collected: datetime | None = None
-    last_attempted: datetime | None = None
-    last_error_message: str | None = None
+    enabled: bool | None = True
+    status: TaskResult | None = None
+
+    @cached_property
+    def search_field(self) -> str:
+        search = f"{self.name} {self.description} "
+        if self.parameters:
+            search += " ".join(self.parameters.values())
+        return search
 
 
 class OSINTSourceGroup(TaranisBaseModel):
@@ -209,6 +235,7 @@ class ProductType(TaranisBaseModel):
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
     report_types: list[int] = Field(default_factory=list)
+    status: TaskResult | None = None
 
 
 class PublisherPreset(TaranisBaseModel):
@@ -222,6 +249,7 @@ class PublisherPreset(TaranisBaseModel):
     type: PUBLISHER_TYPES
     description: str | None = ""
     parameters: dict[str, str] | None = Field(default_factory=dict)
+    status: TaskResult | None = None
 
 
 class ReportItemAttribute(TaranisBaseModel):
@@ -252,7 +280,7 @@ class ReportItemType(TaranisBaseModel):
     id: int | None = None
     title: str
     description: str = ""
-    attribute_groups: list[ReportItemAttributeGroup] = Field(default_factory=list)
+    attribute_groups: list[ReportItemAttributeGroup] | None = Field(default_factory=list)
 
 
 class Template(TaranisBaseModel):
@@ -302,6 +330,7 @@ class Bot(TaranisBaseModel):
     type: BOT_TYPES
     index: int | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
+    status: TaskResult | None = None
 
 
 class Connector(TaranisBaseModel):
@@ -317,10 +346,7 @@ class Connector(TaranisBaseModel):
     index: int | None = None
     parameters: dict[str, str] = Field(default_factory=dict)
     icon: str | None = None
-    state: int = -1
-    last_collected: datetime | None = None
-    last_attempted: datetime | None = None
-    last_error_message: str | None = None
+    status: TaskResult | None = None
 
 
 class WorkerParameterValue(TaranisBaseModel):
@@ -338,13 +364,3 @@ class WorkerParameter(TaranisBaseModel):
 
     id: str
     parameters: list[WorkerParameterValue]
-
-
-class TaskResult(TaranisBaseModel):
-    _core_endpoint = "/config/task-results"
-    _model_name = "task_result"
-    _pretty_name = "Task Result"
-
-    id: str | None = None
-    result: Any = None
-    status: str | None = None

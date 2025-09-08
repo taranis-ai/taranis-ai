@@ -17,6 +17,12 @@ services:
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/bin/curl --fail http://localhost:8080"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -48,6 +54,7 @@ services:
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+      GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
@@ -58,7 +65,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive'"]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive', timeout=5).raise_for_status()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -109,6 +116,12 @@ services:
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -181,6 +194,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -199,6 +218,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -217,24 +242,12 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_BOT_TAG:-latest}"
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  sentiment_analysis_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"

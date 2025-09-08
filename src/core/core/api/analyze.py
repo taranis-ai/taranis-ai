@@ -53,6 +53,9 @@ class ReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
     def post(self):
         try:
+            if not request.json:
+                logger.debug("No data in request")
+                return "No data in request", 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
         except Exception as ex:
             logger.exception()

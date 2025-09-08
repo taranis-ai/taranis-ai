@@ -2,15 +2,18 @@ from typing import Any
 from flask import render_template, url_for, request
 
 from frontend.views.base_view import BaseView
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from models.admin import Bot, WorkerParameter, WorkerParameterValue
+from models.admin import Bot
 from models.types import BOT_TYPES
 from frontend.core_api import CoreApi
 from frontend.auth import auth_required
+from frontend.filters import render_item_type, render_worker_status
+from frontend.data_persistence import DataPersistenceLayer
+from models.dashboard import Dashboard
+from frontend.views.admin_mixin import AdminMixin
 
 
-class BotView(BaseView):
+class BotView(AdminMixin, BaseView):
     model = Bot
     icon = "calculator"
     _index = 110
@@ -21,11 +24,21 @@ class BotView(BaseView):
     }
 
     @classmethod
-    def get_worker_parameters(cls, bot_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == bot_type), None)
-        return match.parameters if match else []
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "Status", "field": "status", "sortable": True, "renderer": render_worker_status},
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
+        ]
+
+    @classmethod
+    def get_admin_menu_badge(cls) -> int:
+        if dashboard := DataPersistenceLayer().get_first(Dashboard):
+            if worker_status := dashboard.worker_status:
+                return worker_status.get("bot_task", {}).get("failures", 0)
+
+        return 0
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
@@ -46,7 +59,7 @@ class BotView(BaseView):
         bot = base_context.get(cls.model_name())
         if bot and (hasattr(bot, "type") and (bot_type := bot.type)):
             parameter_values = bot.parameters
-            parameters = cls.get_worker_parameters(bot_type=bot_type.name.lower())
+            parameters = cls.get_worker_parameters(bot_type.name.lower())
 
         base_context |= {
             "bot_types": cls.bot_types.values(),
