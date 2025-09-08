@@ -44,3 +44,7 @@ Tests are located in each component's `tests/` directory.
 - don't commit how many tests passed (statistics in commit messages are not useful)
 - do not use `pip` for any package installations or management, always use `uv`
 - do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs
+- run tests before comitting code
+- write tests for new features and bug fixes
+- fix linting issues before committing code
+- don't write commit messages like "x tests are passing" or "resolves linting failures"
