@@ -156,7 +156,20 @@ function selectTemplate(fieldName, value, name, badgeClass, badgeLabel, dropdown
   // Update display
   const display = document.getElementById(fieldName + '_display');
   if (display) {
-    display.innerHTML = name + ' <span class="badge ' + badgeClass + ' badge-sm ml-2">' + badgeLabel + '</span>';
+    // Clear existing content
+    display.textContent = '';
+    
+    // Create and append name text node
+    const nameTextNode = document.createTextNode(name);
+    display.appendChild(nameTextNode);
+    
+    // Create badge element
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + badgeClass + ' badge-sm ml-2';
+    badge.textContent = badgeLabel;
+    
+    // Append badge to display
+    display.appendChild(badge);
   }
   
   // Close dropdown by removing focus from both trigger and content
