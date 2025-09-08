@@ -63,13 +63,6 @@ def run_core(app):
 
         yield
 
-        if db_uri := env.get("SQLALCHEMY_DATABASE_URI"):
-            parsed_uri = urlparse(db_uri)
-            db_path = parsed_uri.path
-            if os.path.exists(db_path):
-                os.remove(db_path)
-                print(f"Dropped DB after tests: {db_path}")
-
     except Exception as e:
         pytest.fail(str(e))
     finally:
