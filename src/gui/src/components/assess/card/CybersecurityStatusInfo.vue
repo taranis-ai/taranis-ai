@@ -50,19 +50,21 @@ export default {
       if (isNaN(props.cybersecurityScore)) {
         return `Cybersecurity: ${props.cybersecurityStatus}`
       }
-      return `Cybersecurity: ${props.cybersecurityStatus}, Score: ${props.cybersecurityScore.toFixed(4)}`
+      return `Cybersecurity: ${props.cybersecurityStatus}, Score: ${props.cybersecurityScore.toFixed(3)}`
     })
 
     const statusIcon = computed(() => {
       switch (props.cybersecurityStatus?.toLowerCase()) {
         case 'yes':
-          return 'mdi-shield-half-full'
+          return 'mdi-shield'
         case 'no':
           return 'mdi-shield-off'
         case 'mixed':
-          return 'mdi-shield-half'
+          return 'mdi-shield-half-full'
+        case 'incomplete':
+          return 'mdi-shield-remove-outline'
         default:
-          return 'mdi-shield-outline'
+          return 'mdi-shield-off-outline'
       }
     })
 

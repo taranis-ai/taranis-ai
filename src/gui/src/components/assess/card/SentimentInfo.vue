@@ -65,6 +65,8 @@ export default {
           return 'mdi-emoticon-sad-outline'
         case 'neutral':
           return 'mdi-emoticon-neutral-outline'
+        case 'mixed':
+          return 'mdi-emoticon-confused-outline'
         default:
           return 'mdi-emoticon-outline'
       }
