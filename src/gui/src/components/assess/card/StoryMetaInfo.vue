@@ -70,19 +70,23 @@
         :news-item="story.news_items[0]"
       />
       <tr v-if="detailView">
-        <sentiment-info
-          v-if="story_sentiment_category && story_sentiment_category !== 'none'"
-          :sentiment-category="story_sentiment_category"
-          :reduced-view="true"
-        />
-        <cybersecurity-status-info
-          v-if="
-            story_cybersecurity_status &&
-            ['yes', 'no', 'mixed'].includes(story_cybersecurity_status)
-          "
-          :cybersecurity-status="story_cybersecurity_status"
-          :reduced-view="true"
-        />
+        <td class="py-0">
+          <sentiment-info
+            v-if="
+              story_sentiment_category && story_sentiment_category !== 'none'
+            "
+            :sentiment-category="story_sentiment_category"
+            :reduced-view="true"
+          />
+          <cybersecurity-status-info
+            v-if="
+              story_cybersecurity_status &&
+              ['yes', 'no', 'mixed'].includes(story_cybersecurity_status)
+            "
+            :cybersecurity-status="story_cybersecurity_status"
+            :reduced-view="true"
+          />
+        </td>
       </tr>
       <v-dialog v-model="showTagDialog" width="auto">
         <popup-edit-tags

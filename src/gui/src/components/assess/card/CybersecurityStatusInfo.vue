@@ -1,13 +1,13 @@
 <template>
-  <!--reduced view => render a single <td>, show only emoji + tooltip -->
-  <td v-if="reducedView && cybersecurityStatus" class="py-0">
+  <!-- reduced view => inline span (no table cell) -->
+  <span v-if="reducedView && cybersecurityStatus" class="inline-icon">
     <v-tooltip activator="parent" location="bottom">
       <template #activator="{ props }">
-        <v-icon v-bind="props" size="x-small" :icon="statusIcon" />
+        <v-icon v-bind="props" size="x-small" class="mr-1" :icon="statusIcon" />
       </template>
       <span>{{ `Cybersecurity: ${cybersecurityStatus}` }}</span>
     </v-tooltip>
-  </td>
+  </span>
 
   <!-- full view -->
   <tr v-else-if="!reducedView && cybersecurityStatus">
@@ -45,7 +45,6 @@ export default {
     reducedView: { type: Boolean, default: false }
   },
   setup(props) {
-    // tooltip for full mode
     const fullTooltip = computed(() => {
       if (!props.cybersecurityStatus) return ''
       if (isNaN(props.cybersecurityScore)) {
@@ -61,16 +60,20 @@ export default {
         case 'no':
           return 'mdi-shield-off'
         case 'mixed':
-          return 'mdi-shield-half-full'
+          return 'mdi-shield-half'
         default:
           return 'mdi-shield-outline'
       }
     })
 
-    return {
-      fullTooltip,
-      statusIcon
-    }
+    return { fullTooltip, statusIcon }
   }
 }
 </script>
+
+<style scoped>
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+}
+</style>

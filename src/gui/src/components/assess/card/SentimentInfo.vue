@@ -1,13 +1,18 @@
 <template>
   <!-- reduced view => render a single <td>, show only emoji + tooltip -->
-  <td v-if="reducedView && sentimentCategory" class="py-0">
+  <span v-if="reducedView && sentimentCategory" class="inline-icon">
     <v-tooltip activator="parent" location="bottom">
       <template #activator="{ props }">
-        <v-icon v-bind="props" size="x-small" :icon="sentimentEmoji" />
+        <v-icon
+          v-bind="props"
+          size="x-small"
+          class="mr-1"
+          :icon="sentimentEmoji"
+        />
       </template>
       <span>{{ `Sentiment: ${sentimentCategory}` }}</span>
     </v-tooltip>
-  </td>
+  </span>
 
   <!-- full view -->
   <tr v-else-if="!reducedView && sentimentCategory">
@@ -72,3 +77,10 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+}
+</style>
