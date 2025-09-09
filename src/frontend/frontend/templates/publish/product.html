@@ -29,7 +29,6 @@
         showDirty: false,
         pendingAction: null,
         hasIncompleteReports: {{ has_incomplete_reports | default(false) | tojson }},
-        renderedProduct: {{ (rendered_product | default('') | tojson) if rendered_product is defined else 'null' }},
         renderError: {{ (render_error | default('') | tojson) if render_error is defined else 'null' }},
         triggerAction(action) {
           if (this.dirty) {
@@ -110,10 +109,13 @@
               {% if is_edit %}
                 <button type="button"
                         class="btn btn-primary mt-4 w-full"
-                        :disabled="!renderedProduct"
+                        :disabled="{{ renderedProduct | default(false) }}"
                         @click="triggerAction('publish')">
-                  <span x-show="renderedProduct">Publish</span>
-                  <span x-show="!renderedProduct">Render Product first, to enable publishing</span>
+                  {% if renderedProduct %}
+                  <span>Publish</span>
+                  {% else %}
+                  <span>Render Product first, to enable publishing</span>
+                  {% endif %}
                 </button>
 
               <button id="render-button" type="button" class="hidden"
