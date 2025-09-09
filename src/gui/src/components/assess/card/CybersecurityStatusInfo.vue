@@ -12,7 +12,7 @@
   <!-- full view -->
   <tr v-else-if="!reducedView && cybersecurityStatus">
     <td class="py-0 news-item-title">
-      <strong>Cyberesecurity</strong>
+      <strong>Cybersecurity</strong>
     </td>
     <td class="py-0">
       {{ cybersecurityStatus }}
