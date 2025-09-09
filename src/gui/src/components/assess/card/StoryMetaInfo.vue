@@ -257,35 +257,26 @@ export default {
       const human = attrs.find((a) => a.key === 'cybersecurity_human')?.value
       const bot = attrs.find((a) => a.key === 'cybersecurity_bot')?.value
       const chosen = human ?? bot
-      if (chosen === undefined || chosen === null || chosen === '')
-        return 'none'
-      const v = String(chosen).trim().toLowerCase()
+      const v = (chosen ?? '').toString().trim().toLowerCase()
+
       if (v === 'yes' || v === 'true' || v === '1') return 'yes'
       if (v === 'no' || v === 'false' || v === '0') return 'no'
-      if (v === 'mixed') return 'mixed'
+
       return 'none'
     }
 
     const story_cybersecurity_status = computed(() => {
       const items = props.story?.news_items ?? []
-      const statusList = items.map(getItemCybersecurityStatus)
-      const statusSet = new Set(statusList)
+      const set = new Set(items.map(getItemCybersecurityStatus))
 
-      if (statusSet.has('none') && statusSet.size > 1) return 'incomplete'
-
-      const key = [...statusSet].sort().join('|')
-      switch (key) {
-        case 'no':
-          return 'no'
-        case 'yes':
-          return 'yes'
-        case 'yes|no':
-          return 'mixed'
-        case 'none':
-          return 'none'
-        default:
-          return 'none'
+      if (set.has('none') && set.size > 1) return 'incomplete'
+      if (set.has('yes') && set.has('no') && set.size === 2) return 'mixed'
+      if (set.size === 1) {
+        if (set.has('yes')) return 'yes'
+        if (set.has('no')) return 'no'
+        if (set.has('none')) return 'none'
       }
+      return 'none'
     })
 
     function editTags() {
