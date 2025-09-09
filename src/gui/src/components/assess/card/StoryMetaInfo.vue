@@ -79,6 +79,16 @@
         :compact-view="compactView"
         :reduced="true"
       />
+      <cybersecurity-status-info
+        v-if="
+          detailView &&
+          story_cybersecurity_status &&
+          story_cybersecurity_status !== 'none'
+        "
+        :cybersecurity-status="story_cybersecurity_status"
+        :compact-view="compactView"
+        :reducedView="true"
+      />
       <v-dialog v-model="showTagDialog" width="auto">
         <popup-edit-tags
           :tags="story.tags"
@@ -105,6 +115,7 @@ import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
 import SentimentInfo from '@/components/assess/card/SentimentInfo.vue'
+import CybersecurityStatusInfo from '@/components/assess/card/CybersecurityStatusInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -115,7 +126,8 @@ export default {
     StoryVotes,
     TagList,
     RelevanceIndicator,
-    SentimentInfo
+    SentimentInfo,
+    CybersecurityStatusInfo
   },
   props: {
     story: {
@@ -241,6 +253,42 @@ export default {
       return leaders.length === 1 ? leaders[0] : 'mixed'
     })
 
+    const getItemCybersecurityStatus = (item) => {
+      const attrs = item?.attributes ?? []
+      const human = attrs.find((a) => a.key === 'cybersecurity_human')?.value
+      const bot = attrs.find((a) => a.key === 'cybersecurity_bot')?.value
+      const chosen = human ?? bot
+      if (chosen === undefined || chosen === null || chosen === '')
+        return 'none'
+      const v = String(chosen).trim().toLowerCase()
+      if (v === 'yes' || v === 'true' || v === '1') return 'yes'
+      if (v === 'no' || v === 'false' || v === '0') return 'no'
+      if (v === 'mixed') return 'mixed'
+      return 'none'
+    }
+
+    const story_cybersecurity_status = computed(() => {
+      const items = props.story?.news_items ?? []
+      const statusList = items.map(getItemCybersecurityStatus)
+      const statusSet = new Set(statusList)
+
+      if (statusSet.has('none') && statusSet.size > 1) return 'incomplete'
+
+      const key = [...statusSet].sort().join('|')
+      switch (key) {
+        case 'no':
+          return 'no'
+        case 'yes':
+          return 'yes'
+        case 'yes|no':
+          return 'mixed'
+        case 'none':
+          return 'none'
+        default:
+          return 'none'
+      }
+    })
+
     function editTags() {
       console.log('edit tags')
       showTagDialog.value = true
@@ -259,6 +307,7 @@ export default {
       story_in_reports,
       getPublishedDate,
       story_sentiment_category,
+      story_cybersecurity_status,
       filteredTags,
       editTags,
       getSharingIcon,

@@ -20,6 +20,11 @@
         :sentiment-score="sentiment_score"
         :compact-view="compactView"
       />
+      <cybersecurity-status-info
+        :cybersecurity-status="cybersecurity_status"
+        :cybersecurity-score="cybersecurity_score"
+        :compact-view="compactView"
+      />
     </tbody>
   </table>
 </template>
@@ -30,6 +35,7 @@ import { useI18n } from 'vue-i18n'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import SentimentInfo from '@/components/assess/card/SentimentInfo.vue'
+import CybersecurityStatusInfo from '@/components/assess/card/CybersecurityStatusInfo.vue'
 import { storeToRefs } from 'pinia'
 import { useFilterStore } from '@/stores/FilterStore'
 
@@ -38,7 +44,8 @@ export default {
   components: {
     ArticleInfo,
     AuthorInfo,
-    SentimentInfo
+    SentimentInfo,
+    CybersecurityStatusInfo
   },
   props: {
     newsItem: {
@@ -75,12 +82,44 @@ export default {
       return score !== undefined ? parseFloat(score) : NaN
     })
 
+    const cybersecurity_status = computed(() => {
+      const attrs = props.newsItem?.attributes ?? []
+
+      const human = attrs.find((a) => a.key === 'cybersecurity_human')?.value
+      const bot = attrs.find((a) => a.key === 'cybersecurity_bot')?.value
+      const chosen = human ?? bot
+
+      if (chosen === undefined || chosen === null || chosen === '') return null
+      const v = String(chosen).trim().toLowerCase()
+
+      // normalize a few possible forms
+      if (v === 'yes' || v === 'true' || v === '1') return 'yes'
+      if (v === 'no' || v === 'false' || v === '0') return 'no'
+
+      return null
+    })
+
+    const cybersecurity_score = computed(() => {
+      const attrs = props.newsItem?.attributes ?? []
+
+      const hasHuman = attrs.some((a) => a.key === 'cybersecurity_human')
+      const scoreKey = hasHuman
+        ? 'cybersecurity_human_score'
+        : 'cybersecurity_bot_score'
+      const raw = attrs.find((a) => a.key === scoreKey)?.value
+      if (raw === undefined || raw === null || raw === '') return undefined
+      const n = typeof raw === 'number' ? raw : parseFloat(raw)
+      return Number.isFinite(n) ? n : undefined
+    })
+
     return {
       published_date,
       collected_date,
       compactView,
       sentiment_category,
-      sentiment_score
+      sentiment_score,
+      cybersecurity_status,
+      cybersecurity_score
     }
   }
 }
