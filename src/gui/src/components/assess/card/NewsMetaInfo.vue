@@ -15,7 +15,11 @@
       </tr>
       <article-info :news-item="newsItem" />
       <author-info :news-item="newsItem" />
-      <sentiment-info :news-item="newsItem" />
+      <sentiment-info
+        :sentiment-category="sentiment_category"
+        :sentiment-score="sentiment_score"
+        :compact-view="compactView"
+      />
     </tbody>
   </table>
 </template>
@@ -44,17 +48,12 @@ export default {
   },
   setup(props) {
     const { d } = useI18n()
+    const { compactView } = storeToRefs(useFilterStore())
 
     const published_date = computed(() => {
       return props.newsItem?.published
         ? d(new Date(props.newsItem.published), 'long')
         : null
-    })
-
-    const { compactView } = storeToRefs(useFilterStore())
-
-    const author = computed(() => {
-      return props.newsItem?.author
     })
 
     const collected_date = computed(() => {
@@ -63,11 +62,25 @@ export default {
         : null
     })
 
+    const sentiment_category = computed(() => {
+      return props.newsItem?.attributes?.find(
+        (attr) => attr.key === 'sentiment_category'
+      )?.value
+    })
+
+    const sentiment_score = computed(() => {
+      const score = props.newsItem?.attributes?.find(
+        (attr) => attr.key === 'sentiment_score'
+      )?.value
+      return score !== undefined ? parseFloat(score) : NaN
+    })
+
     return {
       published_date,
-      author,
       collected_date,
-      compactView
+      compactView,
+      sentiment_category,
+      sentiment_score
     }
   }
 }
@@ -78,7 +91,6 @@ export default {
   word-wrap: anywhere;
   width: 100%;
 }
-
 .newsitem-meta-info tr td {
   vertical-align: top;
 }
