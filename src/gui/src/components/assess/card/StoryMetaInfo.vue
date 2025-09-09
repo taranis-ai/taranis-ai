@@ -69,26 +69,21 @@
         v-if="detailView && story.news_items.length === 1"
         :news-item="story.news_items[0]"
       />
-      <sentiment-info
-        v-if="
-          detailView &&
-          story_sentiment_category &&
-          story_sentiment_category !== 'none'
-        "
-        :sentiment-category="story_sentiment_category"
-        :compact-view="compactView"
-        :reduced="true"
-      />
-      <cybersecurity-status-info
-        v-if="
-          detailView &&
-          story_cybersecurity_status &&
-          story_cybersecurity_status !== 'none'
-        "
-        :cybersecurity-status="story_cybersecurity_status"
-        :compact-view="compactView"
-        :reducedView="true"
-      />
+      <tr v-if="detailView">
+        <sentiment-info
+          v-if="story_sentiment_category && story_sentiment_category !== 'none'"
+          :sentiment-category="story_sentiment_category"
+          :reduced-view="true"
+        />
+        <cybersecurity-status-info
+          v-if="
+            story_cybersecurity_status &&
+            ['yes', 'no', 'mixed'].includes(story_cybersecurity_status)
+          "
+          :cybersecurity-status="story_cybersecurity_status"
+          :reduced-view="true"
+        />
+      </tr>
       <v-dialog v-model="showTagDialog" width="auto">
         <popup-edit-tags
           :tags="story.tags"
