@@ -30,56 +30,6 @@ See [README.md](../README.md) for more information.
 
 See .github/workflows for how tests are configured in CI.
 
-### Complete Testing Workflow (Mirror CI)
-
-To run the complete test suite as executed in CI, follow these steps:
-
-**1. Core Tests:**
-```bash
-cd src/core
-uv sync --all-extras
-uv run ruff check --output-format=github .
-uv run pytest
-```
-
-**2. Frontend Tests:**
-```bash
-cd src/frontend
-uv sync --all-extras
-uv run ruff check --output-format=github .
-uv run pytest
-```
-
-**3. GUI Tests:**
-```bash
-cd src/gui
-pnpm install
-pnpm run lint_and_format
-pnpm run build
-```
-
-**4. Worker Tests:**
-```bash
-cd src/worker
-uv sync --all-extras
-uv run playwright install --with-deps chromium
-uv run ruff check --output-format=github .
-uv run pytest
-```
-
-**5. End-to-End Tests:**
-```bash
-# First run core e2e tests
-cd src/core
-uv run pytest --e2e-ci
-
-# Then run frontend e2e tests
-cd src/frontend
-uv sync --all-extras
-./build_tailwindcss.sh
-uv run pytest --e2e-ci
-```
-
 ### Running Tests Locally
 
 **Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
