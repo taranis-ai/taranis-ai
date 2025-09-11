@@ -78,7 +78,7 @@ class UserView(AdminMixin, BaseView):
     @auth_required()
     def export_view(cls):
         user_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_users(user_ids)
+        core_resp = CoreApi().export_users({"ids": user_ids})
 
         if not core_resp:
             logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
