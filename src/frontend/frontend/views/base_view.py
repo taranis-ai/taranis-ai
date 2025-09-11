@@ -182,7 +182,45 @@ class BaseView(MethodView):
 
     @classmethod
     def edit_view(cls, object_id: int | str = 0):
-        return render_template(cls.get_update_template(), **cls.get_update_context(object_id)), 200
+        if str(object_id) == "0":
+            return render_template(cls.get_update_template(), **cls.get_create_context()), 200
+        return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
+
+    @classmethod
+    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+        dpl = DataPersistenceLayer()
+        key = cls._get_object_key()
+        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
+        submit = f"Update {cls.pretty_name()}"
+
+        context = cls._common_context(object_id=object_id)
+        context.update(
+            {
+                "form_error": None,
+                "form_action": form_action,
+                "submit_text": submit,
+            }
+        )
+
+        context[cls.model_name()] = dpl.get_object(cls.model, object_id)
+        return cls.get_extra_context(context)
+
+    @classmethod
+    def get_create_context(cls) -> dict[str, Any]:
+        form_action = f"hx-post={cls.get_base_route()}"
+        submit = f"Create {cls.pretty_name()}"
+
+        context = cls._common_context()
+        context.update(
+            {
+                "form_error": None,
+                "form_action": form_action,
+                "submit_text": submit,
+            }
+        )
+
+        context[cls.model_name()] = cls.model.model_construct()
+        return cls.get_extra_context(context)
 
     @classmethod
     def get_update_context(
@@ -192,21 +230,11 @@ class BaseView(MethodView):
         form_error: str | None = None,
         resp_obj=None,
     ) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        if str(object_id) == "0":
-            form_action = f"hx-post={cls.get_base_route()}"
-            submit = f"Create {cls.pretty_name()}"
-        else:
-            key = cls._get_object_key()
-            form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
-            submit = f"Update {cls.pretty_name()}"
-
-        context = cls._common_context(error, object_id)
+        context = cls.get_item_context(object_id)
         context.update(
             {
+                "error": error,
                 "form_error": form_error,
-                "form_action": form_action,
-                "submit_text": submit,
             }
         )
 
@@ -214,10 +242,8 @@ class BaseView(MethodView):
             context[cls.model_name()] = resp_obj.get(cls.model_name())
             if msg := resp_obj.get("message"):
                 context["message"] = msg
-        else:
-            context[cls.model_name()] = cls.model.model_construct() if str(object_id) == "0" else dpl.get_object(cls.model, object_id)
 
-        return cls.get_extra_context(context)
+        return context
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, Flask
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService
@@ -18,7 +19,8 @@ class Dashboard(MethodView):
 class TrendingClusters(MethodView):
     @auth_required()
     def get(self):
-        days = int(request.args.get("days", 7))
+        user_dashboard_settings = current_user.profile.get("dashboard", {}).get("trending_cluster_days", 7)
+        days = int(request.args.get("days", user_dashboard_settings))
         legacy = request.args.get("legacy", "false").lower() == "true"
         if legacy:
             return NewsItemTagService.get_largest_tag_types(days)
@@ -38,8 +40,8 @@ class ClusterByType(MethodView):
     @auth_required()
     def get(self, tag_type: str):
         per_page = min(int(request.args.get("per_page", 50)), 100)
-        page = int(request.args.get("page", 0))
-        sort = request.args.get("sort_by")
+        page = int(request.args.get("page", 1))
+        sort = request.args.get("sort_by", "size_desc")
         offset = min(((page - 1) * per_page), (2**31) - 1)
         search = request.args.get("search", None)
         filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort, "search": search}

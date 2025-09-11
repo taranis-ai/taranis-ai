@@ -128,34 +128,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  collector:
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
-    environment:
-      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
-      API_KEY: "${API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
-      WORKER_TYPES: '["Collectors"]'
-      DEBUG: "${DEBUG:-False}"
-    healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
   workers:
     depends_on:
       rabbitmq:
@@ -171,7 +143,6 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
-      WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
@@ -179,78 +150,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  summary_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  nlp_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  story_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_BOT_TAG:-latest}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
       options:

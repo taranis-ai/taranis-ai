@@ -111,6 +111,14 @@ class ReportItem(BaseModel):
         data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 
+    def to_supported_products_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "type": self.report_item_type.title if self.report_item_type else "",
+            "created": self.created.astimezone().isoformat(),
+        }
+
     def to_product_dict(self):
         data = super().to_dict()
         data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}

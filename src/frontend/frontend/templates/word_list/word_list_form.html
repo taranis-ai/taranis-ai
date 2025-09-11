@@ -8,6 +8,7 @@
 {% for e in word_list.entries | default([]) %}
   {% set _ = word_list_entries.append(e.model_dump(mode='json')) %}
 {% endfor %}
+{% set word_list_entries = word_list_entries | tojson %}
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
