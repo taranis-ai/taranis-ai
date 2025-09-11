@@ -37,7 +37,7 @@ class TestData:
 class TaranisAPIClient:
     """API client for Taranis E2E testing"""
     
-    def __init__(self, base_url: str = "http://localhost:8080/api", timeout: int = 30):
+    def __init__(self, base_url: str = "http://localhost:8081/api", timeout: int = 30):
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.session = requests.Session()
@@ -101,7 +101,13 @@ class TaranisAPIClient:
     
     def check_prefect_flows(self) -> Dict[str, Any]:
         """Check if Prefect flows are available"""
-        return self._make_request("GET", "/flows")
+        try:
+            response = requests.get("http://localhost:4200/api/flows", timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            raise APIError(f"Cannot connect to Prefect server: {e}")
+        
     
     # Entity creation methods
     def create_product_type(self, name: str = None) -> str:
@@ -210,7 +216,7 @@ class TaranisAPIClient:
             "type": "MISP_CONNECTOR",
             "description": "Connector for Prefect E2E testing",
             "parameters": {
-                "MISP_URL": "http://localhost:8080",
+                "MISP_URL": "http://localhost:8081",
                 "MISP_API_KEY": "test-key"
             }
         }
@@ -288,7 +294,7 @@ class TaranisAPIClient:
         if presenter_id:
             data["presenter_id"] = presenter_id
             
-        response = self._make_request("POST", "/flows/presenter", json=data)
+        response = self._make_request("POST", f"/publish/products/{product_id}/render")
         flow_run_id = response.get("flow_run_id") or response.get("id")
         
         if not flow_run_id:
@@ -304,7 +310,7 @@ class TaranisAPIClient:
             "publisher_id": publisher_id
         }
         
-        response = self._make_request("POST", "/flows/publisher", json=data)
+        response = self._make_request("POST", f"/publish/products/{product_id}/publishers/{publisher_id}")
         flow_run_id = response.get("flow_run_id") or response.get("id")
         
         if not flow_run_id:

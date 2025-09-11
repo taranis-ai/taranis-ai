@@ -42,22 +42,23 @@ class QueueManager:
         from models.collector import CollectorTaskRequest
         from worker.flows.collector_task_flow import collector_task_flow
 
-<<<<<<< HEAD
+
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
             request = CollectorTaskRequest(source_id=source.id, preview=False)
             collector_task_flow(request)
         logger.info(f"Updated task queue from {len(sources)} osint sources")
 
-    async def list_worker_queues(self):
+    async def list_worker_queues(self, limit: int = 10):
         """
         For smoke/ping purposes: fetch a small page of flow runs from Prefect.
         """
         async with get_client() as client:
-            return await client.read_flow_runs()
-=======
-        OSINTSource.schedule_all_osint_sources()
->>>>>>> 1be2d41f (Fix/various (#658))
+            try:
+                return await client.read_flow_runs(limit=limit)
+            except TypeError:
+                runs = await client.read_flow_runs()
+                return runs[:limit]
 
     def update_empty_word_lists(self):
         """
@@ -135,7 +136,7 @@ class QueueManager:
 
 
     def get_task(self, task_id) -> tuple[dict, int]:
-        return {"error": "Method not supported in Prefect - use flow run ID instead"}, 400
+        return {"error": "Method not supported in Prefect - use flow run ID instead"}, 501
 
 
     def collect_osint_source(self, source_id: str):
@@ -189,7 +190,8 @@ class QueueManager:
         from worker.flows.connector_task_flow import connector_task_flow
 
         try:
-            request = ConnectorTaskRequest(connector_id=connector_id, story_ids=story_ids)
+            normalized_ids = list(story_ids) if story_ids else []
+            request = ConnectorTaskRequest(connector_id=connector_id, story_ids=normalized_ids)
             result = connector_task_flow(request)
             logger.info(f"[connector_task] Push scheduled for connector_id={connector_id}")
             return {"message": "Connector push executed", "result": result}, 200
