@@ -77,6 +77,7 @@
             "
             :sentiment-category="story_sentiment_category"
             :reduced-view="true"
+            :compact-view="compactView"
           />
           <cybersecurity-status-info
             v-if="
@@ -85,6 +86,7 @@
             "
             :cybersecurity-status="story_cybersecurity_status"
             :reduced-view="true"
+            :compact-view="compactView"
           />
         </td>
       </tr>

@@ -1,6 +1,9 @@
 <template>
   <!-- reduced view => inline span (no table cell) -->
-  <span v-if="reducedView && cybersecurityStatus" class="inline-icon">
+  <span
+    v-if="!compactView && reducedView && cybersecurityStatus"
+    class="inline-icon"
+  >
     <v-tooltip activator="parent" location="bottom">
       <template #activator="{ props }">
         <v-icon v-bind="props" size="x-small" class="mr-1" :icon="statusIcon" />
@@ -10,7 +13,7 @@
   </span>
 
   <!-- full view -->
-  <tr v-else-if="!reducedView && cybersecurityStatus">
+  <tr v-else-if="!compactView && !reducedView && cybersecurityStatus">
     <td class="py-0 news-item-title">
       <strong>Cybersecurity</strong>
     </td>
@@ -42,7 +45,8 @@ export default {
       required: false,
       default: undefined
     },
-    reducedView: { type: Boolean, default: false }
+    reducedView: { type: Boolean, default: false },
+    compactView: { type: Boolean, default: false }
   },
   setup(props) {
     const fullTooltip = computed(() => {

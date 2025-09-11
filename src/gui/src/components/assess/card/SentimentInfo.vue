@@ -1,6 +1,9 @@
 <template>
   <!-- reduced view => render a single <td>, show only emoji + tooltip -->
-  <span v-if="reducedView && sentimentCategory" class="inline-icon">
+  <span
+    v-if="!compactView && reducedView && sentimentCategory"
+    class="inline-icon"
+  >
     <v-tooltip activator="parent" location="bottom">
       <template #activator="{ props }">
         <v-icon
@@ -15,7 +18,7 @@
   </span>
 
   <!-- full view -->
-  <tr v-else-if="!reducedView && sentimentCategory">
+  <tr v-else-if="!compactView && !reducedView && sentimentCategory">
     <td class="py-0 news-item-title">
       <strong>{{ $t('assess.sentiment') }}:</strong>
     </td>
@@ -46,7 +49,8 @@ export default {
       required: false,
       default: undefined
     },
-    reducedView: { type: Boolean, default: false }
+    reducedView: { type: Boolean, default: false },
+    compactView: { type: Boolean, default: false }
   },
   setup(props) {
     const fullTooltip = computed(() => {

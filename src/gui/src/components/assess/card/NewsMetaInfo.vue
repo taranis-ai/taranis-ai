@@ -18,10 +18,12 @@
       <sentiment-info
         :sentiment-category="sentiment_category"
         :sentiment-score="sentiment_score"
+        :compact-view="compactView"
       />
       <cybersecurity-status-info
         :cybersecurity-status="cybersecurity_status"
         :cybersecurity-score="cybersecurity_score"
+        :compact-view="compactView"
       />
     </tbody>
   </table>
