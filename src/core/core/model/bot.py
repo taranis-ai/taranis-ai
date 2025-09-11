@@ -60,6 +60,7 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
+        bot.unschedule_bot()
         bot.schedule_bot()
         return bot
 
