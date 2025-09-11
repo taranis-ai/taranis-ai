@@ -196,6 +196,7 @@ class BaseView(MethodView):
         context = cls._common_context(object_id=object_id)
         context.update(
             {
+                "form_error": None,
                 "form_action": form_action,
                 "submit_text": submit,
             }
@@ -212,6 +213,7 @@ class BaseView(MethodView):
         context = cls._common_context()
         context.update(
             {
+                "form_error": None,
                 "form_action": form_action,
                 "submit_text": submit,
             }
