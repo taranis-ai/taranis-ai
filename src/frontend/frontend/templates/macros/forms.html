@@ -8,12 +8,13 @@
   </div>
 {% endmacro %}
 
-{% macro form_select(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full') %}
   <label class="select mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
     <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
             name="{{ name }}"
             {% if required %}required {% endif %}
+            {% if disabled %}disabled {% endif %}
             class="validator select w-full">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options %}

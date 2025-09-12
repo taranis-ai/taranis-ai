@@ -24,30 +24,13 @@ class QueueManager:
         # Kept for compatibility with existing dashboards; not used by Prefect execution path
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers", "connectors"]
 
-
     def post_init(self):
         self.clear_queues()
-        self.update_task_queue_from_osint_sources()
         self.update_empty_word_lists()
 
     def clear_queues(self):
         # With Prefect, we don't push to broker queues anymore; keep this as a no-op/log
         logger.info("All queues cleared")
-
-    def update_task_queue_from_osint_sources(self):
-        """
-        Re-populate collector runs for available sources via Prefect flows.
-        """
-        from core.model.osint_source import OSINTSource
-        from models.collector import CollectorTaskRequest
-        from worker.flows.collector_task_flow import collector_task_flow
-
-
-        sources = OSINTSource.get_all_for_collector()
-        for source in sources:
-            request = CollectorTaskRequest(source_id=source.id, preview=False)
-            collector_task_flow(request)
-        logger.info(f"Updated task queue from {len(sources)} osint sources")
 
     async def list_worker_queues(self, limit: int = 10):
         """
@@ -122,8 +105,10 @@ class QueueManager:
         Health-check against Prefect.
         """
         try:
+
             async def _ping():
                 from prefect.client.orchestration import get_client
+
                 async with get_client() as client:
                     await client.read_flow_runs(limit=1)
                 return True
@@ -134,10 +119,8 @@ class QueueManager:
         except Exception as e:
             return {"error": "Prefect not available", "details": str(e)}, 500
 
-
     def get_task(self, task_id) -> tuple[dict, int]:
         return {"error": "Method not supported in Prefect - use flow run ID instead"}, 501
-
 
     def collect_osint_source(self, source_id: str):
         from models.collector import CollectorTaskRequest
@@ -302,8 +285,10 @@ def initialize(app: Flask, initial_setup: bool = True):
     queue_manager = QueueManager(app)
 
     try:
+
         async def _test_connection():
             from prefect.client.orchestration import get_client
+
             async with get_client() as client:
                 await client.read_flow_runs(limit=1)
 

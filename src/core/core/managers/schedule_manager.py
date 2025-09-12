@@ -39,7 +39,7 @@ class Scheduler:
         self._scheduler.start()
 
     def add_celery_task(self, task: dict):
-        pass
+        raise NotImplementedError("add_celery_task is deprecated and no longer implemented.")
 
     @property
     def scheduler(self):
@@ -61,6 +61,9 @@ class Scheduler:
 
     def get_periodic_task(self, job_id: str) -> dict | None:
         return self.serialize_job(job) if (job := self.get_job(job_id)) else None
+
+    def remove_all_jobs(self):
+        self._scheduler.remove_all_jobs()
 
     def remove_periodic_task(self, job_id: str):
         if job := self.get_job(job_id):
@@ -100,11 +103,20 @@ class Scheduler:
 
         return fire_times
 
+    def initialize_periodic_tasks(self):
+        from core.model.osint_source import OSINTSource
+        from core.model.bot import Bot
+
+        OSINTSource.schedule_all_osint_sources()
+        Bot.schedule_all_bots()
+
 
 def initialize():
-    pass
-    #    global schedule
-    #    schedule = Scheduler()
+    global schedule
+    schedule = Scheduler()
 
-    #    schedule.add_celery_task(cleanup_blacklist_periodic_task)
-    #    logger.debug("Scheduler initialized")
+    schedule.remove_all_jobs()
+    schedule.initialize_periodic_tasks()
+
+    schedule.add_celery_task(cleanup_blacklist_periodic_task)
+    logger.debug("Scheduler initialized")

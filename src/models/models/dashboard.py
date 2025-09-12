@@ -29,3 +29,12 @@ class TrendingCluster(TaranisBaseModel):
     name: str
     tags: list[StoryTag] = Field(default_factory=list)
     size: int | None = None
+
+
+class Cluster(TaranisBaseModel):
+    _core_endpoint = "/dashboard/cluster"
+    _model_name = "clusters"
+    _pretty_name = "Clusters"
+
+    name: str
+    size: int | None = None

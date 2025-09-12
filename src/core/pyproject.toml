@@ -36,7 +36,6 @@ dependencies = [
     "taranis-models",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
-    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -51,11 +50,6 @@ requires = [
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
-
-[dependency-groups]
-dev = [
-    "taranis-worker",
-]
 
 [project.scripts]
 taranis-ai = "core.granian:main"
@@ -110,7 +104,3 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
-
-[tool.uv.sources]
-taranis-models = { path = "../models" }
-taranis-worker = { path = "../worker" }

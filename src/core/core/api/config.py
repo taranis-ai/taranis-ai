@@ -699,8 +699,8 @@ class WordListImport(MethodView):
 class WordListExport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def get(self):
-        source_ids = request.args.getlist("ids")
-        data = word_list.WordList.export(source_ids)
+        word_list_ids = request.args.getlist("ids")
+        data = word_list.WordList.export(word_list_ids)
         if data is None:
             return {"error": "Unable to export word lists"}, 400
         return send_file(
@@ -716,7 +716,7 @@ class WordListGather(MethodView):
     def post(self, word_list_id: int | None = None):
         if not word_list_id:
             return
-            #return queue_manager.queue_manager.gather_all_word_lists()
+            # return queue_manager.queue_manager.gather_all_word_lists()
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 

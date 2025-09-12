@@ -60,6 +60,7 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
+        bot.unschedule_bot()
         bot.schedule_bot()
         return bot
 
@@ -155,6 +156,20 @@ class Bot(BaseModel):
             query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
 
         return query
+
+    @classmethod
+    def get_all_for_collector(cls) -> Sequence["Bot"]:
+        query = db.select(cls).where(cls.enabled.is_(True)).distinct(cls.id)
+        return db.session.execute(query).scalars().all()
+
+    @classmethod
+    def schedule_all_bots(cls):
+        bots = cls.get_all_for_collector()
+        for bot in bots:
+            if interval := bot.get_schedule():
+                entry = bot.to_task_dict(interval)
+                schedule_manager.schedule.add_celery_task(entry)
+        logger.info(f"Gathering for {len(bots)} Bots scheduled")
 
 
 class BotParameterValue(BaseModel):

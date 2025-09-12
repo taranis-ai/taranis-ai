@@ -98,5 +98,3 @@ disable = """
     missing-function-docstring
 """
 
-[tool.uv.sources]
-taranis-models = { path = "../models" }
