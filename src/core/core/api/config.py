@@ -10,10 +10,9 @@ from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    save_template_content,
     delete_template,
 )
-from core.service.template_service import build_template_response, build_templates_list
+from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
 from core.model import (
     attribute,
@@ -36,6 +35,9 @@ from core.model.permission import Permission
 from core.managers.decorators import extract_args
 from core.managers import schedule_manager
 from core.config import Config
+
+# Project import for shared template logic
+from core.service.template_crud import create_or_update_template
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -242,72 +244,26 @@ class Templates(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path=None):
+        # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
         template_id = request.json.get("id")
         base64_content = request.json.get("content")
-        if not template_id or not base64_content:
-            return {"error": "Missing template id or content"}, 400
-
-        # Decode content
-        try:
-            template_content = base64.b64decode(base64_content).decode("utf-8")
-        except Exception as e:
-            return {"error": f"Failed to decode content: {e}"}, 400
-
-        # Validate
-        validation_status = validate_template_content(template_content)
-
-        # Store in file
-        try:
-            save_template_content(template_id, template_content)
-        except Exception as e:
-            return {"error": f"Failed to save template: {e}"}, 500
-
-        response = {
-            "message": "Template updated or created",
-            "path": template_id,
-            "validation_status": validation_status
-        }
-        if not validation_status["is_valid"]:
-            response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
-        return response, 200
+        return create_or_update_template(template_id, base64_content)
 
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
+        # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
         base64_content = request.json.get("content")
-        if not base64_content:
-            return {"error": "Missing template content"}, 400
-
-        # Decode content
-        try:
-            template_content = base64.b64decode(base64_content).decode("utf-8")
-        except Exception as e:
-            return {"error": f"Failed to decode content: {e}"}, 400
-
-        # Validate
-        validation_status = validate_template_content(template_content)
-
-        # Store in file
-        try:
-            save_template_content(template_path, template_content)
-        except Exception as e:
-            return {"error": f"Failed to save template: {e}"}, 500
-
-        response = {
-            "message": "Template updated or created",
-            "path": template_path,
-            "validation_status": validation_status
-        }
-        if not validation_status["is_valid"]:
-            response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
-        return response, 200
+        invalidate_template_validation_cache(template_path)
+        return create_or_update_template(template_path, base64_content)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
