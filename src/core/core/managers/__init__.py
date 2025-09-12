@@ -5,4 +5,5 @@ __all__ = [
     "db_manager",
     "sse_manager",
     "queue_manager",
+    "schedule_manager",
 ]

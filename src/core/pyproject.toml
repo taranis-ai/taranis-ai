@@ -16,13 +16,15 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "apscheduler",
+    "prefect-client",
+    "pytz",
     "Flask",
+    "Flask[async]",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
     "click",
-    "celery",
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",

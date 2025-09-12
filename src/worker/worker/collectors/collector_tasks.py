@@ -1,5 +1,4 @@
-from celery import Task
-from celery.exceptions import Ignore
+from prefect import flow
 from contextlib import contextmanager
 
 import worker.collectors
@@ -48,70 +47,36 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
-class CollectorTask(Task):
-    name = "collector_task"
-    max_retries = 3
-    priority = 5
-    default_retry_delay = 60
-    time_limit = 300
-
-    def __init__(self):
-        self.core_api = CoreApi()
-
-    def run(self, osint_source_id: str, manual: bool = False):
-        self.collector = Collector()
-        source = self.collector.get_source(osint_source_id)
-        collector = self.collector.get_collector(source)
-        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
-        task_description = (
-            f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
-        )
-        self.request.task_description = task_description
-
-        logger.info(f"Starting collector task: {task_description}")
-        with collector_log_fmt(logger, formatter):
-            try:
-                collection_result = collector.collect(source, manual)
-            except NoChangeError as e:
-                self.update_state(state="NOT_MODIFIED", meta=str(e))
-                raise Ignore()
-            except Exception as e:
-                raise RuntimeError(e) from e
-
-        self.core_api.run_post_collection_bots(osint_source_id)
-        return f"'{source.get('name')}': {collection_result}"
-
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        if hasattr(self.request, "task_description"):
-            logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
-        else:
-            logger.error(f"Collector task with id: {task_id} failed.")
-
-
-class CollectorPreview(Task):
-    name = "collector_preview"
-    track_started = True
-    acks_late = True
-    priority = 8
-
-    def run(self, osint_source_id: str):
-        collector = Collector()
+@flow(name="collector_task")
+def collector_task(osint_source_id: str, manual: bool = False):
+    collector = Collector()
+    try:
         source = collector.get_source(osint_source_id)
-        collector = collector.get_collector(source)
-        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
-        task_description = (
-            f"Preview: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector.name}' with id {self.request.id}"
-        )
-        logger.info(f"Starting collector task: {task_description}")
+        col = collector.get_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{col.name}")
+        logger.info(f"Starting collection for source '{source.get('name')}' (ID: {osint_source_id})")
         with collector_log_fmt(logger, formatter):
-            try:
-                preview_result = collector.preview_collector(source)
-            except NoChangeError as e:
-                self.update_state(state="NOT_MODIFIED")
-                return f"'{source.get('name')}': {str(e)}"
-            except Exception as e:
-                raise RuntimeError(e) from e
-        return preview_result
+            collection_result = col.collect(source, manual)
+        collector.core_api.run_post_collection_bots(osint_source_id)
+        return f"'{source.get('name')}': {collection_result}"
+    except NoChangeError as e:
+        logger.info(f"No change for source {osint_source_id}: {str(e)}")
+        return str(e)
+    except Exception as e:
+        logger.exception(f"Failed to collect source {osint_source_id}")
+        return {"error": str(e)}
 
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}")
+
+@flow(name="collector_preview")
+def collector_preview(osint_source_id: str):
+    collector = Collector()
+    try:
+        source = collector.get_source(osint_source_id)
+        col = collector.get_collector(source)
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{col.name}")
+        logger.info(f"Starting preview for source '{source.get('name')}' (ID: {osint_source_id})")
+        with collector_log_fmt(logger, formatter):
+            return col.preview_collector(source)
+    except Exception as e:
+        logger.exception(f"Failed to preview source {osint_source_id}")
+        return {"error": str(e)}

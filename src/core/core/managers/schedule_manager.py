@@ -4,7 +4,6 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
 from datetime import datetime, timedelta
 
-from core.managers import queue_manager
 from core.log import logger
 from core.managers.db_manager import db
 from core.config import Config
@@ -40,15 +39,7 @@ class Scheduler:
         self._scheduler.start()
 
     def add_celery_task(self, task: dict):
-        celery_options = task.get("celery", {})
-        self.add_job(
-            func=queue_manager.queue_manager.celery.send_task,
-            id=task["id"],
-            name=task["name"],
-            kwargs=celery_options,
-            **task["jobs_params"],
-            replace_existing=True,
-        )
+        raise NotImplementedError("add_celery_task is deprecated and no longer implemented.")
 
     @property
     def scheduler(self):
