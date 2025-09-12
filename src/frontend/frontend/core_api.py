@@ -86,6 +86,12 @@ class CoreApi:
             logger.error(f"Export users failed: {e}")
             return None
 
+    def download_product(self, product_id: str) -> requests.Response:
+        return self.api_download(f"/publish/products/{product_id}/render")
+
+    def render_product(self, product_id: str) -> requests.Response:
+        return self.api_post(f"/publish/products/{product_id}/render")
+
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
 

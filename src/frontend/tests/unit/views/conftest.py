@@ -164,6 +164,9 @@ def mock_core_get_item_endpoint_data(core_payloads):
 
     for view_name, view_cls in BaseView._registry.items():
         data = core_payloads.get(view_name)
+        if not data:
+            logger.warning(f"No core payload data for view {view_name}")
+            continue
         url = data.get("_url", None)
         current_item = data["items"][0]
         model = getattr(view_cls, "model", None)

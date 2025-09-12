@@ -17,7 +17,7 @@ class Product(TaranisBaseModel):
 
     id: str | None = None
     title: str
-    description: str | None = None
+    description: str | None = ""
     created: datetime | None = None
     auto_publish: bool | None = None
     product_type_id: int

@@ -69,6 +69,27 @@
         v-if="detailView && story.news_items.length === 1"
         :news-item="story.news_items[0]"
       />
+      <tr v-if="detailView">
+        <td class="py-0">
+          <sentiment-info
+            v-if="
+              story_sentiment_category && story_sentiment_category !== 'none'
+            "
+            :sentiment-category="story_sentiment_category"
+            :reduced-view="true"
+            :compact-view="compactView"
+          />
+          <cybersecurity-status-info
+            v-if="
+              story_cybersecurity_status &&
+              ['yes', 'no', 'mixed'].includes(story_cybersecurity_status)
+            "
+            :cybersecurity-status="story_cybersecurity_status"
+            :reduced-view="true"
+            :compact-view="compactView"
+          />
+        </td>
+      </tr>
       <v-dialog v-model="showTagDialog" width="auto">
         <popup-edit-tags
           :tags="story.tags"
@@ -94,6 +115,8 @@ import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
+import SentimentInfo from '@/components/assess/card/SentimentInfo.vue'
+import CybersecurityStatusInfo from '@/components/assess/card/CybersecurityStatusInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -103,7 +126,9 @@ export default {
     AuthorInfo,
     StoryVotes,
     TagList,
-    RelevanceIndicator
+    RelevanceIndicator,
+    SentimentInfo,
+    CybersecurityStatusInfo
   },
   props: {
     story: {
@@ -192,6 +217,70 @@ export default {
       return ['']
     })
 
+    const story_sentiment_category = computed(() => {
+      const items = props.story?.news_items ?? []
+      if (!Array.isArray(items) || items.length === 0) return 'none'
+
+      let pos = 0,
+        neg = 0,
+        neu = 0
+
+      for (const item of items) {
+        const cat = item?.attributes?.find(
+          (a) => a.key === 'sentiment_category'
+        )?.value
+        switch ((cat || '').toString().toLowerCase()) {
+          case 'positive':
+            pos++
+            break
+          case 'negative':
+            neg++
+            break
+          case 'neutral':
+            neu++
+            break
+          default:
+            break
+        }
+      }
+
+      if (pos === 0 && neg === 0 && neu === 0) return 'none'
+
+      const maxCount = Math.max(pos, neg, neu)
+      const leaders = []
+      if (pos === maxCount) leaders.push('positive')
+      if (neg === maxCount) leaders.push('negative')
+      if (neu === maxCount) leaders.push('neutral')
+      return leaders.length === 1 ? leaders[0] : 'mixed'
+    })
+
+    const getItemCybersecurityStatus = (item) => {
+      const attrs = item?.attributes ?? []
+      const human = attrs.find((a) => a.key === 'cybersecurity_human')?.value
+      const bot = attrs.find((a) => a.key === 'cybersecurity_bot')?.value
+      const chosen = human ?? bot
+      const v = (chosen ?? '').toString().trim().toLowerCase()
+
+      if (v === 'yes' || v === 'true' || v === '1') return 'yes'
+      if (v === 'no' || v === 'false' || v === '0') return 'no'
+
+      return 'none'
+    }
+
+    const story_cybersecurity_status = computed(() => {
+      const items = props.story?.news_items ?? []
+      const set = new Set(items.map(getItemCybersecurityStatus))
+
+      if (set.has('none') && set.size > 1) return 'incomplete'
+      if (set.has('yes') && set.has('no') && set.size === 2) return 'mixed'
+      if (set.size === 1) {
+        if (set.has('yes')) return 'yes'
+        if (set.has('no')) return 'no'
+        if (set.has('none')) return 'none'
+      }
+      return 'none'
+    })
+
     function editTags() {
       console.log('edit tags')
       showTagDialog.value = true
@@ -209,6 +298,8 @@ export default {
       published_date_outdated,
       story_in_reports,
       getPublishedDate,
+      story_sentiment_category,
+      story_cybersecurity_status,
       filteredTags,
       editTags,
       getSharingIcon,

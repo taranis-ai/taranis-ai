@@ -11,6 +11,7 @@
         hx-target="#form-container"
         hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}
+    {% set form_error = form_error | default({}) %}
     {{ form_input('Title', 'title', report_item_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', report_item_type.description, form_error.description, width="w-3/4") }}
 

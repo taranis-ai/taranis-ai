@@ -44,7 +44,7 @@ class WordListView(AdminMixin, BaseView):
     @auth_required()
     def export_view(cls):
         word_list_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_word_lists(word_list_ids)
+        core_resp = CoreApi().export_word_lists({"ids": word_list_ids})
 
         if not core_resp:
             logger.debug(f"Failed to fetch word lists from: {Config.TARANIS_CORE_URL}")
