@@ -8,5 +8,5 @@
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
   {{ table_decoration(name, model_name, table_container, routes=routes) }}
-  {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, base_url=routes.base_route) }}
+  {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
 </div>
