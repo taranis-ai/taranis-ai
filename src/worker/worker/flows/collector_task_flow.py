@@ -1,6 +1,6 @@
 from prefect import flow, task
 from worker.log import logger
-from models.collector import CollectorTaskRequest
+from models.prefect import CollectorTaskRequest
 from worker.collectors.registry import COLLECTOR_REGISTRY
 
 

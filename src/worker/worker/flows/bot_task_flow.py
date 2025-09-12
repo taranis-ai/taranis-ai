@@ -1,6 +1,6 @@
 from prefect import flow, task
 from worker.log import logger
-from models.bot import BotTaskRequest
+from models.prefect import BotTaskRequest
 from worker.core_api import CoreApi
 import worker.bots
 
