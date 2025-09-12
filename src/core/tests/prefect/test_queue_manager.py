@@ -1,30 +1,29 @@
-
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 pytestmark = pytest.mark.unit
 
+
 @pytest.fixture
 def mock_app():
     app = MagicMock()
-    app.config = {
-        'QUEUE_BROKER_HOST': 'localhost',
-        'QUEUE_BROKER_USER': 'test_user', 
-        'QUEUE_BROKER_PASSWORD': 'test_pass'
-    }
+    app.config = {"QUEUE_BROKER_HOST": "localhost", "QUEUE_BROKER_USER": "test_user", "QUEUE_BROKER_PASSWORD": "test_pass"}
     return app
+
 
 @pytest.fixture
 def queue_manager(mock_app):
     from core.managers.queue_manager import QueueManager
+
     qm = QueueManager(mock_app)
-    qm.error = ""  
+    qm.error = ""
     return qm
+
 
 class TestQueueManager:
     """Core queue manager tests - focusing on Prefect integration"""
-    
-    @patch('prefect.client.orchestration.get_client')
+
+    @patch("prefect.client.orchestration.get_client")
     def test_get_queue_status_success(self, mock_get_client, queue_manager):
         """Test successful Prefect connection"""
         # Mock the async context manager
@@ -37,7 +36,7 @@ class TestQueueManager:
         assert status_code == 200
         assert result["status"] == "Prefect agent reachable"
 
-    @patch('prefect.client.orchestration.get_client')
+    @patch("prefect.client.orchestration.get_client")
     def test_get_queue_status_failure(self, mock_get_client, queue_manager):
         """Test Prefect connection failure"""
         mock_get_client.side_effect = Exception("Connection failed")
@@ -48,7 +47,7 @@ class TestQueueManager:
         assert "error" in result
         assert "Prefect not available" in result["error"]
 
-    @patch('core.managers.queue_manager.get_client')
+    @patch("core.managers.queue_manager.get_client")
     def test_ping_workers_success(self, mock_get_client, queue_manager):
         """Test successful worker ping"""
         mock_client = AsyncMock()
@@ -61,7 +60,7 @@ class TestQueueManager:
         assert isinstance(result, list)
         assert len(result) == 2
 
-    @patch('core.managers.queue_manager.get_client')
+    @patch("core.managers.queue_manager.get_client")
     def test_ping_workers_failure(self, mock_get_client, queue_manager):
         """Test worker ping failure"""
         mock_get_client.side_effect = Exception("Connection failed")
@@ -80,14 +79,14 @@ class TestQueueManager:
         assert status_code == 500
         assert "QueueManager not initialized" in result["error"]
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_queued_tasks_success(self, mock_requests, queue_manager):
         """Test getting queued tasks from RabbitMQ"""
         mock_response = MagicMock()
         mock_response.ok = True
         mock_response.json.return_value = [
             {"messages": 5, "name": "collectors", "other": "data"},
-            {"messages": 2, "name": "bots", "other": "data"}
+            {"messages": 2, "name": "bots", "other": "data"},
         ]
         mock_requests.return_value = mock_response
 
@@ -101,8 +100,6 @@ class TestQueueManager:
     def test_get_task_method_not_supported(self, queue_manager):
         """Test get_task returns not supported in Prefect"""
         result, status_code = queue_manager.get_task("test_id")
-        
+
         assert status_code == 400
         assert "Method not supported in Prefect" in result["error"]
-
-   

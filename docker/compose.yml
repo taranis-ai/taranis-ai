@@ -30,7 +30,7 @@ services:
         max-file: "10"
 
   prefect-server:
-    image: prefecthq/prefect
+    image: prefecthq/prefect:3-latest
     command: prefect server start
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api

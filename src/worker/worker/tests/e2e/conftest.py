@@ -4,6 +4,7 @@ Fixtures for Prefect E2E tests
 Assumes Docker Compose is already running.
 Provides API client and test data for Prefect flow testing.
 """
+
 import pytest
 import time
 from .utils.api_client import TaranisAPIClient, TestData, create_test_data, wait_for_flow_completion
@@ -18,19 +19,19 @@ def api_client() -> TaranisAPIClient:
     # Give services a moment to fully start up
     print("Waiting for services to be ready...")
     time.sleep(10)
-    
+
     client = TaranisAPIClient()
-    
+
     # Authenticate with default admin credentials
     client.authenticate("admin", "admin")
-    
+
     # Basic health check
     try:
         health = client.check_health()
         print(f"API health check passed: {health.get('version', 'unknown')}")
     except Exception as e:
         pytest.fail(f"API health check failed: {e}")
-    
+
     # Check Prefect flows are available
     try:
         flows = client.check_prefect_flows()
@@ -38,7 +39,7 @@ def api_client() -> TaranisAPIClient:
         print(f"Available Prefect flows: {flow_names}")
     except Exception as e:
         print(f"Warning: Could not check Prefect flows: {e}")
-    
+
     return client
 
 
@@ -49,7 +50,7 @@ def test_data(api_client: TaranisAPIClient) -> TestData:
     Creates products, presenters, publishers, connectors, bots, and news items.
     """
     print("Creating test data for test class...")
-    
+
     try:
         data = create_test_data(api_client)
         print(f"Test data ready: {data}")
@@ -64,6 +65,7 @@ def test_data(api_client: TaranisAPIClient) -> TestData:
 @pytest.fixture
 def flow_runner(api_client: TaranisAPIClient):
     """Utility fixture for running and waiting for flows"""
+
     def run_and_wait(flow_type: str, timeout: int = 120, **params) -> str:
         """Run a flow and wait for completion"""
         if flow_type == "presenter":
@@ -76,10 +78,10 @@ def flow_runner(api_client: TaranisAPIClient):
             flow_run_id = api_client.trigger_bot_flow(**params)
         else:
             raise ValueError(f"Unknown flow type: {flow_type}")
-        
+
         wait_for_flow_completion(api_client, flow_run_id, timeout)
         return flow_run_id
-    
+
     return run_and_wait
 
 

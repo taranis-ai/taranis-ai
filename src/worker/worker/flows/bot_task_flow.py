@@ -1,29 +1,29 @@
 from prefect import flow, task
-from core.log import logger
-from models.bot import BotTaskRequest 
+from worker.log import logger
+from models.bot import BotTaskRequest
 from worker.core_api import CoreApi
-import worker.bots  
+import worker.bots
 
 
 @task
 def get_bot_config(bot_id: int):
     """Get bot configuration from CoreApi"""
     logger.info(f"[bot_task] Getting bot config for {bot_id}")
-    
+
     core_api = CoreApi()
     bot_config = core_api.get_bot_config(bot_id)
-    
+
     if not bot_config:
         raise ValueError(f"Bot with id {bot_id} not found")
-        
+
     return bot_config
 
 
 @task
 def execute_bot_by_config(bot_config: dict, filter_params: dict | None = None):
     """Execute bot using config"""
-    logger.info(f"[bot_task] Executing bot by config")
-    
+    logger.info("[bot_task] Executing bot by config")
+
     bot_type = bot_config.get("type")
     if not bot_type:
         raise ValueError("Bot has no type")
@@ -40,7 +40,7 @@ def execute_bot_by_config(bot_config: dict, filter_params: dict | None = None):
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
         "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
     }
-    
+
     bot = bots.get(bot_type)
     if not bot:
         raise ValueError("Bot type not implemented")
@@ -58,18 +58,18 @@ def execute_bot_by_config(bot_config: dict, filter_params: dict | None = None):
 @flow(name="bot-task-flow")
 def bot_task_flow(request: BotTaskRequest):
     try:
-        logger.info(f"[bot_task_flow] Starting bot task")
-        
-        # Get bot config 
+        logger.info("[bot_task_flow] Starting bot task")
+
+        # Get bot config
         bot_config = get_bot_config(request.bot_id)
-        
-        # Execute bot 
+
+        # Execute bot
         result = execute_bot_by_config(bot_config, request.filter)
-        
-        logger.info(f"[bot_task_flow] Bot task completed successfully")
-        
+
+        logger.info("[bot_task_flow] Bot task completed successfully")
+
         return result
 
-    except Exception as e:
-        logger.exception(f"[bot_task_flow] Bot task failed")
+    except Exception:
+        logger.exception("[bot_task_flow] Bot task failed")
         raise

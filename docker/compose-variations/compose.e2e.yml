@@ -23,11 +23,11 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  # Prefect server 
+  # Prefect server
   prefect-server:
     image: prefecthq/prefect:3-latest
     command: prefect server start
-    depends_on: 
+    depends_on:
       database:
         condition: service_healthy
     environment:
@@ -55,8 +55,6 @@ services:
     depends_on:
       database:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
       prefect-server:
         condition: service_healthy
     deploy:
@@ -72,10 +70,6 @@ services:
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
-
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
 
       PREFECT_API_URL: http://prefect-server:4200/api
       ENABLE_PREFECT: "true"
@@ -149,8 +143,6 @@ services:
 
   collector:
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       prefect-server:
         condition: service_healthy
     deploy:
@@ -160,14 +152,11 @@ services:
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-      
+
       # Prefect
       PREFECT_API_URL: http://prefect-server:4200/api
       ENABLE_PREFECT: "true"
-      
+
       WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -183,8 +172,6 @@ services:
         max-file: "10"
   workers:
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       prefect-server:
         condition: service_healthy
     deploy:
@@ -195,13 +182,10 @@ services:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       BOT_API_KEY: "${BOT_API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-      
+
       PREFECT_API_URL: http://prefect-server:4200/api
       ENABLE_PREFECT: "true"
-      
+
       WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -210,32 +194,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  rabbitmq:
-    image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
-    deploy:
-      restart_policy:
-        condition: always
-    user: rabbitmq
-    # ports:
-    #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
-    #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq/
-    environment:
-      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
-    healthcheck:
-      test: "rabbitmqctl await_startup"
-      interval: 10s
-      start_period: 10s
-      timeout: 3s
-      retries: 3
     logging:
       driver: "json-file"
       options:
