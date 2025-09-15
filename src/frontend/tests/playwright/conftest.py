@@ -6,6 +6,7 @@ import subprocess
 import requests
 import responses
 import contextlib
+import warnings as pywarnings
 from dotenv import dotenv_values
 from urllib.parse import urlparse
 
@@ -129,3 +130,64 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     yield context.new_page()
     if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+
+
+def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
+    return any(re.search(p, msg_text) for p in allow_patterns)
+
+
+@pytest.fixture(autouse=True)
+def _forward_console_and_page_errors(request, taranis_frontend):
+    """
+    For each test:
+      - collect console messages and page errors
+      - at teardown: fail on configured severities, warn on warnings
+    """
+    page = taranis_frontend
+    fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
+    warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
+    allow_patterns = request.config.getoption("--console-allow") or []
+
+    errors: list[str] = []
+    warns: list[str] = []
+
+    def on_console(msg):
+        # types: "log", "debug", "info", "warning", "error", "trace", "timeEnd", "assert"
+        t = (msg.type or "").lower()
+        txt = msg.text
+        loc = msg.location or {}
+        loc_s = f"{loc.get('url', '')}:{loc.get('lineNumber', '?')}:{loc.get('columnNumber', '?')}"
+        entry = f"[console.{t}] {loc_s} :: {txt}"
+
+        if _allowed(txt, allow_patterns):
+            return
+
+        if t in fail_on:
+            errors.append(entry)
+        elif t in warn_on:
+            warns.append(entry)
+
+    def on_pageerror(err):
+        entry = f"[pageerror] {err}"
+        if _allowed(str(err), allow_patterns):
+            return
+        if "pageerror" in fail_on:
+            errors.append(entry)
+        elif "pageerror" in warn_on:
+            warns.append(entry)
+
+    page.on("console", on_console)
+    page.on("pageerror", on_pageerror)
+
+    try:
+        yield
+    finally:
+        page.remove_listener("console", on_console)
+        page.remove_listener("pageerror", on_pageerror)
+
+        for w in warns:
+            pywarnings.warn(UserWarning(w), stacklevel=0)
+
+        if errors:
+            bullet_list = "\n".join(f"  - {e}" for e in errors)
+            pytest.fail(f"Console/Page errors detected:\n{bullet_list}")

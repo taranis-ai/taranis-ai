@@ -31,9 +31,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         expect(page.locator("#dashboard")).to_be_visible()
 
     def test_admin_user_management(self, taranis_frontend: Page):
-        #        Test definitions
-        # ===============================
-
         def check_dashboard():
             expect(page.locator("#dashboard")).to_be_visible()
 
@@ -54,21 +51,32 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
-            page.get_by_test_id("admin-menu-User").click()
+            page.goto(url_for("admin.users", _external=True))
             page.get_by_test_id("new-user-button").click()
-            page.get_by_label("Name").fill("Test User")
-            page.get_by_label("Description").fill("Test description of a user")
-            page.get_by_label("Password", exact=True).fill("testasdfasdf")
+            page.get_by_role("textbox", name="Username", exact=True).fill("test")
+            page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
+            page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
+
+            page.get_by_label("Organization").select_option("1")
+            page.locator("#user-role-select-ts-control").click()
+            page.locator("#user-role-select-opt-1").click()
+
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.users", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_text("Test User")).to_be_visible()
 
         def add_role():
-            page.get_by_test_id("admin-menu-Role").click()
+            page.goto(url_for("admin.roles", _external=True))
             page.get_by_test_id("new-role-button").click()
             page.get_by_label("Name").fill("Test Role")
             page.get_by_label("Description").fill("Test description of a role")
+            page.get_by_label("TLP Level ").select_option("clear")
             page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.roles", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
             expect(page.get_by_text("Test Role")).to_be_visible()
 
         def update_user():
@@ -98,8 +106,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = taranis_frontend
         check_dashboard()
         add_organization()
-        # add_user()
-        # add_role()
+        add_user()
+        add_role()
         # update_user()  # assign roles to user
         # assert_update_user()
         # update_user()  # deassign roles from a user
@@ -108,7 +116,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         #        Test definitions
-        # ===============================
+        # ============================
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()

@@ -74,6 +74,24 @@ def pytest_addoption(parser):
     group.addoption("--highlight-delay", action="store", default="1", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+    group.addoption(
+        "--fail-on-console",
+        action="store",
+        default="error,assert,pageerror",
+        help="Console/Page event types that should fail the test.",
+    )
+    group.addoption(
+        "--console-allow",
+        action="append",
+        default=[],
+        help="Regex(es) of console messages to ignore (can be passed multiple times).",
+    )
+    group.addoption(
+        "--warn-on-console",
+        action="store",
+        default="warning",
+        help="Console types to forward as pytest warnings (comma-separated).",
+    )
 
 
 def _is_vscode(config) -> bool:
