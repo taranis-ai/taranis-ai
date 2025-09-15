@@ -63,8 +63,8 @@ class BaseMispBuilder:
 
         if isinstance(data, dict):
             logger.debug(f"Processing {len(data)} items from dict for key '{key}'")
-            for k, v in data.items():
-                processed = processor(k, v)
+            for key, value in data.items():
+                processed = processor(key, value)
                 if processed is not None:
                     items_list.append(processed)
         elif isinstance(data, list):
@@ -113,7 +113,7 @@ class BaseMispBuilder:
             return None
 
     @staticmethod
-    def _process_tags(tag_dict: dict) -> str | None:
+    def _process_tags(name, tag_dict: dict) -> str | None:
         """
         Process a single tag from key and value_dict.
         """
@@ -122,7 +122,7 @@ class BaseMispBuilder:
             return None
 
         tag_type = tag_dict.get("tag_type", "misc")
-        tag_json = json.dumps({"name": tag_dict.get("name", ""), "tag_type": tag_type})
+        tag_json = json.dumps({"name": name, "tag_type": tag_type})
         logger.debug(f"Adding tag: {tag_json}")
         return tag_json
 
