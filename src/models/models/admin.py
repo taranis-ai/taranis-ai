@@ -284,7 +284,6 @@ class ReportItemType(TaranisBaseModel):
 
 
 class Template(TaranisBaseModel):
-    model_config = {"extra": "allow"}
     
     _core_endpoint = "/config/templates"
     _model_name = "template"
