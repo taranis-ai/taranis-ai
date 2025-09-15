@@ -80,7 +80,7 @@ class ReportItem(BaseModel):
         if user and not item.allowed_with_acl(user, False):
             return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
 
-        return item.to_detail_dict(), 200
+        return item.to_worker_dict(), 200
 
     @classmethod
     def get_story_ids(cls, item_id):
@@ -109,6 +109,13 @@ class ReportItem(BaseModel):
         data["attributes"] = self.get_attribute_dict()
         data["attribute_groups"] = self.get_attribute_groups()
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        return data
+
+    def to_worker_dict(self):
+        data = super().to_dict()
+        data["attributes"] = self.get_attribute_dict()
+        data["attribute_groups"] = self.get_attribute_groups()
+        data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
     def to_product_dict(self):

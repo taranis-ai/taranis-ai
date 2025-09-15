@@ -42,9 +42,9 @@ class ReportToStix(BaseMispBuilder):
     def __init__(self):
         super().__init__()
 
-    def execute(self, connector_config: list[str] | None, report_ids: list[str] | None) -> None:
-        print(f"Sending data to STIX: {connector_config}")
-        print(f"Sending reports to STIX: {report_ids}")
+    def execute(self, connector_data: dict) -> None:
+        report_ids = connector_data.get("report_id_list", [])
+        logger.info(f"Sending reports to STIX: {report_ids}")
         self.export_to_stix(report_ids)
         return None
 

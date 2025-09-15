@@ -41,7 +41,9 @@ class MISPConnector(BaseMispBuilder):
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
 
-    def execute(self, connector_config: dict | None, stories: list) -> None:
+    def execute(self, connector_data: dict) -> None:
+        connector_config = connector_data.get("connector_config")
+        stories = connector_data.get("story", [])
         if connector_config is None:
             logger.error("A MISP Connector has not been found")
             return None

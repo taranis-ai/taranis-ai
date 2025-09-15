@@ -168,9 +168,8 @@ class BaseMispBuilder:
         For each news item in 'news_items', create a TaranisObject and add it to the event.
         """
         for news_item in news_items:
-            news_item.pop("last_change", None)  # key intended for internal use only
+            news_item.pop("last_change", None)  # property intended for internal use only
             object_data = self.get_news_item_object_dict()
-            # sourcery skip: dict-assign-update-to-union
             object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
 
             news_item_object = BaseMispObject(
@@ -183,8 +182,7 @@ class BaseMispBuilder:
         Create a TaranisObject for the story itself, add attributes, links, and tags from the story,
         and attach it to the event with all data correctly stored under their respective keys.
         """
-        # Remove internal keys not meant for external processing
-        story.pop("last_change", None)
+        story.pop("last_change", None)  # property intended for internal use only
 
         object_data = self.get_story_object_dict()
         object_data.update(
