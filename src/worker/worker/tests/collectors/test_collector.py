@@ -198,7 +198,7 @@ def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     # query response contains malformed json
     error_msg = "Expecting ':' delimiter: line 1 column 13 (char 12)"
 
-    with pytest.raises(json.decoder.JSONDecodeError) as exception:
+    with pytest.raises((json.decoder.JSONDecodeError, requests.exceptions.JSONDecodeError)) as exception:
         _ = rt_collector.collect(rt_testdata.rt_malformed_json_source_data)
     assert str(exception.value) == error_msg
 

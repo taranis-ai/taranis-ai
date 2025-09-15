@@ -22,6 +22,15 @@
         density="compact"
       />
       <v-btn
+        prepend-icon="mdi-application-export"
+        color="primary"
+        variant="flat"
+        class="ml-4"
+        @click="exportToStix"
+      >
+        {{ $t('analyze.export_to_stix') }}
+      </v-btn>
+      <v-btn
         v-if="edit"
         prepend-icon="mdi-chart-box-plus-outline"
         color="primary"
@@ -144,7 +153,7 @@ import { createReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
-import { setStoriesToReportItem } from '@/api/analyze'
+import { setStoriesToReportItem, getStix } from '@/api/analyze'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -295,6 +304,11 @@ export default {
         })
     }
 
+    function exportToStix() {
+      console.debug('Exporting to STIX', report_item.value)
+      getStix(report_item.value)
+    }
+
     return {
       verticalView,
       report_item,
@@ -305,7 +319,8 @@ export default {
       container_title,
       saveReportItem,
       removeAllFromReport,
-      removeFromReport
+      removeFromReport,
+      exportToStix
     }
   }
 }
