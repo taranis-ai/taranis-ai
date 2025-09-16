@@ -23,7 +23,7 @@
               class="validator select w-full"
               hx-get="{{ url_for('admin.bot_parameters', bot_id=bot_id) }}"
               hx-trigger="change"
-              hx-include="#bot_type"
+              hx-include="this"
               hx-target="#parameters"
               hx-swap="innerHTML"
               {% if bot.type %}disabled{% endif %}>

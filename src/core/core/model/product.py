@@ -182,7 +182,7 @@ class Product(BaseModel):
             queue_manager.queue_manager.generate_product(product.id)
 
         db.session.commit()
-        return {"message": f"Product {product_id} updated", "id": product_id}, 200
+        return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
 
     @classmethod
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:

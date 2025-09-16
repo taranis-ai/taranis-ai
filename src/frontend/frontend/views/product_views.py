@@ -1,5 +1,5 @@
 from typing import Any
-from flask import render_template
+from flask import render_template, request, Response, abort
 
 from models.product import Product
 from models.admin import ProductType
@@ -13,9 +13,9 @@ from frontend.data_persistence import DataPersistenceLayer
 class ProductView(BaseView):
     model = Product
     icon = "paper-airplane"
-    htmx_list_template = "publish/index.html"
+    htmx_list_template = "publish/product_table.html"
     htmx_update_template = "publish/product.html"
-    edit_template = "publish/product.html"
+    edit_template = "publish/product_view.html"
     default_template = "publish/index.html"
 
     base_route = "publish.publish"
@@ -42,16 +42,14 @@ class ProductView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
+        if cls.model_name() in base_context:
+            product: Product = base_context[cls.model_name()]
+            is_edit = product.id is not None and product.id != 0
+            if is_edit:
+                base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
+            base_context["is_edit"] = is_edit
+
         return base_context
-
-    @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        context = super().get_item_context(object_id)
-        product = context[cls.model_name()]
-        context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
-        context["is_edit"] = product.id is not None and product.id != 0
-
-        return context
 
     @classmethod
     def product_download(cls, product_id: str):
@@ -83,3 +81,29 @@ class ProductView(BaseView):
             error = f"Failed to render product - {str(e)}"
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
+
+    @classmethod
+    def product_publish(cls, product_id: str):
+        error = "Failed to publish product"
+        try:
+            publisher = request.args.get("publisher", "")
+            core_resp = CoreApi().publish_product(product_id, publisher_id=publisher)
+            if not core_resp.ok:
+                error = core_resp.json().get("error", "Unknown error")
+
+            message = core_resp.json().get("message", "Unknown error")
+            return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+        except Exception as e:
+            logger.error(f"Publish product failed: {str(e)}")
+            error = f"Failed to publish product - {str(e)}"
+
+        return render_template("notification/index.html", notification={"message": error, "error": True}), 400
+
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+        return self.update_view(object_id=0)
+
+    def put(self, **kwargs) -> tuple[str, int] | Response:
+        object_id = self._get_object_id(kwargs)
+        if object_id is None:
+            abort(405)
+        return self.update_view(object_id=object_id)

@@ -3,6 +3,8 @@ from flask_jwt_extended import current_user
 import plotly.express as px
 import pandas as pd
 from typing import Any
+from werkzeug.wrappers import Response
+
 
 from models.dashboard import Dashboard, TrendingCluster, Cluster
 from frontend.cache_models import CacheObject, PagingData
@@ -142,7 +144,7 @@ class DashboardView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()
 
-    def post(self, *args, **kwargs) -> tuple[str, int]:
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         form_data = parse_formdata(request.form)
         form_data = {"dashboard": form_data.get("dashboard", {})}
         logger.debug(f"Updating dashboard with data: {form_data}")
