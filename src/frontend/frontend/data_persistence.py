@@ -92,6 +92,9 @@ class DataPersistenceLayer:
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(object._core_endpoint)}_{object.id}"
+            cache.delete(cache_key)
         return response
 
     def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str) -> Response:
@@ -99,6 +102,9 @@ class DataPersistenceLayer:
         response = self.api.api_delete(f"{endpoint}/{object_id}")
         if response.ok:
             self.invalidate_cache_by_object(object_model)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+            cache.delete(cache_key)
         return response
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str) -> Response:
@@ -106,6 +112,9 @@ class DataPersistenceLayer:
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+            cache.delete(cache_key)
         return response
 
 
