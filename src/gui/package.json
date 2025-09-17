@@ -19,13 +19,13 @@
   "dependencies": {
     "@codemirror/lang-html": "^6.4.10",
     "@codemirror/lang-json": "^6.0.2",
-    "@intlify/unplugin-vue-i18n": "^11.0.0",
+    "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@mdi/font": "^7.4.47",
-    "@sentry/vue": "^10.11.0",
+    "@sentry/vue": "^10.12.0",
     "@vue-js-cron/vuetify": "^5.0.13",
     "@vuepic/vue-datepicker": "^11.0.2",
     "@vueuse/core": "^13.9.0",
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "chart.js": "^4.5.0",
     "codemirror": "^6.0.2",
     "js-base64": "^3.7.8",
@@ -44,7 +44,7 @@
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.5.1",
     "vue-use-hotkeys": "^0.4.0",
-    "vuetify": "^3.10.0",
+    "vuetify": "^3.10.2",
     "zipson": "^0.2.12"
   },
   "devDependencies": {
@@ -55,6 +55,6 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.5",
     "vite-plugin-vuetify": "^2.1.2",
-    "vue-tsc": "^3.0.6"
+    "vue-tsc": "^3.0.7"
   }
 }
