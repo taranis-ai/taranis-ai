@@ -1,5 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select, form_select_with_badges %}
-{% set template_path = product_type.parameters.TEMPLATE_PATH if product_type.parameters else None %}
+{% from "macros/forms.html" import form_input %}
 {% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
