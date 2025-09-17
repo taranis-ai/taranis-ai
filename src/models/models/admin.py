@@ -284,12 +284,14 @@ class ReportItemType(TaranisBaseModel):
 
 
 class Template(TaranisBaseModel):
+    
     _core_endpoint = "/config/templates"
     _model_name = "template"
     _pretty_name = "Template"
 
     id: str
     content: str | None = None
+    validation_status: dict | None = None
 
 
 class AttributeEnum(TaranisBaseModel):

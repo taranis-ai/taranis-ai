@@ -2,22 +2,31 @@
 {% set form_error = form_error | default({}) %}
 {% set placeholder = 'new_template' if template.id == '0' else template.id %}
 
-<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#notification-bar">
+
+<!-- Template Validation Status Display -->
+{% if validation_status and template.id != '0' %}
+<div class="w-3/4 mb-5">
+  {{ validation_status | render_validation_status }}
+</div>
+{% endif %}
+
+<form id="{{ model_name }}-form" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#notification-bar" onsubmit="syncEditorContent()">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename</span>
-    <input id="id"
-           type="text"
-           placeholder="{{ placeholder }}"
-           name="id"
-           value="{{ placeholder }}"
-           required
-           pattern="^[\w\.\-]+$"
-           class="input w-full validator {% if template.id != '0' %}bg-base-200 text-base-content opacity-60 pointer-events-none select-none{% endif %}"
-           {% if template.id != '0' %}readonly{% endif %} />
+  <input id="id"
+       type="text"
+       placeholder="Enter filename..."
+       name="id"
+       value="{{ '' if template.id == '0' else template.id }}"
+       required
+       pattern="^[\w\.\-]+$"
+       class="input w-full validator {% if template.id != '0' %}bg-base-200 text-base-content opacity-60 pointer-events-none select-none{% endif %}"
+       {% if template.id != '0' %}readonly{% endif %} />
     <p class="validator-hint">Must be a valid filename</p>
   </label>
 
-  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content }}</textarea>
+
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content if template.content else '' }}</textarea>
 
   <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
 
@@ -27,6 +36,18 @@
 <script>
   require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
 
+  let monacoEditor = null;
+
+  function syncEditorContent() {
+    if (monacoEditor) {
+      const ta = document.getElementById('editor-content');
+      if (ta) {
+        ta.value = monacoEditor.getValue();
+      }
+    }
+    return true; // Allow form submission to continue
+  }
+
   require(['vs/editor/editor.main'], function() {
     const ta     = document.getElementById('editor-content'),
           wrap   = document.getElementById('editor'),
@@ -35,15 +56,27 @@
     ta.classList.add('hidden');
     wrap.classList.remove('hidden');
 
-    const editor = monaco.editor.create(wrap, {
+    monacoEditor = monaco.editor.create(wrap, {
       value: initial,
       language: 'jinja',
       automaticLayout: true,
       theme: 'vs-dark',
     });
 
-    editor.onDidChangeModelContent(() => {
-      ta.value = editor.getValue();
+    monacoEditor.onDidChangeModelContent(() => {
+      ta.value = monacoEditor.getValue();
+    });
+
+    // Also sync content when the editor loses focus
+    monacoEditor.onDidBlurEditorText(() => {
+      ta.value = monacoEditor.getValue();
+    });
+
+    // Ensure content is synced before HTMX form submission
+    document.addEventListener('htmx:beforeRequest', function(event) {
+      if (event.target.id === '{{ model_name }}-form') {
+        syncEditorContent();
+      }
     });
   });
 </script>
