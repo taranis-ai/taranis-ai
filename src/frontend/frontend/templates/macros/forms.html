@@ -89,3 +89,34 @@
   <span class="text-base-content peer-checked:hidden">{{ no_val }}</span>
   <span class="text-base-content hidden peer-checked:inline">{{ yes_val }}</span>
 {% endmacro %}
+
+{% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+<div class="mb-5 {{ width }}">
+  <label class="label">
+    <span class="label-text">{{ label }}</span>
+  </label>
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="select w-full">
+    {% if not value %}
+      <option value="" selected disabled>Select a template</option>
+    {% endif %}
+    {% for option in options %}
+      {% set status = option.validation_status | normalize_validation_status %}
+      <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} [{{ status|badge_label }}]</option>
+    {% endfor %}
+  </select>
+</div>
+    {% for option in options %}
+      {% set status = option.validation_status | normalize_validation_status %}
+      <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} — {{ status|badge_label }}</option>
+    {% endfor %}
+  </select>
+  {% if value %}
+    {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
+    {% if selected_option %}
+      <div class="mt-2">
+        {{ selected_option.name }} {{ selected_option|render_validation_status }}
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endmacro %}

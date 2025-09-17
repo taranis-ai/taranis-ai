@@ -4,7 +4,12 @@ from dotenv import load_dotenv
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
-load_dotenv(dotenv_path=env_file, override=False)
+current_path = os.getcwd()
+
+if not current_path.endswith("src/frontend"):
+    pytest.skip("Tests must be run from within src/frontend")
+
+load_dotenv(dotenv_path=env_file, override=True)
 
 
 @pytest.fixture(scope="session")
