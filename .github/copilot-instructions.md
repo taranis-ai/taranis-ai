@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-This file contains project-specific instructions for GitHub Copilot to provide better context-aware assistance when working on the taranis.ai codebase. 
+This file contains project-specific instructions for GitHub Copilot to provide better context-aware assistance when working on the taranis.ai codebase.
 
 **For Contributors:** These instructions are automatically loaded by GitHub Copilot in VS Code and other supported IDEs. You don't need to manually reference this file - Copilot will use these hints to provide more accurate suggestions and explanations about the project structure and conventions.
 
@@ -21,7 +21,7 @@ See [README.md](../README.md) for more information.
 ## Architecture
 
 - **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
-- **gui** (`src/gui/`) - Vue.js 3 frontend application 
+- **gui** (`src/gui/`) - Vue.js 3 frontend application
 - **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
 - **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation
@@ -75,3 +75,4 @@ See .github/workflows for how tests are configured in CI.
 - write tests for new features and bug fixes
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
+- don't add comments like "Restore template files ..." directly in the code, when you add new codelines

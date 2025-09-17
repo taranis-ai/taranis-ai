@@ -91,73 +91,20 @@
 {% endmacro %}
 
 {% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
-{% set dropdown_id = (input_id or name) + '_dropdown' %}
-<div class="mb-5 {{ width }}"
-     x-data="{ 
-       selectedValue: '{{ value }}',
-       selectedName: '{% if value %}{% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}{% if selected_option %}{{ selected_option.name }}{% endif %}{% endif %}',
-       selectedBadgeClass: '{% if value %}{% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}{% if selected_option %}{% set status = selected_option.validation_status | normalize_validation_status %}{{ status|badge_class }}{% endif %}{% endif %}',
-       selectedBadgeLabel: '{% if value %}{% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}{% if selected_option %}{% set status = selected_option.validation_status | normalize_validation_status %}{{ status|badge_label }}{% endif %}{% endif %}',
-       isOpen: false,
-       selectTemplate(value, name, badgeClass, badgeLabel) {
-         this.selectedValue = value;
-         this.selectedName = name;
-         this.selectedBadgeClass = badgeClass;
-         this.selectedBadgeLabel = badgeLabel;
-         this.isOpen = false;
-         
-         // Update hidden select element
-         const select = document.getElementById('{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}');
-         if (select) {
-           select.value = value;
-           // Mark as selected for form submission
-           const selectedOption = select.querySelector(`option[value="${value}"]`);
-           if (selectedOption) {
-             selectedOption.selected = true;
-           }
-           select.dispatchEvent(new Event('change', { bubbles: true }));
-         } else {
-           console.warn('Select element not found for template selection');
-         }
-       }
-     }">
+<div class="mb-5 {{ width }}">
   <label class="label">
     <span class="label-text">{{ label }}</span>
   </label>
-  <div class="dropdown dropdown-bottom w-full">
-    <div tabindex="0" 
-         role="button" 
-         class="btn btn-outline w-full justify-between"
-         @click="isOpen = !isOpen"
-         @keydown.escape="isOpen = false"
-         @click.outside="isOpen = false">
-      <span>
-        <span x-text="selectedName || 'Select a template'"></span>
-        <span x-show="selectedBadgeClass" 
-              :class="'badge badge-sm ml-2 ' + selectedBadgeClass" 
-              x-text="selectedBadgeLabel"></span>
-      </span>
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-      </svg>
-    </div>
-    <div x-show="isOpen" 
-         x-transition
-         class="dropdown-content bg-base-100 rounded-box z-50 w-full p-2 shadow border border-base-200 max-h-60 overflow-y-auto">
-      {% for option in options %}
-        {% set status = option.validation_status | normalize_validation_status %}
-        <div class="flex justify-between items-center p-2 rounded hover:bg-base-200 cursor-pointer" 
-             @click="selectTemplate('{{ option.id }}', '{{ option.name }}', '{{ status|badge_class }}', '{{ status|badge_label }}')">
-          <span class="flex-1">{{ option.name }}</span>
-          <span class="badge {{ status|badge_class }} badge-sm">{{ status|badge_label }}</span>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="sr-only">
+  <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}" name="{{ name }}" {% if required %} required {% endif %} class="select w-full">
     {% if not value %}
-    <option value="" selected disabled>Select a template</option>
+      <option value="" selected disabled>Select a template</option>
     {% endif %}
+    {% for option in options %}
+      {% set status = option.validation_status | normalize_validation_status %}
+      <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} [{{ status|badge_label }}]</option>
+    {% endfor %}
+  </select>
+</div>
     {% for option in options %}
       {% set status = option.validation_status | normalize_validation_status %}
       <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} — {{ status|badge_label }}</option>
