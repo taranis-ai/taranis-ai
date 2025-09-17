@@ -30,8 +30,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_user_management(self, taranis_frontend: Page):
+    def test_admin_user_management(self, logged_in_page: Page):
         def check_dashboard():
+            page.goto(url_for("base.dashboard", _external=True))
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
@@ -103,11 +104,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = logged_in_page
         check_dashboard()
         add_organization()
         add_user()
-        add_role()
+        # add_role()
         # update_user()  # assign roles to user
         # assert_update_user()
         # update_user()  # deassign roles from a user

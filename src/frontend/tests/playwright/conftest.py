@@ -9,8 +9,9 @@ import contextlib
 import warnings as pywarnings
 from dotenv import dotenv_values
 from urllib.parse import urlparse
+from http.cookies import SimpleCookie
 
-from playwright.sync_api import Browser
+from playwright.sync_api import Browser, Page
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
@@ -134,6 +135,47 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
 
 def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
     return any(re.search(p, msg_text) for p in allow_patterns)
+
+
+def _cookies_from_response(resp) -> list[dict]:
+    """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
+    cookies: list[dict] = []
+    set_cookie_headers = resp.headers.getlist("Set-Cookie")
+    for header in set_cookie_headers:
+        c = SimpleCookie()
+        c.load(header)
+        cookies.extend(
+            {
+                "name": name,
+                "value": morsel.value,
+            }
+            for name, morsel in c.items()
+        )
+    return cookies
+
+
+@pytest.fixture
+def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+    """
+    Returns a Playwright Page whose browser context has the JWT cookies set,
+    so any navigation is already authenticated.
+    """
+    page = taranis_frontend
+    base_url: str = e2e_server.url()
+
+    cookies = _cookies_from_response(access_token_response)
+    context_cookies = []
+    context_cookies.extend(
+        {
+            "name": c["name"],
+            "value": c["value"],
+            "url": base_url,
+        }
+        for c in cookies
+    )
+    page.context.add_cookies(context_cookies)
+
+    yield page
 
 
 @pytest.fixture(autouse=True)

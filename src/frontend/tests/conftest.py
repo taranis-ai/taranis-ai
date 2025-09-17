@@ -49,6 +49,21 @@ def access_token(app, auth_user):
 
 
 @pytest.fixture
+def access_token_response(app, auth_user):
+    from flask import jsonify
+    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+
+    with app.app_context():
+        access_token = create_access_token(identity=auth_user)
+        refresh_token = create_refresh_token(identity=auth_user)
+        response = jsonify({"access_token": access_token})
+        response.status_code = 200
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        yield response
+
+
+@pytest.fixture
 def authenticated_client(client, access_token):
     client.set_cookie(
         key="access_token_cookie",
