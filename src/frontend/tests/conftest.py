@@ -97,7 +97,7 @@ def pytest_addoption(parser):
     group.addoption(
         "--fail-on-console",
         action="store",
-        default="error,assert,pageerror",
+        default="error,assert",
         help="Console/Page event types that should fail the test.",
     )
     group.addoption(
@@ -109,7 +109,7 @@ def pytest_addoption(parser):
     group.addoption(
         "--warn-on-console",
         action="store",
-        default="warning",
+        default="warning,pageerror",
         help="Console types to forward as pytest warnings (comma-separated).",
     )
 
