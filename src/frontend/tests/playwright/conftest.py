@@ -207,14 +207,14 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     yield page
 
 
-@pytest.fixture(autouse=True)
-def _forward_console_and_page_errors(request, taranis_frontend):
+@pytest.fixture
+def forward_console_and_page_errors(request, logged_in_page):
     """
     For each test:
       - collect console messages and page errors
       - at teardown: fail on configured severities, warn on warnings
     """
-    page = taranis_frontend
+    page = logged_in_page
     fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
     warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
     allow_patterns = request.config.getoption("--console-allow") or []

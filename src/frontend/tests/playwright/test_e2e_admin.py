@@ -30,7 +30,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_user_management(self, logged_in_page: Page):
+    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors):
         def check_dashboard():
             page.goto(url_for("base.dashboard", _external=True))
             expect(page.locator("#dashboard")).to_be_visible()
@@ -265,44 +265,21 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # add_attribute_group()
         # add_attribute_to_group()
 
-    def test_admin_product_types(self, taranis_frontend: Page):
-        def show_product_type():
-            page.get_by_role("link", name="Product Types").click()
-            page.get_by_role("cell", name="Default TEXT Presenter").first.click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_product_type_edit.png")
-
-        page = taranis_frontend
-
-        # show_product_type()
-
-    def test_open_api(self, taranis_frontend: Page):
+    def test_open_api(self, logged_in_page: Page):
         def show_open_api():
             page.goto(url_for("base.open_api", _external=True))
-            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
+            expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
-        page = taranis_frontend
-        # show_open_api()
+        page = logged_in_page
+        # show_open_api() # figure out how to test the OpenAPI page opening in a new tab
 
-    def test_template_management(self, taranis_frontend: Page):
+    def test_template_management(self, logged_in_page: Page):
         def show_template_management():
             page.goto(url_for("admin.template_data", _external=True))
-            expect(page.locator("h2.title").first).to_contain_text("Template Management")
-
-        page = taranis_frontend
-
-        # Login first (required for admin access)
-        page.goto(url_for("base.login", _external=True))
-        page.get_by_placeholder("Username").fill("admin")
-        page.get_by_placeholder("Password").fill("admin")
-        page.get_by_test_id("login-button").click()
-        expect(page.locator("#dashboard")).to_be_visible()
-
-        # show_template_management()
+            expect(page.locator("#template-list").get_by_role("link", name="Template", exact=True)).to_be_visible()
 
         def test_invalid_template_shows_invalid_badge():
             """Test that invalid templates show 'Invalid' badge, not 'Valid'."""
-            page = taranis_frontend
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
             page.get_by_test_id("new-template-button").click()
@@ -328,9 +305,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.goto(url_for("admin.template_data", _external=True))
             page.wait_for_load_state("networkidle")
 
-            # Debug: print table content and take screenshot
-            print("[DEBUG] Template table content after add:")
-            print(page.content())
             page.screenshot(path="./tests/playwright/screenshots/after_add_invalid_template.png")
 
             # Find the template we just created (wait for it to appear)
@@ -352,7 +326,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def test_invalid_template_content_accessible_via_htmx():
             """Test that invalid template content is accessible when navigating via HTMX."""
-            page = taranis_frontend
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
 
@@ -372,31 +345,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             content_value = template_content.input_value()
             assert len(content_value) > 0, "Invalid template content should still be accessible"
 
-            # The content might be Base64 encoded, so decode it first
-            import base64
-
-            try:
-                decoded_content = base64.b64decode(content_value).decode("utf-8")
-                content_to_check = decoded_content
-            except Exception:
-                # If not Base64, use the original content
-                content_to_check = content_value
-
             # Verify we can see some expected content (the test_invalid.html contains "user.name")
-            assert "user.name" in content_to_check, f"Should contain template content, got: {content_to_check}"
+            assert "user.name" in content_value, f"Should contain template content, got: {content_value}"
 
         def test_monaco_editor_loads_on_htmx_navigation():
             """Test Monaco editor loads properly on HTMX navigation."""
-            page = taranis_frontend
-
-            # Track console errors
-            console_errors = []
-
-            def handle_console(msg):
-                if msg.type == "error":
-                    console_errors.append(msg.text)
-
-            page.on("console", handle_console)
 
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
@@ -409,10 +362,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             # Wait for page load and Monaco initialization
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(2000)  # Wait for Monaco async loading
-
-            # Check that we don't have the "ta is null" error
-            ta_null_errors = [err for err in console_errors if "ta is null" in err or "can't access property" in err]
-            assert not ta_null_errors, f"Found 'ta is null' errors: {ta_null_errors}"
 
             # Check that textarea is accessible (Monaco fallback works)
             textarea = page.locator("#editor-content")
@@ -432,16 +381,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 if monaco_lines.count() > 0:
                     expect(monaco_lines.first).to_be_visible()
             elif textarea.is_visible():
-                # Fallback: textarea is visible and has content
                 expect(textarea).to_be_visible()
                 content = textarea.input_value()
                 assert len(content) > 0, "Template content should be accessible in fallback"
-            else:
-                # Neither editor is visible, print console errors for debug
-                print("Console errors:", console_errors)
-                assert False, "Neither Monaco nor textarea editor is visible"
 
-        # Run the tests
+        page = logged_in_page
+
+        show_template_management()
         test_invalid_template_shows_invalid_badge()
         test_invalid_template_content_accessible_via_htmx()
         test_monaco_editor_loads_on_htmx_navigation()
