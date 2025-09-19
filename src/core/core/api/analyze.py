@@ -42,13 +42,17 @@ class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id=None):
         if report_item_id:
-            return report_item.ReportItem.get_for_api(report_item_id)
+            r = report_item.ReportItem.get_for_api(report_item_id)
+            logger.debug(f"Report item: {r}")
+            return r
         filter_keys = ["search", "completed", "range", "sort", "group"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        report_items = report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        logger.debug(f"{report_items=}")
+        return report_items
 
     @auth_required("ANALYZE_CREATE")
     def post(self):

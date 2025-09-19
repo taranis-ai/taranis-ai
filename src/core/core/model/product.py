@@ -101,7 +101,8 @@ class Product(BaseModel):
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
         data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports()]
-        logger.debug(f"Product detail dict: {data}")
+        data["render_result"] = self.render_result
+        data["mime_type"] = self.product_type.get_mimetype() if self.product_type else None
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:

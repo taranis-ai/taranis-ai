@@ -5,6 +5,8 @@
 {% set product = product | default({}) %}
 {% set product_types = product_types | default([]) %}
 {% set supported_reports = product.supported_reports | default([]) | tojson %}
+{% set rendered_product = product.render_result %}
+{% set rendered_mime_type = product.mime_type %}
 
 {% set columns = [
   {"title": "id", "field": "id", "sortable": True, "searchable": True, "renderer": None},
@@ -96,7 +98,7 @@
               {% endif %}
 
               {% if is_edit %}
-                {% if renderedProduct %}
+                {% if rendered_product %}
                 <button type="button"
                         class="btn btn-primary mt-4 w-full"
                         @click="triggerAction('publish')">
@@ -111,6 +113,9 @@
               </button>
               {% endif %}
           </form>
+        </div>
+
+        {% if is_edit %}
 
           {# Dirty Modal #}
           <dialog x-show="showDirty" class="modal" @click.outside="showDirty=false">
@@ -125,8 +130,7 @@
           </dialog>
 
           {# Publish Modal #}
-          {% if is_edit %}
-          <dialog x-show="showPublish" class="modal" @click.outside="showPublish=false">
+          <dialog class="modal">
             <div class="modal-box min-w-[28rem]">
               <h3 class="font-bold text-lg mb-2">Publish Product</h3>
               {% if has_incomplete_reports | default(false) %}
@@ -154,23 +158,21 @@
               </div>
             </div>
           </dialog>
-          {% endif %}
-        </div>
 
-        {% if is_edit %}
         <div class="col-span-12 lg:col-span-6 p-3">
-          <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview">
+          <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
             {% if rendered_product %}
               {% if rendered_mime_type in ['text/html', 'application/json'] %}
-                <div class="prose max-w-none" data-testid="html-render">{{ rendered_product | safe }}</div>
+                <iframe
+                  class="w-full h-[80vh]"
+                  data-testid="html-render"
+                  sandbox
+                  src="data:text/html;charset=utf-8;base64,{{ product.render_result }}">
+                </iframe>
               {% elif rendered_mime_type == 'application/pdf' %}
                 <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
               {% elif rendered_mime_type == 'text/plain' %}
-                <pre data-testid="text-render" class="whitespace-pre-wrap">{{ rendered_product }}</pre>
-              {% elif rendered_mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' %}
-                <div class="alert">
-                  Preview for .docx is not supported. Please download the file instead.
-                </div>
+                <pre data-testid="text-render" class="whitespace-pre-wrap">{{ rendered_product | b64decode }}</pre>
               {% else %}
                 <div class="alert">
                   Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.

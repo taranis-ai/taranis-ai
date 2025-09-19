@@ -2,10 +2,10 @@ from typing import Any
 from frontend.log import logger
 
 from models.report import ReportItem
+from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_datetime, render_count, render_item_type
-from models.admin import ReportItemType
 
 
 class ReportItemView(BaseView):

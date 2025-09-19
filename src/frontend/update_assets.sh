@@ -21,10 +21,11 @@ declare -A files=(
   ["https://cdn.jsdelivr.net/npm/alpinejs/dist/cdn.min.js"]="${JS_STATIC_DIR}/alpinejs.min.js"
   ["https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"]="${JS_STATIC_DIR}/fuse.js"
   ["https://cdn.jsdelivr.net/npm/htmx.org/dist/htmx.min.js"]="${JS_STATIC_DIR}/htmx.min.js"
+  ["https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"]="${JS_STATIC_DIR}/Sortable.min.js"
   ["https://cdn.jsdelivr.net/npm/sweetalert2/dist/sweetalert2.all.min.js"]="${JS_STATIC_DIR}/sweetalert2.all.min.js"
   ["https://cdn.jsdelivr.net/npm/sweetalert2/dist/sweetalert2.min.css"]="${CSS_STATIC_DIR}/sweetalert2.min.css"
   ["https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js"]="${JS_STATIC_DIR}/daisyui.js"
-  ["https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.52.2.tgz"]="${JS_STATIC_DIR}/monaco-editor-0.52.2.tgz"
+  ["https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.53.0.tgz"]="${JS_STATIC_DIR}/monaco-editor-0.53.0.tgz"
 )
 
 # Download the latest versions
@@ -36,8 +37,8 @@ done
 
 pushd $JS_STATIC_DIR > /dev/null
 mkdir -p vs
-tar -xzf monaco-editor-0.52.2.tgz --strip-components=2 package/min/vs
-rm -f monaco-editor-0.52.2.tgz
+tar -xzf monaco-editor-0.53.0.tgz --strip-components=2 package/min/vs
+rm -f monaco-editor-0.53.0.tgz
 popd > /dev/null
 
 echo "All files downloaded successfully."
