@@ -44,7 +44,7 @@ class ProductView(BaseView):
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         if cls.model_name() in base_context:
             product: Product = base_context[cls.model_name()]
-            is_edit = product.id is not None and product.id != 0
+            is_edit = product.id is not None and product.id != "0"
             if is_edit:
                 base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["is_edit"] = is_edit
