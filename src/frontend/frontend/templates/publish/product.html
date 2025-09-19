@@ -162,17 +162,15 @@
         <div class="col-span-12 lg:col-span-6 p-3">
           <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
             {% if rendered_product %}
-              {% if rendered_mime_type in ['text/html', 'application/json'] %}
+              {% if rendered_mime_type in ['text/html', 'application/json', 'text/plain'] %}
                 <iframe
                   class="w-full h-[80vh]"
                   data-testid="html-render"
                   sandbox
-                  src="data:text/html;charset=utf-8;base64,{{ product.render_result }}">
+                  src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
                 </iframe>
               {% elif rendered_mime_type == 'application/pdf' %}
                 <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
-              {% elif rendered_mime_type == 'text/plain' %}
-                <pre data-testid="text-render" class="whitespace-pre-wrap">{{ rendered_product | b64decode }}</pre>
               {% else %}
                 <div class="alert">
                   Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.
