@@ -30,7 +30,7 @@
     "codemirror": "^6.0.2",
     "js-base64": "^3.7.8",
     "lodash-es": "^4.17.21",
-    "mammoth": "^1.10.0",
+    "mammoth": "^1.11.0",
     "mergely": "^5.3.6",
     "object-hash": "^3.0.0",
     "pinia": "^3.0.3",
@@ -53,7 +53,7 @@
     "prettier": "^3.6.2",
     "sass": "^1.92.1",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5",
+    "vite": "^7.1.6",
     "vite-plugin-vuetify": "^2.1.2",
     "vue-tsc": "^3.0.7"
   }

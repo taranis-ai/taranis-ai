@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select, form_input_content, form_switch %}
+{% from "macros/forms.html" import form_input %}
 {% from "macros/worker.html" import worker_status %}
 {% set bot_id = bot.id | default("0", true) %}
 
@@ -23,7 +23,7 @@
               class="validator select w-full"
               hx-get="{{ url_for('admin.bot_parameters', bot_id=bot_id) }}"
               hx-trigger="change"
-              hx-include="#bot_type"
+              hx-include="this"
               hx-target="#parameters"
               hx-swap="innerHTML"
               {% if bot.type %}disabled{% endif %}>

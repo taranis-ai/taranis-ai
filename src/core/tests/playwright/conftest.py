@@ -79,7 +79,7 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
     page = context.new_page()
-    page.goto(e2e_server.url())
+    page.goto(f"{e2e_server.url()}/login")
     yield page
     if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_core_trace.zip")

@@ -29,7 +29,8 @@
             </td>
           {% endif %}
           {% for col in columns %}
-            <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">
+            <td class="cursor-pointer max-w-[50ch]">
+              <a href="{{ edit_route }}" class="block w-full h-full">
               {% if col.renderer %}
                 {% if 'render_args' in col %}
                   {{ col.renderer(item, **col.render_args) }}
@@ -39,6 +40,7 @@
               {% else %}
                 {{ item[col.field] }}
               {% endif %}
+              </a>
             </td>
           {% endfor %}
           {% if actions %}

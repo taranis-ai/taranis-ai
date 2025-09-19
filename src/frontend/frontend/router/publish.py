@@ -15,5 +15,8 @@ def init(app: Flask):
     publish_bp.add_url_rule(
         "/product/<string:product_id>/render", view_func=ProductView.product_render, methods=["POST"], endpoint="product_render"
     )
+    publish_bp.add_url_rule(
+        "/product/<string:product_id>/publish", view_func=ProductView.product_publish, methods=["POST"], endpoint="product_publish"
+    )
 
     app.register_blueprint(publish_bp)

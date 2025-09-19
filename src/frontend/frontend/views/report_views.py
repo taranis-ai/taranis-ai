@@ -2,18 +2,18 @@ from typing import Any
 from frontend.log import logger
 
 from models.report import ReportItem
+from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_datetime, render_count, render_item_type
-from models.admin import ReportItemType
 
 
 class ReportItemView(BaseView):
     model = ReportItem
     icon = "presentation-chart-bar"
-    htmx_list_template = "analyze/index.html"
-    htmx_update_template = "analyze/product.html"
-    edit_template = "analyze/product.html"
+    htmx_list_template = "analyze/report_table.html"
+    htmx_update_template = "analyze/report.html"
+    edit_template = "analyze/report_view.html"
     default_template = "analyze/index.html"
 
     base_route = "analyze.analyze"

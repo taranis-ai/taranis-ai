@@ -92,6 +92,9 @@ class CoreApi:
     def render_product(self, product_id: str) -> requests.Response:
         return self.api_post(f"/publish/products/{product_id}/render")
 
+    def publish_product(self, product_id: str, publisher_id: str) -> requests.Response:
+        return self.api_post(f"/publish/products/{product_id}/publishers/{publisher_id}")
+
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
 

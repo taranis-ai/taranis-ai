@@ -23,3 +23,5 @@ class Product(TaranisBaseModel):
     product_type_id: int
     report_items: list[str] = Field(default_factory=list)
     last_rendered: datetime | None = None
+    render_result: str | None = None
+    mime_type: str | None = None
