@@ -1,5 +1,5 @@
+from base64 import b64encode, b64decode
 from typing import Any
-from base64 import b64decode, b64encode
 from flask import request
 
 from frontend.views.base_view import BaseView
@@ -14,6 +14,7 @@ class TemplateView(AdminMixin, BaseView):
     model = Template
     icon = "document-text"
     _index = 160
+    htmx_list_template: str = "template/template_data_table.html"
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -21,7 +22,12 @@ class TemplateView(AdminMixin, BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_item_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_item_validation_status}
+        ]
+
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -30,7 +36,6 @@ class TemplateView(AdminMixin, BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         template: Template = base_context.get(cls._get_object_key())  # type: ignore
-
         if not isinstance(template, Template):
             return base_context
 
@@ -42,6 +47,8 @@ class TemplateView(AdminMixin, BaseView):
             template.content = template.content
 
         base_context[cls.model_name()] = template
+        validation_status = getattr(template, 'validation_status', None) or {}
+        base_context["validation_status"] = validation_status
         return base_context
 
     @classmethod

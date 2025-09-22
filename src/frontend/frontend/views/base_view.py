@@ -219,7 +219,7 @@ class BaseView(MethodView):
             }
         )
 
-        context[cls.model_name()] = cls.model.model_construct()
+        context[cls.model_name()] = cls.model.model_construct(id='0')
         return cls.get_extra_context(context)
 
     @classmethod

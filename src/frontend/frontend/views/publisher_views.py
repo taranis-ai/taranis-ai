@@ -4,7 +4,7 @@ from flask import request, render_template
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType
+from models.admin import PublisherPreset, ProductType, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from frontend.views.admin_mixin import AdminMixin
 
@@ -77,10 +77,11 @@ class ProductTypeView(AdminMixin, BaseView):
             parameters = cls.get_worker_parameters(worker_type=presenter_type.name.lower())
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
-            "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType)],
+            "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType).items],
             "parameters": parameters,
             "parameter_values": parameter_values,
         }
+        base_context["template_files"] = [t.model_dump() for t in dpl.get_objects(Template).items]
         return base_context
 
     @classmethod

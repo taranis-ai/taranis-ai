@@ -2596,10 +2596,100 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+  /config/templates:
+    get:
+      tags: [config]
+      description: list all presenter templates with validation status
+      security:
+        - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_list_response'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+    post:
+      tags: [config]
+      description: create or update a presenter template (by id in body) and return validation status
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/template_write_request'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_write_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+  /config/templates/{template_path}:
+    parameters:
+      - name: template_path
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [config]
+      description: get a single presenter template (base64 encoded content) with validation status
+      security:
+        - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_item'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+    put:
+      tags: [config]
+      description: update a presenter template (by path) and return validation status
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: base64
+              required: [content]
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_write_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
-      description: delete publisher preset
-      operationId: config.publisher_preset.delete
+      description: delete a presenter template
       security:
         - UserAuth: []
       responses:
@@ -2609,6 +2699,31 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+  /config/templates/validate:
+    post:
+      tags: [config]
+      description: validate a Jinja2 template without saving it
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/template_validation_request'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_validation_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '500':
+          description: Internal server error
   /dashboard/trending-clusters:
     get:
       operationId: dashboard.trending-clusters
@@ -3618,6 +3733,88 @@ components:
           type: string
           format: date-time
         report_item_id:
+          type: string
+
+    # Template validation and management
+    validation_status:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+        error_message:
+          type: string
+        error_type:
+          type: string
+      required: [is_valid, error_message, error_type]
+
+    template_item:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+          description: base64 encoded template content; may be empty string when file is empty or null when not readable
+          nullable: true
+          format: base64
+        validation_status:
+          $ref: '#/components/schemas/validation_status'
+      required: [id, validation_status]
+
+    template_list_response:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/template_item'
+
+    template_write_request:
+      type: object
+      properties:
+        id:
+          type: string
+          description: template file name (path relative to presenter_templates)
+        content:
+          type: string
+          format: base64
+      required: [id, content]
+
+    template_write_response:
+      type: object
+      properties:
+        message:
+          type: string
+        path:
+          type: string
+        validation_status:
+          $ref: '#/components/schemas/validation_status'
+        warning:
+          type: string
+
+    template_validation_request:
+      type: object
+      properties:
+        content:
+          type: string
+          description: template content; if is_base64=true then base64 encoded
+        is_base64:
+          type: boolean
+          default: false
+      required: [content]
+
+    template_validation_response:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+        error_message:
+          type: string
+        error_type:
+          type: string
+        message:
           type: string
 
   securitySchemes:

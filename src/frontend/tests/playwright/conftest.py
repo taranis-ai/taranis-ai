@@ -62,6 +62,7 @@ def run_core(app):
         _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
 
         yield
+
     except Exception as e:
         pytest.fail(str(e))
     finally:
@@ -118,7 +119,35 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser):
+def setup_test_templates():
+    """Set up test template files for e2e tests."""
+    import shutil
+    from pathlib import Path
+    
+    # Get paths
+    test_data_dir = Path(__file__).parent / "testdata"
+    core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
+    
+    # Ensure the core templates directory exists
+    core_templates_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy test template files
+    copied_files = []
+    for test_file in test_data_dir.glob("*.html"):
+        dest_file = core_templates_dir / test_file.name
+        shutil.copy2(test_file, dest_file)
+        copied_files.append(dest_file)
+    
+    yield
+    
+    # Cleanup: remove test template files
+    for file_path in copied_files:
+        if file_path.exists():
+            file_path.unlink()
+
+
+@pytest.fixture(scope="session")
+def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
     timeout = int(request.config.getoption("--e2e-timeout"))
