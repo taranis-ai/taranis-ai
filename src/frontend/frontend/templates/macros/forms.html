@@ -106,14 +106,4 @@
       {% endfor %}
     </select>
   </div>
-  {% for option in options %}
-    {% set status = option.validation_status | normalize_validation_status %}
-    <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} — {{ status|badge_label }}</option>
-  {% endfor %}
-</select>
-{% if value %}
-  {% set selected_option = options | selectattr('id', 'equalto', value) | list | first %}
-  {% if selected_option %}<div class="mt-2">{{ selected_option.name }} {{ selected_option|render_validation_status }}</div>{% endif %}
-{% endif %}
-</div>
 {% endmacro %}

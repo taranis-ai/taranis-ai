@@ -157,7 +157,7 @@
 </div>
 {% endmacro %}
 
-{% macro datatable_header(title, sortable) %}
+{% macro datatable_header(title, sortable=false) %}
   {% from "macros/query_params.html" import update_query_params %}
   {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
   {% set order = title ~ '_' ~ order_direction %}
