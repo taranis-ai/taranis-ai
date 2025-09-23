@@ -9,9 +9,7 @@
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ connector_id }}</p>
   {% if connector.status %}
-  <div class="mb-5 w-1/2 ml-[10%]">
-  {{ worker_status(connector.status) }}
-  </div>
+    <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(connector.status) }}</div>
   {% endif %}
   <form id="{{ model_name }}-form"
         class="w-1/2 ml-[10%]"
@@ -25,11 +23,7 @@
 
     <label class="select w-full mb-5">
       <span class="label">Connector Type</span>
-      <select id="connector_type"
-              name="type"
-              required
-              class="validator select w-full"
-              {% if connector.type %}disabled{% endif %}>
+      <select id="connector_type" name="type" required class="validator select w-full" {% if connector.type %}disabled{% endif %}>
         {% if not connector.type %}<option value="" selected disabled>Select a connector type</option>{% endif %}
         {% for option in connector_types -%}
           <option value="{{ option.id }}" {% if option.id==connector.type %}selected{% endif %}>{{ option.name }}</option>

@@ -1,73 +1,73 @@
 {% macro table(table_id, data, columns, actions, routes, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
-{% from "macros/table.html" import table_header %}
-{% from "macros/buttons.html" import action_button %}
-{% set item_ids = data | map(attribute='id') | list %}
-<table class="table shadow table-zebra table-sm" id="{{ table_id }}" {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
-  <thead>
-    <tr>
-      {% if selectable %}
-        <th>
-          <input type="checkbox"
-                  class="checkbox"
-                  :checked="selectedItems.length === {{ item_ids | length }}"
-                  @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
-                  @click.stop />
-        </th>
-      {% endif %}
-      {% for col in columns %}{{ table_header(col) }}{% endfor %}
-      {% if actions %}<th class="text-right">Actions</th>{% endif %}
-    </tr>
-  </thead>
-  <tbody>
-    {% if data %}
-      {% for item in data %}
-        {% set edit_route = routes.base_route ~ '/' ~ item.id %}
-        <tr class="hover:bg-info">
-          {% if selectable %}
-            <td>
-              <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
-            </td>
-          {% endif %}
-          {% for col in columns %}
-            <td class="cursor-pointer max-w-[50ch]">
-              <a href="{{ edit_route }}" class="block w-full h-full">
-              {% if col.renderer %}
-                {% if 'render_args' in col %}
-                  {{ col.renderer(item, **col.render_args) }}
-                {% else %}
-                  {{ col.renderer(item) }}
-                {% endif %}
-              {% else %}
-                {{ item[col.field] }}
-              {% endif %}
-              </a>
-            </td>
-          {% endfor %}
-          {% if actions %}
-            {% from "macros/table.html" import table_actions %}
-            {{ table_actions(actions, item.id, routes.base_route) }}
-          {% else %}
-          {% endif %}
+  {% from "macros/table.html" import table_header %}
+  {% from "macros/buttons.html" import action_button %}
+  {% set item_ids = data | map(attribute='id') | list %}
+  <table class="table shadow table-zebra table-sm" id="{{ table_id }}" {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
+    <thead>
+      <tr>
+        {% if selectable %}
+          <th>
+            <input type="checkbox"
+                   class="checkbox"
+                   :checked="selectedItems.length === {{ item_ids | length }}"
+                   @change="selectedItems = selectedItems.length === {{ item_ids | length }} ? [] : {{ item_ids }}"
+                   @click.stop />
+          </th>
+        {% endif %}
+        {% for col in columns %}{{ table_header(col) }}{% endfor %}
+        {% if actions %}<th class="text-right">Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if data %}
+        {% for item in data %}
+          {% set edit_route = routes.base_route ~ '/' ~ item.id %}
+          <tr class="hover:bg-info">
+            {% if selectable %}
+              <td>
+                <input type="checkbox" class="checkbox checkbox-sm" value="{{ item.id }}" name="{{ input_name }}[]" x-model="selectedItems" @click.stop />
+              </td>
+            {% endif %}
+            {% for col in columns %}
+              <td class="cursor-pointer max-w-[50ch]">
+                <a href="{{ edit_route }}" class="block w-full h-full">
+                  {% if col.renderer %}
+                    {% if 'render_args' in col %}
+                      {{ col.renderer(item, **col.render_args) }}
+                    {% else %}
+                      {{ col.renderer(item) }}
+                    {% endif %}
+                  {% else %}
+                    {{ item[col.field] }}
+                  {% endif %}
+                </a>
+              </td>
+            {% endfor %}
+            {% if actions %}
+              {% from "macros/table.html" import table_actions %}
+              {{ table_actions(actions, item.id, routes.base_route) }}
+            {% else %}
+            {% endif %}
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
+            <div class="text-center">
+              <p class="text-gray-500">No data available</p>
+            </div>
+          </td>
         </tr>
-      {% endfor %}
-    {% else %}
+      {% endif %}
+    </tbody>
+    <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
       <tr>
         <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-          <div class="text-center">
-            <p class="text-gray-500">No data available</p>
-          </div>
+          <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
         </td>
       </tr>
-    {% endif %}
-  </tbody>
-  <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
-    <tr>
-      <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-        <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
+    </tfoot>
+  </table>
 {% endmacro %}
 
 {% macro table_actions(actions, item_id, base_url) %}
@@ -102,9 +102,11 @@
   <div class="flex gap-4 mb-4">
     {% if routes.edit_route %}
       <div class="grow-0">
-        <button hx-get="{{ routes.edit_route }}" hx-push-url="true" hx-target="{{ new_item_target }}" class="btn btn-primary" data-testid="new-{{ model_name }}-button">
-          New {{ name }}
-        </button>
+        <button hx-get="{{ routes.edit_route }}"
+                hx-push-url="true"
+                hx-target="{{ new_item_target }}"
+                class="btn btn-primary"
+                data-testid="new-{{ model_name }}-button">New {{ name }}</button>
       </div>
     {% endif %}
     {% if searchbar %}{{ table_search_bar(container_id, routes.base_route) }}{% endif %}
@@ -153,7 +155,13 @@
 {% macro table_search_bar(table_id, base_url) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
-    <form hx-get="{{ base_url }}" hx-push-url="true" hx-select="#{{ table_id }}" hx-target="#{{ table_id }}" hx-target-error="#notification-bar" hx-trigger="input delay:500ms" hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
+    <form hx-get="{{ base_url }}"
+          hx-push-url="true"
+          hx-select="#{{ table_id }}"
+          hx-target="#{{ table_id }}"
+          hx-target-error="#notification-bar"
+          hx-trigger="input delay:500ms"
+          hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
       <input type="search" id="{{ table_id }}-search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
     </form>
   </div>

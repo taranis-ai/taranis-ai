@@ -1,9 +1,9 @@
 <div class="flex flex-col items-center justify-center p-4">
   {% if is_success %}
-  {{ heroicon_outline("check-circle", class="h-20 w-20 text-green-500") }}
-  <div class="text-2xl font-bold mb-2">{{ response.message }}</div>
+    {{ heroicon_outline("check-circle", class="h-20 w-20 text-green-500") }}
+    <div class="text-2xl font-bold mb-2">{{ response.message }}</div>
   {% else %}
-  {{ heroicon_outline("exclamation-circle", class="h-20 w-20 text-red-500") }}
-  <div class="text-2xl font-bold mb-2">{{ response.error }}</div>
+    {{ heroicon_outline("exclamation-circle", class="h-20 w-20 text-red-500") }}
+    <div class="text-2xl font-bold mb-2">{{ response.error }}</div>
   {% endif %}
 </div>
