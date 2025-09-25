@@ -9,6 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
 from core.config import Config
 from core.managers import queue_manager
+from core.service import report_item as report_item_service
 
 
 class ReportTypes(MethodView):
@@ -130,6 +131,10 @@ class ReportItemLock(MethodView):
 
 
 class ReportItemStix(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id):
+        return report_item_service.ReportItemService.get_render(report_item_id)
+
     @auth_required("ANALYZE_ACCESS")
     def post(self, report_item_id):
         try:

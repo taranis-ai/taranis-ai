@@ -1,3 +1,4 @@
+from base64 import b64encode
 import re
 from celery import Task
 import json
@@ -14,7 +15,7 @@ class ConnectorTask(Task):
     priority = 5
     default_retry_delay = 60
     time_limit = 300
-    ignore_result = True
+    ignore_result = False
 
     def __init__(self):
         self.core_api = CoreApi()
@@ -92,10 +93,13 @@ class ConnectorTask(Task):
         logger.info(f"Running connector with id: {connector_id}")
         connector_config: dict = {"type": "report_to_stix"}
         connector = None
+        report_id = None
         try:
             if connector_id != "report-to-stix":
                 connector_config: dict = self.get_connector_config(connector_id)
             connector: MISPConnector | None = self.get_connector(connector_config.get("type", ""))
+            logger.debug(f"{data=}")
+            report_id = data.get("report_id")
         except Exception as e:
             logger.exception(f"Failed to get connector with id: {connector_id}")
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
@@ -104,7 +108,13 @@ class ConnectorTask(Task):
 
         try:
             if connector is not None:
-                return connector.execute(connector_data)
+                stix_report: list | None = connector.execute(connector_data)
+                if stix_report is None:
+                    return None
+                json_blob = json.dumps(stix_report)
+                render_result = b64encode(json_blob.encode("utf-8")).decode("ascii")
+                return {"report_id": report_id, "render_result": render_result, "message": f"Connector {connector_id} executed successfully"}
+
         except Exception as e:
             logger.exception(f"Error executing connector with id: {connector_id}")
             raise RuntimeError(f"Error executing connector with id: {connector_id}") from e

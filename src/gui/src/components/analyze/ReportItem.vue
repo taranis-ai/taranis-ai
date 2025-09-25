@@ -23,6 +23,14 @@
       />
       <v-btn
         v-if="edit"
+        variant="outlined"
+        class="ml-3 mr-3"
+        @click="downloadStixReport"
+      >
+        <span>{{ $t('analyze.download') }}</span>
+      </v-btn>
+      <v-btn
+        v-if="edit"
         prepend-icon="mdi-application-export"
         color="primary"
         variant="flat"
@@ -155,7 +163,7 @@ import { createReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
-import { setStoriesToReportItem, getStix } from '@/api/analyze'
+import { setStoriesToReportItem, generateStix, getStix } from '@/api/analyze'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -308,7 +316,16 @@ export default {
 
     function exportToStix() {
       console.debug('Exporting to STIX', report_item.value)
-      getStix(report_item.value)
+      generateStix(report_item.value)
+    }
+
+    function downloadStixReport() {
+      getStix(report_item.value.id).catch((error) => {
+        console.error('Error downloading STIX report:', error)
+        notifyFailure(
+          'Failed to download STIX report, try to regenerate it first.'
+        )
+      })
     }
 
     return {
@@ -322,7 +339,8 @@ export default {
       saveReportItem,
       removeAllFromReport,
       removeFromReport,
-      exportToStix
+      exportToStix,
+      downloadStixReport
     }
   }
 }

@@ -21,7 +21,8 @@
       "remove_all_stories": "Remove all stories",
       "vertical_view": "Side-by-side",
       "new_report": "New Report",
-      "export_to_stix": "Export to STIX"
+      "export_to_stix": "Export to STIX",
+      "download": "Download Export"
     },
     "assess": {
         "story_description": "Description",

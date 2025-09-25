@@ -146,7 +146,7 @@ class QueueManager:
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
     def push_to_connector(self, connector_id: str, data: dict):
-        if self.send_task("connector_task", args=[connector_id, data], queue="connectors"):
+        if self.send_task("connector_task", args=[connector_id, data], queue="connectors", task_id=f"connector_{connector_id}"):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": f"Connector with id: {connector_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
