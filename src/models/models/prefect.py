@@ -25,3 +25,7 @@ class CollectorTaskRequest(BaseModel):
 class BotTaskRequest(BaseModel):
     bot_id: str
     filter: dict[str, str] | None = None
+
+
+class WordListTaskRequest(BaseModel):
+    word_list_id: int
