@@ -271,7 +271,7 @@ class Templates(MethodView):
 
 class TemplateValidation(MethodView):
     """Endpoint for validating Jinja2 templates without saving them."""
-    
+
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def post(self):
         """Validate a Jinja2 template without saving it."""
@@ -439,10 +439,10 @@ class Schedule(MethodView):
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := schedule_manager.schedule.get_periodic_task(task_id):
+                if result := schedule_manager.get_periodic_task(task_id):
                     return result, 200
                 return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.schedule.get_periodic_tasks():
+            if schedules := schedule_manager.get_periodic_tasks():
                 return schedules, 200
             return {"error": "No schedules found"}, 404
         except Exception:
@@ -457,7 +457,7 @@ class RefreshInterval(MethodView):
         if not cron_expr:
             return jsonify({"error": "Missing cron expression"}), 400
         try:
-            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
+            fire_times = schedule_manager.get_next_n_fire_times_from_cron(cron_expr, n=3)
             formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
             return jsonify(formatted_times), 200
         except Exception as e:
@@ -564,7 +564,9 @@ class OSINTSourceCollect(MethodView):
     def post(self, source_id=None):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
+                from flask import current_app
+                manager = queue_manager.QueueManager(app=current_app)
+                return manager.collect_osint_source(source_id)
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 

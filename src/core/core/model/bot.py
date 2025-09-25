@@ -118,7 +118,7 @@ class Bot(BaseModel):
     def schedule_bot(self):
         if crontab_str := self.get_schedule():
             entry = self.to_task_dict(crontab_str)
-            schedule_manager.schedule.add_celery_task(entry)
+            schedule_manager.schedule.add_prefect_task(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
             return {"message": f"Schedule for bot {self.id} updated"}, 200
         return {"message": "Bot has no refresh interval"}, 200
@@ -168,7 +168,7 @@ class Bot(BaseModel):
         for bot in bots:
             if interval := bot.get_schedule():
                 entry = bot.to_task_dict(interval)
-                schedule_manager.schedule.add_celery_task(entry)
+                schedule_manager.schedule.add_prefect_task(entry)
         logger.info(f"Gathering for {len(bots)} Bots scheduled")
 
 

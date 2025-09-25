@@ -262,7 +262,7 @@ class OSINTSource(BaseModel):
         for source in sources:
             interval = source.get_schedule()
             entry = source.to_task_dict(interval)
-            schedule_manager.schedule.add_celery_task(entry)
+            schedule_manager.schedule.add_prefect_task(entry)
         logger.info(f"Gathering for {len(sources)} OSINT Sources scheduled")
 
     def schedule_osint_source(self):
@@ -276,13 +276,13 @@ class OSINTSource(BaseModel):
 
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)
-        schedule_manager.schedule.add_celery_task(entry)
+        schedule_manager.add_prefect_task(entry)
         logger.info(f"Schedule for source {self.id} updated")
         return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
 
     def unschedule_osint_source(self):
         entry_id = self.task_id
-        schedule_manager.schedule.remove_periodic_task(entry_id)
+        schedule_manager.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.name} removed", "id": f"{self.id}"}, 200
 

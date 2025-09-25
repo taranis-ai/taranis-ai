@@ -6,12 +6,12 @@ from typing import Any
 from flask import Flask
 import requests
 from requests.auth import HTTPBasicAuth
-from prefect import get_client
+from prefect import get_client  # noqa: E402
 
 from core.log import logger
 
 
-queue_manager: "QueueManager"
+queue_manager: "QueueManager | None" = None
 
 
 class QueueManager:
@@ -49,23 +49,35 @@ class QueueManager:
         and return a structured per-list outcome.
         """
         from core.model.word_list import WordList
-        from worker.flows.gather_word_list_flow import gather_word_list_flow
+        from models.prefect import WordListTaskRequest
 
         if self.error:
             return
 
         word_lists = WordList.get_all_empty() or []
-        results: list[dict[str, Any]] = []
-        for word_list in word_lists:
-            try:
-                result = gather_word_list_flow(word_list.id)
-                logger.info(f"[gather_word_list] Ran for WordList {word_list.id}")
-                results.append({"word_list_id": word_list.id, "status": "ok", "result": result})
-            except Exception as e:
-                logger.exception(f"[gather_word_list] Failed for WordList {word_list.id}")
-                results.append({"word_list_id": word_list.id, "status": "error", "error": str(e)})
+        
+        async def _run_word_list_updates():
+            async with get_client() as client:
+                results: list[dict[str, Any]] = []
+                for word_list in word_lists:
+                    try:
+                        request = WordListTaskRequest(word_list_id=word_list.id)
+                        flow_run = await client.create_flow_run(
+                            flow_name="gather-word-list-flow",
+                            parameters={"request": request.dict()}
+                        )
+                        logger.info(f"[gather_word_list] Ran for WordList {word_list.id}")
+                        results.append({"word_list_id": word_list.id, "status": "ok", "result": flow_run.id})
+                    except Exception as e:
+                        logger.exception(f"[gather_word_list] Failed for WordList {word_list.id}")
+                        results.append({"word_list_id": word_list.id, "status": "error", "error": str(e)})
+                return results
 
-        return results
+        try:
+            return asyncio.run(_run_word_list_updates())
+        except Exception as e:
+            logger.exception("Failed to update empty word lists")
+            return []
 
     def get_queued_tasks(self):
         """
@@ -107,8 +119,6 @@ class QueueManager:
         try:
 
             async def _ping():
-                from prefect.client.orchestration import get_client
-
                 async with get_client() as client:
                     await client.read_flow_runs(limit=1)
                 return True
@@ -123,30 +133,45 @@ class QueueManager:
         return {"error": "Method not supported in Prefect - use flow run ID instead"}, 501
 
     def collect_osint_source(self, source_id: str):
-        from models.collector import CollectorTaskRequest
-        from worker.flows.collector_task_flow import collector_task_flow
+        from models.prefect import CollectorTaskRequest
 
-        request = CollectorTaskRequest(source_id=source_id, preview=False)
-        result = collector_task_flow(request)
-        return {"message": f"Collection for source {source_id} scheduled", "result": result}, 200
-
-    def preview_osint_source(self, source_id: str):
-        from models.collector import CollectorTaskRequest
-        from worker.flows.collector_task_flow import collector_task_flow
+        async def _run_collector():
+            async with get_client() as client:
+                request = CollectorTaskRequest(source_id=source_id, preview=False)
+                flow_run = await client.create_flow_run(
+                    flow_name="collector-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            request = CollectorTaskRequest(source_id=source_id, preview=True)
-            result = collector_task_flow(request)
+            result = asyncio.run(_run_collector())
+            return {"message": f"Collection for source {source_id} scheduled", "result": result}, 200
+        except Exception as e:
+            return {"error": f"Failed to schedule collection for source {source_id}", "details": str(e)}, 500
+
+    def preview_osint_source(self, source_id: str):
+        from models.prefect import CollectorTaskRequest
+
+        async def _run_preview():
+            async with get_client() as client:
+                request = CollectorTaskRequest(source_id=source_id, preview=True)
+                flow_run = await client.create_flow_run(
+                    flow_name="collector-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
+
+        try:
+            result = asyncio.run(_run_preview())
             logger.info(f"[collector_preview] Ran for source {source_id}, result: {result}")
             return {"message": f"Preview executed for source {source_id}", "result": result}, 200
         except Exception as e:
-            logger.exception(f"Failed to run collector_preview for {source_id}")
             return {"error": f"Failed to preview source {source_id}", "details": str(e)}, 500
 
     def collect_all_osint_sources(self):
         from core.model.osint_source import OSINTSource
-        from models.collector import CollectorTaskRequest
-        from worker.flows.collector_task_flow import collector_task_flow
+        from models.prefect import CollectorTaskRequest
 
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
@@ -155,27 +180,44 @@ class QueueManager:
         if not sources:
             return {"message": "No sources found"}, 200
 
-        results: list[dict[str, Any]] = []
-        for source in sources:
-            try:
-                request = CollectorTaskRequest(source_id=source.id, preview=False)
-                result = collector_task_flow(request)
-                logger.info(f"[collector_task_flow] Ran for {source.id}")
-                results.append({"source_id": source.id, "status": "ok", "result": result})
-            except Exception as e:
-                logger.exception(f"[collector_task_flow] Failed for {source.id}")
-                results.append({"source_id": source.id, "status": "error", "error": str(e)})
-
-        return {"message": f"Ran collector flow for {len(sources)} sources", "results": results}, 200
-
-    def push_to_connector(self, connector_id: str, story_ids: list[str]):
-        from models.connector import ConnectorTaskRequest
-        from worker.flows.connector_task_flow import connector_task_flow
+        async def _run_all_collectors():
+            async with get_client() as client:
+                results: list[dict[str, Any]] = []
+                for source in sources:
+                    try:
+                        request = CollectorTaskRequest(source_id=source.id, preview=False)
+                        flow_run = await client.create_flow_run(
+                            flow_name="collector-task-flow",
+                            parameters={"request": request.dict()}
+                        )
+                        logger.info(f"[collector_task_flow] Ran for {source.id}")
+                        results.append({"source_id": source.id, "status": "ok", "result": flow_run.id})
+                    except Exception as e:
+                        logger.exception(f"[collector_task_flow] Failed for {source.id}")
+                        results.append({"source_id": source.id, "status": "error", "error": str(e)})
+                return results
 
         try:
-            normalized_ids = list(story_ids) if story_ids else []
-            request = ConnectorTaskRequest(connector_id=connector_id, story_ids=normalized_ids)
-            result = connector_task_flow(request)
+            results = asyncio.run(_run_all_collectors())
+            return {"message": f"Ran collector flow for {len(sources)} sources", "results": results}, 200
+        except Exception as e:
+            return {"error": f"Failed to schedule collector flows", "details": str(e)}, 500
+
+    def push_to_connector(self, connector_id: str, story_ids: list[str]):
+        from models.prefect import ConnectorTaskRequest
+
+        async def _run_connector_push():
+            async with get_client() as client:
+                normalized_ids = list(story_ids) if story_ids else []
+                request = ConnectorTaskRequest(connector_id=connector_id, story_ids=normalized_ids)
+                flow_run = await client.create_flow_run(
+                    flow_name="connector-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
+
+        try:
+            result = asyncio.run(_run_connector_push())
             logger.info(f"[connector_task] Push scheduled for connector_id={connector_id}")
             return {"message": "Connector push executed", "result": result}, 200
         except Exception as e:
@@ -183,12 +225,19 @@ class QueueManager:
             return {"error": "Failed to schedule connector push", "details": str(e)}, 500
 
     def pull_from_connector(self, connector_id: str):
-        from models.connector import ConnectorTaskRequest
-        from worker.flows.connector_task_flow import connector_task_flow
+        from models.prefect import ConnectorTaskRequest
+
+        async def _run_connector_pull():
+            async with get_client() as client:
+                request = ConnectorTaskRequest(connector_id=connector_id, story_ids=None)
+                flow_run = await client.create_flow_run(
+                    flow_name="connector-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            request = ConnectorTaskRequest(connector_id=connector_id, story_ids=None)
-            result = connector_task_flow(request)
+            result = asyncio.run(_run_connector_pull())
             logger.info(f"[connector_task] Pull scheduled for connector_id={connector_id}")
             return {"message": "Connector pull executed", "result": result}, 200
         except Exception as e:
@@ -196,10 +245,19 @@ class QueueManager:
             return {"error": "Failed to schedule connector pull", "details": str(e)}, 500
 
     def gather_word_list(self, word_list_id: int):
-        from worker.flows.gather_word_list_flow import gather_word_list_flow
+        from models.prefect import WordListTaskRequest
+
+        async def _run_word_list():
+            async with get_client() as client:
+                request = WordListTaskRequest(word_list_id=word_list_id)
+                flow_run = await client.create_flow_run(
+                    flow_name="gather-word-list-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            result = gather_word_list_flow(word_list_id)
+            result = asyncio.run(_run_word_list())
             logger.info(f"Gathering for WordList {word_list_id} scheduled with result: {result}")
             return {"message": f"Gathering for WordList {word_list_id} completed", "result": result}, 200
         except Exception as e:
@@ -207,12 +265,19 @@ class QueueManager:
             return {"error": "Failed to gather WordList", "details": str(e)}, 500
 
     def execute_bot_task(self, bot_id: int, filter: dict | None = None):
-        from models.bot import BotTaskRequest
-        from worker.flows.bot_task_flow import bot_task_flow
+        from models.prefect import BotTaskRequest
+
+        async def _run_bot_task():
+            async with get_client() as client:
+                request = BotTaskRequest(bot_id=str(bot_id), filter=filter)
+                flow_run = await client.create_flow_run(
+                    flow_name="bot-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            request = BotTaskRequest(bot_id=bot_id, filter=filter)
-            result = bot_task_flow(request)
+            result = asyncio.run(_run_bot_task())
             logger.info(f"[bot_task] Executed for bot_id={bot_id}, result: {result}")
             return {"message": f"Bot {bot_id} executed", "result": result}, 200
         except Exception as e:
@@ -220,12 +285,19 @@ class QueueManager:
             return {"error": f"Failed to execute bot {bot_id}", "details": str(e)}, 500
 
     def generate_product(self, product_id: str, countdown: int = 0):
-        from models.presenter import PresenterTaskRequest
-        from worker.flows.presenter_task_flow import presenter_task_flow
+        from models.prefect import PresenterTaskRequest
+
+        async def _run_presenter_task():
+            async with get_client() as client:
+                request = PresenterTaskRequest(product_id=product_id, countdown=countdown)
+                flow_run = await client.create_flow_run(
+                    flow_name="presenter-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            request = PresenterTaskRequest(product_id=product_id, countdown=countdown)
-            result = presenter_task_flow(request)
+            result = asyncio.run(_run_presenter_task())
             logger.info(f"[presenter_task] Product generation scheduled for {product_id}")
             return {"message": f"Product {product_id} generated", "result": result}, 200
         except Exception as e:
@@ -233,12 +305,24 @@ class QueueManager:
             return {"error": f"Failed to generate product {product_id}", "details": str(e)}, 500
 
     def publish_product(self, product_id: str, publisher_id: str):
-        from models.publisher import PublisherTaskRequest
-        from worker.flows.publisher_task_flow import publisher_task_flow
+        from models.prefect import PublisherTaskRequest
+
+        async def _run_publisher_task():
+            async with get_client() as client:
+                request = PublisherTaskRequest(product_id=product_id, publisher_id=publisher_id)
+                flow_run = await client.create_flow_run(
+                    flow_name="publisher-task-flow",
+                    parameters={"request": request.dict()}
+                )
+                return flow_run.id
 
         try:
-            request = PublisherTaskRequest(product_id=product_id, publisher_id=publisher_id)
-            result = publisher_task_flow(request)
+            result = asyncio.run(_run_publisher_task())
+            logger.info(f"[publisher_task] Publishing scheduled for {product_id}")
+            return {"message": f"Product {product_id} published", "result": result}, 200
+        except Exception as e:
+            logger.exception(f"Failed to run publisher_task_flow for {product_id}")
+            return {"error": f"Failed to publish product {product_id}", "details": str(e)}, 500
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {
                 "message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled",
@@ -257,22 +341,33 @@ class QueueManager:
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
-        from models.bot import BotTaskRequest
-        from worker.flows.bot_task_flow import bot_task_flow
+        from models.prefect import BotTaskRequest
 
         post_collection_bots = list(Bot.get_post_collection())
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
-        results: list[dict[str, Any]] = []
-        for bot_id in post_collection_bots:
-            try:
-                request = BotTaskRequest(bot_id=bot_id, filter={"SOURCE": source_id})
-                result = bot_task_flow(request)
-                results.append({"bot_id": bot_id, "result": result})
-            except Exception as e:
-                logger.exception(f"Failed to run bot {bot_id} for source {source_id}")
-                results.append({"bot_id": bot_id, "error": str(e)})
+        async def _run_post_collection_bots():
+            async with get_client() as client:
+                results: list[dict[str, Any]] = []
+                for bot_id in post_collection_bots:
+                    try:
+                        request = BotTaskRequest(bot_id=str(bot_id), filter={"SOURCE": source_id})
+                        flow_run = await client.create_flow_run(
+                            flow_name="bot-task-flow",
+                            parameters={"request": request.dict()}
+                        )
+                        results.append({"bot_id": bot_id, "result": flow_run.id})
+                    except Exception as e:
+                        logger.exception(f"Failed to run bot {bot_id} for source {source_id}")
+                        results.append({"bot_id": bot_id, "error": str(e)})
+                return results
+
+        try:
+            results = asyncio.run(_run_post_collection_bots())
+            return {"message": f"Scheduled {len(post_collection_bots)} post-collection bots", "results": results}, 200
+        except Exception as e:
+            return {"error": "Failed to schedule post-collection bots", "details": str(e)}, 500
 
         return {"message": f"Post collection bots scheduled for source {source_id}", "results": results}, 200
 
@@ -287,8 +382,6 @@ def initialize(app: Flask, initial_setup: bool = True):
     try:
 
         async def _test_connection():
-            from prefect.client.orchestration import get_client
-
             async with get_client() as client:
                 await client.read_flow_runs(limit=1)
 
