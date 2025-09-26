@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for
+from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for, send_from_directory
 from flask.views import MethodView
 
 from frontend.core_api import CoreApi
@@ -94,11 +94,19 @@ class HealthView(MethodView):
         return render_template("health/index.html")
 
 
+class FaviconView(MethodView):
+    def get(self):
+        return send_from_directory("static/assets", "favicon.ico", mimetype="image/vnd.microsoft.icon")
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
     base_bp.add_url_rule("/health", view_func=HealthView.as_view("health"))
     base_bp.add_url_rule("/", view_func=DashboardView.as_view("dashboard"))
+    base_bp.add_url_rule("/favicon.ico", view_func=FaviconView.as_view("favicon"))
+    app.add_url_rule("/favicon.ico", view_func=FaviconView.as_view("favicon_base"))
+
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")

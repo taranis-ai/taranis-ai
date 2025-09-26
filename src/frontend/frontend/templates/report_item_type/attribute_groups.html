@@ -4,7 +4,7 @@
 <div class="mb-4">
   <button type="button"
           class="btn btn-primary"
-          hx-post="{{ url_for('admin.add_report_item_types_group') }}"
+          hx-post="{{ url_for("admin.add_report_item_types_group") }}"
           hx-vals='{"group_index": "{{ highest_group_index + 1 }}" }'
           hx-target="#groups-container"
           hx-swap="beforeend">+ Add New Group</button>

@@ -1,0 +1,10 @@
+<dialog x-show="showDirty" class="modal" @click.outside="showDirty=false">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Unsaved Changes</h3>
+    <p class="py-4">You have unsaved changes. Do you want to save before continuing?</p>
+    <div class="modal-action">
+      <button class="btn" @click="showDirty=false">Cancel</button>
+      <button class="btn btn-primary" @click="saveAndContinue()">Save and Continue</button>
+    </div>
+  </div>
+</dialog>

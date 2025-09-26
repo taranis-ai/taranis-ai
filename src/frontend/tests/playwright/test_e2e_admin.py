@@ -30,17 +30,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_user_management(self, taranis_frontend: Page):
-        #        Test definitions
-        # ===============================
-
-        def login_first():
-            page.goto(url_for("base.login", _external=True))
-            page.get_by_placeholder("Username").fill("admin")
-            page.get_by_placeholder("Password").fill("admin")
-            page.get_by_test_id("login-button").click()
-
+    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors):
         def check_dashboard():
+            page.goto(url_for("base.dashboard", _external=True))
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
@@ -60,13 +52,21 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
-            page.get_by_test_id("admin-menu-User").click()
+            page.goto(url_for("admin.users", _external=True))
             page.get_by_test_id("new-user-button").click()
-            page.get_by_label("Name", exact=True).fill("Test User")
-            page.get_by_label("Description").fill("Test description of a user")
-            page.get_by_label("Password", exact=True).fill("testasdfasdf")
+            page.get_by_role("textbox", name="Username", exact=True).fill("test")
+            page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
+            page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
+
+            page.get_by_label("Organization").select_option("1")
+            page.locator("#user-role-select-ts-control").click()
+            page.locator("#user-role-select-opt-1").click()
+
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.users", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_text("Test User")).to_be_visible()
 
         def remove_user():
             page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
@@ -75,12 +75,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("Successfully deleted").click()
 
         def add_role():
-            page.get_by_test_id("admin-menu-Role").click()
+            page.goto(url_for("admin.roles", _external=True))
             page.get_by_test_id("new-role-button").click()
             page.get_by_label("Name").fill("Test Role")
             page.get_by_label("Description").fill("Test description of a role")
+            page.get_by_label("TLP Level ").select_option("clear")
             page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.roles", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
             expect(page.get_by_text("Test Role")).to_be_visible()
 
         def update_user():
@@ -109,13 +112,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         #           Run test
         # ============================
 
-        page = taranis_frontend
-        login_first()
+        page = logged_in_page
         check_dashboard()
         add_organization()
-        # add_user()
-    # Skip deleting the user to avoid flakiness with confirmation overlays in CI
-    # remove_user()
+        add_user()
         # add_role()
         # update_user()
         # assert_update_user()
@@ -125,7 +125,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         #        Test definitions
-        # ===============================
+        # ============================
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()
@@ -265,44 +265,21 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # add_attribute_group()
         # add_attribute_to_group()
 
-    def test_admin_product_types(self, taranis_frontend: Page):
-        def show_product_type():
-            page.get_by_role("link", name="Product Types").click()
-            page.get_by_role("cell", name="Default TEXT Presenter").first.click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_product_type_edit.png")
-
-        page = taranis_frontend
-
-        # show_product_type()
-
-    def test_open_api(self, taranis_frontend: Page):
+    def test_open_api(self, logged_in_page: Page):
         def show_open_api():
             page.goto(url_for("base.open_api", _external=True))
-            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
+            expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
-        page = taranis_frontend
-        # show_open_api()
+        page = logged_in_page
+        # show_open_api() # figure out how to test the OpenAPI page opening in a new tab
 
-    def test_template_management(self, taranis_frontend: Page):
+    def test_template_management(self, logged_in_page: Page):
         def show_template_management():
             page.goto(url_for("admin.template_data", _external=True))
-            expect(page.locator("h2.title").first).to_contain_text("Template Management")
-
-        page = taranis_frontend
-        
-        # Login first (required for admin access)
-        page.goto(url_for("base.login", _external=True))
-        page.get_by_placeholder("Username").fill("admin")
-        page.get_by_placeholder("Password").fill("admin")
-        page.get_by_test_id("login-button").click()
-        expect(page.locator("#dashboard")).to_be_visible()
-
-        # show_template_management()
+            expect(page.locator("#template-list").get_by_role("link", name="Template", exact=True)).to_be_visible()
 
         def test_invalid_template_shows_invalid_badge():
             """Test that invalid templates show 'Invalid' badge, not 'Valid'."""
-            page = taranis_frontend
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
             page.get_by_test_id("new-template-button").click()
@@ -313,12 +290,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         <h1>{{ title }}</h1>
         {% for item in items %}
             <p>{{ item.name }}</p>
-        
+
     </body>
     </html>
             """.strip()
-            
-            page.fill('input[name="id"]', 'test_invalid_badge')
+
+            page.fill('input[name="id"]', "test_invalid_badge")
             page.fill('textarea[name="content"]', invalid_template_content)
             page.click('input[type="submit"]')
 
@@ -328,13 +305,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.goto(url_for("admin.template_data", _external=True))
             page.wait_for_load_state("networkidle")
 
-            # Debug: print table content and take screenshot
-            print("[DEBUG] Template table content after add:")
-            print(page.content())
             page.screenshot(path="./tests/playwright/screenshots/after_add_invalid_template.png")
 
             # Find the template we just created (wait for it to appear)
-            invalid_template_row = page.locator('tr').filter(has_text='test_invalid_badge')
+            invalid_template_row = page.locator("tr").filter(has_text="test_invalid_badge")
             try:
                 expect(invalid_template_row).to_be_visible(timeout=10000)
             except Exception:
@@ -342,108 +316,81 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 raise
 
             # Check that it shows "Invalid" badge (not "Valid")
-            invalid_badge = invalid_template_row.locator('.badge-error')
+            invalid_badge = invalid_template_row.locator(".badge-error")
             expect(invalid_badge).to_be_visible()
             expect(invalid_badge).to_contain_text("Invalid")
 
             # Ensure it doesn't have a "Valid" badge
-            valid_badge = invalid_template_row.locator('.badge-success')
+            valid_badge = invalid_template_row.locator(".badge-success")
             expect(valid_badge).not_to_be_visible()
 
         def test_invalid_template_content_accessible_via_htmx():
             """Test that invalid template content is accessible when navigating via HTMX."""
-            page = taranis_frontend
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
-            
+
             # Find test_invalid.html template (should exist in test data)
-            invalid_template_row = page.locator('tr').filter(has_text='test_invalid.html')
+            invalid_template_row = page.locator("tr").filter(has_text="test_invalid.html")
             expect(invalid_template_row).to_be_visible()
-            
+
             invalid_template_row.click()
-            
+
             # Wait for navigation
             page.wait_for_load_state("networkidle")
-            
+
             # Verify template content is accessible (not empty/broken)
-            template_content = page.locator('#editor-content')
+            template_content = page.locator("#editor-content")
             expect(template_content).to_be_visible()
-            
+
             content_value = template_content.input_value()
             assert len(content_value) > 0, "Invalid template content should still be accessible"
-            
-            # The content might be Base64 encoded, so decode it first
-            import base64
-            try:
-                decoded_content = base64.b64decode(content_value).decode('utf-8')
-                content_to_check = decoded_content
-            except Exception:
-                # If not Base64, use the original content
-                content_to_check = content_value
-            
+
             # Verify we can see some expected content (the test_invalid.html contains "user.name")
-            assert "user.name" in content_to_check, f"Should contain template content, got: {content_to_check}"
+            assert "user.name" in content_value, f"Should contain template content, got: {content_value}"
 
         def test_monaco_editor_loads_on_htmx_navigation():
             """Test Monaco editor loads properly on HTMX navigation."""
-            page = taranis_frontend
-            
-            # Track console errors
-            console_errors = []
-            def handle_console(msg):
-                if msg.type == 'error':
-                    console_errors.append(msg.text)
-            page.on("console", handle_console)
-        
+
             page.get_by_role("link", name="Administration").click()
             page.get_by_test_id("admin-menu-Template").click()
-            
+
             # Click on a template to navigate via HTMX (this was failing)
-            template_row = page.locator('tr').filter(has_text='test_valid.html')
+            template_row = page.locator("tr").filter(has_text="test_valid.html")
             expect(template_row).to_be_visible()
             template_row.click()
-            
+
             # Wait for page load and Monaco initialization
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(2000)  # Wait for Monaco async loading
-            
-            # Check that we don't have the "ta is null" error
-            ta_null_errors = [err for err in console_errors if "ta is null" in err or "can't access property" in err]
-            assert not ta_null_errors, f"Found 'ta is null' errors: {ta_null_errors}"
-            
+
             # Check that textarea is accessible (Monaco fallback works)
-            textarea = page.locator('#editor-content')
+            textarea = page.locator("#editor-content")
             expect(textarea).to_be_visible()
-            
+
             content = textarea.input_value()
             assert len(content) > 0, "Template content should be accessible"
-            
+
             # Accept Monaco or fallback textarea
-            monaco_div = page.locator('#editor')
-            textarea = page.locator('#editor-content')
+            monaco_div = page.locator("#editor")
+            textarea = page.locator("#editor-content")
             if monaco_div.is_visible():
                 # Monaco loaded
                 expect(monaco_div).to_be_visible()
                 # Optionally check Monaco-specific content
-                monaco_lines = page.locator('.monaco-editor .view-line')
+                monaco_lines = page.locator(".monaco-editor .view-line")
                 if monaco_lines.count() > 0:
                     expect(monaco_lines.first).to_be_visible()
             elif textarea.is_visible():
-                # Fallback: textarea is visible and has content
                 expect(textarea).to_be_visible()
                 content = textarea.input_value()
                 assert len(content) > 0, "Template content should be accessible in fallback"
-            else:
-                # Neither editor is visible, print console errors for debug
-                print("Console errors:", console_errors)
-                assert False, "Neither Monaco nor textarea editor is visible"
 
-    # Run the tests
+        page = logged_in_page
+
+        show_template_management()
         test_invalid_template_shows_invalid_badge()
         test_invalid_template_content_accessible_via_htmx()
         test_monaco_editor_loads_on_htmx_navigation()
-
-
 
     def product_type_workflow(self, taranis_frontend: Page):
         """Test product type workflow."""

@@ -1,4 +1,4 @@
 {% if osint_source.id != '0' %}
-{% from "macros/worker.html" import worker_state %}
-{{ worker_state(osint_source.id, "source", osint_source.enabled) }}
+  {% from "macros/worker.html" import worker_state %}
+  {{ worker_state(osint_source.id, "source", osint_source.enabled) }}
 {% endif %}
