@@ -1,5 +1,5 @@
 {% macro status_class(status) %}
-{# djlint:off #}
+  {# djlint:off #}
 {% if status == "FAILURE" %}
 error
 {% elif status == "SUCCESS" %}
@@ -9,7 +9,7 @@ neutral
 {% else %}
 info
 {% endif %}
-{# djlint:on #}
+  {# djlint:on #}
 {% endmacro %}
 
 {% macro worker_status(status) %}
