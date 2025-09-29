@@ -30,5 +30,4 @@ repos:
       - id: djlint-reformat-jinja
         files: ^src/frontend/frontend/templates
         types_or: [jinja, html]
-        pass_filenames: false
 
