@@ -24,10 +24,13 @@ repos:
     hooks:
       - id: trailing-whitespace
 
-  - repo: https://github.com/djlint/djLint
-    rev: v1.36.4
+  - repo: local
     hooks:
       - id: djlint-reformat-jinja
+        name: djlint
+        language: system
         files: ^src/frontend/frontend/templates
+        entry: uvx djlint --profile=jinja --check src/frontend/frontend/templates
+        pass_filenames: false
         types_or: [jinja, html]
 
