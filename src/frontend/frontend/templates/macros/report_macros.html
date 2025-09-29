@@ -23,7 +23,7 @@
         {% set highest_index = group.attribute_group_items | map(attribute='index') | list | max | default(-1) %}
         <button type="button"
                 class="btn btn-primary"
-                hx-post="{{ url_for("admin.add_report_item_types_group_item") }}"
+                hx-post="{{ url_for('admin.add_report_item_types_group_item') }}"
                 hx-vals='{"attribute_group_index": "{{ group.index }}", "attribute_index": "{{ highest_index + 1 }}"}'
                 hx-target="#attribute-items-container-{{ group.index }}"
                 hx-swap="beforeend">+ Add New Attribute</button>

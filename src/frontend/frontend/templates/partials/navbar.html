@@ -2,7 +2,7 @@
   <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="Toggle sidebar">
     {{ heroicon_outline("bars-3") }}
   </button>
-  <a href="{{ url_for("base.dashboard") }}" class="btn btn-ghost normal-case text-xl">
+  <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost normal-case text-xl">
     <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="Taranis AI Logo" height="auto" width="auto" class="h-8">
   </a>
 </div>
@@ -12,14 +12,14 @@
   <ul class="menu bg-base-200 menu-horizontal rounded-box">
     {% if is_admin %}
       <li>
-        <a href="{{ url_for("admin.dashboard") }}">
+        <a href="{{ url_for('admin.dashboard') }}">
           {{ heroicon_outline("cog-6-tooth") }}
           Administration
         </a>
       </li>
     {% endif %}
     <li>
-      <a href="{{ url_for("base.dashboard") }}">
+      <a href="{{ url_for('base.dashboard') }}">
         {{ heroicon_outline("squares-2x2") }}
         Dashboard
       </a>
@@ -58,7 +58,7 @@
           <a href="/user/settings">User Settings</a>
         </li>
         <li>
-          <a href="{{ url_for("base.logout") }}">Logout</a>
+          <a href="{{ url_for('base.logout') }}">Logout</a>
         </li>
       </ul>
     </li>

@@ -30,6 +30,7 @@ dependencies = [
     "setuptools",
     "polyfactory",
     "uuid7",
+    "filetype",
     "heroicons[jinja]>=2.11.0",
     "plotly[express]",
     "pandas",
@@ -98,6 +99,7 @@ preserve_blank_lines=true
 max_line_length=142
 max_attribute_length=142
 ignore = "J018,T028"
+profile="jinja"
 indent=2
 
 [tool.uv]
