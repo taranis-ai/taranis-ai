@@ -54,6 +54,21 @@ def access_token(app, auth_user):
 
 
 @pytest.fixture
+def access_token_response(app, auth_user):
+    from flask import jsonify
+    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+
+    with app.app_context():
+        access_token = create_access_token(identity=auth_user)
+        refresh_token = create_refresh_token(identity=auth_user)
+        response = jsonify({"access_token": access_token})
+        response.status_code = 200
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        yield response
+
+
+@pytest.fixture
 def authenticated_client(client, access_token):
     client.set_cookie(
         key="access_token_cookie",
@@ -79,6 +94,24 @@ def pytest_addoption(parser):
     group.addoption("--highlight-delay", action="store", default="1", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+    group.addoption(
+        "--fail-on-console",
+        action="store",
+        default="error,assert",
+        help="Console/Page event types that should fail the test.",
+    )
+    group.addoption(
+        "--console-allow",
+        action="append",
+        default=[],
+        help="Regex(es) of console messages to ignore (can be passed multiple times).",
+    )
+    group.addoption(
+        "--warn-on-console",
+        action="store",
+        default="warning,pageerror",
+        help="Console types to forward as pytest warnings (comma-separated).",
+    )
 
 
 def _is_vscode(config) -> bool:

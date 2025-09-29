@@ -27,10 +27,9 @@
 import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import HotKeysDialog from '@/components/common/HotKeysDialog.vue'
-import { defineComponent, onMounted, watch } from 'vue'
+import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
 import { storeToRefs } from 'pinia'
-import { useDisplay } from 'vuetify'
 import { sseHandler } from '@/utils/sse'
 
 export default defineComponent({
@@ -43,15 +42,8 @@ export default defineComponent({
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
-    const { name: display } = useDisplay()
-
-    watch(display, (val) => {
-      console.debug('Display:', val)
-    })
 
     onMounted(() => {
-      isAuthenticated.value || authStore.logout()
-
       if (timeToRefresh.value > 0) {
         setTimeout(() => {
           console.debug('Refreshing token')

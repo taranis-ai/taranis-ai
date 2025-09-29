@@ -5,12 +5,14 @@
 
 {% set actions = actions | default([]) %}
 
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for('admin.export_users') }}' }">
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for("admin.export_users") }}' }">
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         {{ import_button(url_for('admin.import_users') ) }}
-        <a class="btn btn-outline btn-info" :href="exportUrl + (selectedItems.length > 0 ? '?' + selectedItems.map(id => 'ids=' + id).join('&') : '')" download>
+        <a class="btn btn-outline btn-info"
+           :href="exportUrl + (selectedItems.length > 0 ? '?' + selectedItems.map(id => 'ids=' + id).join('&') : '')"
+           download>
           {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
           Export
         </a>

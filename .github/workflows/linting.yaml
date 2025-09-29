@@ -66,6 +66,9 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
 
+      - name: DJLint templates
+        run: uv run djlint --check frontend/templates
+
       - name: Run tests and capture output
         id: run-tests
         run: |

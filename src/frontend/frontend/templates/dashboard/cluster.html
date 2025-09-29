@@ -1,51 +1,45 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% from 'macros/table.html' import table_header %}
-{% set table_id = 'cluster-' ~ cluster_name %}
+  {% from 'macros/table.html' import table_header %}
+  {% set table_id = 'cluster-' ~ cluster_name %}
 
-<div class="p-8" id="{{ table_id }}-container">
-<table class="table shadow table-zebra table-sm" id="{{ table_id }}">
-  <thead>
-    <tr>
-      {% for col in columns %}{{ table_header(col) }}{% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% if data %}
-      {% for item in data %}
-        {% set edit_route = '/assess?tags=' ~ item.name %}
-        <tr class="hover:bg-info">
-          {% for col in columns %}
-            <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">
-            {{ item[col.field] }}
-            </td>
-          {% endfor %}
+  <div class="p-8" id="{{ table_id }}-container">
+    <table class="table shadow table-zebra table-sm" id="{{ table_id }}">
+      <thead>
+        <tr>
+          {% for col in columns %}{{ table_header(col) }}{% endfor %}
         </tr>
-      {% endfor %}
-    {% else %}
-      <tr>
-        <td colspan="{{ (columns|length) }}">
-          <div class="text-center">
-            <p class="text-gray-500">No data available</p>
-          </div>
-        </td>
-      </tr>
-    {% endif %}
-  </tbody>
-  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-    <tr>
-      <td colspan="{{ (columns|length) }}">
-        <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
-</div>
+      </thead>
+      <tbody>
+        {% if data %}
+          {% for item in data %}
+            {% set edit_route = '/assess?tags=' ~ item.name %}
+            <tr class="hover:bg-info">
+              {% for col in columns %}
+                <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">{{ item[col.field] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="{{ (columns|length) }}">
+              <div class="text-center">
+                <p class="text-gray-500">No data available</p>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+      <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+        <tr>
+          <td colspan="{{ (columns|length) }}">
+            <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
 
-{% if country_chart %}
-<div class="flex-grow">
-  {{ country_chart | safe }}
-</div>
-{% endif %}
+  {% if country_chart %}<div class="flex-grow">{{ country_chart | safe }}</div>{% endif %}
 {% endblock content %}

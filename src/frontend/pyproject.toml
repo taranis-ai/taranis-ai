@@ -19,6 +19,7 @@ dependencies = [
     "Flask-Caching",
     "Flask-JWT-Extended",
     "flask-htmx",
+    "jinja2-fragments",
     "flask-cors",
     "click",
     "pydantic-settings",

@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select, form_input_content, form_switch %}
+{% from "macros/forms.html" import form_input %}
 {% from "macros/worker.html" import worker_status %}
 {% set bot_id = bot.id | default("0", true) %}
 
@@ -6,14 +6,13 @@
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ bot.id }}</p>
   {% if bot.status %}
-  <div class="mb-5 w-3/4 ml-[10%]">
-  {{ worker_status(bot.status) }}
-  </div>
+    <div class="mb-5 w-3/4 ml-[10%]">{{ worker_status(bot.status) }}</div>
   {% endif %}
   <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}
+    {{ form_input('Index', 'index', bot.index, type="number", width="w-3/4") }}
 
     <label class="select w-3/4 mb-5">
       <span class="label">Bot Type</span>
@@ -23,7 +22,7 @@
               class="validator select w-full"
               hx-get="{{ url_for('admin.bot_parameters', bot_id=bot_id) }}"
               hx-trigger="change"
-              hx-include="#bot_type"
+              hx-include="this"
               hx-target="#parameters"
               hx-swap="innerHTML"
               {% if bot.type %}disabled{% endif %}>
