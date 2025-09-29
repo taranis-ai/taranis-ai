@@ -1,13 +1,15 @@
 {% macro status_class(status) %}
-  {% if status == "FAILURE" %}
-    error
-  {% elif status == "SUCCESS" %}
-    success
-  {% elif status == "PENDING" or status == "Unknown" %}
-    neutral
-  {% else %}
-    info
-  {% endif %}
+{# djlint:off #}
+{% if status == "FAILURE" %}
+error
+{% elif status == "SUCCESS" %}
+success
+{% elif status == "PENDING" or status == "Unknown" %}
+neutral
+{% else %}
+info
+{% endif %}
+{# djlint:on #}
 {% endmacro %}
 
 {% macro worker_status(status) %}

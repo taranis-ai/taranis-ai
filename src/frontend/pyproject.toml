@@ -30,6 +30,7 @@ dependencies = [
     "setuptools",
     "polyfactory",
     "uuid7",
+    "filetype",
     "heroicons[jinja]>=2.11.0",
     "plotly[express]",
     "pandas",
