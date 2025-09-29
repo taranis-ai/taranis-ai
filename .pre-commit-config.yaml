@@ -28,4 +28,6 @@ repos:
     rev: v1.36.4
     hooks:
       - id: djlint-reformat-jinja
+        files: ^src/frontend/frontend/templates
+        types_or: [jinja, html]
 
