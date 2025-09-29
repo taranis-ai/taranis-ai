@@ -178,6 +178,7 @@ class QueueManager:
         if self.send_task("publisher_task", args=[product_id, publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}"):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {"message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled"}, 200
+        logger.error(f"Could not schedule publishing for product {product_id} with publisher {publisher_id}")
         return {"error": "Could not reach rabbitmq"}, 500
 
     def get_bot_signature(self, bot_id: str, source_id: str):
