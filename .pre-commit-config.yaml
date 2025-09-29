@@ -30,7 +30,7 @@ repos:
         name: djlint
         language: system
         files: ^src/frontend/frontend/templates
-        entry: uvx djlint --profile=jinja --check src/frontend/frontend/templates
-        pass_filenames: false
+        entry: uvx djlint --profile=jinja --check
+        # pass_filenames: false
         types_or: [jinja, html]
 
