@@ -14,7 +14,7 @@
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
-        <button hx-post="{{ url_for("admin.update_all_word_lists") }}" class="btn btn-outline">
+        <button hx-post="{{ url_for('admin.update_all_word_lists') }}" class="btn btn-outline">
           {{ heroicon_outline("arrows-pointing-in", class="h-5 w-5") }}
           Update Wordlists
         </button>
@@ -33,7 +33,7 @@
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
-      <button class="mt-2 btn btn-primary" hx-post="{{ url_for("admin.load_default_word_lists") }}" hx-target="#{{ table_container }}">
+      <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_word_lists') }}" hx-target="#{{ table_container }}">
         Load default {{ name }}
       </button>
     </div>

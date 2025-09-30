@@ -1,4 +1,4 @@
-<section id="notification-bar" x-data="{ show: true }" hx-swap-oob="{{ oob | default("true") }}">
+<section id="notification-bar" x-data="{ show: true }" hx-swap-oob="{{ oob | default('true') }}">
   {% if notification %}
     {% set notification = notification if notification is mapping else {"message": notification} %}
     {% set message = notification.get('message', "") %}

@@ -1,6 +1,8 @@
 from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
+import filetype
+
 from heroicons.jinja import heroicon_outline
 from markupsafe import Markup, escape
 from datetime import datetime
@@ -26,6 +28,8 @@ __all__ = [
     "render_worker_status",
     "format_datetime",
 ]
+
+
 def badge_class(status):
     """Return the CSS class for a badge based on validation status."""
     if status == "valid":
@@ -43,6 +47,7 @@ def badge_label(status):
         return "Invalid"
     return "Unknown"
 
+
 def normalize_validation_status(status) -> str:
     """Normalize to 'valid' | 'invalid' | 'unknown'.
     Expected input: dict with key 'is_valid' or None. Any other type -> 'unknown'.
@@ -54,6 +59,7 @@ def normalize_validation_status(status) -> str:
         if is_valid is False:
             return "invalid"
     return "unknown"
+
 
 def parse_interval_trigger(trigger):
     time_part = trigger.split("[")[1].rstrip("]")
@@ -81,10 +87,17 @@ def render_count(item, field: str) -> int:
     return 0
 
 
+def _guess_mime_pure_py(b64: str) -> str:
+    raw = base64.b64decode(b64)
+    kind = filetype.guess(raw)
+    return kind.mime if kind else "application/octet-stream"
+
+
 def render_icon(item: OSINTSource) -> str:
     if hasattr(item, "icon") and item.icon:
         # TODO: Check if this is safe to render
-        return Markup(f"<img src='data:image/svg+xml;base64,{item.icon}' height='32px' width='32px'  class='icon' alt='Icon' />")
+        _mime = _guess_mime_pure_py(item.icon)
+        return Markup(f"<img src='data:{_mime};base64,{item.icon}' height='32px' width='32px'  class='icon' alt='Icon' />")
     if hasattr(item, "type") and item.type:
         if item.type == "rss_collector":
             return heroicon_outline("rss")
