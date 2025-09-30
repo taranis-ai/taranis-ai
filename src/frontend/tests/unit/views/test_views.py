@@ -137,10 +137,8 @@ class TestSourceView:
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
-            # Assert that the response is successful
-            assert resp.status_code == 200
+            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
 
-            # Assert that CoreApi().import_sources was called with the correct data
             mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 
     def test_import_post_view_no_file(self, authenticated_client):
@@ -149,7 +147,7 @@ class TestSourceView:
         """
         resp = authenticated_client.post(SourceView.get_import_route(), data={}, content_type="multipart/form-data")
 
-        assert resp.status_code == 200  # The view returns a 200 but with an error message in the HTML
+        assert resp.status_code == 200, "Expected 200 OK response with error message in content"
         html = resp.get_data(as_text=True)
         assert "No file or organization provided" in html
 
@@ -165,7 +163,7 @@ class TestSourceView:
         with patch("frontend.views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = None  # Simulate API failure
+            mock_api_instance.import_sources.return_value = None
 
             resp = authenticated_client.post(
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"

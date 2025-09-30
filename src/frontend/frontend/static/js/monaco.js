@@ -3,8 +3,8 @@
 const scriptUrl = document.currentScript.src;
 
 const vsBase = scriptUrl.replace(
-  /\/frontend\/static\/js\/monaco\.js$/,
-  "/frontend/static/vendor/js/vs"
+  /\/static\/js\/monaco\.js$/,
+  "/static/vendor/js/vs"
 );
 
 require.config({
