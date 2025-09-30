@@ -20,7 +20,7 @@ services:
     image: prefecthq/prefect:3-latest
     command: prefect server start
     environment:
-      PREFECT_API_URL: http://prefect-server:4200/api
+      PREFECT_API_URL: http://localhost:4200/api
       PREFECT_SERVER_API_HOST: 0.0.0.0
     ports:
       - "4200:4200"

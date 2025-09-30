@@ -15,11 +15,11 @@ def fetch_osint_source_info(source_id: str):
 
         core_api = CoreApi()
 
-        source = core_api.get_osint_source(source_id)
-        if not source:
+        if source := core_api.get_osint_source(source_id):
+            return source
+        else:
             raise ValueError(f"Source with id {source_id} not found")
 
-        return source
     except Exception as e:
         logger.error(f"Failed to fetch OSINT source: {e}")
         raise
