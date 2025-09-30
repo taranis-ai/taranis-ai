@@ -2,7 +2,10 @@
   {% from "macros/table.html" import table_header %}
   {% from "macros/buttons.html" import action_button %}
   {% set item_ids = data | map(attribute='id') | list %}
-  <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="{{ table_id }}" {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
+  <table class="table shadow table-zebra table-sm"
+         id="{{ table_id }}"
+         data-testid="{{ table_id }}"
+         {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
     <thead>
       <tr>
         {% if selectable %}

@@ -10,6 +10,7 @@
 
 {% set columns = [{'title': 'id', 'field': 'id', 'sortable': True, 'searchable': True}, {'title': 'title', 'field': 'title', 'sortable': True, 'searchable': True}, {'title': 'created', 'field': 'created', 'sortable': True, 'searchable': False}, {'title': 'completed', 'field': 'completed', 'sortable': True, 'searchable': False}] %}
 
+{# djlint:off #}
 <div class="p-4"
      id="product"
      x-data="
@@ -31,138 +32,140 @@
         }
      }
      ">
-  <div class="card bg-base-100 shadow">
-    <div class="card-body gap-3">
-      <div class="flex items-center gap-3">
-        <h2 class="card-title">{{ submit_text }}</h2>
-        <div class="flex-1"></div>
-        {% if is_edit %}
-          {% if rendered_product %}
-            <a id="download-button"
-               class="btn btn-outline"
-               href="{{ url_for('publish.product_download', product_id=product.id) }}"
-               aria-label="Download"
-               title="Download"
-               data-testid="download-product"
-               download>Download</a>
-          {% endif %}
-          <button id="render_button" type="button" class="btn btn-outline" hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
+{# djlint:on #}
+<div class="card bg-base-100 shadow">
+  <div class="card-body gap-3">
+    <div class="flex items-center gap-3">
+      <h2 class="card-title">{{ submit_text }}</h2>
+      <div class="flex-1"></div>
+      {% if is_edit %}
+        {% if rendered_product %}
+          <a id="download-button"
+             class="btn btn-outline"
+             href="{{ url_for('publish.product_download', product_id=product.id) }}"
+             aria-label="Download"
+             title="Download"
+             data-testid="download-product"
+             download>Download</a>
         {% endif %}
-        <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()">
-          <span x-show="dirty" class="mr-1">!</span>
-          Save
+        <button id="render_button" type="button" class="btn btn-outline" hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
+          Render
         </button>
-      </div>
+      {% endif %}
+      <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()">
+        <span x-show="dirty" class="mr-1">!</span>
+        Save
+      </button>
+    </div>
 
-      <div class="grid grid-cols-12 gap-4">
-        <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %}">
-          <form id="product_form" class="px-2" {{ form_action }} hx-swap="innerHTML" hx-target="#product" hx-target-error="#product" @input="dirty=true">
-            {% include "partials/admin_form_error.html" %}
-            <div class="grid grid-cols-12 gap-4">
-              <div class="col-span-12 md:col-span-6">
-                {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
-                {% if product.product_type_id %}<input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">{% endif %}
-              </div>
-              <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
-              <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %}">
+        <form id="product_form" class="px-2" {{ form_action }} hx-swap="innerHTML" hx-target="#product" hx-target-error="#product" @input="dirty=true">
+          {% include "partials/admin_form_error.html" %}
+          <div class="grid grid-cols-12 gap-4">
+            <div class="col-span-12 md:col-span-6">
+              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
+              {% if product.product_type_id %}<input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">{% endif %}
             </div>
-
-            {% if product.product_type_id %}
-              <div class="mt-2">
-                {{ datatable('Report Items', supported_reports, columns, selected_items=product.report_items | default([]) , input_name='report_items[]', headline='Report Items') }}
-              </div>
-            {% endif %}
-
-            {% if is_edit %}
-              {% if rendered_product %}
-                <button type="button" class="btn btn-primary mt-4 w-full" @click="triggerAction('publish')">Publish</button>
-              {% else %}
-                <div class="alert alert-info">Render Product first, to enable publishing</div>
-              {% endif %}
-            {% endif %}
-          </form>
-        </div>
-
-        {% if is_edit %}
-          <div class="col-span-12 lg:col-span-6 p-3">
-            <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
-              {% if rendered_product %}
-                {% if rendered_mime_type in ['text/html', 'application/json', 'text/plain'] %}
-                  <iframe class="w-full h-[80vh]"
-                          data-testid="html-render"
-                          sandbox
-                          src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
-                  </iframe>
-                {% elif rendered_mime_type == 'application/pdf' %}
-                  <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
-                {% else %}
-                  <div class="alert">Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.</div>
-                {% endif %}
-              {% elif render_error %}
-                <div class="text-center">
-                  <h2 class="text-xl mb-2">Failed to render Product</h2>
-                  <pre class="bg-base-200 p-2 rounded">{{ render_error }}</pre>
-                  <button class="btn btn-outline mt-4" @click="triggerAction('render')">Render</button>
-                </div>
-              {% else %}
-                <div class="text-center">
-                  {% if product.report_items %}
-                    <h2 class="text-xl mb-2">No rendered Product Found</h2>
-                    <button class="btn btn-outline mt-2" @click="triggerAction('render')">Render</button>
-                  {% else %}
-                    <h2 class="text-xl mb-2">No Report selected</h2>
-                    <p class="mb-2">Please select at least one Report Item to render the Product.</p>
-                  {% endif %}
-                </div>
-              {% endif %}
-            </div>
+            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
+            <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
           </div>
 
-          <!-- Dirty Dialog -->
-          <dialog id="dirty_dialog" class="modal">
-            <div class="modal-box">
-              <h3 class="font-bold text-lg">Unsaved Changes</h3>
-              <p class="py-4">You have unsaved changes. Do you want to save before continuing?</p>
-              <div class="modal-action">
-                <form method="dialog">
-                  <button class="btn">Close</button>
-                </form>
-                <button class="btn btn-primary" @click="saveAndContinue()">Save and Continue</button>
-              </div>
+          {% if product.product_type_id %}
+            <div class="mt-2">
+              {{ datatable('Report Items', supported_reports, columns, selected_items=product.report_items | default([]) , input_name='report_items[]', headline='Report Items') }}
             </div>
-          </dialog>
+          {% endif %}
 
-          <!-- Publish Dialog -->
-          <dialog id="publish_dialog" class="modal">
-            <div class="modal-box min-w-[28rem]">
-              <h3 class="font-bold text-lg mb-2">Publish Product</h3>
-              {% if has_incomplete_reports | default(false) %}
-                <div class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
-              {% endif %}
-              <label class="select w-full">
-                <span class="label">Publisher</span>
-                <select id="publisher_select" name="publisher" class="select w-full">
-                  <option value="" selected disabled>Select a publisher</option>
-                  {% for p in publishers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
-                </select>
-              </label>
-              <div class="modal-action">
-                <form method="dialog">
-                  <button class="btn">Close</button>
-                </form>
-
-                <button class="btn btn-primary"
-                        hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
-                        hx-target="#notification-bar"
-                        hx-include="#publisher_select"
-                        hx-swap="outerHTML"
-                        >Publish</button>
-              </div>
-            </div>
-          </dialog>
-
-        {% endif %}
+          {% if is_edit %}
+            {% if rendered_product %}
+              <button type="button" class="btn btn-primary mt-4 w-full" @click="triggerAction('publish')">Publish</button>
+            {% else %}
+              <div class="alert alert-info">Render Product first, to enable publishing</div>
+            {% endif %}
+          {% endif %}
+        </form>
       </div>
+
+      {% if is_edit %}
+        <div class="col-span-12 lg:col-span-6 p-3">
+          <div class="border rounded-md p-3 bg-base-50 min-h-40" id="preview" data-testid="product-render">
+            {% if rendered_product %}
+              {% if rendered_mime_type in ['text/html', 'application/json', 'text/plain'] %}
+                <iframe class="w-full h-[80vh]"
+                        data-testid="html-render"
+                        sandbox
+                        src="data:{{ rendered_mime_type }};charset=utf-8;base64,{{ product.render_result }}">
+                </iframe>
+              {% elif rendered_mime_type == 'application/pdf' %}
+                <object class="w-full h-[80vh]" data="data:application/pdf;base64,{{ rendered_product }}" type="application/pdf" data-testid="pdf-render"></object>
+              {% else %}
+                <div class="alert">Preview for {{ rendered_mime_type }} is not supported. Please download the file instead.</div>
+              {% endif %}
+            {% elif render_error %}
+              <div class="text-center">
+                <h2 class="text-xl mb-2">Failed to render Product</h2>
+                <pre class="bg-base-200 p-2 rounded">{{ render_error }}</pre>
+                <button class="btn btn-outline mt-4" @click="triggerAction('render')">Render</button>
+              </div>
+            {% else %}
+              <div class="text-center">
+                {% if product.report_items %}
+                  <h2 class="text-xl mb-2">No rendered Product Found</h2>
+                  <button class="btn btn-outline mt-2" @click="triggerAction('render')">Render</button>
+                {% else %}
+                  <h2 class="text-xl mb-2">No Report selected</h2>
+                  <p class="mb-2">Please select at least one Report Item to render the Product.</p>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Dirty Dialog -->
+        <dialog id="dirty_dialog" class="modal">
+          <div class="modal-box">
+            <h3 class="font-bold text-lg">Unsaved Changes</h3>
+            <p class="py-4">You have unsaved changes. Do you want to save before continuing?</p>
+            <div class="modal-action">
+              <form method="dialog">
+                <button class="btn">Close</button>
+              </form>
+              <button class="btn btn-primary" @click="saveAndContinue()">Save and Continue</button>
+            </div>
+          </div>
+        </dialog>
+
+        <!-- Publish Dialog -->
+        <dialog id="publish_dialog" class="modal">
+          <div class="modal-box min-w-[28rem]">
+            <h3 class="font-bold text-lg mb-2">Publish Product</h3>
+            {% if has_incomplete_reports | default(false) %}
+              <div class="alert alert-warning mb-4">This Product contains incomplete Reports</div>
+            {% endif %}
+            <label class="select w-full">
+              <span class="label">Publisher</span>
+              <select id="publisher_select" name="publisher" class="select w-full">
+                <option value="" selected disabled>Select a publisher</option>
+                {% for p in publishers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+              </select>
+            </label>
+            <div class="modal-action">
+              <form method="dialog">
+                <button class="btn">Close</button>
+              </form>
+
+              <button class="btn btn-primary"
+                      hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
+                      hx-target="#notification-bar"
+                      hx-include="#publisher_select"
+                      hx-swap="outerHTML">Publish</button>
+            </div>
+          </div>
+        </dialog>
+
+      {% endif %}
     </div>
   </div>
+</div>
 </div>
