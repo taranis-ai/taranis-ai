@@ -52,15 +52,21 @@
           Render
         </button>
       {% endif %}
-      <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()">
+      <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()" data-testid="save-product">
         <span x-show="dirty" class="mr-1">!</span>
         Save
       </button>
     </div>
 
     <div class="grid grid-cols-12 gap-4">
-      <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %}">
-        <form id="product_form" class="px-2" {{ form_action }} hx-swap="innerHTML" hx-target="#product" hx-target-error="#product" @input="dirty=true">
+      <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
+        <form id="product_form"
+              {{ form_action }}
+              hx-swap="innerHTML"
+              hx-target="#product"
+              hx-target-error="#product"
+              @input="dirty=true"
+              data-testid="product-form">
           {% include "partials/admin_form_error.html" %}
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
@@ -79,11 +85,15 @@
 
           {% if is_edit %}
             {% if rendered_product %}
-              <button type="button" class="btn btn-primary mt-4 w-full" @click="triggerAction('publish')">Publish</button>
+              <button type="button" class="btn btn-accent mt-4 w-full" @click="triggerAction('publish')">Publish</button>
             {% else %}
               <div class="alert alert-info">Render Product first, to enable publishing</div>
             {% endif %}
           {% endif %}
+          <input type="submit"
+                 class="btn w-full mt-8"
+                 :class="dirty ? 'btn-warning' : 'btn-primary'"
+                 :value="dirty ? '! {{ submit_text }}' : '{{ submit_text }}'" />
         </form>
       </div>
 
@@ -150,16 +160,15 @@
                 {% for p in publishers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
               </select>
             </label>
-            <div class="modal-action">
-              <form method="dialog">
-                <button class="btn">Close</button>
-              </form>
-
+            <div class="mt-4 flex justify-start gap-2">
               <button class="btn btn-primary"
                       hx-post="{{ url_for('publish.product_publish', product_id=product.id) }}"
                       hx-target="#notification-bar"
                       hx-include="#publisher_select"
                       hx-swap="outerHTML">Publish</button>
+              <form method="dialog">
+                <button class="btn">Close</button>
+              </form>
             </div>
           </div>
         </dialog>

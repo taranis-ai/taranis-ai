@@ -93,7 +93,8 @@ def pytest_addoption(parser):
     group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
     group.addoption("--highlight-delay", action="store", default="1", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
-    group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+    group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")
+    group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
     group.addoption(
         "--fail-on-console",
         action="store",
@@ -140,6 +141,7 @@ def pytest_collection_modifyitems(config, items):
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
+        "--e2e-user": ("e2e_user", "need --e2e-user option to run tests marked with e2e_user"),
     }
 
     config.option.headed = True

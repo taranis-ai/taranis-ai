@@ -104,13 +104,9 @@ def e2e_server(app, live_server, build_tailwindcss, run_core):
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
 
-    if request.config.getoption("--e2e-admin"):
-        browser_type_launch_args["args"] = ["--window-size=1640,1338"]
-
     if request.config.getoption("--record-video"):
-        if request.config.getoption("--e2e-admin"):
-            browser_type_launch_args["args"] = ["--window-size=1964,1211"]
-            print("Screenshots in --e2e-admin mode are not of optimal resolution")
+        browser_type_launch_args["args"] = ["--window-size=1964,1211"]
+        print("Screenshots in --record-video mode are not of optimal resolution")
         return {
             **browser_context_args,
             "record_video_dir": "tests/playwright/videos",

@@ -80,8 +80,7 @@ class BaseView(MethodView):
             current_app.jinja_env.get_template(path)
             return path
         except TemplateNotFound:
-            base_fallback = request.endpoint.split(".")[0] if request.endpoint else cls.model_name().lower()
-            return f"default/{base_fallback}{fallback_suffix}"
+            return "default/index.html"
 
     @classmethod
     def get_htmx_list_template(cls) -> str:

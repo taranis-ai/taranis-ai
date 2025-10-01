@@ -18,7 +18,7 @@ class ReportItem(TaranisBaseModel):
     _pretty_name = "Report"
 
     id: str | None = None
-    title: str | None = None
+    title: str | None = ""
     created: datetime | None = None
     last_updated: datetime | None = None
     completed: bool | None = None

@@ -16,8 +16,10 @@ from .connector_views import ConnectorView
 from .scheduler_views import SchedulerView
 from .report_views import ReportItemView
 from .product_views import ProductView
+from .asset_views import AssetView
 
 __all__ = [
+    "AssetView",
     "ACLView",
     "AdminDashboardView",
     "TemplateView",

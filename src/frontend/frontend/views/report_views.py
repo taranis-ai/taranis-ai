@@ -1,4 +1,10 @@
-from typing import Any
+from __future__ import annotations
+
+from collections import OrderedDict
+from typing import Any, Iterable
+
+from flask import request
+
 from frontend.log import logger
 
 from models.report import ReportItem
@@ -40,10 +46,146 @@ class ReportItemView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
-        return base_context
+        return cls._augment_context(base_context)
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         logger.debug(f"Report item context: {context}")
         return context
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        prepared_payload = cls._prepare_payload(processed_data)
+        return super().store_form_data(prepared_payload, object_id)
+
+    @classmethod
+    def _augment_context(cls, context: dict[str, Any]) -> dict[str, Any]:
+        report: ReportItem | None = context.get(cls.model_name())  # type: ignore[assignment]
+        raw_attributes = list(getattr(report, "attributes", []) or []) if report else []
+        stories = list(getattr(report, "stories", []) or []) if report else []
+
+        layout = request.args.get("layout", context.get("layout", "split"))
+        layout = layout if layout in {"split", "stacked"} else "split"
+
+        context.update(
+            {
+                "layout": layout,
+                "grouped_attributes": cls._group_attributes(raw_attributes),
+                "stories": stories,
+                "selected_story_ids": [story.id for story in stories if getattr(story, "id", None)],
+                "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
+            }
+        )
+
+        return context
+
+    @staticmethod
+    def _group_attributes(attributes: Iterable[Any]) -> list[dict[str, Any]]:
+        grouped: OrderedDict[str | None, list[Any]] = OrderedDict()
+
+        for attribute in attributes:
+            group_title = ReportItemView._get_attribute_value(attribute, "group_title")
+            grouped.setdefault(group_title, []).append(attribute)
+
+        result: list[dict[str, Any]] = []
+        result.extend({"title": title, "attributes": items} for title, items in grouped.items())
+        return result
+
+    @staticmethod
+    def _collect_story_attribute_ids(attributes: Iterable[Any]) -> list[str]:
+        collected: list[str] = []
+        for attribute in attributes:
+            attr_type = str(ReportItemView._get_attribute_value(attribute, "type") or "").upper()
+            if attr_type != "STORY":
+                continue
+            value = ReportItemView._get_attribute_value(attribute, "value")
+            values: Iterable[str]
+            if isinstance(value, (list, tuple)):
+                values = [str(item) for item in value if item]
+            elif isinstance(value, str):
+                values = [item.strip() for item in value.split(",") if item.strip()]
+            else:
+                values = []
+            for story_id in values:
+                if story_id not in collected:
+                    collected.append(story_id)
+        return collected
+
+    @staticmethod
+    def _get_attribute_value(attribute: Any, key: str) -> Any:
+        if hasattr(attribute, key):
+            return getattr(attribute, key)
+        return attribute.get(key) if isinstance(attribute, dict) else None
+
+    @classmethod
+    def _prepare_payload(cls, data: dict[str, Any]) -> dict[str, Any]:
+        payload = dict(data)
+
+        stories = payload.get("stories", [])
+        if isinstance(stories, dict):
+            stories = list(stories.values())
+        elif isinstance(stories, str):
+            stories = [stories]
+        payload["stories"] = [str(story) for story in stories if str(story)]
+
+        attributes_section = payload.get("attributes", {})
+        normalised_attributes: list[dict[str, Any]] = []
+        if isinstance(attributes_section, dict):
+            sorted_keys = sorted(
+                attributes_section.keys(),
+                key=lambda value: int(value) if str(value).isdigit() else str(value),
+            )
+            for key in sorted_keys:
+                attribute_payload = attributes_section[key]
+                if isinstance(attribute_payload, dict):
+                    normalised_attributes.append(cls._normalise_attribute(attribute_payload))
+        elif isinstance(attributes_section, list):
+            normalised_attributes = [cls._normalise_attribute(item) for item in attributes_section if isinstance(item, dict)]
+
+        payload["attributes"] = normalised_attributes
+
+        if "completed" in payload:
+            payload["completed"] = cls._coerce_bool(payload["completed"]) or False
+
+        report_item_type_id = payload.get("report_item_type_id")
+        if isinstance(report_item_type_id, str) and report_item_type_id.isdigit():
+            payload["report_item_type_id"] = int(report_item_type_id)
+
+        return payload
+
+    @staticmethod
+    def _normalise_attribute(attribute_payload: dict[str, Any]) -> dict[str, Any]:
+        attribute = dict(attribute_payload)
+
+        for key in ("id", "attribute_id", "attribute_group_id", "index"):
+            if key in attribute and isinstance(attribute[key], str) and attribute[key].isdigit():
+                attribute[key] = int(attribute[key])
+
+        if "required" in attribute:
+            attribute["required"] = ReportItemView._coerce_bool(attribute["required"])
+
+        value = attribute.get("value", "")
+        if isinstance(value, list):
+            attribute["value"] = ",".join(str(item) for item in value if str(item))
+        elif value is None:
+            attribute["value"] = ""
+        else:
+            attribute["value"] = str(value)
+
+        return attribute
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        if isinstance(value, (int, float)):
+            return bool(value)
+        string_value = str(value).strip().lower()
+        if string_value in {"true", "1", "on", "yes"}:
+            return True
+        if string_value in {"false", "0", "off", "no", ""}:
+            return False
+        return bool(string_value)

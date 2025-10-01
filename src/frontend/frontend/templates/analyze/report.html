@@ -1,7 +1,118 @@
-{% from "macros/forms.html" import form_input, form_textarea, form_select %}
+{% from "macros/forms.html" import form_input, form_switch %}
+{% from "analyze/attribute_macros.html" import attribute_field %}
 
 {% set form_error = form_error | default({}) %}
 {% set report = report | default({}) %}
 {% set report_types = report_types | default([]) %}
+{% set grouped_attributes = grouped_attributes | default([]) %}
+{% set stories = stories | default([]) %}
+{% set used_story_ids = used_story_ids | default([]) %}
+{% set selected_story_ids = selected_story_ids | default([]) %}
+{% set layout = layout | default('split') %}
+{% set is_edit = report.id is not none and report.id != '0' %}
+{% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
 
-<div class="p-4" id="report">{{ report }}</div>
+<div class="p-4 card bg-base-100 shadow" id="report">
+  <div class="card-body gap-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="card-title">
+        {{ submit_text }}
+        {% if is_edit and report.title %}- {{ report.title }}{% endif %}
+      </h2>
+      <div class="col-span-12 md:col-span-6 flex items-end text-sm text-base-content/60">
+        <span>ID: {{ report.id }}</span>
+      </div>
+      <div class="flex-1"></div>
+      {% if is_edit %}
+        form_switch('Completed', 'completed', 'Yes' if report.completed else 'No', yes_val='Yes', no_val='No', required=False, width='auto', input_class='toggle-sm')
+        <a class="btn btn-outline btn-sm" href="{{ url_for("publish.product") }}?report_id={{ report.id }}" data-testid="report-new-product">New Product from Report</a>
+      {% endif %}
+      <div class="join">
+        <a href="#split" class="btn btn-sm join-item {% if layout == 'split' %}btn-active{% endif %}">Split view</a>
+        <a href="#stacked" class="btn btn-sm join-item {% if layout == 'stacked' %}btn-active{% endif %}">Stacked view</a>
+      </div>
+    </div>
+
+    <form id="report_form" class="w-full" {{ form_action }} hx-swap="innerHTML" hx-target="#report" hx-target-error="#report">
+
+      {% include "partials/admin_form_error.html" %}
+
+      <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-12 {{ column_class }}">
+          <div class="grid grid-cols-12 gap-4">
+            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title) }}</div>
+            <div class="col-span-12 md:col-span-6">
+              <label class="select w-full mb-5">
+                <span class="label">Report Type</span>
+                <select id="report_item_selector" name="report_item_type_id" class="select select-bordered w-full" {% if is_edit %}disabled{% endif %}>
+                  {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
+                  {% for report_type in report_types %}
+                    <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
+                      {{ report_type.title }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% if is_edit %}<input type="hidden" name="report_item_type_id" value="{{ report.report_item_type_id }}">{% endif %}
+            </div>
+          </div>
+
+          {% if not is_edit %}
+            <div class="alert alert-info/50 mt-4">Attributes will be generated after the report item has been created.</div>
+          {% endif %}
+
+          {% if is_edit %}
+            {% if grouped_attributes %}
+              {% set attribute_index = namespace(value=0) %}
+              {% for group in grouped_attributes %}
+                <div class="bg-base-200 rounded-box p-4 mb-4">
+                  {% if group.title %}<h3 class="text-lg font-semibold mb-3">{{ group.title }}</h3>{% endif %}
+                  {% for attribute in group.attributes %}
+                    {{ attribute_field(attribute, attribute_index.value, read_only=not is_edit, stories=stories) }}
+                    {% set attribute_index.value = attribute_index.value + 1 %}
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="alert alert-warning mt-4">No attributes found for this report.</div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="col-span-12 {{ column_class }}">
+          <section class="space-y-4">
+            <header class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Stories</h3>
+              <span class="text-sm text-base-content/60">{{ selected_story_ids | length }} selected</span>
+            </header>
+
+            {% if stories %}
+              <p class="text-sm text-base-content/70">Uncheck a story to remove it when saving the report.</p>
+              <div class="space-y-3" data-testid="report-stories">
+                {% for story in stories %}
+                  {% set story_id = story.id %}
+                  <label class="border border-base-300 rounded-lg p-4 flex items-start gap-3">
+                    <input type="checkbox" class="checkbox mt-1" name="stories[]" value="{{ story_id }}" {% if story_id in selected_story_ids %}checked{% endif %}>
+                    <div class="flex-1 space-y-2">
+                      <div class="flex items-center justify-between gap-3">
+                        <h4 class="font-semibold">{{ story.title }}</h4>
+                        {% if story_id in used_story_ids %}<span class="badge badge-outline">Used in attributes</span>{% endif %}
+                      </div>
+                      {% if story.description %}<p class="text-sm text-base-content/70 whitespace-pre-line">{{ story.description }}</p>{% endif %}
+                    </div>
+                  </label>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="alert alert-info">No stories assigned to this report.</div>
+            {% endif %}
+          </section>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+      </div>
+    </form>
+  </div>
+</div>

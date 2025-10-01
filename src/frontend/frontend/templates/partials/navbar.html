@@ -31,19 +31,19 @@
       </a>
     </li>
     <li>
-      <a href="/analyze">
+      <a href="{{ url_for('analyze.analyze') }}">
         {{ heroicon_outline("presentation-chart-bar") }}
         Analyze
       </a>
     </li>
     <li>
-      <a href="/publish">
+      <a href="{{ url_for('publish.publish') }}">
         {{ heroicon_outline("paper-airplane") }}
         Publish
       </a>
     </li>
     <li>
-      <a href="/assets">
+      <a href="{{ url_for('assets.assets') }}">
         {{ heroicon_outline("document-chart-bar") }}
         Assets
       </a>
