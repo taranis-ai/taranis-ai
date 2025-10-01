@@ -65,7 +65,7 @@ class WordListView(AdminMixin, BaseView):
         response = cls.get_notification_from_response(core_response)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
-        table, table_response = cls.list_view()
+        table, table_response = cls.render_list()
         if table_response == 200:
             response += table
         return response, core_response.status_code
@@ -77,7 +77,7 @@ class WordListView(AdminMixin, BaseView):
         response = cls.get_notification_from_response(core_response)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
-        table, table_response = cls.list_view()
+        table, table_response = cls.render_list()
         if table_response == 200:
             response += table
         return response, core_response.status_code

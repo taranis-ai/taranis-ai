@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import re
-import time
 import uuid
 import pytest
 from flask import url_for
@@ -65,7 +63,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Description").fill("Updated description of an organization")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_text("Updated description of an organization")).to_be_visible()
+            expect(page.get_by_role("link", name="Updated description of an organization")).to_be_visible()
 
         def remove_organization():
             page.get_by_role("row", name=organization_name).get_by_role("button").click()
@@ -193,6 +191,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
+            page.get_by_role("alert").click()
 
         def add_osint_sources():
             page.get_by_test_id("new-osint_source-button").click()
@@ -204,94 +203,276 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page.get_by_role("link", name=osint_source_name)).to_be_visible()
 
+        def update_osint_sources():
+            page.get_by_role("link", name=osint_source_name).click()
+            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated_feed_url")
+
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_role("link", name="http://example.com/updated_feed_url")).to_be_visible()
+
+        def remove_osint_sources():
+            page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
+            page.get_by_role("button", name="Delete").click()
+            expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible()
+
         load_osint_sources()
         load_default_sources()
         add_osint_sources()
+        update_osint_sources()
+        remove_osint_sources()
+
+    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+        osint_group_name = f"test_osint_group_{uuid.uuid4().hex[:6]}"
+
+        def load_osint_source_groups():
+            page.goto(url_for("admin.osint_source_groups", _external=True))
+            expect(page.get_by_test_id("osint_source_group-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_groups.png")
+
+        def add_osint_source_group():
+            page.get_by_test_id("new-osint_source_group-button").click()
+            page.get_by_role("textbox", name="Name", exact=True).fill(osint_group_name)
+            page.get_by_role("textbox", name="Description", exact=True).fill("Test description of an OSINT source group")
+            page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_group_add.png")
+            with page.expect_response(url_for("admin.osint_source_groups", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_role("link", name=osint_group_name)).to_be_visible()
+
+        def update_osint_source_group():
+            page.get_by_role("link", name=osint_group_name).click()
+            page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of an OSINT source group")
+
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_role("link", name="Updated description of an OSINT source group")).to_be_visible()
+
+        def remove_osint_source_group():
+            page.get_by_role("row", name=osint_group_name).get_by_role("button").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
+
+        load_osint_source_groups()
+        add_osint_source_group()
+        update_osint_source_group()
+        remove_osint_source_group()
+
+    def test_admin_role_management(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        role_name = f"test_role_{uuid.uuid4().hex[:6]}"
+
+        def load_role_list():
+            page.goto(url_for("admin.roles", _external=True))
+            expect(page.get_by_test_id("role-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_roles.png")
+
+        def add_role():
+            page.get_by_test_id("new-role-button").click()
+            expect(page.locator("#role-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name", exact=True).fill(role_name)
+            page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a role")
+            page.get_by_label("TLP Level").select_option("green")
+
+            page.locator("th").first.get_by_role("checkbox").check()
+
+            page.screenshot(path="./tests/playwright/screenshots/docs_roles_add.png")
+            with page.expect_response(url_for("admin.roles", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_role("link", name=role_name)).to_be_visible()
+
+        def update_role():
+            page.get_by_role("link", name=role_name).click()
+            expect(page.locator("#role-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a role")
+            page.get_by_label("TLP Level").select_option("amber+strict")
+
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_role("link", name="Updated description of a role")).to_be_visible()
+
+        def remove_role():
+            page.get_by_role("row", name=role_name).get_by_role("button").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("role-table").get_by_role("link", name=role_name)).not_to_be_visible()
+
+        load_role_list()
+        add_role()
+        update_role()
+        remove_role()
 
     def test_admin_wordlist_management(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
-        def wordlists():
-            page.get_by_role("link", name="Word Lists").click()
-            time.sleep(1)
-            page.screenshot(path="./tests/playwright/screenshots/docs_wordlists.png")
+        word_list_name = f"test_word_list_{uuid.uuid4().hex[:6]}"
 
-        def edit_wordlist():
-            page.get_by_role("button", name="load default lists").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_role("cell", name="CVE Products").click()
-            page.get_by_label("Collector Includelist").check()  # needed to be checked for upcoming tests
-            page.get_by_label("Collector Excludelist").check()
-            page.get_by_label("Collector Excludelist").uncheck()
-            page.get_by_label("Tagging Bot").uncheck()
-            page.get_by_label("Tagging Bot").check()
-            page.get_by_role("button", name="Submit").click()
-            page.locator("div").filter(has_text="updated").nth(2).click()
-            page.get_by_role("cell", name="Countries", exact=True).click()
-            page.get_by_label("Collector Includelist").check()
-            page.get_by_role("button", name="Submit").click()
-            page.locator("div").filter(has_text="updated").nth(2).click()
-            page.get_by_role("cell", name="Länder", exact=True).click()
-            page.get_by_label("Collector Includelist").check()
-            page.screenshot(path="./tests/playwright/screenshots/docs_wordlist_usage.png")
-            page.get_by_role("button", name="Submit").click()
-            page.locator("div").filter(has_text="updated").nth(2).click()
+        def load_word_list():
+            page.goto(url_for("admin.word_lists", _external=True))
+            expect(page.get_by_role("button", name="Load default Word List")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
-        def enable_wordlists():
-            page.get_by_role("link", name="Source Groups").click()
-            page.get_by_role("cell", name="Default group for").click()
-            page.get_by_role("cell", name="Default", exact=True).click()
+        def load_default_word_list():
+            page.get_by_role("button", name="Load default Word List").click()
+            page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
+            delete_button = page.get_by_test_id("delete-word_list-button")
+            expect(delete_button).to_contain_text("Delete 9 Word List")
+            self.highlight_element(delete_button).click()
+            page.get_by_role("button", name="OK").click()
 
-    def test_report_types(self, taranis_frontend: Page):
-        #        Test definitions
-        # ===============================
+        def add_word_list():
+            page.get_by_test_id("new-word_list-button").click()
+            expect(page.locator("#word_list-form")).to_be_visible()
 
-        def add_attribute():
-            page.get_by_role("link", name="Attributes").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("Test Attribute")
-            page.get_by_label("Default Value").fill("0")
-            page.get_by_label("Description").fill("Test Description")
-            page.locator("#form").get_by_role("combobox").filter(has_text="Type").first.click()
-            page.get_by_role("option", name="NUMBER").click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_add_attribute.png")
-            page.get_by_role("button", name="Submit").click()
-            page.locator("div").filter(has_text="created").nth(2).click()
+            page.get_by_role("textbox", name="Name", exact=True).fill(word_list_name)
+            page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a word list")
+            page.get_by_role("textbox", name="Link", exact=True).fill("http://example.com")
+            page.locator("input[name='usage[]'][value='COLLECTOR_INCLUDELIST']").check()
 
-        def new_report_type():
-            page.get_by_role("link", name="Report Types").click()
-            page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("Test Report")
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_report_type_add_new_attribute.png")
+            page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
+            with page.expect_response(url_for("admin.word_lists", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
-        def add_attribute_group():
-            page.get_by_role("button", name="New Attribute Group").click()
-            page.get_by_role("textbox", name="Name").last.fill("Test Attribute Group")
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_report_type_group.png")
+        def update_word_list():
+            page.get_by_role("link", name=word_list_name).click()
+            expect(page.locator("#word_list-form")).to_be_visible()
 
-        def add_attribute_to_group():
-            page.get_by_role("button", name="New Attribute", exact=True).click()
-            page.get_by_label("Open").click()
-            page.wait_for_load_state("domcontentloaded")
-            page.locator("div").filter(has_text=re.compile(r"^MISP Attribute Distribution$")).first.click()
-            time.sleep(0.3)
-            page.locator('input:below(:text("attribute"))').nth(1).fill("Attribute 1")
-            page.get_by_label("Index").fill("1")
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_report_type_select_attribute.png")
-            page.get_by_role("button", name="Save").click()
+            page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a word list")
+            page.locator("input[name='usage[]'][value='TAGGING_BOT']").check()
 
-        #           Run test
-        # ============================
-        page = taranis_frontend
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible()
 
-        # add_attribute()
-        # new_report_type()
-        # add_attribute_group()
-        # add_attribute_to_group()
+        def remove_word_list():
+            page.get_by_role("row", name=word_list_name).get_by_role("button").click()
+            page.get_by_role("button", name="OK").click()
+            # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
+
+        load_word_list()
+        load_default_word_list()
+        add_word_list()
+        update_word_list()
+        remove_word_list()
+
+    def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        report_type_title = f"Test Report {uuid.uuid4().hex[:6]}"
+        group_title = "Primary Group"
+        attribute_title = "Primary Attribute"
+
+        def load_report_types():
+            page.goto(url_for("admin.report_item_types", _external=True))
+            expect(page.get_by_test_id("report_item_type-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_report_types.png")
+
+        def add_report_type():
+            page.get_by_test_id("new-report_item_type-button").click()
+            expect(page.locator("#report_item_type-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title", exact=True).fill(report_type_title)
+            page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a report item type")
+
+            page.get_by_role("button", name="+ Add New Group").click()
+            group_container = page.locator("#attribute-group-0")
+            expect(group_container).to_be_visible()
+            group_container.locator("input[name$='[title]']").first.fill(group_title)
+            group_container.locator("textarea[name$='[description]']").first.fill("Group description")
+
+            group_container.get_by_role("button", name="+ Add New Attribute").click()
+            attribute_container = page.locator("#attribute-items-container-0")
+            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
+            attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
+
+            attribute_select = attribute_container.locator("select[name$='[attribute_id]']").first
+            first_option_value = attribute_select.locator("option:not([disabled])").first.get_attribute("value")
+            assert first_option_value, "Expected at least one attribute option"
+            attribute_select.select_option(first_option_value)
+
+            attribute_container.locator("input[name$='[description]']").first.fill("Attribute description")
+            attribute_required = attribute_container.locator("input[type='checkbox'][name$='[required]']").first
+            if not attribute_required.is_checked():
+                attribute_required.check()
+
+            page.screenshot(path="./tests/playwright/screenshots/docs_report_types_add.png")
+            with page.expect_response(url_for("admin.report_item_types", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_role("link", name=report_type_title)).to_be_visible()
+
+        def update_report_type():
+            page.get_by_role("link", name=report_type_title).click()
+            expect(page.locator("#report_item_type-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a report item type")
+            group_container = page.locator("#attribute-group-0")
+            group_container.locator("textarea[name$='[description]']").first.fill("Updated group description")
+            attribute_container = page.locator("#attribute-items-container-0")
+            attribute_container.locator("input[name$='[description]']").first.fill("Updated attribute description")
+
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            row = page.get_by_role("row", name=report_type_title)
+            expect(row).to_contain_text("Updated description of a report item type")
+
+        def remove_report_type():
+            page.get_by_role("row", name=report_type_title).get_by_role("button").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("report_item_type-table").get_by_role("link", name=report_type_title)).not_to_be_visible()
+
+        load_report_types()
+        add_report_type()
+        update_report_type()
+        remove_report_type()
+
+    def test_product_types(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        product_type_name = f"test_product_type_{uuid.uuid4().hex[:6]}"
+
+        def load_product_types():
+            page.goto(url_for("admin.product_types", _external=True))
+            expect(page.get_by_test_id("product_type-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_product_types.png")
+
+        def add_product_type():
+            page.get_by_test_id("new-product_type-button").click()
+            expect(page.locator("#product_type-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
+            page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
+            page.get_by_label("Presenter Type Select a").select_option("html_presenter")
+            page.get_by_label("TEMPLATE_PATH Select an item").select_option("cert_at_daily_report.html")
+
+            page.locator("#report_types-select-ts-control").click()
+            page.locator("#report_types-select-opt-1").click()
+
+            page.screenshot(path="./tests/playwright/screenshots/docs_product_type_add.png")
+            with page.expect_response(url_for("admin.product_types", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_role("link", name=product_type_name)).to_be_visible()
+
+        def update_product_type():
+            page.get_by_role("link", name=product_type_name).click()
+            expect(page.locator("#product_type-form")).to_be_visible()
+
+            page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a product type")
+
+            page.locator('input[type="submit"]').click()
+            expect(page.get_by_role("link", name="Updated description of a product type")).to_be_visible()
+
+        def remove_product_type():
+            page.get_by_role("row", name=product_type_name).get_by_role("button").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("product_type-table").get_by_role("link", name=product_type_name)).not_to_be_visible()
+
+        load_product_types()
+        add_product_type()
+        update_product_type()
+        remove_product_type()
 
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page

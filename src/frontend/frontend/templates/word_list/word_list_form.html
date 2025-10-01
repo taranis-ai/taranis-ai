@@ -22,8 +22,8 @@
         hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', word_list.name, form_error.name) }}
-    {{ form_input('Description', 'description', word_list.description, form_error.description) }}
-    {{ form_input('Link', 'link', word_list.link, form_error.link) }}
+    {{ form_input('Description', 'description', word_list.description, form_error.description, required=false) }}
+    {{ form_input('Link', 'link', word_list.link, form_error.link, required=false) }}
 
     {% include "word_list/word_list_usage.html" %}
 

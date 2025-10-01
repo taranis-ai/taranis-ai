@@ -175,7 +175,7 @@ class WordList(TaranisBaseModel):
 
     id: int | None = None
     name: str
-    description: str = ""
+    description: str | None = ""
     usage: list[str] = Field(default_factory=list)
     link: str = ""
     entries: list[WordListEntry] | None = Field(default_factory=list)
@@ -284,7 +284,6 @@ class ReportItemType(TaranisBaseModel):
 
 
 class Template(TaranisBaseModel):
-    
     _core_endpoint = "/config/templates"
     _model_name = "template"
     _pretty_name = "Template"

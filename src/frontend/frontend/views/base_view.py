@@ -41,8 +41,7 @@ class BaseView(MethodView):
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: int | str = 0) -> dict[str, Any]:
-        return {
-            "error": error,
+        context = {
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
@@ -56,6 +55,9 @@ class BaseView(MethodView):
             "model_plural_name": cls.model_plural_name(),
             cls._get_object_key(): object_id,
         }
+        if error:
+            context["notification"] = {"message": error, "error": True}
+        return context
 
     @classmethod
     def model_name(cls) -> str:
@@ -249,6 +251,8 @@ class BaseView(MethodView):
             context[cls.model_name()] = cls.model(**resp_obj.get(cls.model_name()))
             if msg := resp_obj.get("message"):
                 context["message"] = msg
+        else:
+            context[cls.model_name()] = cls.model.model_construct(id="0")
 
         return cls.get_extra_context(context)
 
@@ -288,7 +292,7 @@ class BaseView(MethodView):
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(object_id, error=error),
             ), 400
 
         notification_response = cls.get_notification_from_dict(core_response)
@@ -335,7 +339,24 @@ class BaseView(MethodView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 400 if error else 200
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
+
+    @classmethod
+    def render_list(cls) -> tuple[str, int]:
+        try:
+            items = DataPersistenceLayer().get_objects(cls.model)
+            status_code = 200
+            error = None
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, cls.model))
+            items, error = None, format_pydantic_errors(exc, cls.model)
+            status_code = 400
+        except Exception as exc:
+            logger.exception(f"Error retrieving {cls.model_name()} items")
+            items, error = None, str(exc)
+            status_code = 500
+
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
 
     @classmethod
     def static_view(cls):
@@ -382,7 +403,7 @@ class BaseView(MethodView):
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
         response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.list_view()
+        table, table_response = cls.render_list()
         if table_response == 200:
             response += table
         return response, core_response.status_code
@@ -391,7 +412,7 @@ class BaseView(MethodView):
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        response, status_code = cls.list_view()
+        response, status_code = cls.render_list()
         if all(r.ok for r in results):
             response += render_template(
                 "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}

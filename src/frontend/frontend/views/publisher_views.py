@@ -81,7 +81,7 @@ class ProductTypeView(AdminMixin, BaseView):
             "parameters": parameters,
             "parameter_values": parameter_values,
         }
-        base_context["template_files"] = [t.model_dump() for t in dpl.get_objects(Template).items]
+        base_context["template_options"] = cls.get_template_options()
         return base_context
 
     @classmethod
@@ -104,10 +104,15 @@ class ProductTypeView(AdminMixin, BaseView):
         ]
 
     @classmethod
+    def get_template_options(cls) -> list[dict[str, Any]]:
+        return [{"id": t.id, "name": t.id} for t in DataPersistenceLayer().get_objects(Template).items]
+
+    @classmethod
     def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
         if not product_type_id and not presenter_type:
             logger.warning("No Product Type ID or Presenter Type provided.")
 
         parameters = cls.get_worker_parameters(worker_type=presenter_type)
+        template_options = cls.get_template_options()
 
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template("product_type/product_type_parameters.html", parameters=parameters, template_options=template_options)

@@ -195,7 +195,7 @@ class SourceView(AdminMixin, BaseView):
                 200,
             )
 
-        table, table_response = cls.list_view()
+        table, table_response = cls.render_list()
         status = table_response if table_response != 200 else status
         return notification + table, status
 
