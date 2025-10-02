@@ -33,7 +33,7 @@
           </div>
           <div class="flex flex-wrap gap-2">
             {% if user.roles %}
-              {% for role in user.roles %}<span class="badge badge-outline badge-lg">{{ role }}</span>{% endfor %}
+              {% for role in user.roles %}<span class="badge badge-outline badge-lg">{{ role.get("name") }}</span>{% endfor %}
             {% else %}
               <span class="badge badge-ghost badge-lg">No roles assigned</span>
             {% endif %}
@@ -42,7 +42,7 @@
         <div class="stats stats-vertical bg-base-200/60 rounded-box sm:stats-horizontal">
           <div class="stat">
             <div class="stat-title">Organization</div>
-            <div class="stat-value text-lg text-base-content">{{ user.organization or "Not set" }}</div>
+            <div class="stat-value text-lg text-base-content">{{ user.organization.get("name") or "Not set" }}</div>
           </div>
           <div class="stat">
             <div class="stat-title">Permissions</div>

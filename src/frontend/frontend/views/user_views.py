@@ -2,15 +2,15 @@ from typing import Any
 from flask import render_template, request
 from flask_jwt_extended import current_user
 
-from models.admin import User
+from models.user import UserProfile
 from frontend.views.base_view import BaseView
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.log import logger
 from frontend.auth import auth_required
 
 
-class UserView(BaseView):
-    model = User
+class UserProfileView(BaseView):
+    model = UserProfile
     icon = "user"
     _index = 20
 

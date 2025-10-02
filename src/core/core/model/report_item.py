@@ -42,7 +42,11 @@ class ReportItem(BaseModel):
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
-        "ReportItemAttribute", back_populates="report_item", cascade="all, delete-orphan", order_by="ReportItemAttribute.index"
+        "ReportItemAttribute",
+        back_populates="report_item",
+        cascade="all, delete-orphan",
+        order_by="ReportItemAttribute.index",
+        lazy="selectin",
     )
 
     report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
@@ -376,10 +380,10 @@ class ReportItem(BaseModel):
         return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
 
     def update_attributes(self, attributes_data: dict, commit=False):
-        for attribute in self.attributes:
-            update_value = attributes_data.get(str(attribute.id), {}).get("value", attribute.value)
-            attribute.value = update_value
-
+        for attr in self.attributes:
+            attr_id_str = str(attr.id)
+            if attr_id_str in attributes_data:
+                attr.value = attributes_data[attr_id_str]
         if commit:
             db.session.commit()
 

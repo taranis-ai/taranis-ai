@@ -18,6 +18,7 @@ from .admin_views.scheduler_views import SchedulerView
 from .report_views import ReportItemView
 from .product_views import ProductView
 from .asset_views import AssetView
+from .user_views import UserProfileView
 
 __all__ = [
     "AssetView",
@@ -41,4 +42,5 @@ __all__ = [
     "SchedulerView",
     "ReportItemView",
     "ProductView",
+    "UserProfileView",
 ]

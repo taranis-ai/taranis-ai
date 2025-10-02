@@ -1,14 +1,14 @@
 from flask_caching import Cache
 from frontend.config import Config
-from models.user import User
+from models.user import UserProfile
 from frontend.log import logger
 
 cache = Cache()
 
 
-def add_user_to_cache(user: dict) -> User | None:
+def add_user_to_cache(user: dict) -> UserProfile | None:
     try:
-        user_object = User(**user)
+        user_object = UserProfile(**user)
         cache.set(key=f"user_cache_{user['username']}", value=user_object, timeout=Config.CACHE_DEFAULT_TIMEOUT)
         return user_object
     except Exception:
@@ -16,7 +16,7 @@ def add_user_to_cache(user: dict) -> User | None:
         return None
 
 
-def get_user_from_cache(username: str) -> User | None:
+def get_user_from_cache(username: str) -> UserProfile | None:
     return cache.get(f"user_cache_{username}")
 
 
@@ -28,7 +28,7 @@ def list_cache_keys():
     return cache.cache._cache.keys()
 
 
-def get_cached_users() -> list[User]:
+def get_cached_users() -> list[UserProfile]:
     prefix = "user_cache_"
     users = []
     for key in cache.cache._cache:

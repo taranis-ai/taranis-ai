@@ -1,41 +1,35 @@
 {% from "macros/variables.html" import tlp_levels %}
 {% from "macros/forms.html" import form_input_content, form_textarea, form_switch %}
 
-{% macro attribute_field(attr, idx, read_only=False, stories=[]) %}
-  {% set base_name = 'attributes[' ~ idx ~ ']' %}
+{% macro attribute_field(attr, read_only=False, stories=[]) %}
+  {% set base_name = 'attributes[' ~ attr.id ~ ']' %}
   {% set value = attr.value | default('') %}
   {% set label = attr.title or ('Attribute #' ~ attr.id) %}
   {% set description = attr.description %}
   {% set required = attr.required %}
   <div class="mb-5">
-    <input type="hidden" name="{{ base_name }}[id]" value="{{ attr.id }}">
-    {% if attr.attribute_id %}<input type="hidden" name="{{ base_name }}[attribute_id]" value="{{ attr.attribute_id }}">{% endif %}
-    {% if attr.attribute_group_id %}
-      <input type="hidden" name="{{ base_name }}[attribute_group_id]" value="{{ attr.attribute_group_id }}">
-    {% endif %}
-
     {% if attr.type in ['TEXT', 'RICH_TEXT'] %}
-      {{ form_textarea(name=base_name ~ '[value]', value=value, placeholder=description, read_only=read_only) }}
+      {{ form_textarea(name=base_name, value=value, placeholder=description, required=required, read_only=read_only) }}
     {% elif attr.type == 'STRING' %}
-      {{ form_input_content(name=base_name ~ '[value]', value=value, placeholder=description, read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, placeholder=description, required=required, read_only=read_only) }}
     {% elif attr.type == 'NUMBER' %}
-      {{ form_input_content(name=base_name ~ '[value]', value=value, type='number', placeholder=description, read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, type='number', placeholder=description, required=required, read_only=read_only) }}
     {% elif attr.type == 'BOOLEAN' %}
-      {{ form_switch(name=base_name ~ '[value]', value=value, label=label, read_only=read_only) }}
+      {{ form_switch(name=base_name, value=value, label=label, required=required, read_only=read_only) }}
     {% elif attr.type in ['ENUM', 'CPE'] %}
       <label class="form-control w-full">
         <span class="label justify-between">
           <span>{{ label }}</span>
           {% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
-        <select name="{{ base_name }}[value]" class="select select-bordered w-full" {% if read_only %}disabled{% endif %}>
+        <select name="{{ base_name }}" class="select select-bordered w-full" {% if read_only %}disabled{% endif %}>
           {% if not value %}<option value="" disabled selected>Select an option</option>{% endif %}
           {% for option in attr.render_data.attribute_enums | default([]) %}
             <option value="{{ option.value }}" {% if option.value == value %}selected{% endif %}>{{ option.value }}</option>
           {% endfor %}
         </select>
       </label>
-      {% if read_only %}<input type="hidden" name="{{ base_name }}[value]" value="{{ value }}">{% endif %}
+      {% if read_only %}<input type="hidden" name="{{ base_name }}" value="{{ value }}">{% endif %}
       {% if description %}<p class="text-xs text-base-content/60 mt-1">{{ description }}</p>{% endif %}
 
     {% elif attr.type == 'RADIO' %}
@@ -48,7 +42,7 @@
           {% for option in attr.render_data.attribute_enums | default([]) %}
             <label class="flex items-center gap-2">
               <input type="radio"
-                     name="{{ base_name }}[value]"
+                     name="{{ base_name }}"
                      value="{{ option.value }}"
                      class="radio"
                      {% if option.value == value %}checked{% endif %}
@@ -60,8 +54,7 @@
       </fieldset>
 
     {% elif attr.type == 'TLP' %}
-      <div class="form-control w-full">{{ tlp_levels(value, name=base_name ~ '[value]', input_id='attr-' ~ attr.id) }}</div>
-      {% if read_only %}<input type="hidden" name="{{ base_name }}[value]" value="{{ value }}">{% endif %}
+      <div class="form-control w-full">{{ tlp_levels(value, name=base_name) }}</div>
 
     {% elif attr.type in ['DATE', 'DATE_TIME', 'TIME'] %}
       <label class="input w-full">
@@ -69,17 +62,17 @@
           {% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
         <input type="date"
-               name="{{ base_name }}[value]"
+               name="{{ base_name }}"
                value="{{ value }}"
                placeholder="{{ description or 'Enter a date' }}"
                {% if read_only %}readonly{% endif %}>
       </label>
 
     {% elif attr.type == 'CVE' %}
-      {{ form_input_content(name=base_name ~ '[value]', value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', read_only=read_only) }}
 
     {% elif attr.type == 'CVSS' %}
-      {{ form_input_content(name=base_name ~ '[value]', value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', read_only=read_only) }}
       <p class="text-xs text-base-content/60 mt-1">
         Use the <a href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator" target="_blank">NVD CVSS calculator</a> to determine the score.
       </p>
@@ -91,14 +84,14 @@
           <span>{{ label }}</span>
           {% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
-        <select class="select select-bordered w-full h-36" name="{{ base_name }}[value][]" multiple {% if read_only %}disabled{% endif %}>
+        <select class="select select-bordered w-full h-36" name="{{ base_name }}[]" multiple {% if read_only %}disabled{% endif %}>
           {% if stories|length == 0 %}<option disabled>No stories assigned to this report</option>{% endif %}
           {% for story in stories %}
             <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title }}</option>
           {% endfor %}
         </select>
         {% if read_only %}
-          {% for story_id in selected_values %}<input type="hidden" name="{{ base_name }}[value][]" value="{{ story_id }}">{% endfor %}
+          {% for story_id in selected_values %}<input type="hidden" name="{{ base_name }}[]" value="{{ story_id }}">{% endfor %}
         {% endif %}
       </div>
 
@@ -108,13 +101,13 @@
           <span>{{ label }}</span>
           {% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
-        <input type="hidden" name="{{ base_name }}[value]" value="{{ value }}">
+        <input type="hidden" name="{{ base_name }}" value="{{ value }}">
         <div class="alert alert-info">Attachment editing is not yet available in this view. Existing data will be preserved on save.</div>
         {% if value %}<p class="text-xs text-base-content/60 mt-1">Stored attachment reference: {{ value }}</p>{% endif %}
       </div>
 
     {% else %}
-      <input type="hidden" name="{{ base_name }}[value]" value="{{ value }}">
+      <input type="hidden" name="{{ base_name }}" value="{{ value }}">
       <div class="alert alert-warning">Unsupported attribute type "{{ attr.type }}" is kept as read-only.</div>
     {% endif %}
   </div>

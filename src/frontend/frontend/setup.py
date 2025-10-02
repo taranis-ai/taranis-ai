@@ -10,7 +10,7 @@ import frontend.filters as filters_module
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
-from models.user import User
+from models.user import UserProfile
 
 from heroicons.jinja import (
     heroicon_micro,
@@ -97,7 +97,7 @@ def jinja_setup(app: Flask):
         app.add_url_rule("/", view_func=index_redirect)
 
 
-def is_user_admin(user: User) -> bool:
+def is_user_admin(user: UserProfile) -> bool:
     """
     Checks if the current user has admin privileges.
     """

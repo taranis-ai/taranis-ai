@@ -7,7 +7,6 @@
 {% set grouped_attributes = grouped_attributes | default([]) %}
 {% set stories = stories | default([]) %}
 {% set used_story_ids = used_story_ids | default([]) %}
-{% set selected_story_ids = selected_story_ids | default([]) %}
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
@@ -65,14 +64,10 @@
 
           {% if is_edit %}
             {% if grouped_attributes %}
-              {% set attribute_index = namespace(value=0) %}
               {% for group in grouped_attributes %}
                 <div class="bg-base-200 rounded-box p-4 mb-4">
                   {% if group.title %}<h3 class="text-lg font-semibold mb-3">{{ group.title }}</h3>{% endif %}
-                  {% for attribute in group.attributes %}
-                    {{ attribute_field(attribute, attribute_index.value, read_only=not is_edit, stories=stories) }}
-                    {% set attribute_index.value = attribute_index.value + 1 %}
-                  {% endfor %}
+                  {% for attribute in group.attributes %}{{ attribute_field(attribute, stories=stories) }}{% endfor %}
                 </div>
               {% endfor %}
             {% else %}
@@ -85,7 +80,14 @@
           <section class="space-y-4">
             <header class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Stories</h3>
-              <span class="text-sm text-base-content/60">{{ selected_story_ids | length }} selected</span>
+              <div>
+                <button type="button"
+                        class="btn btn-sm btn-outline"
+                        data-testid="remove-all-stories"
+                        onclick="document.querySelectorAll('input[name=\'stories[]\']').forEach(el => el.checked = false);">
+                  Remove all
+                </button>
+              </div>
             </header>
 
             {% if stories %}
@@ -94,7 +96,7 @@
                 {% for story in stories %}
                   {% set story_id = story.id %}
                   <label class="border border-base-300 rounded-lg p-4 flex items-start gap-3">
-                    <input type="checkbox" class="checkbox mt-1" name="stories[]" value="{{ story_id }}" {% if story_id in selected_story_ids %}checked{% endif %}>
+                    <input type="checkbox" class="checkbox mt-1" name="stories[]" value="{{ story_id }}" checked>
                     <div class="flex-1 space-y-2">
                       <div class="flex items-center justify-between gap-3">
                         <h4 class="font-semibold">{{ story.title }}</h4>

@@ -56,7 +56,9 @@ class ReportItemView(BaseView):
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        logger.debug(f"Storing report form data: {processed_data} for id {object_id}")
         prepared_payload = cls._prepare_payload(processed_data)
+        logger.debug(f"Prepared payload for storing: {prepared_payload}")
         return super().store_form_data(prepared_payload, object_id)
 
     @classmethod
@@ -73,7 +75,6 @@ class ReportItemView(BaseView):
                 "layout": layout,
                 "grouped_attributes": cls._group_attributes(raw_attributes),
                 "stories": stories,
-                "selected_story_ids": [story.id for story in stories if getattr(story, "id", None)],
                 "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
             }
         )
@@ -122,28 +123,8 @@ class ReportItemView(BaseView):
     def _prepare_payload(cls, data: dict[str, Any]) -> dict[str, Any]:
         payload = dict(data)
 
-        stories = payload.get("stories", [])
-        if isinstance(stories, dict):
-            stories = list(stories.values())
-        elif isinstance(stories, str):
-            stories = [stories]
-        payload["stories"] = [str(story) for story in stories if str(story)]
-
-        attributes_section = payload.get("attributes", {})
-        normalised_attributes: list[dict[str, Any]] = []
-        if isinstance(attributes_section, dict):
-            sorted_keys = sorted(
-                attributes_section.keys(),
-                key=lambda value: int(value) if str(value).isdigit() else str(value),
-            )
-            for key in sorted_keys:
-                attribute_payload = attributes_section[key]
-                if isinstance(attribute_payload, dict):
-                    normalised_attributes.append(cls._normalise_attribute(attribute_payload))
-        elif isinstance(attributes_section, list):
-            normalised_attributes = [cls._normalise_attribute(item) for item in attributes_section if isinstance(item, dict)]
-
-        payload["attributes"] = normalised_attributes
+        payload["stories"] = [str(story) for story in payload["stories"] if str(story)]
+        payload["attributes"] = {int(k): v for k, v in payload.get("attributes", {}).items() if str(k).isdigit()}
 
         if "completed" in payload:
             payload["completed"] = cls._coerce_bool(payload["completed"]) or False
@@ -153,27 +134,6 @@ class ReportItemView(BaseView):
             payload["report_item_type_id"] = int(report_item_type_id)
 
         return payload
-
-    @staticmethod
-    def _normalise_attribute(attribute_payload: dict[str, Any]) -> dict[str, Any]:
-        attribute = dict(attribute_payload)
-
-        for key in ("id", "attribute_id", "attribute_group_id", "index"):
-            if key in attribute and isinstance(attribute[key], str) and attribute[key].isdigit():
-                attribute[key] = int(attribute[key])
-
-        if "required" in attribute:
-            attribute["required"] = ReportItemView._coerce_bool(attribute["required"])
-
-        value = attribute.get("value", "")
-        if isinstance(value, list):
-            attribute["value"] = ",".join(str(item) for item in value if str(item))
-        elif value is None:
-            attribute["value"] = ""
-        else:
-            attribute["value"] = str(value)
-
-        return attribute
 
     @staticmethod
     def _coerce_bool(value: Any) -> bool:

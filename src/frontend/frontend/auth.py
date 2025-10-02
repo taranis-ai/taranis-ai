@@ -7,7 +7,7 @@ from frontend.log import logger
 from frontend.cache import add_user_to_cache, get_user_from_cache
 from frontend.utils.router_helpers import is_htmx_request
 from frontend.core_api import CoreApi
-from models.admin import User
+from models.user import UserProfile
 
 jwt = JWTManager()
 
@@ -20,7 +20,7 @@ def init(app):
 #     return current_authenticator.authenticate(credentials)
 
 
-# def refresh(user: "User"):
+# def refresh(user: "UserProfile"):
 #     return current_authenticator.refresh(user)
 
 
@@ -90,7 +90,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "User") -> str:
+def user_identity_lookup(user: "UserProfile") -> str:
     return user.username
 
 

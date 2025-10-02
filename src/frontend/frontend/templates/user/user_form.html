@@ -5,17 +5,16 @@
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
-{% set user_roles = user.roles %}
-
+{% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
 
 <script type="text/javascript">
   var settings = {
     plugins: ['remove_button'],
     persist:false,
+    closeAfterSelect:true,
     onItemAdd:function(){
 			this.setTextboxValue('');
 			this.refreshOptions();
-      this.close();
 		}
   };
 
@@ -73,7 +72,7 @@
       <legend class="fieldset-legend">Roles</legend>
       <select name="roles[]" multiple required type="number" id="user-role-select" class="tomselect">
         {% for role in roles %}
-          <option value="{{ role.id }}" {% if role.id in user_roles %}selected{% endif %}>
+          <option value="{{ role.id }}" {% if role.id in user_role_ids %}selected{% endif %}>
             {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
           </option>
         {% endfor %}

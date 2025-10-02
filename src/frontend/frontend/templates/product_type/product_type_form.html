@@ -5,10 +5,10 @@
   var settings = {
     plugins: ['remove_button'],
     persist:false,
+    closeAfterSelect:true,
     onItemAdd:function(){
 			this.setTextboxValue('');
 			this.refreshOptions();
-      this.close();
 		}
   };
 
