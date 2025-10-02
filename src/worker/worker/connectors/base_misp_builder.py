@@ -8,7 +8,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-class BaseMispBuilder:
+class BaseMISPBuilder:
     def __init__(self):
         self.type = "BASE_MISP_CONNECTOR"
         self.name = "Base MISP Connector"

@@ -111,6 +111,7 @@ class PRESENTER_TYPES(StrEnum):
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
+    STIX_PRESENTER = auto()
 
     @classmethod
     def _missing_(cls, value):

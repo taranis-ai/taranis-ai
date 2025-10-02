@@ -24,6 +24,7 @@ class PresenterTask(Task):
             "pandoc_presenter": worker.presenters.PANDOCPresenter(),
             "pdf_presenter": worker.presenters.PDFPresenter(),
             "text_presenter": worker.presenters.TextPresenter(),
+            "stix_presenter": worker.presenters.STIXPresenter(),
         }
 
     def get_product(self, product_id: int) -> dict[str, Any]:
@@ -38,13 +39,13 @@ class PresenterTask(Task):
 
         return product
 
-    def get_template(self, presenter: int) -> str:
+    def get_template(self, presenter: int) -> str | None:
         try:
             template = self.core_api.get_template(presenter)
         except ConnectionError as e:
             raise ValueError(f"Unable to connect to core API: {e}") from e
 
-        if not template:
+        if not template and presenter != 6:
             raise ValueError(f"Template with id {presenter} not found")
         return template
 

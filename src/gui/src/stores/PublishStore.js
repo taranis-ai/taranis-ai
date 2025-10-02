@@ -64,14 +64,33 @@ export const usePublishStore = defineStore(
           return
         }
 
-        renderedProduct.value = response.data
         const ct = response.headers?.['content-type'] || null
         renderedProductMimeType.value = ct ? ct.split(';')[0] : null
+
+        if (
+          renderedProductMimeType.value === 'application/json' ||
+          renderedProductMimeType.value === 'application/stix+json'
+        ) {
+          try {
+            renderedProduct.value = JSON.stringify(
+              typeof response.data === 'string'
+                ? JSON.parse(response.data)
+                : response.data,
+              null,
+              2
+            )
+          } catch (err) {
+            console.warn('[PublishStore] Failed to stringify JSON/STIX', err)
+            renderedProduct.value = '[Invalid JSON]'
+          }
+        } else {
+          // For PDFs, DOCX, etc. leave it as returned
+          renderedProduct.value = response.data
+        }
       } catch (error) {
         renderError.value = error?.message ?? 'Failed to load rendered product'
       }
     }
-
     async function patchProduct(product) {
       let updated_item = null
       try {

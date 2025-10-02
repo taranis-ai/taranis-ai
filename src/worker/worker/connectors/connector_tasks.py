@@ -1,10 +1,9 @@
-from base64 import b64encode
 import re
 from celery import Task
 import json
 from typing import Any
 
-from worker.connectors import MISPConnector, ReportToStix
+from worker.connectors import MISPConnector
 from worker.log import logger
 from worker.core_api import CoreApi
 
@@ -15,13 +14,12 @@ class ConnectorTask(Task):
     priority = 5
     default_retry_delay = 60
     time_limit = 300
-    ignore_result = False
+    ignore_result = True
 
     def __init__(self):
         self.core_api = CoreApi()
         self.connectors = {
             "misp_connector": MISPConnector(),
-            "report_to_stix": ReportToStix(),
         }
 
     def drop_utf16_surrogates(self, data: str) -> str:
@@ -52,26 +50,18 @@ class ConnectorTask(Task):
         return connector_config
 
     def get_connector(self, connector_type: str) -> MISPConnector | None:
-        if connector_type == "report-to-stix":
-            return self.connectors.get("report_to_stix")
-
         return self.connectors.get(connector_type)
 
     def get_connector_data(self, connector_id: str, connector_config: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         connector_data: dict[str, Any] = {"connector_config": connector_config}
 
-        if connector_config.get("type") != "report_to_stix":
-            story_ids: list[str] = data.get("story_ids", [])
-            logger.info(f"Sending story {story_ids} to connector {connector_id}")
-            try:
-                connector_data["story"] = self.get_story_by_id(story_ids)
-            except Exception as e:
-                logger.exception(f"Failed to get stories with id: {story_ids}")
-                raise RuntimeError(f"Failed to get stories with id: {story_ids}") from e
-        else:
-            report_id = data.get("report_id")
-            logger.info(f"Sending report {report_id} to connector {connector_id}")
-            connector_data["report_id_list"] = [report_id]
+        story_ids: list[str] = data.get("story_ids", [])
+        logger.info(f"Sending story {story_ids} to connector {connector_id}")
+        try:
+            connector_data["story"] = self.get_story_by_id(story_ids)
+        except Exception as e:
+            logger.exception(f"Failed to get stories with id: {story_ids}")
+            raise RuntimeError(f"Failed to get stories with id: {story_ids}") from e
 
         return connector_data
 
@@ -91,15 +81,10 @@ class ConnectorTask(Task):
 
     def run(self, connector_id: str, data: dict):
         logger.info(f"Running connector with id: {connector_id}")
-        connector_config: dict = {"type": "report_to_stix"}
         connector = None
-        report_id = None
         try:
-            if connector_id != "report-to-stix":
-                connector_config: dict = self.get_connector_config(connector_id)
+            connector_config: dict = self.get_connector_config(connector_id)
             connector: MISPConnector | None = self.get_connector(connector_config.get("type", ""))
-            logger.debug(f"{data=}")
-            report_id = data.get("report_id")
         except Exception as e:
             logger.exception(f"Failed to get connector with id: {connector_id}")
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
@@ -108,13 +93,7 @@ class ConnectorTask(Task):
 
         try:
             if connector is not None:
-                stix_report: list | None = connector.execute(connector_data)
-                if stix_report is None:
-                    return None
-                json_blob = json.dumps(stix_report)
-                render_result = b64encode(json_blob.encode("utf-8")).decode("ascii")
-                return {"report_id": report_id, "render_result": render_result, "message": f"Connector {connector_id} executed successfully"}
-
+                connector.execute(connector_data)
         except Exception as e:
             logger.exception(f"Error executing connector with id: {connector_id}")
             raise RuntimeError(f"Error executing connector with id: {connector_id}") from e

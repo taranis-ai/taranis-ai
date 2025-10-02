@@ -62,15 +62,3 @@ export function removeAttachment(data) {
     `/analyze/report-items/${data.report_item_id}/file-attributes/${data.attribute_id}`
   )
 }
-
-export function generateStix(data) {
-  return apiService.post(`/analyze/report-items/${data.id}/stix`)
-}
-
-export function getStix(report_item_id) {
-  const filename = `stix_report_${report_item_id}.json`
-  return apiService.download(
-    `/analyze/report-items/${report_item_id}/stix`,
-    filename
-  )
-}

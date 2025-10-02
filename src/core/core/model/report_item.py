@@ -1,12 +1,10 @@
-from base64 import b64decode
 from datetime import datetime, timedelta
 
-import json
 import uuid
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import false
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import deferred, Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from typing import Any, Optional
 
@@ -50,8 +48,6 @@ class ReportItem(BaseModel):
     report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
         "ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item"
     )
-
-    render_result: Mapped[str] = deferred(db.Column(db.Text))
 
     def __init__(
         self,
@@ -99,7 +95,6 @@ class ReportItem(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data.pop("render_result", None)
         data["stories"] = [story.id for story in self.stories]
         return data
 
@@ -125,57 +120,15 @@ class ReportItem(BaseModel):
 
     def to_product_dict(self):
         data = super().to_dict()
-        data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
-        data["stories"] = [story.to_dict() for story in self.stories if story]
+        attr_count = len(self.attributes)
+        data["attributes"] = (
+            {f"{attribute.group_title}_{attribute.title}": attribute.value for attribute in self.attributes} if self.attributes else {}
+        )
+        attr_count_2 = len(data["attributes"])
+        if attr_count != attr_count_2:
+            logger.warning(f"Attribute count mismatch for Report {self.id}: {attr_count} != {attr_count_2}")
+        data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
-
-    @classmethod
-    def test_if_valid_render_result(cls, render_result: str) -> bool:
-        """
-        Test if render_result is a valid base64 string
-        :return: True if valid, False otherwise
-        """
-        try:
-            b64decode(render_result)
-            return True
-        except Exception:
-            logger.exception()
-            return False
-
-    def update_render(self, render_result: str) -> bool:
-        if self.test_if_valid_render_result(render_result):
-            self.last_rendered = datetime.now()
-            self.render_result = render_result
-            db.session.commit()
-            return True
-
-        return False
-
-    @classmethod
-    def update_render_for_id(cls, report_id: str, render_result: str):
-        if not (product := cls.get(report_id)):
-            return {"error": f"Product {report_id} not found"}, 404
-        if product.update_render(render_result):
-            logger.debug(f"Render result for Product {report_id} updated")
-            return {"message": f"Product {report_id} updated"}, 200
-        return {"error": f"Product {report_id} not updated"}, 500
-
-    @classmethod
-    def get_render(cls, report_id: str):
-        if report := cls.get(report_id):
-            if report.render_result:
-                json_blob = b64decode(report.render_result).decode("utf-8")
-                stix_list = json.loads(json_blob)
-                bundle = {
-                    "type": "bundle",
-                    "id": f"bundle--{report_id}",
-                    "objects": stix_list,
-                }
-                return {
-                    "mime_type": "application/json",
-                    "blob": json.dumps(bundle, indent=2),
-                }
-        return None
 
     def clone_report(self):
         attributes = [a.clone_attribute() for a in self.attributes]

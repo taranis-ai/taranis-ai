@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
-from worker.connectors.base_misp_builder import BaseMispBuilder
+from worker.connectors.base_misp_builder import BaseMISPBuilder
 from worker.log import logger
 
 
-class MISPConnector(BaseMispBuilder):
+class MISPConnector(BaseMISPBuilder):
     def __init__(self):
         super().__init__()
         self.type = "MISP_CONNECTOR"

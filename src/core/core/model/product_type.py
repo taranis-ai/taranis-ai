@@ -159,6 +159,8 @@ class ProductType(BaseModel):
             return "text/plain"
         if self.type.startswith("json"):
             return "application/json"
+        if self.type.startswith("stix"):
+            return "application/stix+json"
         return "application/octet-stream"
 
     @classmethod
