@@ -49,7 +49,6 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
         self.name = "STIX Presenter"
         self.description = "STIX presenter to export reports into STIX Report format"
 
-    # self, product: dict, template: str|None, parameters: dict[str, str] | None = None
     def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | None:
         report_ids = product.get("report_items", [])
         logger.info(f"Sending reports to STIX: {report_ids}")
