@@ -60,8 +60,6 @@ def serialize_result(result: dict | str | None = None):
 
 
 def handle_task_specific_result(task_id: str, result: dict | str, status: str):
-    logger.debug(f"Handling task specific result for task_id: {task_id}, status: {status}")
-
     if task_id.startswith("gather_word_list"):
         WordList.update_word_list(**result)
     elif task_id.startswith("cleanup_token_blacklist"):
@@ -73,6 +71,5 @@ def handle_task_specific_result(task_id: str, result: dict | str, status: str):
             logger.error(f"Product {product_id} not found or no render result")
         else:
             Product.update_render_for_id(product_id, rendered_product)
-        logger.info(f"Connector task {task_id} completed with result: {result}")
     elif task_id.startswith("collect_"):
         logger.info(f"Collector task {task_id} completed with result: {result}")

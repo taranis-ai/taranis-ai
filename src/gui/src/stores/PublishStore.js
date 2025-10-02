@@ -84,7 +84,6 @@ export const usePublishStore = defineStore(
             renderedProduct.value = '[Invalid JSON]'
           }
         } else {
-          // For PDFs, DOCX, etc. leave it as returned
           renderedProduct.value = response.data
         }
       } catch (error) {
