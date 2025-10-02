@@ -33,7 +33,7 @@ class TestReportHistory(BaseTest):
         assert report_item.id
         assert report_item.title == input_report["title"]
         ReportItemHistory = ReportItem.__history_mapper__.class_
-        assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 0, "Initial version should not be created"
+        assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 1, "Initial version should be created"
 
         report_item.update({"title": "Updated Report Title"})
 
@@ -56,7 +56,7 @@ class TestReportHistory(BaseTest):
         # logger.debug(f"{session.query(ReportItemHistory).all()=}")
         # assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).count() == 1, "First version should be created"
         # assert session.query(ReportItemHistory).filter(ReportItemHistory.version == 1).first().title == "Test Report"
-        
+
         # Get Story objects from the story IDs
         story_objects = [Story.get(story_id) for story_id in stories_for_reports]
         report_item.update({"stories": story_objects})
