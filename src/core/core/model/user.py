@@ -78,8 +78,8 @@ class User(BaseModel):
             "id": self.id,
             "name": self.name,
             "username": self.username,
-            "organization": self.organization.id,
-            "roles": [role.id for role in self.roles if role],
+            "organization": self.organization.name,
+            "roles": [role.name for role in self.roles if role],
             "permissions": self.get_permissions(),
             "profile": self.profile,
         }

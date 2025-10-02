@@ -7,7 +7,7 @@ from frontend.views.base_view import BaseView
 class AssetView(BaseView):
     model = Asset
     icon = "document-chart-bar"
-    htmx_list_template = "assets/asset_table.html"
+    htmx_list_template = "assets/assets_table.html"
     htmx_update_template = "assets/asset.html"
     edit_template = "assets/asset_view.html"
     default_template = "assets/index.html"

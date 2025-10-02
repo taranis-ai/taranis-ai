@@ -10,7 +10,7 @@ from frontend.auth import auth_required
 from frontend.filters import render_item_type, render_worker_status
 from frontend.data_persistence import DataPersistenceLayer
 from models.dashboard import Dashboard
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class BotView(AdminMixin, BaseView):

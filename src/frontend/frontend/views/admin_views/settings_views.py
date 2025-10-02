@@ -5,7 +5,7 @@ from frontend.views.base_view import BaseView
 from frontend.log import logger
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class SettingsView(AdminMixin, BaseView):

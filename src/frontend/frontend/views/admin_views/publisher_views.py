@@ -6,7 +6,7 @@ from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from models.admin import PublisherPreset, ProductType, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 from frontend.filters import render_item_type
 from frontend.log import logger

@@ -5,7 +5,7 @@ from io import BytesIO
 
 
 from frontend.views.base_view import BaseView
-from frontend.views.source_views import SourceView
+from frontend.views.admin_views.source_views import SourceView
 
 
 VIEW_ITEMS = BaseView._registry.items()
@@ -127,7 +127,7 @@ class TestSourceView:
         dummy_file.name = "test.json"
 
         # Mock the CoreApi().import_sources method
-        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
+        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
             mock_api_instance.import_sources.return_value = MagicMock(ok=True)
@@ -160,7 +160,7 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
+        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
             mock_api_instance.import_sources.return_value = None

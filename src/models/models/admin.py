@@ -143,7 +143,7 @@ class User(TaranisBaseModel):
     profile: dict | None = None
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
-    password: str | None = None
+    password: str | None = Field(default=None, exclude=True)
 
 
 class TaranisConfig(TaranisBaseModel):

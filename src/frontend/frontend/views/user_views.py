@@ -1,87 +1,46 @@
-import json
 from typing import Any
-from flask import render_template, request, Response
-from flask_jwt_extended import get_jwt_identity
+from flask import render_template, request
+from flask_jwt_extended import current_user
 
-from frontend.core_api import CoreApi
-from models.admin import Role, Organization, User
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_count
-from frontend.views.admin_mixin import AdminMixin
+from models.admin import User
 from frontend.views.base_view import BaseView
-from frontend.config import Config
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.log import logger
 from frontend.auth import auth_required
 
 
-class UserView(AdminMixin, BaseView):
+class UserView(BaseView):
     model = User
     icon = "user"
     _index = 20
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        base_context["organizations"] = dpl.get_objects(Organization)
-        base_context["roles"] = dpl.get_objects(Role)
-        base_context["current_user"] = get_jwt_identity()
+        base_context["current_user"] = current_user
         return base_context
 
     @classmethod
-    def get_columns(cls):
-        return [
-            {"title": "username", "field": "username", "sortable": True, "renderer": None},
-            {"title": "name", "field": "name", "sortable": True, "renderer": None},
-            {"title": "roles", "field": "roles", "sortable": False, "renderer": render_count, "render_args": {"field": "roles"}},
-            {
-                "title": "permissions",
-                "field": "permissions",
-                "sortable": False,
-                "renderer": render_count,
-                "render_args": {"field": "permissions"},
-            },
+    @auth_required()
+    def get_settings_view(cls):
+        LANGUAGE_OPTIONS = [
+            {"id": "en", "name": "English"},
         ]
-
-    @classmethod
-    def import_view(cls, error=None):
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-
-        return render_template(
-            f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", roles=roles, organizations=organizations, error=error
-        )
-
-    @classmethod
-    def import_post_view(cls):
-        roles = [int(role) for role in request.form.getlist("roles[]")]
-        organization = int(request.form.get("organization", "0"))
-        users = request.files.get("file")
-        if not users or organization == 0:
-            return cls.import_view("No file or organization provided")
-        data = users.read()
-        data = json.loads(data)
-        for user in data["data"]:
-            user["roles"] = roles
-            user["organization"] = organization
-        data = json.dumps(data["data"])
-
-        response = CoreApi().import_users(json.loads(data))
-
-        if not response:
-            error = "Failed to import users"
-            return cls.import_view(error)
-
-        DataPersistenceLayer().invalidate_cache_by_object(User)
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return render_template("user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS)
 
     @classmethod
     @auth_required()
-    def export_view(cls):
-        user_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_users({"ids": user_ids})
+    def update_settings(cls, form_data: dict[str, Any]) -> tuple[str, int]:
+        try:
+            user = current_user
+            if not user:
+                return "User not found", 404
 
-        if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+            parsed_data = parse_formdata(request.form)
+            user = cls.model(**parsed_data)
+            logger.debug(f"Updating user settings for user {user.model_dump()}")
+            return "Settings updated successfully", 200
+        except Exception as e:
+            return f"Error updating settings: {str(e)}", 500
 
-        return CoreApi.stream_proxy(core_resp, "users_export.json")
+    def get(self, **kwargs) -> tuple[str, int]:
+        return render_template("user_profile/profile.html", user=current_user), 200

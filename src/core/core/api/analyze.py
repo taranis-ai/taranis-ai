@@ -133,7 +133,9 @@ def initialize(app: Flask):
 
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
+    analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
+    analyze_bp.add_url_rule("/report/<string:report_item_id>", view_func=ReportItem.as_view("report"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))

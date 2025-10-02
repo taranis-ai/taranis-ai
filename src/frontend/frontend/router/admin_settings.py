@@ -2,7 +2,7 @@ from flask import Flask, Blueprint, request
 from flask.views import MethodView
 
 from frontend.auth import auth_required
-from frontend.views.settings_views import SettingsView
+from frontend.views.admin_views.settings_views import SettingsView
 
 
 class SettingsAction(MethodView):

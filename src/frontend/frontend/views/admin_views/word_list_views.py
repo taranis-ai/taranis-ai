@@ -10,7 +10,7 @@ from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
 from frontend.filters import render_count
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class WordListView(AdminMixin, BaseView):

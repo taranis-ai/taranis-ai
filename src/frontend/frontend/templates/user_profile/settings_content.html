@@ -1,3 +1,4 @@
+{% set profile = user.profile|default({}) %}
 <div id="user-settings-card-wrapper" class="grid gap-6" data-user-settings data-sse-url="{{ core_sse_url }}">
   <form id="user-settings-form"
         class="grid gap-6"
@@ -127,6 +128,7 @@
                 <span class="label-text font-semibold text-base-content">Language</span>
               </div>
               <select id="language-select" name="language" class="select select-bordered w-full">
+                {{ language_options }}
                 {% for option in language_options %}
                   <option value="{{ option.id }}" {% if option.id == profile.language %}selected{% endif %}>{{ option.name }}</option>
                 {% endfor %}

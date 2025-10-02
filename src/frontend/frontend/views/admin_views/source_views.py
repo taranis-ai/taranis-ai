@@ -13,7 +13,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.auth import auth_required
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class SourceView(AdminMixin, BaseView):

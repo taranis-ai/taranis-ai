@@ -4,7 +4,7 @@ from flask import render_template
 from models.admin import ACL, Role, OSINTSource, OSINTSourceGroup, ProductType, ReportItemType, WordList
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class ACLView(AdminMixin, BaseView):

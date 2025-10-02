@@ -24,8 +24,10 @@
       </div>
       <div class="flex-1"></div>
       {% if is_edit %}
-        form_switch('Completed', 'completed', 'Yes' if report.completed else 'No', yes_val='Yes', no_val='No', required=False, width='auto', input_class='toggle-sm')
-        <a class="btn btn-outline btn-sm" href="{{ url_for("publish.product") }}?report_id={{ report.id }}" data-testid="report-new-product">New Product from Report</a>
+        {{ form_switch('Completed', 'completed', 'Yes' if report.completed else 'No', yes_val='Yes', no_val='No', required=False, width='auto', input_class='toggle-sm') }}
+        <a class="btn btn-outline btn-sm"
+           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
+           data-testid="report-new-product">New Product from Report</a>
       {% endif %}
       <div class="join">
         <a href="#split" class="btn btn-sm join-item {% if layout == 'split' %}btn-active{% endif %}">Split view</a>

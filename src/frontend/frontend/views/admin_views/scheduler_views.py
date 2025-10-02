@@ -1,6 +1,6 @@
 from models.admin import Job
 from frontend.views.base_view import BaseView
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class SchedulerView(AdminMixin, BaseView):

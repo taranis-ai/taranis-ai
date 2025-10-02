@@ -10,7 +10,7 @@ import frontend.filters as filters_module
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
-from models.admin import User
+from models.user import User
 
 from heroicons.jinja import (
     heroicon_micro,

@@ -5,7 +5,7 @@ from frontend.views.base_view import BaseView
 from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup, ReportItemAttribute
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_mixin import AdminMixin
 
 
 class ReportItemTypeView(AdminMixin, BaseView):
