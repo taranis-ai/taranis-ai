@@ -1,6 +1,8 @@
 {% from "macros/forms.html" import form_input, form_switch %}
 {% from "macros/datatable.html" import datatable %}
 {% set columns = [{'title': 'Name', 'field': 'name', 'sortable': True, 'searchable': True}, {'title': 'ID', 'field': 'id', 'sortable': True, 'searchable': True}] %}
+{% set osint_sources = osint_sources | default([]) | tojson %}
+{% set word_lists = word_lists | default([]) | tojson %}
 
 {% set form_error = form_error | default({}) %}
 <div class="bg-base-100 p-4">

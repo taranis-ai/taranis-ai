@@ -49,3 +49,19 @@ class StoryTag(TaranisBaseModel):
     name: str
     size: int
     type: str | None = None
+
+
+class Story(TaranisBaseModel):
+    _core_endpoint = "/assess/stories"
+    _model_name = "story"
+    _search_fields = ["title", "description"]
+    _pretty_name = "Story"
+
+    id: str | None = None
+    title: str | None = None
+    description: str | None = None
+    created: datetime | None = None
+    last_updated: datetime | None = None
+    news_items: list[NewsItem] = []
+    tags: list[dict] = []
+    attributes: list[dict] = []

@@ -1,0 +1,12 @@
+<div id="report">
+  {% from "macros/table.html" import table, table_decoration %}
+
+  {% set actions = actions | default([]) %}
+  {% set data = model_plural_name | get_var %}
+  {% set table_container = model_name + '-table-container' %}
+
+  <div id="{{ table_container }}" class="table-container p-4" x-data="{ selectedItems: [] }">
+    {{ table_decoration(name, model_name, table_container, routes=routes, new_item_target="#report") }}
+    {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
+  </div>
+</div>

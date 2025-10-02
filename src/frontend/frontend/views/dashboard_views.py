@@ -3,8 +3,11 @@ from flask_jwt_extended import current_user
 import plotly.express as px
 import pandas as pd
 from typing import Any
+from werkzeug.wrappers import Response
 
-from models.dashboard import Dashboard, TrendingCluster
+
+from models.dashboard import Dashboard, TrendingCluster, Cluster
+from frontend.cache_models import CacheObject, PagingData
 from frontend.views.admin_mixin import AdminMixin
 from frontend.core_api import CoreApi
 from frontend.views.base_view import BaseView
@@ -13,6 +16,8 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.config import Config
 from frontend.auth import auth_required, update_current_user_cache
+from frontend.cache import cache
+from frontend.utils.router_helpers import convert_query_params
 
 
 class DashboardView(BaseView):
@@ -60,12 +65,25 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def get_cluster(cls, cluster_name: str):
+        cluster = None
         try:
-            trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
-        except Exception:
-            trending_clusters = []
+            params = convert_query_params(request.args, PagingData)
+            page = PagingData(**params)
 
-        cluster = [c for c in trending_clusters if c.name == cluster_name]
+            logger.debug(f"Fetching Cluster {cluster_name} with params: {params}")
+
+            dpl = DataPersistenceLayer()
+            endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
+            cache_object: CacheObject | None
+            if cache_object := cache.get(key=dpl.make_user_key(endpoint)):
+                cluster = cache_object.search_and_paginate(page)
+            elif result := dpl.api.api_get(endpoint):
+                cluster = dpl._cache_and_paginate_objects(result, Cluster, endpoint, page)
+        except Exception:
+            cluster = None
+
+        logger.debug(f"Got Cluster {cluster_name} : {cluster}")
+
         user_profile = current_user.profile or {}
         dashboard_config = user_profile.get("dashboard", {})
 
@@ -73,14 +91,25 @@ class DashboardView(BaseView):
             logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404
 
-        if cluster_name == "Country":
-            country_data = cluster[0].model_dump().get("tags", [])
-            logger.debug(f"Country data for cluster '{cluster_name}': {country_data}")
+        if cluster_name in {"Country", "Location"}:
+            country_data = [item.model_dump() for item in cluster]
             country_chart = cls.render_country_chart(country_data)
         else:
             country_chart = None
 
-        return render_template("dashboard/cluster.html", data=cluster[0], country_chart=country_chart, dashboard_config=dashboard_config), 200
+        columns = [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Size", "field": "size", "sortable": True, "renderer": None},
+        ]
+
+        return render_template(
+            "dashboard/cluster.html",
+            data=cluster,
+            columns=columns,
+            cluster_name=cluster_name,
+            country_chart=country_chart,
+            dashboard_config=dashboard_config,
+        ), 200
 
     @classmethod
     @auth_required()
@@ -115,7 +144,7 @@ class DashboardView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()
 
-    def post(self, *args, **kwargs) -> tuple[str, int]:
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         form_data = parse_formdata(request.form)
         form_data = {"dashboard": form_data.get("dashboard", {})}
         logger.debug(f"Updating dashboard with data: {form_data}")

@@ -49,6 +49,18 @@ class Product(BaseModel):
         query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
         return query
 
+    def get_supported_reports(self) -> list[ReportItem]:
+        """Returns list of ReportItems that are have the correct 'report_item_type' of that is set by the 'product_type' of the current 'product'"""
+        if not self.product_type or not self.product_type.report_types:
+            return []
+
+        allowed_type_ids = [rt.id for rt in self.product_type.report_types if rt]
+        if not allowed_type_ids:
+            return []
+
+        query = db.select(ReportItem).where(ReportItem.report_item_type_id.in_(allowed_type_ids)).order_by(db.asc(ReportItem.title))
+        return list(db.session.execute(query).scalars().all())
+
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
@@ -81,8 +93,16 @@ class Product(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data["type"] = self.product_type.type
         data["report_items"] = [report_item.id for report_item in self.report_items if report_item]
         data.pop("render_result", None)
+        return data
+
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data["supported_reports"] = [r.to_supported_products_dict() for r in self.get_supported_reports()]
+        data["render_result"] = self.render_result
+        data["mime_type"] = self.product_type.get_mimetype() if self.product_type else None
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -163,7 +183,7 @@ class Product(BaseModel):
             queue_manager.queue_manager.generate_product(product.id)
 
         db.session.commit()
-        return {"message": f"Product {product_id} updated", "id": product_id}, 200
+        return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
 
     @classmethod
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:

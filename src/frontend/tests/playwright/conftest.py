@@ -6,10 +6,12 @@ import subprocess
 import requests
 import responses
 import contextlib
+import warnings as pywarnings
 from dotenv import dotenv_values
 from urllib.parse import urlparse
+from http.cookies import SimpleCookie
 
-from playwright.sync_api import Browser
+from playwright.sync_api import Browser, Page
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
@@ -62,6 +64,7 @@ def run_core(app):
         _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
 
         yield
+
     except Exception as e:
         pytest.fail(str(e))
     finally:
@@ -118,7 +121,35 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser):
+def setup_test_templates():
+    """Set up test template files for e2e tests."""
+    import shutil
+    from pathlib import Path
+
+    # Get paths
+    test_data_dir = Path(__file__).parent / "testdata"
+    core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
+
+    # Ensure the core templates directory exists
+    core_templates_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy test template files
+    copied_files = []
+    for test_file in test_data_dir.glob("*.html"):
+        dest_file = core_templates_dir / test_file.name
+        shutil.copy2(test_file, dest_file)
+        copied_files.append(dest_file)
+
+    yield
+
+    # Cleanup: remove test template files
+    for file_path in copied_files:
+        if file_path.exists():
+            file_path.unlink()
+
+
+@pytest.fixture(scope="session")
+def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
     timeout = int(request.config.getoption("--e2e-timeout"))
@@ -129,3 +160,105 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     yield context.new_page()
     if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+
+
+def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
+    return any(re.search(p, msg_text) for p in allow_patterns)
+
+
+def _cookies_from_response(resp) -> list[dict]:
+    """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
+    cookies: list[dict] = []
+    set_cookie_headers = resp.headers.getlist("Set-Cookie")
+    for header in set_cookie_headers:
+        c = SimpleCookie()
+        c.load(header)
+        cookies.extend(
+            {
+                "name": name,
+                "value": morsel.value,
+            }
+            for name, morsel in c.items()
+        )
+    return cookies
+
+
+@pytest.fixture
+def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+    """
+    Returns a Playwright Page whose browser context has the JWT cookies set,
+    so any navigation is already authenticated.
+    """
+    page = taranis_frontend
+    base_url: str = e2e_server.url()
+
+    cookies = _cookies_from_response(access_token_response)
+    context_cookies = []
+    context_cookies.extend(
+        {
+            "name": c["name"],
+            "value": c["value"],
+            "url": base_url,
+        }
+        for c in cookies
+    )
+    page.context.add_cookies(context_cookies)
+
+    yield page
+
+
+@pytest.fixture
+def forward_console_and_page_errors(request, logged_in_page):
+    """
+    For each test:
+      - collect console messages and page errors
+      - at teardown: fail on configured severities, warn on warnings
+    """
+    page = logged_in_page
+    fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
+    warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
+    allow_patterns = request.config.getoption("--console-allow") or []
+
+    errors: list[str] = []
+    warns: list[str] = []
+
+    def on_console(msg):
+        # types: "log", "debug", "info", "warning", "error", "trace", "timeEnd", "assert"
+        t = (msg.type or "").lower()
+        txt = msg.text
+        loc = msg.location or {}
+        loc_s = f"{loc.get('url', '')}:{loc.get('lineNumber', '?')}:{loc.get('columnNumber', '?')}"
+        entry = f"[console.{t}] {loc_s} :: {txt}"
+
+        if _allowed(txt, allow_patterns):
+            return
+
+        if t in fail_on:
+            errors.append(entry)
+        elif t in warn_on:
+            warns.append(entry)
+
+    def on_pageerror(err):
+        entry = f"[pageerror] {err}"
+        if _allowed(str(err), allow_patterns):
+            return
+        if "pageerror" in fail_on:
+            errors.append(entry)
+        elif "pageerror" in warn_on:
+            warns.append(entry)
+
+    page.on("console", on_console)
+    page.on("pageerror", on_pageerror)
+
+    try:
+        yield
+    finally:
+        page.remove_listener("console", on_console)
+        page.remove_listener("pageerror", on_pageerror)
+
+        for w in warns:
+            pywarnings.warn(UserWarning(w), stacklevel=0)
+
+        if errors:
+            bullet_list = "\n".join(f"  - {e}" for e in errors)
+            pytest.fail(f"Console/Page errors detected:\n{bullet_list}")

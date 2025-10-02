@@ -4,19 +4,19 @@
   {# djlint:off #}
   <div id="dataTableDiv"
        class="{{ width }}"
-       x-data="{
+       x-data='{
             data: {{ data }},
             items: [],
             filteredItems: [],
             selectedItems: {{ selected_items }},
             view: 5,
-            searchInput: '',
+            searchInput: "",
             pagination: {},
             fuse: null,
             searchKeys: {{ safe_search_keys }},
 
             init() {
-              console.debug('Initializing dataTable: ', this.selectedItems);
+              console.debug("Initializing dataTable: ", this.selectedItems);
               this.filteredItems = this.data
               this.pagination = {
                 total: this.data.length,
@@ -27,8 +27,8 @@
                 to: this.view
               };
               this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
-              this.$watch('searchInput', value => this.search(value));
-              this.changePage(1)
+              this.$watch("searchInput", value => this.search(value));
+              this.changePage(1);
             },
             search(value) {
               if (value.length > 1) {
@@ -40,7 +40,7 @@
 
               this.pagination.total = this.filteredItems.length;
               this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
-              this.changePage(1)
+              this.changePage(1);
             },
             changePage(page) {
               page = Math.max(1, Math.min(page, this.pagination.lastPage));
@@ -83,7 +83,7 @@
               if (this.items.length === 0) return false;
               return this.items.every(item => this.selectedItems.includes(item.id));
             }
-          }">
+          }'>
   <div>
   {# djlint:on #}
   {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
@@ -157,7 +157,7 @@
 </div>
 {% endmacro %}
 
-{% macro datatable_header(title, sortable) %}
+{% macro datatable_header(title, sortable=false) %}
   {% from "macros/query_params.html" import update_query_params %}
   {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
   {% set order = title ~ '_' ~ order_direction %}

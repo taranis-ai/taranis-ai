@@ -11,12 +11,12 @@
 <nav>
   <ul class="menu bg-base-200 menu-horizontal rounded-box">
     {% if is_admin %}
-    <li>
-      <a href="{{ url_for('admin.dashboard') }}">
-        {{ heroicon_outline("cog-6-tooth") }}
-        Administration
-      </a>
-    </li>
+      <li>
+        <a href="{{ url_for('admin.dashboard') }}">
+          {{ heroicon_outline("cog-6-tooth") }}
+          Administration
+        </a>
+      </li>
     {% endif %}
     <li>
       <a href="{{ url_for('base.dashboard') }}">

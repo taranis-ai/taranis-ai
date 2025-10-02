@@ -145,11 +145,11 @@ class SourceView(AdminMixin, BaseView):
     @classmethod
     def export_view(cls):
         source_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_sources(source_ids)
+        core_resp = CoreApi().export_sources({"ids": source_ids})
 
         if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+            logger.debug(f"Failed to fetch sources from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch sources from: {Config.TARANIS_CORE_URL}", 500
 
         return CoreApi.stream_proxy(core_resp, "sources_export.json")
 

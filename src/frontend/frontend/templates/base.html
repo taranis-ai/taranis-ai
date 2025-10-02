@@ -14,17 +14,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/sweetalert2.min.css') }}">
     <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/js/alpinejs.min.js') }}"></script>
-    {% block head %}{% endblock head %}
+    {% block head %}
+    {% endblock head %}
   </head>
 
   <body class="flex bg-base-300 min-h-screen"
         hx-ext="response-targets"
-        x-data="{
-            sidebarOpen: {{ 'true' if _show_sidebar else 'false' }},
-            init() {
-              if (window.self !== window.top) this.sidebarOpen = false
-            }
-         }">
+        x-data="{ sidebarOpen: {{ 'true' if _show_sidebar else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     <!-- Sidebar -->
     {% include "partials/sidebar.html" %}
 
@@ -36,7 +32,8 @@
     <!-- Main Content -->
     <main x-bind:class="sidebarOpen ? 'ml-64' : 'ml-0'" class="pt-16 transition-all duration-300 w-full max-w-full">
       <div class="container mx-auto w-full max-w-full">
-        {% block content %}{% endblock content %}
+        {% block content %}
+        {% endblock content %}
         {% include "notification/index.html" %}
       </div>
     </main>

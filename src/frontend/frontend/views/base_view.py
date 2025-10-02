@@ -1,9 +1,10 @@
-from flask import render_template, request, url_for, current_app, abort
+from flask import render_template, request, url_for, current_app, abort, make_response
 from jinja2 import TemplateNotFound
 from typing import ClassVar, Type, Any
 from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
+from werkzeug.wrappers import Response
 
 from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
 from frontend.data_persistence import DataPersistenceLayer
@@ -182,7 +183,45 @@ class BaseView(MethodView):
 
     @classmethod
     def edit_view(cls, object_id: int | str = 0):
-        return render_template(cls.get_update_template(), **cls.get_update_context(object_id)), 200
+        if str(object_id) == "0":
+            return render_template(cls.get_update_template(), **cls.get_create_context()), 200
+        return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
+
+    @classmethod
+    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+        dpl = DataPersistenceLayer()
+        key = cls._get_object_key()
+        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
+        submit = f"Update {cls.pretty_name()}"
+
+        context = cls._common_context(object_id=object_id)
+        context.update(
+            {
+                "form_error": None,
+                "form_action": form_action,
+                "submit_text": submit,
+            }
+        )
+
+        context[cls.model_name()] = dpl.get_object(cls.model, object_id)
+        return cls.get_extra_context(context)
+
+    @classmethod
+    def get_create_context(cls) -> dict[str, Any]:
+        form_action = f"hx-post={cls.get_base_route()}"
+        submit = f"Create {cls.pretty_name()}"
+
+        context = cls._common_context()
+        context.update(
+            {
+                "form_error": None,
+                "form_action": form_action,
+                "submit_text": submit,
+            }
+        )
+
+        context[cls.model_name()] = cls.model.model_construct(id="0")
+        return cls.get_extra_context(context)
 
     @classmethod
     def get_update_context(
@@ -192,18 +231,14 @@ class BaseView(MethodView):
         form_error: str | None = None,
         resp_obj=None,
     ) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        if str(object_id) == "0":
-            form_action = f"hx-post={cls.get_base_route()}"
-            submit = f"Create {cls.pretty_name()}"
-        else:
-            key = cls._get_object_key()
-            form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
-            submit = f"Update {cls.pretty_name()}"
+        key = cls._get_object_key()
+        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
+        submit = f"Update {cls.pretty_name()}"
 
-        context = cls._common_context(error, object_id)
+        context = cls._common_context()
         context.update(
             {
+                "error": error,
                 "form_error": form_error,
                 "form_action": form_action,
                 "submit_text": submit,
@@ -211,11 +246,9 @@ class BaseView(MethodView):
         )
 
         if resp_obj:
-            context[cls.model_name()] = resp_obj.get(cls.model_name())
+            context[cls.model_name()] = cls.model(**resp_obj.get(cls.model_name()))
             if msg := resp_obj.get("message"):
                 context["message"] = msg
-        else:
-            context[cls.model_name()] = cls.model.model_construct() if str(object_id) == "0" else dpl.get_object(cls.model, object_id)
 
         return cls.get_extra_context(context)
 
@@ -249,20 +282,40 @@ class BaseView(MethodView):
         return cls.get_extra_context(context)
 
     @classmethod
+    def update_view_table(cls, object_id: int | str = 0):
+        logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
+        core_response, error = cls.process_form_data(object_id)
+        if not core_response or error:
+            return render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            ), 400
+
+        notification_response = cls.get_notification_from_dict(core_response)
+        table_response, table_status = cls.list_view()
+        response = notification_response + table_response
+        flask_response = make_response(response, table_status)
+        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
+        return flask_response
+
+    @classmethod
     def update_view(cls, object_id: int | str = 0):
         logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
         core_response, error = cls.process_form_data(object_id)
-        if core_response and not error:
-            response = cls.get_notification_from_dict(core_response)
-            table, table_response = cls.list_view()
-            if table_response == 200:
-                response += table
-            return response, table_response
+        if not core_response or error:
+            return render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            ), 400
 
-        return render_template(
+        notification_response = cls.get_notification_from_dict(core_response)
+        response = notification_response + render_template(
             cls.get_update_template(),
             **cls.get_update_context(object_id, error=error, resp_obj=core_response),
-        ), 400
+        )
+        flask_response = make_response(response, 200)
+        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
+        return flask_response
 
     @classmethod
     def list_view(cls):
@@ -362,14 +415,14 @@ class BaseView(MethodView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int]:
-        return self.update_view(object_id=0)
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+        return self.update_view_table(object_id=0)
 
-    def put(self, **kwargs) -> tuple[str, int]:
+    def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             abort(405)
-        return self.update_view(object_id=object_id)
+        return self.update_view_table(object_id=object_id)
 
     def delete(self, **kwargs):
         if ids := request.form.getlist("ids"):

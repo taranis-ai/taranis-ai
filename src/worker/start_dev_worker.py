@@ -25,6 +25,7 @@ class CeleryRestartHandler(FileSystemEventHandler):
 
 
 if __name__ == "__main__":
+    print("Starting Celery in dev mode watching current directory for changes...")
     path = "."  # Watch the current directory, modify if necessary
     event_handler = CeleryRestartHandler()
     observer = Observer()

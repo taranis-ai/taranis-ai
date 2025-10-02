@@ -32,7 +32,7 @@ class Products(MethodView):
     @auth_required("PUBLISH_CREATE")
     def post(self):
         new_product = product.Product.add(request.json)
-        return {"message": "New Product created", "id": new_product.id}, 201
+        return {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}, 201
 
     @auth_required("PUBLISH_UPDATE")
     def put(self, product_id: str):

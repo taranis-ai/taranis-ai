@@ -1,10 +1,11 @@
 from jinja2 import pass_context
 from flask import url_for, render_template
 import base64
-from heroicons.jinja import heroicon_outline
-from markupsafe import Markup
-from datetime import datetime
+import filetype
 
+from heroicons.jinja import heroicon_outline
+from markupsafe import Markup, escape
+from datetime import datetime
 from models.admin import OSINTSource
 
 __all__ = [
@@ -19,9 +20,45 @@ __all__ = [
     "render_count",
     "render_source_parameter",
     "render_item_type",
+    "render_validation_status",
+    "render_item_validation_status",
+    "badge_class",
+    "badge_label",
+    "normalize_validation_status",
     "render_worker_status",
     "format_datetime",
 ]
+
+
+def badge_class(status):
+    """Return the CSS class for a badge based on validation status."""
+    if status == "valid":
+        return "badge-success"
+    elif status == "invalid":
+        return "badge-error"
+    return "badge-neutral"
+
+
+def badge_label(status):
+    """Return the label for a badge based on validation status."""
+    if status == "valid":
+        return "Valid"
+    elif status == "invalid":
+        return "Invalid"
+    return "Unknown"
+
+
+def normalize_validation_status(status) -> str:
+    """Normalize to 'valid' | 'invalid' | 'unknown'.
+    Expected input: dict with key 'is_valid' or None. Any other type -> 'unknown'.
+    """
+    if isinstance(status, dict):
+        is_valid = status.get("is_valid")
+        if is_valid is True:
+            return "valid"
+        if is_valid is False:
+            return "invalid"
+    return "unknown"
 
 
 def parse_interval_trigger(trigger):
@@ -50,10 +87,17 @@ def render_count(item, field: str) -> int:
     return 0
 
 
+def _guess_mime_pure_py(b64: str) -> str:
+    raw = base64.b64decode(b64)
+    kind = filetype.guess(raw)
+    return kind.mime if kind else "application/octet-stream"
+
+
 def render_icon(item: OSINTSource) -> str:
     if hasattr(item, "icon") and item.icon:
         # TODO: Check if this is safe to render
-        return Markup(f"<img src='data:image/svg+xml;base64,{item.icon}' height='32px' width='32px'  class='icon' alt='Icon' />")
+        _mime = _guess_mime_pure_py(item.icon)
+        return Markup(f"<img src='data:{_mime};base64,{item.icon}' height='32px' width='32px'  class='icon' alt='Icon' />")
     if hasattr(item, "type") and item.type:
         if item.type == "rss_collector":
             return heroicon_outline("rss")
@@ -95,10 +139,17 @@ def render_item_type(item) -> str:
     return "Unknown"
 
 
+def render_datetime(item, field: str) -> str:
+    if hasattr(item, field) and getattr(item, field):
+        value = getattr(item, field)
+        return format_datetime(value)
+    return "N/A"
+
+
 def render_worker_status(item) -> str:
-    if hasattr(item, "status") and item.status:
-        return Markup(render_template("partials/status_badge.html", status=item.status))
-    return Markup(render_template("partials/status_badge.html"))
+    enabled = item.enabled if hasattr(item, "enabled") else True
+    status = item.status if hasattr(item, "status") else None
+    return Markup(render_template("partials/status_badge.html", status=status, enabled=enabled))
 
 
 def last_path_segment(value):
@@ -113,12 +164,40 @@ def b64decode(value):
     return base64.b64decode(value).decode("utf-8")
 
 
+def render_validation_status(status) -> str:
+    """Render validation status badge for a status dict.
+    Expected: dict with keys is_valid, error_type?, error_message?; anything else -> Unknown.
+    """
+    if isinstance(status, dict):
+        is_valid = status.get("is_valid")
+        error_type = status.get("error_type") or ""
+        error_message = status.get("error_message") or ""
+        if is_valid is True:
+            return Markup('<span class="badge badge-success text-xs">Valid</span>')
+        if is_valid is False:
+            et = escape(error_type)
+            em = escape(error_message)
+            tooltip_attr = f'title="{et}: {em}"' if em else f'title="{et}"'
+            return Markup(f'<span class="badge badge-error text-xs" {tooltip_attr}>Invalid</span>')
+    return Markup('<span class="badge badge-neutral text-xs">Unknown</span>')
+
+
+def render_item_validation_status(item) -> str:
+    """Adapter for table renderers: extract item.validation_status and render."""
+    status = None
+    if isinstance(item, dict):
+        status = item.get("validation_status")
+    elif hasattr(item, "validation_status"):
+        status = getattr(item, "validation_status")
+    return render_validation_status(status)
+
+
 def format_datetime(value: datetime | str) -> str:
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     if isinstance(value, datetime):
         return value.strftime("%A, %d. %B %Y %H:%M")
-    return ""
+    return value
 
 
 @pass_context

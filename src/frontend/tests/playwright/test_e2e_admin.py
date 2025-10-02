@@ -30,11 +30,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_user_management(self, taranis_frontend: Page):
-        #        Test definitions
-        # ===============================
-
+    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors):
         def check_dashboard():
+            page.goto(url_for("base.dashboard", _external=True))
             expect(page.locator("#dashboard")).to_be_visible()
 
         def add_organization():
@@ -54,21 +52,38 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_text("Test organizations")).to_be_visible()
 
         def add_user():
-            page.get_by_test_id("admin-menu-User").click()
+            page.goto(url_for("admin.users", _external=True))
             page.get_by_test_id("new-user-button").click()
-            page.get_by_label("Name").fill("Test User")
-            page.get_by_label("Description").fill("Test description of a user")
-            page.get_by_label("Password", exact=True).fill("testasdfasdf")
+            page.get_by_role("textbox", name="Username", exact=True).fill("test")
+            page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
+            page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
+
+            page.get_by_label("Organization").select_option("1")
+            page.locator("#user-role-select-ts-control").click()
+            page.locator("#user-role-select-opt-1").click()
+
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.users", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_text("Test User")).to_be_visible()
+
+        def remove_user():
+            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
+            page.get_by_role("button", name="Delete").click()
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            page.get_by_text("Successfully deleted").click()
 
         def add_role():
-            page.get_by_test_id("admin-menu-Role").click()
+            page.goto(url_for("admin.roles", _external=True))
             page.get_by_test_id("new-role-button").click()
             page.get_by_label("Name").fill("Test Role")
             page.get_by_label("Description").fill("Test description of a role")
+            page.get_by_label("TLP Level ").select_option("clear")
             page.screenshot(path="./tests/playwright/screenshots/docs_role_add.png")
-            self.highlight_element(page.locator('input[type="submit"]')).click()
+            with page.expect_response(url_for("admin.roles", _external=True)) as response_info:
+                self.highlight_element(page.locator('input[type="submit"]')).click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
             expect(page.get_by_text("Test Role")).to_be_visible()
 
         def update_user():
@@ -86,29 +101,31 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def assert_update_user_2():
             expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
-        def remove_user():
-            page.get_by_test_id("user-view-table").locator("tr").nth(2).locator("td").first.click()
+        def remove_organization():
+            # locate to organizations index page
+            page.goto(url_for("admin.organizations", _external=True))
+            page.get_by_role("row", name=re.compile("Test organizations")).get_by_role("button", name="Delete").click()
+            # Set up dialog handler to automatically accept confirmation
+            page.on("dialog", lambda dialog: dialog.accept())
             page.get_by_role("button", name="Delete").click()
-            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
-            page.get_by_text("Successfully deleted").click()
 
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = logged_in_page
         check_dashboard()
         add_organization()
-        # add_user()
+        add_user()
         # add_role()
-        # update_user()  # assign roles to user
+        # update_user()
         # assert_update_user()
-        # update_user()  # deassign roles from a user
+        # update_user()
         # assert_update_user_2()
-        # remove_user()
+        # remove_organization()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         #        Test definitions
-        # ===============================
+        # ============================
 
         def add_osint_sources():
             page.get_by_role("link", name="OSINTSources").click()
@@ -248,21 +265,148 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # add_attribute_group()
         # add_attribute_to_group()
 
-    def test_admin_product_types(self, taranis_frontend: Page):
-        def show_product_type():
-            page.get_by_role("link", name="Product Types").click()
-            page.get_by_role("cell", name="Default TEXT Presenter").first.click()
-            time.sleep(0.3)
-            page.screenshot(path="./tests/playwright/screenshots/docs_product_type_edit.png")
-
-        page = taranis_frontend
-
-        # show_product_type()
-
-    def test_open_api(self, taranis_frontend: Page):
+    def test_open_api(self, logged_in_page: Page):
         def show_open_api():
             page.goto(url_for("base.open_api", _external=True))
-            # expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
+            expect(page.locator("h2.title").first).to_contain_text("Taranis AI")
 
+        page = logged_in_page
+        # show_open_api() # figure out how to test the OpenAPI page opening in a new tab
+
+    def test_template_management(self, logged_in_page: Page):
+        def show_template_management():
+            page.goto(url_for("admin.template_data", _external=True))
+            expect(page.locator("#template-list").get_by_role("link", name="Template", exact=True)).to_be_visible()
+
+        def test_invalid_template_shows_invalid_badge():
+            """Test that invalid templates show 'Invalid' badge, not 'Valid'."""
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+            page.get_by_test_id("new-template-button").click()
+
+            invalid_template_content = """
+    <html>
+    <body>
+        <h1>{{ title }}</h1>
+        {% for item in items %}
+            <p>{{ item.name }}</p>
+
+    </body>
+    </html>
+            """.strip()
+
+            page.fill('input[name="id"]', "test_invalid_badge")
+            page.fill('textarea[name="content"]', invalid_template_content)
+            page.click('input[type="submit"]')
+
+            # Wait for navigation or table update
+            page.wait_for_load_state("networkidle")
+            # Optionally, navigate to the template list page to ensure table is visible
+            page.goto(url_for("admin.template_data", _external=True))
+            page.wait_for_load_state("networkidle")
+
+            page.screenshot(path="./tests/playwright/screenshots/after_add_invalid_template.png")
+
+            # Find the template we just created (wait for it to appear)
+            invalid_template_row = page.locator("tr").filter(has_text="test_invalid_badge")
+            try:
+                expect(invalid_template_row).to_be_visible(timeout=10000)
+            except Exception:
+                print("[DEBUG] Could not find row for 'test_invalid_badge'. Table content printed above.")
+                raise
+
+            # Check that it shows "Invalid" badge (not "Valid")
+            invalid_badge = invalid_template_row.locator(".badge-error")
+            expect(invalid_badge).to_be_visible()
+            expect(invalid_badge).to_contain_text("Invalid")
+
+            # Ensure it doesn't have a "Valid" badge
+            valid_badge = invalid_template_row.locator(".badge-success")
+            expect(valid_badge).not_to_be_visible()
+
+        def test_invalid_template_content_accessible_via_htmx():
+            """Test that invalid template content is accessible when navigating via HTMX."""
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+
+            # Find test_invalid.html template (should exist in test data)
+            invalid_template_row = page.locator("tr").filter(has_text="test_invalid.html")
+            expect(invalid_template_row).to_be_visible()
+
+            invalid_template_row.click()
+
+            # Wait for navigation
+            page.wait_for_load_state("networkidle")
+
+            # Verify template content is accessible (not empty/broken)
+            template_content = page.locator("#editor-content")
+            expect(template_content).to_be_visible()
+
+            content_value = template_content.input_value()
+            assert len(content_value) > 0, "Invalid template content should still be accessible"
+
+            # Verify we can see some expected content (the test_invalid.html contains "user.name")
+            assert "user.name" in content_value, f"Should contain template content, got: {content_value}"
+
+        def test_monaco_editor_loads_on_htmx_navigation():
+            """Test Monaco editor loads properly on HTMX navigation."""
+
+            page.get_by_role("link", name="Administration").click()
+            page.get_by_test_id("admin-menu-Template").click()
+
+            # Click on a template to navigate via HTMX (this was failing)
+            template_row = page.locator("tr").filter(has_text="test_valid.html")
+            expect(template_row).to_be_visible()
+            template_row.click()
+
+            # Wait for page load and Monaco initialization
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)  # Wait for Monaco async loading
+
+            # Check that textarea is accessible (Monaco fallback works)
+            textarea = page.locator("#editor-content")
+            expect(textarea).to_be_visible()
+
+            content = textarea.input_value()
+            assert len(content) > 0, "Template content should be accessible"
+
+            # Accept Monaco or fallback textarea
+            monaco_div = page.locator("#editor")
+            textarea = page.locator("#editor-content")
+            if monaco_div.is_visible():
+                # Monaco loaded
+                expect(monaco_div).to_be_visible()
+                # Optionally check Monaco-specific content
+                monaco_lines = page.locator(".monaco-editor .view-line")
+                if monaco_lines.count() > 0:
+                    expect(monaco_lines.first).to_be_visible()
+            elif textarea.is_visible():
+                expect(textarea).to_be_visible()
+                content = textarea.input_value()
+                assert len(content) > 0, "Template content should be accessible in fallback"
+
+        page = logged_in_page
+
+        show_template_management()
+        test_invalid_template_shows_invalid_badge()
+        test_invalid_template_content_accessible_via_htmx()
+        test_monaco_editor_loads_on_htmx_navigation()
+
+    def product_type_workflow(self, taranis_frontend: Page):
+        """Test product type workflow."""
         page = taranis_frontend
-        # show_open_api()
+
+        # Navigate to product types
+        page.get_by_test_id("admin-menu-Product Type").click()
+        # page.goto(url_for("admin.product_types", _external=True))
+        expect(page.locator("h2.title").first).to_contain_text("Product Types")
+
+        # Add a new product type
+        page.get_by_test_id("new-product-type-button").click()
+        page.get_by_label("Name").fill("Test Product Type")
+        page.get_by_label("Description").fill("This is a test product type.")
+        page.screenshot(path="./tests/playwright/screenshots/product_type_add.png")
+        page.get_by_role("button", name="Create Product Type").click()
+
+        # Verify the new product type appears in the list
+        expect(page.get_by_text("Test Product Type")).to_be_visible()

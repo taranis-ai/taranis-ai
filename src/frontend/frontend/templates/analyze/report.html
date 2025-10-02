@@ -1,0 +1,7 @@
+{% from "macros/forms.html" import form_input, form_textarea, form_select %}
+
+{% set form_error = form_error | default({}) %}
+{% set report = report | default({}) %}
+{% set report_types = report_types | default([]) %}
+
+<div class="p-4" id="report">{{ report }}</div>

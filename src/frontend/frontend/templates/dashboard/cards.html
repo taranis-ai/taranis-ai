@@ -1,40 +1,38 @@
 {% macro dashboard_card(title, endpoint, icon) %}
-<div class="bg-base-100 border p-4">
-  {% if endpoint %}
-  <a href="{{ endpoint }}" class="underline text-xl" target="_top">{{ title }}</a>
-  {% else %}
-  <span class="text-xl">{{ title }}</span>
-  {% endif %}
-  <div class="divider"></div>
-  <span class="inline-flex">
-    {% if icon %}{{ heroicon_solid(icon) }}{% endif %}
-    <span class="caption">{{ caller() }}</span>
-  </span>
-</div>
+  <div class="bg-base-100 border p-4">
+    {% if endpoint %}
+      <a href="{{ endpoint }}" class="underline text-xl" target="_top">{{ title }}</a>
+    {% else %}
+      <span class="text-xl">{{ title }}</span>
+    {% endif %}
+    <div class="divider"></div>
+    <span class="inline-flex">
+      {% if icon %}{{ heroicon_solid(icon) }}{% endif %}
+      <span class="caption">{{ caller() }}</span>
+    </span>
+  </div>
 {% endmacro %}
 
 {% macro trending_card(cluster) %}
-<div class="bg-base-100 border p-4">
-  <div class="justify-between flex items-center mb-1">
-    <div class="join">
-      {{ heroicon_solid("tag", size=24, class="mr-2 pt-1") }}
-      <a href="{{ url_for('base.cluster', cluster_name=cluster.name) }}" class="underline text-xl" target="_top">
-        {{ cluster.name }}
-      </a>
-    </div>
-    <span class="caption">Cluster size: {{ cluster.size }}</span>
-  </div>
-  <div class="divider"></div>
-  <div class="flex gap-4">
-    <div class="flex-grow">
-      {% for tag in cluster.tags %}
-      <div class="justify-between flex items-center">
-        <a href="/assess?tags={{ tag.name }}" class="underline">{{ tag.name }}</a>
-        <p>{{ tag.size }}</p>
+  <div class="bg-base-100 border p-4">
+    <div class="justify-between flex items-center mb-1">
+      <div class="join">
+        {{ heroicon_solid("tag", size=24, class="mr-2 pt-1") }}
+        <a href="{{ url_for('base.cluster', cluster_name=cluster.name) }}" class="underline text-xl" target="_top">{{ cluster.name }}</a>
       </div>
-      {% endfor %}
+      <span class="caption">Cluster size: {{ cluster.size }}</span>
     </div>
-    {{ caller() }}
+    <div class="divider"></div>
+    <div class="flex gap-4">
+      <div class="flex-grow">
+        {% for tag in cluster.tags %}
+          <div class="justify-between flex items-center">
+            <a href="/assess?tags={{ tag.name }}" class="underline">{{ tag.name }}</a>
+            <p>{{ tag.size }}</p>
+          </div>
+        {% endfor %}
+      </div>
+      {{ caller() }}
+    </div>
   </div>
-</div>
 {% endmacro %}
