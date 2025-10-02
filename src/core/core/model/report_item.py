@@ -60,6 +60,7 @@ class ReportItem(BaseModel):
         stories=None,
         attributes=None,
         completed=False,
+        report_item_cpes=None,
         id=None,
     ):
         self.id = id or str(uuid.uuid4())
@@ -67,7 +68,7 @@ class ReportItem(BaseModel):
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
         self.completed = completed
-        self.report_item_cpes = []
+        self.report_item_cpes = report_item_cpes or []
         if stories is not None:
             self.stories = Story.get_bulk(stories)
 

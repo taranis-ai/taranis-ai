@@ -57,9 +57,7 @@ class ReportItemView(BaseView):
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
         logger.debug(f"Storing report form data: {processed_data} for id {object_id}")
-        prepared_payload = cls._prepare_payload(processed_data)
-        logger.debug(f"Prepared payload for storing: {prepared_payload}")
-        return super().store_form_data(prepared_payload, object_id)
+        return super().store_form_data(processed_data, object_id)
 
     @classmethod
     def _augment_context(cls, context: dict[str, Any]) -> dict[str, Any]:
@@ -118,34 +116,3 @@ class ReportItemView(BaseView):
         if hasattr(attribute, key):
             return getattr(attribute, key)
         return attribute.get(key) if isinstance(attribute, dict) else None
-
-    @classmethod
-    def _prepare_payload(cls, data: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(data)
-
-        payload["stories"] = [str(story) for story in payload["stories"] if str(story)]
-        payload["attributes"] = {int(k): v for k, v in payload.get("attributes", {}).items() if str(k).isdigit()}
-
-        if "completed" in payload:
-            payload["completed"] = cls._coerce_bool(payload["completed"]) or False
-
-        report_item_type_id = payload.get("report_item_type_id")
-        if isinstance(report_item_type_id, str) and report_item_type_id.isdigit():
-            payload["report_item_type_id"] = int(report_item_type_id)
-
-        return payload
-
-    @staticmethod
-    def _coerce_bool(value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return False
-        if isinstance(value, (int, float)):
-            return bool(value)
-        string_value = str(value).strip().lower()
-        if string_value in {"true", "1", "on", "yes"}:
-            return True
-        if string_value in {"false", "0", "off", "no", ""}:
-            return False
-        return bool(string_value)

@@ -9,13 +9,13 @@
   {% set required = attr.required %}
   <div class="mb-5">
     {% if attr.type in ['TEXT', 'RICH_TEXT'] %}
-      {{ form_textarea(name=base_name, value=value, placeholder=description, required=required, read_only=read_only) }}
+      {{ form_textarea(name=base_name, value=value, placeholder=description, required=required) }}
     {% elif attr.type == 'STRING' %}
-      {{ form_input_content(name=base_name, value=value, placeholder=description, required=required, read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, placeholder=description, required=required) }}
     {% elif attr.type == 'NUMBER' %}
-      {{ form_input_content(name=base_name, value=value, type='number', placeholder=description, required=required, read_only=read_only) }}
+      {{ form_input_content(name=base_name, value=value, type='number', placeholder=description, required=required) }}
     {% elif attr.type == 'BOOLEAN' %}
-      {{ form_switch(name=base_name, value=value, label=label, required=required, read_only=read_only) }}
+      {{ form_switch(name=base_name, value=value, label=label, required=required) }}
     {% elif attr.type in ['ENUM', 'CPE'] %}
       <label class="form-control w-full">
         <span class="label justify-between">
