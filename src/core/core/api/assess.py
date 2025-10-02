@@ -238,7 +238,7 @@ class Connectors(MethodView):
             return {"error": "No story_id provided"}, 400
 
         try:
-            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, data={"story_ids": story_ids})
+            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
             return response, code
         except Exception as e:
             return {"error": str(e)}, 500

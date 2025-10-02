@@ -118,12 +118,6 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_report_item(self, report_item_id: str) -> dict | None:
-        try:
-            return self.api_get(f"/worker/report-items/{report_item_id}")
-        except Exception:
-            return None
-
     def update_news_item(self, news_id: str, data) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}", json_data=data)

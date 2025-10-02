@@ -52,10 +52,8 @@ class ConnectorTask(Task):
     def get_connector(self, connector_type: str) -> MISPConnector | None:
         return self.connectors.get(connector_type)
 
-    def get_connector_data(self, connector_id: str, connector_config: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_connector_data(self, connector_id: str, connector_config: dict[str, Any], story_ids: list[str]) -> dict[str, Any]:
         connector_data: dict[str, Any] = {"connector_config": connector_config}
-
-        story_ids: list[str] = data.get("story_ids", [])
         logger.info(f"Sending story {story_ids} to connector {connector_id}")
         try:
             connector_data["story"] = self.get_story_by_id(story_ids)
@@ -79,7 +77,7 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Story with id {query} not found")
         return stories
 
-    def run(self, connector_id: str, data: dict):
+    def run(self, connector_id: str, story_ids: list[str]) -> None:
         logger.info(f"Running connector with id: {connector_id}")
         connector = None
         try:
@@ -89,7 +87,7 @@ class ConnectorTask(Task):
             logger.exception(f"Failed to get connector with id: {connector_id}")
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
 
-        connector_data = self.get_connector_data(connector_id, connector_config, data)
+        connector_data = self.get_connector_data(connector_id, connector_config, story_ids)
 
         try:
             if connector is not None:

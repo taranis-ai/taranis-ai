@@ -19,10 +19,7 @@
     "analyze": {
       "completed": "completed",
       "remove_all_stories": "Remove all stories",
-      "vertical_view": "Side-by-side",
-      "new_report": "New Report",
-      "export_to_stix": "Export to STIX",
-      "download": "Download Export"
+      "vertical_view": "Side-by-side"
     },
     "assess": {
         "story_description": "Description",

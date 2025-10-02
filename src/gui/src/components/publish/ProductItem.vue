@@ -389,9 +389,6 @@ export default {
     })
 
     function downloadProduct() {
-      console.log('[DEBUG] renderedProduct:', renderedProduct.value)
-      console.log('[DEBUG] MIME type:', renderedProductMimeType.value)
-
       let bytes
       if (render_html.value || renderedProductMimeType.value === 'text/plain') {
         bytes = new TextEncoder().encode(renderedProduct.value)
