@@ -4,6 +4,8 @@ from uuid import uuid4
 from worker.connectors.base_misp_builder import BaseMISPBuilder
 from misp_stix_converter import MISPtoSTIX21Parser
 from worker.log import logger
+from .base_presenter import BasePresenter
+
 
 TYPE_MAP = {
     "TLP": "text",
@@ -40,15 +42,16 @@ TYPE_MAP = {
 }
 
 
-class STIXPresenter(BaseMISPBuilder):
+class STIXPresenter(BaseMISPBuilder, BasePresenter):
     def __init__(self):
         super().__init__()
         self.type = "STIX_PRESENTER"
         self.name = "STIX Presenter"
         self.description = "STIX presenter to export reports into STIX Report format"
 
-    def generate(self, connector_data: dict, dummy, parameters) -> str | None:
-        report_ids = connector_data.get("report_items", [])
+    # self, product: dict, template: str|None, parameters: dict[str, str] | None = None
+    def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | None:
+        report_ids = product.get("report_items", [])
         logger.info(f"Sending reports to STIX: {report_ids}")
         return self.export_to_stix(report_ids) or None
 
