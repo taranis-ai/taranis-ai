@@ -80,7 +80,7 @@ class ReportItem(BaseModel):
         if user and not item.allowed_with_acl(user, False):
             return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
 
-        return item.to_worker_dict(), 200
+        return item.to_detail_dict(), 200
 
     @classmethod
     def get_story_ids(cls, item_id):
@@ -121,13 +121,9 @@ class ReportItem(BaseModel):
 
     def to_product_dict(self):
         data = super().to_dict()
-        attr_count = len(self.attributes)
         data["attributes"] = (
             {f"{attribute.group_title}_{attribute.title}": attribute.value for attribute in self.attributes} if self.attributes else {}
         )
-        attr_count_2 = len(data["attributes"])
-        if attr_count != attr_count_2:
-            logger.warning(f"Attribute count mismatch for Report {self.id}: {attr_count} != {attr_count_2}")
         data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
