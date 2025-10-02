@@ -52,10 +52,10 @@
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">{{ heroicon_outline("user-circle") }}</div>
       <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
         <li>
-          <a href="/user">Profile</a>
+          <a href="{{ url_for('user.profile') }}">Profile</a>
         </li>
         <li>
-          <a href="/user/settings">User Settings</a>
+          <a href="{{ url_for('user.settings') }}">User Settings</a>
         </li>
         <li>
           <a href="{{ url_for('base.logout') }}">Logout</a>

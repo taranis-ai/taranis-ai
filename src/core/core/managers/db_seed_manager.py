@@ -324,20 +324,7 @@ def pre_seed_default_user():
 
 def pre_seed_assets():
     from core.model.asset import AssetGroup
-    from core.model.organization import Organization
     from core.model.settings import Settings
 
-    if AssetGroup.get("default"):
-        return
-    if not (org := Organization.get(1)):
-        return
-    AssetGroup.add(
-        {
-            "name": "Default",
-            "description": "Default group for uncategorized assets",
-            "organization": org,
-            "id": "default",
-        }
-    )
-
+    AssetGroup.get_default_group()
     Settings.initialize()
