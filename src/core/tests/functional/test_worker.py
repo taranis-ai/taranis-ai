@@ -319,7 +319,7 @@ class TestConnector:
         base_misp_builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(base_misp_builder)
 
-        BaseMispBuilder = base_misp_builder.BaseMispBuilder
+        BaseMispBuilder = base_misp_builder.BaseMISPBuilder
 
         response = client.get(
             f"{self.base_uri}/stories",
