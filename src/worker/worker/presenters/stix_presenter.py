@@ -79,18 +79,22 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
         event.published = True
         event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
 
-        for key, value in report_item.get("attributes", {}).items():
-            if not key or not value:
+        for group_title, attributes in report_item.get("attributes", {}).items():
+            if not attributes:
                 continue
 
-            group_title, attr_name = key.split("_", 1)
-            misp_type = TYPE_MAP.get(attr_name, "text")
+            for attr_name, attr_value in attributes.items():
+                if not attr_name or not attr_value:
+                    continue
 
-            event.add_attribute(
-                type=misp_type,
-                category="External analysis",
-                value=value,
-            )
+                misp_type = TYPE_MAP.get(attr_name, "text")
+
+                event.add_attribute(
+                    type=misp_type,
+                    category="External analysis",
+                    value=attr_value,
+                    comment=f"Group: {group_title}",  # optional, adds group info
+                )
 
         for story in report_item.get("stories", []):
             self.add_story_properties_to_event(story, event)

@@ -1,3 +1,4 @@
+import json
 import pytest
 import worker.presenters.pdf_presenter as pdfp
 import worker.presenters.pandoc_presenter as pandocp
@@ -114,3 +115,15 @@ def test_pandoc_presenter_no_data(pandoc_presenter, fixed_datetime, monkeypatch)
     with pytest.raises(ValueError) as exception:
         _ = pandoc_presenter.generate(product, template, params)
     assert str(exception.value) == "Document generation failed: No data returned for odt format."
+
+
+def test_generate_real_stix_bundle(stix_presenter):
+    from presenters_test_data import test_stix_procuct
+
+    result = stix_presenter.generate(test_stix_procuct, None)
+    bundle = json.loads(result)
+
+    assert bundle["type"] == "bundle"
+    assert bundle["spec_version"] == "2.1"
+    assert isinstance(bundle["objects"], list)
+    assert any(obj["type"] == "report" for obj in bundle["objects"])

@@ -68,6 +68,7 @@ class PresenterTask(Task):
         template = self.get_template(type_id)
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
+        logger.debug(f"{product=}")
 
         if rendered_product := presenter.generate(product, template, parameters=product.get("parameters", {})):
             if isinstance(rendered_product, str):
