@@ -24,8 +24,6 @@ class ReportItemView(BaseView):
 
     base_route = "analyze.analyze"
     edit_route = "analyze.report"
-    _read_only = False
-    _show_sidebar = False
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:

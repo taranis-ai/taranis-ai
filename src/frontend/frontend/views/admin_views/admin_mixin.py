@@ -5,6 +5,7 @@ from jinja2 import TemplateNotFound
 
 class AdminMixin:
     _is_admin = True
+    _show_sidebar = True
 
     @classmethod
     def get_sidebar_template(cls) -> str:

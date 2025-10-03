@@ -27,8 +27,20 @@
            href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
            data-testid="report-new-product">New Product from Report</a>
         <div class="join">
-          <button type="button" hx-post class="btn btn-sm join-item {% if report.completed %}btn-active{% endif %}">Completed</button>
-          <button type="button" hx-post class="btn btn-sm join-item {% if not report.completed %}btn-active{% endif %}">Incomplete</button>
+          <button type="button"
+                  {{ form_action }}
+                  hx-vals='{"completed": true}'
+                  hx-target="#report"
+                  hx-target-error="#report"
+                  class="btn btn-sm join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
+          </button>
+          <button type="button"
+                  {{ form_action }}
+                  hx-vals='{"completed": false}'
+                  hx-target="#report"
+                  hx-target-error="#report"
+                  class="btn btn-sm join-item {% if not report.completed %}btn-active{% endif %}">Incomplete
+          </button>
         </div>
       {% endif %}
       <div class="join">

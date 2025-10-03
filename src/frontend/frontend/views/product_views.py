@@ -20,8 +20,6 @@ class ProductView(BaseView):
 
     base_route = "publish.publish"
     edit_route = "publish.product"
-    _read_only = True
-    _show_sidebar = False
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:

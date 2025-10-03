@@ -244,6 +244,15 @@ class Connectors(MethodView):
             return {"error": str(e)}, 500
 
 
+class FilterLists(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        tag_list = news_item_tag.NewsItemTag.get_list({})
+        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
+        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
+        return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
+
+
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     def get(self):
@@ -260,6 +269,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
+    assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
     assess_bp.add_url_rule(

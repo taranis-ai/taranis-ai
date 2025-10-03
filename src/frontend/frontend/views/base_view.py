@@ -29,7 +29,7 @@ class BaseView(MethodView):
     import_route: ClassVar[str] = ""
     icon: ClassVar[str] = "wrench"
     _is_admin: ClassVar[bool] = False
-    _show_sidebar: ClassVar[bool] = True
+    _show_sidebar: ClassVar[bool] = False
     _index: ClassVar[float | int] = float("inf")
     _read_only: ClassVar[bool] = False
 

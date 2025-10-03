@@ -15,8 +15,7 @@ class StoryView(BaseView):
 
     base_route = "assess.assess"
     edit_route = "assess.story"
-    _read_only = False
-    _show_sidebar = False
+    _show_sidebar = True
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -32,3 +31,7 @@ class StoryView(BaseView):
                 "render_args": {"field": "stories"},
             },
         ]
+
+    @classmethod
+    def get_sidebar_template(cls) -> str:
+        return "assess/assess_sidebar.html"

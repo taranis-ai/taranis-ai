@@ -1,9 +1,296 @@
-{% macro story_card(story) %}
-  <div class="card card-border bg-base-100 mx-4 my-2">
-    <div class="card-body">
-      <h2 class="card-title">{{ story.title }}</h2>
-      <p>{{ story.content }}</p>
-      <div class="card-actions"></div>
+{% macro story_card(story, detail_view=False, report_view=False, open_summary=False) %}
+  {% set story_id = story.id | string %}
+  {% set card_id = 'story-card-' ~ story_id %}
+  {% set news_items = (story.news_items | default([])) | list %}
+  {% set news_count = news_items | length %}
+  {% set first_news = news_items[0] if news_count > 0 else none %}
+  {% set summary_source = story.summary or story.description or (first_news.content if first_news else '') %}
+  {% set summary_html = summary_source | default('', true) %}
+  {% set detail_open = open_summary or detail_view %}
+  {% if request.endpoint == 'assess.story' %}
+    {% set detail_open = True %}
+  {% endif %}
+  {% if request.args.get('story_id') == story_id and request.args.get('view') in ['detail', 'expanded'] %}
+    {% set detail_open = True %}
+  {% endif %}
+
+  {% set card_classes = [
+    "card",
+    "card-bordered",
+    "bg-base-100",
+    "shadow-sm",
+    "mb-4",
+    "border-l-4",
+    "transition",
+    "duration-150",
+    "hover:shadow-lg",
+    "relative"
+  ] %}
+  {% if story.read | default(false) %}
+    {% set card_classes = card_classes + ['border-base-200'] %}
+  {% else %}
+    {% set card_classes = card_classes + ['border-primary'] %}
+  {% endif %}
+  {% if story.important | default(false) %}
+    {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
+  {% endif %}
+
+  {% set tags_list = [] %}
+  {% if story.tags %}
+    {% if story.tags is mapping %}
+      {% set tags_list = story.tags.values() | list %}
+    {% else %}
+      {% set tags_list = story.tags | list %}
+    {% endif %}
+  {% endif %}
+
+  {% set pub = namespace(earliest=None, latest=None) %}
+  {% for item in news_items %}
+    {% set published_at = item.published or item.published_date or item.collected %}
+    {% if published_at %}
+      {% if pub.earliest is none or published_at < pub.earliest %}
+        {% set pub.earliest = published_at %}
+      {% endif %}
+      {% if pub.latest is none or published_at > pub.latest %}
+        {% set pub.latest = published_at %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% set toggled_read = (not (story.read | default(false))) | tojson %}
+  {% set toggled_important = (not (story.important | default(false))) | tojson %}
+
+  <article id="{{ card_id }}" class="{{ ' '.join(card_classes) }}" x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }">
+    <div class="p-4 lg:p-5 space-y-4">
+      <div class="grid gap-4 lg:grid-cols-[minmax(220px,260px)_1fr_auto] items-start">
+        <section class="space-y-4 text-sm text-base-content/80">
+          <div class="flex items-start gap-2">
+            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
+            <div class="flex flex-col gap-1">
+              {% if pub.earliest %}
+                <span>{{ pub.earliest | format_datetime }}</span>
+                {% if pub.latest and pub.latest != pub.earliest %}<span>{{ pub.latest | format_datetime }}</span>{% endif %}
+              {% else %}
+                <span class="text-base-content/60">Not available</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Status</span>
+            <div class="flex items-center gap-2 text-xs">
+              {% if story.read | default(false) %}
+                <span class="badge badge-success badge-outline badge-xs">Read</span>
+              {% else %}
+                <span class="badge badge-primary badge-xs">Unread</span>
+              {% endif %}
+              {% if story.important | default(false) %}<span class="badge badge-warning badge-xs">Important</span>{% endif %}
+              {% if story.relevance is not none %}<span class="badge badge-outline badge-xs">Relevance {{ story.relevance }}</span>{% endif %}
+            </div>
+          </div>
+
+          {% if story.in_reports_count %}
+            {% set report_count = story.in_reports_count | int %}
+            {% set icon_count = 4 if report_count > 4 else report_count %}
+            <div class="flex items-center gap-2">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
+              <div class="flex items-center gap-1 text-warning">
+                {% for _ in range(icon_count) %}{{ heroicon_mini("arrow-up-on-square") }}{% endfor %}
+                {% if report_count > icon_count %}<span class="text-xs text-base-content/60">+{{ report_count - icon_count }}</span>{% endif %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if tags_list %}
+            <div class="space-y-1">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
+              <div class="flex flex-wrap gap-2">
+                {% for tag in tags_list[:6] %}
+                  <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name or tag.title or tag }}</span>
+                {% endfor %}
+                {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        <section class="space-y-3">
+          <div class="flex flex-col gap-2">
+            {% set title_html = story.highlighted_title | default(story.title, true) %}
+            <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ title_html | safe }}</h2>
+            {% if first_news and (first_news.web_url or first_news.link) %}
+              <a href="{{ first_news.web_url or first_news.link }}"
+                 target="_blank"
+                 rel="noopener"
+                 class="link link-primary text-xs inline-flex items-center gap-1">
+                {{ heroicon_mini("arrow-top-right-on-square") }}
+                <span>Open primary source</span>
+              </a>
+            {% endif %}
+          </div>
+
+          {% if summary_html %}<div class="text-sm text-base-content/80 leading-relaxed prose max-w-none">{{ summary_html | safe }}</div>{% endif %}
+        </section>
+
+        <section class="flex flex-col items-end gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    class="btn btn-ghost btn-xs"
+                    x-bind:class="isOpen ? 'btn-active' : ''"
+                    x-on:click="isOpen = !isOpen"
+                    data-testid="toggle-summary"
+                    x-bind:aria-expanded="isOpen.toString()">
+              {{ heroicon_mini("chevron-down") }}
+              <span x-text="isOpen ? 'Hide details' : 'Show details'"></span>
+            </button>
+            <button type="button"
+                    class="btn btn-ghost btn-xs"
+                    hx-get="{{ url_for('assess.story', story_id=story_id) }}?view=detail&story_id={{ story_id }}"
+                    hx-target="#{{ card_id }}"
+                    hx-select="#{{ card_id }}"
+                    hx-swap="outerHTML"
+                    data-testid="open-detail-view">
+              {{ heroicon_mini("document-magnifying-glass") }}
+              <span>Open</span>
+            </button>
+          </div>
+
+          <div class="join join-vertical w-40">
+            <button type="button"
+                    class="btn btn-outline btn-xs join-item"
+                    hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+                    hx-encoding="json"
+                    hx-vals='{"read": {{ toggled_read }} }'
+                    hx-target="#{{ card_id }}"
+                    hx-select="#{{ card_id }}"
+                    hx-swap="outerHTML"
+                    data-testid="toggle-read">
+              {% if story.read | default(false) %}
+                {{ heroicon_mini("eye-slash") }}
+                <span>Mark unread</span>
+              {% else %}
+                {{ heroicon_mini("eye") }}
+                <span>Mark read</span>
+              {% endif %}
+            </button>
+            <button type="button"
+                    class="btn btn-outline btn-xs join-item"
+                    hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+                    hx-encoding="json"
+                    hx-vals='{"important": {{ toggled_important }} }'
+                    hx-target="#{{ card_id }}"
+                    hx-select="#{{ card_id }}"
+                    hx-swap="outerHTML"
+                    data-testid="toggle-important">
+              {{ heroicon_mini("star") }}
+              <span>
+                {% if story.important | default(false) %}
+                  Remove important
+                {% else %}
+                  Mark important
+                {% endif %}
+              </span>
+            </button>
+            {% if not report_view %}
+              <a href="{{ url_for('assess.story', story_id=story_id) }}?view=detail" class="btn btn-outline btn-xs join-item" data-testid="edit-story">
+                {{ heroicon_mini("pencil-square") }}
+                <span>Edit story</span>
+              </a>
+            {% endif %}
+          </div>
+        </section>
+      </div>
+
+      <div class="border-t border-base-200 pt-4 space-y-6" x-show="isOpen" x-transition x-cloak>
+        <div class="stats stats-vertical lg:stats-horizontal shadow bg-base-100">
+          <div class="stat">
+            <div class="stat-title">News items</div>
+            <div class="stat-value text-lg">{{ news_count }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Likes</div>
+            <div class="stat-value text-lg">{{ story.likes | default(0) }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Dislikes</div>
+            <div class="stat-value text-lg">{{ story.dislikes | default(0) }}</div>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2 text-sm text-base-content/80">
+          <dl class="space-y-2">
+            <div class="flex justify-between gap-4">
+              <dt class="text-base-content/60">Created</dt>
+              <dd>
+                {{ story.created | format_datetime if story.created else '—' }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-base-content/60">Updated</dt>
+              <dd>
+                {{ story.last_updated | format_datetime if story.last_updated else '—' }}
+              </dd>
+            </div>
+            {% if story.comments %}
+              <div class="flex flex-col gap-1">
+                <dt class="text-base-content/60">Comments</dt>
+                <dd class="whitespace-pre-line">
+                  {{ story.comments }}
+                </dd>
+              </div>
+            {% endif %}
+          </dl>
+
+          {% if tags_list %}
+            <div class="space-y-2">
+              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
+              <ul class="space-y-1">
+                {% for tag in tags_list[:8] %}
+                  <li class="flex items-center gap-2">
+                    {{ heroicon_mini("tag") }}
+                    <span>{{ tag.name or tag.title or tag }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if news_items %}
+          <div class="space-y-4">
+            <div class="flex items-center gap-2">
+              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
+              <span class="badge badge-outline badge-sm">{{ news_count }}</span>
+            </div>
+            <div class="space-y-6">
+              {% for item in news_items %}
+                <article class="rounded-lg border border-base-200 bg-base-100 p-4 shadow-sm">
+                  <div class="flex flex-col gap-2">
+                    <div class="flex flex-wrap items-start gap-2">
+                      <h4 class="font-semibold text-base text-base-content" data-testid="news-item-title">{{ item.title or 'Untitled news item' }}</h4>
+                      {% if item.published or item.published_date %}
+                        <span class="badge badge-ghost badge-sm">{{ (item.published or item.published_date) | format_datetime }}</span>
+                      {% endif %}
+                      {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
+                    </div>
+                    {% if item.link or item.source %}
+                      <a href="{{ item.link or item.source }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
+                        {{ heroicon_mini("arrow-top-right-on-square") }}
+                        <span>Open source</span>
+                      </a>
+                    {% endif %}
+                    {% if item.content %}
+                      <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line">{{ item.content }}</p>
+                    {% elif item.review %}
+                      <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line">{{ item.review }}</p>
+                    {% endif %}
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
-  </div>
+  </article>
 {% endmacro %}
