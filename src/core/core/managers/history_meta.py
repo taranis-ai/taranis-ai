@@ -278,14 +278,14 @@ def create_version(obj, session, deleted=False):
 
     # Calculate the next version based on history table
     from sqlalchemy import func, select, and_, inspect
-    
+
     history_table = history_mapper.local_table
     pk_columns = inspect(obj_mapper.local_table).primary_key
     conditions = []
     for pk_col in pk_columns:
         pk_value = getattr(obj, pk_col.name)
         conditions.append(history_table.c[pk_col.name] == pk_value)
-    
+
     if conditions:
         max_version = session.execute(
             select(func.coalesce(func.max(history_table.c.version), 0)).where(and_(*conditions))
@@ -293,14 +293,14 @@ def create_version(obj, session, deleted=False):
         next_version = (max_version or 0) + 1
     else:
         next_version = 1
-    
+
     attr["version"] = next_version
-    
+
     hist = history_cls()
     for key, value in attr.items():
         setattr(hist, key, value)
     session.add(hist)
-    
+
     # Update the in-memory version counter
     obj.version = next_version
 
@@ -308,7 +308,22 @@ def create_version(obj, session, deleted=False):
 def versioned_session(session):
     @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
+        # Updates: only for persistent objects (exclude new ones!)
         for obj in versioned_objects(session.dirty):
-            create_version(obj, session)
+            state = attributes.instance_state(obj)
+            if state.persistent:  # prevents double-counting inserts
+                create_version(obj, session)
+
+        # Deletes
         for obj in versioned_objects(session.deleted):
             create_version(obj, session, deleted=True)
+
+    @event.listens_for(session, "after_flush")
+    def after_flush(session, flush_context):
+        # Inserts: handled here
+        for obj in versioned_objects(session.new):
+            create_version(obj, session, created=True)
+
+
+
+

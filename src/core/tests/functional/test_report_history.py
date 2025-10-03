@@ -89,9 +89,8 @@ class TestReportHistory(BaseTest):
 
         ReportItemHistory = ReportItem.__history_mapper__.class_
 
-        # Expect no history yet (assuming first insert does not version)
         initial_history_count = session.query(ReportItemHistory).filter(ReportItemHistory.id == report_item.id).count()
-        assert initial_history_count == 0, f"Expected no history after insert, got {initial_history_count}"
+        assert initial_history_count == 1, f"Expected history after insert, got {initial_history_count}"
 
         # First update
         report_item.update({"title": "First Update Title", "summary": "First summary"})
@@ -105,9 +104,9 @@ class TestReportHistory(BaseTest):
             session.query(ReportItemHistory).filter(ReportItemHistory.id == report_item.id).order_by(ReportItemHistory.version).all()
         )
 
-        assert len(all_history) == 3, f"Expected 3 versions, got {len(all_history)}"
+        assert len(all_history) == 4, f"Expected 4 versions, got {len(all_history)}"
 
-        expected_titles = ["Test Report", "First Update Title", "Second Update Title"]
+        expected_titles = ["Test Report", "First Update Title", "Second Update Title", "Third Update Title"]
 
         for version, expected_title in enumerate(expected_titles, start=1):
             entry = (
