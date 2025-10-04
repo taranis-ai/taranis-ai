@@ -1,6 +1,9 @@
+from requests.models import Response as ReqResponse
 from functools import wraps
+from flask import Flask
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
-from flask import redirect, url_for, Response, render_template
+from flask import redirect, url_for, render_template, Response
+from typing import Any
 
 from frontend.config import Config
 from frontend.log import logger
@@ -12,7 +15,7 @@ from models.user import UserProfile
 jwt = JWTManager()
 
 
-def init(app):
+def init(app: Flask) -> None:
     jwt.init_app(app)
 
 
@@ -24,8 +27,8 @@ def init(app):
 #     return current_authenticator.refresh(user)
 
 
-def logout():
-    core_response = CoreApi().logout()
+def logout() -> tuple[str, int] | Response:
+    core_response: ReqResponse = CoreApi().logout()
     if not core_response.ok:
         return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
@@ -38,12 +41,12 @@ def logout():
     return response
 
 
-def auth_required(permissions: list | str | None = None):
+def auth_required(permissions: list[str] | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs: dict[str, Any]):
             if permissions is None:
-                permissions_set = set()
+                permissions_set: set[str] = set()
             elif isinstance(permissions, list):
                 permissions_set = set(permissions)
             else:
@@ -77,9 +80,9 @@ def auth_required(permissions: list | str | None = None):
     return auth_required_wrap
 
 
-def update_current_user_cache():
+def update_current_user_cache() -> None | UserProfile:
     if result := CoreApi().api_get("/users"):
-        return add_user_to_cache(result)
+        return add_user_to_cache(user=result)
     return None
 
 
@@ -95,7 +98,7 @@ def user_identity_lookup(user: "UserProfile") -> str:
 
 
 @jwt.token_in_blocklist_loader
-def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
+def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
     """
     jtw token blacklisting is handled by core
     cached userdata is invalidated, when userdata is changed

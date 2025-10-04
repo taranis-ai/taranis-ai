@@ -20,7 +20,7 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         base_context["filter_lists"] = cls._get_filter_lists()
         return base_context
 
@@ -30,7 +30,7 @@ class StoryView(BaseView):
 
     @staticmethod
     def _get_filter_lists() -> FilterLists:
-        if filter_lists := get_model_from_cache(FilterLists._model_name, current_user.id):
+        if filter_lists := get_model_from_cache(FilterLists._model_name, current_user.id):  # type: ignore
             return filter_lists
         if filter_lists := CoreApi().get_filter_lists():
             add_model_to_cache(filter_lists, current_user.id)

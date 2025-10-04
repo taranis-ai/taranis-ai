@@ -1,6 +1,6 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
-from typing import Type
+from typing import Type, Any
 from requests import Response
 
 from frontend.core_api import CoreApi
@@ -60,7 +60,7 @@ class DataPersistenceLayer:
             return [model(**object) for object in result.get("items", [])]
         raise ValueError(f"Failed to fetch {model.__name__} from: {endpoint}")
 
-    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject:
+    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[Any]:
         endpoint = self.get_endpoint(object_model)
         cache_object: CacheObject | None
         if cache_object := cache.get(key=self.make_user_key(endpoint)):

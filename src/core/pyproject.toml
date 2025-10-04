@@ -102,3 +102,6 @@ exclude = [
     '__main__.py',
     'tests/'
 ]
+
+[tool.pyright]
+typeCheckingMode = "standard"

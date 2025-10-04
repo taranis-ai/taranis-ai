@@ -1,7 +1,8 @@
 from werkzeug.datastructures import ImmutableMultiDict
+from typing import Any
 
 
-def parse_formdata(formdata: ImmutableMultiDict) -> dict:
+def parse_formdata(formdata: ImmutableMultiDict[Any, Any]) -> dict[str, Any]:
     """
     Convert a Werkzeug ImmutableMultiDict of form fields into a nested
     structure of dicts and lists, following PHP-style bracket notation.

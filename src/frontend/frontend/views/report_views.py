@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Any, Iterable
+from typing import Any
 
 from flask import request, abort, Response
 
@@ -68,7 +68,7 @@ class ReportItemView(BaseView):
         return context
 
     @staticmethod
-    def _group_attributes(attributes: Iterable[Any]) -> list[dict[str, Any]]:
+    def _group_attributes(attributes: list | dict[str, str]) -> list[dict[str, Any]]:
         grouped: OrderedDict[str | None, list[Any]] = OrderedDict()
 
         for attribute in attributes:
@@ -80,14 +80,14 @@ class ReportItemView(BaseView):
         return result
 
     @staticmethod
-    def _collect_story_attribute_ids(attributes: Iterable[Any]) -> list[str]:
+    def _collect_story_attribute_ids(attributes: list | dict[str, str]) -> list[str]:
         collected: list[str] = []
         for attribute in attributes:
             attr_type = str(ReportItemView._get_attribute_value(attribute, "type") or "").upper()
             if attr_type != "STORY":
                 continue
             value = ReportItemView._get_attribute_value(attribute, "value")
-            values: Iterable[str]
+            values: list[str]
             if isinstance(value, (list, tuple)):
                 values = [str(item) for item in value if item]
             elif isinstance(value, str):

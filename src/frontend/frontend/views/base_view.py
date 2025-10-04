@@ -1,12 +1,13 @@
 from flask import render_template, request, url_for, current_app, abort, make_response
 from jinja2 import TemplateNotFound
-from typing import ClassVar, Type, Any
+from typing import ClassVar, Any, Callable
 from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
 from werkzeug.wrappers import Response
 
-from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
+from models.admin import WorkerParameter, WorkerParameterValue
+from models.base import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
@@ -17,9 +18,9 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class BaseView(MethodView):
-    model: ClassVar[Type[TaranisBaseModel]]
+    model: ClassVar[type[TaranisBaseModel]]
 
-    decorators = [auth_required()]
+    decorators: ClassVar[list[Callable[..., Any]]] = [auth_required()]
     htmx_update_template: ClassVar[str] = ""
     htmx_list_template: ClassVar[str] = ""
     default_template: ClassVar[str] = ""
@@ -164,7 +165,7 @@ class BaseView(MethodView):
         return cls.get_htmx_update_template() if is_htmx_request() else cls.get_edit_template()
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         return base_context
 
     @classmethod
@@ -230,7 +231,7 @@ class BaseView(MethodView):
         object_id: int | str,
         error: str | None = None,
         form_error: str | None = None,
-        resp_obj=None,
+        resp_obj: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         key = cls._get_object_key()
         form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
@@ -247,7 +248,8 @@ class BaseView(MethodView):
         )
 
         if resp_obj:
-            context[cls.model_name()] = cls.model(**resp_obj.get(cls.model_name()))
+            if model_instance := resp_obj.get(cls.model_name()):
+                context[cls.model_name()] = cls.model(**model_instance)
             if msg := resp_obj.get("message"):
                 context["message"] = msg
             if new_id := resp_obj.get("id"):
@@ -255,7 +257,7 @@ class BaseView(MethodView):
         else:
             context[cls.model_name()] = cls.model.model_construct(id="0")
 
-        return cls.get_extra_context(context)
+        return cls.get_extra_context(base_context=context)
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:

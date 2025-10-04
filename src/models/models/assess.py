@@ -68,6 +68,10 @@ class Story(TaranisBaseModel):
 
 
 class FilterLists(TaranisBaseModel):
+    _core_endpoint = "/assess/filterlists"
+    _model_name = "filter_lists"
+    _pretty_name = "Filter Lists"
+
     tags: list[str] = []
     sources: list[dict] = []
     groups: list[dict] = []
