@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     TARANIS_BASE_PATH: str = "/"
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    REQUESTS_TRUST_ENV: bool = True
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"
     CACHE_TYPE: str = "SimpleCache"
