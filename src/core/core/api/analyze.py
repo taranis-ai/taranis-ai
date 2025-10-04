@@ -55,7 +55,7 @@ class ReportItem(MethodView):
         try:
             if not request.json:
                 logger.debug("No data in request")
-                return "No data in request", 400
+                return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
         except Exception as ex:
             logger.exception()
@@ -66,15 +66,20 @@ class ReportItem(MethodView):
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
 
-        return new_report_item.to_detail_dict(), status
+        return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
         request_data = request.json
         if not request_data:
             logger.debug("No data in request")
-            return "No data in request", 400
-        return report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
+            return {"error": "No data in request"}, 400
+        logger.debug(f"Updating report item {report_item_id} with data: {request_data}")
+        updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
+        logger.debug(f"Update report item result: {updated_report}, status: {status}")
+        if status == 200:
+            sse_manager.report_item_updated(report_item_id)
+        return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")
     def delete(self, report_item_id):

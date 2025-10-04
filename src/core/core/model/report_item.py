@@ -378,7 +378,7 @@ class ReportItem(BaseModel):
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
-        return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
+        return report_item.to_detail_dict(), 200
 
     def update_attributes(self, attributes_data: dict, commit=False):
         for attr in self.attributes:

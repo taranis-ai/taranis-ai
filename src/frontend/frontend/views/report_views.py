@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Any, Iterable
 
-from flask import request
+from flask import request, abort, Response
 
 from frontend.log import logger
 
@@ -60,20 +60,15 @@ class ReportItemView(BaseView):
     @classmethod
     def _augment_context(cls, context: dict[str, Any]) -> dict[str, Any]:
         report: ReportItem | None = context.get(cls.model_name())  # type: ignore[assignment]
-        raw_attributes = list(getattr(report, "attributes", []) or []) if report else []
-        stories = list(getattr(report, "stories", []) or []) if report else []
-
+        raw_attributes = report.attributes if report else []
         layout = request.args.get("layout", context.get("layout", "split"))
         layout = layout if layout in {"split", "stacked"} else "split"
 
-        context.update(
-            {
-                "layout": layout,
-                "grouped_attributes": cls._group_attributes(raw_attributes),
-                "stories": stories,
-                "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
-            }
-        )
+        context |= {
+            "layout": layout,
+            "grouped_attributes": cls._group_attributes(raw_attributes),
+            "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
+        }
 
         return context
 
@@ -114,3 +109,12 @@ class ReportItemView(BaseView):
         if hasattr(attribute, key):
             return getattr(attribute, key)
         return attribute.get(key) if isinstance(attribute, dict) else None
+
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+        return self.update_view(object_id=0)
+
+    def put(self, **kwargs) -> tuple[str, int] | Response:
+        object_id = self._get_object_id(kwargs)
+        if object_id is None:
+            abort(405)
+        return self.update_view(object_id=object_id)

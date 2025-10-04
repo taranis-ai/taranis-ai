@@ -250,6 +250,8 @@ class BaseView(MethodView):
             context[cls.model_name()] = cls.model(**resp_obj.get(cls.model_name()))
             if msg := resp_obj.get("message"):
                 context["message"] = msg
+            if new_id := resp_obj.get("id"):
+                context["form_action"] = f"hx-put={cls.get_edit_route(**{key: new_id})}"
         else:
             context[cls.model_name()] = cls.model.model_construct(id="0")
 

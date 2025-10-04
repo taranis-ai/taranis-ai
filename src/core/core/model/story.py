@@ -580,7 +580,7 @@ class Story(BaseModel):
             logger.warning(result)
             return result, 200
         if skipped_items:
-            result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+            result["warning"] = f"{len(skipped_items)} items were skipped"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
         return result, 200

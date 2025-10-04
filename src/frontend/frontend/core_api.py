@@ -9,7 +9,6 @@ from typing import cast, IO
 class CoreApi:
     def __init__(self, jwt_token=None):
         self.session = requests.Session()
-        # Honor configuration so tests can disable system proxy detection when needed.
         self.session.trust_env = Config.REQUESTS_TRUST_ENV
         self.api_url = Config.TARANIS_CORE_URL
         self.jwt_token = self.get_jwt_from_request()
