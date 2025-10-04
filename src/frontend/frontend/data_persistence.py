@@ -87,13 +87,15 @@ class DataPersistenceLayer:
         cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 
-    def store_object(self, object: TaranisBaseModel) -> Response:
+    def store_object(self, object) -> Response:
         store_object = object.model_dump(mode="json")
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
             # Also invalidate individual object cache
-            cache_key = f"{self.make_user_key(object._core_endpoint)}_{object.id}"
+            cache_key = f"{self.make_user_key(object._core_endpoint)}"
+            if hasattr(object, "id"):
+                cache_key += f"_{object.id}"
             cache.delete(cache_key)
         return response
 
@@ -116,5 +118,3 @@ class DataPersistenceLayer:
             cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
             cache.delete(cache_key)
         return response
-
-

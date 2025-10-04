@@ -53,11 +53,6 @@ class ReportItemView(BaseView):
         return context
 
     @classmethod
-    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
-        logger.debug(f"Storing report form data: {processed_data} for id {object_id}")
-        return super().store_form_data(processed_data, object_id)
-
-    @classmethod
     def _augment_context(cls, context: dict[str, Any]) -> dict[str, Any]:
         report: ReportItem | None = context.get(cls.model_name())  # type: ignore[assignment]
         raw_attributes = report.attributes if report else []

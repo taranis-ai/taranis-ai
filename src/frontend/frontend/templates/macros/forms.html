@@ -69,18 +69,18 @@
   </label>
 {% endmacro %}
 
-{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='', disabled=False) %}
+{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='', disabled=False, input_id=None) %}
   {% from "macros/forms.html" import form_switch_content %}
   <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
     <legend class="fieldset-legend">{{ label }}</legend>
-    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class, disabled) }}</label>
+    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class, disabled, input_id) }}</label>
   </fieldset>
 {% endmacro %}
 
-{% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='', disabled=False) %}
+{% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='', disabled=False, input_id=None) %}
   <!-- Switch with {{ value }} -->
   <input type="hidden" name="{{ name }}" value="{{ no_val }}" {% if disabled %}disabled{% endif %} />
-  <input id="{{ name }}"
+  <input id="{{ input_id if input_id else name }}"
          name="{{ name }}"
          type="checkbox"
          value="{{ yes_val }}"

@@ -626,7 +626,7 @@ class Story(BaseModel):
         story.update_timestamps()
         StorySearchIndex.prepare(story)
         db.session.commit()
-        return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
+        return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:

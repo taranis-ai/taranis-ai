@@ -74,9 +74,7 @@ class ReportItem(MethodView):
         if not request_data:
             logger.debug("No data in request")
             return {"error": "No data in request"}, 400
-        logger.debug(f"Updating report item {report_item_id} with data: {request_data}")
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
-        logger.debug(f"Update report item result: {updated_report}, status: {status}")
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
