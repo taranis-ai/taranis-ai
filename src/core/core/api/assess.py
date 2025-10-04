@@ -248,8 +248,8 @@ class FilterLists(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         tag_list = news_item_tag.NewsItemTag.get_list({})
-        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
-        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
+        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)[0]["items"]
+        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)[0]["items"]
         return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
 
 

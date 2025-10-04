@@ -1,9 +1,13 @@
 from flask_caching import Cache
+from typing import TypeVar
+
 from frontend.config import Config
 from models.user import UserProfile
 from frontend.log import logger
+from models.base import TaranisBaseModel
 
 cache = Cache()
+T = TypeVar("T", bound="TaranisBaseModel")
 
 
 def add_user_to_cache(user: dict) -> UserProfile | None:
@@ -38,6 +42,23 @@ def get_cached_users() -> list[UserProfile]:
         if user := get_user_from_cache(username):
             users.append(user)
     return users
+
+
+def add_model_to_cache(model: T, user_id: int) -> T | None:
+    try:
+        cache.set(
+            key=f"model_cache_{model._model_name}_{user_id}",
+            value=model,
+            timeout=getattr(model, "_cache_timeout", Config.CACHE_DEFAULT_TIMEOUT),
+        )
+        return model
+    except Exception:
+        logger.exception("Failed to add model to cache")
+        return None
+
+
+def get_model_from_cache(model_name: str, user_id: int) -> T | None:
+    return cache.get(f"model_cache_{model_name}_{user_id}")
 
 
 def init(app):

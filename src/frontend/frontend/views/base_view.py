@@ -31,7 +31,7 @@ class BaseView(MethodView):
     _is_admin: ClassVar[bool] = False
     _show_sidebar: ClassVar[bool] = False
     _index: ClassVar[float | int] = float("inf")
-    _read_only: ClassVar[bool] = False
+    _read_only: ClassVar[bool] = True
 
     _registry: ClassVar[dict[str, Any]] = {}
 

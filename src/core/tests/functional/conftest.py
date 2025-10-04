@@ -258,10 +258,10 @@ def report_items(app):
         report_item_without_TLP, _ = ReportItem.add(report_item4_data, None)
 
         if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item_amber.id, "TLP"):
-            report_item_amber.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.AMBER.value}}, True)
+            report_item_amber.update_attributes({str(tlp_attribute.id): TLPLevel.AMBER.value}, True)
 
         if tlp_attribute := ReportItemAttribute.find_attribute_by_title(report_item_red.id, "TLP"):
-            report_item_red.update_attributes({str(tlp_attribute.id): {"value": TLPLevel.RED.value}}, True)
+            report_item_red.update_attributes({str(tlp_attribute.id): TLPLevel.RED.value}, True)
 
         yield report_item_clear, report_item_amber, report_item_red, report_item_without_TLP
 

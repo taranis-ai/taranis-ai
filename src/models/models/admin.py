@@ -141,7 +141,7 @@ class User(TaranisBaseModel):
     organization: dict | int
     permissions: list[str] | None = None
     profile: dict | None = None
-    roles: list = Field(default_factory=list)
+    roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: str | None = Field(default=None, exclude=True)
 

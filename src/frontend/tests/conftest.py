@@ -34,12 +34,12 @@ def auth_user():
 
     debug_user = {
         "id": 1,
-        "name": "Arthur Dent",
-        "organization": 1,
-        "permissions": [],
-        "profile": {},
-        "roles": [1],
         "username": "admin",
+        "name": "Arthur Dent",
+        "organization": {"id": 1, "name": "Galactic Government"},
+        "permissions": ["ALL"],
+        "profile": {},
+        "roles": [{"id": 1, "name": "Admin"}],
     }
 
     yield add_user_to_cache(debug_user)

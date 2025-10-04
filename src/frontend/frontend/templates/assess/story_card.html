@@ -4,8 +4,7 @@
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
-  {% set summary_source = story.summary or story.description or (first_news.content if first_news else '') %}
-  {% set summary_html = summary_source | default('', true) %}
+  {% set summary_content = story.summary or story.description or (first_news.content if first_news else '') %}
   {% set detail_open = open_summary or detail_view %}
   {% if request.endpoint == 'assess.story' %}
     {% set detail_open = True %}
@@ -116,8 +115,7 @@
 
         <section class="space-y-3">
           <div class="flex flex-col gap-2">
-            {% set title_html = story.highlighted_title | default(story.title, true) %}
-            <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ title_html | safe }}</h2>
+            <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ story.title }}</h2>
             {% if first_news and (first_news.web_url or first_news.link) %}
               <a href="{{ first_news.web_url or first_news.link }}"
                  target="_blank"
@@ -129,7 +127,7 @@
             {% endif %}
           </div>
 
-          {% if summary_html %}<div class="text-sm text-base-content/80 leading-relaxed prose max-w-none">{{ summary_html | safe }}</div>{% endif %}
+          {% if summary_content %}<div class="text-sm text-base-content/80 leading-relaxed prose max-w-none">{{ summary_content }}</div>{% endif %}
         </section>
 
         <section class="flex flex-col items-end gap-3 text-xs">

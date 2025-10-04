@@ -54,6 +54,8 @@ class TestCRUDViews:
         assert resp.status_code == 200
 
         html = resp.get_data(as_text=True)
+        print(f"FORMDATA FOR : {view_name}")
+        print(form_formats_from_models[view_name])
         actual_keys = form_data(html).get_cleaned_keys()
         allowed = form_formats_from_models[view_name]["allowed"]
         required = form_formats_from_models[view_name]["required"]

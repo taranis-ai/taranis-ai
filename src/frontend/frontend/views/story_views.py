@@ -1,8 +1,10 @@
 from typing import Any
+from flask_jwt_extended import current_user
 
-from models.assess import Story
+from models.assess import Story, FilterLists
 from frontend.views.base_view import BaseView
-from frontend.filters import render_datetime, render_count, render_item_type
+from frontend.core_api import CoreApi
+from frontend.cache import get_model_from_cache, add_model_to_cache
 
 
 class StoryView(BaseView):
@@ -18,20 +20,19 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
-    def get_columns(cls) -> list[dict[str, Any]]:
-        return [
-            {"title": "Title", "field": "title", "sortable": True, "renderer": None},
-            {"title": "Created", "field": "created", "sortable": True, "renderer": render_datetime, "render_args": {"field": "created"}},
-            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
-            {
-                "title": "Stories",
-                "field": "stories",
-                "sortable": True,
-                "renderer": render_count,
-                "render_args": {"field": "stories"},
-            },
-        ]
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+        base_context["filter_lists"] = cls._get_filter_lists()
+        return base_context
 
     @classmethod
     def get_sidebar_template(cls) -> str:
         return "assess/assess_sidebar.html"
+
+    @staticmethod
+    def _get_filter_lists() -> FilterLists:
+        if filter_lists := get_model_from_cache(FilterLists._model_name, current_user.id):
+            return filter_lists
+        if filter_lists := CoreApi().get_filter_lists():
+            add_model_to_cache(filter_lists, current_user.id)
+            return filter_lists
+        return FilterLists(tags=[], sources=[], groups=[])

@@ -65,3 +65,9 @@ class Story(TaranisBaseModel):
     news_items: list[NewsItem] = []
     tags: list[dict] = []
     attributes: list[dict] = []
+
+
+class FilterLists(TaranisBaseModel):
+    tags: list[str] = []
+    sources: list[dict] = []
+    groups: list[dict] = []

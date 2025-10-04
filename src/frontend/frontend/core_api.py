@@ -9,7 +9,6 @@ from typing import cast, IO
 class CoreApi:
     def __init__(self, jwt_token=None):
         self.session = requests.Session()
-        self.session.trust_env = False
         self.api_url = Config.TARANIS_CORE_URL
         self.jwt_token = self.get_jwt_from_request()
         self.headers = self.get_headers()
@@ -36,7 +35,7 @@ class CoreApi:
     def check_if_api_connected(self):
         try:
             url = f"{self.api_url}/isalive"
-            response = self.session.get(url=url, verify=self.verify, timeout=self.timeout)
+            response = self.session.get(url=url, timeout=self.timeout)
             if response.ok and response.json().get("isalive") is True:
                 return True
 
@@ -49,31 +48,25 @@ class CoreApi:
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        return self.session.put(
-            url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout
-        )
+        return self.session.put(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        return self.session.post(
-            url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout
-        )
+        return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
         if not json_data:
             json_data = {}
-        return self.session.patch(
-            url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout
-        )
+        return self.session.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_delete(self, endpoint: str) -> requests.Response:
-        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, verify=self.verify, timeout=self.timeout)
+        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, timeout=self.timeout)
 
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"
         try:
-            response = self.session.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params)
+            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params)
         except Exception as e:
             logger.error(f"Call to {url} failed {e}")
             return None
@@ -81,7 +74,7 @@ class CoreApi:
 
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
-        return self.session.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout, params=params, stream=True)
+        return self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params, stream=True)
 
     def get_users(self, query_params=None):
         return self.api_get("/config/users", params=query_params)
@@ -197,6 +190,9 @@ class CoreApi:
 
     def logout(self):
         return self.api_delete("/auth/logout")
+
+    def get_filter_lists(self):
+        return self.api_get("/assess/filter-lists")
 
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
