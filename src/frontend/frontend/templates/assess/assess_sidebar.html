@@ -17,9 +17,6 @@
 {% set in_report_filter = request.args.get('in_report', '') %}
 {% set relevant_filter = request.args.get('relevant', '') %}
 {% set cybersecurity_filter = request.args.get('cybersecurity', '') %}
-{% set source_groups = source_groups | default([]) %}
-{% set sources = sources | default([]) %}
-{% set available_tags = available_tags | default([]) %}
 {% set sort_choices = sort_choices | default([
   {'label': 'Newest first', 'value': 'DATE_DESC'},
   {'label': 'Oldest first', 'value': 'DATE_ASC'},
@@ -73,17 +70,19 @@
     <section class="space-y-4">
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source group</span>
-        <select name="group" class="select select-bordered select-sm">
-          {% for group in source_groups %}
-            <option value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.title or group.name }}</option>
+        <select name="group" class="select select-sm">
+          {% if not selected_groups %}<option disabled selected>Pick a Source Group</option>{% endif %}
+          {% for group in filter_lists.groups %}
+            <option value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
           {% endfor %}
         </select>
       </label>
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source</span>
-        <select name="source" class="select select-bordered select-sm">
-          {% for source in sources %}
-            <option value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.title or source.name }}</option>
+        <select name="source" class="select select-sm">
+          {% if not selected_sources %}<option disabled selected>Pick a Source</option>{% endif %}
+          {% for source in filter_lists.sources %}
+            <option value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -93,7 +92,7 @@
     <section class="space-y-4">
       <div>
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Quick range</span>
-        <div class="join join-vertical sm:join-horizontal mt-2 w-full" role="group" aria-label="Time presets">
+        <div class="join join-horizontal mt-2 w-full" role="group" aria-label="Time presets">
           {% for preset in quick_ranges %}
             {% set is_active = current_preset == preset.value %}
             <label class="btn btn-sm join-item {% if is_active %}btn-primary{% else %}btn-outline{% endif %}">

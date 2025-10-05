@@ -1,0 +1,70 @@
+{% macro story_card_actions(story, card_id, story_id, detail_view=False, report_view=False) %}
+  {% set toggled_read = (not (story.read | default(false))) | tojson %}
+  {% set toggled_important = (not (story.important | default(false))) | tojson %}
+
+  <div class="flex items-center gap-2">
+    <button type="button"
+            class="btn btn-ghost btn-xs"
+            x-bind:class="isOpen ? 'btn-active' : ''"
+            x-on:click="isOpen = !isOpen"
+            data-testid="toggle-summary"
+            x-bind:aria-expanded="isOpen.toString()">
+      {{ heroicon_mini("chevron-down") }}
+      <span x-text="isOpen ? 'Hide details' : 'Show details'"></span>
+    </button>
+    <button type="button"
+            class="btn btn-ghost btn-xs"
+            hx-get="{{ url_for('assess.story', story_id=story_id) }}"
+            hx-target="#{{ card_id }}"
+            hx-select="#{{ card_id }}"
+            hx-swap="outerHTML"
+            data-testid="open-detail-view">
+      {{ heroicon_mini("document-magnifying-glass") }}
+      <span>Open</span>
+    </button>
+  </div>
+
+  <div class="join join-vertical w-40">
+    <button type="button"
+            class="btn btn-outline btn-xs join-item"
+            hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+            hx-encoding="json"
+            hx-vals='{"read": {{ toggled_read }} }'
+            hx-target="#{{ card_id }}"
+            hx-select="#{{ card_id }}"
+            hx-swap="outerHTML"
+            data-testid="toggle-read">
+      {% if story.read | default(false) %}
+        {{ heroicon_mini("eye-slash") }}
+        <span>Mark unread</span>
+      {% else %}
+        {{ heroicon_mini("eye") }}
+        <span>Mark read</span>
+      {% endif %}
+    </button>
+    <button type="button"
+            class="btn btn-outline btn-xs join-item"
+            hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+            hx-encoding="json"
+            hx-vals='{"important": {{ toggled_important }} }'
+            hx-target="#{{ card_id }}"
+            hx-select="#{{ card_id }}"
+            hx-swap="outerHTML"
+            data-testid="toggle-important">
+      {{ heroicon_mini("star") }}
+      <span>
+        {% if story.important | default(false) %}
+          Remove important
+        {% else %}
+          Mark important
+        {% endif %}
+      </span>
+    </button>
+    {% if not report_view %}
+      <a href="{{ url_for('assess.story_edit', story_id=story_id) }}" class="btn btn-outline btn-xs join-item" data-testid="edit-story">
+        {{ heroicon_mini("pencil-square") }}
+        <span>Edit story</span>
+      </a>
+    {% endif %}
+  </div>
+{% endmacro %}

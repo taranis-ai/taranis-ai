@@ -108,7 +108,7 @@ class Story(BaseModel):
         return []
 
     @classmethod
-    def get_for_api(cls, item_id: str, user: User | None) -> tuple[dict[str, Any], int]:
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         query = db.select(cls).filter(cls.id == item_id)
         if user:
@@ -436,7 +436,7 @@ class Story(BaseModel):
         return cls.update(data["id"], data, external=True)
 
     @classmethod
-    def _process_news_items(cls, data) -> "tuple[list[str], list[str]]":
+    def _process_news_items(cls, data: dict[str, Any]) -> "tuple[list[str], list[str]]":
         skipped = []
         added = []
         for news_item in data.get("news_items", []):
@@ -514,12 +514,13 @@ class Story(BaseModel):
         return cls.add(data)
 
     @classmethod
-    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict, int]":
+    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict[str, Any], int]":
         if not data:
             return {"error": "No data provided"}, 400
         prepared_stories = cls.prepare_misp_stories(data, force=force)
         results = []
         story_ids = []
+        status = 200
         for story in prepared_stories:
             result, status = cls.add_or_update(story)
             if status != 200:
@@ -532,7 +533,7 @@ class Story(BaseModel):
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
-    def check_news_item_data(cls, news_item: dict) -> dict | None:
+    def check_news_item_data(cls, news_item: dict[str, Any]) -> dict[str, str] | None:
         title = news_item.get("title", "")
         link = news_item.get("link", "")
         content = news_item.get("content", "")
@@ -885,7 +886,7 @@ class Story(BaseModel):
         return {"message": "success"}, 200
 
     @classmethod
-    def move_items_to_story(cls, story_id: str, news_item_ids: list[int], user: User | None = None):
+    def move_items_to_story(cls, story_id: str, news_item_ids: list[str], user: User | None = None):
         try:
             story = cls.get(story_id)
             if not story:
@@ -939,7 +940,7 @@ class Story(BaseModel):
             return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
 
     @classmethod
-    def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
+    def ungroup_multiple_stories(cls, story_ids: list[str], user: User | None = None):
         results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
         if errors := [res[0].get("error") for res in results if res[1] != 200 and res[0].get("error") is not None]:
             error_message = "; ".join(filter(None, errors))
@@ -948,7 +949,7 @@ class Story(BaseModel):
         return {"message": "success"}, 200
 
     @classmethod
-    def ungroup_story(cls, story_id: int, user: User | None = None):
+    def ungroup_story(cls, story_id: str, user: User | None = None):
         try:
             if ReportItemStory.is_assigned(story_id):
                 return {"error": f"Story {story_id} is assigned to a report"}, 400
@@ -1001,7 +1002,7 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def prepare_misp_stories(cls, story_lists: list[dict], force) -> list[dict]:
+    def prepare_misp_stories(cls, story_lists: list[dict], force: bool) -> list[dict]:
         stories = []
         for story in story_lists:
             if story_id := story.get("id"):
@@ -1024,7 +1025,7 @@ class Story(BaseModel):
         return existing_story.get("last_change") == "internal"
 
     @classmethod
-    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list:
+    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list[str]:
         existing_news_items = existing_story.get("news_items", [])
         new_news_items = new_story.get("news_items", [])
 
@@ -1034,7 +1035,7 @@ class Story(BaseModel):
         return list(existing_ids - new_ids)
 
     @classmethod
-    def create_from_item(cls, news_item) -> str | None:
+    def create_from_item(cls, news_item: NewsItem) -> str | None:
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -1256,9 +1257,9 @@ class ReportItemStory(BaseModel):
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
-    def is_assigned(cls, story_id):
+    def is_assigned(cls, story_id: str) -> bool:
         return db.session.query(db.exists().where(cls.story_id == story_id)).scalar()
 
     @classmethod
-    def count(cls, story_id):
+    def count(cls, story_id: str) -> int:
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))

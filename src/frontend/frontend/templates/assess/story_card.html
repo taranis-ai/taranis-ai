@@ -1,15 +1,12 @@
-{% macro story_card(story, detail_view=False, report_view=False, open_summary=False) %}
+{% macro story_card(story, detail_view=False, report_view=False) %}
+  {% from "assess/story_card_actions.html" import story_card_actions %}
   {% set story_id = story.id | string %}
   {% set card_id = 'story-card-' ~ story_id %}
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
   {% set summary_content = story.summary or story.description or (first_news.content if first_news else '') %}
-  {% set detail_open = open_summary or detail_view %}
   {% if request.endpoint == 'assess.story' %}
-    {% set detail_open = True %}
-  {% endif %}
-  {% if request.args.get('story_id') == story_id and request.args.get('view') in ['detail', 'expanded'] %}
     {% set detail_open = True %}
   {% endif %}
 
@@ -55,9 +52,6 @@
       {% endif %}
     {% endif %}
   {% endfor %}
-
-  {% set toggled_read = (not (story.read | default(false))) | tojson %}
-  {% set toggled_important = (not (story.important | default(false))) | tojson %}
 
   <article id="{{ card_id }}" class="{{ ' '.join(card_classes) }}" x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }">
     <div class="p-4 lg:p-5 space-y-4">
@@ -116,13 +110,10 @@
         <section class="space-y-3">
           <div class="flex flex-col gap-2">
             <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ story.title }}</h2>
-            {% if first_news and (first_news.web_url or first_news.link) %}
-              <a href="{{ first_news.web_url or first_news.link }}"
-                 target="_blank"
-                 rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1">
+            {% if story.links %}
+              <a href="{{ story.links[0] }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
                 {{ heroicon_mini("arrow-top-right-on-square") }}
-                <span>Open primary source</span>
+                <span>{{ story.links[0] }}</span>
               </a>
             {% endif %}
           </div>
@@ -131,71 +122,7 @@
         </section>
 
         <section class="flex flex-col items-end gap-3 text-xs">
-          <div class="flex items-center gap-2">
-            <button type="button"
-                    class="btn btn-ghost btn-xs"
-                    x-bind:class="isOpen ? 'btn-active' : ''"
-                    x-on:click="isOpen = !isOpen"
-                    data-testid="toggle-summary"
-                    x-bind:aria-expanded="isOpen.toString()">
-              {{ heroicon_mini("chevron-down") }}
-              <span x-text="isOpen ? 'Hide details' : 'Show details'"></span>
-            </button>
-            <button type="button"
-                    class="btn btn-ghost btn-xs"
-                    hx-get="{{ url_for('assess.story', story_id=story_id) }}?view=detail&story_id={{ story_id }}"
-                    hx-target="#{{ card_id }}"
-                    hx-select="#{{ card_id }}"
-                    hx-swap="outerHTML"
-                    data-testid="open-detail-view">
-              {{ heroicon_mini("document-magnifying-glass") }}
-              <span>Open</span>
-            </button>
-          </div>
-
-          <div class="join join-vertical w-40">
-            <button type="button"
-                    class="btn btn-outline btn-xs join-item"
-                    hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-                    hx-encoding="json"
-                    hx-vals='{"read": {{ toggled_read }} }'
-                    hx-target="#{{ card_id }}"
-                    hx-select="#{{ card_id }}"
-                    hx-swap="outerHTML"
-                    data-testid="toggle-read">
-              {% if story.read | default(false) %}
-                {{ heroicon_mini("eye-slash") }}
-                <span>Mark unread</span>
-              {% else %}
-                {{ heroicon_mini("eye") }}
-                <span>Mark read</span>
-              {% endif %}
-            </button>
-            <button type="button"
-                    class="btn btn-outline btn-xs join-item"
-                    hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-                    hx-encoding="json"
-                    hx-vals='{"important": {{ toggled_important }} }'
-                    hx-target="#{{ card_id }}"
-                    hx-select="#{{ card_id }}"
-                    hx-swap="outerHTML"
-                    data-testid="toggle-important">
-              {{ heroicon_mini("star") }}
-              <span>
-                {% if story.important | default(false) %}
-                  Remove important
-                {% else %}
-                  Mark important
-                {% endif %}
-              </span>
-            </button>
-            {% if not report_view %}
-              <a href="{{ url_for('assess.story', story_id=story_id) }}?view=detail" class="btn btn-outline btn-xs join-item" data-testid="edit-story">
-                {{ heroicon_mini("pencil-square") }}
-                <span>Edit story</span>
-              </a>
-            {% endif %}
-          </div>
+          {{ story_card_actions(story, story_id, card_id, report_view) }}
         </section>
       </div>
 
