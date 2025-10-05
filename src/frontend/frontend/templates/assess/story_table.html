@@ -4,10 +4,10 @@
   {% set data = model_plural_name | get_var %}
 
   <div id="assess-container" class="p-4" x-data="{ selectedItems: [] }">
-    {% for item in data %}
-      {{ story_card(item) }}
+    {% if data %}
+      {% for item in data %}{{ story_card(item) }}{% endfor %}
     {% else %}
       <p class="text-center text-base-content/60">No stories found.</p>
-    {% endfor %}
+    {% endif %}
   </div>
 </div>
