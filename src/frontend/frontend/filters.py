@@ -29,6 +29,7 @@ __all__ = [
     "normalize_validation_status",
     "render_worker_status",
     "format_datetime",
+    "get_published_dates",
 ]
 
 
@@ -206,8 +207,8 @@ def get_published_dates(story: Story) -> dict[str, datetime | None]:
     published = {}
     for news_item in story.news_items:
         if published_at := news_item.published_date or news_item.collected_date:
-            published["earliest"] = published["earliest"] or published_at
-            published["latest"] = published["latest"] or published_at
+            published["earliest"] = published.get("earliest", published_at)
+            published["latest"] = published.get("latest", published_at)
             if published_at < published["earliest"]:
                 published["earliest"] = published_at
             if published_at > published["latest"]:

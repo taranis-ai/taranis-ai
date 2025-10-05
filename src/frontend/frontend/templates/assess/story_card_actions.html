@@ -4,7 +4,7 @@
 
   <div class="join join-vertical w-40">
     <button type="button"
-            class="btn btn-outline btn-xs join-item"
+            class="btn btn-outline btn-xs join-item justify-start gap-2"
             x-bind:class="isOpen ? 'btn-active' : ''"
             x-on:click="isOpen = !isOpen"
             data-testid="toggle-summary"
@@ -12,12 +12,15 @@
       {{ heroicon_mini("chevron-down") }}
       <span x-text="isOpen ? 'Hide details' : 'Show details'"></span>
     </button>
-    <a type="button" class="btn btn-outline btn-xs join-item" href="{{ url_for('assess.story', story_id=story_id) }}" data-testid="open-detail-view">
+    <a type="button"
+       class="btn btn-outline btn-xs join-item justify-start gap-2"
+       href="{{ url_for('assess.story', story_id=story_id) }}"
+       data-testid="open-detail-view">
       {{ heroicon_mini("document-magnifying-glass") }}
       <span>Open</span>
     </a>
     <button type="button"
-            class="btn btn-outline btn-xs join-item"
+            class="btn btn-outline btn-xs join-item justify-start gap-2"
             hx-put="{{ url_for('assess.story', story_id=story_id) }}"
             hx-encoding="json"
             hx-vals='{"read": {{ toggled_read }} }'
@@ -34,7 +37,7 @@
       {% endif %}
     </button>
     <button type="button"
-            class="btn btn-outline btn-xs join-item"
+            class="btn btn-outline btn-xs join-item justify-start gap-2"
             hx-put="{{ url_for('assess.story', story_id=story_id) }}"
             hx-encoding="json"
             hx-vals='{"important": {{ toggled_important }} }'
@@ -52,7 +55,7 @@
       </span>
     </button>
     <button type="button"
-            class="btn btn-outline btn-xs join-item"
+            class="btn btn-outline btn-xs join-item justify-start gap-2"
             hx-post="{{ url_for("assess.share_story") }}?story_id={{ story_id }}"
             hx-target="#notification-bar"
             hx-swap="innerHTML"
@@ -61,7 +64,10 @@
       <span>Share</span>
     </button>
     {% if not report_view %}
-      <a type="button" href="{{ url_for('assess.story_edit', story_id=story_id) }}" class="btn btn-outline btn-xs join-item" data-testid="edit-story">
+      <a type="button"
+         href="{{ url_for('assess.story_edit', story_id=story_id) }}"
+         class="btn btn-outline btn-xs join-item justify-start gap-2"
+         data-testid="edit-story">
         {{ heroicon_mini("pencil-square") }}
         <span>Edit story</span>
       </a>

@@ -6,7 +6,7 @@
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
-  {% set summary_content = story.summary or story.description %}
+  {% set summary_content = story.summary or first_news.content %}
   {% if request.endpoint == 'assess.story' %}
     {% set detail_open = True %}
   {% endif %}
@@ -41,18 +41,7 @@
     {% endif %}
   {% endif %}
 
-  {% set pub = namespace(earliest=None, latest=None) %}
-  {% for item in news_items %}
-    {% set published_at = item.published or item.published_date or item.collected %}
-    {% if published_at %}
-      {% if pub.earliest is none or published_at < pub.earliest %}
-        {% set pub.earliest = published_at %}
-      {% endif %}
-      {% if pub.latest is none or published_at > pub.latest %}
-        {% set pub.latest = published_at %}
-      {% endif %}
-    {% endif %}
-  {% endfor %}
+  {% set pub = story | get_published_dates %}
 
   <article id="{{ card_id }}" class="{{ ' '.join(card_classes) }}" x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }">
     <div class="p-4 lg:p-5 space-y-4">
@@ -61,9 +50,11 @@
           <div class="flex items-start gap-2">
             <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
             <div class="flex flex-col gap-1">
-              {% if pub.earliest %}
-                <span>{{ pub.earliest | format_datetime }}</span>
-                {% if pub.latest and pub.latest != pub.earliest %}<span>{{ pub.latest | format_datetime }}</span>{% endif %}
+              {% if pub.get("earliest") %}
+                <span class="text-xs">{{ pub.get("earliest") | format_datetime }}</span>
+                {% if pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
+                  <span class="text-xs">{{ pub.get("latest") | format_datetime }}</span>
+                {% endif %}
               {% else %}
                 <span class="text-base-content/60">Not available</span>
               {% endif %}
@@ -120,7 +111,13 @@
           </div>
 
           {% if summary_content %}
-            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-6': !isOpen }">{{ summary_content }}</div>
+            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-6': !isOpen }">
+              {{ summary_content }} - {{ summary_content | length }} characters
+            </div>
+          {% else %}
+            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-6': !isOpen }">
+              {{ story.description }} - {{ story.description | length }} characters
+            </div>
           {% endif %}
         </section>
 
