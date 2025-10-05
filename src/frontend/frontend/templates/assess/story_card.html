@@ -1,5 +1,6 @@
 {% macro story_card(story, detail_view=False, report_view=False) %}
   {% from "assess/story_card_actions.html" import story_card_actions %}
+  {% from "assess/news_item_card.html" import news_item_card %}
   {% set story_id = story.id | string %}
   {% set card_id = 'story-card-' ~ story_id %}
   {% set news_items = (story.news_items | default([])) | list %}
@@ -188,30 +189,7 @@
               <span class="badge badge-outline badge-sm">{{ news_count }}</span>
             </div>
             <div class="space-y-6">
-              {% for item in news_items %}
-                <article class="rounded-lg border border-base-200 bg-base-100 p-4 shadow-sm">
-                  <div class="flex flex-col gap-2">
-                    <div class="flex flex-wrap items-start gap-2">
-                      <h4 class="font-semibold text-base text-base-content" data-testid="news-item-title">{{ item.title or 'Untitled news item' }}</h4>
-                      {% if item.published or item.published_date %}
-                        <span class="badge badge-ghost badge-sm">{{ (item.published or item.published_date) | format_datetime }}</span>
-                      {% endif %}
-                      {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
-                    </div>
-                    {% if item.link or item.source %}
-                      <a href="{{ item.link or item.source }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
-                        {{ heroicon_mini("arrow-top-right-on-square") }}
-                        <span>Open source</span>
-                      </a>
-                    {% endif %}
-                    {% if item.content %}
-                      <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line">{{ item.content }}</p>
-                    {% elif item.review %}
-                      <p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line">{{ item.review }}</p>
-                    {% endif %}
-                  </div>
-                </article>
-              {% endfor %}
+              {% for item in news_items %}{{ news_item_card(item) }}{% endfor %}
             </div>
           </div>
         {% endif %}
