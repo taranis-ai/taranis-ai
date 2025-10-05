@@ -43,15 +43,14 @@ def index_redirect():
     return redirect(Config.APPLICATION_ROOT, code=302)
 
 
-def get_html5_pattern_from_rule(rules: list[str]) -> tuple[str, str] | str:
+def get_html5_pattern_from_rule(rules: list[str]) -> tuple[bool, str, str]:
     if not rules:
-        return ("", "")
+        return (False, "", "")
 
     html5_patterns = {
         "json": (r"\{[^\{\}]*\}", "Input has to be a valid JSON object"),
         "tlp": (r"clear|green|amber|amber\+strict|red", "Input has to be a valid TLP value (clear, green, amber, amber+strict, red)"),
         "ip": (r"(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}", "Input has to be a valid IP address"),
-        "required": ("required", "This field is required"),
     }
 
     if len(rules) > 1:
@@ -62,9 +61,16 @@ def get_html5_pattern_from_rule(rules: list[str]) -> tuple[str, str] | str:
         values = rule[len("one_of:") :].split("|")
         escaped_values = [re.escape(v.strip()) for v in values]
         pattern = f"^({'|'.join(escaped_values)})$"
-        return (pattern, f"Input must be one of: {', '.join(values)}")
+        return (False, pattern, f"Input must be one of: {', '.join(values)}")
 
-    return html5_patterns.get(rule, ("", ""))
+    if rule == "required":
+        return (True, "", "")
+
+    if rule in html5_patterns:
+        pattern, msg = html5_patterns[rule]
+        return (False, pattern, msg)
+
+    return (False, "", "")
 
 
 def jinja_setup(app: Flask):
