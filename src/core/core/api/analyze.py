@@ -18,11 +18,11 @@ class ReportTypes(MethodView):
 
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    def get(self, report_item_id):
+    def get(self, report_item_id: str):
         return report_item.ReportItem.get_story_ids(report_item_id)
 
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
@@ -30,7 +30,7 @@ class ReportStories(MethodView):
         return report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
 
     @auth_required("ANALYZE_UPDATE")
-    def post(self, report_item_id):
+    def post(self, report_item_id: str):
         request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
@@ -40,7 +40,7 @@ class ReportStories(MethodView):
 
 class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    def get(self, report_item_id=None):
+    def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id)
         filter_keys = ["search", "completed", "range", "sort", "group"]
@@ -69,7 +69,7 @@ class ReportItem(MethodView):
         return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         request_data = request.json
         if not request_data:
             logger.debug("No data in request")
@@ -80,7 +80,7 @@ class ReportItem(MethodView):
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")
-    def delete(self, report_item_id):
+    def delete(self, report_item_id: str):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
             sse_manager.report_item_updated(report_item_id)
@@ -89,7 +89,7 @@ class ReportItem(MethodView):
 
 class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
-    def post(self, report_item_id):
+    def post(self, report_item_id: str):
         try:
             result, status = report_item.ReportItem.clone(report_item_id, current_user)
         except Exception as ex:
@@ -103,13 +103,13 @@ class CloneReportItem(MethodView):
 
 class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    def get(self, report_item_id):
+    def get(self, report_item_id: str):
         return sse_manager.to_report_item_json(report_item_id)
 
 
 class ReportItemLock(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         user = current_user
         if not user:
             abort(401, "User not found")
@@ -120,7 +120,7 @@ class ReportItemLock(MethodView):
             return str(ex), 500
 
     @auth_required("ANALYZE_UPDATE")
-    def delete(self, report_item_id):
+    def delete(self, report_item_id: str):
         user = current_user
         if not user:
             abort(401, "User not found")

@@ -73,7 +73,7 @@ class ReportItem(BaseModel):
             self.stories = Story.get_bulk(stories)
 
     @classmethod
-    def count_all(cls, is_completed):
+    def count_all(cls, is_completed: bool) -> int:
         return cls.get_filtered_count(db.select(cls).filter_by(completed=is_completed))
 
     @classmethod
@@ -88,13 +88,13 @@ class ReportItem(BaseModel):
         return item.to_detail_dict(), 200
 
     @classmethod
-    def get_story_ids(cls, item_id):
+    def get_story_ids(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if report_item := cls.get(item_id):
-            return [story.id for story in report_item.stories], 200
+            return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
         return {"error": "Report Item not found"}, 404
 
     @classmethod
-    def get_detail_json(cls, id):
+    def get_detail_json(cls, id: str) -> dict[str, Any] | None:
         report_item = cls.get(id)
         return report_item.to_detail_dict() if report_item else None
 
@@ -322,7 +322,8 @@ class ReportItem(BaseModel):
 
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
-        return cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+        new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+        return {"message": f"Successfully updated Report Item {report_id}", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str]):
         new_stories = Story.get_bulk(story_ids)

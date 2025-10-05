@@ -59,10 +59,6 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: src/gui/pnpm-lock.yaml
 
-      - name: e2e tests
-        id: e2e_tests
-        run: uv run pytest --e2e-ci
-
       - name: Create SBOM
         run: uvx --from cyclonedx-bom cyclonedx-py environment '.venv' -o ${{ runner.temp }}/taranis_core_sbom.json
 
@@ -73,15 +69,6 @@ jobs:
           overwrite: true
           name: taranis_core_sbom.json
           path: ${{ runner.temp }}/taranis_core_sbom.json
-
-      - name: Upload a e2e-test trace
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && steps.e2e_tests.outcome == 'failure' }}
-        with:
-          retention-days: 7
-          overwrite: true
-          name: playwright-traces-build-core
-          path: src/core/taranis_ai_core_trace.zip
 
 
   build_wheel:

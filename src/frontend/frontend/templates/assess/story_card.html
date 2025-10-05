@@ -1,12 +1,12 @@
 {% macro story_card(story, detail_view=False, report_view=False) %}
   {% from "assess/story_card_actions.html" import story_card_actions %}
   {% from "assess/news_item_card.html" import news_item_card %}
-  {% set story_id = story.id | string %}
+  {% set story_id = story.id %}
   {% set card_id = 'story-card-' ~ story_id %}
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
-  {% set summary_content = story.summary or story.description or (first_news.content if first_news else '') %}
+  {% set summary_content = story.summary or story.description %}
   {% if request.endpoint == 'assess.story' %}
     {% set detail_open = True %}
   {% endif %}
@@ -119,7 +119,9 @@
             {% endif %}
           </div>
 
-          {% if summary_content %}<div class="text-sm text-base-content/80 leading-relaxed prose max-w-none">{{ summary_content }}</div>{% endif %}
+          {% if summary_content %}
+            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-6': !isOpen }">{{ summary_content }}</div>
+          {% endif %}
         </section>
 
         <section class="flex flex-col items-end gap-3 text-xs">

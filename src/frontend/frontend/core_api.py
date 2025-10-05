@@ -195,6 +195,9 @@ class CoreApi:
     def get_filter_lists(self):
         return self.api_get("/assess/filter-lists")
 
+    def get_story(self, story_id: str):
+        return self.api_get(f"/assess/stories/{story_id}")
+
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
         disposition = response.headers.get("Content-Disposition", f"attachment; filename={fallback_filename}")

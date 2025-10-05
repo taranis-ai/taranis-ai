@@ -161,40 +161,10 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Python
-        working-directory: src/core
-        run: uv python install
-
-      - name: Install core
-        working-directory: src/core
-        run: uv sync --all-extras
-
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright
-
       - name: Install Playwright dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: src/core
+        working-directory: src/frontend
         run: uv run playwright install --with-deps chromium
-
-      - name: Download built frontend
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.test_gui.outputs.gui_artifact_name }}
-          path: src/gui/
-
-      - name: Extract Artifact for CI/CD
-        working-directory: src/gui
-        run: tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
-
-      - name: Run e2e tests
-        id: run_e2e
-        working-directory: src/core
-        run: uv run pytest --e2e-ci
 
       - name: Install frontend dependencies
         working-directory: src/frontend

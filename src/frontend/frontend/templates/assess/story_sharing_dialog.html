@@ -1,0 +1,23 @@
+<dialog id="share_story_{{ story.id }}" class="modal modal-open">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Share Story: {{ story.title }}</h3>
+    <form>
+      <label class="select w-full mb-5">
+        <span class="label">Connector</span>
+        <select id="connector" name="type" required class="validator select w-full">
+          <option selected disabled>Select a connector</option>
+          {% for option in connectors -%}
+            <option value="{{ option.id }}">{{ option.name }}</option>
+          {% endfor -%}
+        </select>
+      </label>
+      <button class="btn btn-outline" hx-post="{{ url_for('assess.share_story', story_id=story.id) }}">Share</button>
+    </form>
+
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn">Close</button>
+      </form>
+    </div>
+  </div>
+</dialog>

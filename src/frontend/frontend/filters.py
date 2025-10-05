@@ -8,6 +8,7 @@ from heroicons.jinja import heroicon_outline
 from markupsafe import Markup, escape
 from datetime import datetime
 from models.admin import OSINTSource
+from models.assess import Story
 
 __all__ = [
     "human_readable_trigger",
@@ -199,6 +200,19 @@ def format_datetime(value: datetime | str) -> str:
     if isinstance(value, datetime):
         return value.strftime("%A, %d. %B %Y %H:%M")
     return value
+
+
+def get_published_dates(story: Story) -> dict[str, datetime | None]:
+    published = {}
+    for news_item in story.news_items:
+        if published_at := news_item.published_date or news_item.collected_date:
+            published["earliest"] = published["earliest"] or published_at
+            published["latest"] = published["latest"] or published_at
+            if published_at < published["earliest"]:
+                published["earliest"] = published_at
+            if published_at > published["latest"]:
+                published["latest"] = published_at
+    return published
 
 
 @pass_context

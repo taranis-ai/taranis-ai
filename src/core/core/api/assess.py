@@ -263,6 +263,7 @@ def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
