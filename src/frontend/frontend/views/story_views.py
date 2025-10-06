@@ -34,6 +34,14 @@ class StoryView(BaseView):
         return "assess/assess_sidebar.html"
 
     @staticmethod
+    def _enhance_story_with_details(story: Story, sources: dict[str, Any]) -> Story:
+        if first_news_item := story.news_items[0]:
+            if source := sources.get(first_news_item.osint_source_id):
+                # Add the source as an pydantic extra field to the story for easier access in the template
+                story.__dict__["source"] = source
+        return story
+
+    @staticmethod
     def _get_filter_lists() -> FilterLists:
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", current_user.id):
             return filter_lists

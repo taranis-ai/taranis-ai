@@ -61,10 +61,18 @@ class Story(TaranisBaseModel):
     title: str | None = None
     description: str | None = None
     created: datetime | None = None
-    last_updated: datetime | None = None
+    updated: datetime | None = None
+    last_change: str | None = None
     news_items: list[NewsItem] = []
     tags: list[dict] = []
     attributes: list[dict] = []
+
+
+class AssessSource(TaranisBaseModel):
+    id: str | None = None
+    icon: bytes | None = None
+    name: str
+    type: str | None = None
 
 
 class FilterLists(TaranisBaseModel):
@@ -73,5 +81,5 @@ class FilterLists(TaranisBaseModel):
     _pretty_name = "Filter Lists"
 
     tags: list[str] = []
-    sources: list[dict] = []
+    sources: list[AssessSource] = []
     groups: list[dict] = []

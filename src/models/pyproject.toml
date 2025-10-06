@@ -38,7 +38,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "wheel", "basedpyright"]
+dev = ["ruff", "pytest", "wheel"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

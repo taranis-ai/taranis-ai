@@ -57,11 +57,8 @@
   }
 }
 
-.group:hover .animate-shrink-10,
-.group:hover .animate-shrink-20,
-.group:hover .animate-shrink-30,
-.group:focus-within .animate-shrink-10,
-.group:focus-within .animate-shrink-20,
-.group:focus-within .animate-shrink-30 {
+.animate-shrink-10:hover,
+.animate-shrink-20:hover,
+.animate-shrink-30:hover {
   animation-play-state: paused;
 }

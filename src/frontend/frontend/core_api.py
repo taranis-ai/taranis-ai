@@ -7,7 +7,7 @@ from typing import cast, IO
 
 
 class CoreApi:
-    def __init__(self, jwt_token=None):
+    def __init__(self, jwt_token: str | None = None):
         self.session = requests.Session()
         self.session.trust_env = Config.REQUESTS_TRUST_ENV
         self.api_url = Config.TARANIS_CORE_URL
@@ -18,7 +18,7 @@ class CoreApi:
         self.session.verify = self.verify
         self.timeout = Config.REQUESTS_TIMEOUT
 
-    def get_headers(self) -> dict:
+    def get_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.jwt_token}", "Content-type": "application/json"}
 
     def get_jwt_from_request(self):

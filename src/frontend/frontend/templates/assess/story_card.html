@@ -44,9 +44,11 @@
   {% set pub = story | get_published_dates %}
 
   <article id="{{ card_id }}" class="{{ ' '.join(card_classes) }}" x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }">
-    <div class="p-4 lg:p-5 space-y-4">
-      <div class="grid gap-4 lg:grid-cols-[minmax(220px,260px)_1fr_auto] items-start">
-        <section class="space-y-4 text-sm text-base-content/80">
+    <div class="p-2 space-y-2">
+      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+
+        <!-- status and metadata column -->
+        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0">
           <div class="flex items-start gap-2">
             <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
             <div class="flex flex-col gap-1">
@@ -97,9 +99,12 @@
               </div>
             </div>
           {% endif %}
+
+          {{ story.source_info }}
         </section>
 
-        <section class="space-y-3">
+        <!-- main content column -->
+        <section class="space-y-3 lg:flex-1">
           <div class="flex flex-col gap-2">
             <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ story.title }}</h2>
             {% if story.links %}
@@ -121,7 +126,8 @@
           {% endif %}
         </section>
 
-        <section class="flex flex-col items-end gap-3 text-xs">
+        <!-- actions column -->
+        <section class="flex flex-col items-end gap-3 text-xs lg:flex-shrink-0 lg:ml-auto">
           {{ story_card_actions(story, story_id, card_id, report_view) }}
         </section>
       </div>
@@ -142,8 +148,8 @@
           </div>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-2 text-sm text-base-content/80">
-          <dl class="space-y-2">
+        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80">
+          <dl class="space-y-2 lg:flex-1">
             <div class="flex justify-between gap-4">
               <dt class="text-base-content/60">Created</dt>
               <dd>
@@ -167,7 +173,7 @@
           </dl>
 
           {% if tags_list %}
-            <div class="space-y-2">
+            <div class="space-y-2 lg:flex-1">
               <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
               <ul class="space-y-1">
                 {% for tag in tags_list[:8] %}

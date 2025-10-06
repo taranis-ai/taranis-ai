@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.1.14",
+    "@tailwindcss/forms": "npm:@tailwindcss/forms@^0.5.10",
+    "daisyui": "npm:daisyui@^5.1.27",
+    "tailwindcss": "npm:tailwindcss@^4.1.14"
+  }
+}

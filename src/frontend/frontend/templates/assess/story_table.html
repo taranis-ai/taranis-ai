@@ -1,11 +1,10 @@
 {% from "assess/story_card.html" import story_card %}
 <div id="assess">
   {% set actions = actions | default([]) %}
-  {% set data = model_plural_name | get_var %}
 
   <div id="assess-container" class="p-4" x-data="{ selectedItems: [] }">
-    {% if data %}
-      {% for item in data %}{{ story_card(item) }}{% endfor %}
+    {% if stories %}
+      {% for story in stories %}{{ story_card(story) }}{% endfor %}
     {% else %}
       <p class="text-center text-base-content/60">No stories found.</p>
     {% endif %}
