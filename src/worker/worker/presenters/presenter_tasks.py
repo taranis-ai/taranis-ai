@@ -39,13 +39,13 @@ class PresenterTask(Task):
 
         return product
 
-    def get_template(self, presenter: int) -> str | None:
+    def get_template(self, presenter: int) -> str:
         try:
             template = self.core_api.get_template(presenter)
         except ConnectionError as e:
             raise ValueError(f"Unable to connect to core API: {e}") from e
 
-        if not template and presenter != 6:
+        if not template:
             raise ValueError(f"Template with id {presenter} not found")
         return template
 

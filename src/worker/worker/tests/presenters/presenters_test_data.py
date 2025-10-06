@@ -137,7 +137,6 @@ Report Items:
 test_stix_product = {
     "id": "2342835f-ffef-4d36-a381-2d7bb0ddd553",
     "mime_type": "application/stix+json",
-    "parameters": {"TEMPLATE_PATH": "test"},
     "report_items": [
         {
             "attributes": {

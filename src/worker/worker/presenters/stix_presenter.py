@@ -61,7 +61,6 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
 
         stix_data = []
         for report_item in report_items:
-            logger.debug(f"{report_item=}")
             stix_data.extend(json.loads(self.convert_to_stix(report_item)))
             logger.debug(f"Converted Report ID {report_item['id']} to STIX")
 

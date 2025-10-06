@@ -161,6 +161,7 @@ class WORKER_TYPES(StrEnum):
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
+    STIX_PRESENTER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()

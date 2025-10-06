@@ -252,7 +252,7 @@ workers = [
     },
     {
         "type": "STIX_PRESENTER",
-        "name": "STIX Presenter",
+        "name": "STIXv2.1 Presenter",
         "description": "Presenter for generating STIX reports",
     },
     {
