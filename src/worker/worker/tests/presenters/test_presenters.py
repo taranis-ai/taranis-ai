@@ -118,9 +118,9 @@ def test_pandoc_presenter_no_data(pandoc_presenter, fixed_datetime, monkeypatch)
 
 
 def test_generate_real_stix_bundle(stix_presenter):
-    from presenters_test_data import test_stix_procuct
+    from presenters_test_data import test_stix_product
 
-    result = stix_presenter.generate(test_stix_procuct, None)
+    result = stix_presenter.generate(test_stix_product, None)
     bundle = json.loads(result)
 
     assert bundle["type"] == "bundle"
