@@ -30,12 +30,12 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  
       with:
         fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  
       with:
         python-version: '3.11'
 
@@ -46,7 +46,7 @@ jobs:
         pip install prefect httpx pydantic
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349  
 
     - name: Create test environment file
       run: |
@@ -104,7 +104,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 
       with:
         name: prefect-migration-test-results
         path: |
@@ -113,7 +113,7 @@ jobs:
 
     - name: Upload coverage reports
       if: always()
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@7afa10ed9b269c561c2336fd862446844e0cbf71 
       with:
         files: ./coverage.xml
         flags: prefect-migration-e2e
@@ -124,6 +124,6 @@ jobs:
 
     - name: Post test summary
       if: always()
-      uses: test-summary/action@v2
+      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 
       with:
         paths: 'test-results/*.xml'
