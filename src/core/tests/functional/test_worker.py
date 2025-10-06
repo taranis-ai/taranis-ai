@@ -2,6 +2,7 @@ import importlib.util
 import pytest
 import os
 import sys
+from functools import partial
 
 
 class TestWorkerApi:
@@ -312,7 +313,6 @@ class TestConnector:
         file_path = os.path.abspath(os.path.join(__file__, "../../../../worker/worker/connectors/base_misp_builder.py"))
 
         spec = importlib.util.spec_from_file_location("base_misp_builder", file_path)
-
         assert spec is not None
         assert spec.loader is not None
 
@@ -327,8 +327,9 @@ class TestConnector:
         )
         story = response.get_json()[0]
         story_id = story.get("id")
-        story["attributes"] = [{"key": "test", "value": "test"}]
-        story["tags"] = ["test_tag"]
+
+        story["attributes"] = {"TLP": {"key": "TLP", "value": "clear"}, "test": {"key": "test", "value": "test"}}
+        story["tags"] = {"test_tag": {"name": "test_tag", "tag_type": "misc"}}
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -341,11 +342,16 @@ class TestConnector:
         story_attributes = story.get("attributes", {})
         story_tags = story.get("tags", {})
 
-        tag_list = BaseMispBuilder._process_items(story, "tags", BaseMispBuilder._process_tags)
-        attribute_list = BaseMispBuilder._process_items(story, "attributes", BaseMispBuilder._process_attribute)
-        assert attribute_list == ["{'key': 'TLP', 'value': 'clear'}", "{'key': 'test', 'value': 'test'}"], (
+        attribute_processor = partial(BaseMispBuilder._generic_processor, required_fields=["value"], key_name_override="key")
+        tag_processor = partial(BaseMispBuilder._generic_processor, required_fields=["tag_type"], key_name_override="name")
+
+        attribute_list = BaseMispBuilder._process_items(story["attributes"], attribute_processor)
+        tag_list = BaseMispBuilder._process_items(story["tags"], tag_processor)
+
+        assert attribute_list == ['{"key": "TLP", "value": "clear"}', '{"key": "test", "value": "test"}'], (
             f"Expected attributes {story_attributes}, but got {attribute_list}"
         )
+
         assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {story_tags}, but got {tag_list}"
 
 
