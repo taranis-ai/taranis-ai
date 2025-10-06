@@ -19,7 +19,8 @@
     "analyze": {
       "completed": "completed",
       "remove_all_stories": "Remove all stories",
-      "vertical_view": "Side-by-side"
+      "vertical_view": "Side-by-side",
+      "new_report": "New Report"
     },
     "assess": {
         "story_description": "Description",
