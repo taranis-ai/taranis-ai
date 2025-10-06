@@ -65,10 +65,12 @@ class PresenterTask(Task):
         presenter = self.get_presenter(product)
 
         type_id: int = int(product["type_id"])
-        template = self.get_template(type_id)
+        if "TEMPLATE_PATH" in product.get("parameters", {}):
+            template = self.get_template(type_id)
+        else:
+            template = None
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
-        logger.debug(f"{product=}")
 
         if rendered_product := presenter.generate(product, template, parameters=product.get("parameters", {})):
             if isinstance(rendered_product, str):

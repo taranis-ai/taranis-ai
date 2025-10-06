@@ -254,8 +254,6 @@ workers = [
         "type": "STIX_PRESENTER",
         "name": "STIX Presenter",
         "description": "Presenter for generating STIX reports",
-        # TODO: Review parameters
-        "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
     },
     {
         "type": "FTP_PUBLISHER",
@@ -610,9 +608,6 @@ product_types = [
         "title": "STIXv2.1 Report Exporter",
         "description": "STIXv2.1 Report Exporter",
         "type": "STIX_PRESENTER",
-        "parameters": [
-            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "test"},
-        ],
         "report_types": [1, 2, 3, 4],
     },
 ]
