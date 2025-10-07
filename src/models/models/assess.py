@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import field_validator, model_validator, field_serializer
 import langcodes
+from typing import Literal
+from functools import cached_property
 
 from models.base import TaranisBaseModel
 
@@ -54,7 +56,6 @@ class StoryTag(TaranisBaseModel):
 class Story(TaranisBaseModel):
     _core_endpoint = "/assess/stories"
     _model_name = "story"
-    _search_fields = ["title", "description"]
     _pretty_name = "Story"
 
     id: str | None = None
@@ -64,13 +65,32 @@ class Story(TaranisBaseModel):
     updated: datetime | None = None
     last_change: str | None = None
     news_items: list[NewsItem] = []
+    links: list[str] = []
+    important: bool = False
+    read: bool = False
+    likes: int = 0
+    dislikes: int = 0
+    user_vote: Literal["like", "dislike", ""] = ""
+    summary: str | None = None
+    relevance: int = 0
+    comments: str | None = None
+    in_reports_count: int = 0
     tags: list[dict] = []
     attributes: list[dict] = []
+
+    @cached_property
+    def search_field(self) -> str:
+        search = f"{self.title.lower()} {self.description.lower()} "
+        if self.news_items:
+            search += " ".join([item.title.lower() for item in self.news_items if item.title])
+            search += " ".join([item.content.lower() for item in self.news_items if item.content])
+            search += " ".join([item.source.lower() for item in self.news_items if item.source])
+        return search
 
 
 class AssessSource(TaranisBaseModel):
     id: str | None = None
-    icon: bytes | None = None
+    icon: str | None = None
     name: str
     type: str | None = None
 

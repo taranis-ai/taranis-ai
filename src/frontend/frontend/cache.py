@@ -44,10 +44,10 @@ def get_cached_users() -> list[UserProfile]:
     return users
 
 
-def add_model_to_cache(model: T, uid: str, user_id: int) -> T | None:
+def add_model_to_cache(model: T, cache_key: str, user_id: int) -> T | None:
     try:
         cache.set(
-            key=f"model_cache_{model._model_name}_{uid}_{user_id}",
+            key=f"model_cache_{model._model_name}_{cache_key}_{user_id}",
             value=model,
             timeout=getattr(model, "_cache_timeout", Config.CACHE_DEFAULT_TIMEOUT),
         )
@@ -57,8 +57,8 @@ def add_model_to_cache(model: T, uid: str, user_id: int) -> T | None:
         return None
 
 
-def get_model_from_cache(model_name: str, uid: str, user_id: int) -> T | None:
-    return cache.get(f"model_cache_{model_name}_{uid}_{user_id}")
+def get_model_from_cache(model_name: str, cache_key: str, user_id: int) -> T | None:
+    return cache.get(f"model_cache_{model_name}_{cache_key}_{user_id}")
 
 
 def init(app):

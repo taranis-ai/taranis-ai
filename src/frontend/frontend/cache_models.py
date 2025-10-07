@@ -11,6 +11,7 @@ class PagingData(BaseModel):
     limit: int | None = None
     order: str | None = None
     search: str | None = None
+    query_params: dict[str, str | list[str]] | None = None
 
 
 class CacheObject(list[T], Generic[T]):

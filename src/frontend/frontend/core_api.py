@@ -198,6 +198,9 @@ class CoreApi:
     def get_story(self, story_id: str):
         return self.api_get(f"/assess/stories/{story_id}")
 
+    def get_stories(self, query_params=None):
+        return self.api_get("/assess/stories", params=query_params)
+
     @staticmethod
     def stream_proxy(response: requests.Response, fallback_filename: str) -> Response:
         disposition = response.headers.get("Content-Disposition", f"attachment; filename={fallback_filename}")

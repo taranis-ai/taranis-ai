@@ -100,7 +100,20 @@
             </div>
           {% endif %}
 
-          {{ story.source_info }}
+          {% if story.model_extra.source_info %}
+            <div class="flex items-center gap-2">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Source</span>
+              <div class="flex items-center gap-1 text-xs">
+                <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ story.model_extra.source_info.name }}</span>
+                {% if story.model_extra.source_info.icon %}
+                  <img src="data:image/png;base64,{{ story.model_extra.source_info.icon | string }}"
+                       alt="{{ story.model_extra.source_info.name }}"
+                       height="16"
+                       width="16" />
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
         </section>
 
         <!-- main content column -->

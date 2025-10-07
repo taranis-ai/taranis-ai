@@ -1,7 +1,9 @@
 from flask import request
+import json
 from flask_jwt_extended import get_jwt_identity
 from typing import Type, Any
 from requests import Response
+import hashlib
 
 from frontend.core_api import CoreApi
 from frontend.config import Config
@@ -16,8 +18,15 @@ class DataPersistenceLayer:
         self.jwt_token = jwt_token or self.get_jwt_from_request()
         self.api = CoreApi(jwt_token=self.jwt_token)
 
-    def make_user_key(self, endpoint: str):
-        return f"{get_jwt_identity()}_{self.make_key(endpoint)}"
+    def make_user_key(self, endpoint: str, filter: PagingData | None = None):
+        cache_key = f"{get_jwt_identity()}_"
+        if filter and filter.query_params:
+            cache_key += f"{self.make_filter_key(filter.query_params)}_"
+        return f"{cache_key}{self.make_key(endpoint)}"
+
+    def make_filter_key(self, filter: dict[str, str | list[str]]) -> str:
+        json_str = json.dumps(filter, sort_keys=True, separators=(",", ":"))
+        return hashlib.md5(json_str.encode("utf-8")).hexdigest()
 
     def make_key(self, endpoint: str):
         return endpoint.replace("/", "_")
@@ -62,15 +71,14 @@ class DataPersistenceLayer:
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[Any]:
         endpoint = self.get_endpoint(object_model)
-        cache_object: CacheObject | None
-        if cache_object := cache.get(key=self.make_user_key(endpoint)):
+        if cache_object := cache.get(key=self.make_user_key(endpoint, paging_data)):
             logger.debug(f"Cache hit for {endpoint}")
             return cache_object.search_and_paginate(paging_data)
-        if result := self.api.api_get(endpoint):
+        if result := self.api.api_get(endpoint, paging_data.query_params if paging_data else None):
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    def _cache_and_paginate_objects(self, result, object_model, endpoint, paging_data):
+    def _cache_and_paginate_objects(self, result, object_model, endpoint: str, paging_data: PagingData | None):
         items = result.get("items", [])
         result_object = [object_model(**object) for object in items]
         if not result_object:
@@ -84,7 +92,7 @@ class DataPersistenceLayer:
             links=links,
         )
         logger.debug(f"Adding {endpoint} to cache with timeout: {cache_object.timeout}")
-        cache.set(key=self.make_user_key(endpoint), value=cache_object, timeout=cache_object.timeout)
+        cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 
     def store_object(self, object) -> Response:

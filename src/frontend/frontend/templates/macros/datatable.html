@@ -129,7 +129,7 @@
               <span class="text-sm font-medium">Items per page:</span>
               <select x-model.number="view" @change="updateView" class="select select-bordered w-18">
                 {% set current_limit = request.args.get('limit', 5) %}
-                {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+                {% for option in [5, 20, 50, 100, 500] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
               </select>
             </div>
 
