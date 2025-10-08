@@ -21,7 +21,8 @@
     "transition",
     "duration-150",
     "hover:shadow-lg",
-    "relative"
+    "relative",
+    "cursor-pointer"
   ] %}
   {% if story.read | default(false) %}
     {% set card_classes = card_classes + ['border-base-200'] %}
@@ -43,7 +44,12 @@
 
   {% set pub = story | get_published_dates %}
 
-  <article id="{{ card_id }}" class="{{ ' '.join(card_classes) }}" x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }">
+  <article id="{{ card_id }}"
+           class="{{ ' '.join(card_classes) }}"
+           x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }"
+           @click="toggleSelection('{{ story_id }}')"
+           :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
+           :aria-selected="isSelected('{{ story_id }}')">
     <div class="p-2 space-y-2">
       <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
 

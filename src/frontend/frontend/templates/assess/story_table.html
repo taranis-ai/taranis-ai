@@ -2,7 +2,10 @@
 <div id="assess">
   {% set actions = actions | default([]) %}
 
-  <div id="assess-container" class="p-4" x-data="{ selectedItems: [] }">
+  <div id="assess-container"
+       class="p-4"
+       x-data="{ selectedItems: [], toggleSelection(id) { console.debug('Toggling selection for item', id); if (this.selectedItems.includes(id)) { this.selectedItems = this.selectedItems.filter(item => item !== id); } else { this.selectedItems = [...this.selectedItems, id]; } }, isSelected(id) { return this.selectedItems.includes(id); } }">
+    SELECTED ITEMS: <span x-text="selectedItems"></span>
     {% if stories %}
       {% for story in stories %}{{ story_card(story) }}{% endfor %}
     {% else %}

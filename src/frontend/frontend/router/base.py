@@ -55,6 +55,9 @@ class LoginView(MethodView):
         except Exception:
             return render_template("login/index.html", login_error="Login failed, no response from server"), 500
 
+        if not core_response or not core_response.json():
+            return render_template("login/index.html", login_error="Login failed, no response from server"), 500
+
         if not core_response.ok:
             return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
