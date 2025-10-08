@@ -287,7 +287,7 @@ class MispConnector:
             h = ni.get("hash")
             if not h or h not in hashes_to_add:
                 continue
-            data = BaseMispBuilder.get_news_item_object_dict()
+            data = self.builder.get_news_item_object_dict()
             data.update({k: ni[k] for k in data if k in ni})
             base_obj = BaseMispObject(
                 parameters=data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
