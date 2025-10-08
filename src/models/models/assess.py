@@ -80,7 +80,8 @@ class Story(TaranisBaseModel):
 
     @cached_property
     def search_field(self) -> str:
-        search = f"{self.title.lower()} {self.description.lower()} "
+        search = ""
+        search += f"{self.title.lower() if self.title else ''} {self.description.lower() if self.description else ''} "
         if self.news_items:
             search += " ".join([item.title.lower() for item in self.news_items if item.title])
             search += " ".join([item.content.lower() for item in self.news_items if item.content])

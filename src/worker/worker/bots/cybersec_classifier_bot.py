@@ -9,7 +9,6 @@ class CyberSecClassifierBot(BaseBot):
         super().__init__()
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
-        self.bot_api = BotApi(Config.CYBERSEC_CLASSIFIER_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
@@ -18,7 +17,10 @@ class CyberSecClassifierBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT)
+        self.bot_api = BotApi(
+            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT),
+            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+        )
 
         num_news_items = 0
         for story in data:

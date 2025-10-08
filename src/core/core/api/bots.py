@@ -94,11 +94,11 @@ class StoryAttributes(MethodView):
 
 class UpdateStory(MethodView):
     @api_key_required
-    def get(self, story_id):
+    def get(self, story_id: str):
         return story.Story.get_for_api(story_id, None)
 
     @api_key_required
-    def put(self, story_id):
+    def put(self, story_id: str):
         return story.Story.update(story_id, request.json)
 
 

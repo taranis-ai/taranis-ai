@@ -14,7 +14,6 @@ class NLPBot(BaseBot):
         super().__init__()
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
-        self.bot_api = BotApi(Config.NLP_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         update_result = {}
@@ -22,7 +21,11 @@ class NLPBot(BaseBot):
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
-            self.bot_api.update_parameters(parameters=parameters)
+            self.bot_api = BotApi(
+                bot_endpoint=parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT),
+                bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+            )
+
             for story_batch in batched(stories):
                 update_result |= self.process_stories(story_batch)
             return update_result

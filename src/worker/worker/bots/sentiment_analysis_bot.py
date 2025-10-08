@@ -10,7 +10,6 @@ class SentimentAnalysisBot(BaseBot):
         self.type = "SENTIMENT_ANALYSIS_BOT"
         self.name = "Sentiment Analysis Bot"
         self.description = "Bot to analyze the sentiment of news items' content"
-        self.bot_api = BotApi(Config.SENTIMENT_ANALYSIS_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
@@ -18,7 +17,10 @@ class SentimentAnalysisBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No stories found for sentiment analysis"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.SENTIMENT_ANALYSIS_API_ENDPOINT)
+        self.bot_api = BotApi(
+            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SENTIMENT_ANALYSIS_API_ENDPOINT),
+            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+        )
 
         logger.debug(f"Analyzing sentiment for {len(data)} news items")
 

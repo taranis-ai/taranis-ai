@@ -78,7 +78,7 @@ class DataPersistenceLayer:
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    def _cache_and_paginate_objects(self, result, object_model, endpoint: str, paging_data: PagingData | None):
+    def _cache_and_paginate_objects(self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None):
         items = result.get("items", [])
         result_object = [object_model(**object) for object in items]
         if not result_object:

@@ -12,7 +12,6 @@ class StoryBot(BaseBot):
         self.name = "Story Clustering Bot"
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
         self.language = language
-        self.bot_api = BotApi(Config.STORY_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None):
         if not parameters:
@@ -20,7 +19,10 @@ class StoryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT)
+        self.bot_api = BotApi(
+            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT),
+            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+        )
 
         logger.info(f"Clustering {len(data)} news items")
         if response := self.bot_api.api_post("/", {"stories": data}):
