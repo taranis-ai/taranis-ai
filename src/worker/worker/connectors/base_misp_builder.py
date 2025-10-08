@@ -4,17 +4,12 @@ from typing import Any, Callable, Dict, List, Optional
 
 from pymisp import MISPEvent
 from worker.connectors.definitions.misp_objects import BaseMispObject
-from worker.core_api import CoreApi
 from worker.log import logger
 
 
-class BaseMISPBuilder:
-    def __init__(self):
-        self.type = "BASE_MISP_CONNECTOR"
-        self.name = "Base MISP Connector"
-        self.description = "Base abstract type for all MISP connectors"
-
-        self.core_api = CoreApi()
+class BaseMispBuilder:
+    def __init__(self, misp_objects_path_custom: str | None = "worker/connectors/definitions/objects"):
+        self.misp_objects_path_custom = misp_objects_path_custom
 
     @staticmethod
     def get_news_item_object_dict() -> dict:
@@ -44,6 +39,11 @@ class BaseMISPBuilder:
             "links": [{"link": "no_data", "news_item_id": "<no_data>"}],
             "tags": {"no_data": {"name": "no_data", "tag_type": "<no_data>"}},
         }
+
+    @staticmethod
+    def set_misp_event_uuid_attribute(story: dict) -> None:
+        if not story.get("attributes", {}).get("misp_event_uuid"):
+            story.setdefault("attributes", {})["misp_event_uuid"] = {"key": "misp_event_uuid", "value": story.get("id", "")}
 
     @staticmethod
     def _generic_processor(entry: Any, required_fields: List[str], key_name_override: Optional[str] = None) -> Optional[Dict]:
@@ -93,10 +93,6 @@ class BaseMISPBuilder:
         attribute_processor = partial(self._generic_processor, required_fields=["value"], key_name_override="key")
         return self._process_items(story.get("attributes", {}), attribute_processor)
 
-    def set_misp_event_uuid_attribute(self, story: dict) -> None:
-        if not story.get("attributes", {}).get("misp_event_uuid"):
-            story.setdefault("attributes", {})["misp_event_uuid"] = {"key": "misp_event_uuid", "value": story.get("id", "")}
-
     def create_misp_event(self, data: dict, sharing_group_id: str | None, distribution: str | None) -> MISPEvent:
         event = MISPEvent()
         event.uuid = data.get("id", "")
@@ -121,18 +117,15 @@ class BaseMISPBuilder:
             object_data.update({k: news_item[k] for k in object_data if k in news_item})
 
             news_item_object = BaseMispObject(
-                parameters=object_data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
+                parameters=object_data, template="taranis-news-item", misp_objects_path_custom=self.misp_objects_path_custom
             )
             event.add_object(news_item_object)
 
-    def add_story_object(self, story: dict, event: MISPEvent) -> None:
+    def prepare_story_for_misp(self, story: dict) -> dict:
         story.pop("last_change", None)
 
         object_data = self.get_story_object_dict()
-        object_data.update(
-            {property: story[property] for property in object_data if property in story and story[property] not in (None, "", [], {})}
-        )
-        object_data["attributes"] = []
+        object_data.update({key: story[key] for key in object_data if key in story and story[key] not in (None, "", [], {})})
 
         link_processor = partial(self._generic_processor, required_fields=["link", "news_item_id"])
         object_data["links"] = self._process_items(story.get("links", []), link_processor)
@@ -140,13 +133,20 @@ class BaseMISPBuilder:
         tag_processor = partial(self._generic_processor, required_fields=["tag_type"], key_name_override="name")
         object_data["tags"] = self._process_items(story.get("tags", {}), tag_processor)
 
+        return object_data
+
+    def add_story_object(self, story: dict, event: MISPEvent) -> None:
+        object_data = self.prepare_story_for_misp(story)
+        object_data["attributes"] = []
+
         logger.debug(f"Adding story object with data: {object_data}")
 
         story_object = BaseMispObject(
             parameters=object_data,
             template="taranis-story",
-            misp_objects_path_custom="worker/connectors/definitions/objects",
+            misp_objects_path_custom=self.misp_objects_path_custom,
         )
+
         attribute_list = self.add_attributes_from_story(story)
         if story.get("attributes"):
             story_object.add_attributes("attributes", *attribute_list)

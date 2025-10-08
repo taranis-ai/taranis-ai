@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 import json
 from uuid import uuid4
-from worker.connectors.base_misp_builder import BaseMISPBuilder
+
+from worker.connectors.base_misp_builder import BaseMispBuilder
 from misp_stix_converter import MISPtoSTIX21Parser
 from worker.log import logger
 from .base_presenter import BasePresenter
@@ -42,12 +43,18 @@ TYPE_MAP = {
 }
 
 
-class STIXPresenter(BaseMISPBuilder, BasePresenter):
-    def __init__(self):
+class STIXPresenter(BasePresenter):
+    """
+    Presenter that exports MISP-compatible reports into STIX 2.1 bundles.
+    Uses BaseMISPBuilder via composition to construct MISP events.
+    """
+
+    def __init__(self, builder: BaseMispBuilder | None = None):
         super().__init__()
         self.type = "STIX_PRESENTER"
         self.name = "STIX Presenter"
         self.description = "STIX presenter to export reports into STIX Report format"
+        self.builder = builder or BaseMispBuilder()
 
     def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | None:
         report_ids = product.get("report_items", [])
@@ -57,7 +64,15 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
     def export_to_stix(self, report_items: list[dict] | None) -> str:
         if not report_items:
             logger.warning("No report items provided.")
-            return json.dumps({"type": "bundle", "id": f"bundle--{uuid4()}", "spec_version": "2.1", "objects": []}, indent=2)
+            return json.dumps(
+                {
+                    "type": "bundle",
+                    "id": f"bundle--{uuid4()}",
+                    "spec_version": "2.1",
+                    "objects": [],
+                },
+                indent=2,
+            )
 
         stix_data = []
         for report_item in report_items:
@@ -73,8 +88,9 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
         return json.dumps(bundle, indent=2)
 
     def convert_to_stix(self, report_item: dict) -> str:
-        event = self.create_misp_event(report_item, sharing_group_id=None, distribution="1")
-        # A published MISP event with a timestamp is converted to a STIX report
+        event = self.builder.create_misp_event(report_item, sharing_group_id=None, distribution="1")
+
+        # Published MISP event with timestamp becomes STIX **report**
         event.published = True
         event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
 
@@ -92,13 +108,14 @@ class STIXPresenter(BaseMISPBuilder, BasePresenter):
                     type=misp_type,
                     category="External analysis",
                     value=attr_value,
-                    comment=f"Group: {group_title}",  # optional, adds group info
+                    comment=f"Group: {group_title}",
                 )
 
         for story in report_item.get("stories", []):
-            self.add_story_properties_to_event(story, event)
+            self.builder.add_story_properties_to_event(story, event)
 
         parser = MISPtoSTIX21Parser()
         parser.parse_misp_event(event)
+
         stix_objects = [json.loads(obj.serialize()) for obj in parser.stix_objects]
         return json.dumps(stix_objects)
