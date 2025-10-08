@@ -2,12 +2,35 @@
 <div id="assess">
   {% set actions = actions | default([]) %}
 
-  <div id="assess-container"
-       class="p-4"
-       x-data="{ selectedItems: [], toggleSelection(id) { console.debug('Toggling selection for item', id); if (this.selectedItems.includes(id)) { this.selectedItems = this.selectedItems.filter(item => item !== id); } else { this.selectedItems = [...this.selectedItems, id]; } }, isSelected(id) { return this.selectedItems.includes(id); } }">
-    SELECTED ITEMS: <span x-text="selectedItems"></span>
+  <div
+    id="assess-container"
+    class="p-4"
+    {# djlint:off #}
+    x-data="{
+      selectedItems: [],
+      toggleSelection(id) {
+        console.debug('Toggling selection for item', id);
+        if (this.selectedItems.includes(id)) {
+          this.selectedItems = this.selectedItems.filter(item => item !== id);
+        } else {
+          this.selectedItems = [...this.selectedItems, id];
+        }
+      },
+      isSelected(id) {
+        return this.selectedItems.includes(id);
+      }
+    }"
+    {# djlint:on #}
+    >
     {% if stories %}
       {% for story in stories %}{{ story_card(story) }}{% endfor %}
+      <form method="get" class="flex justify-center my-4">
+        <div class="join">
+          <button class="join-item btn">« Previous</button>
+          <button class="join-item btn btn-disabled">Page {{ current_page }}</button>
+          <button class="join-item btn">» Next</button>
+        </div>
+      </form>
     {% else %}
       <p class="text-center text-base-content/60">No stories found.</p>
     {% endif %}
