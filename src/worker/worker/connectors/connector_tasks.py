@@ -3,7 +3,7 @@ from celery import Task
 import json
 from typing import Any
 
-from worker.connectors import MISPConnector
+from worker.connectors import MispConnector
 from worker.log import logger
 from worker.core_api import CoreApi
 
@@ -19,7 +19,7 @@ class ConnectorTask(Task):
     def __init__(self):
         self.core_api = CoreApi()
         self.connectors = {
-            "misp_connector": MISPConnector(),
+            "misp_connector": MispConnector(),
         }
 
     def drop_utf16_surrogates(self, data: str) -> str:
@@ -49,7 +49,7 @@ class ConnectorTask(Task):
 
         return connector_config
 
-    def get_connector(self, connector_type: str) -> MISPConnector | None:
+    def get_connector(self, connector_type: str) -> MispConnector | None:
         return self.connectors.get(connector_type)
 
     def get_connector_data(self, connector_id: str, connector_config: dict[str, Any], story_ids: list[str]) -> dict[str, Any]:
@@ -82,7 +82,7 @@ class ConnectorTask(Task):
         connector = None
         try:
             connector_config: dict = self.get_connector_config(connector_id)
-            connector: MISPConnector | None = self.get_connector(connector_config.get("type", ""))
+            connector: MispConnector | None = self.get_connector(connector_config.get("type", ""))
         except Exception as e:
             logger.exception(f"Failed to get connector with id: {connector_id}")
             raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e

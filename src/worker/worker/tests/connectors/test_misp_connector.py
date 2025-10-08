@@ -1,6 +1,5 @@
 import pytest
 import json
-import worker.connectors as connectors
 
 from worker.connectors import connector_tasks
 from worker.config import Config
@@ -26,9 +25,9 @@ def core_mock(requests_mock, stories):
     requests_mock.post("https://test.misp.test/events/add", json={"Event": {"id": "49", "info": "Test Event"}})
 
 
-def test_news_item_object_keys_completeness(news_item_template):
+def test_news_item_object_keys_completeness(misp_connector, news_item_template):
     """Test that the object data keys match the template keys"""
-    object_data = connectors.MISPConnector.get_news_item_object_dict()
+    object_data = misp_connector.builder.get_news_item_object_dict()
 
     template_keys = set(news_item_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
@@ -41,9 +40,9 @@ def test_news_item_object_keys_completeness(news_item_template):
     assert template_keys == object_data_keys, "Object data keys do not match the template"
 
 
-def test_story_object_completion(story_template):
+def test_story_object_completion(misp_connector, story_template):
     """Test that the object data keys match the template keys"""
-    object_data = connectors.MISPConnector.get_story_object_dict()
+    object_data = misp_connector.builder.get_story_object_dict()
 
     template_keys = set(story_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
