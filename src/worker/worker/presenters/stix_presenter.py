@@ -64,33 +64,28 @@ class STIXPresenter(BasePresenter):
     def export_to_stix(self, report_items: list[dict] | None) -> str:
         if not report_items:
             logger.warning("No report items provided.")
-            return json.dumps(
-                {
-                    "type": "bundle",
-                    "id": f"bundle--{uuid4()}",
-                    "spec_version": "2.1",
-                    "objects": [],
-                },
-                indent=2,
-            )
+            return self._build_stix_bundle([])
 
-        stix_data = []
+        stix_objects = []
         for report_item in report_items:
-            stix_data.extend(json.loads(self.convert_to_stix(report_item)))
+            converted_objects = json.loads(self.convert_to_stix(report_item))
+            stix_objects.extend(converted_objects)
             logger.debug(f"Converted Report ID {report_item['id']} to STIX")
 
+        return self._build_stix_bundle(stix_objects)
+
+    def _build_stix_bundle(self, objects: list[dict]) -> str:
         bundle = {
             "type": "bundle",
             "id": f"bundle--{uuid4()}",
             "spec_version": "2.1",
-            "objects": stix_data,
+            "objects": objects,
         }
         return json.dumps(bundle, indent=2)
 
     def convert_to_stix(self, report_item: dict) -> str:
         event = self.builder.create_misp_event(report_item, sharing_group_id=None, distribution="1")
 
-        # Published MISP event with timestamp becomes STIX **report**
         event.published = True
         event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
 
