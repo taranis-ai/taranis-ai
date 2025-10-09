@@ -3,18 +3,17 @@ from datetime import datetime, timezone
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
-from worker.connectors.base_misp_builder import BaseMispBuilder
+from worker.connectors import base_misp_builder
 from worker.core_api import CoreApi
 from worker.log import logger
 
 
 class MispConnector:
-    def __init__(self, builder: BaseMispBuilder | None = None):
+    def __init__(self):
         self.type = "MISP_CONNECTOR"
         self.name = "MISP Connector"
         self.description = "Connector for MISP"
         self.core_api = CoreApi()
-        self.builder = builder or BaseMispBuilder()
 
         self.proxies = None
         self.headers = {}
@@ -71,7 +70,7 @@ class MispConnector:
         """
         for news_item in news_items:
             news_item.pop("last_change", None)  # key intended for internal use only
-            object_data = self.builder.get_news_item_object_dict()
+            object_data = base_misp_builder.get_news_item_object_dict()
             # sourcery skip: dict-assign-update-to-union
             object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
 
@@ -107,10 +106,10 @@ class MispConnector:
     def add_story_properties_to_event(self, story: dict, event: MISPEvent) -> None:
         if news_items := story.pop("news_items", None):
             self.add_news_item_objects(news_items, event)
-        self.builder.add_story_object(story, event)
+        base_misp_builder.add_story_object(story, event)
 
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
-        event = self.builder.create_misp_event(story, self.sharing_group_id, self.distribution)
+        event = base_misp_builder.create_misp_event(story, self.sharing_group_id, self.distribution)
         self.add_story_properties_to_event(story, event)
 
         # Create a new report without reusing any UUID.
@@ -287,7 +286,7 @@ class MispConnector:
             h = ni.get("hash")
             if not h or h not in hashes_to_add:
                 continue
-            data = self.builder.get_news_item_object_dict()
+            data = base_misp_builder.get_news_item_object_dict()
             data.update({k: ni[k] for k in data if k in ni})
             base_obj = BaseMispObject(
                 parameters=data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
@@ -477,7 +476,7 @@ class MispConnector:
         return shadow_attributes
 
     def _create_event(self, story_prepared, misp_event_uuid, existing_event):
-        result = self.builder.create_misp_event(story_prepared, self.sharing_group_id, self.distribution)
+        result = base_misp_builder.create_misp_event(story_prepared, self.sharing_group_id, self.distribution)
         self.add_story_properties_to_event(story_prepared, result)
 
         result.uuid = misp_event_uuid

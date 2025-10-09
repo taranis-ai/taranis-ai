@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import json
 from uuid import uuid4
 
-from worker.connectors.base_misp_builder import BaseMispBuilder
+from worker.connectors import base_misp_builder
 from misp_stix_converter import MISPtoSTIX21Parser
 from worker.log import logger
 from .base_presenter import BasePresenter
@@ -49,12 +49,11 @@ class STIXPresenter(BasePresenter):
     Uses BaseMISPBuilder via composition to construct MISP events.
     """
 
-    def __init__(self, builder: BaseMispBuilder | None = None):
+    def __init__(self):
         super().__init__()
         self.type = "STIX_PRESENTER"
         self.name = "STIX Presenter"
         self.description = "STIX presenter to export reports into STIX Report format"
-        self.builder = builder or BaseMispBuilder()
 
     def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | None:
         report_ids = product.get("report_items", [])
@@ -84,7 +83,7 @@ class STIXPresenter(BasePresenter):
         return json.dumps(bundle, indent=2)
 
     def convert_to_stix(self, report_item: dict) -> str:
-        event = self.builder.create_misp_event(report_item, sharing_group_id=None, distribution="1")
+        event = base_misp_builder.create_misp_event(report_item, sharing_group_id=None, distribution="1")
 
         event.published = True
         event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
@@ -107,7 +106,7 @@ class STIXPresenter(BasePresenter):
                 )
 
         for story in report_item.get("stories", []):
-            self.builder.add_story_properties_to_event(story, event)
+            base_misp_builder.add_story_properties_to_event(story, event)
 
         parser = MISPtoSTIX21Parser()
         parser.parse_misp_event(event)

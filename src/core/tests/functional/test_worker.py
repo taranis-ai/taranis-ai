@@ -2,7 +2,6 @@ import importlib.util
 import pytest
 import os
 import sys
-from functools import partial
 
 
 class TestWorkerApi:
@@ -310,49 +309,43 @@ class TestConnector:
         sys.modules["worker.connectors.definitions"] = MagicMock()
         sys.modules["worker.connectors.base_misp_builder"] = MagicMock()
         sys.modules["worker.connectors.definitions.misp_objects"] = MagicMock()
+
         file_path = os.path.abspath(os.path.join(__file__, "../../../../worker/worker/connectors/base_misp_builder.py"))
 
         spec = importlib.util.spec_from_file_location("base_misp_builder", file_path)
-        assert spec is not None
-        assert spec.loader is not None
+        assert spec is not None and spec.loader is not None
 
         base_misp_builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(base_misp_builder)
-
         BaseMispBuilder = base_misp_builder.BaseMispBuilder
 
-        response = client.get(
-            f"{self.base_uri}/stories",
-            headers=api_header,
-        )
+        response = client.get(f"{self.base_uri}/stories", headers=api_header)
         story = response.get_json()[0]
         story_id = story.get("id")
 
-        story["attributes"] = {"TLP": {"key": "TLP", "value": "clear"}, "test": {"key": "test", "value": "test"}}
+        story["attributes"] = {
+            "TLP": {"key": "TLP", "value": "clear"},
+            "test": {"key": "test", "value": "test"},
+        }
         story["tags"] = {"test_tag": {"name": "test_tag", "tag_type": "misc"}}
 
-        response = client.post(
-            f"{self.base_uri}/stories",
-            json=story,
-            headers=api_header,
-        )
+        client.post(f"{self.base_uri}/stories", json=story, headers=api_header)
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
-        story = response.get_json()[0]
-        story_attributes = story.get("attributes", {})
-        story_tags = story.get("tags", {})
+        updated_story = response.get_json()[0]
 
-        attribute_processor = partial(BaseMispBuilder._generic_processor, required_fields=["value"], key_name_override="key")
-        tag_processor = partial(BaseMispBuilder._generic_processor, required_fields=["tag_type"], key_name_override="name")
+        builder = BaseMispBuilder()
+        attribute_list = builder.add_attributes_from_story(updated_story)
+        object_data = builder.prepare_story_for_misp(updated_story)
+        tag_list = object_data.get("tags", [])
 
-        attribute_list = BaseMispBuilder._process_items(story["attributes"], attribute_processor)
-        tag_list = BaseMispBuilder._process_items(story["tags"], tag_processor)
+        assert attribute_list == [
+            '{"key": "TLP", "value": "clear"}',
+            '{"key": "test", "value": "test"}',
+            f'{{"key": "misp_event_uuid", "value": "{story_id}"}}',
+        ], f"Expected attributes {updated_story['attributes']}, but got {attribute_list}"
 
-        assert attribute_list == ['{"key": "TLP", "value": "clear"}', '{"key": "test", "value": "test"}'], (
-            f"Expected attributes {story_attributes}, but got {attribute_list}"
-        )
-
-        assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {story_tags}, but got {tag_list}"
+        assert tag_list == ['{"name": "test_tag", "tag_type": "misc"}'], f"Expected tags {updated_story['tags']}, but got {tag_list}"
 
 
 class TestOSINTSourceScheduling:

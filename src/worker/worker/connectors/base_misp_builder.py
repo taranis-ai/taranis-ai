@@ -1,153 +1,136 @@
 import json
-from functools import partial
-from typing import Any, Callable, Dict, List, Optional
 
 from pymisp import MISPEvent
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.log import logger
 
 
-class BaseMispBuilder:
-    def __init__(self, misp_objects_path_custom: str | None = "worker/connectors/definitions/objects"):
-        self.misp_objects_path_custom = misp_objects_path_custom
+DEFAULT_MISP_OBJECTS_PATH = "worker/connectors/definitions/objects"
 
-    @staticmethod
-    def get_news_item_object_dict() -> dict:
-        return {
-            "author": "",
-            "content": "",
-            "link": "",
-            "title": "",
-            "hash": "",
-            "id": "",
-            "language": "",
-            "osint_source_id": "",
-            "review": "",
-            "source": "manual",
-            "story_id": "",
+
+def get_news_item_object_dict() -> dict:
+    return {
+        "author": "",
+        "content": "",
+        "link": "",
+        "title": "",
+        "hash": "",
+        "id": "",
+        "language": "",
+        "osint_source_id": "",
+        "review": "",
+        "source": "manual",
+        "story_id": "",
+    }
+
+
+def get_story_object_dict() -> dict:
+    return {
+        "id": "",
+        "title": "<no_data>",
+        "description": "<no_data>",
+        "attributes": {"no_data": {"key": "no_data", "value": "<no_data>"}},
+        "comments": "<no_data>",
+        "summary": "<no_data>",
+        "links": [{"link": "no_data", "news_item_id": "<no_data>"}],
+        "tags": {"no_data": {"name": "no_data", "tag_type": "<no_data>"}},
+    }
+
+
+def set_misp_event_uuid_attribute(story: dict) -> None:
+    if not story.get("attributes", {}).get("misp_event_uuid"):
+        story.setdefault("attributes", {})["misp_event_uuid"] = {
+            "key": "misp_event_uuid",
+            "value": story.get("id", ""),
         }
 
-    @staticmethod
-    def get_story_object_dict() -> dict:
-        return {
-            "id": "",
-            "title": "<no_data>",
-            "description": "<no_data>",
-            "attributes": {"no_data": {"key": "no_data", "value": "<no_data>"}},
-            "comments": "<no_data>",
-            "summary": "<no_data>",
-            "links": [{"link": "no_data", "news_item_id": "<no_data>"}],
-            "tags": {"no_data": {"name": "no_data", "tag_type": "<no_data>"}},
-        }
 
-    @staticmethod
-    def set_misp_event_uuid_attribute(story: dict) -> None:
-        if not story.get("attributes", {}).get("misp_event_uuid"):
-            story.setdefault("attributes", {})["misp_event_uuid"] = {"key": "misp_event_uuid", "value": story.get("id", "")}
+def add_attributes_from_story(story: dict) -> list[str]:
+    set_misp_event_uuid_attribute(story)
+    results = []
 
-    @staticmethod
-    def _generic_processor(entry: Any, required_fields: List[str], key_name_override: Optional[str] = None) -> Optional[Dict]:
-        if isinstance(entry, tuple):
-            key, value = entry
-            payload = value
-        else:
-            payload = entry
-            key = None
+    for key, entry in story.get("attributes", {}).items():
+        value = entry.get("value")
+        if not value:
+            logger.warning(f"Missing 'value' for attribute {key}")
+            continue
+        results.append(json.dumps({"key": key, "value": value}, sort_keys=True))
 
-        if not isinstance(payload, dict):
-            logger.warning(f"Invalid payload: {payload}")
-            return None
+    return results
 
-        result = {}
 
-        for field in required_fields:
-            value = payload.get(field)
-            if not value:
-                logger.warning(f"Missing field '{field}' in {payload}")
-                return None
-            result[field] = value
+def create_misp_event(data: dict, sharing_group_id: str | None = None, distribution: str | None = None) -> MISPEvent:
+    event = MISPEvent()
+    event.uuid = data.get("id", "")
+    event.info = data.get("title", "")
+    event.threat_level_id = 4
+    event.analysis = 0
 
-        if key_name_override and key is not None:
-            result[key_name_override] = key
+    if sharing_group_id:
+        event.sharing_group_id = int(sharing_group_id)
 
-        return result
+    if distribution:
+        event.distribution = int(distribution)
 
-    @staticmethod
-    def _process_items(data: Any, processor: Callable[..., Optional[Dict]], *processor_args, **processor_kwargs) -> List[str]:
-        if isinstance(data, dict):
-            items = data.items()
-        elif isinstance(data, list):
-            items = data
-        else:
-            logger.warning(f"Unexpected data format: {type(data)}")
-            return []
+    return event
 
-        results = []
-        for entry in items:
-            if processed := processor(entry, *processor_args, **processor_kwargs):
-                results.append(json.dumps(processed, sort_keys=True))
-        return results
 
-    def add_attributes_from_story(self, story: dict) -> list:
-        self.set_misp_event_uuid_attribute(story)
-        attribute_processor = partial(self._generic_processor, required_fields=["value"], key_name_override="key")
-        return self._process_items(story.get("attributes", {}), attribute_processor)
+def add_news_item_objects(news_items: list[dict], event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+    for news_item in news_items:
+        news_item.pop("last_change", None)
+        object_data = get_news_item_object_dict()
+        object_data.update({k: news_item[k] for k in object_data if k in news_item})
 
-    def create_misp_event(self, data: dict, sharing_group_id: str | None, distribution: str | None) -> MISPEvent:
-        event = MISPEvent()
-        event.uuid = data.get("id", "")
-        event.info = data.get("title", "")
-        event.threat_level_id = 4
-        event.analysis = 0
-        if sharing_group_id:
-            event.sharing_group_id = int(sharing_group_id)
-        if distribution:
-            event.distribution = int(distribution)
-        return event
-
-    def add_story_properties_to_event(self, story: dict, event: MISPEvent) -> None:
-        if news_items := story.pop("news_items", None):
-            self.add_news_item_objects(news_items, event)
-        self.add_story_object(story, event)
-
-    def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
-        for news_item in news_items:
-            news_item.pop("last_change", None)
-            object_data = self.get_news_item_object_dict()
-            object_data.update({k: news_item[k] for k in object_data if k in news_item})
-
-            news_item_object = BaseMispObject(
-                parameters=object_data, template="taranis-news-item", misp_objects_path_custom=self.misp_objects_path_custom
-            )
-            event.add_object(news_item_object)
-
-    def prepare_story_for_misp(self, story: dict) -> dict:
-        story.pop("last_change", None)
-
-        object_data = self.get_story_object_dict()
-        object_data.update({key: story[key] for key in object_data if key in story and story[key] not in (None, "", [], {})})
-
-        link_processor = partial(self._generic_processor, required_fields=["link", "news_item_id"])
-        object_data["links"] = self._process_items(story.get("links", []), link_processor)
-
-        tag_processor = partial(self._generic_processor, required_fields=["tag_type"], key_name_override="name")
-        object_data["tags"] = self._process_items(story.get("tags", {}), tag_processor)
-
-        return object_data
-
-    def add_story_object(self, story: dict, event: MISPEvent) -> None:
-        object_data = self.prepare_story_for_misp(story)
-        object_data["attributes"] = []
-
-        logger.debug(f"Adding story object with data: {object_data}")
-
-        story_object = BaseMispObject(
+        news_item_object = BaseMispObject(
             parameters=object_data,
-            template="taranis-story",
-            misp_objects_path_custom=self.misp_objects_path_custom,
+            template="taranis-news-item",
+            misp_objects_path_custom=misp_objects_path_custom,
         )
+        event.add_object(news_item_object)
 
-        attribute_list = self.add_attributes_from_story(story)
-        if story.get("attributes"):
-            story_object.add_attributes("attributes", *attribute_list)
-        event.add_object(story_object)
+
+def prepare_story_for_misp(story: dict) -> dict:
+    story.pop("last_change", None)
+
+    object_data = get_story_object_dict()
+    object_data.update({key: story[key] for key in object_data if key in story and story[key] not in (None, "", [], {})})
+
+    object_data["links"] = [
+        json.dumps({"link": item["link"], "news_item_id": item["news_item_id"]}, sort_keys=True)
+        for item in story.get("links", [])
+        if isinstance(item, dict) and "link" in item and "news_item_id" in item
+    ]
+
+    object_data["tags"] = [
+        json.dumps({"name": name, "tag_type": tag["tag_type"]}, sort_keys=True)
+        for name, tag in story.get("tags", {}).items()
+        if isinstance(tag, dict) and "tag_type" in tag
+    ]
+
+    return object_data
+
+
+def add_story_object(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+    object_data = prepare_story_for_misp(story)
+    object_data["attributes"] = []
+
+    logger.debug(f"Adding story object with data: {object_data}")
+
+    story_object = BaseMispObject(
+        parameters=object_data,
+        template="taranis-story",
+        misp_objects_path_custom=misp_objects_path_custom,
+    )
+
+    attribute_list = add_attributes_from_story(story)
+    if story.get("attributes"):
+        story_object.add_attributes("attributes", *attribute_list)
+
+    event.add_object(story_object)
+
+
+def add_story_properties_to_event(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+    if news_items := story.pop("news_items", None):
+        add_news_item_objects(news_items, event, misp_objects_path_custom=misp_objects_path_custom)
+
+    add_story_object(story, event, misp_objects_path_custom=misp_objects_path_custom)

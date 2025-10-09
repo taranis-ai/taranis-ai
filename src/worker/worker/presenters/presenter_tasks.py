@@ -27,7 +27,7 @@ class PresenterTask(Task):
             "stix_presenter": worker.presenters.STIXPresenter(),
         }
 
-    def get_product(self, product_id: int) -> dict[str, Any]:
+    def get_product(self, product_id: str) -> dict[str, Any]:
         product = None
         try:
             product = self.core_api.get_product(product_id)
@@ -59,7 +59,7 @@ class PresenterTask(Task):
 
         raise ValueError(f"Presenter {presenter_type} not implemented")
 
-    def run(self, product_id: int):
+    def run(self, product_id: str):
         product = self.get_product(product_id)
 
         presenter = self.get_presenter(product)
