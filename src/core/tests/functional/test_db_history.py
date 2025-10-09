@@ -9,27 +9,36 @@ class TestDbHistory:
     def test_story_history(self, session, full_story):  # assumes a fixture that gives a working session
         from core.model.story import Story
 
+        StoryHistory = Story.__history_mapper__.class_
+
         story: dict = full_story[0]
 
         story_tuple = Story.add(story)
-        test_logger.debug(f"Story added with tuple: {story_tuple}")
-        title_updated = {"title": "Second title"}
-        Story.update(story.get("id"), title_updated)
-
-        StoryHistory = Story.__history_mapper__.class_
-        test_logger.debug(f"StoryHistory class: {StoryHistory.__dict__=}")
-        # Should have one historical row with old title
-        # assert session.query(StoryHistory).filter(StoryHistory.version == 1).all() == [StoryHistory(version=1, title="First title")]
+        # Story version 1 created
         assert session.query(StoryHistory).filter(StoryHistory.version == 1).count() == 1
         assert session.query(StoryHistory).filter(StoryHistory.version == 1).first().title == "Test Aggregate"
 
-        # Should NOT create a history row for the current state
+        test_logger.debug(f"Story added with tuple: {story_tuple}")
+        title_updated = {"title": "Second title"}
+        Story.update(story.get("id"), title_updated)
+        # import pdb
+
+        # pdb.set_trace()
         current = Story.get(story.get("id", ""))
+
         assert current.title == "Second title"
+        assert session.query(StoryHistory).filter_by(version=2).first().title == "Second title", "Title should be updated in history"
+        # Story version 2 created
+
+        test_logger.debug(f"StoryHistory class: {StoryHistory.__dict__=}")
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 1
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == "Second title"
 
     def test_story_multiple_updates_history(self, session, full_story):
         """Test that multiple story updates create correct version history with incremental version numbers"""
         from core.model.story import Story
+
+        StoryHistory = Story.__history_mapper__.class_
 
         story: dict = full_story[0]
 
@@ -39,13 +48,18 @@ class TestDbHistory:
 
         # Extract story_id from the response tuple
         story_response, status_code = story_tuple
-        story_id = story_response.get("story_id") if isinstance(story_response, dict) else story.get("id")
+        story_id = story_response.get("story_id", "") if isinstance(story_response, dict) else story.get("id", "")
         test_logger.debug(f"Using story_id: {story_id}")
 
         # First update - should create version 1 in history
         first_update = {"title": "First Update Title", "description": "First update description"}
         Story.update(story_id, first_update)
         test_logger.debug("Applied first update")
+        import pdb
+
+        pdb.set_trace()
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 2
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == "First Update Title"
 
         # Second update - should create version 2 in history
         second_update = {"title": "Second Update Title", "description": "Second update description"}

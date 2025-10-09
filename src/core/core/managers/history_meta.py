@@ -2,6 +2,7 @@
 
 import datetime
 
+from core.log import logger
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import event
@@ -180,7 +181,7 @@ class Versioned:
 
     @property
     def version(self):
-        return getattr(self, '_version', 1)
+        return getattr(self, "_version", 1)
 
     @version.setter
     def version(self, value):
@@ -206,7 +207,7 @@ def versioned_objects(iter_):
             yield obj
 
 
-def create_version(obj, session, deleted=False):
+def create_version(obj, session, deleted=False, created=False):
     obj_mapper = object_mapper(obj)
     history_mapper = obj.__history_mapper__
     history_cls = history_mapper.class_
@@ -216,6 +217,8 @@ def create_version(obj, session, deleted=False):
     attr = {}
 
     obj_changed = False
+    # import pdb; pdb.set_trace()
+    # logger.debug(f"Checking changes for object: {obj}")
 
     for om, hm in zip(obj_mapper.iterate_to_root(), history_mapper.iterate_to_root()):
         if hm.single:
@@ -273,7 +276,7 @@ def create_version(obj, session, deleted=False):
                 if obj_changed is True:
                     break
 
-    if not obj_changed and not deleted:
+    if not obj_changed and not deleted and not created:
         return
 
     # Calculate the next version based on history table
@@ -287,9 +290,7 @@ def create_version(obj, session, deleted=False):
         conditions.append(history_table.c[pk_col.name] == pk_value)
 
     if conditions:
-        max_version = session.execute(
-            select(func.coalesce(func.max(history_table.c.version), 0)).where(and_(*conditions))
-        ).scalar()
+        max_version = session.execute(select(func.coalesce(func.max(history_table.c.version), 0)).where(and_(*conditions))).scalar()
         next_version = (max_version or 0) + 1
     else:
         next_version = 1
@@ -308,6 +309,7 @@ def create_version(obj, session, deleted=False):
 def versioned_session(session):
     @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
+        logger.debug("before_flush versioning")
         # Updates: only for persistent objects (exclude new ones!)
         for obj in versioned_objects(session.dirty):
             state = attributes.instance_state(obj)
@@ -320,10 +322,7 @@ def versioned_session(session):
 
     @event.listens_for(session, "after_flush")
     def after_flush(session, flush_context):
+        logger.debug("after_flush versioning")
         # Inserts: handled here
         for obj in versioned_objects(session.new):
             create_version(obj, session, created=True)
-
-
-
-

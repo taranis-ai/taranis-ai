@@ -9,7 +9,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
 
-from core.managers.history_meta import Versioned, versioned_session
+from core.managers.history_meta import Versioned
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.log import logger
@@ -50,8 +50,12 @@ class Story(Versioned, BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
-    report_items: Mapped[list["ReportItem"]] = relationship(
-        "ReportItem", secondary="report_item_story", back_populates="stories"
+    report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="report_item_story", back_populates="stories")
+    search_index: Mapped["StorySearchIndex"] = relationship(
+        "StorySearchIndex",
+        back_populates="story",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     def __init__(
@@ -435,18 +439,15 @@ class Story(Versioned, BaseModel):
     @classmethod
     def add(cls, data) -> "tuple[dict, int]":
         try:
-            story = cls.from_dict(data)
-            db.session.add(story)
-            
-            # Prepare search index
-            StorySearchIndex.prepare(story)
-            
-            # Update status 
-            story.update_status()
-            
-            # Single commit for all operations
+            with db.session.no_autoflush:
+                story = cls.from_dict(data)
+                db.session.add(story)
+
+                StorySearchIndex.prepare(story)
+                story.update_status()
+
             db.session.commit()
-            
+
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -543,6 +544,9 @@ class Story(Versioned, BaseModel):
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
+        import pdb
+
+        pdb.set_trace()
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -587,7 +591,7 @@ class Story(Versioned, BaseModel):
 
             story.last_change = "external" if external else "internal"
             story.update_timestamps()
-            
+
             # Single commit for all non-vote changes after all modifications
             db.session.commit()
             return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
@@ -1058,6 +1062,7 @@ class StorySearchIndex(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     data: Mapped[str] = db.Column(db.String)
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), index=True)
+    story: Mapped["Story"] = relationship(back_populates="search_index")
 
     def __init__(self, story_id, data=None):
         self.story_id = story_id
@@ -1072,10 +1077,8 @@ class StorySearchIndex(BaseModel):
 
     @classmethod
     def prepare(cls, story: "Story"):
-        search_index = db.session.execute(db.select(cls).filter_by(story_id=story.id)).scalar_one_or_none()
-        if search_index is None:
-            search_index = StorySearchIndex(story.id)
-            db.session.add(search_index)
+        if not story.search_index:
+            story.search_index = cls(story_id=story.id)
 
         data_components = [
             story.title,
@@ -1094,8 +1097,7 @@ class StorySearchIndex(BaseModel):
                     news_item.link,
                 ]
             )
-
-        search_index.data = " ".join(data_components).lower()
+        story.search_index.data = " ".join(data_components).lower()
 
 
 class NewsItemVote(BaseModel):
