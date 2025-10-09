@@ -1,7 +1,11 @@
-{% macro tri_state_filter(item) %}
+{% macro tri_state_filter(item, hx_attrs='') %}
   <label class="select w-full">
     <span class="label min-w-[100px]">{{ item.label }}</span>
-    <select name="{{ item.name }}" class="select select-bordered select-sm">
+    <select name="{{ item.name }}"
+            class="select select-bordered select-sm"
+            {% if hx_attrs %}{{ hx_attrs|safe }}{% endif %}
+            hx-trigger="change"
+            hx-vals='{"page": 1}'>
       <option value="" {% if item.value in ['', None] %}selected{% endif %}>Any</option>
       <option value="true" {% if item.value == 'true' %}selected{% endif %}>Yes</option>
       <option value="false" {% if item.value == 'false' %}selected{% endif %}>No</option>

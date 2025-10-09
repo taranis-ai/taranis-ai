@@ -6,10 +6,9 @@
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
+  {% set compact_view = false if detail_view else current_user.profile.compact_view %}
+  {% set line_clamp = "" if detail_view else "line-clamp-2" if compact_view else "line-clamp-5" %}
   {% set summary_content = story.summary or first_news.content %}
-  {% if request.endpoint == 'assess.story' %}
-    {% set detail_open = True %}
-  {% endif %}
 
   {% set card_classes = [
     "card",
@@ -21,8 +20,7 @@
     "transition",
     "duration-150",
     "hover:shadow-lg",
-    "relative",
-    "cursor-pointer"
+    "relative"
   ] %}
   {% if story.read | default(false) %}
     {% set card_classes = card_classes + ['border-base-200'] %}
@@ -31,6 +29,9 @@
   {% endif %}
   {% if story.important | default(false) %}
     {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
+  {% endif %}
+  {% if not detail_view %}
+    {% set card_classes = card_classes + ['cursor-pointer'] %}
   {% endif %}
 
   {% set tags_list = [] %}
@@ -46,8 +47,8 @@
 
   <article id="{{ card_id }}"
            class="{{ ' '.join(card_classes) }}"
-           x-data="{ isOpen: {{ 'true' if detail_open else 'false' }} }"
-           @click="toggleSelection('{{ story_id }}')"
+           x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
+           {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
            :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
            :aria-selected="isSelected('{{ story_id }}')">
     <div class="p-2 space-y-2">
@@ -69,41 +70,43 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
-            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Status</span>
-            <div class="flex items-center gap-2 text-xs">
-              {% if story.read | default(false) %}
-                <span class="badge badge-success badge-outline badge-xs">Read</span>
-              {% else %}
-                <span class="badge badge-primary badge-xs">Unread</span>
-              {% endif %}
-              {% if story.important | default(false) %}<span class="badge badge-warning badge-xs">Important</span>{% endif %}
-              {% if story.relevance is not none %}<span class="badge badge-outline badge-xs">Relevance {{ story.relevance }}</span>{% endif %}
-            </div>
-          </div>
-
-          {% if story.in_reports_count %}
-            {% set report_count = story.in_reports_count | int %}
-            {% set icon_count = 4 if report_count > 4 else report_count %}
+          {% if not compact_view %}
             <div class="flex items-center gap-2">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-              <div class="flex items-center gap-1 text-warning">
-                {% for _ in range(icon_count) %}{{ heroicon_mini("arrow-up-on-square") }}{% endfor %}
-                {% if report_count > icon_count %}<span class="text-xs text-base-content/60">+{{ report_count - icon_count }}</span>{% endif %}
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Status</span>
+              <div class="flex items-center gap-2 text-xs">
+                {% if story.read | default(false) %}
+                  <span class="badge badge-success badge-outline badge-xs">Read</span>
+                {% else %}
+                  <span class="badge badge-primary badge-xs">Unread</span>
+                {% endif %}
+                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs">Important</span>{% endif %}
+                {% if story.relevance is not none %}<span class="badge badge-outline badge-xs">Relevance {{ story.relevance }}</span>{% endif %}
               </div>
             </div>
-          {% endif %}
 
-          {% if tags_list %}
-            <div class="space-y-1">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
-              <div class="flex flex-wrap gap-2">
-                {% for tag in tags_list[:6] %}
-                  <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name or tag.title or tag }}</span>
-                {% endfor %}
-                {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
+            {% if story.in_reports_count %}
+              {% set report_count = story.in_reports_count | int %}
+              {% set icon_count = 4 if report_count > 4 else report_count %}
+              <div class="flex items-center gap-2">
+                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
+                <div class="flex items-center gap-1 text-warning">
+                  {% for _ in range(icon_count) %}{{ heroicon_mini("arrow-up-on-square") }}{% endfor %}
+                  {% if report_count > icon_count %}<span class="text-xs text-base-content/60">+{{ report_count - icon_count }}</span>{% endif %}
+                </div>
               </div>
-            </div>
+            {% endif %}
+
+            {% if tags_list %}
+              <div class="space-y-1">
+                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
+                <div class="flex flex-wrap gap-2">
+                  {% for tag in tags_list[:6] %}
+                    <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name or tag.title or tag }}</span>
+                  {% endfor %}
+                  {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
+                </div>
+              </div>
+            {% endif %}
           {% endif %}
 
           {% if story.model_extra.source_info %}
@@ -117,6 +120,15 @@
                        height="16"
                        width="16" />
                 {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if story.links %}
+            <div class="flex items-center gap-2">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Article</span>
+              <div class="flex items-center gap-1 text-xs">
+                <a href="{{ story.links[0] }}">{{ story.links[0] }}</a>
               </div>
             </div>
           {% endif %}
@@ -134,21 +146,24 @@
             {% endif %}
           </div>
 
-          {% if summary_content %}
-            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-5': !isOpen }">{{ summary_content }}</div>
-          {% else %}
-            <div class="text-sm text-base-content/80 prose" :class="{ 'line-clamp-5': !isOpen }">{{ story.description }}</div>
-          {% endif %}
+          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }">
+            {% if summary_content %}
+              {{ summary_content }}
+            {% else %}
+              {{ story.description }}
+            {% endif %}
+          </div>
         </section>
 
         <!-- actions column -->
         <section class="flex flex-col items-end gap-1 text-xs lg:flex-shrink-0 lg:ml-auto" @click.stop>
-          {{ story_card_actions(story, story_id, card_id, compact_view=current_user.profile.compact_view) }}
+          {{ story_card_actions(story, story_id, card_id, compact_view=compact_view) }}
         </section>
       </div>
 
+      <!-- expandable details section -->
       <div class="border-t border-base-200 pt-4 space-y-6" x-show="isOpen" x-transition x-cloak>
-        <div class="stats stats-vertical lg:stats-horizontal shadow bg-base-100">
+        <div class="stats stats-horizontal shadow bg-base-100">
           <div class="stat">
             <div class="stat-title">News items</div>
             <div class="stat-value text-lg">{{ news_count }}</div>
@@ -161,32 +176,24 @@
             <div class="stat-title">Dislikes</div>
             <div class="stat-value text-lg">{{ story.dislikes | default(0) }}</div>
           </div>
+          <div class="stat">
+            <div class="stat-title">Created</div>
+            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.created | format_datetime if story.created else '—' }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Updated</div>
+            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.updated | format_datetime if story.updated else '—' }}</div>
+          </div>
         </div>
 
-        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80">
-          <dl class="space-y-2 lg:flex-1">
-            <div class="flex justify-between gap-4">
-              <dt class="text-base-content/60">Created</dt>
-              <dd>
-                {{ story.created | format_datetime if story.created else '—' }}
-              </dd>
-            </div>
-            <div class="flex justify-between gap-4">
-              <dt class="text-base-content/60">Updated</dt>
-              <dd>
-                {{ story.last_updated | format_datetime if story.last_updated else '—' }}
-              </dd>
-            </div>
-            {% if story.comments %}
-              <div class="flex flex-col gap-1">
-                <dt class="text-base-content/60">Comments</dt>
-                <dd class="whitespace-pre-line">
-                  {{ story.comments }}
-                </dd>
-              </div>
-            {% endif %}
-          </dl>
+        {% if story.comments %}
+          <div class="flex flex-col gap-1 rounded-box bg-base-200/20 p-3 text-sm text-base-content/80">
+            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Comments</span>
+            <p class="whitespace-pre-line">{{ story.comments }}</p>
+          </div>
+        {% endif %}
 
+        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80">
           {% if tags_list %}
             <div class="space-y-2 lg:flex-1">
               <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
@@ -202,6 +209,7 @@
           {% endif %}
         </div>
 
+        <!-- news items list -->
         {% if news_items %}
           <div class="space-y-4">
             <div class="flex items-center gap-2">

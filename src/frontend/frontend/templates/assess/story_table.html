@@ -30,9 +30,9 @@
     }'
     {# djlint:on #}
     >
-    {% include "assess/assess_top_bar.html" %}
 
     {% if stories %}
+      {% include "assess/assess_top_bar.html" %}
       {% for story in stories %}{{ story_card(story) }}{% endfor %}
       <form method="get" class="flex justify-center my-4">
         <div class="join">

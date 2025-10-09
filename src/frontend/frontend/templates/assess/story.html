@@ -1,4 +1,3 @@
-{% from "macros/forms.html" import form_input, form_switch %}
-{% from "assess/story_card.html" import story_card %}
+{% from "assess/story_card.html" import story_card with context %}
 
-<div>{{ story_card(story) }}</div>
+<div x-data='{ isSelected(id) { return false; } }' class="p-8">{{ story_card(story, detail_view=True) }}</div>

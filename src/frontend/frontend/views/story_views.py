@@ -14,6 +14,7 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.cache_models import PagingData, CacheObject
+from frontend.utils.router_helpers import is_htmx_request
 
 
 class StoryView(BaseView):
@@ -214,10 +215,22 @@ class StoryView(BaseView):
         logger.debug(f"Got request params: {request_params}")
         paging_data = cls.parse_paging_data()
         logger.debug(f"paging data: {paging_data}")
-        # page = PagingData(**request_params)
-        # logger.debug(f"paging data: {page}")
 
-        return super().list_view()
+        try:
+            items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
+            error = None if items else f"No {cls.model_name()} items found"
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, cls.model))
+            items, error = None, format_pydantic_errors(exc, cls.model)
+        except Exception as exc:
+            logger.exception(f"Error retrieving {cls.model_name()} items")
+            items, error = None, str(exc)
+
+        if error and is_htmx_request():
+            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
+            return render_template("notification/index.html", notification={"message": error, "error": True}), 400
+
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
 
     @classmethod
     def render_list(cls) -> tuple[str, int]:
@@ -235,3 +248,9 @@ class StoryView(BaseView):
             status_code = 500
 
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
+
+    @classmethod
+    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+        context = super().get_item_context(object_id)
+        context["_show_sidebar"] = False
+        return context
