@@ -1,6 +1,6 @@
 from typing import Any
 from flask_jwt_extended import current_user
-from flask import json, render_template, request
+from flask import json, render_template, request, url_for
 from pydantic import ValidationError
 import hashlib
 
@@ -13,7 +13,7 @@ from frontend.auth import auth_required
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
-from frontend.cache_models import PagingData
+from frontend.cache_models import PagingData, CacheObject
 
 
 class StoryView(BaseView):
@@ -32,7 +32,10 @@ class StoryView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         base_context["filter_lists"] = cls._get_filter_lists()
         if stories := base_context.get("stories"):
-            base_context["stories"] = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
+            enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
+            base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
+            base_context["stories"] = enhanced_stories
+            base_context["actions"] = cls._get_bulk_actions()
         return base_context
 
     @classmethod
@@ -44,9 +47,15 @@ class StoryView(BaseView):
         return "assess/assess_sidebar.html"
 
     @staticmethod
-    def _get_enhanced_stories(stories: list[Story], sources: list[AssessSource]) -> list[Story]:
+    def _get_enhanced_stories(stories: CacheObject[Story], sources: list[AssessSource]) -> CacheObject[Story]:
         source_dict = {source.id: source for source in sources if source.id}
-        return [StoryView._enhance_story_with_details(story, source_dict) for story in stories]
+        return CacheObject(
+            [StoryView._enhance_story_with_details(story, source_dict) for story in stories.items],
+            total_count=stories.total_count,
+            page=stories.page,
+            limit=stories.limit,
+            order=stories.order,
+        )
 
     @staticmethod
     def _enhance_story_with_details(story: Story, sources: dict[str, Any]) -> Story:
@@ -102,6 +111,43 @@ class StoryView(BaseView):
         logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
         return cls.get_notification_from_dict({"message": "Story shared successfully", "category": "success"})
 
+    @classmethod
+    @auth_required()
+    def bulk_mark_read(cls):
+        return cls._handle_bulk_story_update(defaults={"read": True})
+
+    @classmethod
+    @auth_required()
+    def bulk_mark_important(cls):
+        return cls._handle_bulk_story_update(defaults={"important": True})
+
+    @classmethod
+    def _handle_bulk_story_update(cls, *, defaults: dict[str, Any]) -> tuple[str, int]:
+        payload = request.get_json(silent=True) or {}
+        story_ids = payload.get("story_ids") or []
+        if not isinstance(story_ids, list) or len(story_ids) == 0:
+            logger.debug("No story IDs supplied for bulk update. Returning current story list.")
+            return cls.list_view()
+
+        update_payload = {k: v for k, v in payload.items() if k != "story_ids"}
+        if not update_payload:
+            update_payload = defaults
+
+        api = CoreApi()
+        failed_updates: list[str] = []
+        for story_id in story_ids:
+            response = api.api_put(f"/assess/story/{story_id}", json_data=update_payload)
+            if not getattr(response, "ok", False):
+                failed_updates.append(story_id)
+                logger.warning(f"Failed to update story {story_id} with payload {update_payload}: {getattr(response, 'text', '')}")
+
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+
+        if failed_updates:
+            logger.error(f"Bulk update failed for stories: {failed_updates}")
+
+        return cls.list_view()
+
     @staticmethod
     def parse_paging_data() -> PagingData:
         """Unmarshal Flask request.args into a PagingData model."""
@@ -129,6 +175,37 @@ class StoryView(BaseView):
             search=search,
             query_params=query_params,
         )
+
+    @classmethod
+    def _get_bulk_actions(cls) -> list[dict[str, Any]]:
+        actions: list[dict[str, Any]] = []
+        if mark_read_url := url_for("assess.bulk_mark_read"):
+            actions.append(
+                {
+                    "label": "Mark as read",
+                    "icon": "eye",
+                    "btn_class": "btn-primary",
+                    "hx_post": mark_read_url,
+                    "target": "#assess",
+                    "swap": "outerHTML",
+                    "payload": {"read": True},
+                }
+            )
+
+        if mark_important_url := url_for("assess.bulk_mark_important"):
+            actions.append(
+                {
+                    "label": "Mark as important",
+                    "icon": "star",
+                    "btn_class": "btn-outline",
+                    "hx_post": mark_important_url,
+                    "target": "#assess",
+                    "swap": "outerHTML",
+                    "payload": {"important": True},
+                }
+            )
+
+        return actions
 
     @classmethod
     def list_view(cls):

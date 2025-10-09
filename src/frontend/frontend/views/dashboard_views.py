@@ -2,11 +2,11 @@ from flask import render_template, abort, request
 from flask_jwt_extended import current_user
 import plotly.express as px
 import pandas as pd
-from typing import Any
 from werkzeug.wrappers import Response
 
 
 from models.dashboard import Dashboard, TrendingCluster, Cluster
+from models.user import ProfileSettingsDashboard
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
 from frontend.views.base_view import BaseView
@@ -30,7 +30,7 @@ class DashboardView(BaseView):
     _read_only = True
 
     @classmethod
-    def static_view(cls, dashboard_config: dict | None = None):
+    def static_view(cls):
         error = None
         try:
             dashboard = DataPersistenceLayer().get_objects(cls.model)
@@ -38,24 +38,19 @@ class DashboardView(BaseView):
             dashboard = None
             error = str(exc)
 
-        user_dashboard: dict[str, Any] = {}
-
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
-            if dashboard_config is None:
-                user_dashboard = current_user.profile.get("dashboard", {})
-            else:
-                user_dashboard = dashboard_config
+            user_dashboard = current_user.profile.dashboard
         except Exception:
             trending_clusters = []
-            user_dashboard = {}
+            user_dashboard = ProfileSettingsDashboard()
 
         if error or not dashboard:
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
 
-        if cluster_filter := user_dashboard.get("trending_cluster_filter"):
+        if cluster_filter := user_dashboard.trending_cluster_filter:
             trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
 
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": user_dashboard}
@@ -83,9 +78,6 @@ class DashboardView(BaseView):
 
         logger.debug(f"Got Cluster {cluster_name} : {cluster}")
 
-        user_profile = current_user.profile or {}
-        dashboard_config = user_profile.get("dashboard", {})
-
         if not cluster:
             logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404
@@ -107,7 +99,7 @@ class DashboardView(BaseView):
             columns=columns,
             cluster_name=cluster_name,
             country_chart=country_chart,
-            dashboard_config=dashboard_config,
+            dashboard_config=current_user.profile.dashboard,
         ), 200
 
     @classmethod
@@ -118,9 +110,7 @@ class DashboardView(BaseView):
         except Exception:
             trending_clusters = []
 
-        user_profile = current_user.profile or {}
-        dashboard_config = user_profile.get("dashboard", {})
-        return render_template("dashboard/edit.html", dashboard=dashboard_config, clusters=trending_clusters)
+        return render_template("dashboard/edit.html", dashboard=current_user.profile.dashboard, clusters=trending_clusters)
 
     @classmethod
     def get_build_info(cls):
@@ -155,11 +145,8 @@ class DashboardView(BaseView):
                 "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
             )
 
-        dashboard_config = None
-        if updated_user := update_current_user_cache():
-            if user_profile := updated_user.profile:
-                dashboard_config = user_profile.get("dashboard", {})
-        dashboard, table_response = self.static_view(dashboard_config)
+        update_current_user_cache()
+        dashboard, table_response = self.static_view()
         if table_response == 200:
             response += dashboard
         return response, table_response

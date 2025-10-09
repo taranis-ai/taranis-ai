@@ -9,9 +9,9 @@
 {% set current_preset = request.args.get('range', '') %}
 {% set time_from = request.args.get('timefrom', '') %}
 {% set time_to = request.args.get('timeto', '') %}
-{% set highlight = request.args.get('highlight') %}
-{% set show_week_chart = request.args.get('show_week_chart') %}
-{% set compact_view = request.args.get('compact_view') %}
+{% set highlight = current_user.profile.highlight %}
+{% set show_week_chart = current_user.profile.show_week_chart %}
+{% set compact_view = current_user.profile.compact_view %}
 {% set read_filter = request.args.get('read', '') %}
 {% set important_filter = request.args.get('important', '') %}
 {% set in_report_filter = request.args.get('in_report', '') %}
@@ -158,19 +158,10 @@
 
     <div class="divider"></div>
     <div class="space-y-3">
-      <button type="button"
-              class="btn btn-primary btn-sm w-full"
-              name="action"
-              value="reset"
-              hx-get="{{ base_url }}"
-              hx-target="#assess"
-              hx-select="#assess"
-              hx-swap="outerHTML"
-              hx-push-url="true"
-              hx-target-error="#notification-bar">
+      <a href="{{ base_url }}" class="btn btn-primary btn-sm w-full">
         {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
         Reset filters
-      </button>
+      </a>
       {% if routes.edit_route %}
         <a class="btn btn-secondary btn-sm w-full" href="{{ routes.edit_route }}">
           {{ heroicon_outline('pencil-square', class='h-4 w-4') }}

@@ -176,7 +176,7 @@ class User(BaseModel):
 
         user.profile = updated_profile
         db.session.commit()
-        return {"message": "Profile updated"}, 200
+        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile()}, 200
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:

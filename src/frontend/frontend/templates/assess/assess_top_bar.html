@@ -1,0 +1,50 @@
+
+<div class="sticky top-16 z-10 mb-4">
+  <div class="bg-base-100 border border-base-300 shadow-lg rounded-box px-4 py-3">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between min-h-[3.5rem]">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 text-sm">
+        <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak>
+          <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
+          <span class="font-medium">stories selected</span>
+          <button type="button" class="btn btn-xs btn-ghost" @click="clearSelection()">clear</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-3" x-show="!selectedItems.length" x-transition.opacity x-cloak>
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-base-content">Total stories</span>
+            <span class="badge badge-ghost badge-lg">{{ stories.total_count }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        {% if actions %}
+          <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity x-cloak>
+            {% for action in actions %}
+              <form class="inline-flex"
+                    hx-encoding="json"
+                    {% if action.hx_post %}hx-post="{{ action.hx_post }}"{% endif %}
+                    {% if action.target %}hx-target="{{ action.target }}"{% endif %}
+                    {% if action.swap %}hx-swap="{{ action.swap }}"{% endif %}
+                    {% if action.confirm %}hx-confirm="{{ action.confirm }}"{% endif %}>
+                <button type="submit" class="btn btn-sm {{ action.btn_class | default("btn-outline") }}" @click.stop>
+                  {% if action.icon %}
+                    <span class="inline-flex items-center gap-2">
+                      {{ heroicon_mini(action.icon) }}
+                      <span>{{ action.label }}</span>
+                    </span>
+                  {% else %}
+                    {{ action.label }}
+                  {% endif %}
+                </button>
+              </form>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
+          {% if story_ids %}
+            <button type="button" class="btn btn-sm btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll()">Select all</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

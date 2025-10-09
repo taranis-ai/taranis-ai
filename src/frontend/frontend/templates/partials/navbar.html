@@ -7,7 +7,6 @@
   </a>
 </div>
 
-{# djlint:off J018 #}
 <nav>
   <ul class="menu bg-base-200 menu-horizontal rounded-box">
     {% if is_admin %}
@@ -48,9 +47,9 @@
         Assets
       </a>
     </li>
-    <li class="dropdown dropdown-end">
+    <li class="dropdown dropdown-end z-50">
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">{{ heroicon_outline("user-circle") }}</div>
-      <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+      <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow">
         <li>
           <a href="{{ url_for('user.profile') }}">Profile</a>
         </li>
@@ -64,4 +63,3 @@
     </li>
   </ul>
 </nav>
-{# djlint:on #}

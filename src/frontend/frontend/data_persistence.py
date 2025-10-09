@@ -84,7 +84,7 @@ class DataPersistenceLayer:
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")
             return CacheObject([], 0)
-        total_count = result.get("total_count", len(result_object))
+        total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
         cache_object = CacheObject(
             result_object,

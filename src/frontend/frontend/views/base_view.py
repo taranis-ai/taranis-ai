@@ -290,7 +290,6 @@ class BaseView(MethodView):
 
     @classmethod
     def update_view_table(cls, object_id: int | str = 0):
-        logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
             return render_template(
