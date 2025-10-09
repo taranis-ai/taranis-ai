@@ -317,7 +317,6 @@ class TestConnector:
 
         base_misp_builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(base_misp_builder)
-        BaseMispBuilder = base_misp_builder.BaseMispBuilder
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header)
         story = response.get_json()[0]
@@ -334,9 +333,8 @@ class TestConnector:
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
         updated_story = response.get_json()[0]
 
-        builder = BaseMispBuilder()
-        attribute_list = builder.add_attributes_from_story(updated_story)
-        object_data = builder.prepare_story_for_misp(updated_story)
+        attribute_list = base_misp_builder.add_attributes_from_story(updated_story)
+        object_data = base_misp_builder.prepare_story_for_misp(updated_story)
         tag_list = object_data.get("tags", [])
 
         assert attribute_list == [

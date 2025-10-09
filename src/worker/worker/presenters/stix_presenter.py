@@ -46,7 +46,7 @@ TYPE_MAP = {
 class STIXPresenter(BasePresenter):
     """
     Presenter that exports MISP-compatible reports into STIX 2.1 bundles.
-    Uses BaseMISPBuilder via composition to construct MISP events.
+    Uses base_misp_builder via composition to construct MISP events.
     """
 
     def __init__(self):
