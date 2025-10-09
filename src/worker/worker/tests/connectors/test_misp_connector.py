@@ -2,6 +2,7 @@ import pytest
 import json
 
 from worker.connectors import connector_tasks
+from worker.connectors import base_misp_builder
 from worker.config import Config
 
 
@@ -25,9 +26,9 @@ def core_mock(requests_mock, stories):
     requests_mock.post("https://test.misp.test/events/add", json={"Event": {"id": "49", "info": "Test Event"}})
 
 
-def test_news_item_object_keys_completeness(misp_connector, news_item_template):
+def test_news_item_object_keys_completeness(news_item_template):
     """Test that the object data keys match the template keys"""
-    object_data = misp_connector.builder.get_news_item_object_dict()
+    object_data = base_misp_builder.get_news_item_object_dict()
 
     template_keys = set(news_item_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
@@ -40,9 +41,9 @@ def test_news_item_object_keys_completeness(misp_connector, news_item_template):
     assert template_keys == object_data_keys, "Object data keys do not match the template"
 
 
-def test_story_object_completion(misp_connector, story_template):
+def test_story_object_completion(story_template):
     """Test that the object data keys match the template keys"""
-    object_data = misp_connector.builder.get_story_object_dict()
+    object_data = base_misp_builder.get_story_object_dict()
 
     template_keys = set(story_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
@@ -110,17 +111,13 @@ def test_drop_utf16_surrogates_edge_cases():
     # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
 
 
-def test_connector_story_processing(core_mock, caplog):
+def test_connector_story_processing(core_mock, connector_task, caplog):
     import logging
 
     # Set the logging level to ERROR to capture only error logs and fail properly
     caplog.set_level(logging.ERROR, logger="root")
 
-    from worker.connectors.connector_tasks import ConnectorTask
-
-    connector = ConnectorTask()
-
-    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    result = connector_task.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
 

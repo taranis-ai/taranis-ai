@@ -49,7 +49,7 @@ def story_get_by_id_mock(requests_mock, stories):
 
 
 @pytest.fixture
-def misp_connector():
-    from worker.connectors.misp_connector import MispConnector
+def connector_task():
+    from worker.connectors.connector_tasks import ConnectorTask
 
-    return MispConnector()
+    return ConnectorTask()
