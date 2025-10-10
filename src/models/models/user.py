@@ -6,6 +6,7 @@ from models.base import TaranisBaseModel
 
 class ProfileSettingsDashboard(TaranisBaseModel):
     show_trending_clusters: bool = True
+    show_charts: bool = True
     trending_cluster_days: int = 7
     trending_cluster_filter: list[Any] = Field(default_factory=list)
 

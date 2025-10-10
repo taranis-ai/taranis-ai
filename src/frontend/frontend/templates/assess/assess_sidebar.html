@@ -24,7 +24,6 @@
   {'label': 'Least relevant', 'value': 'relevance_asc'}
 ]) %}
 {% set quick_ranges = quick_ranges | default([
-  {'label': 'Any', 'value': ''},
   {'label': 'Shift', 'value': 'shift'},
   {'label': 'Week', 'value': 'week'},
   {'label': '24h', 'value': '24h'}
@@ -35,10 +34,16 @@
   {'name': 'in_report', 'label': 'In Reports', 'value': in_report_filter},
   {'name': 'relevant', 'label': 'Relevant', 'value': relevant_filter}
 ] %}
-{% set hx_common = 'hx-get="' ~ base_url ~ '" hx-target="#assess" hx-select="#assess" hx-swap="outerHTML" hx-push-url="true" hx-target-error="#notification-bar"' %}
 
-<div class="p-4 space-y-4" id="assess-sidebar" hx-target-error="#notification-bar">
-  <div class="space-y-4">
+<div class="p-4 space-y-4">
+  <form id="assess-sidebar"
+        hx-get="{{ base_url }}"
+        hx-target="#assess"
+        hx-select="#assess"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-target-error="#notification-bar"
+        hx-trigger="change from:form, keyup changed delay:500ms from:input, search from:input">
     <section class="space-y-3">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
@@ -54,14 +59,12 @@
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
-               name="search"
+               oninput="this.name = this.value ? 'search' : ''"
                value="{{ current_search }}"
                placeholder="Search stories"
                class="grow"
                autocomplete="off"
-               {{ hx_common|safe }}
-               hx-trigger="keyup changed delay:500ms, search"
-               hx-vals='{"page": 1}'>
+               hx-trigger="keyup changed delay:500ms, search">
       </label>
     </section>
 
@@ -69,7 +72,7 @@
     <section class="space-y-4">
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source group</span>
-        <select name="group" class="select select-sm" {{ hx_common|safe }} hx-trigger="change">
+        <select onchange="this.name = this.value ? 'group' : ''" class="select select-sm" hx-trigger="change">
           {% if not selected_groups %}<option disabled selected>Pick a Source Group</option>{% endif %}
           {% for group in filter_lists.groups %}
             <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
@@ -78,7 +81,7 @@
       </label>
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source</span>
-        <select name="source" class="select select-sm" {{ hx_common|safe }} hx-trigger="change">
+        <select onchange="this.name = this.value ? 'source' : ''" class="select select-sm" hx-trigger="change">
           {% if not selected_sources %}<option disabled selected>Pick a Source</option>{% endif %}
           {% for source in filter_lists.sources %}
             <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
@@ -95,13 +98,7 @@
           {% for preset in quick_ranges %}
             {% set is_active = current_preset == preset.value %}
             <label class="btn btn-sm join-item {% if is_active %}btn-primary{% else %}btn-outline{% endif %}">
-              <input type="radio"
-                     name="range"
-                     value="{{ preset.value }}"
-                     class="hidden"
-                     {{ hx_common|safe }}
-                     hx-trigger="change"
-                     {% if is_active %}checked{% endif %}>
+              <input type="radio" name="range" value="{{ preset.value }}" class="hidden" hx-trigger="change" {% if is_active %}checked{% endif %}>
               {{ preset.label }}
             </label>
           {% endfor %}
@@ -111,32 +108,28 @@
         <label class="form-control w-full">
           <span class="label-text text-xs font-medium uppercase text-base-content/70">From</span>
           <input type="datetime-local"
-                 name="timefrom"
                  value="{{ time_from }}"
+                 onchange="this.name = this.value ? 'timefrom' : ''"
                  class="input input-bordered input-sm"
-                 {{ hx_common|safe }}
-                 hx-trigger="change delay:250ms"
-                 hx-vals='{"page": 1}'>
+                 hx-trigger="change delay:250ms">
         </label>
         <label class="form-control w-full">
           <span class="label-text text-xs font-medium uppercase text-base-content/70">To</span>
           <input type="datetime-local"
-                 name="timeto"
+                 onchange="this.name = this.value ? 'timeto' : ''"
                  value="{{ time_to }}"
                  class="input input-bordered input-sm"
-                 {{ hx_common|safe }}
-                 hx-trigger="change delay:250ms"
-                 hx-vals='{"page": 1}'>
+                 hx-trigger="change delay:250ms">
         </label>
       </div>
     </section>
 
     <div class="divider text-xs">Status</div>
     <section class="space-y-3">
-      {% for item in tri_state_filters %}{{ tri_state_filter(item, hx_common) }}{% endfor %}
+      {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
       <label class="select w-full">
         <span class="label">Cybersecurity</span>
-        <select name="cybersecurity" class="select select-bordered select-sm" {{ hx_common|safe }} hx-trigger="change" hx-vals='{"page": 1}'>
+        <select onchange="this.name = this.value ? 'cybersecurity' : ''" class="select select-bordered select-sm" hx-trigger="change">
           <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
           {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
             <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
@@ -149,61 +142,61 @@
     <section>
       <label class="select w-full">
         <span class="label">Order</span>
-        <select name="order" class="select select-bordered select-sm" {{ hx_common|safe }} hx-trigger="change" hx-vals='{"page": 1}'>
+        <select onchange="this.name = this.value ? 'order' : ''" class="select select-bordered select-sm" hx-trigger="change">
           {% for option in sort_choices %}
             <option value="{{ option.value }}" {% if option.value == current_order %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>
       </label>
     </section>
+  </form>
 
-    <div class="divider text-xs">Display</div>
-    <section class="space-y-2">
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox"
-               class="checkbox checkbox-sm"
-               name="highlight"
-               value="true"
-               hx-post="{{ url_for('user.settings') }}"
-               hx-trigger="change"
-               {% if highlight %}checked{% endif %}>
-        <span class="label-text">Highlight searchterms</span>
-      </label>
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox"
-               class="checkbox checkbox-sm"
-               name="show_week_chart"
-               value="true"
-               hx-post="{{ url_for('user.settings') }}"
-               hx-trigger="change"
-               {% if show_week_chart %}checked{% endif %}>
-        <span class="label-text">Show charts</span>
-      </label>
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox"
-               class="checkbox checkbox-sm"
-               name="compact_view"
-               value="true"
-               hx-post="{{ url_for('user.settings') }}"
-               hx-trigger="change"
-               {% if compact_view %}checked{% endif %}>
-        <span class="label-text">Compact view</span>
-      </label>
-    </section>
+  <div class="divider text-xs">Display</div>
+  <section class="space-y-2">
+    <label class="label cursor-pointer justify-start gap-3">
+      <input type="checkbox"
+             class="checkbox checkbox-sm"
+             name="highlight"
+             value="true"
+             hx-post="{{ url_for('user.settings') }}"
+             hx-trigger="change"
+             {% if highlight %}checked{% endif %}>
+      <span class="label-text">Highlight searchterms</span>
+    </label>
+    <label class="label cursor-pointer justify-start gap-3">
+      <input type="checkbox"
+             class="checkbox checkbox-sm"
+             name="show_week_chart"
+             value="true"
+             hx-post="{{ url_for('user.settings') }}"
+             hx-trigger="change"
+             {% if show_week_chart %}checked{% endif %}>
+      <span class="label-text">Show charts</span>
+    </label>
+    <label class="label cursor-pointer justify-start gap-3">
+      <input type="checkbox"
+             class="checkbox checkbox-sm"
+             name="compact_view"
+             value="true"
+             hx-post="{{ url_for('user.settings') }}"
+             hx-trigger="change"
+             {% if compact_view %}checked{% endif %}>
+      <span class="label-text">Compact view</span>
+    </label>
+  </section>
 
-    <div class="divider"></div>
-    <div class="space-y-3">
-      <a href="{{ base_url }}" class="btn btn-primary btn-sm w-full">
-        {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
-        Reset filters
+  <div class="divider"></div>
+  <div class="space-y-3">
+    <a href="{{ base_url }}" class="btn btn-primary btn-sm w-full">
+      {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
+      Reset filters
+    </a>
+    {% if routes.edit_route %}
+      <a class="btn btn-secondary btn-sm w-full" href="{{ routes.edit_route }}">
+        {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
+        Create new item
       </a>
-      {% if routes.edit_route %}
-        <a class="btn btn-secondary btn-sm w-full" href="{{ routes.edit_route }}">
-          {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
-          Create new item
-        </a>
-      {% endif %}
-    </div>
+    {% endif %}
   </div>
 
   <div class="divider"></div>
