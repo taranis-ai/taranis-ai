@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% set default_author = current_user.name %}
+
+  {% set title = news_item.title or '' %}
+  {% set review = news_item.review or '' %}
+  {% set content = news_item.content or '' %}
+  {% set link = news_item.link or news_item.web_url or '' %}
+  {% set source = news_item.source or 'manual' %}
+  {% set osint_source_id = news_item.osint_source_id or 'manual' %}
+  {% set author_value = news_item.author %}
+  {% set published_raw = news_item.published %}
+  {% set collected_raw = news_item.collected %}
+  {% set language = news_item.language or '' %}
+  {% set attributes_list = news_item.attributes or [] %}
+
+  {% set published_value = "" %}
+  {% if published_raw %}
+    {% if published_raw is string %}
+      {% set published_clean = published_raw.replace(' ', 'T') %}
+      {% set published_value = published_clean[:16] %}
+    {% else %}
+      {% set published_value = published_raw.isoformat()[:16] %}
+    {% endif %}
+  {% endif %}
+
+  {% set attrs_ns = namespace(items=[]) %}
+  {% for attr in attributes_list %}
+    {% if attr is mapping %}
+      {% set _ = attrs_ns.items.append({'key': attr.get('key', ''), 'value': attr.get('value', '')}) %}
+    {% elif attr %}
+      {% set attr_key_candidate = attr | attr('key') %}
+      {% set attr_value_candidate = attr | attr('value') %}
+      {% set key_val = attr_key_candidate if attr_key_candidate is not undefined else '' %}
+      {% if attr_value_candidate is not undefined %}
+        {% set value_val = attr_value_candidate %}
+      {% elif attr is string %}
+        {% set value_val = attr %}
+      {% else %}
+        {% set value_val = "" %}
+      {% endif %}
+      {% set _ = attrs_ns.items.append({'key': key_val, 'value': value_val}) %}
+    {% endif %}
+  {% endfor %}
+  {% if attrs_ns.items %}
+    {% set prepared_attributes = attrs_ns.items %}
+  {% else %}
+    {% set prepared_attributes = [] %}
+  {% endif %}
+
+  {% set attributes_data = prepared_attributes | tojson | safe %}
+  {% set read_only = source and source != 'manual' %}
+  {% set is_edit = item_id not in ['0', '', none] %}
+  {% set submit_label = 'Add to story' if story_id_val else ('Update news item' if is_edit else 'Create news item') %}
+  {% set source_badge = 'badge-success' if source == 'manual' else 'badge-warning' %}
+  {% set current_url = request.full_path.rstrip('?') if request.full_path else request.path %}
+
+  <section id="news-item-editor" class="px-4 py-4" hx-get="{{ current_url }}" hx-trigger="story:reload from:body" hx-target="this" hx-swap="outerHTML">
+    <div class="mx-auto flex max-w-5xl flex-col gap-6">
+      <header class="space-y-3">
+        <p class="text-xs uppercase tracking-wide text-base-content/60">News item · {{ item_id if is_edit else 'manual-draft' }}</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-3xl font-semibold tracking-tight">{{ title or 'Create manual news item' }}</h1>
+          <span class="badge {{ source_badge }} badge-sm">{{ source or 'manual' }}</span>
+          {% if story_id_val %}<span class="badge badge-outline badge-sm">Story {{ story_id_val }}</span>{% endif %}
+        </div>
+        {% if story_id_val %}
+          <p class="text-sm text-base-content/70">
+            Submitting will link this entry to story <code class="badge badge-ghost badge-xs">{{ story_id_val }}</code>.
+          </p>
+        {% endif %}
+      </header>
+
+      {% if read_only %}
+        <div class="alert alert-warning shadow-lg border border-warning/40">
+          <span class="font-semibold text-sm">Editing disabled</span>
+          <span class="text-sm">Only manually created news items can be edited here. Review the content below or open the original source to make updates.</span>
+        </div>
+      {% endif %}
+
+      <form id="news-item-form"
+            class="card bg-base-100 shadow-xl border border-base-200"
+            hx-post="{{ url_for('assess.create_news_item', news_item_id=item_id) }}"
+            hx-target="#notification-bar"
+            hx-swap="innerHTML">
+        <div class="card-body space-y-6">
+          <label class="input w-full">
+            <span class="label-text font-semibold">Title <span class="text-error">*</span></span>
+            <input type="text"
+                   name="title"
+                   value="{{ title }}"
+                   required
+                   placeholder="Add a headline that summarises the article"
+                   class="input input-bordered input-lg w-full"
+                   {% if read_only %}readonly{% endif %}>
+          </label>
+
+          <label class="input w-full">
+            <span class="label-text font-semibold">Published</span>
+            <input type="datetime-local"
+                   name="published"
+                   value="{{ published_value }}"
+                   class="input input-bordered w-full"
+                   {% if read_only %}readonly{% endif %}>
+            <span class="label-text-alt text-xs text-base-content/60">Use local time; leave blank if unknown.</span>
+          </label>
+
+          <label class="input w-full">
+            <span class="label-text font-semibold">Link</span>
+            <input type="url"
+                   name="link"
+                   value="{{ link }}"
+                   placeholder="https://example.com/story"
+                   class="input input-bordered w-full"
+                   {% if read_only %}readonly{% endif %}>
+            <span class="label-text-alt text-xs text-base-content/60">Providing a URL helps others trace the original source.</span>
+          </label>
+
+          <label class="floating-label w-full">
+            <span class="label font-semibold">Content</span>
+            <textarea name="content"
+                      class="textarea textarea-bordered leading-relaxed"
+                      placeholder="Paste the relevant excerpt or your own summary"
+                      {% if read_only %}readonly{% endif %}>{{ content }}</textarea>
+          </label>
+
+          <label class="floating-label w-full">
+            <span class="label font-semibold">Analyst review</span>
+            <textarea name="review"
+                      rows="5"
+                      class="textarea textarea-bordered"
+                      placeholder="Capture analyst commentary, caveats, or recommended follow-up"
+                      {% if read_only %}readonly{% endif %}>{{ review }}</textarea>
+          </label>
+
+          <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5"
+                   x-data='{ attributes: {{ attributes_data }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } this.attributes = this.attributes.map(attr => { if (!attr) return { key: "", value: "" }; if (typeof attr === "string") return { key: attr, value: "" }; return { key: attr.key || "", value: attr.value || "" }; }); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } }, addAttribute() { this.attributes.push({ key: "", value: "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } } }'>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-semibold">Attributes</h2>
+                <p class="text-xs text-base-content/60">Optional key/value tags like sentiment, TLP, or classification.</p>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" @click="addAttribute()" {% if read_only %}disabled{% endif %}>Add attribute</button>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-3">
+              <template x-for="(attribute, index) in attributes" :key="index">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,0.6fr),minmax(0,1fr),auto] items-center">
+                  <input class="input input-bordered input-sm"
+                         type="text"
+                         x-model="attribute.key"
+                         name="attributes[][key]"
+                         placeholder="Key (e.g. sentiment_category)"
+                         {% if read_only %}disabled{% endif %}>
+                  <input class="input input-bordered input-sm"
+                         type="text"
+                         x-model="attribute.value"
+                         name="attributes[][value]"
+                         placeholder="Value"
+                         {% if read_only %}disabled{% endif %}>
+                  <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
+                    Remove
+                  </button>
+                </div>
+              </template>
+            </div>
+          </section>
+
+          <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <button type="submit" class="btn btn-primary md:w-56" {% if read_only %}disabled{% endif %}>{{ submit_label }}</button>
+            <a href="{{ url_for('assess.assess') }}" class="btn btn-ghost md:w-40">Cancel</a>
+            {% if read_only %}<p class="text-xs text-error md:ml-2">Submission disabled because this item originated from {{ source }}.</p>{% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock content %}

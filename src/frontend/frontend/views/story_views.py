@@ -7,6 +7,7 @@ import hashlib
 
 from models.assess import Story, FilterLists, AssessSource, NewsItem
 from models.admin import Connector
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
 from frontend.core_api import CoreApi
 from frontend.cache import get_model_from_cache, add_model_to_cache
@@ -378,6 +379,30 @@ class StoryView(BaseView):
         flask_response = make_response(notification_html, status_code)
         flask_response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
         return flask_response
+
+    @classmethod
+    @auth_required()
+    def news_item_view(cls, news_item_id: str = "0"):
+        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
+        return render_template("assess/news_item_create.html", news_item=news_item), 200
+
+    @classmethod
+    @auth_required()
+    def create_news_item(cls, news_item_id: str = "0"):
+        form_data = parse_formdata(request.form)
+        news_item = NewsItem(**form_data)
+        api = CoreApi()
+        if news_item_id == "0":
+            response = api.api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+        else:
+            response = api.api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+
+        notification = cls.get_notification_from_response(response)
+
+        notification_html = render_template("notification/index.html", notification=notification)
+        response = make_response(notification_html, 200 if getattr(response, "ok", False) else 400)
+        response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
+        return response
 
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
