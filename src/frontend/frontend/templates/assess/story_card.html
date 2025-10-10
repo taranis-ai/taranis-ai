@@ -7,21 +7,10 @@
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
   {% set compact_view = false if detail_view else current_user.profile.compact_view %}
-  {% set line_clamp = "" if detail_view else "line-clamp-2" if compact_view else "line-clamp-5" %}
+  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-5" %}
   {% set summary_content = story.summary or first_news.content %}
 
-  {% set card_classes = [
-    "card",
-    "card-bordered",
-    "bg-base-100",
-    "shadow-sm",
-    "mb-4",
-    "border-l-4",
-    "transition",
-    "duration-150",
-    "hover:shadow-lg",
-    "relative"
-  ] %}
+  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative"] %}
   {% if story.read | default(false) %}
     {% set card_classes = card_classes + ['border-base-200'] %}
   {% else %}
@@ -30,6 +19,12 @@
   {% if story.important | default(false) %}
     {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
   {% endif %}
+  {% if compact_view %}
+    {% set card_classes = card_classes + ['mb-1'] %}
+  {% else %}
+    {% set card_classes = card_classes + ['mb-3'] %}
+  {% endif %}
+
   {% if not detail_view %}
     {% set card_classes = card_classes + ['cursor-pointer'] %}
   {% endif %}
@@ -55,7 +50,7 @@
       <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
 
         <!-- status and metadata column -->
-        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0">
+        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0 lg:w-64">
           <div class="flex items-start gap-2">
             <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
             <div class="flex flex-col gap-1">
@@ -110,25 +105,16 @@
           {% endif %}
 
           {% if story.model_extra.source_info %}
-            <div class="flex items-center gap-2">
+            <div class="flex gap-2">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Source</span>
-              <div class="flex items-center gap-1 text-xs">
-                <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ story.model_extra.source_info.name }}</span>
+              <div class="flex gap-1 text-xs truncate">
+                <span class="whitespace-nowrap truncate">{{ story.model_extra.source_info.name }}</span>
                 {% if story.model_extra.source_info.icon %}
                   <img src="data:image/png;base64,{{ story.model_extra.source_info.icon | string }}"
                        alt="{{ story.model_extra.source_info.name }}"
                        height="16"
                        width="16" />
                 {% endif %}
-              </div>
-            </div>
-          {% endif %}
-
-          {% if story.links %}
-            <div class="flex items-center gap-2">
-              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Article</span>
-              <div class="flex items-center gap-1 text-xs">
-                <a href="{{ story.links[0] }}">{{ story.links[0] }}</a>
               </div>
             </div>
           {% endif %}
@@ -162,7 +148,7 @@
       </div>
 
       <!-- expandable details section -->
-      <div class="border-t border-base-200 pt-4 space-y-6" x-show="isOpen" x-transition x-cloak>
+      <div class="border-t border-base-200 pt-4 space-y-2" x-show="isOpen" x-transition x-cloak>
         <div class="stats stats-horizontal shadow bg-base-100">
           <div class="stat">
             <div class="stat-title">News items</div>
@@ -211,12 +197,12 @@
 
         <!-- news items list -->
         {% if news_items %}
-          <div class="space-y-4">
+          <div class="space-y-2">
             <div class="flex items-center gap-2">
               <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
               <span class="badge badge-outline badge-sm">{{ news_count }}</span>
             </div>
-            <div class="space-y-6">
+            <div class="space-y-2">
               {% for item in news_items %}{{ news_item_card(item) }}{% endfor %}
             </div>
           </div>

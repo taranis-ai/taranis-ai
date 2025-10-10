@@ -199,7 +199,7 @@ def format_datetime(value: datetime | str) -> str:
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     if isinstance(value, datetime):
-        return value.strftime("%A, %d. %B %Y %H:%M")
+        return value.strftime("%d. %B %Y %H:%M")
     return value
 
 

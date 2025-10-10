@@ -43,7 +43,6 @@ class Story(BaseModel):
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
-    links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
@@ -63,7 +62,6 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
-        links=None,
         attributes: list[dict] | None = None,
         tags=None,
         news_items=None,
@@ -81,7 +79,6 @@ class Story(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
-        self.links = links or []
         self.last_change = "external" if last_change is None else last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
@@ -106,6 +103,10 @@ class Story(BaseModel):
         elif isinstance(news_items[0], NewsItem):
             return news_items
         return []
+
+    @property
+    def links(self) -> list[str]:
+        return [item.link for item in self.news_items if getattr(item, "link", None)]
 
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
@@ -588,7 +589,8 @@ class Story(BaseModel):
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
-        story = cls.get(story_id)
+        story: "Story | None" = cls.get(story_id)
+        logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
@@ -618,9 +620,6 @@ class Story(BaseModel):
 
         if "attributes" in data:
             story.set_attributes(data["attributes"])
-
-        if "links" in data:
-            story.links = data["links"]
 
         story.last_change = "external" if external else "internal"
 
@@ -707,6 +706,8 @@ class Story(BaseModel):
         remove_attributes() for deletions.
         """
         parsed_attributes = NewsItemAttribute.parse_attributes(attributes)
+        if len(parsed_attributes) == 0:
+            return
         input_keys = set(parsed_attributes.keys())
         existing_keys = {attr.key for attr in self.attributes}
 
@@ -1132,6 +1133,7 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
+        data["links"] = self.links
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
@@ -1140,6 +1142,7 @@ class Story(BaseModel):
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
+        data["links"] = self.links
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:

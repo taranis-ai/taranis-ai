@@ -8,3 +8,5 @@ class WorkerView(AdminMixin, BaseView):
     icon = "wallet"
     _index = 60
     _read_only = True
+
+    edit_route = "admin.edit_worker_type"

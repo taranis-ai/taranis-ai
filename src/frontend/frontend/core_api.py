@@ -220,3 +220,6 @@ class CoreApi:
 
     def update_user_profile(self, form_data: dict) -> requests.Response:
         return self.api_post("/users/profile", json_data=form_data)
+
+    def clone_report(self, report_id: str) -> requests.Response:
+        return self.api_post(f"/analyze/report-items/{report_id}/clone")

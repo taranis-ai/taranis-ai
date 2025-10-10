@@ -37,8 +37,8 @@
 ] %}
 {% set hx_common = 'hx-get="' ~ base_url ~ '" hx-target="#assess" hx-select="#assess" hx-swap="outerHTML" hx-push-url="true" hx-target-error="#notification-bar"' %}
 
-<div class="p-4 space-y-6" id="assess-sidebar" hx-target-error="#notification-bar">
-  <div class="space-y-6">
+<div class="p-4 space-y-4" id="assess-sidebar" hx-target-error="#notification-bar">
+  <div class="space-y-4">
     <section class="space-y-3">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
@@ -69,19 +69,19 @@
     <section class="space-y-4">
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source group</span>
-        <select name="group" class="select select-sm" {{ hx_common|safe }} hx-trigger="change" hx-vals='{"page": 1}'>
+        <select name="group" class="select select-sm" {{ hx_common|safe }} hx-trigger="change">
           {% if not selected_groups %}<option disabled selected>Pick a Source Group</option>{% endif %}
           {% for group in filter_lists.groups %}
-            <option value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
+            <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
           {% endfor %}
         </select>
       </label>
       <label class="form-control w-full">
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Source</span>
-        <select name="source" class="select select-sm" {{ hx_common|safe }} hx-trigger="change" hx-vals='{"page": 1}'>
+        <select name="source" class="select select-sm" {{ hx_common|safe }} hx-trigger="change">
           {% if not selected_sources %}<option disabled selected>Pick a Source</option>{% endif %}
           {% for source in filter_lists.sources %}
-            <option value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
+            <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -101,7 +101,6 @@
                      class="hidden"
                      {{ hx_common|safe }}
                      hx-trigger="change"
-                     hx-vals='{"page": 1}'
                      {% if is_active %}checked{% endif %}>
               {{ preset.label }}
             </label>
@@ -165,9 +164,8 @@
                class="checkbox checkbox-sm"
                name="highlight"
                value="true"
-               {{ hx_common|safe }}
+               hx-post="{{ url_for('user.settings') }}"
                hx-trigger="change"
-               hx-vals='{"page": 1}'
                {% if highlight %}checked{% endif %}>
         <span class="label-text">Highlight keywords</span>
       </label>
@@ -176,9 +174,8 @@
                class="checkbox checkbox-sm"
                name="show_week_chart"
                value="true"
-               {{ hx_common|safe }}
+               hx-post="{{ url_for('user.settings') }}"
                hx-trigger="change"
-               hx-vals='{"page": 1}'
                {% if show_week_chart %}checked{% endif %}>
         <span class="label-text">Show charts</span>
       </label>
@@ -187,9 +184,8 @@
                class="checkbox checkbox-sm"
                name="compact_view"
                value="true"
-               {{ hx_common|safe }}
+               hx-post="{{ url_for('user.settings') }}"
                hx-trigger="change"
-               hx-vals='{"page": 1}'
                {% if compact_view %}checked{% endif %}>
         <span class="label-text">Compact view</span>
       </label>
@@ -197,7 +193,7 @@
 
     <div class="divider"></div>
     <div class="space-y-3">
-      <a href="{{ base_url }}" class="btn btn-primary btn-sm w-full" {{ hx_common|safe }}>
+      <a href="{{ base_url }}" class="btn btn-primary btn-sm w-full">
         {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
         Reset filters
       </a>

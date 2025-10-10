@@ -1,17 +1,15 @@
-from __future__ import annotations
-
 from collections import OrderedDict
 from typing import Any
-
-from flask import request, abort, Response
+from flask import request, abort, Response, url_for
 
 from frontend.log import logger
-
 from models.report import ReportItem
 from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_datetime, render_count, render_item_type
+from frontend.auth import auth_required
+from frontend.core_api import CoreApi
 
 
 class ReportItemView(BaseView):
@@ -41,10 +39,22 @@ class ReportItemView(BaseView):
         ]
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
-        return cls._augment_context(base_context)
+        report: ReportItem | None = base_context.get(cls.model_name())  # type: ignore[assignment]
+        raw_attributes = report.attributes if report else []
+        layout = request.args.get("layout", base_context.get("layout", "split"))
+        layout = layout if layout in {"split", "stacked"} else "split"
+
+        base_context |= {
+            "layout": layout,
+            "grouped_attributes": cls._group_attributes(raw_attributes),
+            "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
+            "actions": cls.get_report_actions(),
+        }
+
+        return base_context
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
@@ -53,19 +63,29 @@ class ReportItemView(BaseView):
         return context
 
     @classmethod
-    def _augment_context(cls, context: dict[str, Any]) -> dict[str, Any]:
-        report: ReportItem | None = context.get(cls.model_name())  # type: ignore[assignment]
-        raw_attributes = report.attributes if report else []
-        layout = request.args.get("layout", context.get("layout", "split"))
-        layout = layout if layout in {"split", "stacked"} else "split"
-
-        context |= {
-            "layout": layout,
-            "grouped_attributes": cls._group_attributes(raw_attributes),
-            "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
-        }
-
-        return context
+    def get_report_actions(cls) -> list[dict[str, Any]]:
+        return [
+            {
+                "label": "Clone Report",
+                "icon": "document-duplicate",
+                "method": "post",
+                "url": url_for("analyze.clone_report", report_id=""),
+                "hx_target": f"#{cls.model_name()}-table-container",
+                "hx_swap": "outerHTML",
+            },
+            {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": url_for(cls.edit_route, report_id=""), "type": "link"},
+            {
+                "label": "Delete",
+                "icon": "trash",
+                "class": "btn-error",
+                "method": "delete",
+                "url": url_for(cls.edit_route, report_id=""),
+                "hx_target": f"#{cls.model_name()}-table-container",
+                "hx_swap": "outerHTML",
+                "type": "button",
+                "confirm": "Are you sure you want to delete this item?",
+            },
+        ]
 
     @staticmethod
     def _group_attributes(attributes: list | dict[str, str]) -> list[dict[str, Any]]:
@@ -98,6 +118,15 @@ class ReportItemView(BaseView):
                 if story_id not in collected:
                     collected.append(story_id)
         return collected
+
+    @staticmethod
+    @auth_required()
+    def clone_report(report_id: str) -> tuple[str, int] | Response:
+        if not report_id:
+            abort(400, description="No report ID provided for cloning.")
+        CoreApi().clone_report(report_id)
+        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
+        return ReportItemView.list_view()
 
     @staticmethod
     def _get_attribute_value(attribute: Any, key: str) -> Any:

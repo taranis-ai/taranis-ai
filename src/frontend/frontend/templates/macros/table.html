@@ -24,7 +24,7 @@
     <tbody>
       {% if data %}
         {% for item in data %}
-          {% set edit_route = routes.base_route ~ '/' ~ item.id %}
+          {% set edit_route = routes.edit_route[:-1] ~ item.id %}
           <tr class="hover:bg-info">
             {% if selectable %}
               <td>
