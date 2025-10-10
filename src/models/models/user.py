@@ -23,6 +23,7 @@ class ProfileSettings(TaranisBaseModel):
     hotkeys: dict[str, Any] = Field(default_factory=dict)
     split_view: bool = False
     end_of_shift: str | dict = None
+    highlight: bool = True
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 
 

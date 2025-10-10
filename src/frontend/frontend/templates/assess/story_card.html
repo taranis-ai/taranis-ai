@@ -7,7 +7,7 @@
   {% set news_count = news_items | length %}
   {% set first_news = news_items[0] if news_count > 0 else none %}
   {% set compact_view = false if detail_view else current_user.profile.compact_view %}
-  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-5" %}
+  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
   {% set summary_content = story.summary or first_news.content %}
 
   {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative"] %}

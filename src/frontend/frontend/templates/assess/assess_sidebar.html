@@ -10,7 +10,7 @@
 {% set time_from = request.args.get('timefrom', '') %}
 {% set time_to = request.args.get('timeto', '') %}
 {% set highlight = current_user.profile.highlight %}
-{% set show_week_chart = current_user.profile.show_week_chart %}
+{% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
 {% set read_filter = request.args.get('read', '') %}
 {% set important_filter = request.args.get('important', '') %}
@@ -167,7 +167,7 @@
                hx-post="{{ url_for('user.settings') }}"
                hx-trigger="change"
                {% if highlight %}checked{% endif %}>
-        <span class="label-text">Highlight keywords</span>
+        <span class="label-text">Highlight searchterms</span>
       </label>
       <label class="label cursor-pointer justify-start gap-3">
         <input type="checkbox"

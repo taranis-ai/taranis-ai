@@ -60,6 +60,8 @@ class StoryView(BaseView):
 
     @staticmethod
     def _enhance_story_with_details(story: Story, sources: dict[str, Any]) -> Story:
+        if not story.news_items:
+            return story
         if first_news_item := story.news_items[0]:
             if source := sources.get(first_news_item.osint_source_id):
                 # Add the source as an pydantic extra field to the story for easier access in the template
@@ -254,3 +256,8 @@ class StoryView(BaseView):
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
         return context
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        logger.debug(f"Storing form data for object ID {object_id}: {processed_data}")
+        return super().store_form_data(processed_data, object_id)

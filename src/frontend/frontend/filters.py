@@ -206,7 +206,7 @@ def format_datetime(value: datetime | str) -> str:
 def get_published_dates(story: Story) -> dict[str, datetime | None]:
     published = {}
     for news_item in story.news_items:
-        if published_at := news_item.published_date or news_item.collected_date:
+        if published_at := news_item.published or news_item.collected:
             published["earliest"] = published.get("earliest", published_at)
             published["latest"] = published.get("latest", published_at)
             if published_at < published["earliest"]:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import field_validator, model_validator, field_serializer
+from pydantic import field_validator
 import langcodes
 from typing import Literal
 from functools import cached_property
@@ -11,15 +11,15 @@ class NewsItem(TaranisBaseModel):
     _core_endpoint = "/assess/newsitems"
 
     osint_source_id: str
-    hash: str = ""
-    author: str = ""
-    title: str = ""
+    hash: str | None = None
+    title: str | None = None
+    author: str | None = None
     review: str | None = None
-    content: str = ""
-    web_url: str = ""
-    source: str = ""
-    published_date: datetime | None = None
-    collected_date: datetime | None = None
+    content: str | None = None
+    web_url: str | None = None
+    source: str | None = None
+    published: datetime | None = None
+    collected: datetime | None = None
     attributes: list[str] | None = None
     language: str | None = None
 
@@ -32,19 +32,6 @@ class NewsItem(TaranisBaseModel):
             return lang.language
         except LookupError:
             return None
-
-    @model_validator(mode="after")
-    def set_default_dates(self):
-        now = datetime.now()
-        if not self.collected_date:
-            self.collected_date = now
-        if not self.published_date:
-            self.published_date = self.collected_date
-        return self
-
-    @field_serializer("published_date", "collected_date", when_used="always")
-    def serialize_datetime(self, value: datetime | None) -> str | None:
-        return value.isoformat() if value else None
 
 
 class StoryTag(TaranisBaseModel):
@@ -64,19 +51,19 @@ class Story(TaranisBaseModel):
     created: datetime | None = None
     updated: datetime | None = None
     last_change: str | None = None
-    news_items: list[NewsItem] = []
-    links: list[str] = []
-    important: bool = False
-    read: bool = False
-    likes: int = 0
-    dislikes: int = 0
-    user_vote: Literal["like", "dislike", ""] = ""
+    news_items: list[NewsItem] | None = None
+    links: list[str] | None = None
+    important: bool | None = None
+    read: bool | None = None
+    likes: int | None = None
+    dislikes: int | None = None
+    user_vote: Literal["like", "dislike", "", None] = None
     summary: str | None = None
-    relevance: int = 0
+    relevance: int | None = None
     comments: str | None = None
-    in_reports_count: int = 0
-    tags: list[dict] = []
-    attributes: list[dict] = []
+    in_reports_count: int | None = None
+    tags: list[dict] | None = None
+    attributes: list[dict] | None = None
 
     @cached_property
     def search_field(self) -> str:
