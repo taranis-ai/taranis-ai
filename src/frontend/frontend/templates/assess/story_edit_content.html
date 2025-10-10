@@ -1,0 +1,286 @@
+{% set story_tags_list = story.tags.values() if story.tags is mapping else (story.tags or []) %}
+{% set story_attributes = story.attributes or [] %}
+{% set news_count = story.news_items | length %}
+{% set read_badge = 'badge badge-success badge-sm' if story.read else 'badge badge-primary badge-sm' %}
+{% set important_badge = 'badge badge-warning badge-sm' if story.important else none %}
+
+<section id="story-edit-panel"
+         class="space-y-6 p-6"
+         hx-get="{{ url_for('assess.story_edit', story_id=story.id) }}"
+         hx-trigger="story:reload from:body"
+         hx-target="this"
+         hx-swap="outerHTML">
+
+  {% if has_rt_id %}
+    <div class="alert alert-warning shadow-lg border border-warning/40">
+      <span class="font-semibold text-sm">RT managed story detected.</span>
+      <span class="text-sm">Please make any edits directly in RT to avoid conflicts; this interface is read-only for the record.</span>
+    </div>
+  {% endif %}
+
+  <!-- Story header -->
+  <article class="card shadow-xl border border-base-200 bg-base-100">
+    <div class="card-body grid gap-8 lg:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)] lg:items-center">
+      <div class="space-y-3">
+        <p class="text-xs uppercase tracking-wide text-base-content/60">Story reference · {{ story.id }}</p>
+        <h1 class="text-3xl font-semibold leading-tight tracking-tight">{{ story.title or "Untitled story" }}</h1>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="{{ read_badge }}">{{ 'Read' if story.read else 'Unread' }}</span>
+          {% if important_badge %}<span class="{{ important_badge }}">Important</span>{% endif %}
+          {% if story.relevance is not none %}<span class="badge badge-outline badge-sm">Relevance {{ story.relevance }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Created</p>
+          <p class="text-sm font-medium">{{ story.created | format_datetime if story.created else "—" }}</p>
+        </div>
+        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Updated</p>
+          <p class="text-sm font-medium">{{ story.updated | format_datetime if story.updated else "—" }}</p>
+        </div>
+        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
+          <p class="text-sm font-medium">{{ news_count }}</p>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- Main content grid -->
+  <div class="grid gap-4 grid-cols-5">
+    <div class="space-y-6 col-span-4">
+      <form id="story-edit-form"
+            class="card bg-base-100 shadow-xl border border-base-200"
+            {{ form_action }}
+            hx-target="#story-edit-panel"
+            hx-swap="outerHTML"
+            hx-target-error="#notification-bar">
+        <div class="card-body space-y-1">
+          <header class="flex items-center justify-between">
+            <h2 class="card-title text-xl">Editor</h2>
+            <span class="badge badge-outline badge-sm">Autosave via submit</span>
+          </header>
+          <label class="input w-full">
+            <span class="label justify-between">
+              <span class="label-text font-semibold">Title<span aria-hidden="true" class="text-error">*</span></span>
+            </span>
+            <input type="text"
+                   name="title"
+                   value="{{ story.title }}"
+                   required
+                   class="input input-bordered input-primary input-lg"
+                   placeholder="Enter story title">
+          </label>
+
+          <div class="grid grid-cols-2 gap-8">
+            <label class="floating-label">
+              <span class="label">Summary</span>
+              <textarea name="summary" class="textarea textarea-bordered w-full" placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
+            </label>
+
+            <label class="floating-label">
+              <span class="label">Analyst comments</span>
+              <textarea name="comments" class="textarea textarea-bordered w-full" placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
+            </label>
+            <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
+                     x-data='{ tags: {{ story_tags_list | list | tojson | safe }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "misc" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } } }'>
+              <div class="flex items-center justify-between gap-4">
+                <h3 class="text-lg font-semibold">Tags</h3>
+                <button type="button" class="btn btn-outline btn-sm" @click="addTag()">Add tag</button>
+              </div>
+              <p class="text-xs text-base-content/60 mt-1">Tags are saved with their type; leave a field blank to remove it on save.</p>
+              <div class="mt-4 flex flex-col gap-3">
+                <template x-for="(tag, index) in tags" :key="index">
+                  <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr),minmax(0,0.7fr),auto]">
+                    <input class="input input-bordered input-sm" type="text" x-model="tag.name" name="tags[][name]" placeholder="Tag name">
+                    <input class="input input-bordered input-sm" type="text" x-model="tag.tag_type" name="tags[][tag_type]" placeholder="Tag type (e.g. topic, actor)">
+                    <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeTag(index)">Remove</button>
+                  </div>
+                </template>
+              </div>
+            </section>
+
+            <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
+                     x-data='{ attributes: {{ story_attributes | tojson | safe }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } }, addAttribute() { this.attributes.push({ "key": "", "value": "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } } }'>
+              <div class="flex items-center justify-between gap-4">
+                <h3 class="text-lg font-semibold">Attributes</h3>
+                <button type="button" class="btn btn-outline btn-sm" @click="addAttribute()">Add attribute</button>
+              </div>
+              <p class="text-xs text-base-content/60 mt-1">Attributes are stored as key/value pairs. Unsupported keys are preserved as-is.</p>
+              <div class="mt-4 flex flex-col gap-3">
+                <template x-for="(attribute, index) in attributes" :key="index">
+                  <div class="grid gap-3 lg:grid-cols-[minmax(0,0.7fr),minmax(0,1fr),auto] items-center">
+                    <input class="input input-bordered input-sm" type="text" x-model="attribute.key" name="attributes[][key]" placeholder="Key (e.g. TLP)">
+                    <input class="input input-bordered input-sm" type="text" x-model="attribute.value" name="attributes[][value]" placeholder="Value">
+                    <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeAttribute(index)">Remove</button>
+                  </div>
+                </template>
+              </div>
+            </section>
+          </div>
+
+          <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button type="submit" class="btn btn-primary sm:w-48" {% if has_rt_id %}disabled{% endif %}>Save changes</button>
+            <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-ghost sm:w-48">Return to story</a>
+            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
+          </footer>
+        </div>
+      </form>
+    </div>
+
+    <aside class="space-y-2">
+      <div class="card bg-base-100 shadow-lg border border-base-200">
+        <div class="card-body space-y-4">
+          <h3 class="card-title text-lg">Story status</h3>
+          <div class="flex flex-wrap gap-3 text-sm">
+            <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
+          </div>
+          <div class="space-y-2">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Sentiment coverage</p>
+            <div class="flex flex-wrap gap-2">
+              {% if sentiment_counts %}
+                {% for sentiment, count in sentiment_counts.items() %}
+                  {% set badge_class = {
+                                      'positive': 'badge badge-success badge-sm',
+                                      'negative': 'badge badge-error badge-sm',
+                                      'neutral': 'badge badge-ghost badge-sm'
+                                    }.get(sentiment, 'badge badge-outline badge-sm') %}
+                  <span class="{{ badge_class }}">{{ sentiment.capitalize() }} · {{ count }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="badge badge-outline badge-sm">No sentiment annotations yet</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if current_user.profile.advanced_story_options %}
+        <div class="card bg-base-100 shadow-lg border border-base-200">
+          <div class="card-body space-y-3">
+            <h3 class="card-title text-lg">AI assisted actions</h3>
+            <p class="text-sm text-base-content/70">
+              Kick off automation and keep the panel open while tasks run. Results will refresh automatically when finished.
+            </p>
+
+            <form class="flex flex-col"
+                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
+                  hx-target="#notification-bar"
+                  hx-swap="innerHTML">
+              <input type="hidden" name="bot_id" value="summary_bot">
+              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Generate AI summary</button>
+            </form>
+
+            <form class="flex flex-col"
+                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
+                  hx-target="#notification-bar"
+                  hx-swap="innerHTML">
+              <input type="hidden" name="bot_id" value="sentiment_analysis_bot">
+              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Run sentiment analysis</button>
+            </form>
+
+            <form class="flex flex-col"
+                  hx-post="{{ url_for('assess.story_trigger_bot', story_id=story.id) }}"
+                  hx-target="#notification-bar"
+                  hx-swap="innerHTML">
+              <input type="hidden" name="bot_id" value="cybersec_classifier_bot">
+              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Cybersecurity classification</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+
+  <div class="card bg-base-100 shadow-lg border border-base-200">
+    <div class="card-body space-y-5">
+      <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <h3 class="card-title text-lg">Linked news items ({{ news_count }})</h3>
+        <p class="text-xs text-base-content/60 max-w-xl">
+          Classification shortcuts stay available when advanced options are enabled. Each action refreshes the panel after completion.
+        </p>
+      </div>
+
+      {% if story.news_items %}
+        <div class="space-y-4">
+          {% for item in story.news_items %}
+            {% set human_status = None %}
+            {% set bot_status = None %}
+            {% for attr in item.attributes or [] %}
+              {% if attr.key == "cybersecurity_human" %}
+                {% set human_status = attr.value %}
+              {% elif attr.key == "cybersecurity_bot" %}
+                {% set bot_status = attr.value %}
+              {% endif %}
+            {% endfor %}
+            {% if human_status %}
+              {% set status_value = human_status %}
+              {% set status_source = "Human" %}
+            {% elif bot_status %}
+              {% set status_value = bot_status %}
+              {% set status_source = "AI" %}
+            {% else %}
+              {% set status_value = None %}
+              {% set status_source = None %}
+            {% endif %}
+
+            <article class="rounded-xl border border-base-200 bg-base-200/30 p-4 space-y-3">
+              <header class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div class="space-y-1">
+                  <h4 class="text-lg font-semibold leading-tight">{{ item.title or "Untitled news item" }}</h4>
+                  <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-sm inline-flex items-center gap-1">
+                    <span>{{ item.link }}</span>
+                    {{ heroicon_mini("arrow-top-right-on-square") }}
+                  </a>
+                  <p class="text-xs text-base-content/60">
+                    {% if item.source %}{{ item.source }}{% endif %}
+                  </p>
+                </div>
+
+                {% if current_user.profile.advanced_story_options %}
+                  <form class="flex items-center gap-2"
+                        hx-post="{{ url_for('assess.story_trigger_bot', story_id=item.id) }}"
+                        hx-target="#notification-bar"
+                        hx-swap="innerHTML">
+                    <input type="hidden" name="story_id" value="{{ story.id }}">
+                    <button type="submit"
+                            name="status"
+                            value="yes"
+                            class="btn btn-sm {% if status_value == 'yes' %}btn-success{% else %}btn-outline{% endif %}"
+                            {% if has_rt_id %}disabled{% endif %}>Cybersecurity</button>
+                    <button type="submit"
+                            name="status"
+                            value="no"
+                            class="btn btn-sm {% if status_value == 'no' %}btn-error{% else %}btn-outline{% endif %}"
+                            {% if has_rt_id %}disabled{% endif %}>Not cybersecurity</button>
+                  </form>
+                {% endif %}
+              </header>
+
+              {% if item.content %}
+                <p class="text-sm text-base-content/80 line-clamp-5">{{ item.content }}</p>
+              {% elif item.review %}
+                <p class="text-sm text-base-content/80 line-clamp-5">{{ item.review }}</p>
+              {% endif %}
+
+              <footer class="flex flex-wrap gap-2 text-xs text-base-content/60">
+                {% if status_value %}
+                  <span class="badge {% if status_value == 'yes' %}badge-success{% elif status_value == 'no' %}badge-error{% else %}badge-outline{% endif %}">
+                    Classified · {{ status_value }}
+                    {% if status_source %}({{ status_source }}){% endif %}
+                  </span>
+                {% endif %}
+                {% if item.author %}<span class="badge badge-outline">Author · {{ item.author }}</span>{% endif %}
+                {% if item.collected %}<span class="badge badge-outline">Collected · {{ item.collected | format_datetime }}</span>{% endif %}
+                {% if item.published %}<span class="badge badge-outline">Published · {{ item.published | format_datetime }}</span>{% endif %}
+              </footer>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>

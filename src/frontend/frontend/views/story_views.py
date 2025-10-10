@@ -1,10 +1,11 @@
 from typing import Any
+from collections import Counter
 from flask_jwt_extended import current_user
-from flask import json, render_template, request, url_for
+from flask import json, render_template, request, url_for, make_response, abort, Response
 from pydantic import ValidationError
 import hashlib
 
-from models.assess import Story, FilterLists, AssessSource
+from models.assess import Story, FilterLists, AssessSource, NewsItem
 from models.admin import Connector
 from frontend.views.base_view import BaseView
 from frontend.core_api import CoreApi
@@ -22,11 +23,11 @@ class StoryView(BaseView):
     icon = "newspaper"
     htmx_list_template = "assess/story_table.html"
     htmx_update_template = "assess/story.html"
-    edit_template = "assess/story_view.html"
+    edit_template = "assess/story_edit.html"
     default_template = "assess/index.html"
 
     base_route = "assess.assess"
-    edit_route = "assess.story"
+    edit_route = "assess.story_edit"
     _show_sidebar = True
 
     @classmethod
@@ -255,9 +256,139 @@ class StoryView(BaseView):
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
+        context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"
+        story = context.get("story")
+
+        if isinstance(story, Story):
+            attributes = story.attributes or []
+            context["has_rt_id"] = any(isinstance(attr, dict) and attr.get("key") == "rt_id" for attr in attributes)
+
+            cybersecurity_value = next(
+                (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "cybersecurity"),
+                None,
+            )
+            context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
+            context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
+            context["sentiment_counts"] = cls._compute_sentiment_counts(story.news_items or [])
+        else:
+            context["has_rt_id"] = False
+            context["story_cyber_status"] = "Not Classified"
+            context["cyber_chip_class"] = "badge badge-outline"
+            context["sentiment_counts"] = {}
+
         return context
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
         logger.debug(f"Storing form data for object ID {object_id}: {processed_data}")
         return super().store_form_data(processed_data, object_id)
+
+    @staticmethod
+    def _format_cyber_status(status: str | None) -> str:
+        if not status:
+            return "Not Classified"
+        normalized = status.strip().lower()
+        labels = {
+            "yes": "Yes",
+            "no": "No",
+            "mixed": "Mixed",
+            "incomplete": "Incomplete",
+            "none": "Not Classified",
+        }
+        return labels.get(normalized, normalized.capitalize())
+
+    @staticmethod
+    def _get_cyber_chip_class(status: str) -> str:
+        mapping = {
+            "Yes": "badge badge-success badge-lg",
+            "No": "badge badge-error badge-lg",
+            "Mixed": "badge badge-secondary badge-lg",
+            "Incomplete": "badge badge-warning badge-lg",
+            "Not Classified": "badge badge-outline badge-lg",
+        }
+        return mapping.get(status, "badge badge-outline badge-lg")
+
+    @staticmethod
+    def _compute_sentiment_counts(news_items: list[NewsItem]) -> dict[str, int]:
+        counts: Counter[str] = Counter()
+        for item in news_items:
+            attributes = getattr(item, "attributes", []) or []
+            for attribute in attributes:
+                key = attribute.get("key") if isinstance(attribute, dict) else getattr(attribute, "key", None)
+                value = attribute.get("value") if isinstance(attribute, dict) else getattr(attribute, "value", None)
+                if key == "sentiment_category" and value:
+                    counts[value.lower()] += 1
+        return {label: count for label, count in counts.items() if count > 0}
+
+    @classmethod
+    @auth_required()
+    def story_view(cls, story_id: str):
+        return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
+
+    @classmethod
+    def update_from_form(cls, story_id: str):
+        core_response, error = cls.process_form_data(story_id)
+        if error or not core_response:
+            error_payload = error if isinstance(error, dict) else {"error": error or "Failed to update story."}
+            notification_html = render_template(
+                "notification/index.html",
+                notification=cls.get_notification_from_dict(error_payload),
+            )
+            content = render_template(
+                "assess/story_edit_content.html",
+                **cls.get_item_context(story_id),
+            )
+            response = make_response(notification_html + content, 400)
+            response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
+            return response
+
+        notification_html = cls.render_response_notification(core_response)
+        content = render_template(
+            "assess/story_edit_content.html",
+            **cls.get_item_context(story_id),
+        )
+        response = make_response(notification_html + content, 200)
+        response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
+        return response
+
+    @classmethod
+    @auth_required()
+    def trigger_bot_action(cls, story_id: str):
+        bot_id = request.form.get("bot_id")
+        if not bot_id:
+            notification = {"message": "Bot identifier is required.", "error": True}
+            return render_template("notification/index.html", notification=notification), 400
+
+        api = CoreApi()
+        response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
+        payload = {}
+        try:
+            payload = response.json()
+        except Exception:
+            logger.exception("Failed to decode bot action response.")
+            payload = {"error": response.text}
+
+        status_code = getattr(response, "status_code", 500)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+
+        notification_html = render_template(
+            "notification/index.html",
+            notification=cls.get_notification_from_dict(payload),
+        )
+        flask_response = make_response(notification_html, status_code)
+        flask_response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
+        return flask_response
+
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+        object_id = kwargs.get("story_id")
+        if object_id is None:
+            abort(405)
+
+        return self.update_from_form(story_id=object_id)
+
+    def put(self, **kwargs) -> tuple[str, int] | Response:
+        object_id = kwargs.get("story_id")
+        if object_id is None:
+            abort(405)
+
+        return self.update_from_form(story_id=object_id)
