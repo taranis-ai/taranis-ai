@@ -110,7 +110,7 @@ class StoryView(BaseView):
     def submit_sharing_dialog(cls) -> str:
         story_id = request.form.get("story_id", "")
         logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
-        return cls.get_notification_from_dict({"message": "Story shared successfully", "category": "success"})
+        return cls.render_response_notification({"message": "Story shared successfully", "category": "success"})
 
     @classmethod
     @auth_required()

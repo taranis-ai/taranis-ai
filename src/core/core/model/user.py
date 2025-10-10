@@ -21,7 +21,7 @@ PROFILE_TEMPLATE = {
     "show_charts": False,
     "infinite_scroll": True,
     "advanced_story_options": False,
-    "end_of_shift": {"hours": 18, "minutes": 0},
+    "end_of_shift": "18:00",
     "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
     "language": "en",
 }

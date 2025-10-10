@@ -297,7 +297,7 @@ class BaseView(MethodView):
                 **cls.get_update_context(object_id, error=error),
             ), 400
 
-        notification_response = cls.get_notification_from_dict(core_response)
+        notification_response = cls.render_response_notification(core_response)
         table_response, table_status = cls.list_view()
         response = notification_response + table_response
         flask_response = make_response(response, table_status)
@@ -314,7 +314,7 @@ class BaseView(MethodView):
                 **cls.get_update_context(object_id, error=error, resp_obj=core_response),
             ), 400
 
-        notification_response = cls.get_notification_from_dict(core_response)
+        notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
             **cls.get_update_context(object_id, error=error, resp_obj=core_response),
@@ -380,25 +380,24 @@ class BaseView(MethodView):
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse) -> str:
-        """
-        Extracts the notification from the response object.
-        If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
-        If it was ok it should render it as a success message, otherwise it should render it as an error message.
-        """
-        if response.ok and response.json():
-            return render_template("notification/index.html", notification={"message": response.json().get("message"), "error": False})
-        return render_template("notification/index.html", notification={"message": response.json().get("error"), "error": True})
+        if not response or not response.json():
+            return render_template("notification/index.html", notification={"message": "No response from core API", "error": True})
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response.json()))
 
     @classmethod
-    def get_notification_from_dict(cls, response: dict) -> str:
+    def render_response_notification(cls, response: dict) -> str:
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
+
+    @staticmethod
+    def get_notification_from_dict(response: dict[str, Any]) -> dict[str, Any]:
         """
         Extracts the notification from the response object.
         If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
         If it was ok it should render it as a success message, otherwise it should render it as an error message.
         """
         if response.get("message"):
-            return render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
-        return render_template("notification/index.html", notification={"message": response.get("error"), "error": True})
+            return {"message": response.get("message"), "error": False}
+        return {"message": response.get("error"), "error": True}
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:

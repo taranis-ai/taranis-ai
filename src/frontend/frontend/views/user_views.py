@@ -43,10 +43,13 @@ class UserProfileView(BaseView):
                 **cls.get_update_context(0, error=error),
             ), 400
 
+        notification_response = cls.get_notification_from_dict(core_response)
         update_current_user_cache()
         logger.debug(f"Profile settings updated: {core_response}")
 
-        return render_template("user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS), 200
+        return render_template(
+            "user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS, notification=notification_response
+        ), 200
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
