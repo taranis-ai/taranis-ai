@@ -18,6 +18,8 @@ def init(app: Flask):
     assess_bp.add_url_rule("/news-item/<string:news_item_id>", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.get_sharing_dialog, methods=["GET"], endpoint="share_story")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.submit_sharing_dialog, methods=["POST"], endpoint="submit_share_story")
+    assess_bp.add_url_rule("/story/report", view_func=StoryView.get_report_dialog, methods=["GET"], endpoint="report_story")
+    assess_bp.add_url_rule("/story/report", view_func=StoryView.submit_report_dialog, methods=["POST"], endpoint="submit_report_story")
     assess_bp.add_url_rule("/stories/bulk_action", view_func=StoryView.bulk_action, methods=["POST"], endpoint="bulk_action")
 
     app.register_blueprint(assess_bp)

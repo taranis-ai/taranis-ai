@@ -5,6 +5,7 @@ from flask import json, render_template, request, url_for, make_response, abort,
 from pydantic import ValidationError
 
 from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
+from models.report import ReportItem
 from models.admin import Connector
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
@@ -103,6 +104,21 @@ class StoryView(BaseView):
         story_id = request.form.get("story_id", "")
         logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
         return cls.render_response_notification({"message": "Story shared successfully", "category": "success"})
+
+    @classmethod
+    @auth_required()
+    def get_report_dialog(cls) -> str:
+        story_ids = request.form.getlist("story_ids[]")
+        reports = DataPersistenceLayer().get_objects(ReportItem)
+        logger.debug(f"Rendering report dialog for stories {story_ids} with reports: {reports}")
+        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports)
+
+    @classmethod
+    @auth_required()
+    def submit_report_dialog(cls) -> str:
+        story_id = request.form.get("story_id", "")
+        logger.debug(f"Submitting report dialog for story {story_id} - {request.form}")
+        return cls.render_response_notification({"message": "Story reported successfully", "category": "success"})
 
     @classmethod
     @auth_required()

@@ -9,6 +9,7 @@
     {# djlint:off #}
     x-data='{
       selectedItems: [],
+      showHints: false,
       allIds: {{ story_ids | default([]) | tojson }},
       toggleSelection(id) {
         if (this.selectedItems.includes(id)) {
@@ -28,6 +29,7 @@
         this.selectedItems = [...this.allIds];
       },
       action_vals(action, value) {
+        if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
         return JSON.stringify({ story_ids: this.selectedItems, action: action, value: value });
       }
     }'
@@ -37,7 +39,7 @@
     {% if stories %}
       {% include "assess/assess_top_bar.html" %}
       {% for story in stories %}{{ story_card(story) }}{% endfor %}
-      <form method="get" class="flex justify-center my-4">
+      <form method="get" class="flex justify-center mt-4">
         <div class="join">
           <button class="join-item btn {% if stories.page == stories.first_page %}btn-disabled{% endif %}">« Previous</button>
           <button class="join-item btn">Page {{ stories.page }}</button>
