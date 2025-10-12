@@ -91,3 +91,20 @@ class FilterLists(TaranisBaseModel):
     tags: list[str] = []
     sources: list[AssessSource] = []
     groups: list[dict] = []
+
+
+class StoryUpdatePayload(TaranisBaseModel):
+    vote: Literal["like", "dislike", ""] | None = None
+    important: bool | None = None
+    read: bool | None = None
+    title: str | None = None
+    description: str | None = None
+    comments: str | None = None
+    summary: str | None = None
+    tags: list[dict] | None = None
+    attributes: list[dict] | None = None
+
+
+class BulkAction(TaranisBaseModel):
+    story_ids: list[str] = []
+    payload: StoryUpdatePayload | None = None

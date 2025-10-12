@@ -119,6 +119,25 @@ class Stories(MethodView):
             logger.exception("Failed to get Stories")
             return {"error": "Failed to get Stories"}, 400
 
+    @auth_required("ASSESS_UPDATE")
+    def post(self):
+        if not (data_json := request.json):
+            return {"error": "No story ids provided"}, 400
+        story_ids = data_json.get("story_ids")
+        payload = data_json.get("payload")
+        result_dict = {"updated": 0, "errors": [], "success": []}
+        for s in [story.Story.get(sid) for sid in story_ids if sid]:
+            if not s:
+                return {"error": "Story not found"}, 404
+            response, code = story.Story.update(s.id, payload, current_user)
+            if code != 200:
+                result_dict["errors"].append({"story_id": s.id, "response": response})
+            else:
+                result_dict["success"].append({"story_id": s.id, "response": response})
+                result_dict["updated"] += 1
+
+        return result_dict, 200
+
 
 class StoryTags(MethodView):
     @auth_required("ASSESS_ACCESS")
@@ -280,6 +299,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+    assess_bp.add_url_rule("/stories/bulk_action", view_func=Stories.as_view("bulk_action"))
     assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
     assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
 

@@ -26,6 +26,9 @@
       selectAll() {
         if (!this.allIds.length) return;
         this.selectedItems = [...this.allIds];
+      },
+      action_vals(action, value) {
+        return JSON.stringify({ story_ids: this.selectedItems, action: action, value: value });
       }
     }'
     {# djlint:on #}

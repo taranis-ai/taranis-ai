@@ -84,7 +84,7 @@
               <textarea name="comments" class="textarea textarea-bordered w-full" placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
             </label>
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
-                     x-data='{ tags: {{ story_tags_list | list | tojson | safe }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "misc" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } } }'>
+                     x-data='{ tags: {{ story_tags_list | list | tojson }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "misc" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } } }'>
               <div class="flex items-center justify-between gap-4">
                 <h3 class="text-lg font-semibold">Tags</h3>
                 <button type="button" class="btn btn-outline btn-sm" @click="addTag()">Add tag</button>
@@ -102,7 +102,7 @@
             </section>
 
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
-                     x-data='{ attributes: {{ story_attributes | tojson | safe }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } }, addAttribute() { this.attributes.push({ "key": "", "value": "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } } }'>
+                     x-data='{ attributes: {{ story_attributes | tojson }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } }, addAttribute() { this.attributes.push({ "key": "", "value": "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } } }'>
               <div class="flex items-center justify-between gap-4">
                 <h3 class="text-lg font-semibold">Attributes</h3>
                 <button type="button" class="btn btn-outline btn-sm" @click="addAttribute()">Add attribute</button>

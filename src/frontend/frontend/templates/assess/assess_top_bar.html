@@ -15,29 +15,25 @@
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      {% if actions %}
-        <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity x-cloak>
-          {% for action in actions %}
-            <form class="inline-flex"
-                  hx-encoding="json"
-                  {% if action.hx_post %}hx-post="{{ action.hx_post }}"{% endif %}
-                  {% if action.target %}hx-target="{{ action.target }}"{% endif %}
-                  {% if action.swap %}hx-swap="{{ action.swap }}"{% endif %}
-                  {% if action.confirm %}hx-confirm="{{ action.confirm }}"{% endif %}>
-              <button type="submit" class="btn btn-sm {{ action.btn_class | default("btn-outline") }}" @click.stop>
-                {% if action.icon %}
-                  <span class="inline-flex items-center gap-2">
-                    {{ heroicon_mini(action.icon) }}
-                    <span>{{ action.label }}</span>
-                  </span>
-                {% else %}
-                  {{ action.label }}
-                {% endif %}
-              </button>
-            </form>
-          {% endfor %}
-        </div>
-      {% endif %}
+      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                hx-trigger="keyup[shiftKey && code == 'Space'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("read", true)'>
+          {{ heroicon_mini("eye") }}
+          Mark as read
+        </button>
+
+        <button type="submit"
+                class="btn btn-sm btn-outline"
+                hx-trigger="keyup[shiftKey && key == 'I'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("important", true)'>
+          {{ heroicon_mini("star") }}
+          Mark as important
+        </button>
+      </div>
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
         {% if story_ids %}
           <button type="button" class="btn btn-sm btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll()">Select all</button>

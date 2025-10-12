@@ -3,9 +3,8 @@ from collections import Counter
 from flask_jwt_extended import current_user
 from flask import json, render_template, request, url_for, make_response, abort, Response
 from pydantic import ValidationError
-import hashlib
 
-from models.assess import Story, FilterLists, AssessSource, NewsItem
+from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
 from models.admin import Connector
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.base_view import BaseView
@@ -38,7 +37,6 @@ class StoryView(BaseView):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
             base_context["stories"] = enhanced_stories
-            base_context["actions"] = cls._get_bulk_actions()
         return base_context
 
     @classmethod
@@ -90,22 +88,12 @@ class StoryView(BaseView):
             return story
         return None
 
-    @staticmethod
-    def _get_dict_to_cache_key(filter_args: dict) -> str:
-        json_str = json.dumps(filter_args, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha1(json_str.encode()).hexdigest()
-
-    @staticmethod
-    def _get_connectors() -> list[Connector]:
-        dpl = DataPersistenceLayer()
-        return dpl.get_objects(Connector)
-
     @classmethod
     @auth_required()
     def get_sharing_dialog(cls) -> str:
         story_id = request.args.get("story_id", "")
         if story := cls._get_story(story_id):
-            connectors = cls._get_connectors()
+            connectors = DataPersistenceLayer().get_objects(Connector)
             return render_template("assess/story_sharing_dialog.html", story=story, connectors=connectors)
         return render_template("assess/story_sharing_dialog.html", story=None, connectors=[])
 
@@ -118,39 +106,21 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def bulk_mark_read(cls):
-        return cls._handle_bulk_story_update(defaults={"read": True})
-
-    @classmethod
-    @auth_required()
-    def bulk_mark_important(cls):
-        return cls._handle_bulk_story_update(defaults={"important": True})
-
-    @classmethod
-    def _handle_bulk_story_update(cls, *, defaults: dict[str, Any]) -> tuple[str, int]:
-        payload = request.get_json(silent=True) or {}
-        story_ids = payload.get("story_ids") or []
-        if not isinstance(story_ids, list) or len(story_ids) == 0:
+    def bulk_action(cls):
+        try:
+            payload: dict[str, Any] = {request.form.get("action", ""): request.form.get("value")}
+            story_action = StoryUpdatePayload(**payload)
+            bulk_action = BulkAction(payload=story_action, story_ids=request.form.getlist("story_ids"))
+        except ValidationError:
             logger.debug("No story IDs supplied for bulk update. Returning current story list.")
             return cls.list_view()
-
-        update_payload = {k: v for k, v in payload.items() if k != "story_ids"}
-        if not update_payload:
-            update_payload = defaults
-
-        api = CoreApi()
-        failed_updates: list[str] = []
-        for story_id in story_ids:
-            response = api.api_put(f"/assess/story/{story_id}", json_data=update_payload)
-            if not getattr(response, "ok", False):
-                failed_updates.append(story_id)
-                logger.warning(f"Failed to update story {story_id} with payload {update_payload}: {getattr(response, 'text', '')}")
+        response = CoreApi().api_post("/assess/stories/bulk_action", json_data=bulk_action.model_dump(mode="json"))
+        if not getattr(response, "ok", False):
+            notification = cls.get_notification_from_response(response)
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-
-        if failed_updates:
-            logger.error(f"Bulk update failed for stories: {failed_updates}")
-
         return cls.list_view()
 
     @staticmethod
@@ -180,37 +150,6 @@ class StoryView(BaseView):
             search=search,
             query_params=query_params,
         )
-
-    @classmethod
-    def _get_bulk_actions(cls) -> list[dict[str, Any]]:
-        actions: list[dict[str, Any]] = []
-        if mark_read_url := url_for("assess.bulk_mark_read"):
-            actions.append(
-                {
-                    "label": "Mark as read",
-                    "icon": "eye",
-                    "btn_class": "btn-primary",
-                    "hx_post": mark_read_url,
-                    "target": "#assess",
-                    "swap": "outerHTML",
-                    "payload": {"read": True},
-                }
-            )
-
-        if mark_important_url := url_for("assess.bulk_mark_important"):
-            actions.append(
-                {
-                    "label": "Mark as important",
-                    "icon": "star",
-                    "btn_class": "btn-outline",
-                    "hx_post": mark_important_url,
-                    "target": "#assess",
-                    "swap": "outerHTML",
-                    "payload": {"important": True},
-                }
-            )
-
-        return actions
 
     @classmethod
     def list_view(cls):

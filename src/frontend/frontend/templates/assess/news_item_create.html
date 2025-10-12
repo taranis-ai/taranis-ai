@@ -1,29 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% set default_author = current_user.name %}
-
   {% set title = news_item.title or '' %}
   {% set review = news_item.review or '' %}
-  {% set content = news_item.content or '' %}
-  {% set link = news_item.link or news_item.web_url or '' %}
   {% set source = news_item.source or 'manual' %}
   {% set osint_source_id = news_item.osint_source_id or 'manual' %}
-  {% set author_value = news_item.author %}
-  {% set published_raw = news_item.published %}
-  {% set collected_raw = news_item.collected %}
-  {% set language = news_item.language or '' %}
   {% set attributes_list = news_item.attributes or [] %}
-
-  {% set published_value = "" %}
-  {% if published_raw %}
-    {% if published_raw is string %}
-      {% set published_clean = published_raw.replace(' ', 'T') %}
-      {% set published_value = published_clean[:16] %}
-    {% else %}
-      {% set published_value = published_raw.isoformat()[:16] %}
-    {% endif %}
-  {% endif %}
+  {% set item_id = news_item.id %}
 
   {% set attrs_ns = namespace(items=[]) %}
   {% for attr in attributes_list %}
@@ -100,7 +83,7 @@
             <span class="label-text font-semibold">Published</span>
             <input type="datetime-local"
                    name="published"
-                   value="{{ published_value }}"
+                   value="{{ news_item.published }}"
                    class="input input-bordered w-full"
                    {% if read_only %}readonly{% endif %}>
             <span class="label-text-alt text-xs text-base-content/60">Use local time; leave blank if unknown.</span>
@@ -110,7 +93,7 @@
             <span class="label-text font-semibold">Link</span>
             <input type="url"
                    name="link"
-                   value="{{ link }}"
+                   value="{{ news_item.link }}"
                    placeholder="https://example.com/story"
                    class="input input-bordered w-full"
                    {% if read_only %}readonly{% endif %}>
@@ -120,16 +103,16 @@
           <label class="floating-label w-full">
             <span class="label font-semibold">Content</span>
             <textarea name="content"
-                      class="textarea textarea-bordered leading-relaxed"
+                      class="textarea textarea-bordered w-full"
                       placeholder="Paste the relevant excerpt or your own summary"
-                      {% if read_only %}readonly{% endif %}>{{ content }}</textarea>
+                      {% if read_only %}readonly{% endif %}>{{ news_itemcontent }}</textarea>
           </label>
 
           <label class="floating-label w-full">
             <span class="label font-semibold">Analyst review</span>
             <textarea name="review"
                       rows="5"
-                      class="textarea textarea-bordered"
+                      class="textarea textarea-bordered w-full"
                       placeholder="Capture analyst commentary, caveats, or recommended follow-up"
                       {% if read_only %}readonly{% endif %}>{{ review }}</textarea>
           </label>
@@ -159,7 +142,7 @@
                          name="attributes[][value]"
                          placeholder="Value"
                          {% if read_only %}disabled{% endif %}>
-                  <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
+                  <button type="button" class="btn btn-xs text-error font-semibold" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
                     Remove
                   </button>
                 </div>
