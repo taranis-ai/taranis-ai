@@ -161,9 +161,18 @@ jobs:
             exit 1
           fi
 
+          echo "PLAYWRIGHT_VERSION=$FRONTEND_VERSION" >> "$GITHUB_ENV"
+
       - name: Install frontend dependencies
         working-directory: src/frontend
         run: uv sync --all-extras
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: Install Playwright dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
