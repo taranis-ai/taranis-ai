@@ -230,35 +230,17 @@ def create_version(obj, session, deleted=False, created=False):
 
             obj_col = om.local_table.c[hist_col.key]
 
-            # get the value of the
-            # attribute based on the MapperProperty related to the
-            # mapped column.  this will allow usage of MapperProperties
-            # that have a different keyname than that of the mapped column.
             try:
                 prop = obj_mapper.get_property_by_column(obj_col)
             except UnmappedColumnError:
-                # in the case of single table inheritance, there may be
-                # columns on the mapped table intended for the subclass only.
-                # the "unmapped" status of the subclass column on the
-                # base class is a feature of the declarative module.
                 continue
 
-            # expired object attributes and also deferred cols might not
-            # be in the dict.  force it to load no matter what by
-            # using getattr().
-            if prop.key not in obj_state.dict:
-                getattr(obj, prop.key)
+            # Always use the current value of the property for the history entry
+            attr[prop.key] = getattr(obj, prop.key)
 
+            # For change detection, keep the old logic
             a, u, d = attributes.get_history(obj, prop.key)
-
-            if d:
-                attr[prop.key] = d[0]
-                obj_changed = True
-            elif u:
-                attr[prop.key] = u[0]
-            elif a:
-                # if the attribute had no value.
-                attr[prop.key] = a[0]
+            if d or a:
                 obj_changed = True
 
     if not obj_changed:
@@ -310,12 +292,9 @@ def versioned_session(session):
     @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
         logger.debug("before_flush versioning")
-        # Updates: only for persistent objects (exclude new ones!)
-        for obj in versioned_objects(session.dirty):
-            state = attributes.instance_state(obj)
-            if state.persistent:  # prevents double-counting inserts
-                create_version(obj, session)
-
+        # Inserts: handle new objects
+        for obj in versioned_objects(session.new):
+            create_version(obj, session, created=True)
         # Deletes
         for obj in versioned_objects(session.deleted):
             create_version(obj, session, deleted=True)
@@ -323,6 +302,8 @@ def versioned_session(session):
     @event.listens_for(session, "after_flush")
     def after_flush(session, flush_context):
         logger.debug("after_flush versioning")
-        # Inserts: handled here
-        for obj in versioned_objects(session.new):
-            create_version(obj, session, created=True)
+        # Updates: only for persistent objects (exclude new ones!)
+        for obj in versioned_objects(session.dirty):
+            state = attributes.instance_state(obj)
+            if state.persistent:  # prevents double-counting inserts
+                create_version(obj, session)
