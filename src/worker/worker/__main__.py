@@ -1,4 +1,3 @@
-from worker import CeleryWorker
+from worker import main
 
-cw = CeleryWorker()
-celery = cw.app
+main()

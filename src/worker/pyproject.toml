@@ -15,7 +15,7 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core
-    "celery",
+    "prefect",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -45,12 +45,13 @@ dependencies = [
     "pypandoc-binary>=1.15",
 ]
 dynamic = ["version"]
+[tool.uv.sources]
+taranis-models = { path = "../models", editable = true }
 
 [project.optional-dependencies]
 dev = [
     "ruff",
     "pytest",
-    "pytest-celery",
     "requests-mock",
     "watchdog",
     "build",
@@ -62,6 +63,9 @@ dev = [
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
+
+[project.scripts]
+taranis-worker = "worker:main"
 
 [build-system]
 requires = [
@@ -77,7 +81,7 @@ root = "../.."
 
 [tool.ruff]
 line-length = 142
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

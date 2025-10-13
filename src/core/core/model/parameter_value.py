@@ -76,7 +76,6 @@ class ParameterValue(BaseModel):
             if update_parameter.parameter in base_parameters_dict:
                 base_parameters_dict[update_parameter.parameter].value = update_parameter.value
             else:
-                # Add new parameters from update_parameters that are not in base_parameters
                 base_parameters.append(update_parameter)
 
         for parameter in base_parameters:
