@@ -7,7 +7,7 @@ Tests all core Prefect business workflows:
 - Connector flows (external system integration)
 - Bot flows (AI/analysis processing)
 
-Assumes Docker Compose stack is running with both Celery and Prefect enabled.
+Tests automatically start Prefect Server, Core, and Worker via conftest.py fixtures.
 """
 
 import pytest
@@ -245,25 +245,29 @@ class TestBotFlow:
 class TestFlowIntegration:
     """Integration tests combining multiple flows"""
 
-    def test_complete_content_pipeline(self, api_client: TaranisAPIClient, test_data: TestData, flow_runner):
+    def test_complete_content_pipeline(self, api_client: TaranisAPIClient, test_data: TestData):
         """Test complete pipeline: Bot processing -> Presentation -> Publishing -> Connector push"""
         print("\n=== Testing Complete Content Pipeline ===")
 
         # Step 1: Process news with bot
         print("Step 1: Processing news items with bot...")
-        bot_flow_id = flow_runner("bot", bot_id=test_data.bot_id, story_ids=test_data.news_item_ids, timeout=180)
+        bot_flow_id = api_client.trigger_bot_flow(bot_id=test_data.bot_id, story_ids=test_data.news_item_ids)
+        wait_for_flow_completion(api_client, bot_flow_id, timeout=180)
 
         # Step 2: Generate report from product
         print("Step 2: Generating PDF report...")
-        presenter_flow_id = flow_runner("presenter", product_id=test_data.product_id, presenter_id=test_data.presenter_id, timeout=180)
+        presenter_flow_id = api_client.trigger_presenter_flow(product_id=test_data.product_id, presenter_id=test_data.presenter_id)
+        wait_for_flow_completion(api_client, presenter_flow_id, timeout=180)
 
         # Step 3: Publish the report
         print("Step 3: Publishing report...")
-        publisher_flow_id = flow_runner("publisher", product_id=test_data.product_id, publisher_id=test_data.publisher_id, timeout=180)
+        publisher_flow_id = api_client.trigger_publisher_flow(product_id=test_data.product_id, publisher_id=test_data.publisher_id)
+        wait_for_flow_completion(api_client, publisher_flow_id, timeout=180)
 
         # Step 4: Push news to external system
         print("Step 4: Pushing news to external system...")
-        connector_flow_id = flow_runner("connector", connector_id=test_data.connector_id, story_ids=test_data.news_item_ids, timeout=180)
+        connector_flow_id = api_client.trigger_connector_flow(connector_id=test_data.connector_id, story_ids=test_data.news_item_ids)
+        wait_for_flow_completion(api_client, connector_flow_id, timeout=180)
 
         # Verify end-to-end results
         print("\n=== Verifying End-to-End Results ===")
@@ -321,27 +325,6 @@ class TestPrefectSystem:
         # At minimum, we should have some flows registered
         assert len(flow_names) > 0, "No Prefect flows are registered"
         print(f"✓ Prefect system has {len(flow_names)} registered flows")
-
-    def test_celery_prefect_coexistence(self, api_client: TaranisAPIClient):
-        """Test that both Celery and Prefect can coexist during migration"""
-        print("\n=== Testing Celery-Prefect Coexistence ===")
-
-        # Check API health
-        health = api_client.check_health()
-        assert health, "API health check failed"
-        print("✓ Core API is healthy")
-
-        # Check Prefect flows
-        try:
-            flows = api_client.check_prefect_flows()
-            print(f"Prefect flows accessible ({len(flows.get('flows', []))} flows)")
-        except Exception as e:
-            print(f" Prefect flows check failed: {e}")
-
-        # Basic functionality test - if we got this far, authentication works
-        print("✓ API authentication working")
-
-        print("✓ System appears healthy with both Celery and Prefect enabled")
 
 
 if __name__ == "__main__":

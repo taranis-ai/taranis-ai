@@ -2,9 +2,9 @@
 API Client for Prefect E2E Tests
 
 Simple HTTP client for interacting with Taranis API during Prefect flow testing.
-Assumes Docker Compose is already running.
 """
 
+import os
 import requests
 import time
 from typing import Dict, Any, Optional, List
@@ -40,7 +40,10 @@ class TestData:
 class TaranisAPIClient:
     """API client for Taranis E2E testing"""
 
-    def __init__(self, base_url: str = "http://localhost:8081/api", timeout: int = 30):
+    def __init__(self, base_url: str = None, timeout: int = 30):
+        if base_url is None:
+            base_url = os.getenv("CORE_API_URL", "http://127.0.0.1:5000/api")
+            
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
@@ -95,8 +98,11 @@ class TaranisAPIClient:
 
     def check_prefect_flows(self) -> Dict[str, Any]:
         """Check if Prefect flows are available"""
+        # Get Prefect API URL from environment
+        prefect_api = os.getenv("PREFECT_API_URL", "http://127.0.0.1:4200/api")
+        
         try:
-            response = requests.get("http://localhost:4200/api/flows", timeout=self.timeout)
+            response = requests.get(f"{prefect_api}/flows", timeout=self.timeout)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -347,80 +353,64 @@ class TaranisAPIClient:
                 items.append(item)
         return items
 
-    # Flow monitoring methods
-    def get_flow_run_status(self, flow_run_id: str) -> Optional[Dict[str, Any]]:
-        """Get flow run status"""
-        try:
-            return self._make_request("GET", f"/flows/runs/{flow_run_id}")
-        except APIError as e:
-            if e.status_code == 404:
-                return None
-            raise
-
-    def get_flow_run_logs(self, flow_run_id: str) -> List[str]:
-        """Get flow run logs"""
-        try:
-            response = self._make_request("GET", f"/flows/runs/{flow_run_id}/logs")
-            if isinstance(response, dict):
-                return response.get("logs", [])
-            return []
-        except APIError:
-            return []
 
 
 def wait_for_flow_completion(api_client: TaranisAPIClient, flow_run_id: str, timeout: int = 120) -> None:
-    """Wait for Prefect flow to complete with timeout and error handling"""
-    print(f"Waiting for flow {flow_run_id} to complete (timeout: {timeout}s)")
-
+    """
+    Wait for Prefect flow to complete by polling Prefect's API directly.
+        
+    Args:
+        api_client: TaranisAPIClient (not used for polling, kept for backward compatibility)
+        flow_run_id: UUID of the Prefect flow run
+        timeout: Maximum seconds to wait
+        
+    Raises:
+        AssertionError: If flow fails or times out
+    """
+    # Get Prefect API URL from environment
+    prefect_api = os.getenv("PREFECT_API_URL", "http://127.0.0.1:4200/api")
+    url = f"{prefect_api}/flow_runs/{flow_run_id}"
+    
+    terminal_states = {"COMPLETED", "FAILED", "CANCELLED", "CRASHED"}
     start_time = time.time()
-    last_state = "UNKNOWN"
-
+    last_state = None
+    
+    print(f"Waiting for flow {flow_run_id} to complete (timeout: {timeout}s)")
+    print(f"Polling Prefect API at: {url}")
+    
     while time.time() - start_time < timeout:
         try:
-            status = api_client.get_flow_run_status(flow_run_id)
-
-            if not status:
-                print(f"Flow run {flow_run_id} not found - assuming completed")
-                return
-
-            state = status.get("state", "UNKNOWN")
-
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Try different possible state field names in Prefect API
+            state = (
+                data.get("state", {}).get("type") or 
+                data.get("state_name") or 
+                data.get("state")
+            )
+            
+            # Log state changes
             if state != last_state:
-                print(f"Flow {flow_run_id} state: {last_state} -> {state}")
+                print(f"Flow {flow_run_id} state: {last_state} → {state}")
                 last_state = state
-
-            if state == "COMPLETED":
-                print(f"Flow {flow_run_id} completed successfully")
-                return
-
-            elif state in ["FAILED", "CRASHED", "CANCELLED"]:
-                error_msg = status.get("message", "No error message")
-                logs = api_client.get_flow_run_logs(flow_run_id)
-
-                error_details = f"Flow {flow_run_id} failed with state: {state}"
-                if error_msg:
-                    error_details += f"\nError message: {error_msg}"
-                if logs:
-                    error_details += "\nLast 5 log entries:\n" + "\n".join(logs[-5:])
-
-                raise AssertionError(error_details)
-
-        except APIError as e:
-            if e.status_code == 404:
-                print(f"Flow run {flow_run_id} not found - assuming completed")
-                return
-            else:
-                print(f"Error checking flow status: {e}")
-
-        time.sleep(5)
-
+            
+            # Check terminal state
+            if state in terminal_states:
+                if state == "COMPLETED":
+                    print(f"✓ Flow {flow_run_id} completed successfully")
+                    return
+                else:
+                    raise AssertionError(f"Flow {flow_run_id} finished with state: {state}")
+                    
+        except requests.RequestException as e:
+            print(f"⚠ Error polling Prefect API: {e}")
+        
+        time.sleep(1.0)
+    
     # Timeout reached
-    logs = api_client.get_flow_run_logs(flow_run_id)
-    timeout_details = f"Flow {flow_run_id} timeout after {timeout}s (last state: {last_state})"
-    if logs:
-        timeout_details += "\nLast 5 log entries:\n" + "\n".join(logs[-5:])
-
-    raise AssertionError(timeout_details)
+    raise AssertionError(f"Timeout waiting for flow {flow_run_id} after {timeout}s (last state: {last_state})")
 
 
 def create_test_data(api_client: TaranisAPIClient) -> TestData:
