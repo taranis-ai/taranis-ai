@@ -21,9 +21,9 @@ class TestEndToEndUser(PlaywrightHelpers):
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
-        page.get_by_placeholder("Username").fill("admin")
+        page.get_by_placeholder("Username").fill("user")
         self.highlight_element(page.get_by_placeholder("Password"))
-        page.get_by_placeholder("Password").fill("admin")
+        page.get_by_placeholder("Password").fill("test")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
@@ -33,6 +33,20 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
+
+    # def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors):
+    #     page = logged_in_page
+
+    #     page.goto(url_for("assess.assess", _external=True))
+    #     expect(page.get_by_test_id("assess")).to_be_visible()
+    #     page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
+
+    # def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors):
+    #     page = logged_in_page
+
+    #     page.goto(url_for("analyze.analyze", _external=True))
+    #     expect(page.get_by_test_id("report-table")).to_be_visible()
+    #     page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page

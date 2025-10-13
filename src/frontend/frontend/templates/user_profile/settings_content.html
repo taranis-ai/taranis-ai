@@ -169,20 +169,7 @@
           tracks progress on making them configurable.
         </p>
       </div>
-      {% for group in hotkey_groups %}
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ group.title }}</p>
-          <ul class="mt-2 space-y-2">
-            {% for item in group.items %}
-              <li class="flex flex-col gap-1 rounded-lg border border-dashed border-base-300 bg-base-200 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <span class="font-mono text-sm">{{ item.title }}</span>
-                <span class="text-sm text-base-content/70">{{ item.subtitle }}</span>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% if not loop.last %}<div class="divider my-2"></div>{% endif %}
-      {% endfor %}
+      {% include "user_profile/hotkey_kbd.html" %}
     </div>
   </div>
 </form>
