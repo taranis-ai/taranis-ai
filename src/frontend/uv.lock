@@ -329,11 +329,11 @@ jinja = [
 
 [[package]]
 name = "idna"
-version = "3.10"
+version = "3.11"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490, upload-time = "2024-09-15T18:07:39.745Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902", size = 194582, upload-time = "2025-10-12T14:55:20.501Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442, upload-time = "2024-09-15T18:07:37.964Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea", size = 71008, upload-time = "2025-10-12T14:55:18.883Z" },
 ]
 
 [[package]]
@@ -1072,15 +1072,15 @@ wheels = [
 
 [[package]]
 name = "setuptools-scm"
-version = "9.2.0"
+version = "9.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/8d/ffdcace33d0480d591057a30285b7c33f8dc431fed3fff7dbadf5f9f128f/setuptools_scm-9.2.0.tar.gz", hash = "sha256:6662c9b9497b6c9bf13bead9d7a9084756f68238302c5ed089fb4dbd29d102d7", size = 201229, upload-time = "2025-08-16T12:56:39.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/32/7d8f405986239e829556ea369b7451ba885c3dc8472ae07b9437b375f6e0/setuptools_scm-9.2.1.tar.gz", hash = "sha256:2f5b21e45205e47ed3976e58bc29c38f49bb9b6f07c625c7fd2823871694b244", size = 202821, upload-time = "2025-10-12T13:37:48.202Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/14/dd3a6053325e882fe191fb4b42289bbdfabf5f44307c302903a8a3236a0a/setuptools_scm-9.2.0-py3-none-any.whl", hash = "sha256:c551ef54e2270727ee17067881c9687ca2aedf179fa5b8f3fab9e8d73bdc421f", size = 62099, upload-time = "2025-08-16T12:56:37.912Z" },
+    { url = "https://files.pythonhosted.org/packages/11/cc/5fda7ed3aab0814a86e428846b6b386f55093f4621d86e3cd081ae126c27/setuptools_scm-9.2.1-py3-none-any.whl", hash = "sha256:84c9b3f39ffb77ba00dd92a06e025e4f66dc69ab8df1c2a225a0678e76311f8d", size = 62878, upload-time = "2025-10-12T13:37:46.727Z" },
 ]
 
 [[package]]
@@ -1185,7 +1185,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.2.5.dev4"
+version = "1.2.5.dev5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langcodes" },
@@ -1193,9 +1193,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4a/8f/8d31cbe9f01c8ed1b5bdc3b329164ba8977aec3abf99fb1c1aec605612d2/taranis_models-1.2.5.dev4.tar.gz", hash = "sha256:a294d6b2dfc284bcb41aafc06e0977a3eda5e733f04929fb79375bdff802f01d", size = 26308, upload-time = "2025-10-09T16:18:08.327Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/6f/37672e9fddcfd9ef687a982ebfcceae9aa67670114e93544cdb05e6ab0df/taranis_models-1.2.5.dev5.tar.gz", hash = "sha256:a8c3d62f2cb2a02576b0d47afe9207266c9f2695d767d6ec131afeb1713444f7", size = 26264, upload-time = "2025-10-13T07:44:38.859Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/e8/453c92238c86c246ecd08c635eb66e6823abf9859423330deeae77dfbcd0/taranis_models-1.2.5.dev4-py3-none-any.whl", hash = "sha256:a416ec89d4a0fef9d84c7c659706e4a61723a4113049d006473dbf019b40103c", size = 14884, upload-time = "2025-10-09T16:18:06.814Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/03/decc6a322f9366bf9c3208327304193de6a4b5b78de561e13acdb70c0978/taranis_models-1.2.5.dev5-py3-none-any.whl", hash = "sha256:00ea02bc27f2e6d8a50169382c5e1712a6aba2062c3ce6e4f4e3a868c55dbe97", size = 14796, upload-time = "2025-10-13T07:44:37.814Z" },
 ]
 
 [[package]]

@@ -61,7 +61,8 @@ class LoginView(MethodView):
         if not core_response.ok:
             return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
-        response = Response(status=302, headers={"Location": url_for("base.dashboard")})
+        location = request.args.get("next", url_for("base.dashboard"))
+        response = Response(status=302, headers={"Location": location})
 
         for h in core_response.raw.headers.getlist("Set-Cookie"):
             response.headers.add("Set-Cookie", h)

@@ -59,7 +59,7 @@ class ReportItemView(BaseView):
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
-        logger.debug(f"Report item context: {context}")
+        logger.debug(f"Report item context: {len(context)}")
         return context
 
     @classmethod

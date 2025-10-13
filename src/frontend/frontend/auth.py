@@ -1,6 +1,6 @@
 from requests.models import Response as ReqResponse
 from functools import wraps
-from flask import Flask
+from flask import Flask, has_request_context, request
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
 from flask import redirect, url_for, render_template, Response
 from typing import Any
@@ -17,6 +17,32 @@ jwt = JWTManager()
 
 def init(app: Flask) -> None:
     jwt.init_app(app)
+
+
+def _login_url_with_next() -> str:
+    login_url = url_for("base.login")
+
+    if not has_request_context():
+        return login_url
+
+    if request.endpoint == "base.login":
+        return login_url
+
+    path = request.path or ""
+    query_string = request.query_string.decode()
+
+    next_target = path
+    if query_string:
+        next_target = f"{path}?{query_string}"
+
+    if not next_target or next_target == login_url:
+        return login_url
+
+    return url_for("base.login", next=next_target)
+
+
+def _redirect_to_login():
+    return redirect(_login_url_with_next(), code=302)
 
 
 # def authenticate(credentials: dict[str, str]) -> Response:
@@ -55,14 +81,13 @@ def auth_required(permissions: list[str] | str | None = None):
             try:
                 verify_jwt_in_request()
             except Exception:
-                logger.exception("JWT verification failed")
-                logger.debug("JWT verification failed")
-                return redirect(url_for("base.login"), code=302)
+                logger.info("JWT verification failed")
+                return _redirect_to_login()
 
             user_name = get_jwt_identity()
             if not user_name:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return redirect(url_for("base.login"), code=302)
+                return _redirect_to_login()
 
             permission_claims = current_user.permissions
 
@@ -108,9 +133,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return redirect(url_for("base.login"), code=302)
+    return _redirect_to_login()
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return redirect(url_for("base.login"), code=302)
+    return _redirect_to_login()

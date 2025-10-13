@@ -81,7 +81,7 @@ class UserView(AdminMixin, BaseView):
         core_resp = CoreApi().export_users({"ids": user_ids})
 
         if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
+            logger.warning(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
             return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
 
         return CoreApi.stream_proxy(core_resp, "users_export.json")

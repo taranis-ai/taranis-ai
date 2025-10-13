@@ -76,8 +76,6 @@ class DashboardView(BaseView):
         except Exception:
             cluster = None
 
-        logger.debug(f"Got Cluster {cluster_name} : {cluster}")
-
         if not cluster:
             logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404

@@ -16,7 +16,6 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.cache_models import PagingData, CacheObject
-from frontend.utils.router_helpers import is_htmx_request
 
 
 class StoryView(BaseView):
@@ -110,15 +109,15 @@ class StoryView(BaseView):
     def get_report_dialog(cls) -> str:
         story_ids = request.form.getlist("story_ids[]")
         reports = DataPersistenceLayer().get_objects(ReportItem)
-        logger.debug(f"Rendering report dialog for stories {story_ids} with reports: {reports}")
         return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports)
 
     @classmethod
     @auth_required()
     def submit_report_dialog(cls) -> str:
-        story_id = request.form.get("story_id", "")
-        logger.debug(f"Submitting report dialog for story {story_id} - {request.form}")
-        return cls.render_response_notification({"message": "Story reported successfully", "category": "success"})
+        story_ids = request.form.getlist("story_ids[]")
+        report_id = request.form.get("report", "")
+        logger.debug(f"Submitting report dialog for stories {story_ids} - {report_id}")
+        return cls.render_response_notification({"message": "Stories reported successfully", "category": "success"})
 
     @classmethod
     @auth_required()
@@ -169,11 +168,9 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls):
-        logger.debug(f"Got request args: {request.args}")
         request_params = request.args.to_dict(flat=False)
         logger.debug(f"Got request params: {request_params}")
         paging_data = cls.parse_paging_data()
-        logger.debug(f"paging data: {paging_data}")
 
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
@@ -184,10 +181,6 @@ class StoryView(BaseView):
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
-
-        if error and is_htmx_request():
-            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
 
@@ -233,11 +226,6 @@ class StoryView(BaseView):
             context["sentiment_counts"] = {}
 
         return context
-
-    @classmethod
-    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
-        logger.debug(f"Storing form data for object ID {object_id}: {processed_data}")
-        return super().store_form_data(processed_data, object_id)
 
     @staticmethod
     def _format_cyber_status(status: str | None) -> str:
