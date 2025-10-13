@@ -9,6 +9,8 @@ import requests
 import time
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from urllib.parse import urljoin
+
 
 
 class APIError(Exception):
@@ -102,7 +104,10 @@ class TaranisAPIClient:
         prefect_api = os.getenv("PREFECT_API_URL", "http://127.0.0.1:4200/api")
         
         try:
-            response = requests.get(f"{prefect_api}/flows", timeout=self.timeout)
+            #response = requests.get(f"{prefect_api.rstrip('/')}/flows", timeout=self.timeout)
+            url = urljoin(prefect_api.rstrip('/') + '/', 'flows')  # urljoin never adds trailing /
+            url = url.rstrip('/')  # explicitly ensure no trailing /
+            response = requests.get(url, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -111,8 +116,10 @@ class TaranisAPIClient:
     # Entity creation methods
     def create_product_type(self, name: str = None) -> str:
         """Create product type for testing"""
+        import random
         timestamp = int(time.time())
-        name = f"E2E Test Product Type {timestamp}"
+        random_suffix = random.randint(1000, 9999)
+        name = f"E2E Test Product Type {timestamp}-{random_suffix}"
 
         data = {
             "title": name,
@@ -139,7 +146,7 @@ class TaranisAPIClient:
 
         data = {"title": name, "description": "Product for Prefect E2E testing", "product_type_id": product_type_id}
 
-        response = self._make_request("POST", "/config/products", json=data)
+        response = self._make_request("POST", "/publish/products", json=data)
         product_id = response.get("id")
 
         if not product_id:
@@ -323,7 +330,7 @@ class TaranisAPIClient:
     # Result checking methods
     def get_product(self, product_id: str) -> Dict[str, Any]:
         """Get product details"""
-        return self._make_request("GET", f"/config/products/{product_id}")
+        return self._make_request("GET", f"/publish/products/{product_id}")
 
     def get_product_renders(self, product_id: str) -> List[Dict[str, Any]]:
         """Get product renders"""

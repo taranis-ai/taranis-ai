@@ -94,6 +94,11 @@ def run_core():
         # Get path to core directory
         core_path = os.path.abspath("../core")
         env = {}
+
+        uri = (env.get("SQLALCHEMY_DATABASE_URI") or "").strip()
+        if not uri or uri.startswith("sqlite://tmp/"):
+            env["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/taranis_ai_test.db"
+        
         
         # Load environment from core's test .env file
         if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
@@ -106,13 +111,21 @@ def run_core():
         
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
         taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
+        with contextlib.suppress(Exception):
+            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI", ""))
+            if parsed_uri.path:
+                db_path = parsed_uri.path.lstrip('/')  # Remove leading / for file paths
+                if os.path.exists(db_path):
+                    print(f"Removing existing test database: {db_path}")
+                    os.remove(db_path)
         
         # Clean up existing database if it exists
         with contextlib.suppress(Exception):
             parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
             if parsed_uri.path and os.path.exists(parsed_uri.path):
                 os.remove(parsed_uri.path)
-        
+
+
         print(f"Starting Taranis Core on port {taranis_core_port}")
         
         # Open log file for output

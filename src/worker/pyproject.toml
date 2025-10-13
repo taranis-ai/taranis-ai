@@ -45,6 +45,8 @@ dependencies = [
     "pypandoc-binary>=1.15",
 ]
 dynamic = ["version"]
+[tool.uv.sources]
+taranis-models = { path = "../models", editable = true }
 
 [project.optional-dependencies]
 dev = [
