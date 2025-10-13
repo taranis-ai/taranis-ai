@@ -14,17 +14,19 @@ from http.cookies import SimpleCookie
 from playwright.sync_api import Browser, Page
 
 
-def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10):
+def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    for _ in range(timeout_seconds):
+    deadline = time.monotonic() + timeout_seconds
+
+    while time.monotonic() < deadline:
         try:
             response = requests.get(url, timeout=timeout_seconds)
             response.raise_for_status()
             return True
         except requests.exceptions.RequestException:
-            time.sleep(0.5)
+            time.sleep(poll_interval)
     response = requests.get(url, timeout=timeout_seconds)
     response.raise_for_status()
     return True

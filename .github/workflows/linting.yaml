@@ -163,6 +163,11 @@ jobs:
 
           echo "PLAYWRIGHT_VERSION=$FRONTEND_VERSION" >> "$GITHUB_ENV"
 
+
+      - name: Install core dependencies
+        working-directory: src/core
+        run: uv sync --all-extras
+
       - name: Install frontend dependencies
         working-directory: src/frontend
         run: uv sync --all-extras
