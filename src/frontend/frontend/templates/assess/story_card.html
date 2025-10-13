@@ -96,7 +96,7 @@
                 <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
                 <div class="flex flex-wrap gap-2">
                   {% for tag in tags_list[:6] %}
-                    <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name or tag.title or tag }}</span>
+                    {% if tag.name %}<span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name }}</span>{% endif %}
                   {% endfor %}
                   {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
                 </div>

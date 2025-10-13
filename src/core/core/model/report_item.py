@@ -101,6 +101,7 @@ class ReportItem(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["stories"] = [story.id for story in self.stories]
+        data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:

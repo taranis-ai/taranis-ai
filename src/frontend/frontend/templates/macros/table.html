@@ -32,8 +32,8 @@
               </td>
             {% endif %}
             {% for col in columns %}
-              <td class="cursor-pointer max-w-[50ch]">
-                <a href="{{ edit_route }}" class="block w-full h-full">
+              <td class="relative max-w-[50ch] p-0">
+                <a href="{{ edit_route }}" class="absolute inset-0 flex w-full items-center px-3 py-1">
                   {% if col.renderer %}
                     {% if 'render_args' in col %}
                       {{ col.renderer(item, **col.render_args) }}

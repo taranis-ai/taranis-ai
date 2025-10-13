@@ -16,8 +16,21 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
+
         <button type="button"
-                class="btn btn-accent-content"
+                class="btn"
+                x-show="selectedItems.length == 1"
+                hx-trigger="click, keyup[shiftKey && code == 'E'] from:body"
+                :hx-get="'{{ url_for('assess.story_edit', story_id='__ID__') }}'.replace('__ID__', selectedItems[0])">
+          {{ heroicon_mini("pencil") }}
+          <span class="text-sm">Edit</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn"
                 hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
                 hx-get="{{ url_for('assess.report_story') }}"
                 hx-target="body"
@@ -31,7 +44,7 @@
         </button>
 
         <button type="button"
-                class="btn btn-primary"
+                class="btn"
                 hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
                 hx-post="{{ url_for('assess.bulk_action') }}"
                 :hx-vals='action_vals("read", true)'>
@@ -49,7 +62,7 @@
                 :hx-vals='action_vals("important", true)'>
           {{ heroicon_mini("star") }}
           <span class="text-sm">Mark as important</span>
-          <span class="text-xs opacity-80" x-show="showHints">
+          <span class="text-xs" x-show="showHints">
             <kbd class="kbd kbd-xs">Shift+I</kbd>
           </span>
         </button>

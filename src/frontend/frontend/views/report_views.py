@@ -7,7 +7,7 @@ from models.report import ReportItem
 from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_datetime, render_count, render_item_type
+from frontend.filters import render_datetime, render_count
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
 
@@ -28,7 +28,7 @@ class ReportItemView(BaseView):
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
             {"title": "Created", "field": "created", "sortable": True, "renderer": render_datetime, "render_args": {"field": "created"}},
-            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
+            {"title": "Type", "field": "report_item_type", "sortable": True, "renderer": None},
             {
                 "title": "Stories",
                 "field": "stories",

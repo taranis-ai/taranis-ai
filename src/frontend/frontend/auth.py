@@ -1,6 +1,6 @@
 from requests.models import Response as ReqResponse
 from functools import wraps
-from flask import Flask, has_request_context, request
+from flask import Flask, request
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
 from flask import redirect, url_for, render_template, Response
 from typing import Any
@@ -21,9 +21,6 @@ def init(app: Flask) -> None:
 
 def _login_url_with_next() -> str:
     login_url = url_for("base.login")
-
-    if not has_request_context():
-        return login_url
 
     if request.endpoint == "base.login":
         return login_url
