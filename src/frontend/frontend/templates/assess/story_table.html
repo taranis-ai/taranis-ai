@@ -31,6 +31,13 @@
       action_vals(action, value) {
         if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
         return JSON.stringify({ story_ids: this.selectedItems, action: action, value: value });
+      },
+      openStoryEdit() {
+        if (this.selectedItems.length !== 1) return;
+        const storyId = this.selectedItems[0];
+        const storyEditTemplate = "{{ url_for("assess.story_edit", story_id="__ID__") }}";
+        const url = storyEditTemplate.replace("__ID__", storyId);
+        window.location.href = url;
       }
     }'
     {# djlint:on #}

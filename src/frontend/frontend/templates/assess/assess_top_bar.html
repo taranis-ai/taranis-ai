@@ -17,11 +17,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
 
-        <button type="button"
-                class="btn"
-                x-show="selectedItems.length == 1"
-                hx-trigger="click, keyup[shiftKey && code == 'E'] from:body"
-                :hx-get="'{{ url_for('assess.story_edit', story_id='__ID__') }}'.replace('__ID__', selectedItems[0])">
+        <button type="button" class="btn" x-show="selectedItems.length == 1" @click="openStoryEdit()" @keyup.shift.e.prevent.window="openStoryEdit()">
           {{ heroicon_mini("pencil") }}
           <span class="text-sm">Edit</span>
           <span class="text-xs opacity-80" x-show="showHints">
