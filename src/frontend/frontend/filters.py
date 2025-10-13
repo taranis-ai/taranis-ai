@@ -1,12 +1,12 @@
-from jinja2 import pass_context
-from flask import url_for, render_template
 import base64
 from typing import Any
 import filetype
-
+from flask import render_template, url_for
+from jinja2 import pass_context
 from heroicons.jinja import heroicon_outline
 from markupsafe import Markup, escape
 from datetime import datetime
+
 from models.admin import OSINTSource
 from models.assess import Story
 
@@ -205,6 +205,8 @@ def format_datetime(value: datetime | str) -> str:
 
 def get_published_dates(story: Story) -> dict[str, datetime | None]:
     published = {}
+    if not story.news_items:
+        return {"earliest": story.created, "latest": story.updated}
     for news_item in story.news_items:
         if published_at := news_item.published or news_item.collected:
             published["earliest"] = published.get("earliest", published_at)

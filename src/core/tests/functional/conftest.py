@@ -195,10 +195,6 @@ def cleanup_story_update_data(rt_id_attribute):
             {"key": "priority", "value": "high"},
             rt_id_attribute,
         ],
-        "links": [
-            "https://example.com/1",
-            "http://example.com/2",
-        ],
     }
 
 
