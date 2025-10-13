@@ -161,14 +161,14 @@ jobs:
             exit 1
           fi
 
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras
+
       - name: Install Playwright dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: src/frontend
         run: uv run playwright install --with-deps chromium
-
-      - name: Install frontend dependencies
-        working-directory: src/frontend
-        run: uv sync --all-extras
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
