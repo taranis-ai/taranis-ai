@@ -8,6 +8,9 @@ def init(app: Flask):
 
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.story_view, methods=["GET"], endpoint="story")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
+    )
     assess_bp.add_url_rule("/story/<string:story_id>/edit", view_func=StoryView.as_view("story_edit"))
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"

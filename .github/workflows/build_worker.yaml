@@ -44,7 +44,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Install Playwright dependencies
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install --with-deps --only-shell chromium
 
       - name: pytest
         run: uv run pytest

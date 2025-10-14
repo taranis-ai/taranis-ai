@@ -136,23 +136,6 @@
           <div class="flex flex-wrap gap-3 text-sm">
             <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
           </div>
-          <div class="space-y-2">
-            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Sentiment coverage</p>
-            <div class="flex flex-wrap gap-2">
-              {% if sentiment_counts %}
-                {% for sentiment, count in sentiment_counts.items() %}
-                  {% set badge_class = {
-                                      'positive': 'badge badge-success badge-sm',
-                                      'negative': 'badge badge-error badge-sm',
-                                      'neutral': 'badge badge-ghost badge-sm'
-                                    }.get(sentiment, 'badge badge-outline badge-sm') %}
-                  <span class="{{ badge_class }}">{{ sentiment.capitalize() }} · {{ count }}</span>
-                {% endfor %}
-              {% else %}
-                <span class="badge badge-outline badge-sm">No sentiment annotations yet</span>
-              {% endif %}
-            </div>
-          </div>
         </div>
       </div>
 

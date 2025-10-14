@@ -21,7 +21,7 @@ RUN uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen && \
     # Install browser to /root/.cache/ms-playwright
-    playwright install chromium --with-deps
+    playwright install --with-deps --only-shell chromium
 
 
 FROM python:3.13-slim-bookworm

@@ -1,3 +1,4 @@
 {% from "assess/story_card.html" import story_card with context %}
+{% set detail_view = detail_view | default(true) %}
 
-<div x-data='{ isSelected(id) { return false; } }' class="p-8">{{ story_card(story, detail_view=True) }}</div>
+<div x-data='{ isSelected(id) { return false; } }' class="p-8">{{ story_card(story, detail_view=detail_view) }}</div>

@@ -71,8 +71,9 @@ class DataPersistenceLayer:
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[Any]:
         endpoint = self.get_endpoint(object_model)
-        if cache_object := cache.get(key=self.make_user_key(endpoint, paging_data)):
-            logger.debug(f"Cache hit for {endpoint}")
+        cache_key = self.make_user_key(endpoint, paging_data)
+        if cache_object := cache.get(key=cache_key):
+            logger.debug(f"Cache hit for {cache_key}")
             return cache_object.search_and_paginate(paging_data)
         if result := self.api.api_get(endpoint, paging_data.query_params if paging_data else None):
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)

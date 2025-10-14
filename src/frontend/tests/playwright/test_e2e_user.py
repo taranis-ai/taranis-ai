@@ -34,19 +34,19 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
 
-    # def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors):
-    #     page = logged_in_page
+    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
 
-    #     page.goto(url_for("assess.assess", _external=True))
-    #     expect(page.get_by_test_id("assess")).to_be_visible()
-    #     page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
+        page.goto(url_for("assess.assess", _external=True))
+        expect(page.get_by_test_id("assess")).to_be_visible()
+        page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
 
-    # def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors):
-    #     page = logged_in_page
+    def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
 
-    #     page.goto(url_for("analyze.analyze", _external=True))
-    #     expect(page.get_by_test_id("report-table")).to_be_visible()
-    #     page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
+        page.goto(url_for("analyze.analyze", _external=True))
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+        page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -59,7 +59,6 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
-            page.pause()
             expect(page.get_by_test_id("product-form")).to_be_visible()
             self.highlight_element(page.get_by_label("Product Type Select an item")).select_option("3")
 

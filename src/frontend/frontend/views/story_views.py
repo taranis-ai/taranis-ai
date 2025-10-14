@@ -1,5 +1,4 @@
 from typing import Any
-from collections import Counter
 from flask_jwt_extended import current_user
 from flask import json, render_template, request, url_for, make_response, abort, Response
 from pydantic import ValidationError
@@ -218,12 +217,10 @@ class StoryView(BaseView):
             )
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
-            context["sentiment_counts"] = cls._compute_sentiment_counts(story.news_items or [])
         else:
             context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
             context["cyber_chip_class"] = "badge badge-outline"
-            context["sentiment_counts"] = {}
 
         return context
 
@@ -251,18 +248,6 @@ class StoryView(BaseView):
             "Not Classified": "badge badge-outline badge-lg",
         }
         return mapping.get(status, "badge badge-outline badge-lg")
-
-    @staticmethod
-    def _compute_sentiment_counts(news_items: list[NewsItem]) -> dict[str, int]:
-        counts: Counter[str] = Counter()
-        for item in news_items:
-            attributes = getattr(item, "attributes", []) or []
-            for attribute in attributes:
-                key = attribute.get("key") if isinstance(attribute, dict) else getattr(attribute, "key", None)
-                value = attribute.get("value") if isinstance(attribute, dict) else getattr(attribute, "value", None)
-                if key == "sentiment_category" and value:
-                    counts[value.lower()] += 1
-        return {label: count for label, count in counts.items() if count > 0}
 
     @classmethod
     @auth_required()
@@ -347,6 +332,31 @@ class StoryView(BaseView):
         response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
         return response
 
+    @classmethod
+    @auth_required()
+    def patch_story(cls, story_id: str):
+        try:
+            form_data = parse_formdata(request.form)
+            story_update = StoryUpdatePayload(**form_data)
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
+            notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+
+        response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
+        notification_html = cls.get_notification_from_response(response)
+
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+
+        content = render_template(
+            "assess/story.html",
+            detail_view=False,
+            **cls.get_item_context(story_id),
+        )
+        response = make_response(notification_html + content, 200)
+        return response
+
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
         if object_id is None:
@@ -355,6 +365,7 @@ class StoryView(BaseView):
         return self.update_from_form(story_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | Response:
+        logger.debug(f"Received PUT request with args: {kwargs} and form: {request.form}")
         object_id = kwargs.get("story_id")
         if object_id is None:
             abort(405)

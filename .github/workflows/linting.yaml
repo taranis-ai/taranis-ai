@@ -182,7 +182,7 @@ jobs:
       - name: Install Playwright dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: src/frontend
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install --with-deps --only-shell chromium
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
@@ -223,7 +223,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Install playwright dependencies
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install --with-deps --only-shell chromium
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .

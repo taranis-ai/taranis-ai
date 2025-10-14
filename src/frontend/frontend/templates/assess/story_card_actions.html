@@ -21,10 +21,10 @@
     <button type="button"
             class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
             hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-            hx-encoding="json"
             hx-vals='{"read": {{ toggled_read }} }'
             hx-target="#{{ card_id }}"
             hx-select="#{{ card_id }}"
+            hx-push-url="false"
             hx-swap="outerHTML"
             data-testid="toggle-read">
       {% if story.read | default(false) %}
@@ -38,10 +38,10 @@
     <button type="button"
             class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
             hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-            hx-encoding="json"
             hx-vals='{"important": {{ toggled_important }} }'
             hx-target="#{{ card_id }}"
             hx-select="#{{ card_id }}"
+            hx-push-url="false"
             hx-swap="outerHTML"
             data-testid="toggle-important">
       {{ heroicon_mini("star") }}
@@ -55,9 +55,9 @@
     </button>
     <button type="button"
             class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
-            hx-post="{{ url_for("assess.share_story") }}?story_id={{ story_id }}"
-            hx-target="#notification-bar"
-            hx-swap="innerHTML"
+            hx-get='{{ url_for("assess.share_story") }}?story_id={{ story_id }}'
+            hx-target="body"
+            hx-swap="beforeend"
             data-testid="share-story">
       {{ heroicon_mini("share") }}
       <span>Share</span>

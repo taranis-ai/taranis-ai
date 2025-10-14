@@ -220,9 +220,12 @@ class Story(BaseModel):
 
         if filter_range := filter_args.get("range", "").lower():
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            if filter_range in ["day", "week", "month"]:
+            if filter_range in ["day", "week", "month", "24h"]:
                 if filter_range == "day":
                     date_limit -= timedelta(days=1)
+
+                elif filter_range == "24h":
+                    date_limit -= timedelta(hours=24)
 
                 elif filter_range == "week":
                     date_limit -= timedelta(days=date_limit.weekday())

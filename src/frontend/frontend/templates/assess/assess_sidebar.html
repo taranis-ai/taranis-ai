@@ -5,7 +5,7 @@
 {% set selected_tags = request.args.getlist('tags') %}
 {% set current_search = request.args.get('search', '') %}
 {% set current_limit = request.args.get('limit', 20) %}
-{% set current_order = request.args.get('order', '') %}
+{% set current_sort = request.args.get('sort', '') %}
 {% set current_preset = request.args.get('range', '') %}
 {% set time_from = request.args.get('timefrom', '') %}
 {% set time_to = request.args.get('timeto', '') %}
@@ -21,7 +21,9 @@
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
   {'label': 'Most relevant', 'value': 'relevance_desc'},
-  {'label': 'Least relevant', 'value': 'relevance_asc'}
+  {'label': 'Least relevant', 'value': 'relevance_asc'},
+  {'label': 'Most recent', 'value': 'updated_desc'},
+  {'label': 'Least recent', 'value': 'updated_asc'}
 ]) %}
 {% set quick_ranges = quick_ranges | default([
   {'label': 'Shift', 'value': 'shift'},
@@ -141,10 +143,10 @@
     <div class="divider text-xs">Sort</div>
     <section>
       <label class="select w-full">
-        <span class="label">Order</span>
-        <select onchange="this.name = this.value ? 'order' : ''" class="select select-bordered select-sm" hx-trigger="change">
+        <span class="label">Sort</span>
+        <select onchange="this.name = this.value ? 'sort' : ''" class="select select-bordered select-sm" hx-trigger="change">
           {% for option in sort_choices %}
-            <option value="{{ option.value }}" {% if option.value == current_order %}selected{% endif %}>{{ option.label }}</option>
+            <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>
       </label>
