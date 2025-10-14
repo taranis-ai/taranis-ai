@@ -7,29 +7,15 @@
 {% block content %}
   {% from 'macros/forms.html' import form_input_content, form_switch %}
   <script type="text/javascript">
-  function initChoices() {
-    var select = document.querySelector('#trending-tag-filter-select');
-    if (!select || typeof Choices === 'undefined') {
-      return;
-    }
 
-    {% include "partials/choices_classnames" %}
-
-    const choices = new Choices(select, {
-      removeItemButton: true,
-      placeholderValue: 'Select tags',
-      noResultsText: 'No tags found',
-      noChoicesText: 'No tags to choose from',
-      classNames: classNames,
-    });
-  }
+  {% include "partials/choices_setup.js" %}
 
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices();
+      initChoices('trending-tag-filter-select', 'tags');
     });
   } else {
-    initChoices();
+    initChoices('trending-tag-filter-select', 'tags');
   }
   </script>
 

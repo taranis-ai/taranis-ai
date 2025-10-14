@@ -8,30 +8,14 @@
 {% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
 
 <script type="text/javascript">
-  function initChoices() {
-
-    var select = document.getElementById('user-role-select');
-    if (!select || typeof Choices === 'undefined') {
-      return;
-    }
-
-    {% include "partials/choices_classnames" %}
-
-    const choices = new Choices(select, {
-      removeItemButton: true,
-      placeholderValue: 'Select roles',
-      noResultsText: 'No roles found',
-      noChoicesText: 'No roles to choose from',
-      classNames: classNames,
-    });
-  }
+  {% include "partials/choices_setup.js" %}
 
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices();
+      initChoices('user-role-select', 'roles');
     });
   } else {
-    initChoices();
+    initChoices('user-role-select', 'roles');
   }
 
   function generatePassword(

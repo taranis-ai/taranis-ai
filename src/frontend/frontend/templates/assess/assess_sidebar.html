@@ -37,6 +37,46 @@
   {'name': 'relevant', 'label': 'Relevant', 'value': relevant_filter}
 ] %}
 
+<script type="text/javascript">
+
+function initChoices(elementID, placeholder='items') {
+  const select = document.getElementById(elementID);
+  if (!select || typeof Choices === 'undefined') {
+    return;
+  }
+
+  const classNames = {
+    containerOuter: ['choices', '!bg-base-200'],
+    containerInner: ['choices__inner', '!bg-base-200'],
+    input: ['choices__input', '!bg-base-200'],
+    inputCloned: ['choices__input--cloned', '!bg-base-200'],
+    list: ['choices__list', '!bg-base-200'],
+    itemSelectable: ['choices__item--selectable', '!bg-primary-300'],
+    itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-64'],
+    selectedState: ['is-selected', '!bg-primary'],
+  };
+
+  return new Choices(select, {
+      removeItemButton: true,
+      itemSelectText: '✓',
+      placeholderValue: 'Select ' + placeholder,
+      noResultsText: 'No ' + placeholder + ' found',
+      noChoicesText: 'No ' + placeholder + ' to choose from',
+      classNames: classNames,
+    });
+}
+
+if (typeof htmx !== 'undefined' && htmx.onLoad) {
+  htmx.onLoad(function (elt) {
+    initChoices('source-group-filter', 'groups');
+    initChoices('source-filter', 'sources');
+  });
+} else {
+  initChoices('source-group-filter', 'groups');
+  initChoices('source-filter', 'sources');
+}
+</script>
+
 <div class="p-4 space-y-4">
   <form id="assess-sidebar"
         hx-get="{{ base_url }}"
@@ -72,24 +112,16 @@
 
     <div class="divider text-xs">Source</div>
     <section class="space-y-4">
-      <label class="form-control w-full">
-        <span class="label-text text-xs font-medium uppercase text-base-content/70">Source group</span>
-        <select onchange="this.name = this.value ? 'group' : ''" class="select select-sm" hx-trigger="change">
-          {% if not selected_groups %}<option disabled selected>Pick a Source Group</option>{% endif %}
-          {% for group in filter_lists.groups %}
-            <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="form-control w-full">
-        <span class="label-text text-xs font-medium uppercase text-base-content/70">Source</span>
-        <select onchange="this.name = this.value ? 'source' : ''" class="select select-sm" hx-trigger="change">
-          {% if not selected_sources %}<option disabled selected>Pick a Source</option>{% endif %}
-          {% for source in filter_lists.sources %}
-            <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
+      <select id="source-group-filter" onchange="this.name = this.value ? 'group' : ''" class="select select-sm" hx-trigger="change" multiple>
+        {% for group in filter_lists.groups %}
+          <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="source-filter" onchange="this.name = this.value ? 'source' : ''" class="select select-sm" hx-trigger="change" multiple>
+        {% for source in filter_lists.sources %}
+          <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
+        {% endfor %}
+      </select>
     </section>
 
     <div class="divider text-xs">Filter</div>

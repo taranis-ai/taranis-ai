@@ -2,29 +2,14 @@
 {% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
-function initChoices() {
-  var select = document.getElementById('report_types-select');
-  if (!select || typeof Choices === 'undefined') {
-    return;
-  }
-
-  {% include "partials/choices_classnames" %}
-
-  const choices = new Choices(select, {
-    removeItemButton: true,
-    placeholderValue: 'Select report types',
-    noResultsText: 'No report types found',
-    noChoicesText: 'No report types to choose from',
-    classNames: classNames,
-  });
-}
+{% include "partials/choices_setup.js" %}
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices();
+    initChoices('report_types-select', 'report types');
   });
 } else {
-  initChoices();
+  initChoices('report_types-select', 'report types');
 }
 </script>
 

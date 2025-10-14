@@ -22,11 +22,13 @@ function initChoices() {
     noChoicesText: 'No attributes to choose from',
     classNames: classNames,
   });
+
+  return choices;
 }
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices();
+    const choices = initChoices();
   });
 } else {
   initChoices();
