@@ -2,18 +2,35 @@
 {% set form_error = form_error | default({}) %}
 
 <script type="text/javascript">
-  var settings = {
-    create: true,
-    createOnBlur: true,
-    plugins: ['remove_button'],
-    persist:false
-  };
 
-  htmx.onLoad(function(elt) {
-    var elt = document.getElementById('attribute_enum-input');
-    if (elt && elt.classList.contains('tomselected')) return;
-    new TomSelect(elt, settings);
+function initChoices() {
+  var select = document.getElementById('attribute_enum-input');
+  if (!select || typeof Choices === 'undefined') {
+    console.debug('No select found or Choices is undefined');
+    return;
+  }
+
+  {% include "partials/choices_classnames" %}
+
+  const choices = new Choices(select, {
+    removeItemButton: true,
+    addItems: true,
+    addChoices: true,
+    duplicateItemsAllowed: false,
+    placeholderValue: 'Select attributes enum values',
+    noResultsText: 'No attributes found',
+    noChoicesText: 'No attributes to choose from',
+    classNames: classNames,
   });
+}
+
+if (typeof htmx !== 'undefined' && htmx.onLoad) {
+  htmx.onLoad(function (elt) {
+    initChoices();
+  });
+} else {
+  initChoices();
+}
 </script>
 
 <div class="bg-base-100 p-4">
@@ -46,9 +63,13 @@
         </select>
       </label>
 
-      <div class="w-full mt-5 mb-3" id="attribute_enum" x-show="showEnum">
-        <span class="label">Attribute Enum</span>
-        <input id="attribute_enum-input" name="attribute_enums[]" type="text" value="{{ attribute.attribute_enum }}" />
+      <div class="w-full mt-5 mb-3" id="attribute_enum" x-cloak x-show="showEnum">
+        <div role="alert" class="alert alert-warning">
+          {{ heroicon_mini('exclamation-triangle', class='h-5 w-5 flex-shrink-0') }}
+          <span>Warning: Creating Attribute Enums is not yet supported</span>
+        </div>
+
+        <input disabled type="text" id="attribute_enum-input" name="attribute_enums[]" value="{{ attribute.attribute_enum }}" />
       </div>
     </div>
 

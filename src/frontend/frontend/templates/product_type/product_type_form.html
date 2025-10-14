@@ -2,21 +2,30 @@
 {% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
-  var settings = {
-    plugins: ['remove_button'],
-    persist:false,
-    closeAfterSelect:true,
-    onItemAdd:function(){
-			this.setTextboxValue('');
-			this.refreshOptions();
-		}
-  };
+function initChoices() {
+  var select = document.getElementById('report_types-select');
+  if (!select || typeof Choices === 'undefined') {
+    return;
+  }
 
-  htmx.onLoad(function(elt) {
-    var elt = document.getElementById('report_types-select');
-    if (elt && elt.classList.contains('tomselected')) return;
-    new TomSelect(elt, settings);
+  {% include "partials/choices_classnames" %}
+
+  const choices = new Choices(select, {
+    removeItemButton: true,
+    placeholderValue: 'Select report types',
+    noResultsText: 'No report types found',
+    noChoicesText: 'No report types to choose from',
+    classNames: classNames,
   });
+}
+
+if (typeof htmx !== 'undefined' && htmx.onLoad) {
+  htmx.onLoad(function (elt) {
+    initChoices();
+  });
+} else {
+  initChoices();
+}
 </script>
 
 <div class="bg-base-100 p-4">
@@ -32,16 +41,13 @@
     {{ form_input('Title', 'title', product_type.title, form_error.title, width="w-3/4") }}
     {{ form_input('Description', 'description', product_type.description, form_error.description, required=false, width="w-3/4") }}
 
-    <fieldset class="fieldset bg-base-100 w-3/4 mb-5">
-      <legend class="fieldset-legend">
-        Report Types<span aria-hidden="true" class="text-error">*</span>
-      </legend>
-      <select name="report_types[]" multiple required type="number" id="report_types-select" class="tomselect">
+    <div class="w-3/4 mb-5">
+      <select name="report_types[]" multiple required type="number" id="report_types-select">
         {% for report_type in report_types %}
           <option value="{{ report_type.id }}" {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
         {% endfor %}
       </select>
-    </fieldset>
+    </div>
 
     <label class="select w-3/4 mb-5">
       <span class="label">Presenter Type</span>

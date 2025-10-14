@@ -8,26 +8,16 @@
 {% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
 
 <script type="text/javascript">
-  function initChoices(root) {
+  function initChoices() {
 
-    var select = document.querySelector('#user-role-select');
-
+    var select = document.getElementById('user-role-select');
     if (!select || typeof Choices === 'undefined') {
       return;
     }
 
-    classNames = {
-      containerOuter: ['choices', '!bg-base-200', '!w-3/4'],
-      containerInner: ['choices__inner', '!bg-base-200'],
-      input: ['choices__input', '!bg-base-200'],
-      inputCloned: ['choices__input--cloned', '!bg-base-200'],
-      list: ['choices__list', '!bg-base-200'],
-      itemSelectable: ['choices__item--selectable', '!border-primary', '!bg-base-200'],
-      itemChoice: ['choices__item--choice', '!bg-base-200'],
-      selectedState: ['is-selected', '!bg-primary'],
-    }
+    {% include "partials/choices_classnames" %}
 
-    const choices = new Choices('#user-role-select', {
+    const choices = new Choices(select, {
       removeItemButton: true,
       placeholderValue: 'Select roles',
       noResultsText: 'No roles found',
@@ -38,10 +28,10 @@
 
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices(elt);
+      initChoices();
     });
   } else {
-    initChoices(document);
+    initChoices();
   }
 
   function generatePassword(
@@ -88,13 +78,15 @@
               onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
     </div>
 
-    <select name="roles[]" multiple required id="user-role-select" class="w-3/4">
-      {% for role in roles %}
-        <option value="{{ role.id }}" {% if role.id in user_role_ids %}selected{% endif %}>
-          {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
-        </option>
-      {% endfor %}
-    </select>
+    <div class="mb-5 w-3/4">
+      <select name="roles[]" multiple required id="user-role-select">
+        {% for role in roles %}
+          <option value="{{ role.id }}" {% if role.id in user_role_ids %}selected{% endif %}>
+            {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
 
     {{ form_select('Organization', 'organization', user.organization, organizations, width="w-3/4") }}
 

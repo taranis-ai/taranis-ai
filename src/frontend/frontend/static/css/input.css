@@ -13,6 +13,8 @@
     outline-color: var(--color-primary);
 }
 
+[x-cloak] { display: none !important; }
+
 @layer utilities {
   @keyframes fill {
     0% {

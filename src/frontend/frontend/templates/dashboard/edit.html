@@ -1,27 +1,36 @@
 {% extends "base.html" %}
 {% block head %}
-  <link href="{{ url_for('static', filename='vendor/css/tom-select.css') }}" rel="stylesheet">
-  <script src="{{ url_for('static', filename='vendor/js/tom-select.complete.min.js') }}"></script>
+  <link href="{{ url_for('static', filename='vendor/css/choices.min.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='vendor/js/choices.min.js') }}"></script>
 {% endblock head %}
 
 {% block content %}
   {% from 'macros/forms.html' import form_input_content, form_switch %}
   <script type="text/javascript">
-var settings = {
-  plugins: ['remove_button'],
-  persist: false,
-  closeAfterSelect:true,
-  onItemAdd: function () {
-    this.setTextboxValue('');
-    this.refreshOptions();
-  }
-};
+  function initChoices() {
+    var select = document.querySelector('#trending-tag-filter-select');
+    if (!select || typeof Choices === 'undefined') {
+      return;
+    }
 
-htmx.onLoad(function (elt) {
-  var elt = document.getElementById('trending-tag-filter-select');
-  if (elt && elt.classList.contains('tomselected')) return;
-  new TomSelect(elt, settings);
-});
+    {% include "partials/choices_classnames" %}
+
+    const choices = new Choices(select, {
+      removeItemButton: true,
+      placeholderValue: 'Select tags',
+      noResultsText: 'No tags found',
+      noChoicesText: 'No tags to choose from',
+      classNames: classNames,
+    });
+  }
+
+  if (typeof htmx !== 'undefined' && htmx.onLoad) {
+    htmx.onLoad(function (elt) {
+      initChoices();
+    });
+  } else {
+    initChoices();
+  }
   </script>
 
   <div class="p-8 bg-base-100" id="edit_dashboard">
@@ -41,14 +50,13 @@ htmx.onLoad(function (elt) {
 
         </div>
 
-        <fieldset class="fieldset bg-base-100 flex-none w-2/8">
-          <legend class="fieldset-legend">Trending Tag Filter</legend>
-          <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select" class="tomselect w-full">
+        <div class="flex-none w-2/8">
+          <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select">
             {% for cluster in clusters %}
               <option value="{{ cluster.name }}" {% if cluster.name in dashboard.trending_cluster_filter %}selected{% endif %}>{{ cluster.name }}</option>
             {% endfor %}
           </select>
-        </fieldset>
+        </div>
 
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
         <input type="submit" class="btn btn-primary w-2/4 mt-4" value="Update Dashboard Settings" />

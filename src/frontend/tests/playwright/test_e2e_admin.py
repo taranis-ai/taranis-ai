@@ -91,8 +91,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
 
             page.get_by_label("Organization").select_option("1")
-            page.locator("#user-role-select-ts-control").click()
-            page.locator("#user-role-select-opt-2").click()
+            page.get_by_role("searchbox", name="Select roles").click()
+            page.get_by_role("option", name="User - Basic user role Press").click()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             with page.expect_response(url_for("admin.users", _external=True)) as response_info:
@@ -446,8 +446,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Presenter Type Select a").select_option("html_presenter")
             page.get_by_label("TEMPLATE_PATH Select an item").select_option("cert_at_daily_report.html")
 
-            page.locator("#report_types-select-ts-control").click()
-            page.locator("#report_types-select-opt-1").click()
+            page.get_by_role("searchbox", name="Select report types").click()
+            page.get_by_role("option", name="CERT Report").click()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_add.png")
             with page.expect_response(url_for("admin.product_types", _external=True)) as response_info:
