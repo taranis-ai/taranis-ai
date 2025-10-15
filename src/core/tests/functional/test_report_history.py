@@ -76,7 +76,6 @@ class TestReportHistory(BaseTest):
         #     "History entry title should match the updated report item title"
         # )
 
-    #
     def test_report_multiple_updates_history(self, client, session, logger, input_report: dict[str, Any], auth_header):
         """Test that multiple report item updates create correct version history with incremental version numbers"""
         from core.model.report_item import ReportItem
