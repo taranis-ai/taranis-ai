@@ -304,7 +304,8 @@ class ReportItem(BaseModel):
         for story in stories:
             NewsItemTagService.add_report_tag(story, report_item)
 
-        return {"message": f"Successfully added {story_ids} to {report_item.id}"}, 200
+        logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
+        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:

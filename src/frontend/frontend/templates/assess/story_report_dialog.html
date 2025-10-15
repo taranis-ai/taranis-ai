@@ -1,21 +1,23 @@
 <dialog id="share_story_to_report_dialog" class="modal" x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
   <div class="modal-box">
-    <h3 class="font-bold text-lg">Share Stories</h3>
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-2">Share Stories</h3>
     <form>
       <label class="select w-full mb-5">
         <span class="label">Report</span>
-        <select id="report" name="type" required class="validator select w-full">
-          <option selected disabled>Select a report</option>
+        <select id="report" name="report" required class="validator select w-full">
+          <option selected disabled>Add Stories to report</option>
           {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}</option>{% endfor %}
         </select>
       </label>
-      <button class="btn btn-outline" hx-post="{{ url_for('assess.submit_report_story') }}">Share</button>
+      <input type="hidden" name="story_ids" value="{{ story_ids | join(',') }}">
+      <button type="button"
+              class="btn btn-outline btn-wide"
+              hx-post="{{ url_for('assess.submit_report_story') }}"
+              hx-target="#assess"
+              hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()">Share</button>
     </form>
-
-    <div class="modal-action">
-      <form method="dialog">
-        <button class="btn">Close</button>
-      </form>
-    </div>
   </div>
 </dialog>

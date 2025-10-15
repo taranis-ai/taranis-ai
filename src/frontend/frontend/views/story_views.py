@@ -1,9 +1,8 @@
-from math import ceil
 from typing import Any
 from flask_jwt_extended import current_user
 from flask import json, render_template, request, url_for, make_response, abort, Response
 from pydantic import ValidationError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, parse_qs
 
 from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
 from models.report import ReportItem
@@ -107,18 +106,20 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def get_report_dialog(cls) -> str:
-        story_ids = request.form.getlist("story_ids[]")
+    def get_report_dialog(cls) -> tuple[str, int]:
+        story_ids = request.args.getlist("story_ids")
+        logger.debug(f"Opening report dialog for stories {story_ids}")
         reports = DataPersistenceLayer().get_objects(ReportItem)
-        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports)
+        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports), 200
 
     @classmethod
     @auth_required()
-    def submit_report_dialog(cls) -> str:
-        story_ids = request.form.getlist("story_ids[]")
+    def submit_report_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
-        logger.debug(f"Submitting report dialog for stories {story_ids} - {report_id}")
-        return cls.render_response_notification({"message": "Stories reported successfully", "category": "success"})
+        response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
     @auth_required()
@@ -129,20 +130,17 @@ class StoryView(BaseView):
             bulk_action = BulkAction(payload=story_action, story_ids=request.form.getlist("story_ids"))
         except ValidationError:
             logger.debug("No story IDs supplied for bulk update. Returning current story list.")
-            return cls.list_view()
+            return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bulk action."}))
         response = CoreApi().api_post("/assess/stories/bulk_action", json_data=bulk_action.model_dump(mode="json"))
-        if not getattr(response, "ok", False):
-            notification = cls.get_notification_from_response(response)
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        return cls.list_view()
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @staticmethod
-    def parse_paging_data() -> PagingData:
-        """Unmarshal Flask request.args into a PagingData model."""
-        args: dict[str, list[str]] = request.args.to_dict(flat=False)
+    def parse_paging_data(params: dict[str, list[str]] | None = None) -> PagingData:
+        """Unmarshal query parameters into a PagingData model."""
+        source_params = params if params is not None else request.args.to_dict(flat=False)
+        args: dict[str, list[str]] = {key: list(value) for key, value in source_params.items()}
 
         # Flatten single-value entries for convenience in query_params
         query_params: dict[str, str | list[str]] = {k: v[0] if len(v) == 1 else v for k, v in args.items()}
@@ -178,18 +176,14 @@ class StoryView(BaseView):
         Prepare pagination metadata and URLs while preserving active filters.
         """
         total_count = stories.total_count if stories else 0
-        limit = paging.limit or (getattr(stories, "limit", None) if stories else None) or 20
-        limit = max(limit, 1)
-        total_pages = max(1, ceil(total_count / limit)) if total_count else 1
+        limit = max(paging.limit or 20, 1)
+        total_pages = stories.total_pages if stories else 1
 
-        requested_index = paging.page if paging.page is not None else 0
+        requested_index = paging.page or 0
         clamped_index = min(max(requested_index, 0), max(total_pages - 1, 0))
 
-        base_params = {key: value[:] for key, value in request_params.items() if value}
-        base_params.pop("offset", None)
-
         def build_url(page_index: int) -> str:
-            params = {key: value[:] for key, value in base_params.items()}
+            params = {key: value[:] for key, value in request_params.items() if value and key != "offset"}
             if page_index <= 0:
                 params.pop("page", None)
             else:
@@ -219,11 +213,12 @@ class StoryView(BaseView):
         }
 
     @classmethod
-    def list_view(cls):
-        request_params = request.args.to_dict(flat=False)
+    def _render_story_list(
+        cls,
+        paging_data: PagingData,
+        request_params: dict[str, list[str]],
+    ):
         logger.debug(f"Got request params: {request_params}")
-        paging_data = cls.parse_paging_data()
-
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
             error = None if items else f"No {cls.model_name()} items found"
@@ -235,26 +230,31 @@ class StoryView(BaseView):
             items, error = None, str(exc)
 
         context = cls.get_view_context(items, error)
-        context["pagination"] = cls._build_pagination_context(items if items else None, paging_data, request_params)
+        context["pagination"] = cls._build_pagination_context(items or None, paging_data, request_params)
 
         return render_template(cls.get_list_template(), **context), 200
 
     @classmethod
-    def render_list(cls) -> tuple[str, int]:
-        try:
-            items = DataPersistenceLayer().get_objects(cls.model)
-            status_code = 200
-            error = None
-        except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, cls.model))
-            items, error = None, format_pydantic_errors(exc, cls.model)
-            status_code = 400
-        except Exception as exc:
-            logger.exception(f"Error retrieving {cls.model_name()} items")
-            items, error = None, str(exc)
-            status_code = 500
+    def rerender_list(cls, notification: str | None = None):
+        request_params = request.args.to_dict(flat=False)
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
+        if request.method == "POST" and "HX-Current-URL" in request.headers:
+            url = request.headers.get("HX-Current-URL", "")
+
+            parsed_url = urlparse(url)
+            request_params = parse_qs(parsed_url.query)
+
+        paging_data = cls.parse_paging_data(request_params)
+        table, status = cls._render_story_list(paging_data, request_params)
+        if notification:
+            return make_response(notification + table, status)
+        return make_response(table, status)
+
+    @classmethod
+    def list_view(cls):
+        request_params = request.args.to_dict(flat=False)
+        paging_data = cls.parse_paging_data(request_params)
+        return cls._render_story_list(paging_data, request_params)
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:

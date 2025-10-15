@@ -44,6 +44,9 @@ function initChoices(elementID, placeholder='items') {
   if (!select || typeof Choices === 'undefined') {
     return;
   }
+  if (select.classList.contains('choices__input')) {
+     return;
+  }
 
   const classNames = {
     containerOuter: ['choices', '!bg-base-200'],
@@ -103,6 +106,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
         <input type="search"
                oninput="this.name = this.value ? 'search' : ''"
                value="{{ current_search }}"
+               {% if current_search %}name="search"{% endif %}
                placeholder="Search stories"
                class="grow"
                autocomplete="off"
@@ -112,12 +116,22 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
 
     <div class="divider text-xs">Source</div>
     <section class="space-y-4">
-      <select id="source-group-filter" onchange="this.name = this.value ? 'group' : ''" class="select select-sm" hx-trigger="change" multiple>
+      <select id="source-group-filter"
+              {% if selected_groups %}name="group"{% endif %}
+              onchange="this.name = this.value ? 'group' : ''"
+              class="select select-sm"
+              hx-trigger="change"
+              multiple>
         {% for group in filter_lists.groups %}
           <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
         {% endfor %}
       </select>
-      <select id="source-filter" onchange="this.name = this.value ? 'source' : ''" class="select select-sm" hx-trigger="change" multiple>
+      <select id="source-filter"
+              {% if selected_sources %}name="source"{% endif %}
+              onchange="this.name = this.value ? 'source' : ''"
+              class="select select-sm"
+              hx-trigger="change"
+              multiple>
         {% for source in filter_lists.sources %}
           <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
         {% endfor %}
@@ -139,20 +153,22 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
         </div>
       </div>
       <div class="grid grid-cols-1 gap-3">
-        <label class="form-control w-full">
-          <span class="label-text text-xs font-medium uppercase text-base-content/70">From</span>
+        <label class="input w-full">
+          <span class="label text-xs font-medium text-base-content/70 pr-1">From</span>
           <input type="datetime-local"
                  value="{{ time_from }}"
+                 {% if time_from %}name="timefrom"{% endif %}
                  onchange="this.name = this.value ? 'timefrom' : ''"
-                 class="input input-bordered input-sm"
+                 class="input-bordered input-xs"
                  hx-trigger="change delay:250ms">
         </label>
-        <label class="form-control w-full">
-          <span class="label-text text-xs font-medium uppercase text-base-content/70">To</span>
+        <label class="input w-full">
+          <span class="label text-xs font-medium text-base-content/70 pr-4">To</span>
           <input type="datetime-local"
-                 onchange="this.name = this.value ? 'timeto' : ''"
                  value="{{ time_to }}"
-                 class="input input-bordered input-sm"
+                 {% if time_to %}name="timeto"{% endif %}
+                 onchange="this.name = this.value ? 'timeto' : ''"
+                 class="input-bordered input-xs"
                  hx-trigger="change delay:250ms">
         </label>
       </div>
@@ -163,7 +179,10 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
       {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
       <label class="select w-full">
         <span class="label">Cybersecurity</span>
-        <select onchange="this.name = this.value ? 'cybersecurity' : ''" class="select select-bordered select-sm" hx-trigger="change">
+        <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}
+                onchange="this.name = this.value ? 'cybersecurity' : ''"
+                class="select select-bordered select-sm"
+                hx-trigger="change">
           <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
           {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
             <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
@@ -176,7 +195,10 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     <section>
       <label class="select w-full">
         <span class="label">Sort</span>
-        <select onchange="this.name = this.value ? 'sort' : ''" class="select select-bordered select-sm" hx-trigger="change">
+        <select {% if current_sort %}name="sort"{% endif %}
+                onchange="this.name = this.value ? 'sort' : ''"
+                class="select select-bordered select-sm"
+                hx-trigger="change">
           {% for option in sort_choices %}
             <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
@@ -231,8 +253,8 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     </a>
   </div>
 
-  <div class="divider"></div>
-  <a class="btn btn-ghost btn-sm w-full" href="{{ url_for('user.settings') }}#hotkeys" target="_blank" rel="noopener">
+  <div class="divider mb-0"></div>
+  <a class="btn btn-ghost btn-xs w-full mt-0" href="{{ url_for('user.settings') }}#hotkeys" target="_blank" rel="noopener">
     {{ heroicon_outline('command-line', class='h-4 w-4') }}
     Show hotkeys
   </a>

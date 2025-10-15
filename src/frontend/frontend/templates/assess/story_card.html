@@ -80,12 +80,14 @@
 
             {% if story.in_reports_count %}
               {% set report_count = story.in_reports_count | int %}
-              {% set icon_count = 4 if report_count > 4 else report_count %}
               <div class="flex items-center gap-2">
                 <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-                <div class="flex items-center gap-1 text-warning">
-                  {% for _ in range(icon_count) %}{{ heroicon_mini("arrow-up-on-square") }}{% endfor %}
-                  {% if report_count > icon_count %}<span class="text-xs text-base-content/60">+{{ report_count - icon_count }}</span>{% endif %}
+                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+                  {% if report_count < 2 %}
+                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
+                  {% else %}
+                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
+                  {% endif %}
                 </div>
               </div>
             {% endif %}
@@ -95,7 +97,11 @@
                 <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
                 <div class="flex flex-wrap gap-2">
                   {% for tag in tags_list[:6] %}
-                    {% if tag.name %}<span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name }}</span>{% endif %}
+                    {% if tag.name %}
+                      <div class="tooltip before:z-[50]" data-tip="{{ tag.tag_type }}">
+                        <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name | truncate(10, true) }}</span>
+                      </div>
+                    {% endif %}
                   {% endfor %}
                   {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
                 </div>

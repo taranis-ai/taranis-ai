@@ -125,7 +125,7 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
-        result_dict = {"updated": 0, "errors": [], "success": []}
+        result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for s in [story.Story.get(sid) for sid in story_ids if sid]:
             if not s:
                 return {"error": "Story not found"}, 404
@@ -136,6 +136,7 @@ class Stories(MethodView):
                 result_dict["success"].append({"story_id": s.id, "response": response})
                 result_dict["updated"] += 1
 
+        result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
         return result_dict, 200
 
 
