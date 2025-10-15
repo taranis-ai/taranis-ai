@@ -83,10 +83,23 @@ class NewsItem(BaseModel):
         self.language = language
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
-        self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
-        self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
+        self.collected = collected if isinstance(collected, datetime) else self._normalize_datetime(collected)
+        self.published = published if isinstance(published, datetime) else self._normalize_datetime(published)
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
+
+    @staticmethod
+    def _normalize_datetime(datetime_str: str) -> datetime:
+        """Convert datetime string to naive datetime, removing timezone info if present.
+        
+        This ensures consistent datetime handling throughout the application where
+        the database stores naive datetimes and most operations expect naive datetimes.
+        """
+        dt = datetime.fromisoformat(datetime_str)
+        # Convert timezone-aware datetime to naive by replacing tzinfo
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
