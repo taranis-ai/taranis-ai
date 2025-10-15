@@ -1,6 +1,7 @@
 {% from "assess/story_card.html" import story_card with context %}
 <div id="assess" data-testid="assess">
   {% set actions = actions | default([]) %}
+  {% set pagination = pagination | default({}) %}
 
   <div
     id="assess-container"
@@ -46,13 +47,9 @@
     {% if stories %}
       {% include "assess/assess_top_bar.html" %}
       {% for story in stories %}{{ story_card(story) }}{% endfor %}
-      <form method="get" class="flex justify-center mt-4">
-        <div class="join">
-          <button class="join-item btn {% if stories.page == stories.first_page %}btn-disabled{% endif %}">« Previous</button>
-          <button class="join-item btn">Page {{ stories.page }}</button>
-          <button class="join-item btn {% if stories.page == stories.last_page %}btn-disabled{% endif %}">» Next</button>
-        </div>
-      </form>
+      {% if pagination %}
+        {% include "assess/story_table_paging.html" %}
+      {% endif %}
     {% else %}
       <p class="text-center text-base-content/60">No stories found.</p>
       <a href="{{ routes.base_route }}" class="btn btn-primary btn-sm w-full">

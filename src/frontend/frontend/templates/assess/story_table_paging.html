@@ -1,0 +1,40 @@
+
+<div class="ml-4 mt-6 flex flex-col flex-row">
+  <div class="join self-start self-auto">
+    <a class="join-item btn btn-outline btn-sm"
+       href="{{ pagination.previous_url }}"
+       hx-get="{{ pagination.previous_url }}"
+       hx-target="#assess"
+       hx-select="#assess"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       {% if not pagination.has_previous %}aria-disabled="true" disabled{% endif %}
+       hx-target-error="#notification-bar">
+      {{ heroicon_mini('chevron-left', class='h-4 w-4') }}
+      <span class="hidden sm:inline">Previous</span>
+    </a>
+    <span class="join-item btn btn-sm btn-ghost no-animation cursor-default">
+      Page {{ pagination.current_page }} of {{ pagination.total_pages }}
+    </span>
+    <a class="join-item btn btn-outline btn-sm"
+       href="{{ pagination.next_url }}"
+       hx-get="{{ pagination.next_url }}"
+       hx-target="#assess"
+       hx-select="#assess"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       {% if not pagination.has_next %}aria-disabled="true" disabled{% endif %}
+       hx-target-error="#notification-bar">
+      <span class="hidden inline">Next</span>
+      {{ heroicon_mini('chevron-right', class='h-4 w-4') }}
+    </a>
+  </div>
+  <div class="self-center pl-12">
+    <p class="text-sm text-base-content/70">
+      Showing
+      <span class="font-medium text-base-content">{{ pagination.page_start }} - {{ pagination.page_end }}</span>
+      of
+      <span class="font-medium text-base-content">{{ pagination.total_count }}</span>
+    </p>
+  </div>
+</div>

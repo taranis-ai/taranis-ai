@@ -1,7 +1,9 @@
+from math import ceil
 from typing import Any
 from flask_jwt_extended import current_user
 from flask import json, render_template, request, url_for, make_response, abort, Response
 from pydantic import ValidationError
+from urllib.parse import urlencode
 
 from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
 from models.report import ReportItem
@@ -166,6 +168,57 @@ class StoryView(BaseView):
         )
 
     @classmethod
+    def _build_pagination_context(
+        cls,
+        stories: CacheObject[Story] | None,
+        paging: PagingData,
+        request_params: dict[str, list[str]],
+    ) -> dict[str, Any]:
+        """
+        Prepare pagination metadata and URLs while preserving active filters.
+        """
+        total_count = stories.total_count if stories else 0
+        limit = paging.limit or (getattr(stories, "limit", None) if stories else None) or 20
+        limit = max(limit, 1)
+        total_pages = max(1, ceil(total_count / limit)) if total_count else 1
+
+        requested_index = paging.page if paging.page is not None else 0
+        clamped_index = min(max(requested_index, 0), max(total_pages - 1, 0))
+
+        base_params = {key: value[:] for key, value in request_params.items() if value}
+        base_params.pop("offset", None)
+
+        def build_url(page_index: int) -> str:
+            params = {key: value[:] for key, value in base_params.items()}
+            if page_index <= 0:
+                params.pop("page", None)
+            else:
+                params["page"] = [str(page_index)]
+            query_string = urlencode(params, doseq=True)
+            base_url = cls.get_base_route()
+            return f"{base_url}?{query_string}" if query_string else base_url
+
+        items_on_page = len(stories or [])
+        if total_count and items_on_page:
+            page_start = clamped_index * limit + 1
+            page_end = min(page_start + items_on_page - 1, total_count)
+        else:
+            page_start = 0
+            page_end = 0
+
+        return {
+            "current_page": clamped_index + 1,
+            "total_pages": total_pages,
+            "has_previous": clamped_index > 0,
+            "has_next": (clamped_index + 1) < total_pages,
+            "previous_url": build_url(clamped_index - 1) if clamped_index > 0 else "",
+            "next_url": build_url(clamped_index + 1) if (clamped_index + 1) < total_pages else "",
+            "page_start": page_start,
+            "page_end": page_end,
+            "total_count": total_count,
+        }
+
+    @classmethod
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
         logger.debug(f"Got request params: {request_params}")
@@ -181,7 +234,10 @@ class StoryView(BaseView):
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
+        context = cls.get_view_context(items, error)
+        context["pagination"] = cls._build_pagination_context(items if items else None, paging_data, request_params)
+
+        return render_template(cls.get_list_template(), **context), 200
 
     @classmethod
     def render_list(cls) -> tuple[str, int]:
