@@ -94,7 +94,10 @@ def session(db):
     connection = db.engine.connect()
     transaction = connection.begin()
 
-    db.session = scoped_session(session_factory=sessionmaker(bind=connection))
+    # Store the original session to restore later
+    original_session = db.session
+    
+    db.session = scoped_session(sessionmaker(bind=connection))
 
     # Import versioned_session locally to avoid triggering config loading at module level
     try:
@@ -105,13 +108,15 @@ def session(db):
     except ImportError:
         # Fallback if versioned_session is not available
         print("versioned_session not available, using regular session @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-        pass
 
     yield db.session
 
     transaction.rollback()
     connection.close()
     db.session.remove()
+    
+    # Restore the original session for cleanup fixtures
+    db.session = original_session
 
 
 @pytest.fixture(scope="session")
