@@ -50,15 +50,14 @@ class TestDbHistory:
         story_response, status_code = story_tuple
         story_id = story_response.get("story_id", "") if isinstance(story_response, dict) else story.get("id", "")
         test_logger.debug(f"Using story_id: {story_id}")
+        assert session.query(StoryHistory).filter(StoryHistory.Story_id == story_id, StoryHistory.version == 1).count() == 1, "Initial version should be created"
 
-        # First update - should create version 1 in history
+        # First update - should create version entry in history
         first_update = {"title": "First Update Title", "description": "First update description"}
         Story.update(story_id, first_update)
         test_logger.debug("Applied first update")
-        import pdb
 
-        pdb.set_trace()
-        assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 2
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 1
         assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == "First Update Title"
 
         # Second update - should create version 2 in history

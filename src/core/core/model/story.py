@@ -544,9 +544,7 @@ class Story(Versioned, BaseModel):
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
-        import pdb
 
-        pdb.set_trace()
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
