@@ -14,7 +14,7 @@ class ReportItemCpe(TaranisBaseModel):
 
 class ReportItemAttributeGroup(TaranisBaseModel):
     title: str
-    attributes: list[ReportItemAttribute] | dict[str, str] = Field(default_factory=list)
+    attributes: list[ReportItemAttribute] = Field(default_factory=list)
 
 
 class ReportItem(TaranisBaseModel):
@@ -33,6 +33,5 @@ class ReportItem(TaranisBaseModel):
     report_item_type: str | None = None
     stories: list[Story | str] = Field(default_factory=list)
     grouped_attributes: list[ReportItemAttributeGroup] | None = None
-    used_story_ids: list[str] | None = None
     attributes: list[ReportItemAttribute] | dict[str, str] = Field(default_factory=list)
     report_item_cpes: list[ReportItemCpe] = Field(default_factory=list)

@@ -8,8 +8,6 @@
 {% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
 
 <script type="text/javascript">
-  {% include "partials/choices_setup.js" %}
-
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
       initChoices('user-role-select', 'roles');

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
+  <script src="{{ url_for('static', filename='js/choices_setup.js') }}"></script>
   <link href="{{ url_for('static', filename='vendor/css/choices.min.css') }}" rel="stylesheet">
   <script src="{{ url_for('static', filename='vendor/js/choices.min.js') }}"></script>
 {% endblock head %}
@@ -7,9 +8,6 @@
 {% block content %}
   {% from 'macros/forms.html' import form_input_content, form_switch %}
   <script type="text/javascript">
-
-  {% include "partials/choices_setup.js" %}
-
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
       initChoices('trending-tag-filter-select', 'tags');

@@ -18,7 +18,7 @@
     {% elif attr.type == 'BOOLEAN' %}
       {{ form_switch(name=base_name, value=value, label=label, required=required, input_id=field_id) }}
     {% elif attr.type in ['ENUM', 'CPE'] %}
-      <label class="form-control w-full">
+      <label class="select w-full">
         <span class="label justify-between">
           <span>{{ label }}</span>
           {% if required %}<span class="text-error text-sm">*</span>{% endif %}
@@ -55,7 +55,7 @@
       </fieldset>
 
     {% elif attr.type == 'TLP' %}
-      <div class="form-control w-full">{{ tlp_levels(value, name=base_name) }}</div>
+      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name) }}</div>
 
     {% elif attr.type in ['DATE', 'DATE_TIME', 'TIME'] %}
       <label class="input w-full">
@@ -80,20 +80,12 @@
 
     {% elif attr.type == 'STORY' %}
       {% set selected_values = value.split(',') if value else [] %}
-      <div class="form-control w-full">
-        <span class="label justify-between">
-          <span>{{ label }}</span>
-          {% if required %}<span class="text-error text-sm">*</span>{% endif %}
-        </span>
-        <select class="select select-bordered w-full h-36" name="{{ base_name }}[]" multiple {% if read_only %}disabled{% endif %}>
-          {% if stories|length == 0 %}<option disabled>No stories assigned to this report</option>{% endif %}
+      <div class="w-full">
+        <select id="attribute_story_{{ attr.id }}" name="{{ base_name }}[]" multiple>
           {% for story in stories %}
             <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title }}</option>
           {% endfor %}
         </select>
-        {% if read_only %}
-          {% for story_id in selected_values %}<input type="hidden" name="{{ base_name }}[]" value="{{ story_id }}">{% endfor %}
-        {% endif %}
       </div>
 
     {% elif attr.type == 'ATTACHMENT' %}

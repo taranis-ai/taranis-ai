@@ -2,7 +2,7 @@ from typing import Any
 from flask import request, abort, Response, url_for
 
 from frontend.log import logger
-from models.report import ReportItem
+from models.report import ReportItem, ReportItemAttributeGroup
 from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
 from frontend.data_persistence import DataPersistenceLayer
@@ -37,16 +37,24 @@ class ReportItemView(BaseView):
             },
         ]
 
+    @staticmethod
+    def _get_story_attributes(grouped_attributes: list[ReportItemAttributeGroup]):
+        story_attributes = []
+        for ag in grouped_attributes:
+            story_attributes.extend(a for a in ag.attributes if a.type and a.type == "STORY")
+        return story_attributes
+
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
+        report = base_context.get("report")
         layout = request.args.get("layout", base_context.get("layout", "split"))
-        layout = layout if layout in {"split", "stacked"} else "split"
 
         base_context |= {
             "layout": layout,
             "actions": cls.get_report_actions(),
+            "story_attributes": ReportItemView._get_story_attributes(report.grouped_attributes) or [] if report else [],
         }
 
         return base_context

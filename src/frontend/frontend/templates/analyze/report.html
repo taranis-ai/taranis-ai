@@ -6,12 +6,35 @@
 {% set report_types = report_types | default([]) %}
 {% set grouped_attributes = report.grouped_attributes | default([]) %}
 {% set stories = report.stories | default([]) %}
-{% set used_story_ids = report.used_story_ids | default([]) %}
+{% set used_story_ids = story_attributes | map(attribute='value') | reject('equalto', '') | list %}
+{# set used_story_ids = (story_attributes | map(attribute='value')).split(',') | default([]) #}
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
 
+<script type="text/javascript">
+  function initAttributeStoryChoices() {
+    const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
+    story_attribute_ids.forEach(attr => {
+      const field_id = `attribute_story_${attr.id}`;
+      const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
+    });
+  }
+
+  if (typeof htmx !== 'undefined' && htmx.onLoad) {
+    htmx.onLoad(function(elt) {
+      initAttributeStoryChoices();
+    });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      initAttributeStoryChoices();
+    });
+  }
+</script>
+
 <div class="p-4 card bg-base-100 shadow" id="report">
+  REPORT USED STROY IDS: {{ report.used_story_ids }}
+  USED STORY IDS: {{ used_story_ids }}
   <div class="card-body gap-4">
     <div class="flex flex-wrap items-center gap-3">
       <h2 class="card-title">

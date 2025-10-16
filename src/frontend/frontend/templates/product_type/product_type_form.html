@@ -2,8 +2,6 @@
 {% set product_type_id = product_type.id | default(0, true) %}
 
 <script type="text/javascript">
-{% include "partials/choices_setup.js" %}
-
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
     initChoices('report_types-select', 'report types');

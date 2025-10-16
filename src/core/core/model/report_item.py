@@ -119,14 +119,10 @@ class ReportItem(BaseModel):
         grouped_attributes = self.get_grouped_attributes(attributes)
         return [(group["title"] or "") for group in grouped_attributes]
 
-    def get_used_story_ids(self, attributes: list[dict[str, Any]]) -> list[str]:
-        return [a.get("value", "") for a in attributes if a.get("type") == "STORY" and a.get("value")]
-
     def to_detail_dict(self):
         data = super().to_dict()
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
-        data["used_story_ids"] = self.get_used_story_ids(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 

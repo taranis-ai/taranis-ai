@@ -261,6 +261,7 @@ class ReportItemAttribute(TaranisBaseModel):
     description: str | None = None
     index: int | None = None
     required: bool | None = None
+    type: str | None = None
 
 
 class ReportItemAttributeGroup(TaranisBaseModel):
