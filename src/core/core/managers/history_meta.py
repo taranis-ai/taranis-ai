@@ -292,18 +292,30 @@ def versioned_session(session):
     @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
         logger.debug("before_flush versioning")
+        # Track which objects have already had a version created in this flush
+        if not hasattr(session, "_versioned_objs"):
+            session._versioned_objs = set()
         # Inserts: handle new objects
         for obj in versioned_objects(session.new):
-            create_version(obj, session, created=True)
+            if obj not in session._versioned_objs:
+                create_version(obj, session, created=True)
+                session._versioned_objs.add(obj)
         # Deletes
         for obj in versioned_objects(session.deleted):
-            create_version(obj, session, deleted=True)
+            if obj not in session._versioned_objs:
+                create_version(obj, session, deleted=True)
+                session._versioned_objs.add(obj)
 
     @event.listens_for(session, "after_flush")
     def after_flush(session, flush_context):
         logger.debug("after_flush versioning")
+        if not hasattr(session, "_versioned_objs"):
+            session._versioned_objs = set()
         # Updates: only for persistent objects (exclude new ones!)
         for obj in versioned_objects(session.dirty):
             state = attributes.instance_state(obj)
-            if state.persistent:  # prevents double-counting inserts
+            if state.persistent and obj not in session._versioned_objs:  # prevents double-counting inserts
                 create_version(obj, session)
+                session._versioned_objs.add(obj)
+        # Clear the set after flush
+        session._versioned_objs.clear()
