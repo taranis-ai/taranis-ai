@@ -7,7 +7,6 @@
 {% set grouped_attributes = report.grouped_attributes | default([]) %}
 {% set stories = report.stories | default([]) %}
 {% set used_story_ids = story_attributes | map(attribute='value') | reject('equalto', '') | list %}
-{# set used_story_ids = (story_attributes | map(attribute='value')).split(',') | default([]) #}
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
@@ -33,8 +32,6 @@
 </script>
 
 <div class="p-4 card bg-base-100 shadow" id="report">
-  REPORT USED STROY IDS: {{ report.used_story_ids }}
-  USED STORY IDS: {{ used_story_ids }}
   <div class="card-body gap-4">
     <div class="flex flex-wrap items-center gap-3">
       <h2 class="card-title">

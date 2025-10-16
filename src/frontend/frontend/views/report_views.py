@@ -1,5 +1,6 @@
 from typing import Any
 from flask import request, abort, Response, url_for
+from pydantic import ValidationError
 
 from frontend.log import logger
 from models.report import ReportItem, ReportItemAttributeGroup
@@ -9,6 +10,8 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_datetime, render_count
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class ReportItemView(BaseView):
@@ -107,3 +110,21 @@ class ReportItemView(BaseView):
         if object_id is None:
             abort(405)
         return self.update_view(object_id=object_id)
+
+    @staticmethod
+    def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
+        return {key: ",".join(value) if isinstance(value, list) else value for key, value in attributes.items()}
+
+    @classmethod
+    def process_form_data(cls, object_id: int | str):
+        try:
+            form_data = parse_formdata(request.form)
+            form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
+            logger.debug(f"Form data received: {form_data}")
+            return cls.store_form_data(form_data, object_id)
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
+        except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
+            return None, str(exc)
