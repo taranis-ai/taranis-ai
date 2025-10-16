@@ -109,7 +109,8 @@ class MispConnector:
         base_misp_builder.add_story_object(story, event)
 
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
-        event = base_misp_builder.create_misp_event(story, self.sharing_group_id, self.distribution)
+        event = MISPEvent()
+        base_misp_builder.init_misp_event(event, story, self.sharing_group_id, self.distribution)
         self.add_story_properties_to_event(story, event)
 
         # Create a new report without reusing any UUID.
@@ -475,17 +476,18 @@ class MispConnector:
         logger.debug(f"Proposed attributes (shadow attributes): {shadow_attributes=}")
         return shadow_attributes
 
-    def _create_event(self, story_prepared, misp_event_uuid, existing_event):
-        result = base_misp_builder.create_misp_event(story_prepared, self.sharing_group_id, self.distribution)
-        self.add_story_properties_to_event(story_prepared, result)
+    def _create_event(self, story_prepared, misp_event_uuid, existing_event) -> MISPEvent:
+        event = MISPEvent()
+        base_misp_builder.init_misp_event(event, story_prepared, self.sharing_group_id, self.distribution)
+        self.add_story_properties_to_event(story_prepared, event)
 
-        result.uuid = misp_event_uuid
+        event.uuid = misp_event_uuid
         existing_report_uuid = None
         if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
             existing_report_uuid = existing_event.EventReport[0].uuid
         new_report = self.create_event_report(story_prepared, existing_report_uuid)
-        result.EventReport = [new_report]
-        return result
+        event.EventReport = [new_report]
+        return event
 
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | list[MISPShadowAttribute] | None:
         """

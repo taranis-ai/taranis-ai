@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
 import json
 from uuid import uuid4
+from pymisp import MISPEvent
+from datetime import datetime, timezone
 
 from worker.connectors import base_misp_builder
 from misp_stix_converter import MISPtoSTIX21Parser
@@ -83,7 +84,8 @@ class STIXPresenter(BasePresenter):
         return json.dumps(bundle, indent=2)
 
     def convert_to_stix(self, report_item: dict) -> str:
-        event = base_misp_builder.create_misp_event(report_item, sharing_group_id=None, distribution="1")
+        event = MISPEvent()
+        base_misp_builder.init_misp_event(event, report_item, sharing_group_id=None, distribution="1")
 
         event.published = True
         event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
