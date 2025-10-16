@@ -1,4 +1,8 @@
 import logging
+from typing import Any
+
+from sqlalchemy.orm.scoping import scoped_session
+from sqlalchemy.orm import Session
 
 # Create a simple test logger that doesn't trigger Config loading
 test_logger = logging.getLogger(__name__)
@@ -6,7 +10,7 @@ test_logger.setLevel(logging.DEBUG)
 
 
 class TestDbHistory:
-    def test_story_history(self, session, full_story):  # assumes a fixture that gives a working session
+    def test_story_history(self, session: scoped_session[Session], full_story: Any):  # assumes a fixture that gives a working session
         from core.model.story import Story
 
         StoryHistory = Story.__history_mapper__.class_
@@ -34,7 +38,7 @@ class TestDbHistory:
         assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 1
         assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == "Second title"
 
-    def test_story_multiple_updates_history(self, session, full_story):
+    def test_story_multiple_updates_history(self, session: scoped_session[Session], full_story: Any):
         """Test that multiple story updates create correct version history with incremental version numbers"""
         from core.model.story import Story
 
@@ -50,7 +54,7 @@ class TestDbHistory:
         story_response, status_code = story_tuple
         story_id = story_response.get("story_id", "") if isinstance(story_response, dict) else story.get("id", "")
         test_logger.debug(f"Using story_id: {story_id}")
-        assert session.query(StoryHistory).filter(StoryHistory.Story_id == story_id, StoryHistory.version == 1).count() == 1, "Initial version should be created"
+        assert session.query(StoryHistory).filter(StoryHistory.id == story_id, StoryHistory.version == 1).count() == 1, "Initial version should be created"
 
         # First update - should create version entry in history
         first_update = {"title": "First Update Title", "description": "First update description"}
@@ -120,7 +124,7 @@ class TestDbHistory:
 
         test_logger.debug("✅ All version history checks passed!")
 
-    def test_story_attribute_update_history(self, session, full_story):
+    def test_story_attribute_update_history(self, session: scoped_session[Session], full_story: Any):
         """Test that story attribute updates don't create duplicate history entries due to multiple commits"""
         from core.model.story import Story
 
@@ -157,7 +161,7 @@ class TestDbHistory:
 
         test_logger.debug("✅ Attribute update test completed - single transaction confirmed!")
 
-    def test_single_transaction_behavior(self, session, full_story):
+    def test_single_transaction_behavior(self, session: scoped_session[Session], full_story: Any):
         """Test that Story.add and Story.update create only single history entries per operation after transaction fix"""
         from core.model.story import Story
 
