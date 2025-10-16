@@ -1,5 +1,6 @@
 import json
 from flask import request, render_template, Response
+from typing import Any
 
 from models.admin import WordList
 from frontend.views.base_view import BaseView
@@ -8,21 +9,14 @@ from frontend.log import logger
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
+from frontend.filters import render_count
+from frontend.views.admin_mixin import AdminMixin
 
 
-class WordListView(BaseView):
+class WordListView(AdminMixin, BaseView):
     model = WordList
     icon = "chat-bubble-bottom-center-text"
     _index = 170
-
-    form_fields = {
-        "name": {},
-        "description": {},
-        "link": {},
-        "include": {},
-        "exclude": {},
-        "tagging": {},
-    }
 
     @classmethod
     def import_view(cls, error=None):
@@ -50,7 +44,7 @@ class WordListView(BaseView):
     @auth_required()
     def export_view(cls):
         word_list_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_word_lists(word_list_ids)
+        core_resp = CoreApi().export_word_lists({"ids": word_list_ids})
 
         if not core_resp:
             logger.debug(f"Failed to fetch word lists from: {Config.TARANIS_CORE_URL}")
@@ -66,14 +60,38 @@ class WordListView(BaseView):
             logger.error("Failed to load default word lists")
             return render_template("notification/index.html", notification={"message": "Failed to load default word lists", "error": True})
 
-        response = CoreApi().import_word_lists(response)
+        core_response = CoreApi().import_word_lists(response)
 
-        if not response.ok:
-            error = response.json().get("error", "Unknown error")
-            error_message = f"Failed to import default word lists: {error}"
-            logger.error(error_message)
-            return render_template("notification/index.html", notification={"message": error_message, "error": True})
+        response = cls.get_notification_from_response(core_response)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
-        items = DataPersistenceLayer().get_objects(cls.model)
-        return render_template(cls.get_list_template(), **cls.get_view_context(items))
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code
+
+    @classmethod
+    @auth_required()
+    def update_word_lists(cls, word_list_id: int | None = None):
+        core_response = CoreApi().update_word_lists(word_list_id)
+        response = cls.get_notification_from_response(core_response)
+
+        DataPersistenceLayer().invalidate_cache_by_object(WordList)
+        table, table_response = cls.list_view()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code
+
+    @classmethod
+    def get_columns(cls) -> list[dict[str, Any]]:
+        return [
+            {"title": "Name", "field": "name", "sortable": True, "renderer": None},
+            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {
+                "title": "Words",
+                "field": "entries",
+                "sortable": False,
+                "renderer": render_count,
+                "render_args": {"field": "entries"},
+            },
+        ]

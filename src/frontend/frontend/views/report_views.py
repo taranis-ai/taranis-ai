@@ -1,55 +1,49 @@
 from typing import Any
-from flask import render_template, request
+from frontend.log import logger
 
+from models.report import ReportItem
+from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
-from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup, ReportItemAttribute
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.form_data_parser import parse_formdata
+from frontend.filters import render_datetime, render_count, render_item_type
 
 
-class ReportItemTypeView(BaseView):
-    model = ReportItemType
+class ReportItemView(BaseView):
+    model = ReportItem
     icon = "presentation-chart-bar"
-    _index = 120
+    htmx_list_template = "analyze/report_table.html"
+    htmx_update_template = "analyze/report.html"
+    edit_template = "analyze/report_view.html"
+    default_template = "analyze/index.html"
 
-    form_fields = {"title": {}, "description": {}}
+    base_route = "analyze.analyze"
+    edit_route = "analyze.report"
+    _read_only = True
+    _show_sidebar = False
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "ID", "field": "id", "sortable": False, "renderer": None},
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
-            {"title": "Description", "field": "description", "sortable": True, "renderer": None},
+            {"title": "Created", "field": "created", "sortable": True, "renderer": render_datetime, "render_args": {"field": "created"}},
+            {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
+            {
+                "title": "Stories",
+                "field": "stories",
+                "sortable": True,
+                "renderer": render_count,
+                "render_args": {"field": "stories"},
+            },
         ]
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        base_context["attribute_types"] = dpl.get_objects(Attribute)
+        report_types = DataPersistenceLayer().get_objects(ReportItemType)
+        base_context["report_types"] = report_types
         return base_context
 
     @classmethod
-    def get_report_item_type_groups_view(cls, group_index: int = 0):
-        return render_template(
-            "report_item_type/attribute_group.html", group=ReportItemAttributeGroup(index=group_index), **cls.get_extra_context({})
-        )
-
-    @classmethod
-    def get_report_item_type_group_items_view(cls, group_index: int, attribute_index: int = 0):
-        return render_template(
-            "report_item_type/attribute_item.html",
-            attribute=ReportItemAttribute(index=attribute_index),
-            group_index=group_index,
-            **cls.get_extra_context({}),
-        )
-
-    @classmethod
-    def process_form_data(cls, object_id: int | str):
-        form_data = parse_formdata(request.form)
-        attribute_groups = list(form_data.get("attribute_groups", {}).values())
-        for group in attribute_groups:
-            if items := group.get("attribute_group_items"):
-                group["attribute_group_items"] = list(items.values())
-
-        form_data["attribute_groups"] = attribute_groups
-        return cls.store_form_data(form_data, object_id)
+    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+        context = super().get_item_context(object_id)
+        logger.debug(f"Report item context: {context}")
+        return context

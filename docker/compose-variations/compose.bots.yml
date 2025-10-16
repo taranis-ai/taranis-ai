@@ -1,0 +1,113 @@
+services:
+  summary_bot:
+    deploy:
+      restart_policy:
+        condition: always
+    ports:
+      - "8001:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  nlp_bot:
+    deploy:
+      restart_policy:
+        condition: always
+    ports:
+      - "8002:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  story_bot:
+    deploy:
+      restart_policy:
+        condition: always
+    ports:
+      - "8003:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  sentiment_bot:
+    deploy:
+      restart_policy:
+        condition: always
+    ports:
+      - "8004:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-sentiment-bot:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  cybersec_classifier_bot:
+    deploy:
+      restart_policy:
+        condition: always
+    ports:
+      - "8005:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-cybersec-classifier:${TARANIS_BOT_TAG:-latest}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      API_KEY: "${BOT_API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"

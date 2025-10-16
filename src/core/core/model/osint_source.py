@@ -1,11 +1,12 @@
 import uuid
 import json
 import base64
-from datetime import datetime
 from typing import Any, Sequence, TYPE_CHECKING
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
+from sqlalchemy import and_, cast, String, literal, func
 
 from core.managers.db_manager import db
 from core.managers import schedule_manager
@@ -17,8 +18,8 @@ from core.model.base_model import BaseModel
 from core.model.settings import Settings
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.model.role import TLPLevel
+from core.model.task import Task as TaskModel
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
-from apscheduler.triggers.cron import CronTrigger
 
 if TYPE_CHECKING:
     from core.model.user import User
@@ -39,20 +40,17 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
-    last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
-    last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
-    last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
 
-    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
+    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
-
+        self.enabled = enabled
         self.parameters = Worker.parse_parameters(self.type, parameters)
 
     @property
@@ -61,21 +59,44 @@ class OSINTSource(BaseModel):
             return TLPLevel(value)
         return TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
 
+    @property
+    def status(self):
+        if task_result := TaskModel.get(self.task_id):
+            return task_result.to_dict()
+        return None
+
+    @property
+    def task_id(self):
+        return f"collect_{self.type}_{self.id}"
+
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
-        return (
-            db.session.execute(
-                db.select(cls)
-                .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
-                .where(cls.state != -2)
-                .order_by(
-                    db.nulls_first(db.asc(cls.last_collected)),
-                    db.nulls_first(db.asc(cls.last_attempted)),
-                )
-            )
-            .scalars()
-            .all()
+        task_id_expr = func.concat(
+            literal("collect_"),
+            cast(cls.type, String()),
+            literal("_"),
+            cls.id,
         )
+
+        query = (
+            db.select(cls)
+            .outerjoin(
+                TaskModel,
+                and_(
+                    TaskModel.task == "collector_task",
+                    TaskModel.id == task_id_expr,
+                ),
+            )
+            .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+            .where(cls.enabled.is_(True))
+            .distinct(cls.id)
+            .order_by(
+                cls.id,
+                TaskModel.last_success.asc().nulls_first(),
+                TaskModel.last_run.asc().nulls_first(),
+            )
+        )
+        return db.session.execute(query).scalars().all()
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -102,7 +123,7 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["last_collected", "last_attempted", "state", "last_error_message"]
+        drop_keys = ["enabled"]
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
@@ -110,6 +131,8 @@ class OSINTSource(BaseModel):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
+        if self.status:
+            data["status"] = self.status
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -119,9 +142,20 @@ class OSINTSource(BaseModel):
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
+        if self.status:
+            data["status"] = self.status
 
-        if not (data["parameters"].get("PROXY_SERVER", None)):
-            data["parameters"]["PROXY_SERVER"] = Settings.get_settings().get("default_proxy_server", "")
+        return data
+
+    @staticmethod
+    def get_with_defaults(data) -> dict[str, Any]:
+        params = data["parameters"]
+        settings = Settings.get_settings()
+
+        use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
+        if use_global == "true":
+            data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+
         return data
 
     def to_assess_dict(self) -> dict[str, Any]:
@@ -132,9 +166,6 @@ class OSINTSource(BaseModel):
             "type": self.type,
         }
 
-    def to_task_id(self) -> str:
-        return f"collect_{self.type}_{self.id}"
-
     def get_schedule(self) -> str:
         if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
             return refresh_interval
@@ -143,7 +174,7 @@ class OSINTSource(BaseModel):
 
     def to_task_dict(self, crontab_str: str):
         return {
-            "id": self.to_task_id(),
+            "id": self.task_id,
             "name": f"{self.type}_{self.name}",
             "jobs_params": {
                 "trigger": CronTrigger.from_crontab(crontab_str),
@@ -153,7 +184,7 @@ class OSINTSource(BaseModel):
                 "name": "collector_task",
                 "args": [self.id],
                 "queue": "collectors",
-                "task_id": self.to_task_id(),
+                "task_id": self.task_id,
             },
         }
 
@@ -171,15 +202,20 @@ class OSINTSource(BaseModel):
         if not osint_source:
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
-        if state.startswith("enable"):
-            osint_source.state = -1
-        elif state.startswith("disable"):
-            osint_source.state = -2
+        if state == "enabled":
+            logger.debug(f"Enabling OSINT Source: {osint_source.name}")
+            osint_source.enabled = True
+            osint_source.schedule_osint_source()
+        elif state == "disabled":
+            logger.debug(f"Disabling OSINT Source: {osint_source.name}")
+            osint_source.enabled = False
+            osint_source.unschedule_osint_source()
         else:
+            logger.warning(f"Unknown state {state} for OSINT Source: {osint_source.name}")
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        return {"message": f"OSINT Source {osint_source.name} state toggled", "id": f"{source_id}", "state": osint_source.state}, 200
+        return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
     def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
@@ -212,6 +248,7 @@ class OSINTSource(BaseModel):
 
         try:
             source.unschedule_osint_source()
+            TaskModel.delete(source.task_id)
             db.session.delete(source)
             db.session.commit()
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
@@ -219,31 +256,35 @@ class OSINTSource(BaseModel):
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
-    def update_status(self, error_message=None):
-        self.last_attempted = datetime.now()
-        if error_message:
-            logger.error(f"Updating status for source '{self.name}' with id {self.id} with error message: {error_message}")
-            self.state = 1
-        else:
-            self.last_collected = datetime.now()
-            self.state = 0
-        self.last_error_message = error_message
-        db.session.commit()
+    @classmethod
+    def schedule_all_osint_sources(cls):
+        sources = cls.get_all_for_collector()
+        for source in sources:
+            interval = source.get_schedule()
+            entry = source.to_task_dict(interval)
+            schedule_manager.schedule.add_celery_task(entry)
+        logger.info(f"Gathering for {len(sources)} OSINT Sources scheduled")
 
     def schedule_osint_source(self):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
+            logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
+
+        if not self.enabled:
+            logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
+            return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
         interval = self.get_schedule()
         entry = self.to_task_dict(interval)
         schedule_manager.schedule.add_celery_task(entry)
-        return {"message": f"Schedule for source {self.id} updated"}, 200
+        logger.info(f"Schedule for source {self.id} updated")
+        return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
 
     def unschedule_osint_source(self):
-        entry_id = self.to_task_id()
+        entry_id = self.task_id
         schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
-        return {"message": f"Schedule for source {self.id} removed"}, 200
+        return {"message": f"Schedule for source {self.name} removed", "id": f"{self.id}"}, 200
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
@@ -307,11 +348,12 @@ class OSINTSource(BaseModel):
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
+        items_to_schedule: list[OSINTSource] = []
         for data in sources:
             idx = data.pop("group_idx", None)
             item = cls.from_dict(data)
             db.session.add(item)
-            item.schedule_osint_source()
+            items_to_schedule.append(item)
             OSINTSourceGroup.add_source_to_default(item)
 
             index_to_id_mapping[idx or item.id] = item.id
@@ -321,6 +363,8 @@ class OSINTSource(BaseModel):
             OSINTSourceGroup.add(group)
 
         db.session.commit()
+        for item in items_to_schedule:
+            item.schedule_osint_source()
         return list(index_to_id_mapping.values())
 
     @classmethod

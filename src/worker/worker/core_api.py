@@ -198,12 +198,12 @@ class CoreApi:
         except Exception:
             return None
 
-    def add_news_items(self, news_items) -> dict | bool | None:
+    def add_news_items(self, news_items) -> dict | None:
         try:
             return self.api_post(url="/worker/news-items", json_data=news_items)
         except Exception:
             logger.exception("Cannot add Newsitem")
-            return False
+            return None
 
     def add_or_update_story(self, story: dict):
         """
@@ -219,7 +219,20 @@ class CoreApi:
             logger.exception("Cannot add or update story.")
             return None
 
-    def store_task_result(self, data) -> dict | None:
+    def add_or_update_for_misp(self, stories: list[dict]):
+        """
+        Add or update a story for MISP.
+        """
+        try:
+            return self.api_post(
+                url="/worker/stories/misp",
+                json_data=stories,
+            )
+        except Exception:
+            logger.exception("Cannot add or update story.")
+            return None
+
+    def store_task_result(self, data: dict) -> dict | None:
         try:
             return self.api_post(url="/tasks/", json_data=data)
         except Exception:

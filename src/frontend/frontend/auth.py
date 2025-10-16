@@ -1,10 +1,11 @@
 from functools import wraps
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
-from flask import redirect, url_for
+from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
+from flask import redirect, url_for, Response, render_template
 
 from frontend.config import Config
 from frontend.log import logger
 from frontend.cache import add_user_to_cache, get_user_from_cache
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.core_api import CoreApi
 from models.admin import User
 
@@ -23,8 +24,18 @@ def init(app):
 #     return current_authenticator.refresh(user)
 
 
-# def logout(jti):
-#     return current_authenticator.logout(jti)
+def logout():
+    core_response = CoreApi().logout()
+    if not core_response.ok:
+        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+
+    response = Response(status=302, headers={"Location": url_for("base.login")})
+    if is_htmx_request():
+        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
+
+    response.delete_cookie("access_token")
+    unset_jwt_cookies(response)
+    return response
 
 
 def auth_required(permissions: list | str | None = None):
@@ -41,6 +52,7 @@ def auth_required(permissions: list | str | None = None):
             try:
                 verify_jwt_in_request()
             except Exception:
+                logger.exception("JWT verification failed")
                 logger.debug("JWT verification failed")
                 return redirect(url_for("base.login"), code=302)
 
@@ -65,10 +77,8 @@ def auth_required(permissions: list | str | None = None):
     return auth_required_wrap
 
 
-def get_user_details():
-    api = CoreApi()
-    # read userdetails from core on route /users
-    if result := api.api_get("/users"):
+def update_current_user_cache():
+    if result := CoreApi().api_get("/users"):
         return add_user_to_cache(result)
     return None
 
@@ -76,7 +86,7 @@ def get_user_details():
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
-    return get_user_from_cache(identity) or get_user_details()
+    return get_user_from_cache(identity) or update_current_user_cache()
 
 
 @jwt.user_identity_loader

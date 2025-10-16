@@ -12,12 +12,13 @@
     <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
     <script src="{{ url_for('static', filename='js/response-targets.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/js/alpinejs.min.js') }}"></script>
-    {% block head %}{% endblock head %}
+    {% block head %}
+    {% endblock head %}
   </head>
 
   <body>
-  <main>
-    {% include "login/login.html" %}
-  </main>
+    <main>
+      {% include "login/login.html" %}
+    </main>
   </body>
 </html>

@@ -1,5 +1,5 @@
 <template>
-  <v-card class="pa-5">
+  <v-card class="pa-5" data-testid="hotkeys-legend">
     <v-card-title>
       Keyboard Shortcuts
       <v-icon
@@ -52,15 +52,6 @@ export default {
       },
       { type: 'subheader', title: 'Assess' },
       {
-        title: 'Ctrl + Space',
-        subtitle:
-          'Mark all selected items as read (if all are read already, mark them as unread).'
-      },
-      {
-        title: 'Ctrl + I',
-        subtitle: 'Mark all selected items as important.'
-      },
-      {
         title: 'Ctrl + Shift + G',
         subtitle: 'Merge selected stories.'
       },
@@ -79,15 +70,15 @@ export default {
       {
         title: 'Ctrl + Space',
         subtitle:
-          'Mark all selected items as read (if all are read already, mark them as unread).'
+          'Mark selected items as read (or unread if all are read already).'
       },
       {
         title: 'Ctrl + I',
-        subtitle: 'Mark all selected items as important.'
+        subtitle: 'Mark selected items as important.'
       },
       {
         title: 'Ctrl + Shift + S',
-        subtitle: 'Add open story to last report.'
+        subtitle: 'Add story to last report.'
       },
       { title: 'Ctrl + E', subtitle: 'Open Edit View of Story' },
       { type: 'divider' },

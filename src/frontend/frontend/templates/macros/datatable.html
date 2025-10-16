@@ -1,21 +1,22 @@
-{% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items",
-headline="", width="w-full") %}
-{% from "macros/datatable.html" import datatable_header %}
-{% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list %}
-{# djlint:off #}
-<div id="dataTableDiv" class="{{ width }}" x-data="{
+{% macro datatable(table_id, data, columns, selected_items=[], selectable=true, input_name="selected_items", headline="", width="w-full") %}
+  {% from "macros/datatable.html" import datatable_header %}
+  {% set safe_search_keys = columns | selectattr('searchable') | map(attribute='field') | list %}
+  {# djlint:off #}
+  <div id="dataTableDiv"
+       class="{{ width }}"
+       x-data='{'
             data: {{ data }},
             items: [],
             filteredItems: [],
             selectedItems: {{ selected_items }},
             view: 5,
-            searchInput: '',
+            searchInput: "",
             pagination: {},
             fuse: null,
             searchKeys: {{ safe_search_keys }},
 
             init() {
-              console.debug('Initializing dataTable: ', this.selectedItems);
+              console.debug("Initializing dataTable: ", this.selectedItems);
               this.filteredItems = this.data
               this.pagination = {
                 total: this.data.length,
@@ -26,8 +27,8 @@ headline="", width="w-full") %}
                 to: this.view
               };
               this.fuse = new Fuse(this.data, { keys: this.searchKeys, threshold: 0.2 });
-              this.$watch('searchInput', value => this.search(value));
-              this.changePage(1)
+              this.$watch("searchInput", value => this.search(value));
+              this.changePage(1);
             },
             search(value) {
               if (value.length > 1) {
@@ -39,7 +40,7 @@ headline="", width="w-full") %}
 
               this.pagination.total = this.filteredItems.length;
               this.pagination.lastPage = Math.ceil(this.filteredItems.length / this.view) || 1;
-              this.changePage(1)
+              this.changePage(1);
             },
             changePage(page) {
               page = Math.max(1, Math.min(page, this.pagination.lastPage));
@@ -64,6 +65,13 @@ headline="", width="w-full") %}
                 this.selectedItems = [...new Set([...this.selectedItems, ...newIds])];
               }
             },
+            updateView() {
+              this.pagination.perPage = this.view;
+              this.pagination.total = this.filteredItems.length;
+              this.pagination.lastPage = Math.max(1, Math.ceil(this.pagination.total / this.view));
+              this.pagination.currentPage = Math.min(this.pagination.currentPage, this.pagination.lastPage);
+              this.changePage(this.pagination.currentPage);
+            },
             toggleItem(id) {
               if (this.selectedItems.includes(id)) {
                 this.selectedItems = this.selectedItems.filter(item => item !== id)
@@ -75,7 +83,7 @@ headline="", width="w-full") %}
               if (this.items.length === 0) return false;
               return this.items.every(item => this.selectedItems.includes(item.id));
             }
-          }">
+          }'>
   <div>
     {# djlint:on #}
     {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
@@ -112,19 +120,24 @@ headline="", width="w-full") %}
       <tr x-show="isEmpty()">
         <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
       </tr>
-    </tbody>
-    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-      <tr>
-        <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
-          <div class="flex justify-center">
-            <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
-              <div class="items-center gap-2">
-                <span class="text-sm font-medium">Items per page:</span>
-                <select x-model="view" @change="changePage(1)" class="select select-bordered w-18">
-                  {% set current_limit = request.args.get('limit', 5) %}
-                  {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
-                </select>
-              </div>
+<<<<<<< HEAD
+    </template>
+    <tr x-show="isEmpty()">
+      <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+    </tr>
+  </tbody>
+  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+    <tr>
+      <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
+        <div class="flex justify-center">
+          <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
+            <div class="items-center gap-2">
+              <span class="text-sm font-medium">Items per page:</span>
+              <select x-model.number="view" @change="updateView" class="select select-bordered w-18">
+                {% set current_limit = request.args.get('limit', 5) %}
+                {% for option in [5, 20, 50, 100] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+              </select>
+            </div>
 
               <div class="flex items-center gap-2">
                 <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
@@ -150,26 +163,17 @@ headline="", width="w-full") %}
 </div>
 {% endmacro %}
 
-{% macro datatable_header(title, sortable) %}
-{% from "macros/query_params.html" import update_query_params %}
-{% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
-{% set order = title ~ '_' ~ order_direction %}
-{% set order_params = {'order': order, 'page': 1} %}
-{% set order_url = update_query_params(order_params) %}
-{% if sortable %}
-<th>
-  <a @click="sort('{{ title }}', '{{ order_direction }}')" class="link link-hover">{{ title|capitalize }}</a>
-</th>
-{% else %}
-<th>{{ title|capitalize }}</th>
-{% endif %}
-{% endmacro %}
-
-{% macro datatable_search_bar(table_id) %}
-{% set current_search = request.args.get('search', '') %}
-<div class="grow">
-  <form hx-get="{{ request.path }}" hx-push-url="true" hx-target="#{{ table_id }}" hx-trigger="input delay:500ms">
-    <input type="search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
-  </form>
-</div>
+{% macro datatable_header(title, sortable=false) %}
+  {% from "macros/query_params.html" import update_query_params %}
+  {% set order_direction = 'asc' if request.args.get('order') != title ~ '_asc' else 'desc' %}
+  {% set order = title ~ '_' ~ order_direction %}
+  {% set order_params = {'order': order, 'page': 1} %}
+  {% set order_url = update_query_params(order_params) %}
+  {% if sortable %}
+    <th>
+      <a @click="sort('{{ title }}', '{{ order_direction }}')" class="link link-hover">{{ title|capitalize }}</a>
+    </th>
+  {% else %}
+    <th>{{ title|capitalize }}</th>
+  {% endif %}
 {% endmacro %}

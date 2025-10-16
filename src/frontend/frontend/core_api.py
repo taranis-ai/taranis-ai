@@ -86,6 +86,15 @@ class CoreApi:
             logger.error(f"Export users failed: {e}")
             return None
 
+    def download_product(self, product_id: str) -> requests.Response:
+        return self.api_download(f"/publish/products/{product_id}/render")
+
+    def render_product(self, product_id: str) -> requests.Response:
+        return self.api_post(f"/publish/products/{product_id}/render")
+
+    def publish_product(self, product_id: str, publisher_id: str) -> requests.Response:
+        return self.api_post(f"/publish/products/{product_id}/publishers/{publisher_id}")
+
     def import_users(self, users):
         return self.api_post("/config/users-import", json_data=users)
 
@@ -158,6 +167,10 @@ class CoreApi:
             logger.error(f"Load default word lists failed: {e}")
             return None
 
+    def update_word_lists(self, word_list_id: int | None = None):
+        uri = f"/config/word-lists/gather/{word_list_id}" if word_list_id else "/config/word-lists/gather"
+        return self.api_post(uri)
+
     def import_report_item_types(self, report_item_types):
         return self.api_post("/config/import-report-item-types", json_data=report_item_types)
 
@@ -168,7 +181,7 @@ class CoreApi:
             logger.error(f"Export report item types failed: {e}")
             return None
 
-    def login(self, username, password):
+    def login(self, username: str, password: str):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
 
@@ -191,3 +204,6 @@ class CoreApi:
             headers={"Content-Disposition": disposition},
             direct_passthrough=True,
         )
+
+    def update_user_profile(self, form_data: dict) -> requests.Response:
+        return self.api_post("/users/profile", json_data=form_data)

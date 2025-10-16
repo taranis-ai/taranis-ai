@@ -1,4 +1,5 @@
 from pydantic import Field
+from datetime import datetime
 
 from models.base import TaranisBaseModel
 from models.assess import StoryTag
@@ -14,9 +15,10 @@ class Dashboard(TaranisBaseModel):
     total_products: int = 0
     report_items_completed: int = 0
     report_items_in_progress: int = 0
-    latest_collected: str | None = None
+    latest_collected: datetime | None = None
     schedule_length: int | None = None
     conflict_count: int | None = None
+    worker_status: dict[str, dict[str, int]] | None = None
 
 
 class TrendingCluster(TaranisBaseModel):
@@ -26,4 +28,13 @@ class TrendingCluster(TaranisBaseModel):
 
     name: str
     tags: list[StoryTag] = Field(default_factory=list)
+    size: int | None = None
+
+
+class Cluster(TaranisBaseModel):
+    _core_endpoint = "/dashboard/cluster"
+    _model_name = "clusters"
+    _pretty_name = "Clusters"
+
+    name: str
     size: int | None = None

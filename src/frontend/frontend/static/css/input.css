@@ -56,3 +56,12 @@
     animation: shrink 10s linear forwards;
   }
 }
+
+.group:hover .animate-shrink-10,
+.group:hover .animate-shrink-20,
+.group:hover .animate-shrink-30,
+.group:focus-within .animate-shrink-10,
+.group:focus-within .animate-shrink-20,
+.group:focus-within .animate-shrink-30 {
+  animation-play-state: paused;
+}

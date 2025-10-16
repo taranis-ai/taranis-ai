@@ -4,14 +4,15 @@ from typing import Any, Sequence
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
+from apscheduler.triggers.cron import CronTrigger
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
-from apscheduler.triggers.cron import CronTrigger
 from core.managers import schedule_manager
+from core.model.task import Task as TaskModel
 
 
 class Bot(BaseModel):
@@ -22,6 +23,7 @@ class Bot(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
@@ -31,6 +33,16 @@ class Bot(BaseModel):
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
+
+    @property
+    def status(self):
+        if task_result := TaskModel.get(self.task_id):
+            return task_result.to_dict()
+        return None
+
+    @property
+    def task_id(self):
+        return f"bot_{self.id}"
 
     @classmethod
     def update(cls, bot_id, data) -> "Bot | None":
@@ -48,6 +60,7 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
+        bot.unschedule_bot()
         bot.schedule_bot()
         return bot
 
@@ -86,10 +99,21 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        if self.status:
+            data["status"] = self.status
         return data
 
-    def to_task_id(self) -> str:
-        return f"{self.__tablename__}_{self.id}_{self.type}"
+    @classmethod
+    def delete(cls, id: str) -> tuple[dict[str, Any], int]:
+        bot = cls.get(id)
+        if not bot:
+            return {"error": "Bot not found"}, 404
+
+        TaskModel.delete(bot.task_id)
+        bot.unschedule_bot()
+        db.session.delete(bot)
+        db.session.commit()
+        return {"message": f"Bot {bot.name} deleted"}, 200
 
     def schedule_bot(self):
         if crontab_str := self.get_schedule():
@@ -100,7 +124,7 @@ class Bot(BaseModel):
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
-        entry_id = self.to_task_id()
+        entry_id = self.task_id
         schedule_manager.schedule.remove_periodic_task(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
@@ -110,7 +134,7 @@ class Bot(BaseModel):
 
     def to_task_dict(self, crontab_str: str) -> dict[str, Any]:
         return {
-            "id": self.to_task_id(),
+            "id": self.task_id,
             "name": f"{self.type}_{self.name}",
             "jobs_params": {
                 "trigger": CronTrigger.from_crontab(crontab_str),
@@ -120,7 +144,7 @@ class Bot(BaseModel):
                 "name": "bot_task",
                 "args": [self.id],
                 "queue": "bots",
-                "task_id": self.to_task_id(),
+                "task_id": self.task_id,
             },
         }
 
@@ -132,6 +156,20 @@ class Bot(BaseModel):
             query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
 
         return query
+
+    @classmethod
+    def get_all_for_collector(cls) -> Sequence["Bot"]:
+        query = db.select(cls).where(cls.enabled.is_(True)).distinct(cls.id)
+        return db.session.execute(query).scalars().all()
+
+    @classmethod
+    def schedule_all_bots(cls):
+        bots = cls.get_all_for_collector()
+        for bot in bots:
+            if interval := bot.get_schedule():
+                entry = bot.to_task_dict(interval)
+                schedule_manager.schedule.add_celery_task(entry)
+        logger.info(f"Gathering for {len(bots)} Bots scheduled")
 
 
 class BotParameterValue(BaseModel):

@@ -4,6 +4,10 @@ from core.managers import db_manager, auth_manager, api_manager, queue_manager, 
 from core.config import Config
 
 
+def granian_app() -> Flask:
+    return create_app(False, False)
+
+
 def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
     print("=== SETTINGS DEBUG START ===")
     print("Config.SQLALCHEMY_DATABASE_URI:", Config.SQLALCHEMY_DATABASE_URI)
@@ -23,7 +27,9 @@ def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
 def initilize_database(app: Flask):
     db_manager.initialize(app, True)
     data_manager.initialize(True)
-    schedule_manager.Scheduler()
+    queue_manager.initialize(app, True)
+    schedule_manager.initialize()
+    queue_manager.queue_manager.post_init()
 
 
 def initialize_managers(app: Flask, initial_setup: bool = True):
@@ -34,4 +40,5 @@ def initialize_managers(app: Flask, initial_setup: bool = True):
     api_manager.initialize(app)
     data_manager.initialize(initial_setup)
     schedule_manager.initialize()
-    queue_manager.queue_manager.post_init()
+    if initial_setup:
+        queue_manager.queue_manager.post_init()

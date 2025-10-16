@@ -13,12 +13,13 @@ classifiers = [
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "Flask",
     "Flask-Caching",
     "Flask-JWT-Extended",
     "flask-htmx",
+    "jinja2-fragments",
     "flask-cors",
     "click",
     "pydantic-settings",
@@ -29,8 +30,11 @@ dependencies = [
     "setuptools",
     "polyfactory",
     "uuid7",
+    "filetype",
     "heroicons[jinja]>=2.11.0",
-    "taranis-models"
+    "plotly[express]",
+    "pandas",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -51,14 +55,14 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "requests-mock", "pytest-playwright", "playwright", "djlint"]
+dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -94,7 +98,11 @@ exclude = [
 preserve_blank_lines=true
 max_line_length=142
 max_attribute_length=142
+ignore = "J018,T028"
+profile="jinja"
 indent=2
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+prerelease = "allow"
+

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block head %}
+  <link href="{{ url_for('static', filename='vendor/css/tom-select.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='vendor/js/tom-select.complete.min.js') }}"></script>
+{% endblock head %}
+
+{% block content %}
+  {% from 'macros/forms.html' import form_input_content, form_switch %}
+  <script type="text/javascript">
+  var settings = {
+    plugins: ['remove_button'],
+    persist: false,
+    onItemAdd: function () {
+      this.setTextboxValue('');
+      this.refreshOptions();
+    }
+  };
+
+  htmx.onLoad(function (elt) {
+    var elt = document.getElementById('trending-tag-filter-select');
+    if (elt && elt.classList.contains('tomselected')) return;
+    new TomSelect(elt, settings);
+  });
+  </script>
+
+  <div class="p-8 bg-base-100" id="edit_dashboard">
+    <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
+    <form method="post" action="{{ url_for('base.dashboard') }}">
+      <div class="mb-4">
+        <div class="flex gap-2">
+          <fieldset class="fieldset bg-base-100 flex-none w-1/8">
+            <legend class="fieldset-legend">Days to look back for trending clusters</legend>
+            {{ form_input_content(label="Trending Days", name="dashboard[trending_cluster_days]",
+                        value=dashboard.get('trending_cluster_days', 7) , type='number') }}
+          </fieldset>
+
+          {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]",
+                    value=dashboard.get('show_trending_clusters', 'Yes') , required=False, width='w-1/8') }}
+          {{ form_switch(label="Show Charts in Dashboard", name="dashboard[show_charts]",
+                    value=dashboard.get('show_charts', 'Yes') , required=False, width='w-1/8') }}
+
+        </div>
+
+        <fieldset class="fieldset bg-base-100 flex-none w-2/8">
+          <legend class="fieldset-legend">Trending Tag Filter</legend>
+          <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select" class="tomselect w-full">
+            {% for cluster in clusters %}
+              <option value="{{ cluster.name }}" {% if cluster.name in dashboard.get('trending_cluster_filter', [])
+                %}selected{% endif %}>{{ cluster.name }}</option>
+            {% endfor %}
+          </select>
+        </fieldset>
+
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+        <input type="submit" class="btn btn-primary w-2/4 mt-4" value="Update Dashboard Settings" />
+      </div>
+    </form>
+  </div>
+{% endblock content %}

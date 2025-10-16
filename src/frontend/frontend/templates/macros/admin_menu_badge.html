@@ -1,0 +1,5 @@
+{% macro admin_menu_badge(view) %}
+  {% if view.get_admin_menu_badge %}
+    {% if view.get_admin_menu_badge() > 0 %}<div class="badge badge-error badge-sm">{{ view.get_admin_menu_badge() }}</div>{% endif %}
+  {% endif %}
+{% endmacro %}

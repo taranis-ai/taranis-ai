@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import ClassVar, TypeVar
 
 T = TypeVar("T", bound="TaranisBaseModel")
@@ -9,6 +9,8 @@ class TaranisBaseModel(BaseModel):
     _cache_timeout: ClassVar[int]
     _model_name: ClassVar[str] = ""
     _pretty_name: ClassVar[str] = ""
+
+    model_config = ConfigDict(extra="allow")
 
     def model_dump(self, *args, **kwargs):
         kwargs.setdefault("exclude_none", True)

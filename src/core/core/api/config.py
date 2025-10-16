@@ -1,20 +1,19 @@
 import io
+import base64
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from sqlalchemy.exc import IntegrityError
-from psycopg.errors import UniqueViolation
+from sqlalchemy.exc import IntegrityError  # noqa: F401
+from psycopg.errors import UniqueViolation  # noqa: F401
 
 from core.managers import queue_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
-    get_for_api,
-    write_base64_to_file,
-    get_presenter_templates,
     delete_template,
-    get_templates_as_base64,
 )
+from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
+from core.service.template_validation import validate_template_content
 from core.model import (
     attribute,
     bot,
@@ -31,13 +30,14 @@ from core.model import (
     task,
     worker,
 )
-from core.model.news_item_conflict import NewsItemConflict
-from core.model.story_conflict import StoryConflict
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
 from core.managers import schedule_manager
 from core.config import Config
+
+# Project import for shared template logic
+from core.service.template_crud import create_or_update_template
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -233,37 +233,71 @@ class Roles(MethodView):
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
-        if request.args.get("list", default=False, type=bool):
-            templates = [{"path": t} for t in get_presenter_templates()]
-            return jsonify({"total_count": len(templates), "items": templates})
         if template_path:
-            template = get_for_api(template_path)
-            return (template, 200) or ({"error": "Product type not found"}, 404)
-        templates = get_templates_as_base64()
-        return jsonify({"items": templates, "total_count": len(templates)}), 200
+            resp = build_template_response(template_path)
+            return jsonify(resp), 200
+
+        # List all templates
+        items = build_templates_list()
+        return jsonify({"items": items, "total_count": len(items)}), 200
+
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path=None):
+        # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
-        template_path = request.json.get("id")
-        if write_base64_to_file(request.json.get("content"), template_path):
-            return {"message": "Template updated or created", "path": template_path}, 200
-        return {"error": "Could not write template to file"}, 500
+        template_id = request.json.get("id")
+        base64_content = request.json.get("content")
+        return create_or_update_template(template_id, base64_content)
+
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
+        # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
-        if write_base64_to_file(request.json.get("content"), template_path):
-            return {"message": "Template updated or created", "path": template_path}, 200
-        return {"error": "Could not write template to file"}, 500
+        base64_content = request.json.get("content")
+        invalidate_template_validation_cache(template_path)
+        return create_or_update_template(template_path, base64_content)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
+
+
+class TemplateValidation(MethodView):
+    """Endpoint for validating Jinja2 templates without saving them."""
+    
+    @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    def post(self):
+        """Validate a Jinja2 template without saving it."""
+        if not request.json:
+            return {"error": "No data provided"}, 400
+
+        template_content = request.json.get("content")
+        if not template_content:
+            return {"error": "No template content provided"}, 400
+
+        try:
+            # Decode base64 content if needed
+            if request.json.get("is_base64", False):
+                template_content = base64.b64decode(template_content).decode("utf-8")
+
+            validation_result = validate_template_content(template_content)
+            return {
+                "is_valid": validation_result["is_valid"],
+                "error_message": validation_result.get("error_message", ""),
+                "error_type": validation_result.get("error_type", ""),
+                "message": "Template is valid" if validation_result["is_valid"] else "Template has validation errors"
+            }, 200
+
+        except Exception as e:
+            logger.error(f"Error validating template: {e}")
+            return {"error": f"Validation failed: {str(e)}"}, 500
 
 
 class Organizations(MethodView):
@@ -528,11 +562,9 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
-        StoryConflict.flush_store()
-        NewsItemConflict.flush_store()
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.to_task_id())
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 
@@ -572,6 +604,7 @@ class OSINTSourcesExport(MethodView):
 class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
+        sources = None
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
         if json_data := request.get_json(silent=True):
@@ -686,6 +719,7 @@ class WordLists(MethodView):
 class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
+        wls = None
         if file := request.files.get("file"):
             wls = word_list.WordList.import_word_lists(file)
         if json_data := request.get_json(silent=True):
@@ -694,14 +728,17 @@ class WordListImport(MethodView):
             logger.error("Failed to import Word Lists")
             return {"error": "Unable to import Word Lists"}, 400
 
+        for wl in wls:
+            queue_manager.queue_manager.gather_word_list(wl.id)
+
         return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
 
 class WordListExport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def get(self):
-        source_ids = request.args.getlist("ids")
-        data = word_list.WordList.export(source_ids)
+        word_list_ids = request.args.getlist("ids")
+        data = word_list.WordList.export(word_list_ids)
         if data is None:
             return {"error": "Unable to export word lists"}, 400
         return send_file(
@@ -714,7 +751,9 @@ class WordListExport(MethodView):
 
 class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
+    def post(self, word_list_id: int | None = None):
+        if not word_list_id:
+            return queue_manager.queue_manager.gather_all_word_lists()
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
@@ -774,6 +813,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
     config_bp.add_url_rule("/templates", view_func=Templates.as_view("templates"))
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
+    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view("template_validation"))
     config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
     config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
     config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
@@ -794,7 +834,8 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view("user"))
     config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists"))
     config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
-    config_bp.add_url_rule("/word-lists/<int:word_list_id>/gather", view_func=WordListGather.as_view("word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view("word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view("word_list_gather_all"))
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))

@@ -2,21 +2,24 @@ import json
 from typing import Any, Literal
 from flask import render_template, request, Response, url_for
 
-from models.admin import OSINTSource, WorkerParameter, WorkerParameterValue, TaskResult
+from models.admin import OSINTSource, TaskResult, Job
+from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
 from frontend.cache_models import CacheObject
 from frontend.views.base_view import BaseView
-from frontend.filters import render_icon, render_source_parameter, render_state, render_truncated
+from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
 from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.core_api import CoreApi
 from frontend.config import Config
 from frontend.auth import auth_required
+from frontend.views.admin_mixin import AdminMixin
 
 
-class SourceView(BaseView):
+class SourceView(AdminMixin, BaseView):
     model = OSINTSource
     icon = "book-open"
+    import_route = "admin.import_osint_sources"
     _index = 63
 
     collector_types = {
@@ -25,25 +28,23 @@ class SourceView(BaseView):
     }
 
     @classmethod
-    def get_worker_parameters(cls, collector_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == collector_type), None)
-        return match.parameters if match else []
+    def get_admin_menu_badge(cls) -> int:
+        if dashboard := DataPersistenceLayer().get_first(Dashboard):
+            if worker_status := dashboard.worker_status:
+                return worker_status.get("collector_task", {}).get("failures", 0)
+
+        return 0
 
     @classmethod
-    def get_view_context(cls, objects: CacheObject | None = None, error: str | None = None) -> dict[str, Any]:
-        if objects is not None:
-            filtered = [obj for obj in (objects or []) if isinstance(obj, OSINTSource) and obj.id != "manual"]
-            objects = CacheObject(
-                filtered,
-                page=objects.page,
-                limit=objects.limit,
-                order=objects.order,
-                links=objects._links,
-                total_count=len(filtered),
-            )
-        return super().get_view_context(objects, error)
+    def filter_manual_source(cls, cache: CacheObject[OSINTSource]) -> CacheObject[OSINTSource]:
+        return CacheObject(
+            [obj for obj in (cache or []) if isinstance(obj, OSINTSource) and obj.id != "manual"],
+            page=cache.page,
+            limit=cache.limit,
+            order=cache.order,
+            links=cache._links,
+            total_count=cache._total_count,
+        )
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
@@ -71,29 +72,36 @@ class SourceView(BaseView):
             {"label": "Edit", "class": "btn-primary", "icon": "pencil-square", "url": cls.get_base_route(), "type": "link"},
             {
                 "label": "Delete",
-                "type": "function",
                 "icon": "trash",
-                "function": "delete_osint_source",
+                "class": "btn-error",
+                "method": "delete",
                 "url": cls.get_base_route(),
+                "hx_target": f"#{cls.model_name()}-table-container",
+                "hx_swap": "outerHTML",
+                "type": "button",
+                "confirm": "Are you sure you want to delete this OSINT Source?",
+                "data_attr": "data-swal-confirm=true",
             },
         ]
 
         collector = base_context.get(cls.model_name())
         if collector and (collector_type := collector.type):
             parameter_values = collector.parameters
-            parameters = cls.get_worker_parameters(collector_type=collector_type.name.lower())
+            parameters = cls.get_worker_parameters(worker_type=collector_type.name.lower())
 
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
         base_context["actions"] = osint_source_actions
+        if cls.model_plural_name() in base_context:
+            base_context[cls.model_plural_name()] = cls.filter_manual_source(base_context[cls.model_plural_name()])
         return base_context
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
-            {"title": "State", "field": "state", "sortable": False, "renderer": render_state},
+            {"title": "State", "field": "status", "sortable": True, "renderer": render_worker_status},
             {
                 "title": "Name",
                 "field": "name",
@@ -101,7 +109,7 @@ class SourceView(BaseView):
                 "renderer": render_truncated,
                 "render_args": {"field": "name"},
             },
-            {"title": "Feed", "field": "parameters", "sortable": True, "renderer": render_source_parameter},
+            {"title": "Feed", "field": "parameters", "sortable": False, "renderer": render_source_parameter},
         ]
 
     @classmethod
@@ -123,10 +131,9 @@ class SourceView(BaseView):
         if not sources:
             return cls.import_view("No file or organization provided")
         data = sources.read()
-        data = json.loads(data)
-        data = json.dumps(data["data"])
+        json_data = json.loads(data)
 
-        response = CoreApi().import_sources(json.loads(data))
+        response = CoreApi().import_sources(json_data)
 
         if not response:
             error = "Failed to import sources"
@@ -138,11 +145,11 @@ class SourceView(BaseView):
     @classmethod
     def export_view(cls):
         source_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_sources(source_ids)
+        core_resp = CoreApi().export_sources({"ids": source_ids})
 
         if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+            logger.debug(f"Failed to fetch sources from: {Config.TARANIS_CORE_URL}")
+            return f"Failed to fetch sources from: {Config.TARANIS_CORE_URL}", 500
 
         return CoreApi.stream_proxy(core_resp, "sources_export.json")
 
@@ -166,30 +173,41 @@ class SourceView(BaseView):
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
     @classmethod
-    def collect_osint_source(cls, osint_source_id: str):
-        response = CoreApi().collect_osint_source(osint_source_id)
+    def _collect_source_view(cls, response):
         if not response:
             logger.error("Failed to start OSINT source collection")
-            return render_template(
-                "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
-            ), 500
-        return render_template(
-            "notification/index.html",
-            notification={"message": "OSINT source collection started successfully", "icon": "check-circle", "class": "alert-success"},
-        ), 200
+            notification, status = (
+                render_template(
+                    "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
+                ),
+                500,
+            )
+        else:
+            notification, status = (
+                render_template(
+                    "notification/index.html",
+                    notification={
+                        "message": "OSINT source collection started successfully",
+                        "icon": "check-circle",
+                        "class": "alert-success",
+                    },
+                ),
+                200,
+            )
+
+        table, table_response = cls.list_view()
+        status = table_response if table_response != 200 else status
+        return notification + table, status
+
+    @classmethod
+    def collect_osint_source(cls, osint_source_id: str):
+        response = CoreApi().collect_osint_source(osint_source_id)
+        return cls._collect_source_view(response)
 
     @classmethod
     def collect_all_osint_sources(cls):
         response = CoreApi().collect_all_osint_sources()
-        if not response:
-            logger.error("Failed to start OSINT sources collection")
-            return render_template(
-                "notification/index.html", notification={"message": "Failed to start OSINT sources collection", "error": True}
-            ), 500
-        return render_template(
-            "notification/index.html",
-            notification={"message": "OSINT sources collection started successfully", "icon": "check-circle", "class": "alert-success"},
-        ), 200
+        return cls._collect_source_view(response)
 
     @classmethod
     @auth_required()
@@ -202,9 +220,10 @@ class SourceView(BaseView):
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        object_id_with_params = f"{object_id}{'?force=true' if request.args.get('force') == 'true' else ''}"
-        response = DataPersistenceLayer().delete_object(cls.model, object_id_with_params)
-        return render_template("notification/swal.html", response=response.json(), is_success=response.ok), response.status_code
+        if request.args.get("force") == "true":
+            logger.warning(f"Force deleting OSINT source {object_id}")
+            return super().delete_view(f"{object_id}{'?force=true'}")
+        return super().delete_view(object_id)
 
     @classmethod
     @auth_required()
@@ -219,6 +238,7 @@ class SourceView(BaseView):
             ), 500
 
         dpl.invalidate_cache_by_object(OSINTSource)
+        dpl.invalidate_cache_by_object(Job)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

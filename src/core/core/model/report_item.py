@@ -12,7 +12,7 @@ from typing import Any, Optional
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.story import Story
-from core.model.report_item_type import ReportItemType
+from core.model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
 from core.log import logger
@@ -43,9 +43,7 @@ class ReportItem(Versioned, BaseModel):
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
-        "ReportItemAttribute",
-        back_populates="report_item",
-        cascade="all, delete-orphan",
+        "ReportItemAttribute", back_populates="report_item", cascade="all, delete-orphan", order_by="ReportItemAttribute.index"
     )
 
     report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
@@ -101,21 +99,26 @@ class ReportItem(Versioned, BaseModel):
         data["stories"] = [story.id for story in self.stories]
         return data
 
-    def get_attribute_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
-        result = {}
-        for attribute in self.attributes:
-            group = attribute.group_title
-            item_id = str(attribute.id)
-            if group not in result:
-                result[group] = {}
-            result[group][item_id] = attribute.to_report_dict()
-        return result
+    def get_attribute_dict(self) -> list[dict[str, Any]]:
+        return [attribute.to_report_dict() for attribute in self.attributes]
+
+    def get_attribute_groups(self) -> list[str]:
+        return list(dict.fromkeys(attr.group_title for attr in self.attributes))
 
     def to_detail_dict(self):
         data = super().to_dict()
         data["attributes"] = self.get_attribute_dict()
+        data["attribute_groups"] = self.get_attribute_groups()
         data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
+
+    def to_supported_products_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "type": self.report_item_type.title if self.report_item_type else "",
+            "created": self.created.astimezone().isoformat(),
+        }
 
     def to_product_dict(self):
         data = super().to_dict()
@@ -147,14 +150,18 @@ class ReportItem(Versioned, BaseModel):
             return {"error": "Permission Denied"}, 403
 
         new_report = report.clone_report()
-        return {"message": f"Successfully cloned Report {report_id} to new Report {new_report.id}", "id": new_report.id}, 200
+        return {
+            "message": f"Successfully cloned Report '{new_report.title}'",
+            "report": new_report.to_detail_dict(),
+            "id": new_report.id,
+        }, 200
 
     @classmethod
     def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict[str, Any], user):
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", int]:
         report_item = cls.from_dict(report_item_data)
 
         if not report_item.allowed_with_acl(user, True):
@@ -163,6 +170,10 @@ class ReportItem(Versioned, BaseModel):
         if user:
             report_item.user_id = user.id
         report_item.add_attributes()
+
+        if stories := report_item.stories:
+            for story in stories:
+                NewsItemTagService.add_report_tag(story, report_item)
 
         db.session.add(report_item)
         db.session.commit()
@@ -174,15 +185,18 @@ class ReportItem(Versioned, BaseModel):
         report_item_type = ReportItemType.get(self.report_item_type_id)
         if not report_item_type:
             return
-        attribute_groups = report_item_type.attribute_groups
-        for attribute_group in attribute_groups:
-            for attribute_group_item in attribute_group.attribute_group_items:
+
+        next_index = 0
+        sorted_groups = sorted(report_item_type.attribute_groups, key=AttributeGroup.sort)
+        for attribute_group in sorted_groups:
+            sorted_items = sorted(attribute_group.attribute_group_items, key=AttributeGroupItem.sort)
+            for attribute_group_item in sorted_items:
                 attribute_enums = AttributeEnum.get_all_for_attribute(attribute_group_item.attribute.id)
                 attribute_enum_data = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums] if attribute_enums else None
                 attr = {
                     "title": attribute_group_item.title,
                     "description": attribute_group_item.description,
-                    "index": attribute_group_item.index,
+                    "index": next_index,
                     "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
@@ -195,6 +209,7 @@ class ReportItem(Versioned, BaseModel):
                 if attribute_group_item.attribute.type == AttributeType.TLP:
                     attr["value"] = "clear"
                 self.attributes.append(ReportItemAttribute(**attr))
+                next_index += 1
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
@@ -382,7 +397,7 @@ class ReportItem(Versioned, BaseModel):
 
         db.session.delete(report)
         db.session.commit()
-        return {"message": "Report successfully deleted"}, 200
+        return {"message": f"Successfully deleted report '{report.title}'"}, 200
 
 
 class ReportItemAttribute(BaseModel):
@@ -443,6 +458,7 @@ class ReportItemAttribute(BaseModel):
 
     def to_report_dict(self):
         return {
+            "id": str(self.id),
             "title": self.title,
             "description": self.description,
             "index": self.index,

@@ -30,8 +30,7 @@ class QueueManager:
 
     def post_init(self):
         self.clear_queues()
-        self.update_task_queue_from_osint_sources()
-        self.schedule_word_list_gathering()
+        self.update_empty_word_lists()
 
     def clear_queues(self):
         if self.error:
@@ -47,12 +46,7 @@ class QueueManager:
     def celery(self) -> Celery:
         return self._celery
 
-    def update_task_queue_from_osint_sources(self):
-        from core.model.osint_source import OSINTSource
-
-        [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
-
-    def schedule_word_list_gathering(self):
+    def update_empty_word_lists(self):
         from core.model.word_list import WordList
 
         if self.error:
@@ -61,6 +55,18 @@ class QueueManager:
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
             self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+        logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
+
+    def gather_all_word_lists(self):
+        from core.model.word_list import WordList
+
+        if self.error:
+            return
+
+        word_lists = WordList.get_all_for_collector() or []
+        for word_list in word_lists:
+            self.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
+        return {"message": "Gathering for all WordLists scheduled"}, 200
 
     def get_queued_tasks(self):
         if self.error:
@@ -113,6 +119,7 @@ class QueueManager:
         if self.send_task("collector_task", args=[source_id, True], queue="collectors", task_id=task_id):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
+        logger.error(f"Could not schedule collection for source {source_id}")
         return {"error": "Could not reach rabbitmq"}, 500
 
     def preview_osint_source(self, source_id: str):
@@ -128,7 +135,7 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
-            self.send_task("collector_task", args=[source.id, True], queue="collectors", task_id=source.to_task_id())
+            self.send_task("collector_task", args=[source.id, True], queue="collectors", task_id=source.task_id)
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
@@ -154,7 +161,7 @@ class QueueManager:
         bot_args: dict[str, int | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
-        if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_task_{bot_id}"):
+        if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_{bot_id}"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -175,15 +182,16 @@ class QueueManager:
 
     def get_bot_signature(self, bot_id: str, source_id: str):
         return self._celery.signature(
-            "bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", task_id=f"bot_task_{bot_id}", immutable=True
+            "bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", task_id=f"bot_{bot_id}", immutable=True
         )
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
 
-        post_collection_bots = list(Bot.get_post_collection())
-
-        current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
+        if post_collection_bots := list(Bot.get_post_collection()):
+            current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
+        else:
+            return {"message": "No post collection bots found"}, 200
 
         try:
             bot_chain = [self.get_bot_signature(bot_id, source_id) for bot_id in post_collection_bots]

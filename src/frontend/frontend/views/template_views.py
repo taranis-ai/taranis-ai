@@ -1,18 +1,20 @@
+from base64 import b64encode, b64decode
 from typing import Any
-from base64 import b64decode, b64encode
-from flask import request, render_template, Response
+from flask import request
 
 from frontend.views.base_view import BaseView
 from frontend.log import logger
 from models.admin import Template
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.views.admin_mixin import AdminMixin
 
 
-class TemplateView(BaseView):
+class TemplateView(AdminMixin, BaseView):
     model = Template
     icon = "document-text"
     _index = 160
+    htmx_list_template: str = "template/template_data_table.html"
 
     @classmethod
     def model_plural_name(cls) -> str:
@@ -20,29 +22,22 @@ class TemplateView(BaseView):
 
     @classmethod
     def get_columns(cls):
-        return [{"title": "name", "field": "id", "sortable": True, "renderer": None}]
+        from frontend.filters import render_item_validation_status
+        return [
+            {"title": "Template Name", "field": "id", "sortable": True, "renderer": None},
+            {"title": "Validation Status", "field": "validation_status", "sortable": False, "renderer": render_item_validation_status}
+        ]
+
 
     @classmethod
     def _get_object_key(cls) -> str:
-        return f"{cls.model_name().lower()}"
+        return "template"
 
     @classmethod
-    def get_update_context(
-        cls,
-        object_id: int | str,
-        error: str | None = None,
-        form_error: str | None = None,
-        resp_obj=None,
-    ) -> dict[str, Any]:
-        context = super().get_update_context(
-            object_id=object_id,
-            error=error,
-            form_error=form_error,
-            resp_obj=resp_obj,
-        )
-
-        dpl = DataPersistenceLayer()
-        template: Template = dpl.get_object(cls.model, object_id) or cls.model.model_construct()  # type: ignore
+    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+        template: Template = base_context.get(cls._get_object_key())  # type: ignore
+        if not isinstance(template, Template):
+            return base_context
 
         try:
             template.content = b64decode(template.content or "").decode("utf-8")
@@ -51,8 +46,10 @@ class TemplateView(BaseView):
             logger.warning(f"Failed to decode template content for {template}")
             template.content = template.content
 
-        context[cls.model_name()] = template
-        return context
+        base_context[cls.model_name()] = template
+        validation_status = getattr(template, 'validation_status', None) or {}
+        base_context["validation_status"] = validation_status
+        return base_context
 
     @classmethod
     def process_form_data(cls, object_id: str | int):
@@ -67,11 +64,3 @@ class TemplateView(BaseView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
-
-    @classmethod
-    def update_view(cls, object_id: int | str = 0):
-        resp_obj, error = cls.process_form_data(object_id)
-        if resp_obj and not error:
-            return Response(status=200, headers={"HX-Redirect": cls.get_base_route()})
-
-        return render_template("notification/index.html", notification={"message": error, "error": True}), 400

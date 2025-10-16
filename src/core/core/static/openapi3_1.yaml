@@ -9,7 +9,7 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.1.7
+  version: 1.2.4
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -246,6 +246,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get the types of report items
+      operationId: analyze.report_types.get
       responses:
         '200':
           description: the types of report items
@@ -270,6 +271,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get the report items
+      operationId: analyze.report_items.get
       parameters:
         - name: search
           in: query
@@ -327,6 +329,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: add report item
+      operationId: analyze.report_items.post
       requestBody:
         required: true
         content:
@@ -337,11 +340,9 @@ paths:
         '200':
           description: the ID of the newly created report item
           content:
-            application/text:
+            application/json:
               schema:
-                type: string
-                examples:
-                  - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                  $ref: '#/components/schemas/report_item'
         '400':
           description: invalid input data
         '401':
@@ -361,6 +362,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: get a specific report item
+      operationId: analyze.report_item.get
       responses:
         '200':
           description: the report item
@@ -379,6 +381,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: modify a specific report item
+      operationId: analyze.report_item.put
       requestBody:
         required: true
         content:
@@ -403,11 +406,12 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: delete a specific report item
+      operationId: analyze.report_item.delete
       responses:
         '200':
           description: the report item was deleted
           content:
-            application/text:
+            application/json:
               schema:
                 type: string
         '400':
@@ -427,7 +431,7 @@ paths:
       security:
       - UserAuth: []
       tags: [analyze]
-      operationId: ReportItemLocks
+      operationId: analyze.report_item_locks.get
       description: get a report item's field locks
       responses:
         '200':
@@ -454,6 +458,7 @@ paths:
       - UserAuth: []
       tags: [analyze]
       description: lock the specified field
+      operationId: analyze.report_item_lock.put
       responses:
         '200':
           description: the locked field as a SSE
@@ -467,31 +472,53 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
-  /analyze/report-items/{report_item_id}/unlock:
+    delete:
+      security:
+      - UserAuth: []
+      tags: [analyze]
+      description: unlock the specified field
+      operationId: analyze.report_item_lock.delete
+      responses:
+        '200':
+          description: the locked field as a SSE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+
+  /analyze/report-items/{report_item_id}/clone:
     parameters:
       - name: report_item_id
         in: path
         required: true
         schema:
           type: string
-    put:
+    post:
       security:
       - UserAuth: []
       tags: [analyze]
-      description: unlock the specified field
+      description: clone the specified report item
+      operationId: analyze.clone_report_item.post
       responses:
         '200':
-          description: the locked field as a SSE
+          description: the cloned report item
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/report_item_lock'
+                $ref: '#/components/schemas/report_item'
         '400':
           description: invalid request
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+
   /assess/osint-source-group-list:
     get:
       security:
@@ -1885,7 +1912,7 @@ paths:
           content:
             'application/json': { }
             'application/xml': { }
-  /config/word-lists/{word_list_id}/gather:
+  /config/word-lists/gather/{word_list_id}:
     parameters:
       - name: word_list_id
         in: path
@@ -1894,7 +1921,7 @@ paths:
           type: integer
           minimum: 1
           maximum: 100000
-    put:
+    post:
       tags: [config]
       operationId: WordListGather
       description: gather wordlist entries
@@ -2468,6 +2495,7 @@ paths:
     put:
       tags: [config]
       description: update OSINT source group
+      operationId: config.osint_source_group.put
       requestBody:
         content:
           application/json:
@@ -2485,6 +2513,7 @@ paths:
     delete:
       tags: [config]
       description: delete OSINT source group
+      operationId: config.osint_source_group.delete
       security:
         - UserAuth: []
       responses:
@@ -2498,6 +2527,7 @@ paths:
     get:
       tags: [config]
       description: get all publisher preset
+      operationId: config.publisher_presets.get
       parameters:
         - name: search
           in: query
@@ -2526,6 +2556,7 @@ paths:
     post:
       tags: [config]
       description: add publisher preset
+      operationId: config.publisher_presets.post
       requestBody:
         content:
           application/json:
@@ -2550,6 +2581,7 @@ paths:
     put:
       tags: [config]
       description: update publisher preset
+      operationId: config.publisher_preset.put
       requestBody:
         content:
           application/json:
@@ -2564,9 +2596,100 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+  /config/templates:
+    get:
+      tags: [config]
+      description: list all presenter templates with validation status
+      security:
+        - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_list_response'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+    post:
+      tags: [config]
+      description: create or update a presenter template (by id in body) and return validation status
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/template_write_request'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_write_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+  /config/templates/{template_path}:
+    parameters:
+      - name: template_path
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [config]
+      description: get a single presenter template (base64 encoded content) with validation status
+      security:
+        - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_item'
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
+    put:
+      tags: [config]
+      description: update a presenter template (by path) and return validation status
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: base64
+              required: [content]
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_write_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
-      description: delete publisher preset
+      description: delete a presenter template
       security:
         - UserAuth: []
       responses:
@@ -2576,6 +2699,31 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         '404':
           $ref: "#/components/responses/404NotFound"
+  /config/templates/validate:
+    post:
+      tags: [config]
+      description: validate a Jinja2 template without saving it
+      security:
+        - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/template_validation_request'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/template_validation_response'
+        '400':
+          description: invalid request
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '500':
+          description: Internal server error
   /dashboard/trending-clusters:
     get:
       operationId: dashboard.trending-clusters
@@ -3108,11 +3256,6 @@ components:
       allOf:
         - $ref: '#/components/schemas/report_item_type'
         - $ref: '#/components/schemas/presentation'
-    report_item_type.id:
-      type: object
-      properties:
-        id:
-          type: integer
 
     report_item_attribute:
       type: object
@@ -3127,14 +3270,14 @@ components:
           type: string
         index:
           type: integer
-        multiple:
-          type: boolean
         type:
           $ref: '#/components/schemas/attribute_type'
         group_title:
           type: string
         render_data:
           type: string
+        required:
+          type: boolean
 
     report_item.base:
       type: object
@@ -3169,6 +3312,10 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/report_item_attribute'
+            attribute_groups:
+              type: array
+              items:
+                type: string
 
     parameter_value:
       type: object
@@ -3276,10 +3423,10 @@ components:
           type: string
         published:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         collected:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         updated:
           type: string
           format: date-time
@@ -3289,6 +3436,8 @@ components:
         osint_source_id:
           type: string
         content:
+          type: string
+        last_change:
           type: string
         attributes:
           type: array
@@ -3319,7 +3468,7 @@ components:
           type: string
         created:
           type: string
-          format: date-time
+          # format: date-time # disabled for now since hypothesis creates 'invalid' date strings
         comments:
           type: string
         likes:
@@ -3332,6 +3481,8 @@ components:
           type: boolean
         in_reports_count:
           type: integer
+        last_change:
+          type: string
         tags:
           type: array
           items:
@@ -3354,19 +3505,6 @@ components:
         id:
           type: string
 
-    osint_source_update_status:
-      type: object
-      properties:
-        last_collected:
-          type: string
-          format: date-time
-        last_attempted:
-          type: string
-          format: date-time
-        last_error_message:
-          type: string
-        last_data:
-          type: string
     osint_source:
       type: object
       properties:
@@ -3595,6 +3733,88 @@ components:
           type: string
           format: date-time
         report_item_id:
+          type: string
+
+    # Template validation and management
+    validation_status:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+        error_message:
+          type: string
+        error_type:
+          type: string
+      required: [is_valid, error_message, error_type]
+
+    template_item:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+          description: base64 encoded template content; may be empty string when file is empty or null when not readable
+          nullable: true
+          format: base64
+        validation_status:
+          $ref: '#/components/schemas/validation_status'
+      required: [id, validation_status]
+
+    template_list_response:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/template_item'
+
+    template_write_request:
+      type: object
+      properties:
+        id:
+          type: string
+          description: template file name (path relative to presenter_templates)
+        content:
+          type: string
+          format: base64
+      required: [id, content]
+
+    template_write_response:
+      type: object
+      properties:
+        message:
+          type: string
+        path:
+          type: string
+        validation_status:
+          $ref: '#/components/schemas/validation_status'
+        warning:
+          type: string
+
+    template_validation_request:
+      type: object
+      properties:
+        content:
+          type: string
+          description: template content; if is_base64=true then base64 encoded
+        is_base64:
+          type: boolean
+          default: false
+      required: [content]
+
+    template_validation_response:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+        error_message:
+          type: string
+        error_type:
+          type: string
+        message:
           type: string
 
   securitySchemes:

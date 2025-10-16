@@ -59,6 +59,7 @@ class Settings(BaseSettings):
             "broker_url": broker_url,
             "broker_connection_retry_on_startup": True,
             "result_backend": "worker.http_backend:HTTPBackend",
+            "result_extended": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
             "enable_utc": True,
             "worker_hijack_root_logger": False,

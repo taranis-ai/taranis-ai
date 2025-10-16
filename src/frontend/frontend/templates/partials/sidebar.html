@@ -1,0 +1,7 @@
+{% if _show_sidebar and templates and 'sidebar_template' in templates and templates.get('sidebar_template') != '' %}
+  <aside id="sidebar"
+         x-bind:class="sidebarOpen ? 'w-64' : 'w-0'"
+         class="fixed top-16 left-0 bg-base-200 transition-all duration-300 z-20 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden min-w-0">
+    {% include templates.get('sidebar_template') %}
+  </aside>
+{% endif %}

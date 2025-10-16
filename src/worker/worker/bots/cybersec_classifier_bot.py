@@ -15,11 +15,6 @@ class CyberSecClassifierBot(BaseBot):
         if not parameters:
             parameters = {}
 
-        if not parameters.get("filter"):
-            parameters["filter"] = {"cybersecurity": "none"}
-        else:
-            parameters["filter"].update({"cybersecurity": "none"})
-
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 

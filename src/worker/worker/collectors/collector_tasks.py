@@ -1,4 +1,5 @@
 from celery import Task
+from celery.exceptions import Ignore
 from contextlib import contextmanager
 
 import worker.collectors
@@ -70,17 +71,21 @@ class CollectorTask(Task):
         logger.info(f"Starting collector task: {task_description}")
         with collector_log_fmt(logger, formatter):
             try:
-                collector.collect(source, manual)
+                collection_result = collector.collect(source, manual)
             except NoChangeError as e:
-                return f"Source '{source.get('name')}' with id {osint_source_id}: {str(e)}"
+                self.update_state(state="NOT_MODIFIED", meta=str(e))
+                raise Ignore()
             except Exception as e:
                 raise RuntimeError(e) from e
 
         self.core_api.run_post_collection_bots(osint_source_id)
-        return f"Successfully collected source '{source.get('name')}' with id {osint_source_id}"
+        return f"'{source.get('name')}': {collection_result}"
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
+        if hasattr(self.request, "task_description"):
+            logger.error(f"Collector task with id: {task_id} failed.\nDescription: {self.request.task_description}")
+        else:
+            logger.error(f"Collector task with id: {task_id} failed.")
 
 
 class CollectorPreview(Task):
@@ -99,7 +104,13 @@ class CollectorPreview(Task):
         )
         logger.info(f"Starting collector task: {task_description}")
         with collector_log_fmt(logger, formatter):
-            preview_result = collector.preview_collector(source)
+            try:
+                preview_result = collector.preview_collector(source)
+            except NoChangeError as e:
+                self.update_state(state="NOT_MODIFIED")
+                return f"'{source.get('name')}': {str(e)}"
+            except Exception as e:
+                raise RuntimeError(e) from e
         return preview_result
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):

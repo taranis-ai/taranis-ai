@@ -66,29 +66,16 @@ class Sources(MethodView):
     @api_key_required
     def get(self, source_id: str):
         try:
-            if source := OSINTSource.get(source_id):
-                return source.to_worker_dict(), 200
-            return {"error": f"Source with id {source_id} not found"}, 404
+            if not (source := OSINTSource.get(source_id)):
+                return {"error": f"Source with id {source_id} not found"}, 404
+
+            data = source.to_worker_dict()
+            data_with_defaults = OSINTSource.get_with_defaults(data)
+            return data_with_defaults, 200
+
         except Exception:
-            logger.exception()
-
-    @api_key_required
-    def put(self, source_id: str):
-        try:
-            source = OSINTSource.get(source_id)
-            if not source:
-                return {"error": f"OSINTSource with ID: {source_id} not found"}, 404
-
-            error_msg = None
-            if request.is_json:
-                if request_json := request.json:
-                    error_msg = request_json.get("error", None)
-
-            source.update_status(error_msg)
-            return {"message": "Status updated"}
-        except Exception:
-            logger.exception()
-            return {"error": "Could not update status"}, 500
+            logger.exception(f"Error fetching source {source_id}")
+            return {"error": "Internal server error"}, 500
 
 
 class SourceIcon(MethodView):
@@ -134,6 +121,18 @@ class Stories(MethodView):
         return Story.add_or_update(request.json)
 
 
+class MISPStories(MethodView):
+    @api_key_required
+    def post(self):
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        if not isinstance(data, list):
+            return {"error": "Expected a list of stories"}, 400
+        result, status = Story.add_or_update_for_misp(data)
+        sse_manager.news_items_updated()
+        return result, status
+
+
 class Tags(MethodView):
     @api_key_required
     def get(self):
@@ -146,9 +145,17 @@ class Tags(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         errors = {}
-        bot_type = request.args.get("bot_type", default="")
+        if not isinstance(data, dict):
+            return {"error": "Expected a dict for tags"}, 400
         for story_id, tags in data.items():
-            _, status = Story.update_tags(story_id, tags, bot_type)
+            story = Story.get(story_id)
+            if not story:
+                errors[story_id] = "Story not found"
+                continue
+            if not tags:
+                errors[story_id] = "No tags provided"
+                continue
+            _, status = story.set_tags(tags)
             if status != 200:
                 errors[story_id] = status
         if errors:
@@ -239,6 +246,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
+    worker_bp.add_url_rule("/stories/misp", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
 

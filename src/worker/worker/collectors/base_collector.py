@@ -17,7 +17,6 @@ class NoChangeError(Exception):
     def __init__(self, message: str = "Not modified"):
         super().__init__(message)
         self.message = message
-        logger.debug(message)
 
     def __str__(self) -> str:
         return self.message
@@ -121,11 +120,29 @@ class BaseCollector:
 
         return news_items
 
+    def process_news_items_in_stories(self, stories: list[dict], source: dict, story_attribute_key: str | None = None) -> list[dict]:
+        processed_stories = []
+        for story in stories:
+            new_story = story.copy()
+            if news_items := new_story.get("news_items"):
+                processed_news_items = self.process_news_items(news_items, source)
+                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
+            processed_stories.append(new_story)
+        return processed_stories
+
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        if news_items_dicts := [item.to_dict() for item in news_items]:
-            self.core_api.add_news_items(news_items_dicts)
+        news_items_dicts = [item.to_dict() for item in news_items]
+        if not news_items_dicts:
+            return None
+        if core_response := self.core_api.add_news_items(news_items_dicts):
+            if core_message := core_response.get("message"):
+                logger.info(core_message)
+                if core_message == "All news items were skipped":
+                    raise NoChangeError("All news items were skipped")
+                return core_message
+        return None
 
     def publish_or_update_stories(self, story_lists: list[dict], source: dict, story_attribute_key: str | None = None):
         """
@@ -139,31 +156,24 @@ class BaseCollector:
             news_items = [item for story_list in story_lists for item in story_list["news_items"]]
             return self.publish(news_items, source)
 
-        stories_for_publishing = self.find_existing_stories(story_lists, story_attribute_key, source)
+        processed_stories = self.process_news_items_in_stories(story_lists, source, story_attribute_key)
 
-        processed_stories = []
-        for story in stories_for_publishing:
-            new_story = story.copy()
-            if news_items := new_story.get("news_items"):
-                processed_news_items = self.process_news_items(news_items, source)
-                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
-                logger.debug(f"{new_story['news_items']=}")
-            processed_stories.append(new_story)
+        if story_attribute_key == "misp_event_uuid":
+            logger.debug(f"Trying to publish {len(processed_stories)} stories from source {source.get('name'), source.get('id')}")
+            self.core_api.add_or_update_for_misp(processed_stories)
+        else:
+            processed_stories = self.set_attr_key_to_existing_stories(processed_stories, story_attribute_key, source)
+            for story in processed_stories:
+                self.core_api.add_or_update_story(story)
 
-        if processed_stories[0].get("id"):
-            self.publish_misp_stories(processed_stories, story_attribute_key, source)
-
-        for story in processed_stories:
-            self.core_api.add_or_update_story(story)
-
-    def find_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
+    def set_attr_key_to_existing_stories(self, new_stories: list[dict], story_attribute_key: str, source: dict) -> list[dict]:
+        # sourcery skip: use-next
         existing_stories = self.core_api.get_stories({"source": source["id"]})
         if not existing_stories:
             return new_stories
 
         for story in new_stories:
             story_attributes = story.get("attributes", [])
-            # Find the attribute dict where key = story_attribute_key and get its value
             story_attr_value = None
             for attr in story_attributes:
                 if attr.get("key") == story_attribute_key:
@@ -183,32 +193,3 @@ class BaseCollector:
                     break
 
         return new_stories
-
-    def publish_misp_stories(self, story_lists: list[dict], story_attribute_key: str, source: dict):
-        for story in story_lists:
-            if existing_story := self.core_api.get_stories({"story_id": story.get("id")}):
-                if len(existing_story) > 1:
-                    logger.warning(f"Multiple stories with the same story_id {story.get('id')} found")
-                    continue
-                if self.check_internal_changes(existing_story[0]):
-                    logger.info(f"Internal changes detected in story {existing_story[0].get('id')}, skipping update")
-                    story["conflict"] = True
-
-                if news_items_to_delete := self.get_news_items_to_delete(story, existing_story[0]):
-                    story["news_items_to_delete"] = news_items_to_delete
-
-                self.core_api.add_or_update_story(story)
-
-    def check_internal_changes(self, existing_story: dict) -> bool:
-        if existing_story.get("last_change") == "internal":
-            return True
-        return any(news_item.get("last_change") == "internal" for news_item in existing_story.get("news_items", []))
-
-    def get_news_items_to_delete(self, new_story: dict, existing_story: dict) -> list:
-        existing_news_items = existing_story.get("news_items", [])
-        new_news_items = new_story.get("news_items", [])
-
-        existing_ids = {item.get("id") for item in existing_news_items if item.get("id") is not None}
-        new_ids = {item.get("id") for item in new_news_items if item.get("id") is not None}
-
-        return list(existing_ids - new_ids)

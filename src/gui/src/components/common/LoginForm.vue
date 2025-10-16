@@ -101,7 +101,7 @@ export default defineComponent({
           password: password.value
         })
         login_error.value = undefined
-        router.push('/')
+        router.push('/assess')
       } catch (error) {
         if (error.status > 500) {
           login_error.value = 'login.backend_error'
@@ -112,10 +112,10 @@ export default defineComponent({
       }
     }
 
-    onMounted(() => {
-      authStore.loginFromCookie()
+    onMounted(async () => {
+      await authStore.refresh()
       if (isAuthenticated.value) {
-        router.push('/')
+        router.push('/assess')
       }
       userfield.value.focus()
     })

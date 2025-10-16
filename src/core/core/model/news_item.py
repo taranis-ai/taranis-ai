@@ -65,7 +65,7 @@ class NewsItem(BaseModel):
         hash: str | None = None,
         attributes=None,
         id=None,
-        last_change="internal",
+        last_change="external",
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
@@ -117,10 +117,10 @@ class NewsItem(BaseModel):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
 
     @classmethod
-    def latest_collected(cls):
+    def latest_collected(cls) -> str | None:
         if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
             return news_item.collected.astimezone().isoformat()
-        return ""
+        return None
 
     def has_attribute(self, key) -> bool:
         return any(attribute.key == key for attribute in self.attributes)
@@ -181,13 +181,17 @@ class NewsItem(BaseModel):
             return {}
         return {c.name: getattr(self, c.name) for c in table.columns}
 
+    def _update_status(self, change: str = "internal"):
+        self.last_change = change
+        self.story.update_status(change=change)
+
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
-        news_item.last_change = "internal"
+        news_item._update_status()
         db.session.commit()
         return {"message": "Language updated"}, 200
 
@@ -203,9 +207,8 @@ class NewsItem(BaseModel):
 
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
-        news_item.last_change = "internal"
+        news_item._update_status()
         db.session.commit()
-        news_item.story.update_status()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
@@ -228,6 +231,8 @@ class NewsItem(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data) -> tuple[dict, int]:
+        from core.model.story import StorySearchIndex
+
         if self.source != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
@@ -249,12 +254,13 @@ class NewsItem(BaseModel):
         if published := data.get("published"):
             self.published = published
 
-        self.last_change = "internal"
+        self._update_status("internal")
+
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
-        self.story.update_status()
+        StorySearchIndex.prepare(self.story)
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod

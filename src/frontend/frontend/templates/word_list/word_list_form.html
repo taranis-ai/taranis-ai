@@ -1,19 +1,26 @@
 {% from "macros/forms.html" import form_input %}
 {% from "macros/datatable.html" import datatable %}
 
-{% set columns = [{'title': 'name', 'field': 'name', 'sortable': True, 'searchable': True, 'renderer': None}, {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}] %}
+{% set columns = [{'title': 'name', 'field': 'value', 'sortable': True, 'searchable': True, 'renderer': None}, {'title': 'description', 'field': 'description', 'sortable': False, 'searchable': False, 'renderer': None}] %}
 
 {% set form_error = form_error | default({}) %}
-{% set word_list_entries = word_list.entries | default([]) %}
+{% set word_list_entries = [] %}
+{% for e in word_list.entries | default([]) %}
+  {% set _ = word_list_entries.append(e.model_dump(mode='json')) %}
+{% endfor %}
+{% set word_list_entries = word_list_entries | tojson %}
+
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
+  <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ word_list.id }}</p>
+
   <form id="word_list-form"
         class="w-3/4 ml-[10%]"
         {{ form_action }}
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
-    {% include 'partials/admin_form_error.html' %}
+    {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', word_list.name, form_error.name) }}
     {{ form_input('Description', 'description', word_list.description, form_error.description) }}
     {{ form_input('Link', 'link', word_list.link, form_error.link) }}

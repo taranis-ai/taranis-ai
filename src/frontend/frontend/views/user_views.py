@@ -7,13 +7,14 @@ from frontend.core_api import CoreApi
 from models.admin import Role, Organization, User
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
+from frontend.views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 from frontend.config import Config
 from frontend.log import logger
 from frontend.auth import auth_required
 
 
-class UserView(BaseView):
+class UserView(AdminMixin, BaseView):
     model = User
     icon = "user"
     _index = 20
@@ -77,7 +78,7 @@ class UserView(BaseView):
     @auth_required()
     def export_view(cls):
         user_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_users(user_ids)
+        core_resp = CoreApi().export_users({"ids": user_ids})
 
         if not core_resp:
             logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")

@@ -28,16 +28,20 @@ class DataPersistenceLayer:
     def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
         return object_model._core_endpoint
 
+    def get_first(self, object_model: Type[T]) -> T | None:
+        objects = self.get_objects(object_model).items
+        return None if len(objects) < 1 else objects[0]
+
     def get_object(self, object_model: Type[T], object_id: int | str) -> T | None:
         endpoint = self.get_endpoint(object_model)
-
-        if cache_object := cache.get(key=self.make_user_key(endpoint)):
-            logger.debug(f"Cache hit for {endpoint}")
-            for object in cache_object:
-                if object.id == object_id:  # type: ignore
-                    return object
+        cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+        if cache_object := cache.get(key=cache_key):
+            return cache_object
         if result := self.api.api_get(f"{endpoint}/{object_id}"):
-            return object_model(**result)
+            cache_object = object_model(**result)
+            cache.set(key=cache_key, value=cache_object)
+            return cache_object
+        logger.warning(f"Failed to fetch object from: {endpoint}")
 
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
@@ -51,6 +55,11 @@ class DataPersistenceLayer:
         suffix = self.make_key(object._core_endpoint)
         self.invalidate_cache(suffix)
 
+    def get_raw_objects(self, model: Type[TaranisBaseModel], endpoint: str) -> list[TaranisBaseModel]:
+        if result := self.api.api_get(endpoint):
+            return [model(**object) for object in result.get("items", [])]
+        raise ValueError(f"Failed to fetch {model.__name__} from: {endpoint}")
+
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject:
         endpoint = self.get_endpoint(object_model)
         cache_object: CacheObject | None
@@ -62,7 +71,8 @@ class DataPersistenceLayer:
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def _cache_and_paginate_objects(self, result, object_model, endpoint, paging_data):
-        result_object = [object_model(**object) for object in result.get("items", [])]
+        items = result.get("items", [])
+        result_object = [object_model(**object) for object in items]
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")
             return CacheObject([], 0)
@@ -82,6 +92,9 @@ class DataPersistenceLayer:
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(object._core_endpoint)}_{object.id}"
+            cache.delete(cache_key)
         return response
 
     def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str) -> Response:
@@ -89,6 +102,9 @@ class DataPersistenceLayer:
         response = self.api.api_delete(f"{endpoint}/{object_id}")
         if response.ok:
             self.invalidate_cache_by_object(object_model)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+            cache.delete(cache_key)
         return response
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str) -> Response:
@@ -96,4 +112,9 @@ class DataPersistenceLayer:
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
+            # Also invalidate individual object cache
+            cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+            cache.delete(cache_key)
         return response
+
+

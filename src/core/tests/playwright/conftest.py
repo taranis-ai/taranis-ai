@@ -75,13 +75,13 @@ def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser
     # Drop timeout from 30s to 10s
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
-    if request.config.getoption("--e2e-ci") == "e2e_ci":
+    if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
     page = context.new_page()
-    page.goto(e2e_server.url())
+    page.goto(f"{e2e_server.url()}/login")
     yield page
-    if request.config.getoption("--e2e-ci") == "e2e_ci":
+    if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_core_trace.zip")
 
 

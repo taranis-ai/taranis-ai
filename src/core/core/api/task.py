@@ -1,3 +1,4 @@
+# type: ignore
 from flask import request, Flask, Blueprint
 from flask.views import MethodView
 from datetime import datetime
@@ -8,7 +9,6 @@ from core.log import logger
 from core.model.word_list import WordList
 from core.model.token_blacklist import TokenBlacklist
 from core.model.product import Product
-from core.model.osint_source import OSINTSource
 from core.config import Config
 
 
@@ -28,11 +28,12 @@ class Task(MethodView):
         task_id = data.get("task_id")
         result = data.get("result")
         status = data.get("status")
+        task = data.get("task", "")
 
         logger.debug(f"Received task result with id {task_id} and status {status}")
 
         handle_task_specific_result(task_id, result, status)
-        TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status})
+        TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status, "task": task})
         return {"status": status}, 200
 
 
@@ -58,7 +59,7 @@ def serialize_result(result: dict | str | None = None):
     return result["message"] if "message" in result else result
 
 
-def handle_task_specific_result(task_id: str, result: dict, status: str):
+def handle_task_specific_result(task_id: str, result: dict | str, status: str):
     if task_id.startswith("gather_word_list"):
         WordList.update_word_list(**result)
     elif task_id.startswith("cleanup_token_blacklist"):
@@ -71,10 +72,4 @@ def handle_task_specific_result(task_id: str, result: dict, status: str):
         else:
             Product.update_render_for_id(product_id, rendered_product)
     elif task_id.startswith("collect_"):
-        source_id = task_id.split("_")[-1]
-        if source := OSINTSource.get(source_id):
-            if status == "FAILURE":
-                source.update_status(result.get("exc_message", "Error"))
-            else:
-                source.update_status(None)
-        logger.debug(f"Collector task {task_id} completed with result: {result}")
+        logger.info(f"Collector task {task_id} completed with result: {result}")

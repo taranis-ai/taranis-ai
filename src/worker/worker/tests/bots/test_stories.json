@@ -1,19 +1,19 @@
 [
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:53:17.919352",
         "id": "5769cc0c-342d-4724-94e6-7b3a02630ebb",
         "key": "NLP_BOT",
         "value": "13"
       },
-      {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.221366",
         "id": "974f59b5-bd24-4814-83b2-edd8a06ec8d6",
         "key": "WORDLIST_BOT",
         "value": "1"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T18:00:00",
     "description": "",
@@ -61,20 +61,20 @@
     "updated": "2024-07-29T20:50:53.291351"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:53:17.938491",
         "id": "406192ca-dbb9-46a1-99da-be623044f5e6",
         "key": "NLP_BOT",
         "value": "14"
       },
-      {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.225281",
         "id": "637baf65-5f83-47fe-b58e-13e4d9de19ed",
         "key": "WORDLIST_BOT",
         "value": "1"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T17:32:38",
     "description": "",
@@ -123,20 +123,20 @@
     "updated": "2024-07-29T20:50:53.306228"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:53:17.951863",
         "id": "d7a42a55-a6b2-45ba-93a6-72e3dce311fb",
         "key": "NLP_BOT",
         "value": "9"
       },
-      {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.228631",
         "id": "fe890807-e48b-4b04-a861-d8a9e9176d00",
         "key": "WORDLIST_BOT",
         "value": "1"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T17:20:07",
     "description": "",
@@ -180,20 +180,20 @@
     "updated": "2024-07-29T20:50:53.313917"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:53:17.990647",
         "id": "07fc731e-ca8b-4a4c-91bb-44ba1b61bae0",
         "key": "NLP_BOT",
         "value": "29"
       },
-      {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.232242",
         "id": "90ec8f76-1acf-46b1-ab12-fa982a06799c",
         "key": "WORDLIST_BOT",
         "value": "1"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T17:20:00",
     "description": "",
@@ -257,14 +257,14 @@
     "updated": "2024-07-29T20:50:53.321091"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:53:17.998670",
         "id": "1bd4decf-37d2-4441-b055-4b6351311223",
         "key": "NLP_BOT",
         "value": "3"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T17:11:05",
     "description": "",
@@ -345,14 +345,14 @@
     "id": "8"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:54:38.402974",
         "id": "d6407ca6-8e0e-488c-9829-956dfbc45aee",
         "key": "NLP_BOT",
         "value": "11"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T16:58:42",
     "description": "",
@@ -398,14 +398,14 @@
     "updated": "2024-07-29T20:50:53.342361"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:54:38.407630",
         "id": "de81c1c3-f6f7-4764-81d8-816c2cc6f6b5",
         "key": "NLP_BOT",
         "value": "2"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T16:46:23",
     "description": "",
@@ -442,14 +442,14 @@
     "updated": "2024-07-29T20:50:53.348841"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:54:38.415358",
         "id": "cb89d473-b342-4e95-a0c1-de79114e9127",
         "key": "NLP_BOT",
         "value": "5"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T16:40:45",
     "description": "",
@@ -489,14 +489,14 @@
     "updated": "2024-07-29T20:50:53.354806"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:54:38.422859",
         "id": "baa49972-d704-4e46-9ceb-0415edd683ae",
         "key": "NLP_BOT",
         "value": "5"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T16:29:00",
     "description": "",
@@ -579,14 +579,14 @@
     "id": "7"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:56:19.068524",
         "id": "5be8a941-4261-4e10-8b54-fe423e8b39f3",
         "key": "NLP_BOT",
         "value": "4"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T15:38:15",
     "description": "",
@@ -625,20 +625,20 @@
     "updated": "2024-07-29T20:50:53.374716"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.236331",
         "id": "e1d12e28-64c6-4c8f-8b7d-18ac603a5301",
         "key": "WORDLIST_BOT",
         "value": "2"
       },
-      {
+      "NLP_BOT": {
         "created": "2024-07-29T20:56:19.077869",
         "id": "fd490fac-355d-4e48-86a7-f99a7eafb13b",
         "key": "NLP_BOT",
         "value": "9"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T15:33:11",
     "description": "",
@@ -725,20 +725,20 @@
     "id": "6"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.247033",
         "id": "968273cb-ce3e-4c09-8de8-3802690dc8ae",
         "key": "WORDLIST_BOT",
         "value": "5"
       },
-      {
+      "NLP_BOT": {
         "created": "2024-07-29T20:56:19.108117",
         "id": "aa07fb32-e1ae-467c-a5e2-50bad80081ae",
         "key": "NLP_BOT",
         "value": "15"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T15:05:21",
     "description": "",
@@ -788,20 +788,20 @@
     "updated": "2024-07-29T20:50:53.393506"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "NLP_BOT": {
         "created": "2024-07-29T20:57:28.488565",
         "id": "4425900b-49ef-42a5-9688-bc783858f4ef",
         "key": "NLP_BOT",
         "value": "2"
       },
-      {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.250267",
         "id": "cfdf26ae-6c09-4833-98ba-32e465e60aa6",
         "key": "WORDLIST_BOT",
         "value": "1"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T15:02:46",
     "description": "",
@@ -881,20 +881,20 @@
     "id": "2"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.263171",
         "id": "f868cc42-0b54-4daa-8ebe-755564308430",
         "key": "WORDLIST_BOT",
         "value": "12"
       },
-      {
+      "NLP_BOT": {
         "created": "2024-07-29T20:57:28.519564",
         "id": "fdd617d2-4a23-45a7-920b-8d0f15fe0069",
         "key": "NLP_BOT",
         "value": "28"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T14:51:58",
     "description": "",
@@ -957,20 +957,20 @@
     "updated": "2024-07-29T20:50:53.413744"
   },
   {
-    "attributes": [
-      {
+    "attributes": {
+      "WORDLIST_BOT": {
         "created": "2024-07-29T20:51:19.266588",
         "id": "4bcc980c-dd8c-4fb6-9228-025cd1a7fcda",
         "key": "WORDLIST_BOT",
         "value": "1"
       },
-      {
+      "NLP_BOT": {
         "created": "2024-07-29T20:57:28.528511",
         "id": "a3e6959b-60cf-42ce-aed0-d607a61bd26b",
         "key": "NLP_BOT",
         "value": "6"
       }
-    ],
+    },
     "comments": "",
     "created": "2024-07-29T14:35:28",
     "description": "",
