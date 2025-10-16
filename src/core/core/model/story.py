@@ -446,8 +446,6 @@ class Story(Versioned, BaseModel):
                 StorySearchIndex.prepare(story)
                 story.update_status()
 
-            db.session.commit()
-
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -456,12 +454,10 @@ class Story(Versioned, BaseModel):
             }, 200
         except IntegrityError:
             logger.exception()
-            db.session.rollback()
             return {"error": "Story already exists"}, 400
 
         except Exception:
             logger.exception(f"Failed to add story: {data}")
-            db.session.rollback()
             return {"error": "Failed to add story"}, 400
 
     @classmethod
@@ -590,7 +586,7 @@ class Story(Versioned, BaseModel):
             story.last_change = "external" if external else "internal"
             story.update_timestamps()
 
-            # Single commit for all non-vote changes after all modifications
+            # Single commit for all changes including vote
             db.session.commit()
             return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
         except Exception as e:
@@ -713,7 +709,6 @@ class Story(Versioned, BaseModel):
             self.relevance = self.relevance - 1
             vote.dislike = True
 
-        db.session.commit()
         return vote
 
     def remove_like_vote(self, vote):
