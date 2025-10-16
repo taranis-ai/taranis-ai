@@ -2,17 +2,7 @@
 {% set form_error = form_error | default({}) %}
 
 <script type="text/javascript">
-
-function initChoices() {
-  var select = document.getElementById('attribute_enum-input');
-  if (!select || typeof Choices === 'undefined') {
-    console.debug('No select found or Choices is undefined');
-    return;
-  }
-
-  {% include "partials/choices_classnames" %}
-
-  const choices = new Choices(select, {
+const choiceConfig = {
     removeItemButton: true,
     addItems: true,
     addChoices: true,
@@ -21,17 +11,14 @@ function initChoices() {
     noResultsText: 'No attributes found',
     noChoicesText: 'No attributes to choose from',
     classNames: classNames,
-  });
-
-  return choices;
-}
+  };
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    const choices = initChoices();
+    initChoices('attribute_enum-input', 'attributes', choiceConfig);
   });
 } else {
-  initChoices();
+    initChoices('attribute_enum-input', 'attributes', choiceConfig);
 }
 </script>
 
