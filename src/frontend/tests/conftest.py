@@ -1,13 +1,31 @@
 import os
 import pytest
 from dotenv import load_dotenv
+import subprocess
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
 
 if not current_path.endswith("src/frontend"):
-    pytest.skip("Tests must be run from within src/frontend")
+    # Change to git_root/src/frontend instead of skipping
+    try:
+        git_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        git_root = None
+
+    if git_root:
+        frontend_path = os.path.join(git_root, "src", "frontend")
+        if os.path.isdir(frontend_path):
+            os.chdir(frontend_path)
+        else:
+            pytest.skip(f"Expected directory does not exist: {frontend_path}")
+    else:
+        pytest.skip("Unable to locate git root to change into src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
 
@@ -116,7 +134,23 @@ def pytest_addoption(parser):
 
 
 def _is_vscode(config) -> bool:
-    # Primary: pytest plugin loaded by the VS Code Python extension
+    """
+    Return True when: pytest was invoked with:
+       -k EXP
+       -  was started from from Zed or VSCode
+    """
+
+    k_expr = None
+    try:
+        k_expr = config.getoption("-k")
+    except Exception:
+        k_expr = None
+    if k_expr:
+        return True
+    # Detect Zed editor
+    if os.getenv("ZED_TERM") or os.getenv("TERM_PROGRAM") == "Zed":
+        return True
+    # VS Code plugin loaded by the VS Code Python extension
     if config.pluginmanager.hasplugin("vscode_pytest"):
         return True
     # Fallbacks (sometimes present when launched from VS Code)
