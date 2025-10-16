@@ -70,7 +70,7 @@ class MispConnector:
         """
         for news_item in news_items:
             news_item.pop("last_change", None)  # key intended for internal use only
-            object_data = base_misp_builder.get_news_item_object_dict()
+            object_data = base_misp_builder.get_news_item_object_dict_empty()
             # sourcery skip: dict-assign-update-to-union
             object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
 
@@ -287,7 +287,7 @@ class MispConnector:
             h = ni.get("hash")
             if not h or h not in hashes_to_add:
                 continue
-            data = base_misp_builder.get_news_item_object_dict()
+            data = base_misp_builder.get_news_item_object_dict_empty()
             data.update({k: ni[k] for k in data if k in ni})
             base_obj = BaseMispObject(
                 parameters=data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"

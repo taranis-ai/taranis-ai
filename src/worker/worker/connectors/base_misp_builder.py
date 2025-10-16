@@ -8,7 +8,7 @@ from worker.log import logger
 DEFAULT_MISP_OBJECTS_PATH = "worker/connectors/definitions/objects"
 
 
-def get_news_item_object_dict() -> dict:
+def get_news_item_object_dict_empty() -> dict:
     return {
         "author": "",
         "content": "",
@@ -24,7 +24,7 @@ def get_news_item_object_dict() -> dict:
     }
 
 
-def get_story_object_dict() -> dict:
+def get_story_object_dict_empty() -> dict:
     return {
         "id": "",
         "title": "<no_data>",
@@ -78,42 +78,42 @@ def init_misp_event(event: MISPEvent, data: dict, sharing_group_id: str | None =
 def add_news_item_objects(news_items: list[dict], event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
     for news_item in news_items:
         news_item.pop("last_change", None)
-        object_data = get_news_item_object_dict()
-        object_data.update({k: news_item[k] for k in object_data if k in news_item})
+        news_item_object_dict = get_news_item_object_dict_empty()
+        news_item_object_dict.update({k: news_item[k] for k in news_item_object_dict if k in news_item})
 
-        news_item_object = BaseMispObject(
-            parameters=object_data,
+        news_item_object_dict = BaseMispObject(
+            parameters=news_item_object_dict,
             template="taranis-news-item",
             misp_objects_path_custom=misp_objects_path_custom,
         )
-        event.add_object(news_item_object)
+        event.add_object(news_item_object_dict)
 
     return None
 
 
-def prepare_story_for_misp(story: dict) -> dict:
+def get_story_object_dict(story: dict) -> dict:
     story.pop("last_change", None)
 
-    object_data = get_story_object_dict()
-    object_data.update({key: story[key] for key in object_data if key in story and story[key] not in (None, "", [], {})})
+    story_object_dict = get_story_object_dict_empty()
+    story_object_dict.update({key: story[key] for key in story_object_dict if key in story and story[key] not in (None, "", [], {})})
 
-    object_data["links"] = [
+    story_object_dict["links"] = [
         json.dumps({"link": item["link"], "news_item_id": item["news_item_id"]}, sort_keys=True)
         for item in story.get("links", [])
         if isinstance(item, dict) and "link" in item and "news_item_id" in item
     ]
 
-    object_data["tags"] = [
+    story_object_dict["tags"] = [
         json.dumps({"name": name, "tag_type": tag["tag_type"]}, sort_keys=True)
         for name, tag in story.get("tags", {}).items()
         if isinstance(tag, dict) and "tag_type" in tag
     ]
 
-    return object_data
+    return story_object_dict
 
 
 def add_story_object(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
-    object_data = prepare_story_for_misp(story)
+    object_data = get_story_object_dict(story)
     object_data["attributes"] = []
 
     logger.debug(f"Adding story object with data: {object_data}")
