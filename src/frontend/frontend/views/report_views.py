@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Any
 from flask import request, abort, Response, url_for
 
@@ -42,15 +41,11 @@ class ReportItemView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
-        report: ReportItem | None = base_context.get(cls.model_name())  # type: ignore[assignment]
-        raw_attributes = report.attributes if report else []
         layout = request.args.get("layout", base_context.get("layout", "split"))
         layout = layout if layout in {"split", "stacked"} else "split"
 
         base_context |= {
             "layout": layout,
-            "grouped_attributes": cls._group_attributes(raw_attributes),
-            "used_story_ids": cls._collect_story_attribute_ids(raw_attributes),
             "actions": cls.get_report_actions(),
         }
 
@@ -88,38 +83,6 @@ class ReportItemView(BaseView):
         ]
 
     @staticmethod
-    def _group_attributes(attributes: list | dict[str, str]) -> list[dict[str, Any]]:
-        grouped: OrderedDict[str | None, list[Any]] = OrderedDict()
-
-        for attribute in attributes:
-            group_title = ReportItemView._get_attribute_value(attribute, "group_title")
-            grouped.setdefault(group_title, []).append(attribute)
-
-        result: list[dict[str, Any]] = []
-        result.extend({"title": title, "attributes": items} for title, items in grouped.items())
-        return result
-
-    @staticmethod
-    def _collect_story_attribute_ids(attributes: list | dict[str, str]) -> list[str]:
-        collected: list[str] = []
-        for attribute in attributes:
-            attr_type = str(ReportItemView._get_attribute_value(attribute, "type") or "").upper()
-            if attr_type != "STORY":
-                continue
-            value = ReportItemView._get_attribute_value(attribute, "value")
-            values: list[str]
-            if isinstance(value, (list, tuple)):
-                values = [str(item) for item in value if item]
-            elif isinstance(value, str):
-                values = [item.strip() for item in value.split(",") if item.strip()]
-            else:
-                values = []
-            for story_id in values:
-                if story_id not in collected:
-                    collected.append(story_id)
-        return collected
-
-    @staticmethod
     @auth_required()
     def clone_report(report_id: str) -> tuple[str, int] | Response:
         if not report_id:
@@ -127,12 +90,6 @@ class ReportItemView(BaseView):
         CoreApi().clone_report(report_id)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
         return ReportItemView.list_view()
-
-    @staticmethod
-    def _get_attribute_value(attribute: Any, key: str) -> Any:
-        if hasattr(attribute, key):
-            return getattr(attribute, key)
-        return attribute.get(key) if isinstance(attribute, dict) else None
 
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         return self.update_view(object_id=0)

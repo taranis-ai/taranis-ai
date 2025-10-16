@@ -1,12 +1,12 @@
+from collections import OrderedDict
 from datetime import datetime, timedelta
-
 import uuid
-from sqlalchemy import or_
-from sqlalchemy.sql.expression import false
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
-
 from typing import Any, Optional
+
+from sqlalchemy import or_
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import false
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -107,13 +107,26 @@ class ReportItem(BaseModel):
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
-    def get_attribute_groups(self) -> list[str]:
-        return list(dict.fromkeys(attr.group_title for attr in self.attributes))
+    def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
+        grouped: OrderedDict[str | None, list[dict[str, Any]]] = OrderedDict()
+        for attribute in attribute_dicts:
+            group_title = attribute.get("group_title")
+            grouped.setdefault(group_title, []).append(attribute)
+        return [{"title": title, "attributes": items} for title, items in grouped.items()]
+
+    def get_attribute_groups(self, attributes: list[dict[str, Any]] | None = None) -> list[str]:
+        grouped_attributes = self.get_grouped_attributes(attributes)
+        return [(group["title"] or "") for group in grouped_attributes]
+
+    def get_used_story_ids(self, attributes: list[dict[str, Any]]) -> list[str]:
+        return [a.get("value", "") for a in attributes if a.get("type") == "STORY" and a.get("value")]
 
     def to_detail_dict(self):
         data = super().to_dict()
-        data["attributes"] = self.get_attribute_dict()
-        data["attribute_groups"] = self.get_attribute_groups()
+        attributes = self.get_attribute_dict()
+        data["grouped_attributes"] = self.get_grouped_attributes(attributes)
+        data["used_story_ids"] = self.get_used_story_ids(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 

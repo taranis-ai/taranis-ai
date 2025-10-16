@@ -4,9 +4,9 @@
 {% set form_error = form_error | default({}) %}
 {% set report = report | default({}) %}
 {% set report_types = report_types | default([]) %}
-{% set grouped_attributes = grouped_attributes | default([]) %}
+{% set grouped_attributes = report.grouped_attributes | default([]) %}
 {% set stories = report.stories | default([]) %}
-{% set used_story_ids = used_story_ids | default([]) %}
+{% set used_story_ids = report.used_story_ids | default([]) %}
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}

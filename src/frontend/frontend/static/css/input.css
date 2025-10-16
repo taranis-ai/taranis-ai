@@ -3,14 +3,16 @@
     themes: light --default, dark --prefersdark;
 }
 
-.input:focus {
+.input {
+  &:focus, &:focus-within {
     outline-offset: 0;
-    outline-color: var(--color-primary);
+  }
 }
 
-.textarea:focus {
+.textarea {
+  &:focus, &:focus-within {
     outline-offset: 0;
-    outline-color: var(--color-primary);
+  }
 }
 
 [x-cloak] { display: none !important; }
