@@ -83,7 +83,7 @@ jobs:
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    needs: [test_core, test_gui, test_frontend]
+    needs: [test_core, test_frontend]
     steps:
       - uses: actions/checkout@v4
 
