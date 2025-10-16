@@ -12,7 +12,7 @@
           {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}</option>{% endfor %}
         </select>
       </label>
-      <input type="hidden" name="story_ids" value="{{ story_ids | join(',') }}">
+      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
       <button type="button"
               class="btn btn-outline btn-wide"
               hx-post="{{ url_for('assess.submit_report_story') }}"
