@@ -1,6 +1,7 @@
 import pytest
 import json
 import worker.connectors as connectors
+from worker.connectors.misp_connector import MISPConnector
 
 from worker.connectors import connector_tasks
 from worker.config import Config
@@ -127,3 +128,33 @@ def test_connector_story_processing(core_mock, caplog):
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
 
     assert result is None
+
+
+def test_valid_distribution():
+    connector = MISPConnector()
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "2"})
+    assert connector.distribution == 2
+
+
+def test_empty_distribution_with_sharing_group():
+    connector = MISPConnector()
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1", "DISTRIBUTION": ""})
+    assert connector.distribution == 4
+
+
+def test_empty_distribution_no_sharing_group():
+    connector = MISPConnector()
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": ""})
+    assert connector.distribution == 0
+
+
+def test_invalid_distribution_string():
+    connector = MISPConnector()
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "abc"})
+    assert connector.distribution == 0
+
+
+def test_distribution_not_provided():
+    connector = MISPConnector()
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
+    assert connector.distribution == 4
