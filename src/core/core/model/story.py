@@ -485,9 +485,10 @@ class Story(Versioned, BaseModel):
                 db.session.add(story)
 
                 StorySearchIndex.prepare(story)
-                if (
-                    story.news_items[0].osint_source_id == "manual"
-                ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
+                # Use the last_change from data if provided, otherwise use the old logic
+                if "last_change" in data:
+                    story.update_status(change=data["last_change"])
+                elif story.news_items[0].osint_source_id == "manual":
                     story.update_status()
                 else:
                     story.update_status(change="external")
@@ -501,10 +502,15 @@ class Story(Versioned, BaseModel):
             }, 200
         except IntegrityError:
             logger.exception()
-            return {"error": "Story already exists"}, 400
+            # Rollback the transaction to ensure session is clean
+            db.session.rollback()
+            logger.warning(f"Story being added {data.get('id')} contains existing content. A news item conflict is raised.")
+            return cls.handle_conflicting_news_items(data)
 
         except Exception:
             logger.exception(f"Failed to add story: {data}")
+            # Rollback on any other exception
+            db.session.rollback()
             return {"error": "Failed to add story"}, 400
 
     @classmethod
@@ -610,40 +616,42 @@ class Story(Versioned, BaseModel):
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
-        # Perform all other updates in a single transaction without no_autoflush
+        # Perform all other updates in a single transaction with no_autoflush
         try:
-            if "important" in data:
-                story.important = data["important"]
+            with db.session.no_autoflush:
+                if "important" in data:
+                    story.important = data["important"]
 
-            if "read" in data:
-                story.read = data["read"]
+                if "read" in data:
+                    story.read = data["read"]
 
-            if "title" in data:
-                story.title = data["title"]
+                if "title" in data:
+                    story.title = data["title"]
 
-            if "description" in data:
-                story.description = data["description"]
+                if "description" in data:
+                    story.description = data["description"]
 
-            if "comments" in data:
-                story.comments = data["comments"]
+                if "comments" in data:
+                    story.comments = data["comments"]
 
-            if "tags" in data:
-                story.set_tags(data["tags"])
+                if "tags" in data:
+                    story.set_tags(data["tags"], commit=False)
 
-            if summary := data.get("summary"):
-                story.summary = summary
+                if summary := data.get("summary"):
+                    story.summary = summary
 
-            if "attributes" in data:
-                story.set_attributes(data["attributes"])
+                if "attributes" in data:
+                    story.set_attributes(data["attributes"])
 
-            if "links" in data:
-                story.links = data["links"]
+                if "links" in data:
+                    story.links = data["links"]
 
-            story.last_change = "external" if external else "internal"
-            story.update_timestamps()
+                story.last_change = "external" if external else "internal"
+                story.update_timestamps()
 
-            # Single commit for all changes including vote
-            StorySearchIndex.prepare(story)
+                # Single commit for all changes including vote
+                StorySearchIndex.prepare(story)
+            
             db.session.commit()
             return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
         except Exception as e:
@@ -859,15 +867,15 @@ class Story(Versioned, BaseModel):
         existing_tag_names = {tag.name for tag in self.tags}
         return existing_tag_names - incoming_tag_names
 
-    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, commit: bool = True) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags)
+            return self._update_tags(incoming_tags, commit=commit)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, commit: bool = True) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
@@ -876,7 +884,8 @@ class Story(Versioned, BaseModel):
         self.patch_tags(parsed_tags)
         self.remove_tags(tags_to_remove)
 
-        db.session.commit()
+        if commit:
+            db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
