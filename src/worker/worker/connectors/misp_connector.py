@@ -37,7 +37,11 @@ class MISPConnector:
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES")
         self.headers = parameters.get("HEADERS", {})
-        self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
+        try:
+            self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
+        except ValueError:
+            logger.warning(f"Invalid SHARING_GROUP_ID value: {parameters.get('SHARING_GROUP_ID')}. Setting to None.")
+            self.sharing_group_id = None
 
         self.distribution = self._parse_distribution(parameters.get("DISTRIBUTION", ""))
         if not self.url or not self.api_key:
@@ -46,7 +50,6 @@ class MISPConnector:
     def _parse_distribution(self, raw_distribution: str | None) -> int:
         if not raw_distribution:
             raw_distribution = "4" if self.sharing_group_id else "0"
-
         try:
             return int(raw_distribution)
         except ValueError:
