@@ -102,4 +102,4 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
-        assert response.json["message"] == "Successfully deleted report 'Updated Report Title'"
+        assert response.json["message"] == f"Successfully deleted report '{cleanup_report_item['title']}'"
