@@ -334,7 +334,7 @@ class TestConnector:
         updated_story = response.get_json()[0]
 
         attribute_list = base_misp_builder.add_attributes_from_story(updated_story)
-        object_data = base_misp_builder.prepare_story_for_misp(updated_story)
+        object_data = base_misp_builder.get_story_object_dict(updated_story)
         tag_list = object_data.get("tags", [])
 
         assert attribute_list == [

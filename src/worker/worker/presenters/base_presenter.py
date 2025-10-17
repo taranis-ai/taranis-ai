@@ -17,7 +17,7 @@ class BasePresenter:
 
         if not template:
             self.print_exception("No template provided")
-            return ""
+            raise ValueError("No template provided to BasePresenter.generate()")
 
         env = jinja2.Environment(
             autoescape=False,
