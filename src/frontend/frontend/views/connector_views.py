@@ -12,8 +12,6 @@ class ConnectorView(AdminMixin, BaseView):
     icon = "link"
     _index = 115
 
-    _read_only = True  # TODO: Remove this when we implement create/update/delete for Connectors
-
     connector_types = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in CONNECTOR_TYPES
