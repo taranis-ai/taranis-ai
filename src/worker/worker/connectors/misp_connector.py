@@ -1,5 +1,6 @@
 import contextlib
 import json
+
 from datetime import datetime, timezone
 from typing import Callable
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
@@ -25,8 +26,8 @@ class MISPConnector:
         self.org_id: str = ""
         self.ssl: bool = False
         self.request_timeout: int = 5
-        self.sharing_group_id: str = ""
-        self.distribution: str = "1"
+        self.sharing_group_id: int | None = None
+        self.distribution: int | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
@@ -36,12 +37,21 @@ class MISPConnector:
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES")
         self.headers = parameters.get("HEADERS", {})
-        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
-        self.distribution = parameters.get("DISTRIBUTION", "")
-        if not self.distribution and self.sharing_group_id:
-            self.distribution = "4"
+        self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
+
+        self.distribution = self._parse_distribution(parameters.get("DISTRIBUTION", ""))
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
+
+    def _parse_distribution(self, raw_distribution: str | None) -> int:
+        if not raw_distribution:
+            raw_distribution = "4" if self.sharing_group_id else "0"
+
+        try:
+            return int(raw_distribution)
+        except ValueError:
+            logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
+            return 0
 
     def execute(self, connector_config: dict, stories: list) -> None:
         logger.debug(f"{connector_config=}")
@@ -241,9 +251,9 @@ class MISPConnector:
         event.threat_level_id = 4
         event.analysis = 0
         if self.sharing_group_id:
-            event.sharing_group_id = int(self.sharing_group_id)
+            event.sharing_group_id = self.sharing_group_id
         if self.distribution:
-            event.distribution = int(self.distribution)
+            event.distribution = self.distribution
 
         self.add_event_attributes(story, event)
         return event
@@ -435,7 +445,7 @@ class MISPConnector:
         new_event.analysis = existing_event.analysis
         new_event.extends_uuid = existing_event.uuid
         if self.sharing_group_id:
-            new_event.sharing_group_id = int(self.sharing_group_id)
+            new_event.sharing_group_id = self.sharing_group_id
         try:
             created = misp.add_event(new_event, pythonify=True)
             return None if isinstance(created, dict) and created.get("errors") else created  # type: ignore
