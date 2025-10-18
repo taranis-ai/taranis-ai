@@ -1,0 +1,9 @@
+FROM nginxinc/nginx-unprivileged:mainline
+
+ENV TARANIS_CORE_UPSTREAM=core:8080
+ENV TARANIS_FRONTEND_UPSTREAM=frontend:8080
+ENV TARANIS_SSE_UPSTREAM=sse:8088
+ENV TARANIS_BASE_PATH=/
+
+COPY ./src/ingress/extras/default.conf.template /etc/nginx/default.conf.template
+COPY ./src/ingress/extras/10-base_uri_envsubst_entrypoint.sh /docker-entrypoint.d/

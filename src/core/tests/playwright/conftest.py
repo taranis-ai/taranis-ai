@@ -1,32 +1,13 @@
 from datetime import datetime, timedelta
-import os
 import random
 import pytest
-import subprocess
 from playwright.sync_api import Browser
 
 
 @pytest.fixture(scope="session")
 def build_gui():
     try:
-        if os.getenv("E2E_TEST_GUI_REBUILD") == "true" or not os.path.isdir("../gui/dist"):
-            if not os.path.isdir("../gui/node_modules"):
-                print("Building node_modules")
-                print(os.path.isdir("../gui/node_modules"))
-                result = subprocess.call(["pnpm", "install"], cwd="../gui")
-                assert result == 0, f"Install failed with status code: {result}"
-
-            print("Building GUI")
-            env = os.environ.copy()
-            env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
-            result = subprocess.call(
-                ["pnpm", "run", "build"],
-                cwd="../gui",
-                env=env,
-            )
-            assert result == 0, f"Build failed with status code: {result}"
-        else:
-            print("Reusing existing dist folder, delete it to force a rebuild")
+        pytest.fail("GUI has been deprecated")
     except Exception as e:
         pytest.fail(str(e))
 
@@ -42,9 +23,6 @@ def e2e_ci(request):
 
 @pytest.fixture(scope="session")
 def e2e_server(app, live_server, stories, build_gui):
-    import core.api as core_api
-
-    core_api.frontend.initialize(app)
     live_server.app = app
     live_server.start()
     yield live_server

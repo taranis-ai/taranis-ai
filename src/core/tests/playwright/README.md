@@ -50,12 +50,6 @@ To enter the debug mode, use:
 PWDEBUG=1 pytest --e2e-ci
 ```
 
-To always rebuild the VueJS gui set:
-
-```bash
-E2E_TEST_GUI_REBUILD=true pytest --e2e-ci
-```
-
 To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop (works also without `PWDEBUG=1`).
 
 ## Pictures for documentation
