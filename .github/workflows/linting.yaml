@@ -138,6 +138,11 @@ jobs:
         working-directory: src/frontend
         run: uv run playwright install --with-deps --only-shell chromium
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: lts
+          cache: true
+
       - name: Build Tailwind CSS
         working-directory: src/frontend
         run: ./build_tailwindcss.sh
