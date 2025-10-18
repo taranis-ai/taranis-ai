@@ -1,8 +1,21 @@
 {
+  "nodeModulesDir": "auto",
   "imports": {
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.1.14",
-    "@tailwindcss/forms": "npm:@tailwindcss/forms@^0.5.10",
-    "daisyui": "npm:daisyui@^5.1.27",
+    "alpinejs": "npm:alpinejs@^3.15.0",
+    "choices.js": "npm:choices.js@^11.1.0",
+    "daisyui": "npm:daisyui@^5.3.7",
+    "fuse.js": "npm:fuse.js@^7.1.0",
+    "htmx-ext-response-targets": "npm:htmx-ext-response-targets@^2.0.4",
+    "htmx.org": "npm:htmx.org@^2.0.7",
+    "monaco-editor": "npm:monaco-editor@^0.54.0",
+    "sortablejs": "npm:sortablejs@^1.15.6",
+    "sweetalert2": "npm:sweetalert2@^11.26.3",
     "tailwindcss": "npm:tailwindcss@^4.1.14"
+  },
+  "tasks": {
+    "tw:build": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify",
+    "tw:watch": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",
+    "vendor:bundle": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/vendor.bundle.js vendor.js"
   }
 }

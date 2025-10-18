@@ -4,17 +4,16 @@ set -euo pipefail
 
 WATCH_MODE=${1:-}
 
-if [ ! -x tailwindcss ]; then
-  arch=$(uname -m)
-  arch_short=$([ "$arch" = "x86_64" ] && echo "x64" || echo "arm64")
-  curl -sLo tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-${arch_short}
-  chmod +x tailwindcss
+if ! command -v deno >/dev/null 2>&1; then
+  echo "Error: deno is not installed. Install it with: curl -fsSL https://deno.land/install.sh | sh"
+  exit 1
 fi
 
-./update_assets.sh
+deno install --allow-scripts
+deno task vendor:bundle
 
 if [ -n "$WATCH_MODE" ]; then
-  ./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch
+  deno task tw:watch
 else
-  ./tailwindcss -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify
+  deno task tw:build
 fi

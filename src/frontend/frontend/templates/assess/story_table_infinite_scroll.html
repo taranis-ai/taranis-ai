@@ -1,0 +1,31 @@
+
+<div class="ml-4 mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div class="text-sm text-base-content/70">
+    Showing
+    <span class="font-medium text-base-content">{{ pagination.page_start }} - {{ pagination.page_end }}</span>
+    of
+    <span class="font-medium text-base-content">{{ pagination.total_count }}</span>
+  </div>
+
+  <div class="flex items-center gap-3">
+    {% if pagination.has_next %}
+      <button type="button"
+              id="infinite-scroll-trigger"
+              class="btn btn-outline btn-sm normal-case gap-2"
+              hx-get="{{ pagination.next_url }}"
+              hx-trigger="revealed, click"
+              hx-target="#story-list"
+              hx-select="#story-list > *"
+              hx-swap="beforeend"
+              hx-push-url="true"
+              hx-target-error="#notification-bar"
+              hx-on:htmx:beforeRequest="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
+              hx-on:htmx:afterRequest="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
+        <span data-indicator class="hidden loading loading-spinner loading-xs" aria-hidden="true"></span>
+        <span>Load more stories</span>
+      </button>
+    {% else %}
+      <span class="text-sm text-base-content/60">You're all caught up.</span>
+    {% endif %}
+  </div>
+</div>

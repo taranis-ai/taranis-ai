@@ -1,0 +1,68 @@
+<script type="text/javascript">
+(function () {
+  const sortableSrc = "{{ url_for('static', filename='vendor/js/Sortable.min.js') }}";
+
+  function initSortable() {
+    const formEl = document.getElementById('sortable-form');
+    if (!formEl || formEl.dataset.sortableInitialized === 'true') {
+      return;
+    }
+
+    formEl.dataset.sortableInitialized = 'true';
+    new Sortable(formEl, {
+      handle: '.handle',
+      draggable: '.sortable-item',
+      animation: 150,
+    });
+  }
+
+  const onReady = () => requestAnimationFrame(initSortable);
+
+  if (window.Sortable) {
+    onReady();
+    return;
+  }
+
+  if (typeof loadScriptOnce === "function") {
+    loadScriptOnce(sortableSrc).then(onReady);
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = sortableSrc;
+  script.addEventListener('load', onReady, { once: true });
+  script.addEventListener('error', () => console.error('Failed to load Sortable.js'));
+  document.head.appendChild(script);
+})();
+</script>
+
+<dialog id="story_grouping_dialog" class="modal" x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-2">Group Stories</h3>
+    <form class="sortable" id="sortable-form">
+      {% for story in stories %}
+        <div class="sortable-item card border border-dashed border-base-300 bg-base-100 shadow-sm hover:border-primary hover:shadow-lg transition-shadow duration-150 mb-3 select-none"
+             data-story-id="{{ story.id }}">
+          <div class="card-body p-4 flex items-start gap-4">
+            <span class="handle btn btn-circle btn-ghost btn-sm shrink-0 cursor-grab active:cursor-grabbing" title="Drag to reorder" aria-label="Drag story">
+              {{ heroicon_mini("bars-3") }}
+            </span>
+            <div class="flex-1">
+              <h4 class="font-semibold text-lg text-base-content leading-tight">{{ story.title or "Untitled story" }}</h4>
+              <p class="text-xs text-base-content/60 mt-1">Story ID: {{ story.id }}</p>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="story_ids" value="{{ story.id }}">
+      {% endfor %}
+      <button type="button"
+              class="btn btn-outline btn-wide"
+              hx-post="{{ url_for('assess.submit_cluster_story') }}"
+              hx-target="#assess"
+              hx-on::after-request="document.getElementById('story_grouping_dialog').close()">Cluster</button>
+    </form>
+  </div>
+</dialog>

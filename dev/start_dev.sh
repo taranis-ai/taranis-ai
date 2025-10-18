@@ -24,17 +24,9 @@ if [ ! -f "src/worker/.env" ]; then
     cp dev/env.dev src/worker/.env
 fi
 
-if [ ! -f "src/gui/.env" ]; then
-    cp dev/env.dev src/gui/.env
-fi
-
 if [ ! -f "src/frontend/.env" ]; then
     cp dev/env.dev src/frontend/.env
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
-fi
-
-if [ ! -f "src/gui/public/config.local.json" ]; then
-    echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
 fi
 
 docker compose -f dev/compose.yml up -d

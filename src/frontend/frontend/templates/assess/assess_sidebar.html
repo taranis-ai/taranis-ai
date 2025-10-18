@@ -39,44 +39,32 @@
 
 <script type="text/javascript">
 
-function initChoices(elementID, placeholder='items') {
-  const select = document.getElementById(elementID);
-  if (!select || typeof Choices === 'undefined') {
-    return;
-  }
-  if (select.classList.contains('choices__input')) {
-     return;
-  }
+const classNames = {
+  containerOuter: ['choices', '!bg-base-200'],
+  containerInner: ['choices__inner', '!bg-base-200'],
+  input: ['choices__input', '!bg-base-200'],
+  inputCloned: ['choices__input--cloned', '!bg-base-200'],
+  list: ['choices__list', '!bg-base-200'],
+  itemSelectable: ['choices__item--selectable', '!bg-primary-300'],
+  itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-54'],
+  selectedState: ['is-selected', '!bg-primary'],
+};
 
-  const classNames = {
-    containerOuter: ['choices', '!bg-base-200'],
-    containerInner: ['choices__inner', '!bg-base-200'],
-    input: ['choices__input', '!bg-base-200'],
-    inputCloned: ['choices__input--cloned', '!bg-base-200'],
-    list: ['choices__list', '!bg-base-200'],
-    itemSelectable: ['choices__item--selectable', '!bg-primary-300'],
-    itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-64'],
-    selectedState: ['is-selected', '!bg-primary'],
-  };
-
-  return new Choices(select, {
-      removeItemButton: true,
-      itemSelectText: '✓',
-      placeholderValue: 'Select ' + placeholder,
-      noResultsText: 'No ' + placeholder + ' found',
-      noChoicesText: 'No ' + placeholder + ' to choose from',
-      classNames: classNames,
-    });
+const choicesConfig = {
+  itemSelectText: '✓',
+  classNames: classNames
 }
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('source-group-filter', 'groups');
-    initChoices('source-filter', 'sources');
+    console.info(document.currentScript);
+    initChoices('source-group-filter', 'groups', choicesConfig);
+    initChoices('source-filter', 'sources', choicesConfig);
   });
 } else {
-  initChoices('source-group-filter', 'groups');
-  initChoices('source-filter', 'sources');
+  console.info(document.currentScript);
+  initChoices('source-group-filter', 'groups', choicesConfig);
+  initChoices('source-filter', 'sources', choicesConfig);
 }
 </script>
 
@@ -84,10 +72,8 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
   <form id="assess-sidebar"
         hx-get="{{ base_url }}"
         hx-target="#assess"
-        hx-select="#assess"
         hx-swap="outerHTML"
         hx-push-url="true"
-        hx-target-error="#notification-bar"
         hx-trigger="change from:form, keyup changed delay:500ms from:input, search from:input">
     <section class="space-y-3">
       <div class="flex items-center justify-between">
@@ -214,6 +200,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              class="checkbox checkbox-sm"
              name="highlight"
              value="true"
+             disabled
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
              {% if highlight %}checked{% endif %}>
@@ -224,6 +211,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              class="checkbox checkbox-sm"
              name="show_week_chart"
              value="true"
+             disabled
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
              {% if show_week_chart %}checked{% endif %}>

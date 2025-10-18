@@ -114,6 +114,23 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def get_cluster_dialog(cls) -> tuple[str, int]:
+        story_ids = request.args.getlist("story_ids")
+        logger.debug(f"Opening cluster dialog for stories {story_ids}")
+        stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
+        return render_template("assess/story_grouping_dialog.html", stories=stories), 200
+
+    @classmethod
+    @auth_required()
+    def submit_cluster_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
+        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+
+    @classmethod
+    @auth_required()
     def submit_report_dialog(cls) -> Response:
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
@@ -201,6 +218,7 @@ class StoryView(BaseView):
             page_end = 0
 
         return {
+            "infinite_scroll": current_user.profile.infinite_scroll,
             "current_page": clamped_index + 1,
             "total_pages": total_pages,
             "has_previous": clamped_index > 0,
@@ -421,7 +439,6 @@ class StoryView(BaseView):
         return self.update_from_form(story_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | Response:
-        logger.debug(f"Received PUT request with args: {kwargs} and form: {request.form}")
         object_id = kwargs.get("story_id")
         if object_id is None:
             abort(405)

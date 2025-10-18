@@ -70,8 +70,10 @@
                 class="btn btn-outline"
                 x-show="selectedItems.length > 1"
                 hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
-                hx-post="{{ url_for('assess.bulk_action') }}"
-                :hx-vals='action_vals("group", true)'>
+                hx-get="{{ url_for('assess.cluster_story') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :hx-vals='action_vals()'>
           {{ heroicon_mini("rectangle-group") }}
           <span class="text-sm">Cluster</span>
           <span class="text-xs opacity-80" x-show="showHints">

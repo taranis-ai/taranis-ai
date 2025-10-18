@@ -46,14 +46,23 @@
 
     {% if stories %}
       {% include "assess/assess_top_bar.html" %}
-      {% for story in stories %}{{ story_card(story) }}{% endfor %}
+      <div id="story-list">
+        {% for story in stories %}{{ story_card(story) }}{% endfor %}
+      </div>
       {% if pagination %}
-        {% include "assess/story_table_paging.html" %}
+        <div id="story-pagination"
+             {% if request.headers.get("HX-Request") and pagination.infinite_scroll %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
+          {% if pagination.infinite_scroll %}
+            {% include "assess/story_table_infinite_scroll.html" %}
+          {% else %}
+            {% include "assess/story_table_paging.html" %}
+          {% endif %}
+        </div>
       {% endif %}
     {% else %}
-      <p class="text-center text-base-content/60">No stories found.</p>
-      <a href="{{ routes.base_route }}" class="btn btn-primary btn-sm w-full">
-        {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
+      <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
+      <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
+        {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
         Reset filters
       </a>
     {% endif %}

@@ -27,6 +27,8 @@ document.body.addEventListener('htmx:confirm', function(evt) {
 
   evt.preventDefault();
   if (!evt.target.hasAttribute('hx-confirm')) {
+    console.debug("No confirmation question found for htmx:confirm event.");
+    console.debug(evt);
     return evt.detail.issueRequest(true);
   }
   const opts = getConfirmOptions(evt.target, evt.detail.question);
@@ -43,7 +45,7 @@ document.body.addEventListener('htmx:beforeSwap', function(evt) {
 
 function initChoices(elementID, placeholder = "items", config = {}) {
   const select = document.getElementById(elementID);
-  if (!select || typeof Choices === "undefined") {
+  if (!select || select.classList.contains('choices__input')) {
     return;
   }
 
@@ -67,6 +69,5 @@ function initChoices(elementID, placeholder = "items", config = {}) {
   };
 
   const finalConfig = Object.assign({}, defaultConfig, config);
-
   return new Choices(select, finalConfig);
 }
