@@ -21,24 +21,25 @@ function showConfirmDialog(opts) {
 }
 
 document.body.addEventListener('htmx:confirm', function(evt) {
+  if (!evt.target.hasAttribute('hx-confirm')) {
+    return;
+  }
+
   if (evt.detail.elt.matches('[data-swal-confirm]')) {
     return;
   }
 
   evt.preventDefault();
-  if (!evt.target.hasAttribute('hx-confirm')) {
-    return evt.detail.issueRequest(true);
-  }
   const opts = getConfirmOptions(evt.target, evt.detail.question);
-  showConfirmDialog(opts).then(r => r.isConfirmed && evt.detail.issueRequest(true));
+  showConfirmDialog(opts).then(r => {
+    if (r.isConfirmed) {
+      evt.detail.issueRequest(true);
+    }
+  });
 });
 
 document.body.addEventListener('htmx:configRequest', function(evt) {
     evt.detail.headers['X-CSRF-TOKEN'] = getCSRFToken(); // add CSRF to every request
-});
-
-document.body.addEventListener('htmx:beforeSwap', function(evt) {
-  evt.detail.shouldSwap = true;
 });
 
 function initChoices(elementID, placeholder = "items", config = {}) {
