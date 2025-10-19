@@ -11,7 +11,8 @@
       hx-swap="innerHTML"
       hx-target="#form-container"
       hx-target-error="#notification-bar"
-      onsubmit="syncEditorContent()">
+      data-template-editor-sync="syncEditorContent"
+      onsubmit="return syncEditorContent()">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename</span>
     <input id="id"
@@ -26,57 +27,55 @@
     <p class="validator-hint">Must be a valid filename</p>
   </label>
 
-  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content if template.content else '' }}</textarea>
+  <textarea name="content" id="editor-content" class="w-3/4 min-h-[60vh]">{{ template.content if template.content else '\n'*42 }}</textarea>
 
   <div class="bg-base-100 editor w-3/4 min-h-[60vh]" id="editor"></div>
 
   <input type="submit" class="btn btn-primary w-3/4 mt-5" value="{{ submit_text }}" />
 </form>
 
-<script>
-  require.config({ paths: { vs: window.location.origin + "{{ url_for('static', filename='vendor/js/vs') }}" } });
+<script type="text/javascript">
+  const formId = '{{ model_name }}-form';
+  let templateEditor = null;
 
-  let monacoEditor = null;
-
-  function syncEditorContent() {
-    if (monacoEditor) {
-      const ta = document.getElementById('editor-content');
-      if (ta) {
-        ta.value = monacoEditor.getValue();
-      }
+  function initTemplateEditor() {
+    if (!window.TemplateEditor) {
+      console.warn("TemplateEditor bundle not loaded; unable to initialise CodeMirror.");
+      return;
     }
-    return true; // Allow form submission to continue
+
+    if (templateEditor && typeof templateEditor.destroy === 'function') {
+      templateEditor.destroy();
+    }
+
+    const textarea = document.getElementById('editor-content');
+    const host = document.getElementById('editor');
+    if (!textarea || !host) {
+      return;
+    }
+
+    templateEditor = window.TemplateEditor.mount({ textarea, parent: host });
   }
 
-  require(['vs/editor/editor.main'], function() {
-    const ta     = document.getElementById('editor-content'),
-          wrap   = document.getElementById('editor'),
-          initial = ta?.value || '';
+  window.syncEditorContent = function syncEditorContent() {
+    if (templateEditor && typeof templateEditor.sync === 'function') {
+      templateEditor.sync();
+    }
+    return true;
+  };
 
-    ta.classList.add('hidden');
-    wrap.classList.remove('hidden');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTemplateEditor, { once: true });
+  } else {
+    initTemplateEditor();
+  }
 
-    monacoEditor = monaco.editor.create(wrap, {
-      value: initial,
-      language: 'jinja',
-      automaticLayout: true,
-      theme: 'vs-dark',
-    });
-
-    monacoEditor.onDidChangeModelContent(() => {
-      ta.value = monacoEditor.getValue();
-    });
-
-    // Also sync content when the editor loses focus
-    monacoEditor.onDidBlurEditorText(() => {
-      ta.value = monacoEditor.getValue();
-    });
-
-    // Ensure content is synced before HTMX form submission
-    document.addEventListener('htmx:beforeRequest', function(event) {
-      if (event.target.id === '{{ model_name }}-form') {
-        syncEditorContent();
+  if (!window.__templateEditorAfterSwapHandler) {
+    window.__templateEditorAfterSwapHandler = (event) => {
+      if (event.target && event.target.id === formId) {
+        initTemplateEditor();
       }
-    });
-  });
+    };
+    document.addEventListener('htmx:afterSwap', window.__templateEditorAfterSwapHandler);
+  }
 </script>

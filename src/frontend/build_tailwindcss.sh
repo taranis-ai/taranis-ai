@@ -11,6 +11,7 @@ fi
 
 deno install --allow-scripts
 deno task vendor:bundle
+deno task vendor:bundle:codemirror
 
 if [ -n "$WATCH_MODE" ]; then
   deno task tw:watch

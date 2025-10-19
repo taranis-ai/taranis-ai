@@ -6,6 +6,7 @@ WORKDIR /app/
 RUN apt-get update && apt-get install --no-install-recommends -y \
     git \
     curl \
+    7zip \
     openssl \
     build-essential \
     python3-dev
@@ -16,7 +17,8 @@ COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3
 
 ENV UV_COMPILE_BYTECODE=1
 
-RUN /app/build_tailwindcss.sh && \
+RUN curl -fsSL https://deno.land/install.sh | sh -s -- -y && \
+    /app/build_tailwindcss.sh && \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen
@@ -33,7 +35,6 @@ COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/frontend/. /app/
 COPY --from=builder --chown=user:user /app/frontend/static/ /app/frontend/static/
 
-# Copy the OpenAPI spec file
 USER user
 
 ENV PYTHONOPTIMIZE=1

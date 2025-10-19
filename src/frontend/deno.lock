@@ -1,6 +1,21 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@codemirror/commands@*": "6.9.0",
+    "npm:@codemirror/commands@6.9.0": "6.9.0",
+    "npm:@codemirror/commands@^6.9.0": "6.9.0",
+    "npm:@codemirror/language@*": "6.11.3",
+    "npm:@codemirror/language@6.11.3": "6.11.3",
+    "npm:@codemirror/language@^6.11.3": "6.11.3",
+    "npm:@codemirror/legacy-modes@*": "6.5.2",
+    "npm:@codemirror/legacy-modes@6.5.2": "6.5.2",
+    "npm:@codemirror/legacy-modes@^6.5.2": "6.5.2",
+    "npm:@codemirror/state@*": "6.5.2",
+    "npm:@codemirror/state@6.5.2": "6.5.2",
+    "npm:@codemirror/state@^6.5.2": "6.5.2",
+    "npm:@codemirror/view@*": "6.38.6",
+    "npm:@codemirror/view@6.38.6": "6.38.6",
+    "npm:@codemirror/view@^6.38.6": "6.38.6",
     "npm:@tailwindcss/cli@*": "4.1.14",
     "npm:@tailwindcss/cli@^4.1.14": "4.1.14",
     "npm:alpinejs@*": "3.15.0",
@@ -14,7 +29,6 @@
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
     "npm:htmx.org@*": "2.0.7",
     "npm:htmx.org@^2.0.7": "2.0.7",
-    "npm:monaco-editor@0.54": "0.54.0",
     "npm:sortablejs@*": "1.15.6",
     "npm:sortablejs@^1.15.6": "1.15.6",
     "npm:sweetalert2@*": "11.26.3",
@@ -22,6 +36,47 @@
     "npm:tailwindcss@^4.1.14": "4.1.14"
   },
   "npm": {
+    "@codemirror/commands@6.9.0": {
+      "integrity": "sha512-454TVgjhO6cMufsyyGN70rGIfJxJEjcqjBG2x2Y03Y/+Fm99d3O/Kv1QDYWuG6hvxsgmjXmBuATikIIYvERX+w==",
+      "dependencies": [
+        "@codemirror/language",
+        "@codemirror/state",
+        "@codemirror/view",
+        "@lezer/common"
+      ]
+    },
+    "@codemirror/language@6.11.3": {
+      "integrity": "sha512-9HBM2XnwDj7fnu0551HkGdrUrrqmYq/WC5iv6nbY2WdicXdGbhR/gfbZOH73Aqj4351alY1+aoG9rCNfiwS1RA==",
+      "dependencies": [
+        "@codemirror/state",
+        "@codemirror/view",
+        "@lezer/common",
+        "@lezer/highlight",
+        "@lezer/lr",
+        "style-mod"
+      ]
+    },
+    "@codemirror/legacy-modes@6.5.2": {
+      "integrity": "sha512-/jJbwSTazlQEDOQw2FJ8LEEKVS72pU0lx6oM54kGpL8t/NJ2Jda3CZ4pcltiKTdqYSRk3ug1B3pil1gsjA6+8Q==",
+      "dependencies": [
+        "@codemirror/language"
+      ]
+    },
+    "@codemirror/state@6.5.2": {
+      "integrity": "sha512-FVqsPqtPWKVVL3dPSxy8wEF/ymIEuVzF1PK3VbUgrxXpJUSHQWWZz4JMToquRxnkw+36LTamCZG2iua2Ptq0fA==",
+      "dependencies": [
+        "@marijn/find-cluster-break"
+      ]
+    },
+    "@codemirror/view@6.38.6": {
+      "integrity": "sha512-qiS0z1bKs5WOvHIAC0Cybmv4AJSkAXgX5aD6Mqd2epSLlVJsQl8NG23jCVouIgkh4All/mrbdsf2UOLFnJw0tw==",
+      "dependencies": [
+        "@codemirror/state",
+        "crelt",
+        "style-mod",
+        "w3c-keyname"
+      ]
+    },
     "@isaacs/fs-minipass@4.0.1": {
       "integrity": "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==",
       "dependencies": [
@@ -54,6 +109,24 @@
         "@jridgewell/resolve-uri",
         "@jridgewell/sourcemap-codec"
       ]
+    },
+    "@lezer/common@1.3.0": {
+      "integrity": "sha512-L9X8uHCYU310o99L3/MpJKYxPzXPOS7S0NmBaM7UO/x2Kb2WbmMLSkfvdr1KxRIFYOpbY0Jhn7CfLSUDzL8arQ=="
+    },
+    "@lezer/highlight@1.2.2": {
+      "integrity": "sha512-z8TQwaBXXQIvG6i2g3e9cgMwUUXu9Ib7jo2qRRggdhwKpM56Dw3PM3wmexn+EGaaOZ7az0K7sjc3/gcGW7sz7A==",
+      "dependencies": [
+        "@lezer/common"
+      ]
+    },
+    "@lezer/lr@1.4.2": {
+      "integrity": "sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==",
+      "dependencies": [
+        "@lezer/common"
+      ]
+    },
+    "@marijn/find-cluster-break@1.0.2": {
+      "integrity": "sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g=="
     },
     "@parcel/watcher-android-arm64@2.5.1": {
       "integrity": "sha512-KF8+j9nNbUN8vzOFDpRMsaKBHZ/mcjEjMToVMJOhTozkDonQFFrRcfdLWn6yWKCmJKmdVxSgHiYvTCef4/qcBA==",
@@ -281,6 +354,9 @@
     "chownr@3.0.0": {
       "integrity": "sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g=="
     },
+    "crelt@1.0.6": {
+      "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
+    },
     "daisyui@5.3.7": {
       "integrity": "sha512-0+8PaSGift0HlIQABCeZzWOBV5Nx/vsI2TihB9hbaEyZENPlZZz+se2JnAH5rz9gBYTyDLB7NJup8hkREr6WBw=="
     },
@@ -290,9 +366,6 @@
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
-    },
-    "dompurify@3.1.7": {
-      "integrity": "sha512-VaTstWtsneJY8xzy7DekmYWEOZcmzIe3Qb3zPd4STve1OBTa+e+WmS1ITQec1fZYXI3HCsOZZiSMpG6oxoWMWQ=="
     },
     "enhanced-resolve@5.18.3": {
       "integrity": "sha512-d4lC8xfavMeBjzGr2vECC3fsGXziXZQyJxD868h2M/mBI3PwAuODxAkLkq5HYuvrPYcUtiLzsTo8U3PgX3Ocww==",
@@ -412,10 +485,6 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
-    "marked@14.0.0": {
-      "integrity": "sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==",
-      "bin": true
-    },
     "micromatch@4.0.8": {
       "integrity": "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==",
       "dependencies": [
@@ -430,13 +499,6 @@
       "integrity": "sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==",
       "dependencies": [
         "minipass"
-      ]
-    },
-    "monaco-editor@0.54.0": {
-      "integrity": "sha512-hx45SEUoLatgWxHKCmlLJH81xBo0uXP4sRkESUpmDQevfi+e7K1VuiSprK6UpQ8u4zOcKNiH0pMvHvlMWA/4cw==",
-      "dependencies": [
-        "dompurify",
-        "marked"
       ]
     },
     "mri@1.2.0": {
@@ -456,6 +518,9 @@
     },
     "source-map-js@1.2.1": {
       "integrity": "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="
+    },
+    "style-mod@4.1.3": {
+      "integrity": "sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ=="
     },
     "sweetalert2@11.26.3": {
       "integrity": "sha512-VU0hGw/WfI9h7Mh+SCsDlWgtxDwWZ6ccqS7QcO8zEeWnwplN1GptcLstq76OluUBSLUza6ldvKd3558OhjpJ9A=="
@@ -482,12 +547,20 @@
         "is-number"
       ]
     },
+    "w3c-keyname@2.2.8": {
+      "integrity": "sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ=="
+    },
     "yallist@5.0.0": {
       "integrity": "sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw=="
     }
   },
   "workspace": {
     "dependencies": [
+      "npm:@codemirror/commands@^6.9.0",
+      "npm:@codemirror/language@^6.11.3",
+      "npm:@codemirror/legacy-modes@^6.5.2",
+      "npm:@codemirror/state@^6.5.2",
+      "npm:@codemirror/view@^6.38.6",
       "npm:@tailwindcss/cli@^4.1.14",
       "npm:alpinejs@^3.15.0",
       "npm:choices.js@^11.1.0",
@@ -495,7 +568,6 @@
       "npm:fuse.js@^7.1.0",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.7",
-      "npm:monaco-editor@0.54",
       "npm:sortablejs@^1.15.6",
       "npm:sweetalert2@^11.26.3",
       "npm:tailwindcss@^4.1.14"

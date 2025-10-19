@@ -128,12 +128,18 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     <section class="space-y-4">
       <div>
         <span class="label-text text-xs font-medium uppercase text-base-content/70">Quick range</span>
-        <div class="join join-horizontal mt-2 w-full" role="group" aria-label="Time presets">
+        <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets">
           {% for preset in quick_ranges %}
-            {% set is_active = current_preset == preset.value %}
-            <label class="btn btn-sm join-item {% if is_active %}btn-primary{% else %}btn-outline{% endif %}">
-              <input type="radio" name="range" value="{{ preset.value }}" class="hidden" hx-trigger="change" {% if is_active %}checked{% endif %}>
-              {{ preset.label }}
+            {% set input_id = 'quick-range-' ~ preset.value %}
+            <label class="cursor-pointer">
+              <span class="label-text text-sm">{{ preset.label }}</span>
+              <input id="{{ input_id }}"
+                     type="radio"
+                     name="range"
+                     value="{{ preset.value }}"
+                     class="radio"
+                     hx-trigger="change"
+                     {% if current_preset == preset.value %}checked{% endif %}>
             </label>
           {% endfor %}
         </div>

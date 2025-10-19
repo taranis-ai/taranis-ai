@@ -27,8 +27,6 @@ document.body.addEventListener('htmx:confirm', function(evt) {
 
   evt.preventDefault();
   if (!evt.target.hasAttribute('hx-confirm')) {
-    console.debug("No confirmation question found for htmx:confirm event.");
-    console.debug(evt);
     return evt.detail.issueRequest(true);
   }
   const opts = getConfirmOptions(evt.target, evt.detail.question);
