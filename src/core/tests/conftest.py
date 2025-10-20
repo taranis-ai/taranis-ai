@@ -83,7 +83,12 @@ def db(app):
 
         yield db
 
-        db.drop_all()
+        # Clean up all data and drop tables at the end of the session
+        try:
+            db.session.remove()
+            db.drop_all()
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -96,7 +101,7 @@ def session(db):
 
     # Store the original session to restore later
     original_session = db.session
-    
+
     db.session = scoped_session(sessionmaker(bind=connection))
 
     # Import versioned_session locally to avoid triggering config loading at module level
@@ -111,12 +116,91 @@ def session(db):
 
     yield db.session
 
+    # Ensure all pending changes are cleared before rollback
+    db.session.expunge_all()
     transaction.rollback()
     connection.close()
     db.session.remove()
-    
+
     # Restore the original session for cleanup fixtures
     db.session = original_session
+
+
+@pytest.fixture(autouse=True, scope="class")
+def clean_db_before_class(app):
+    """Automatically clean test data before each test class to prevent conflicts."""
+    with app.app_context():
+        from core.managers.db_manager import db
+        import contextlib
+        from sqlalchemy import text
+
+        # Clean only tables that contain test-generated data to prevent unique constraint violations
+        # Keep seeded data (users, roles, organizations, report types, etc.) intact
+        # Order matters due to foreign key relationships
+        tables_to_clean = [
+            'report_item_story',      # Junction table first due to foreign keys  
+            'story_news_item_attribute',
+            'news_item_attribute',
+            'report_item_attribute',  # Report attributes
+            'report_item_cpe',        # Report CPE data
+            'report_item',            # Reports themselves
+            'story_search_index',     # Story search index causing duplicate issues
+            'news_item_tag',          # News item tags
+            'news_item',
+            'story'
+        ]
+
+        def clean_tables():
+            with contextlib.suppress(Exception):
+                # Disable foreign key checks temporarily for cleanup
+                db.session.execute(text("PRAGMA foreign_keys=OFF"))
+
+                for table_name in tables_to_clean:
+                    db.session.execute(text(f"DELETE FROM {table_name}"))
+
+                # Re-enable foreign key checks
+                db.session.execute(text("PRAGMA foreign_keys=ON"))
+
+                db.session.commit()
+
+        # Clean before test class
+        clean_tables()
+
+        yield
+
+        # Clean up after class too
+        clean_tables()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def clean_reports_after_function(app):
+    """Clean report data after each test function to prevent contamination within a test class."""
+    yield
+    
+    with app.app_context():
+        from core.managers.db_manager import db
+        import contextlib
+        from sqlalchemy import text
+        
+        with contextlib.suppress(Exception):
+            # Clean report-related tables that can be created during tests
+            report_tables = [
+                'report_item_story',
+                'report_item_attribute',
+                'report_item_cpe', 
+                'report_item'
+            ]
+            
+            # Disable foreign key checks temporarily for cleanup
+            db.session.execute(text("PRAGMA foreign_keys=OFF"))
+            
+            for table_name in report_tables:
+                db.session.execute(text(f"DELETE FROM {table_name}"))
+            
+            # Re-enable foreign key checks
+            db.session.execute(text("PRAGMA foreign_keys=ON"))
+            
+            db.session.commit()
 
 
 @pytest.fixture(scope="session")
