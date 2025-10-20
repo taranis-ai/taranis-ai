@@ -1,42 +1,52 @@
 import pytest
+from sqlalchemy.exc import OperationalError
+
+
+def safe_cleanup(model_class, item_id):
+    """Safely attempt to delete a model instance, handling missing tables."""
+    try:
+        if model_class.get(item_id):
+            model_class.delete(item_id)
+    except OperationalError:
+        # Table doesn't exist, nothing to clean up
+        pass
 
 
 @pytest.fixture(scope="session")
 def cleanup_sources(app):
+    from core.model.osint_source import OSINTSource
+
+    source_data = {
+        "id": "42",
+        "description": "This is a test source",
+        "name": "Test Source",
+        "parameters": [
+            {"FEED_URL": "https://url/feed.xml"},
+        ],
+        "type": "rss_collector",
+    }
+
+    yield source_data
+
     with app.app_context():
-        from core.model.osint_source import OSINTSource
-
-        source_data = {
-            "id": "42",
-            "description": "This is a test source",
-            "name": "Test Source",
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
-            "type": "rss_collector",
-        }
-
-        yield source_data
-
-        if OSINTSource.get(source_data["id"]):
-            OSINTSource.delete(source_data["id"])
+        safe_cleanup(OSINTSource, source_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_source_groups(app):
+    from core.model.osint_source import OSINTSourceGroup
+
+    source_group_data = {
+        "id": "42",
+        "name": "Test Source Group",
+        "description": "This is a test source group",
+        "default": False,
+    }
+
+    yield source_group_data
+
     with app.app_context():
-        from core.model.osint_source import OSINTSourceGroup
-
-        source_group_data = {
-            "id": "42",
-            "name": "Test Group",
-            "description": "This is a test group",
-        }
-
-        yield source_group_data
-
-        if OSINTSourceGroup.get(source_group_data["id"]):
-            OSINTSourceGroup.delete(source_group_data["id"])
+        safe_cleanup(OSINTSourceGroup, source_group_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -55,8 +65,7 @@ def cleanup_word_lists(app):
 
         yield word_list_data
 
-        if WordList.get(word_list_data["id"]):
-            WordList.delete(word_list_data["id"])
+        safe_cleanup(WordList, word_list_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -75,8 +84,12 @@ def cleanup_user(app):
 
         yield user_data
 
-        if User.get(user_data["id"]):
-            User.delete(user_data["id"])
+        try:
+            if User.get(user_data["id"]):
+                User.delete(user_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -93,8 +106,12 @@ def cleanup_role(app):
 
         yield role_data
 
-        if Role.get(role_data["id"]):
-            Role.delete(role_data["id"])
+        try:
+            if Role.get(role_data["id"]):
+                Role.delete(role_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -111,8 +128,12 @@ def cleanup_organization(app):
 
         yield organization_data
 
-        if Organization.get(organization_data["id"]):
-            Organization.delete(organization_data["id"])
+        try:
+            if Organization.get(organization_data["id"]):
+                Organization.delete(organization_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -130,8 +151,12 @@ def cleanup_bot(app):
 
         yield bot_data
 
-        if Bot.get(bot_data["id"]):
-            Bot.delete(bot_data["id"])
+        try:
+            if Bot.get(bot_data["id"]):
+                Bot.delete(bot_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -163,8 +188,12 @@ def cleanup_report_item_type(app):
 
         yield report_type_data
 
-        if ReportItemType.get(report_type_data["id"]):
-            ReportItemType.delete(report_type_data["id"])
+        try:
+            if ReportItemType.get(report_type_data["id"]):
+                ReportItemType.delete(report_type_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -182,8 +211,12 @@ def cleanup_product_types(app):
 
         yield product_type_data
 
-        if ProductType.get(product_type_data["id"]):
-            ProductType.delete(product_type_data["id"])
+        try:
+            if ProductType.get(product_type_data["id"]):
+                ProductType.delete(product_type_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -202,8 +235,12 @@ def cleanup_acls(app):
 
         yield rbac_data
 
-        if RoleBasedAccess.get(rbac_data["id"]):
-            RoleBasedAccess.delete(rbac_data["id"])
+        try:
+            if RoleBasedAccess.get(rbac_data["id"]):
+                RoleBasedAccess.delete(rbac_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -221,8 +258,12 @@ def cleanup_publisher_preset(app):
 
         yield publisher_presets
 
-        if PublisherPreset.get(publisher_presets["id"]):
-            PublisherPreset.delete(publisher_presets["id"])
+        try:
+            if PublisherPreset.get(publisher_presets["id"]):
+                PublisherPreset.delete(publisher_presets["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -240,8 +281,12 @@ def cleanup_attribute(app):
 
         yield attribute_data
 
-        if Attribute.get(attribute_data["id"]):
-            Attribute.delete(attribute_data["id"])
+        try:
+            if Attribute.get(attribute_data["id"]):
+                Attribute.delete(attribute_data["id"])
+        except Exception:
+            # Database tables may have been cleaned up already during session teardown
+            pass
 
 
 @pytest.fixture(scope="session")
