@@ -40,7 +40,7 @@ def _import_all_models():
     from core.model import organization  # noqa: F401
     from core.model import attribute  # noqa: F401
     from core.model import role_based_access  # noqa: F401
-    
+
     # Import source and collection models
     from core.model import bot  # noqa: F401
     from core.model import osint_source  # noqa: F401
@@ -48,26 +48,26 @@ def _import_all_models():
     from core.model import connector  # noqa: F401
     from core.model import worker  # noqa: F401
     from core.model import task  # noqa: F401
-    
+
     # Import news item models
     from core.model import news_item  # noqa: F401
     from core.model import news_item_attribute  # noqa: F401
     from core.model import news_item_tag  # noqa: F401
     from core.model import news_item_conflict  # noqa: F401
-    
+
     # Import story models
     from core.model import story  # noqa: F401
     from core.model import story_conflict  # noqa: F401
-    
+
     # Import report models
     from core.model import report_item_type  # noqa: F401
     from core.model import report_item  # noqa: F401
-    
+
     # Import product models
     from core.model import product_type  # noqa: F401
     from core.model import product  # noqa: F401
     from core.model import publisher_preset  # noqa: F401
-    
+
     # Import utility models
     from core.model import word_list  # noqa: F401
     from core.model import asset  # noqa: F401
