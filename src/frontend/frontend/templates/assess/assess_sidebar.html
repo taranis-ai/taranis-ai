@@ -145,22 +145,22 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
         </div>
       </div>
       <div class="grid grid-cols-1 gap-3">
-        <label class="input w-full">
-          <span class="label text-xs font-medium text-base-content/70 pr-1">From</span>
+        <label class="input w-full p-1">
+          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
           <input type="datetime-local"
                  value="{{ time_from }}"
                  {% if time_from %}name="timefrom"{% endif %}
                  onchange="this.name = this.value ? 'timefrom' : ''"
-                 class="input-bordered input-xs"
+                 class="input-bordered input-xs -ml-3"
                  hx-trigger="change delay:250ms">
         </label>
-        <label class="input w-full">
-          <span class="label text-xs font-medium text-base-content/70 pr-4">To</span>
+        <label class="input w-full p-1">
+          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
           <input type="datetime-local"
                  value="{{ time_to }}"
                  {% if time_to %}name="timeto"{% endif %}
                  onchange="this.name = this.value ? 'timeto' : ''"
-                 class="input-bordered input-xs"
+                 class="input-bordered input-xs -ml-3"
                  hx-trigger="change delay:250ms">
         </label>
       </div>

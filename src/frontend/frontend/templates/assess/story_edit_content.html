@@ -129,17 +129,19 @@
       </form>
     </div>
 
-    <aside class="space-y-2">
-      <div class="card bg-base-100 shadow-lg border border-base-200">
-        <div class="card-body space-y-4">
-          <h3 class="card-title text-lg">Story status</h3>
-          <div class="flex flex-wrap gap-3 text-sm">
-            <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
+    ADVANCED: {{ current_user.profile.advanced_story_options }}
+    {% if current_user.profile.advanced_story_options %}
+      <!-- Advanced options sidebar -->
+      <aside class="space-y-2">
+        <div class="card bg-base-100 shadow-lg border border-base-200">
+          <div class="card-body space-y-4">
+            <h3 class="card-title text-lg">Story status</h3>
+            <div class="flex flex-wrap gap-3 text-sm">
+              <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {% if current_user.profile.advanced_story_options %}
         <div class="card bg-base-100 shadow-lg border border-base-200">
           <div class="card-body space-y-3">
             <h3 class="card-title text-lg">AI assisted actions</h3>
@@ -172,8 +174,8 @@
             </form>
           </div>
         </div>
-      {% endif %}
-    </aside>
+      </aside>
+    {% endif %}
   </div>
 
   <div class="card bg-base-100 shadow-lg border border-base-200">

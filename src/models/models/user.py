@@ -18,13 +18,13 @@ class ProfileSettings(TaranisBaseModel):
     dark_theme: bool = False
     compact_view: bool = False
     show_charts: bool = False
-    infinite_scroll: bool = True
-    advanced_story_options: bool = True
+    infinite_scroll: bool = False
+    advanced_story_options: bool = False
     language: str = "en"
     hotkeys: dict[str, Any] = Field(default_factory=dict)
     split_view: bool = False
-    end_of_shift: str | dict = None
-    highlight: bool = True
+    end_of_shift: str | None = None
+    highlight: bool = False
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 
 
