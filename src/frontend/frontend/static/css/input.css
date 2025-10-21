@@ -3,6 +3,36 @@
     themes: light --default, dark --prefersdark;
 }
 
+@layer components {
+  .keyboard-hint-icon {
+    color: #000;
+  }
+
+  html[data-theme="dark"] .keyboard-hint-icon,
+  [data-theme="dark"] .keyboard-hint-icon {
+    color: #fff;
+  }
+
+  svg.logo-svg .logo-wordmark {
+    color: #000;
+  }
+
+  html[data-theme="dark"] svg.logo-svg .logo-wordmark,
+  [data-theme="dark"] svg.logo-svg .logo-wordmark {
+    color: #fff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .keyboard-hint-icon {
+      color: #fff;
+    }
+
+    :root:not([data-theme]) svg.logo-svg .logo-wordmark {
+      color: #fff;
+    }
+  }
+}
+
 .input {
   &:focus, &:focus-within {
     outline-offset: 0;

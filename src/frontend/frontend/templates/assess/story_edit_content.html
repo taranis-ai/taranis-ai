@@ -3,24 +3,33 @@
 {% set news_count = story.news_items | length %}
 {% set read_badge = 'badge badge-success badge-sm' if story.read else 'badge badge-primary badge-sm' %}
 {% set important_badge = 'badge badge-warning badge-sm' if story.important else none %}
+{% set advanced_story_options = current_user.profile.advanced_story_options %}
+{% set layout = layout | default('simple') %}
+{% set column_class = 'col-span-4' if layout == 'advanced' else 'col-span-5' %}
+{% set card_id = 'story-' ~ story_id %}
+{% set toggled_read = (not (story.read | default(false))) | tojson %}
+{% set toggled_important = (not (story.important | default(false))) | tojson %}
 
-<section id="story-edit-panel"
+<section id="{{ card_id }}"
          class="space-y-6 p-6"
          hx-get="{{ url_for('assess.story_edit', story_id=story.id) }}"
          hx-trigger="story:reload from:body"
          hx-target="this"
-         hx-swap="outerHTML">
+         hx-swap="outerHTML"
+         @keydown.shift.window="showHints = true"
+         @keyup.shift.window="showHints = false"
+         x-data="{ showHints: false }">
 
-  {% if has_rt_id %}
+  {% if has_rt_id -%}
     <div class="alert alert-warning shadow-lg border border-warning/40">
       <span class="font-semibold text-sm">RT managed story detected.</span>
       <span class="text-sm">Please make any edits directly in RT to avoid conflicts; this interface is read-only for the record.</span>
     </div>
-  {% endif %}
+  {% endif -%}
 
   <!-- Story header -->
   <article class="card shadow-xl border border-base-200 bg-base-100">
-    <div class="card-body grid gap-8 lg:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)] lg:items-center">
+    <div class="card-body grid gap-4 grid-cols-2">
       <div class="space-y-3">
         <p class="text-xs uppercase tracking-wide text-base-content/60">Story reference · {{ story.id }}</p>
         <h1 class="text-3xl font-semibold leading-tight tracking-tight">{{ story.title or "Untitled story" }}</h1>
@@ -30,18 +39,81 @@
           {% if story.relevance is not none %}<span class="badge badge-outline badge-sm">Relevance {{ story.relevance }}</span>{% endif %}
         </div>
       </div>
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Created</p>
-          <p class="text-sm font-medium">{{ story.created | format_datetime if story.created else "—" }}</p>
+      <div class="flex flex-col gap-3">
+        <div class="flex justify-end gap-2">
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
+                  hx-get="{{ url_for('assess.report_story') }}"
+                  hx-target="body"
+                  hx-swap="beforeend"
+                  hx-vals='{"story_ids": "{{ story.id }}" }'
+                  data-testid="share-story-to-report">
+            {{ heroicon_mini("document-chart-bar") }}
+            <span class="text-sm">Add to Report</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+R</kbd>
+            </span>
+          </button>
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  hx-trigger="click, keyup[shiftKey && code == 'E'] from:body"
+                  hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+                  hx-vals='{"read": {{ toggled_read }} }'
+                  hx-target="#{{ card_id }}"
+                  hx-push-url="false"
+                  hx-swap="outerHTML"
+                  data-testid="toggle-read">
+            {% if story.read | default(false) %}
+              {{ heroicon_mini("eye-slash") }}
+              <span>Mark unread</span>
+            {% else %}
+              {{ heroicon_mini("eye") }}
+              <span>Mark read</span>
+            {% endif %}
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+E</kbd>
+            </span>
+          </button>
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  hx-trigger="click, keyup[shiftKey && code == 'I'] from:body"
+                  hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+                  hx-vals='{"important": {{ toggled_important }} }'
+                  hx-target="#{{ card_id }}"
+                  hx-push-url="false"
+                  hx-swap="outerHTML"
+                  data-testid="toggle-important">
+            {{ heroicon_mini("star") }}
+            <span>
+              {% if story.important | default(false) %}
+                Remove important
+              {% else %}
+                Mark important
+              {% endif %}
+            </span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+I</kbd>
+            </span>
+          </button>
+          <div class="join">
+            <a href="?layout=advanced" class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced view</a>
+            <a href="?layout=simple" class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple view</a>
+          </div>
         </div>
-        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Updated</p>
-          <p class="text-sm font-medium">{{ story.updated | format_datetime if story.updated else "—" }}</p>
-        </div>
-        <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
-          <p class="text-sm font-medium">{{ news_count }}</p>
+        <div class="grid gap-3 grid-cols-3">
+          <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Created</p>
+            <p class="text-sm font-medium">{{ story.created | format_datetime if story.created else "—" }}</p>
+          </div>
+          <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Updated</p>
+            <p class="text-sm font-medium">{{ story.updated | format_datetime if story.updated else "—" }}</p>
+          </div>
+          <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
+            <p class="text-sm font-medium">{{ news_count }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -49,7 +121,7 @@
 
   <!-- Main content grid -->
   <div class="grid gap-4 grid-cols-5">
-    <div class="space-y-6 col-span-4">
+    <div class="space-y-6 {{ column_class }}">
       <form id="story-edit-form"
             class="card bg-base-100 shadow-xl border border-base-200"
             {{ form_action }}
@@ -129,8 +201,7 @@
       </form>
     </div>
 
-    ADVANCED: {{ current_user.profile.advanced_story_options }}
-    {% if current_user.profile.advanced_story_options %}
+    {% if layout == 'advanced' %}
       <!-- Advanced options sidebar -->
       <aside class="space-y-2">
         <div class="card bg-base-100 shadow-lg border border-base-200">
@@ -182,9 +253,6 @@
     <div class="card-body space-y-5">
       <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h3 class="card-title text-lg">Linked news items ({{ news_count }})</h3>
-        <p class="text-xs text-base-content/60 max-w-xl">
-          Classification shortcuts stay available when advanced options are enabled. Each action refreshes the panel after completion.
-        </p>
       </div>
 
       {% if story.news_items %}
@@ -223,7 +291,7 @@
                   </p>
                 </div>
 
-                {% if current_user.profile.advanced_story_options %}
+                {% if layout == 'advanced' %}
                   <form class="flex items-center gap-2"
                         hx-post="{{ url_for('assess.story_trigger_bot', story_id=item.id) }}"
                         hx-target="#notification-bar"

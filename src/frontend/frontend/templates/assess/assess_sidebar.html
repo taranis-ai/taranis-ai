@@ -57,12 +57,10 @@ const choicesConfig = {
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    console.info(document.currentScript);
     initChoices('source-group-filter', 'groups', choicesConfig);
     initChoices('source-filter', 'sources', choicesConfig);
   });
 } else {
-  console.info(document.currentScript);
   initChoices('source-group-filter', 'groups', choicesConfig);
   initChoices('source-filter', 'sources', choicesConfig);
 }
@@ -248,8 +246,5 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
   </div>
 
   <div class="divider mb-0"></div>
-  <a class="btn btn-ghost btn-xs w-full mt-0" href="{{ url_for('user.settings') }}#hotkeys" target="_blank" rel="noopener">
-    {{ heroicon_outline('command-line', class='h-4 w-4') }}
-    Show hotkeys
-  </a>
+  {% include "partials/keyboard_hint.html" %}
 </div>

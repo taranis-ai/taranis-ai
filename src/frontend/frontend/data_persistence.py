@@ -64,6 +64,11 @@ class DataPersistenceLayer:
         suffix = self.make_key(object._core_endpoint)
         self.invalidate_cache(suffix)
 
+    def invalidate_cache_by_object_id(self, object: TaranisBaseModel | Type[TaranisBaseModel], object_id: int | str):
+        endpoint = self.get_endpoint(object)
+        cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+        cache.delete(cache_key)
+
     def get_raw_objects(self, model: Type[TaranisBaseModel], endpoint: str) -> list[TaranisBaseModel]:
         if result := self.api.api_get(endpoint):
             return [model(**object) for object in result.get("items", [])]

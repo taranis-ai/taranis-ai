@@ -1,4 +1,5 @@
-{% macro story_card_actions(story, story_id, card_id, compact_view=False) %}
+{% macro story_card_actions(story, story_id, compact_view=False) %}
+  {% set card_id = 'story-' ~ story_id %}
   {% set toggled_read = (not (story.read | default(false))) | tojson %}
   {% set toggled_important = (not (story.important | default(false))) | tojson %}
   {% set actions %}

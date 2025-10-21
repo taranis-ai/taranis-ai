@@ -292,6 +292,7 @@ class StoryView(BaseView):
             )
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
+            context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
         else:
             context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
@@ -373,7 +374,7 @@ class StoryView(BaseView):
             payload = {"error": response.text}
 
         status_code = getattr(response, "status_code", 500)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
         notification_html = render_template(
             "notification/index.html",
@@ -407,6 +408,13 @@ class StoryView(BaseView):
         response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
         return response
 
+    @staticmethod
+    def _get_current_url_path() -> str:
+        if current_url := request.headers.get("HX-Current-URL", ""):
+            if parsed_url := urlparse(current_url):
+                return parsed_url.path or current_url
+        return ""
+
     @classmethod
     @auth_required()
     def patch_story(cls, story_id: str):
@@ -422,15 +430,39 @@ class StoryView(BaseView):
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
         notification_html = cls.get_notification_from_response(response)
 
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
-        content = render_template(
-            "assess/story.html",
-            detail_view=False,
-            **cls.get_item_context(story_id),
-        )
+        current_url = cls._get_current_url_path()
+
+        edit_path = url_for("assess.story_edit", story_id=story_id)
+        detail_path = url_for("assess.story", story_id=story_id)
+
+        context = cls.get_item_context(story_id)
+        if current_url == edit_path:
+            content = render_template(
+                "assess/story_edit_content.html",
+                **context,
+            )
+        elif current_url == detail_path:
+            content = render_template(
+                "assess/story.html",
+                detail_view=True,
+                **context,
+            )
+        else:
+            content = render_template(
+                "assess/story.html",
+                detail_view=False,
+                **context,
+            )
         response = make_response(notification_html + content, 200)
         return response
+
+    def get(self, **kwargs) -> tuple[str, int]:
+        object_id = kwargs.get("story_id")
+        if object_id is None:
+            return self.list_view()
+        return self.edit_view(object_id=object_id)
 
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
