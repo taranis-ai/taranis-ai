@@ -475,7 +475,7 @@ class Story(Versioned, BaseModel):
                 data["tags"] = NewsItemTag.unify_tags(tags)
             if attributes := data.get("attributes"):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
-            
+
             with db.session.no_autoflush:
                 story = cls.from_dict(data)
                 db.session.add(story)
@@ -595,7 +595,7 @@ class Story(Versioned, BaseModel):
             result["message"] = "All news items were skipped"
             logger.warning(result)
             return result, 200
-        if skipped_items:
+       if skipped_items:
             result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
@@ -647,7 +647,7 @@ class Story(Versioned, BaseModel):
 
                 # Single commit for all changes including vote
                 StorySearchIndex.prepare(story)
-            
+
             db.session.commit()
             return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
         except Exception as e:
