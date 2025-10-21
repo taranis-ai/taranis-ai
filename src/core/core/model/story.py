@@ -23,11 +23,7 @@ from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
-
-# TYPE_CHECKING import to avoid circular imports
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from core.model.report_item import ReportItem
+from core.model.report_item import ReportItem
 
 
 class Story(Versioned, BaseModel):
