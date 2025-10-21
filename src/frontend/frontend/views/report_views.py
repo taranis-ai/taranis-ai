@@ -57,8 +57,9 @@ class ReportItemView(BaseView):
         base_context |= {
             "layout": layout,
             "actions": cls.get_report_actions(),
-            "story_attributes": ReportItemView._get_story_attributes(report.grouped_attributes) or [] if report else [],
         }
+        if report and report.grouped_attributes:
+            base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
         return base_context
 

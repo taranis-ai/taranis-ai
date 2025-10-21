@@ -136,6 +136,7 @@ class StoryView(BaseView):
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
