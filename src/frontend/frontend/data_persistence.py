@@ -128,7 +128,5 @@ class DataPersistenceLayer:
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
-            # Also invalidate individual object cache
-            cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
-            cache.delete(cache_key)
+            self.invalidate_cache_by_object_id(object, object_id)
         return response

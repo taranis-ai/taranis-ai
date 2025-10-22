@@ -121,7 +121,6 @@ class ReportItemView(BaseView):
         try:
             form_data = parse_formdata(request.form)
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
-            logger.debug(f"Form data received: {form_data}")
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))

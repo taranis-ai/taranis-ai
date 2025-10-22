@@ -379,7 +379,7 @@ class ReportItem(BaseModel):
         if attributes_data := data.pop("attributes", None):
             report_item.update_attributes(attributes_data)
 
-        story_ids = data.get("story_ids")
+        story_ids = data.get("story_ids", data.get("stories"))
         if story_ids is not None:
             report_item.update_stories(story_ids)
 

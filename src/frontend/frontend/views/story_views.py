@@ -66,6 +66,7 @@ class StoryView(BaseView):
             if source := sources.get(first_news_item.osint_source_id):
                 # Add the source as an pydantic extra field to the story for easier access in the template
                 story.source_info = source  # type: ignore
+            story.summary_content = story.summary or first_news_item.content  # type: ignore
         return story
 
     @staticmethod

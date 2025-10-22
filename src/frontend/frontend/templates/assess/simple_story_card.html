@@ -1,4 +1,4 @@
-{% macro simple_story_card(story) %}
+{% macro preview_story_card(story) %}
   <div class="card card-border bg-base-100 mx-4 my-2">
     <div class="card-body">
       <h2 class="card-title">{{ story.title }}</h2>
@@ -6,4 +6,43 @@
       <div class="card-actions"></div>
     </div>
   </div>
+{% endmacro %}
+
+{% macro analyze_story_card(story, used_story_ids) %}
+  {% set is_used = story.id in used_story_ids %}
+  {% set card_classes = ["card", "card-bordered", "bg-base-200", "mx-4", "my-2", "shadow-sm", "transition-shadow", "duration-200", "hover:shadow-lg"] %}
+  {% if is_used %}
+    {% set card_classes = card_classes + ["border-success/60", "ring-1", "ring-success/30"] %}
+  {% elif story.important %}
+    {% set card_classes = card_classes + ["border-warning/60", "ring-1", "ring-warning/30"] %}
+  {% else %}
+    {% set card_classes = card_classes + ["border-base-300"] %}
+  {% endif %}
+
+  <article class="{{ ' '.join(card_classes) }}">
+    <label class="card-body flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6 cursor-pointer">
+      <input type="checkbox" class="checkbox checkbox-primary mt-1 shrink-0" name="stories[]" value="{{ story.id }}" checked>
+      <div class="flex-1 space-y-3">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-1">
+            <a class="text-xl link link-base w-full inline-flex" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a>
+            {% if story.links %}
+              <a href="{{ story.links[0] }}"
+                 target="_blank"
+                 rel="noopener"
+                 class="link link-primary text-xs inline-flex items-center gap-1 w-fit"
+                 data-testid="story-link-{{ story_id }}">
+                {{ heroicon_mini("arrow-top-right-on-square") }}
+                <span>{{ story.links[0] }}</span>
+              </a>
+            {% endif %}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+            {% if is_used %}<span class="badge badge-success badge-outline">Used in attributes</span>{% endif %}
+          </div>
+        </div>
+        {% if story.summary %}<p class="text-sm leading-relaxed text-base-content/70 whitespace-pre-line">{{ story.summary }}</p>{% endif %}
+      </div>
+    </label>
+  </article>
 {% endmacro %}

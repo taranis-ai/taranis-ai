@@ -31,6 +31,6 @@ repos:
         name: djlint
         language: system
         files: ^src/frontend/frontend/templates
-        entry: uvx djlint --profile=jinja --check
+        entry: uvx djlint --profile=jinja --reformat
         types_or: [jinja, html]
 

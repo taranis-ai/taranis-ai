@@ -1,5 +1,6 @@
 {% from "macros/forms.html" import form_input, form_switch %}
 {% from "analyze/attribute_macros.html" import attribute_field %}
+{% from "assess/simple_story_card.html" import analyze_story_card %}
 
 {% set form_error = form_error | default({}) %}
 {% set report = report | default({}) %}
@@ -128,19 +129,7 @@
             {% if stories %}
               <p class="text-sm text-base-content/70">Uncheck a story to remove it when saving the report.</p>
               <div class="space-y-3" data-testid="report-stories">
-                {% for story in stories %}
-                  {% set story_id = story.id %}
-                  <label class="border border-base-300 rounded-lg p-4 flex items-start gap-3">
-                    <input type="checkbox" class="checkbox mt-1" name="stories[]" value="{{ story_id }}" checked>
-                    <div class="flex-1 space-y-2">
-                      <div class="flex items-center justify-between gap-3">
-                        <h4 class="font-semibold">{{ story.title }}</h4>
-                        {% if story_id in used_story_ids %}<span class="badge badge-outline">Used in attributes</span>{% endif %}
-                      </div>
-                      {% if story.description %}<p class="text-sm text-base-content/70 whitespace-pre-line">{{ story.description }}</p>{% endif %}
-                    </div>
-                  </label>
-                {% endfor %}
+                {% for story in stories %}{{ analyze_story_card(story, used_story_ids) }}{% endfor %}
               </div>
             {% else %}
               <div class="alert alert-info">No stories assigned to this report.</div>

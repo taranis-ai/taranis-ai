@@ -102,20 +102,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          FRONTEND_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
-          CORE_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
+          FRONTEND_PLAYWRIGHT_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
+          CORE_PLAYWRIGHT_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
 
-          echo "Frontend playwright version: $FRONTEND_VERSION"
-          echo "Core playwright version:     $CORE_VERSION"
+          echo "Frontend playwright version: $FRONTEND_PLAYWRIGHT_VERSION"
+          echo "Core playwright version:     $CORE_PLAYWRIGHT_VERSION"
 
-          if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
+          if [ "$FRONTEND_PLAYWRIGHT_VERSION" != "$CORE_PLAYWRIGHT_VERSION" ]; then
             echo "::error ::Mismatch in declared playwright versions!"
-            echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
+            echo "::error ::src/frontend declares $FRONTEND_PLAYWRIGHT_VERSION, but src/core declares $CORE_PLAYWRIGHT_VERSION."
             echo "::error ::Please run \`uv sync --upgrade --all-extras\` in both folders to align."
             exit 1
           fi
 
-          echo "PLAYWRIGHT_VERSION=$FRONTEND_VERSION" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_VERSION=$FRONTEND_PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
 
 
       - name: Install core dependencies

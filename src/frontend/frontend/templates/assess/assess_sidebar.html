@@ -88,6 +88,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
+               id="story_search"
                oninput="this.name = this.value ? 'search' : ''"
                value="{{ current_search }}"
                {% if current_search %}name="search"{% endif %}
