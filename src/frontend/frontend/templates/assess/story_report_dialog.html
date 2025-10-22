@@ -16,8 +16,9 @@
       <button type="button"
               class="btn btn-outline btn-wide"
               hx-post="{{ url_for('assess.submit_report_story') }}"
-              hx-target="#assess"
+              hx-target="{{ target | default('#assess') }}"
               hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()">Share</button>
     </form>
   </div>
+
 </dialog>

@@ -91,8 +91,12 @@ class NewsItemTagService:
 
     @classmethod
     def add_report_tag(cls, story: "Story", report: "ReportItem"):
+        if any(t.tag_type == f"report_{report.id}" for t in story.tags):
+            return  # Tag already exists
+        story_tags = [t for t in story.tags if "report_" not in t.tag_type]
         new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
-        story.tags.append(new_tag)
+        story_tags.append(new_tag)
+        story.tags = story_tags
         db.session.commit()
 
     @classmethod

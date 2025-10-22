@@ -14,7 +14,7 @@
          class="space-y-6 p-6"
          hx-get="{{ url_for('assess.story_edit', story_id=story.id) }}"
          hx-trigger="story:reload from:body"
-         hx-target="this"
+         hx-target="#{{ card_id }}"
          hx-swap="outerHTML"
          @keydown.shift.window="showHints = true"
          @keyup.shift.window="showHints = false"
@@ -37,6 +37,12 @@
           <span class="{{ read_badge }}">{{ 'Read' if story.read else 'Unread' }}</span>
           {% if important_badge %}<span class="{{ important_badge }}">Important</span>{% endif %}
           {% if story.relevance is not none %}<span class="badge badge-outline badge-sm">Relevance {{ story.relevance }}</span>{% endif %}
+          {% if story.in_reports_count %}
+            {% set report_count = story.in_reports_count | int %}
+            <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+              {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
+            </div>
+          {% endif %}
         </div>
       </div>
       <div class="flex flex-col gap-3">
@@ -125,7 +131,7 @@
       <form id="story-edit-form"
             class="card bg-base-100 shadow-xl border border-base-200"
             {{ form_action }}
-            hx-target="#story-edit-panel"
+            hx-target="#{{ card_id }}"
             hx-swap="outerHTML"
             hx-target-error="#notification-bar">
         <div class="card-body space-y-1">
@@ -155,8 +161,9 @@
               <span class="label">Analyst comments</span>
               <textarea name="comments" class="textarea textarea-bordered w-full" placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
             </label>
+            {# djlint:off #}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
-                     x-data='{ tags: {{ story_tags_list | list | tojson }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "misc" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "misc" }); } } }'>
+                     x-data='{ tags: {{ story_tags_list | list | tojson }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
               <div class="flex items-center justify-between gap-4">
                 <h3 class="text-lg font-semibold">Tags</h3>
                 <button type="button" class="btn btn-outline btn-sm" @click="addTag()">Add tag</button>
@@ -164,10 +171,10 @@
               <p class="text-xs text-base-content/60 mt-1">Tags are saved with their type; leave a field blank to remove it on save.</p>
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(tag, index) in tags" :key="index">
-                  <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr),minmax(0,0.7fr),auto]">
-                    <input class="input input-bordered input-sm" type="text" x-model="tag.name" name="tags[][name]" placeholder="Tag name">
-                    <input class="input input-bordered input-sm" type="text" x-model="tag.tag_type" name="tags[][tag_type]" placeholder="Tag type (e.g. topic, actor)">
-                    <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeTag(index)">Remove</button>
+                  <div class="flex gap-3">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.name" name="tags[][name]" placeholder="Tag name">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.tag_type" name="tags[][tag_type]" placeholder="Tag type (e.g. misc, location, actor)">
+                    <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeTag(index)">Remove</button>
                   </div>
                 </template>
               </div>
@@ -182,14 +189,15 @@
               <p class="text-xs text-base-content/60 mt-1">Attributes are stored as key/value pairs. Unsupported keys are preserved as-is.</p>
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(attribute, index) in attributes" :key="index">
-                  <div class="grid gap-3 lg:grid-cols-[minmax(0,0.7fr),minmax(0,1fr),auto] items-center">
-                    <input class="input input-bordered input-sm" type="text" x-model="attribute.key" name="attributes[][key]" placeholder="Key (e.g. TLP)">
-                    <input class="input input-bordered input-sm" type="text" x-model="attribute.value" name="attributes[][value]" placeholder="Value">
-                    <button type="button" class="btn btn-ghost btn-xs text-error font-semibold" @click="removeAttribute(index)">Remove</button>
+                  <div class="flex gap-3">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" placeholder="Key (e.g. TLP)">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.value" name="attributes[][value]" placeholder="Value">
+                    <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeAttribute(index)">Remove</button>
                   </div>
                 </template>
               </div>
             </section>
+            {# djlint:on #}
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">

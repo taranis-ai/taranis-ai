@@ -110,7 +110,11 @@ class StoryView(BaseView):
         story_ids = request.args.getlist("story_ids")
         logger.debug(f"Opening report dialog for stories {story_ids}")
         reports = DataPersistenceLayer().get_objects(ReportItem)
-        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports), 200
+        target = "#assess"
+        if StoryView._get_current_url_path() != url_for("assess.assess"):
+            target = f"#story-{story_ids[0]}"
+
+        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports, target=target), 200
 
     @classmethod
     @auth_required()
@@ -127,6 +131,8 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
+        for story_id in story_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -137,7 +143,15 @@ class StoryView(BaseView):
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+        DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
+        for story_id in story_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        notification_html = cls.get_notification_from_response(response)
+        if StoryView._get_current_url_path() == url_for("assess.assess"):
+            return cls.rerender_list(notification=notification_html)
+        else:
+            content = cls._get_action_response_content(story_ids[0])
+            return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()
@@ -348,6 +362,7 @@ class StoryView(BaseView):
             return response
 
         notification_html = cls.render_response_notification(core_response)
+        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         content = render_template(
             "assess/story_edit_content.html",
             **cls.get_item_context(story_id),
@@ -365,24 +380,23 @@ class StoryView(BaseView):
             return render_template("notification/index.html", notification=notification), 400
 
         api = CoreApi()
-        response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
-        payload = {}
         try:
+            response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
             payload = response.json()
         except Exception:
             logger.exception("Failed to decode bot action response.")
-            payload = {"error": response.text}
+            notification = {"message": "Failed to decode bot action response", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
 
-        status_code = getattr(response, "status_code", 500)
         DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
         notification_html = render_template(
             "notification/index.html",
             notification=cls.get_notification_from_dict(payload),
         )
-        flask_response = make_response(notification_html, status_code)
-        flask_response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
-        return flask_response
+        content = StoryView._get_action_response_content(story_id)
+        return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()
@@ -415,12 +429,41 @@ class StoryView(BaseView):
                 return parsed_url.path or current_url
         return ""
 
+    @staticmethod
+    def _get_action_response_content(story_id: str) -> str:
+        current_url = StoryView._get_current_url_path()
+
+        edit_path = url_for("assess.story_edit", story_id=story_id)
+        detail_path = url_for("assess.story", story_id=story_id)
+
+        context = StoryView.get_item_context(story_id)
+        if current_url == edit_path:
+            return render_template(
+                "assess/story_edit_content.html",
+                **context,
+            )
+        elif current_url == detail_path:
+            return render_template(
+                "assess/story.html",
+                detail_view=True,
+                **context,
+            )
+
+        return render_template(
+            "assess/story.html",
+            detail_view=False,
+            **context,
+        )
+
     @classmethod
     @auth_required()
     def patch_story(cls, story_id: str):
         try:
+            logger.debug(f"Raw form data for story update: {request.form}")
             form_data = parse_formdata(request.form)
+            logger.debug(f"Parsed form data for story update: {form_data}")
             story_update = StoryUpdatePayload(**form_data)
+            logger.debug(f"Validated story update payload: {story_update.model_dump(mode='json')}")
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
             notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}
@@ -432,31 +475,8 @@ class StoryView(BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
-        current_url = cls._get_current_url_path()
-
-        edit_path = url_for("assess.story_edit", story_id=story_id)
-        detail_path = url_for("assess.story", story_id=story_id)
-
-        context = cls.get_item_context(story_id)
-        if current_url == edit_path:
-            content = render_template(
-                "assess/story_edit_content.html",
-                **context,
-            )
-        elif current_url == detail_path:
-            content = render_template(
-                "assess/story.html",
-                detail_view=True,
-                **context,
-            )
-        else:
-            content = render_template(
-                "assess/story.html",
-                detail_view=False,
-                **context,
-            )
-        response = make_response(notification_html + content, 200)
-        return response
+        content = cls._get_action_response_content(story_id)
+        return make_response(notification_html + content, 200)
 
     def get(self, **kwargs) -> tuple[str, int]:
         object_id = kwargs.get("story_id")
@@ -469,11 +489,11 @@ class StoryView(BaseView):
         if object_id is None:
             abort(405)
 
-        return self.update_from_form(story_id=object_id)
+        return self.patch_story(story_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
         if object_id is None:
             abort(405)
 
-        return self.update_from_form(story_id=object_id)
+        return self.patch_story(story_id=object_id)

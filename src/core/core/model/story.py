@@ -616,7 +616,7 @@ class Story(BaseModel):
             story.comments = data["comments"]
 
         if "tags" in data:
-            story.set_tags(data["tags"])
+            story.tags = story.get_tags(data["tags"])
 
         if "summary" in data:
             story.summary = data["summary"]
@@ -633,9 +633,6 @@ class Story(BaseModel):
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:
-        from core.model.story import Story
-        from core.model.news_item import NewsItemAttribute  # adjust import if needed
-
         current_story = Story.get(story_id)
         if not current_story:
             return {
@@ -842,6 +839,10 @@ class Story(BaseModel):
         incoming_tag_names = set(tags.keys())
         existing_tag_names = {tag.name for tag in self.tags}
         return existing_tag_names - incoming_tag_names
+
+    @classmethod
+    def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
+        return list(NewsItemTag.parse_tags(incoming_tags).values())
 
     def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
         try:
@@ -1145,6 +1146,7 @@ class Story(BaseModel):
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
+        data["in_reports_count"] = ReportItemStory.count(self.id)
         data["links"] = self.links
         return data
 
