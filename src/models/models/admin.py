@@ -284,7 +284,6 @@ class ReportItemType(TaranisBaseModel):
 
 
 class Template(TaranisBaseModel):
-    
     _core_endpoint = "/config/templates"
     _model_name = "template"
     _pretty_name = "Template"
@@ -341,7 +340,7 @@ class Connector(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
-    type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
+    type: CONNECTOR_TYPES | None = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
     index: int | None = None
     parameters: dict[str, str] = Field(default_factory=dict)
     icon: str | None = None
