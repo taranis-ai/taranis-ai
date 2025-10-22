@@ -28,3 +28,8 @@ def pdf_presenter():
 @pytest.fixture
 def pandoc_presenter():
     return presenters.PANDOCPresenter()
+
+
+@pytest.fixture
+def stix_presenter():
+    return presenters.STIXPresenter()

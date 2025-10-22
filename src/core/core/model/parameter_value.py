@@ -66,7 +66,9 @@ class ParameterValue(BaseModel):
             if isinstance(parameters[0], dict):
                 return [cls.get_or_create(parameter) for parameter in parameters]  # type: ignore
             return cls.from_parameter_list(parameters)  # type: ignore
-        return [cls.get_or_create({"parameter": key, "value": val}) for key, val in parameters.items()]  # type: ignore
+        if parameters and isinstance(parameters, dict):
+            return [cls.get_or_create({"parameter": key, "value": val}) for key, val in parameters.items()]  # type: ignore
+        return []
 
     @classmethod
     def get_update_values(cls, base_parameters: list["ParameterValue"], update_parameters: list["ParameterValue"]) -> list["ParameterValue"]:
