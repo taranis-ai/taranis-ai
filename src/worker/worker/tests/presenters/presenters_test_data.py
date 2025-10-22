@@ -30,8 +30,12 @@ test_product = {
         {
             "title": "The very best report you have ever seen",
             "attributes": {
-                "date": "1977-01-01",
-                "author": "Jim Jarmuush",
+                "date_group": {
+                    "date": "1977-01-01",
+                },
+                "author_group": {
+                    "author": "Jim Jarmuush",
+                },
             },
             "stories": [
                 {
@@ -99,8 +103,8 @@ Test Report - 2025-01-02
 
 Report Items:
   The very best report you have ever seen:
-        date: 1977-01-01
-        author: Jim Jarmuush
+        date_group: {'date': '1977-01-01'}
+        author_group: {'author': 'Jim Jarmuush'}
 
   Stories:
     City Council Approves New Housing Plan:
@@ -128,3 +132,76 @@ Report Items:
         Weekend forecast improves (https://example.com/forecast):
           Skies clearing by Saturday afternoon.
 """
+
+
+test_stix_product = {
+    "id": "2342835f-ffef-4d36-a381-2d7bb0ddd553",
+    "mime_type": "application/stix+json",
+    "report_items": [
+        {
+            "attributes": {
+                "Identify and Act": {"Affected Systems": "", "IOC": "", "Links": "link2", "Recommendations": ""},
+                "Vulnerability": {
+                    "CVE": "",
+                    "CVSS": "",
+                    "Confidentiality": "",
+                    "Description": "",
+                    "Exposure Date": "",
+                    "Impact": "",
+                    "Links": "link1",
+                    "TLP": "clear",
+                    "Update Date": "",
+                },
+            },
+            "completed": False,
+            "created": "2025-09-26T14:31:51.329753+02:00",
+            "id": "09e63054-309a-459e-9dca-7544749e86dc",
+            "last_updated": "2025-09-26T14:31:51.329758+02:00",
+            "report_item_type_id": 3,
+            "stories": [
+                {
+                    "attributes": {"TLP": {"key": "TLP", "value": "clear"}},
+                    "comments": "",
+                    "created": "2025-09-25T14:05:00+02:00",
+                    "description": "",
+                    "dislikes": 0,
+                    "id": "dc4ad103-d5ef-4b9d-be56-fcfdfcdbe10e",
+                    "important": False,
+                    "last_change": "external",
+                    "likes": 0,
+                    "links": [],
+                    "news_items": [
+                        {
+                            "author": "Aktuelles aus dem Test",
+                            "collected": "2025-09-26T13:39:48.562837+02:00",
+                            "content": 'GEMEINSAM.SICHER\nOktober im Zeichen von "Coffee with Cops"\nDer Oktober 2025 steht zur Gänze im Zeichen von "Coffee with Cops".',
+                            "hash": "1ea3fbf356ad23d92e851e0d3ed47d0dbd70ab80edcf7ddd49583844957fa070",
+                            "id": "d1b68712-4281-4532-88b0-907b3924e938",
+                            "language": "",
+                            "last_change": "external",
+                            "link": "https://www.test.gv.at/news.aspx?id=662B784C67346F56715A493D",
+                            "osint_source_id": "3e0b67b0-f634-4a8e-8145-f9486da277b4",
+                            "published": "2025-09-25T14:05:00+02:00",
+                            "review": "",
+                            "source": "https://www.test.gv.at/rss/test_presse.xml",
+                            "story_id": "dc4ad103-d5ef-4b9d-be56-fcfdfcdbe10e",
+                            "title": 'Oktober im Zeichen von "Coffee with Cops"',
+                            "updated": "2025-09-26T13:38:52.714021+02:00",
+                        }
+                    ],
+                    "read": False,
+                    "relevance": 0,
+                    "summary": "",
+                    "tags": {"conclusions": {"name": "conclusions", "tag_type": "report_09e63054-309a-459e-9dca-7544749e86dc"}},
+                    "title": 'Oktober im Zeichen von "Coffee with Cops"',
+                    "updated": "2025-09-26T13:39:50.588130+02:00",
+                }
+            ],
+            "title": "conclusions",
+            "user_id": 1,
+        }
+    ],
+    "title": "Stix product",
+    "type": "stix_presenter",
+    "type_id": 6,
+}

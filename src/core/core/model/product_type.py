@@ -116,11 +116,14 @@ class ProductType(BaseModel):
 
     def _get_template_path(self) -> str:
         # get value of parameter where parameter.parameter == "TEMPLATE_PATH"
-        template_path = next((parameter.value for parameter in self.parameters if parameter.parameter == "TEMPLATE_PATH"), None)
-        if not template_path:
-            logger.error(f"Could not find template path for product type {self.title}")
+        template_parameter = next((param for param in self.parameters if param.parameter == "TEMPLATE_PATH"), None)
+        if not template_parameter:
+            logger.debug("Product type has no TEMPLATE_PATH parameter")
             return ""
-        return str(template_path)
+        if not template_parameter.value and template_parameter.rules and "required" in template_parameter.rules:
+            logger.error("TEMPLATE_PATH parameter has no value")
+            return ""
+        return str(template_parameter.value)
 
     def get_template(self) -> str:
         full_path = get_presenter_template_path(self._get_template_path())
@@ -159,6 +162,8 @@ class ProductType(BaseModel):
             return "text/plain"
         if self.type.startswith("json"):
             return "application/json"
+        if self.type.startswith("stix"):
+            return "application/stix+json"
         return "application/octet-stream"
 
     @classmethod

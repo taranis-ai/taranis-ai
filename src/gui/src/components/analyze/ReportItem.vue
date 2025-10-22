@@ -31,6 +31,7 @@
         :to="newProductProps"
       />
       <v-btn
+        v-if="edit"
         prepend-icon="mdi-delete-outline"
         color="error"
         variant="flat"

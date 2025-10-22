@@ -251,6 +251,11 @@ workers = [
         "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
     },
     {
+        "type": "STIX_PRESENTER",
+        "name": "STIXv2.1 Presenter",
+        "description": "Presenter for generating STIX reports",
+    },
+    {
         "type": "FTP_PUBLISHER",
         "name": "FTP Publisher",
         "description": "Publisher for publishing to FTP server",
@@ -598,6 +603,12 @@ product_types = [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
         ],
         "report_types": [4],
+    },
+    {
+        "title": "STIXv2.1 Report Exporter",
+        "description": "STIXv2.1 Report Exporter",
+        "type": "STIX_PRESENTER",
+        "report_types": [1, 2, 3, 4],
     },
 ]
 
