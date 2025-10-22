@@ -136,8 +136,24 @@ class ReportItem(BaseModel):
 
     def to_product_dict(self):
         data = super().to_dict()
-        data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
-        data["stories"] = [story.to_dict() for story in self.stories if story]
+
+        if self.attributes:
+            grouped_attributes = {}
+            for attribute in self.attributes:
+                group_title = attribute.group_title
+                attribute_title = attribute.title
+                attribute_value = attribute.value
+
+                if group_title not in grouped_attributes:
+                    grouped_attributes[group_title] = {}
+
+                grouped_attributes[group_title][attribute_title] = attribute_value
+
+            data["attributes"] = grouped_attributes
+        else:
+            data["attributes"] = {}
+
+        data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
     def clone_report(self):
