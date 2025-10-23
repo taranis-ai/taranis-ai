@@ -10,7 +10,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
 
-from core.managers.history_meta import Versioned
+from core.managers.history_meta import VersionedRelation
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.log import logger
@@ -27,7 +27,7 @@ from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
 
 
-class StoryNewsItemAttribute(Versioned, BaseModel):
+class StoryNewsItemAttribute(VersionedRelation, BaseModel):
     __tablename__ = "story_news_item_attribute"
 
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
