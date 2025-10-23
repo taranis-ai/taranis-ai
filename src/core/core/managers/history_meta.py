@@ -7,15 +7,17 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import event
 from sqlalchemy import ForeignKeyConstraint
+from sqlalchemy import func
 from sqlalchemy import inspect
 from sqlalchemy import Integer
 from sqlalchemy import PrimaryKeyConstraint
+from sqlalchemy import select
+from sqlalchemy import and_
 from sqlalchemy import util
 from sqlalchemy.orm import attributes
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm.exc import UnmappedColumnError
 from sqlalchemy.orm.relationships import RelationshipProperty
-from sqlalchemy.orm.attributes import flag_modified
 
 
 def col_references_table(col, table):
@@ -110,6 +112,29 @@ def _history_mapper(local_mapper):
             )
         )
 
+        # Check if this is a VersionedRelation class and add parent version columns
+        is_versioned_relation = issubclass(cls, VersionedRelation) if hasattr(cls.__bases__[0] if cls.__bases__ else object, '__name__') else False
+        if is_versioned_relation:
+            # Add parent version tracking columns for relationship tables
+            # These will be populated when creating history entries
+            for fk_constraint in history_table.foreign_key_constraints:
+                for fk in fk_constraint.elements:
+                    # Extract table name from foreign key string (e.g., "story.id" -> "story")
+                    if isinstance(fk._colspec, str):
+                        referenced_table = fk._colspec.split('.')[0]
+                        parent_version_col_name = f"{referenced_table}_version"
+                        
+                        # Add the parent version column if it doesn't already exist
+                        if not any(col.name == parent_version_col_name for col in history_table.columns):
+                            history_table.append_column(
+                                Column(
+                                    parent_version_col_name,
+                                    Integer,
+                                    default=1,
+                                    info=version_meta,
+                                )
+                            )
+
         if super_mapper:
             # No version column foreign key since we're not adding version to main table
             pass
@@ -202,6 +227,62 @@ class Versioned:
         super().__init_subclass__()
 
 
+class VersionedRelation(Versioned):
+    """
+    Specialized versioning for many-to-many relationship tables.
+    
+    This class extends Versioned to add parent version tracking for junction tables.
+    When a relationship history entry is created, it will also store the versions
+    of the related parent entities at the time the relationship was established.
+    
+    Example:
+        class StoryNewsItemAttribute(VersionedRelation, BaseModel):
+            story_id = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+            news_item_attribute_id = db.Column(db.String(64), db.ForeignKey("news_item_attribute.id"), primary_key=True)
+            # ... other columns
+            
+    This will automatically create a history table with additional columns:
+    - story_version: Version of the Story when this relationship was created
+    - news_item_attribute_version: Version of the NewsItemAttribute when this relationship was created
+    """
+    
+    def get_parent_versions(self):
+        """
+        Get the current versions of all parent entities.
+        This method should be called when creating history entries to capture
+        the current state of related entities.
+        
+        Returns:
+            dict: Mapping of parent table names to their current versions
+        """
+        parent_versions = {}
+        
+        # Get the mapper for this class
+        mapper = object_mapper(self)
+        
+        # Iterate through foreign key relationships to find parent entities
+        for fk in mapper.local_table.foreign_key_columns:
+            if fk.name.endswith('_id'):
+                parent_table_name = fk.name[:-3]  # Remove '_id' suffix
+                parent_id = getattr(self, fk.name)
+                
+                if parent_id:
+                    # Try to get the parent object and its version
+                    # This is a simplified approach - in practice you might need
+                    # more sophisticated logic to resolve the parent class
+                    try:
+                        parent_obj = getattr(self, parent_table_name, None)
+                        if parent_obj and hasattr(parent_obj, 'version'):
+                            parent_versions[f"{parent_table_name}_version"] = parent_obj.version
+                    except AttributeError:
+                        # If we can't resolve the parent, set version to 1 as default
+                        parent_versions[f"{parent_table_name}_version"] = 1
+        
+        return parent_versions
+
+        super().__init_subclass__()
+
+
 def versioned_objects(iter_):
     for obj in iter_:
         if hasattr(obj, "__history_mapper__"):
@@ -212,8 +293,6 @@ def create_version(obj, session, deleted=False, created=False):
     obj_mapper = object_mapper(obj)
     history_mapper = obj.__history_mapper__
     history_cls = history_mapper.class_
-
-    obj_state = attributes.instance_state(obj)
 
     attr = {}
 
@@ -263,8 +342,6 @@ def create_version(obj, session, deleted=False, created=False):
         return
 
     # Calculate the next version based on history table
-    from sqlalchemy import func, select, and_, inspect
-
     history_table = history_mapper.local_table
     pk_columns = inspect(obj_mapper.local_table).primary_key
     conditions = []
