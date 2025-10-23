@@ -41,9 +41,10 @@ class TestEndToEndUser(PlaywrightHelpers):
         expect(page.get_by_test_id("assess")).to_be_visible()
         page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
 
-    def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
 
+        page.pause()
         page.goto(url_for("analyze.analyze", _external=True))
         expect(page.get_by_test_id("analyze")).to_be_visible()
         page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
