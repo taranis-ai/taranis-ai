@@ -55,6 +55,8 @@ def _import_all_models():
     from core.model import news_item_tag  # noqa: F401
     from core.model import news_item_conflict  # noqa: F401
 
+    from core.model import story_news_item_attribute  # ✅ add this line
+
     # Import story models
     from core.model import story  # noqa: F401
     from core.model import story_conflict  # noqa: F401

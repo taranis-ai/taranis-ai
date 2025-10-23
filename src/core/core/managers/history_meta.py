@@ -1,6 +1,6 @@
 """Versioned mixin class and other utilities."""
 
-import datetime
+from datetime import timezone, datetime
 
 from core.log import logger
 from sqlalchemy import Column
@@ -15,6 +15,7 @@ from sqlalchemy.orm import attributes
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm.exc import UnmappedColumnError
 from sqlalchemy.orm.relationships import RelationshipProperty
+from sqlalchemy.orm.attributes import flag_modified
 
 
 def col_references_table(col, table):
@@ -104,7 +105,7 @@ def _history_mapper(local_mapper):
             Column(
                 "changed",
                 DateTime,
-                default=lambda: datetime.datetime.now(datetime.timezone.utc),
+                default=lambda: datetime.now(timezone.utc),
                 info=version_meta,
             )
         )
@@ -292,15 +293,23 @@ def versioned_session(session):
     @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
         logger.debug("before_flush versioning")
-        # Track which objects have already had a version created in this flush
+
         if not hasattr(session, "_versioned_objs"):
             session._versioned_objs = set()
-        # Inserts: handle new objects
+
         for obj in versioned_objects(session.new):
+            # 🚨 Skip join-table entries that don't yet have FK values
+            if hasattr(obj, "story_id") and getattr(obj, "story_id", None) is None:
+                logger.debug(f"Skipping versioning for {obj} (missing story_id)")
+                continue
+            if hasattr(obj, "news_item_attribute_id") and getattr(obj, "news_item_attribute_id", None) is None:
+                logger.debug(f"Skipping versioning for {obj} (missing news_item_attribute_id)")
+                continue
+
             if obj not in session._versioned_objs:
                 create_version(obj, session, created=True)
                 session._versioned_objs.add(obj)
-        # Deletes
+
         for obj in versioned_objects(session.deleted):
             if obj not in session._versioned_objs:
                 create_version(obj, session, deleted=True)
@@ -309,13 +318,89 @@ def versioned_session(session):
     @event.listens_for(session, "after_flush")
     def after_flush(session, flush_context):
         logger.debug("after_flush versioning")
+
         if not hasattr(session, "_versioned_objs"):
             session._versioned_objs = set()
-        # Updates: only for persistent objects (exclude new ones!)
+
         for obj in versioned_objects(session.dirty):
             state = attributes.instance_state(obj)
-            if state.persistent and obj not in session._versioned_objs:  # prevents double-counting inserts
+            if state.persistent and obj not in session._versioned_objs:
                 create_version(obj, session)
                 session._versioned_objs.add(obj)
-        # Clear the set after flush
+
+        # Reset between flushes
         session._versioned_objs.clear()
+
+
+# def register_relationship_history_hooks(Base, versioned_cls):
+#     """
+#     Attach append/remove listeners for all many-to-many (secondary) relationships
+#     of Versioned subclasses. Marks parent as dirty so the versioning system
+#     can record relationship changes during flush.
+#     """
+
+#     _REGISTERED_REL_HOOKS = set()
+
+#     for mapper in Base.registry.mappers:
+#         cls = mapper.class_
+
+#         if not issubclass(cls, versioned_cls):
+#             continue
+
+#         for prop in mapper.relationships:
+#             if not isinstance(prop, RelationshipProperty):
+#                 continue
+#             if prop.secondary is None:
+#                 continue  # only many-to-many relationships
+
+#             rel_name = prop.key
+#             target_cls = prop.entity.class_
+#             key = (cls, rel_name)
+#             if key in _REGISTERED_REL_HOOKS:
+#                 continue
+#             _REGISTERED_REL_HOOKS.add(key)
+
+#             # --- helper to safely flag modifications --------------------------------
+#             def _safe_flag_modified(instance, attr_name):
+#                 """Mark instance attribute as modified, even if unloaded."""
+#                 state = inspect(instance)
+#                 if attr_name in state.attrs:
+#                     try:
+#                         flag_modified(instance, attr_name)
+#                     except Exception as exc:
+#                         logger.debug(f"Could not flag_modified({attr_name}): {exc}")
+#                 else:
+#                     logger.debug(f"Skipped flag_modified({attr_name}) – attribute not loaded")
+#                 try:
+#                     flag_dirty(instance)
+#                 except Exception as exc:
+#                     logger.debug(f"Could not flag_dirty({attr_name}): {exc}")
+
+#             # --- on append -----------------------------------------------------------
+#             @event.listens_for(getattr(cls, rel_name), "append", propagate=True)
+#             def on_append(instance, related_obj, initiator,
+#                           cls=cls, rel_name=rel_name):
+#                 sess = inspect(instance).session
+#                 now = datetime.now(timezone.utc)
+#                 logger.debug(
+#                     f"[REL-ADD] {cls.__name__}.{rel_name}: "
+#                     f"{instance} → {related_obj} @ {now.isoformat()}"
+#                 )
+#                 if sess is not None:
+#                     with sess.no_autoflush:
+#                         _safe_flag_modified(instance, rel_name)
+
+#             # --- on remove -----------------------------------------------------------
+#             @event.listens_for(getattr(cls, rel_name), "remove", propagate=True)
+#             def on_remove(instance, related_obj, initiator,
+#                           cls=cls, rel_name=rel_name, target_cls=target_cls):
+#                 sess = inspect(instance).session
+#                 now = datetime.now(timezone.utc)
+#                 logger.debug(
+#                     f"[REL-REMOVE] {cls.__name__}.{rel_name}: "
+#                     f"{instance} ⟷ {target_cls.__name__}({related_obj}) "
+#                     f"removed @ {now.isoformat()}"
+#                 )
+#                 if sess is not None:
+#                     with sess.no_autoflush:
+#                         _safe_flag_modified(instance, rel_name)

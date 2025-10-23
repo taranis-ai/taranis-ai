@@ -12,6 +12,12 @@ test_logger.setLevel(logging.DEBUG)
 class TestDbHistory:
     def test_story_history(self, session: scoped_session[Session], full_story: Any):  # assumes a fixture that gives a working session
         from core.model.story import Story
+        from core.model.story_news_item_attribute import StoryNewsItemAttribute
+
+        print("HISTORY COLUMNS:", StoryNewsItemAttribute.__history_mapper__.columns.keys())
+        from pdb import set_trace
+
+        set_trace()
 
         StoryHistory = Story.__history_mapper__.class_
 
@@ -50,14 +56,18 @@ class TestDbHistory:
         # Extract story_id from the response tuple
         story_response, status_code = story_tuple
         story_id = story_response.get("story_id", "") if isinstance(story_response, dict) else story.get("id", "")
-        assert session.query(StoryHistory).filter(StoryHistory.id == story_id, StoryHistory.version == 1).count() == 1, "Initial version should be created"
+        assert session.query(StoryHistory).filter(StoryHistory.id == story_id, StoryHistory.version == 1).count() == 1, (
+            "Initial version should be created"
+        )
 
         # First update - should create version entry in history
         first_update = {"title": "First Update Title", "description": "First update description"}
         Story.update(story_id, first_update)
 
         assert session.query(StoryHistory).filter(StoryHistory.version == 2).count() == 1
-        assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == first_update["title"], "First update title should be in version 2"
+        assert session.query(StoryHistory).filter(StoryHistory.version == 2).first().title == first_update["title"], (
+            "First update title should be in version 2"
+        )
 
         # Second update - should create version 2 in history
         second_update = {"title": "Second Update Title", "description": "Second update description"}
@@ -106,12 +116,13 @@ class TestDbHistory:
         # The current story should have the third update
         assert current_story.title == "Third Update Title", f"Current story should have third update title, got {current_story.title}"
 
-    def test_story_and_news_item_history (self, session: scoped_session[Session], full_story: Any, full_news_item: Any):
+    def test_story_and_news_item_history(self, session: scoped_session[Session], full_story: Any, full_news_item: Any):
         """Test that a attached NewsItem update creates correct history entries for both Story and NewsItem"""
 
         # TODO: use full_story_with_multiple_items_id fixture from conftest.py
         from core.model.story import Story
         from core.model.news_item import NewsItem
+
         StoryHistory = Story.__history_mapper__.class_
         NewsItemHistory = NewsItem.__history_mapper__.class_
         story: dict = full_story[0]
@@ -123,8 +134,6 @@ class TestDbHistory:
 
         # Initial story and news item creation
         Story.add(story)
-
-
 
     def test_story_attribute_update_history(self, session: scoped_session[Session], full_story: Any):
         """Test that story attribute updates don't create duplicate history entries due to multiple commits"""
@@ -165,8 +174,12 @@ class TestDbHistory:
         assert not any(attr.key == "sentiment" for attr in version_1.attributes), "Version 1 should not have sentiment attribute"
         # second story version should include both attributes
         version_2 = all_history[1]
-        assert any(attr.key == "sentiment" and attr.value == "positive" for attr in version_2.attributes), "Version 2 should have sentiment attribute"
-        assert any(attr.key == "cybersecurity" and attr.value == "yes" for attr in version_2.attributes), "Version 2 should have cybersecurity attribute"
+        assert any(attr.key == "sentiment" and attr.value == "positive" for attr in version_2.attributes), (
+            "Version 2 should have sentiment attribute"
+        )
+        assert any(attr.key == "cybersecurity" and attr.value == "yes" for attr in version_2.attributes), (
+            "Version 2 should have cybersecurity attribute"
+        )
 
         test_logger.debug(f"XXX {Story.get(story_id).to_worker_dict()}")
 

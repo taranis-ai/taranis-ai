@@ -3,12 +3,14 @@ import base64
 import contextlib
 from datetime import datetime
 from typing import Any
-from sqlalchemy.orm import Mapped, deferred
+from sqlalchemy.orm import Mapped, deferred, relationship
+
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
+# from core.model.story_news_item_attributes import StoryNewsItemAttribute
 
 
 class NewsItemAttribute(BaseModel):
@@ -20,6 +22,9 @@ class NewsItemAttribute(BaseModel):
     binary_mime_type: Mapped[str] = db.Column(db.String())
     binary_data: Mapped = deferred(db.Column(db.LargeBinary))
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    story_attribute_links: Mapped[list["StoryNewsItemAttribute"]] = relationship(
+        "StoryNewsItemAttribute", back_populates="attribute", cascade="all, delete-orphan"
+    )
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
         self.id = id or str(uuid.uuid4())

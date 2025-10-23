@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
+from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
 from sqlalchemy.sql.expression import false, null, true
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.exc import IntegrityError
@@ -23,7 +25,10 @@ from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
-from core.model.report_item import ReportItem
+from core.model.story_news_item_attribute import StoryNewsItemAttribute
+
+if TYPE_CHECKING:
+    from core.model.report_item import ReportItem
 
 
 class Story(Versioned, BaseModel):
@@ -47,8 +52,15 @@ class Story(Versioned, BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
-    attributes: Mapped[list["NewsItemAttribute"]] = relationship(
-        "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
+    # story_attribute_links: Mapped[list["StoryNewsItemAttribute"]] = relationship(
+    #     "StoryNewsItemAttribute", back_populates="story", cascade="all, delete-orphan"
+    # )
+    story_attribute_links: Mapped[list["StoryNewsItemAttribute"]] = relationship(
+        "StoryNewsItemAttribute", back_populates="story", cascade="all, delete-orphan"
+    )
+
+    attributes: AssociationProxy[list["NewsItemAttribute"]] = association_proxy(
+        "story_attribute_links", "attribute", creator=lambda attr: StoryNewsItemAttribute(attribute=attr)
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="report_item_story", back_populates="stories")
@@ -58,6 +70,20 @@ class Story(Versioned, BaseModel):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+    # @property
+    # def attributes(self) -> list[NewsItemAttribute]:
+    #     return [link.attribute for link in self.story_attribute_links]
+
+    # def add_attribute(self, attr: NewsItemAttribute):
+    #     if attr.id not in {link.attribute_id for link in self.story_attribute_links}:
+    #         self.story_attribute_links.append(StoryNewsItemAttribute(attribute=attr))
+
+    # @attributes.setter
+    # def attributes(self, new_attributes: list[NewsItemAttribute]):
+    #     self.story_attribute_links.clear()
+    #     for attr in new_attributes:
+    #         self.story_attribute_links.append(StoryNewsItemAttribute(attribute=attr))
 
     def __init__(
         self,
@@ -93,7 +119,7 @@ class Story(Versioned, BaseModel):
         self.links = links or []
         self.last_change = "external" if last_change is None else last_change
         if attributes:
-            self.attributes = NewsItemAttribute.load_multiple(attributes)
+            self.set_attributes(attributes)
         if tags:
             self.tags = NewsItemTag.load_multiple(tags)
 
@@ -489,7 +515,7 @@ class Story(Versioned, BaseModel):
                 else:
                     story.update_status(change="external")
 
-            db.session.commit()
+            db.session.flush()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
@@ -595,7 +621,7 @@ class Story(Versioned, BaseModel):
             result["message"] = "All news items were skipped"
             logger.warning(result)
             return result, 200
-       if skipped_items:
+        if skipped_items:
             result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
@@ -603,7 +629,6 @@ class Story(Versioned, BaseModel):
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
-
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
@@ -740,6 +765,7 @@ class Story(Versioned, BaseModel):
 
         keys_to_remove = existing_keys - input_keys
         self.remove_attributes(list(keys_to_remove))
+        flag_modified(self, "story_attribute_links")
 
     def patch_attributes(self, attributes: list[NewsItemAttribute] | dict[str, dict]):
         if isinstance(attributes, dict) or not isinstance(attributes[0], NewsItemAttribute):
@@ -753,19 +779,21 @@ class Story(Versioned, BaseModel):
                 logger.warning(f"Expected NewsItemAttribute, got {type(attribute)}")
 
     def remove_attributes(self, keys: list[str]):
-        """
-        Remove attributes from the story whose keys are in the provided list.
-        """
         for key in keys:
-            if (attr := self.find_attribute_by_key(key)) and key != "TLP":
-                self.attributes.remove(attr)
-                db.session.delete(attr)
+            if key == "TLP":
+                continue
+            attr = self.find_attribute_by_key(key)
+            if attr:
+                link = next((link for link in self.story_attribute_links if link.attribute_id == attr.id), None)
+                if link:
+                    self.story_attribute_links.remove(link)
+                    db.session.delete(link)
 
     def upsert_attribute(self, attribute: NewsItemAttribute) -> None:
         if existing_attribute := self.find_attribute_by_key(attribute.key):
             existing_attribute.value = attribute.value
         else:
-            self.attributes.append(attribute)
+            self.story_attribute_links.append(StoryNewsItemAttribute(attribute=attribute))
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -1262,15 +1290,6 @@ class NewsItemVote(BaseModel):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
-
-
-class StoryNewsItemAttribute(BaseModel):
-    __tablename__ = "story_news_item_attribute"
-
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
-    news_item_attribute_id: Mapped[str] = db.Column(
-        db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
-    )
 
 
 class ReportItemStory(BaseModel):
