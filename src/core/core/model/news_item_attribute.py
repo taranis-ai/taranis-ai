@@ -9,11 +9,12 @@ from sqlalchemy.orm import Mapped, deferred, relationship
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.managers.history_meta import Versioned
 from core.model.role import TLPLevel
 # from core.model.story_news_item_attributes import StoryNewsItemAttribute
 
 
-class NewsItemAttribute(BaseModel):
+class NewsItemAttribute(Versioned, BaseModel):
     __tablename__ = "news_item_attribute"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)

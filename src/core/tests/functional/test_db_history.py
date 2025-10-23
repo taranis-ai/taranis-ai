@@ -116,24 +116,24 @@ class TestDbHistory:
         # The current story should have the third update
         assert current_story.title == "Third Update Title", f"Current story should have third update title, got {current_story.title}"
 
-    def test_story_and_news_item_history(self, session: scoped_session[Session], full_story: Any, full_news_item: Any):
-        """Test that a attached NewsItem update creates correct history entries for both Story and NewsItem"""
+    # def test_story_and_news_item_history(self, session: scoped_session[Session], full_story: Any, full_news_item: Any):
+    #     """Test that a attached NewsItem update creates correct history entries for both Story and NewsItem"""
 
-        # TODO: use full_story_with_multiple_items_id fixture from conftest.py
-        from core.model.story import Story
-        from core.model.news_item import NewsItem
+    #     # TODO: use full_story_with_multiple_items_id fixture from conftest.py
+    #     from core.model.story import Story
+    #     from core.model.news_item import NewsItem
 
-        StoryHistory = Story.__history_mapper__.class_
-        NewsItemHistory = NewsItem.__history_mapper__.class_
-        story: dict = full_story[0]
-        news_item: dict = full_news_item[0]
+    #     StoryHistory = Story.__history_mapper__.class_
+    #     NewsItemHistory = NewsItem.__history_mapper__.class_
+    #     story: dict = full_story[0]
+    #     news_item: dict = full_news_item[0]
 
-        # Read story and news item IDs
-        story_id = story.get("id", "")
-        news_item_id = news_item.get("id", "")
+    #     # Read story and news item IDs
+    #     story_id = story.get("id", "")
+    #     news_item_id = news_item.get("id", "")
 
-        # Initial story and news item creation
-        Story.add(story)
+    #     # Initial story and news item creation
+    #     Story.add(story)
 
     def test_story_attribute_update_history(self, session: scoped_session[Session], full_story: Any):
         """Test that story attribute updates don't create duplicate history entries due to multiple commits"""

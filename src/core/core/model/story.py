@@ -515,7 +515,7 @@ class Story(Versioned, BaseModel):
                 else:
                     story.update_status(change="external")
 
-            db.session.flush()
+            db.session.commit()
             logger.info(f"Story added successfully: {story.id}")
             return {
                 "message": "Story added successfully",
