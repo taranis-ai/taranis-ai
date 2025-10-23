@@ -784,7 +784,7 @@ class Story(Versioned, BaseModel):
                 continue
             attr = self.find_attribute_by_key(key)
             if attr:
-                link = next((link for link in self.story_attribute_links if link.attribute_id == attr.id), None)
+                link = next((link for link in self.story_attribute_links if link.news_item_attribute_id == attr.id), None)
                 if link:
                     self.story_attribute_links.remove(link)
                     db.session.delete(link)
