@@ -11,7 +11,6 @@
     x-data='{
       selectedItems: [],
       showHints: false,
-      allIds: {{ story_ids | default([]) | tojson }},
       toggleSelection(id) {
         if (this.selectedItems.includes(id)) {
           this.selectedItems = this.selectedItems.filter(item => item !== id);
@@ -26,8 +25,16 @@
         this.selectedItems = [];
       },
       selectAll() {
-        if (!this.allIds.length) return;
-        this.selectedItems = [...this.allIds];
+        const storyNodes = document.querySelectorAll("#story-list article[data-story-id]");
+        if (!storyNodes.length) {
+          this.selectedItems = [];
+          return;
+        }
+        this.selectedItems = Array.from(storyNodes)
+          .map(node => {
+            return node.dataset.storyId;
+          })
+          .filter(Boolean);
       },
       action_vals(action, value) {
         if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
