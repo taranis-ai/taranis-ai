@@ -35,6 +35,8 @@ class SSEManager:
             return False
 
     def invalidate_frontend_cache(self):
+        if not self.frontend_url:
+            return False
         try:
             response = requests.post(
                 url=f"{self.frontend_url}cache/invalidate",
@@ -47,7 +49,7 @@ class SSEManager:
             logger.debug("Invalidated frontend cache")
             return response.ok
         except requests.exceptions.RequestException:
-            logger.exception("Failed to invalidate frontend cache due to exception")
+            logger.debug("Failed to invalidate frontend cache due to exception")
             return False
 
     def connected(self):

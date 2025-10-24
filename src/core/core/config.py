@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
-    FRONTEND_URL: str = "http://frontend:8080"
+    FRONTEND_URL: str = ""
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None

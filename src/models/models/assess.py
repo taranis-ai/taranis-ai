@@ -44,7 +44,7 @@ class Story(TaranisBaseModel):
     _core_endpoint = "/assess/stories"
     _model_name = "story"
     _pretty_name = "Story"
-    _cache_timeout = 1
+    _cache_timeout = 30
 
     id: str | None = None
     title: str | None = None
