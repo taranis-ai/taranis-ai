@@ -9,6 +9,7 @@ class SSEManager:
     def __init__(self):
         self.report_item_locks: dict = {}
         self.sse_url = Config.SSE_URL
+        self.frontend_url = Config.FRONTEND_URL
         self.api_key = Config.API_KEY.get_secret_value()
         self.headers = self.get_headers()
         self.timeout = 60
@@ -18,6 +19,7 @@ class SSEManager:
         return {"X-API-KEY": self.api_key, "Content-type": "application/json"}
 
     def publish(self, json_data) -> bool:
+        self.invalidate_frontend_cache()
         if self.broker_error > 3 or Config.DISABLE_SSE:
             return False
         try:
@@ -30,6 +32,22 @@ class SSEManager:
             return response.ok
         except requests.exceptions.RequestException:
             self.broker_error += 1
+            return False
+
+    def invalidate_frontend_cache(self):
+        try:
+            response = requests.post(
+                url=f"{self.frontend_url}cache/invalidate",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=self.timeout,
+            )
+            if not response.ok:
+                logger.debug(f"Failed to invalidate frontend cache: {response.text}")
+
+            logger.debug("Invalidated frontend cache")
+            return response.ok
+        except requests.exceptions.RequestException:
+            logger.exception("Failed to invalidate frontend cache due to exception")
             return False
 
     def connected(self):

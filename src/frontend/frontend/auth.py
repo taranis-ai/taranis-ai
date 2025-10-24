@@ -102,6 +102,28 @@ def auth_required(permissions: list[str] | str | None = None):
     return auth_required_wrap
 
 
+def api_key_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        error = ({"error": "not authorized"}, 401)
+        auth_header = request.headers.get("Authorization", None)
+
+        if not auth_header or not auth_header.startswith("Bearer"):
+            logger.error("Missing Authorization Bearer")
+            return error
+
+        api_key = auth_header.replace("Bearer ", "")
+
+        if Config.CORE_API_KEY.get_secret_value() != api_key:
+            logger.error("Incorrect api key")
+            return error
+
+        # allow
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
 def update_current_user_cache() -> None | UserProfile:
     if result := CoreApi().api_get("/users"):
         return add_user_to_cache(user=result)

@@ -7,7 +7,6 @@ from core.model.news_item_tag import NewsItemTag
 from core.managers.db_manager import db
 from core.log import logger
 
-
 if TYPE_CHECKING:
     from core.model.report_item import ReportItem
 

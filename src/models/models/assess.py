@@ -20,7 +20,7 @@ class NewsItem(TaranisBaseModel):
     source: str | None = None
     published: datetime | None = None
     collected: datetime | None = None
-    attributes: list[str] | None = None
+    attributes: list[str | dict] | None = None
     language: str | None = None
 
     @field_validator("language", mode="before")
@@ -44,6 +44,7 @@ class Story(TaranisBaseModel):
     _core_endpoint = "/assess/stories"
     _model_name = "story"
     _pretty_name = "Story"
+    _cache_timeout = 1
 
     id: str | None = None
     title: str | None = None

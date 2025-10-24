@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, model_validator, ValidationInfo
+from pydantic import field_validator, model_validator, ValidationInfo, SecretStr
 from datetime import datetime
 
 
@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
     REQUESTS_TRUST_ENV: bool = True
+    CORE_API_KEY: SecretStr = SecretStr("supersecret")
+
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"
     CACHE_TYPE: str = "SimpleCache"

@@ -5,34 +5,10 @@
   {% set review = news_item.review or '' %}
   {% set source = news_item.source or 'manual' %}
   {% set osint_source_id = news_item.osint_source_id or 'manual' %}
+  {% set published = news_item.published or '' %}
   {% set attributes_list = news_item.attributes or [] %}
   {% set item_id = news_item.id %}
 
-  {% set attrs_ns = namespace(items=[]) %}
-  {% for attr in attributes_list %}
-    {% if attr is mapping %}
-      {% set _ = attrs_ns.items.append({'key': attr.get('key', ''), 'value': attr.get('value', '')}) %}
-    {% elif attr %}
-      {% set attr_key_candidate = attr | attr('key') %}
-      {% set attr_value_candidate = attr | attr('value') %}
-      {% set key_val = attr_key_candidate if attr_key_candidate is not undefined else '' %}
-      {% if attr_value_candidate is not undefined %}
-        {% set value_val = attr_value_candidate %}
-      {% elif attr is string %}
-        {% set value_val = attr %}
-      {% else %}
-        {% set value_val = "" %}
-      {% endif %}
-      {% set _ = attrs_ns.items.append({'key': key_val, 'value': value_val}) %}
-    {% endif %}
-  {% endfor %}
-  {% if attrs_ns.items %}
-    {% set prepared_attributes = attrs_ns.items %}
-  {% else %}
-    {% set prepared_attributes = [] %}
-  {% endif %}
-
-  {% set attributes_data = prepared_attributes | tojson | safe %}
   {% set read_only = source and source != 'manual' %}
   {% set is_edit = item_id not in ['0', '', none] %}
   {% set submit_label = 'Add to story' if story_id_val else ('Update news item' if is_edit else 'Create news item') %}
@@ -80,13 +56,26 @@
           </label>
 
           <label class="input w-full">
-            <span class="label-text font-semibold">Published</span>
+            <span class="label-text font-semibold">Source <span class="text-error">*</span></span>
+            <input type="text"
+                   name="source"
+                   value="{{ source }}"
+                   required
+                   placeholder="Source of the news item (e.g. example.com)"
+                   class="input input-bordered input-lg w-full"
+                   {% if read_only %}readonly{% endif %}>
+          </label>
+
+          <label class="input w-full">
+            <span class="label-text font-semibold">Published <span class="text-error">*</span></span>
             <input type="datetime-local"
                    name="published"
-                   value="{{ news_item.published }}"
-                   class="input input-bordered w-full"
+                   value="{{ published }}"
+                   x-data="{}"
+                   x-init="if (!$el.value) { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); $el.value = now.toISOString().slice(0, 16); }"
+                   class="input input-bordered w-full required"
                    {% if read_only %}readonly{% endif %}>
-            <span class="label-text-alt text-xs text-base-content/60">Use local time; leave blank if unknown.</span>
+            <span class="label-text-alt text-xs text-base-content/60">Use local time</span>
           </label>
 
           <label class="input w-full">
@@ -118,7 +107,7 @@
           </label>
 
           <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5"
-                   x-data='{ attributes: {{ attributes_data }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } this.attributes = this.attributes.map(attr => { if (!attr) return { key: "", value: "" }; if (typeof attr === "string") return { key: attr, value: "" }; return { key: attr.key || "", value: attr.value || "" }; }); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } }, addAttribute() { this.attributes.push({ key: "", value: "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } } }'>
+                   x-data='{ attributes: {{ attributes_list | tojson }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } this.attributes = this.attributes.map(attr => { if (!attr) return { key: "", value: "" }; if (typeof attr === "string") return { key: attr, value: "" }; return { key: attr.key || "", value: attr.value || "" }; }); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } }, addAttribute() { this.attributes.push({ key: "", value: "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ key: "", value: "" }); } } }'>
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 class="text-lg font-semibold">Attributes</h2>
@@ -129,26 +118,28 @@
 
             <div class="mt-4 flex flex-col gap-3">
               <template x-for="(attribute, index) in attributes" :key="index">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,0.6fr),minmax(0,1fr),auto] items-center">
-                  <input class="input input-bordered input-sm"
+                <div class="flex items-center justify-between gap-4">
+                  <input class="input input-bordered input-sm flex-1"
                          type="text"
                          x-model="attribute.key"
                          name="attributes[][key]"
                          placeholder="Key (e.g. sentiment_category)"
                          {% if read_only %}disabled{% endif %}>
-                  <input class="input input-bordered input-sm"
+                  <input class="input input-bordered input-sm flex-1"
                          type="text"
                          x-model="attribute.value"
                          name="attributes[][value]"
                          placeholder="Value"
                          {% if read_only %}disabled{% endif %}>
-                  <button type="button" class="btn btn-xs text-error font-semibold" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
+                  <button type="button" class="btn btn-xs text-error font-semibold flex-shrink-0" @click="removeAttribute(index)" {% if read_only %}disabled{% endif %}>
                     Remove
                   </button>
                 </div>
               </template>
             </div>
           </section>
+
+          <input type="hidden" name="osint_source_id" value="manual">
 
           <div class="flex flex-col gap-3 md:flex-row md:items-center">
             <button type="submit" class="btn btn-primary md:w-56" {% if read_only %}disabled{% endif %}>{{ submit_label }}</button>
