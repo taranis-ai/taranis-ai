@@ -266,14 +266,68 @@ def forward_console_and_page_errors(request, logged_in_page):
 def pre_seed_stories(news_items_list, run_core, access_token):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
-    # headers = {
-    #    "Authorization": f"Bearer {access_token}",
-    # }
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    print("Posting to /stories/misp with payload:", news_items_list)
+    print("Type of news_items_list:", type(news_items_list))
 
-    # r = requests.post(f"{run_core}/assess/stories/", json=news_items_list, headers=headers) TODO: FIX
-    # r.raise_for_status()
+    print("Pre-seeding stories via assess API")
+    for item in news_items_list:
+        print(" - Story ID:", item.get("id"), "Title:", item.get("title"))
+        r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
+        r.raise_for_status()
+        print(r.json())
 
     yield []
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_stories(story_item_list, run_core, api_header, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    print(f"{api_header=}")
+    # access_token_headers = {"Authorization": f"Bearer {access_token}"}
+    print("Pre-seeding stories via worker API")
+
+    for story in story_item_list:
+        r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
+        print(f"POST {r.url} -> {r.status_code} {r.text}")
+        r.raise_for_status()
+
+    yield []
+
+
+def report_item_dict(story_item_list):
+    yield {
+        "title": "Weekly APT Activity Report",
+        "report_item_type_id": 1,
+        "completed": False,
+        "stories": [story_item_list[0]["id"], story_item_list[1]["id"]],
+        "attributes": [
+            {
+                "title": "Report Classification",
+                "description": "TLP level of this report",
+                "value": "TLP:GREEN",
+                "index": 0,
+                "required": True,
+                "attribute_type": "TLP",
+                "group_title": "Metadata",
+                "render_data": {},
+            },
+            {
+                "title": "Summary",
+                "description": "High-level overview of observed APT activities",
+                "value": "Includes analysis of APT82–85 targeting critical infrastructure.",
+                "index": 1,
+                "required": False,
+                "attribute_type": "TEXT",
+                "group_title": "Metadata",
+                "render_data": {},
+            },
+        ],
+    }
 
 
 @pytest.fixture(scope="session")
@@ -297,8 +351,106 @@ def fake_source(app, run_core, access_token):
 
     r = requests.post(f"{run_core}/config/osint-sources", json=source_data, headers=headers)
     r.raise_for_status()
+    print(r.json())
 
     yield source_data["id"]
+
+
+@pytest.fixture(scope="session")
+def story_item_list(fake_source):
+    yield [
+        {
+            "id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
+            "title": "Report Story 1",
+            "description": "Test Aggregate",
+            "created": "2023-08-01T17:01:04.801870",
+            "read": False,
+            "important": False,
+            "likes": 0,
+            "dislikes": 0,
+            "relevance": 0,
+            "comments": "",
+            "summary": "",
+            "news_items": [
+                {
+                    "review": "",
+                    "author": "James Bond",
+                    "source": "https://url/",
+                    "link": "https://url/",
+                    "language": None,
+                    "osint_source_id": fake_source,
+                    "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebq",
+                    "story_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
+                    "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c82",
+                    "title": "Test News Item 13",
+                    "content": "Microsoft announced a security update addressing CVE-2020-1234. Experts at Google found vulnerabilities impacting Linux systems. Cisco advises users to update their security protocols to prevent potential breaches. The security community is on alert for new threats.",
+                    "collected": "2023-08-01T17:01:04.802015",
+                    "published": "2023-08-01T17:01:04.801998",
+                }
+            ],
+            # "tags": {
+            #     "this": {"name": "this", "tag_type": "misc"},
+            #     "is": {"name": "is", "tag_type": "misc"},
+            #     "tag": {"name": "tag", "tag_type": "misc"},
+            # },
+            # "attributes": {
+            #     "attribute": {"key": "attribute", "value": "custom"},
+            #     "hip": {"key": "hip", "value": "hop"},
+            #     "cloth": {"key": "cloth", "attribute_type": "short"},
+            # },
+        },
+        {
+            "id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
+            "title": "Report Story 2",
+            "description": "Synthetic story for testing: includes two news items under the same story.",
+            "created": "2024-07-12T20:12:00.123456",
+            "read": False,
+            "important": False,
+            "likes": 0,
+            "dislikes": 0,
+            "relevance": 0,
+            "comments": "",
+            "summary": "",
+            "news_items": [
+                {
+                    "review": "",
+                    "author": "",
+                    "source": "https://securitynews.example.com/item1",
+                    "link": "https://securitynews.example.com/item1",
+                    "language": None,
+                    "osint_source_id": fake_source,
+                    "id": "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88",
+                    "story_id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
+                    "hash": "3e6f7ef83f93d7a5145d72c7a9b9d37b9d229c0b97c1374eaa70b1ba46fc8342",
+                    "title": "Zero-Day Vulnerability Exposed",
+                    "content": "A previously unknown zero-day vulnerability was discovered in a major enterprise software platform. Security experts recommend immediate mitigation. Details remain limited as investigation continues.",
+                    "collected": "2024-07-12T20:12:01.100000",
+                    "published": "2024-07-12T19:45:00.000000",
+                },
+                {
+                    "review": "",
+                    "author": "",
+                    "source": "https://securitynews.example.com/item2",
+                    "link": "https://securitynews.example.com/item2",
+                    "language": None,
+                    "osint_source_id": fake_source,
+                    "id": "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b",
+                    "story_id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
+                    "hash": "bd87e1b6f17314abfdc185af24f1d6385f0fd13b59d2e2193e3197f94c671a99",
+                    "title": "Mitigation Steps Released for New Exploit",
+                    "content": "Vendors have released official mitigation guidance in response to the recent zero-day exploit. Organizations are urged to apply the latest patches and review their security posture.",
+                    "collected": "2024-07-12T20:12:01.200000",
+                    "published": "2024-07-12T20:00:00.000000",
+                },
+            ],
+            # "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
+            # "attributes": [
+            #     {"key": "severity", "value": "high"},
+            #     {"key": "impact", "value": "critical"},
+            #     {"key": "status", "value": "investigating"},
+            # ],
+        },
+    ]
 
 
 @pytest.fixture(scope="session")

@@ -71,8 +71,13 @@ def access_token(app, auth_user):
         yield create_access_token(identity=auth_user)
 
 
+@pytest.fixture(scope="session")
+def api_header():
+    return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+
+
 @pytest.fixture
-def access_token_response(app, auth_user):
+def access_token_response(app, auth_user, run_core):
     from flask import jsonify
     from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
 
