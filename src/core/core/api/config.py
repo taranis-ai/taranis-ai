@@ -5,6 +5,8 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 from sqlalchemy.exc import IntegrityError  # noqa: F401
 from psycopg.errors import UniqueViolation  # noqa: F401
+from prefect.deployments import run_deployment
+from anyio.from_thread import run as run_sync
 
 from core.managers import queue_manager
 from core.log import logger
@@ -418,8 +420,42 @@ class Bots(MethodView):
 
 class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
-    def post(self, bot_id):
-        return queue_manager.queue_manager.execute_bot_task(bot_id)
+    def post(self, bot_id: str):
+        """Execute a bot via Prefect (async), returning a flow_run_id."""
+        try:
+            data = request.get_json(silent=True) or {}
+
+            # Normalize optional filter:
+            # - Always produce a consistent {"story_ids": [...]} format
+            filter_param = None
+            if isinstance(data.get("filter"), dict):
+                filter_param = data["filter"]
+            elif isinstance(data.get("story_ids"), (list, tuple)):
+                filter_param = {"story_ids": list(data["story_ids"])}
+
+            params = {
+                "request": {
+                    "bot_id": bot_id,
+                    "filter": filter_param,
+                }
+            }
+
+            fr = run_sync(
+                run_deployment,
+                name="bot-task-flow/default",  
+                parameters=params,
+            )
+
+            return {
+                "flow_run_id": str(fr.id),
+                "message": f"Executing Bot {bot_id} scheduled",
+                "id": bot_id,
+            }, 202
+
+        except Exception as e:
+            logger.exception("Failed to execute bot %s", bot_id)
+            return {"error": "Could not trigger Prefect flow", "details": str(e)}, 500
+
 
 
 class QueueStatus(MethodView):
@@ -438,15 +474,20 @@ class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
         try:
+            sched = getattr(schedule_manager, "schedule", None)
+            if not sched:
+                return {"error": "Scheduler not initialized"}, 503
+
             if task_id:
-                if result := schedule_manager.get_periodic_task(task_id):
+                if result := sched.get_periodic_task(task_id):
                     return result, 200
                 return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.get_periodic_tasks():
+            if schedules := sched.get_periodic_tasks():
                 return schedules, 200
             return {"error": "No schedules found"}, 404
         except Exception:
-            logger.exception()
+            logger.exception("Failed to fetch schedules")
+            return {"error": "Failed to fetch schedules"}, 500
 
 
 class RefreshInterval(MethodView):
@@ -457,7 +498,11 @@ class RefreshInterval(MethodView):
         if not cron_expr:
             return jsonify({"error": "Missing cron expression"}), 400
         try:
-            fire_times = schedule_manager.get_next_n_fire_times_from_cron(cron_expr, n=3)
+            sched = getattr(schedule_manager, "schedule", None)
+            if not sched:
+                return jsonify({"error": "Scheduler not initialized"}), 503
+
+            fire_times = sched.get_next_n_fire_times_from_cron(cron_expr, n=3)
             formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
             return jsonify(formatted_times), 200
         except Exception as e:
