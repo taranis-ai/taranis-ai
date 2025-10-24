@@ -704,7 +704,7 @@ class Presenters(MethodView):
     @extract_args("search")
     def get(self, filter_args=None):
         filter_args = filter_args or {}
-        filter_args["category"] = "publisher"
+        filter_args["category"] = "presenter"
         return worker.Worker.get_all_for_api(filter_args)
 
 
