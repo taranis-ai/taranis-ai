@@ -1,44 +1,66 @@
 """
-Prefect Worker Process for E2E Testing
+Prefect Worker - Serve flows as deployments
 
-This script imports all Prefect flows so they're available for execution.
-The worker process stays alive and Prefect Server can execute flows via .submit()
+This script serves Prefect flows as deployments so they can be triggered
+via run_deployment() from the Core API endpoints.
 """
 
-import time
+import os
 import sys
 
-# Import all Prefect flows to register them
 try:
-    from worker.flows.presenter_task_flow import presenter_task_flow  # noqa: F401
-    from worker.flows.publisher_task_flow import publisher_task_flow  # noqa: F401
-    from worker.flows.connector_task_flow import connector_task_flow  # noqa: F401
-    from worker.flows.bot_task_flow import bot_task_flow              # noqa: F401
+    from worker.flows.presenter_task_flow import presenter_task_flow
+    from worker.flows.publisher_task_flow import publisher_task_flow
+    from worker.flows.connector_task_flow import connector_task_flow
+    from worker.flows.bot_task_flow import bot_task_flow
     
-    print("[worker] Prefect flows loaded successfully:")
-    print("  ✓ presenter_task_flow")
-    print("  ✓ publisher_task_flow")
-    print("  ✓ connector_task_flow")
-    print("  ✓ bot_task_flow")
-    print("[worker] Ready for flow execution...")
+    print("Starting Prefect Worker")
+
+    print(f" Prefect API: {os.getenv('PREFECT_API_URL', 'Not set - using default')}")
+    print()
+    print(" Flows imported successfully:")
+    print("  - presenter_task_flow")
+    print("  - publisher_task_flow")
+    print("  - connector_task_flow")
+    print("  - bot_task_flow")
+    print()
     
 except ImportError as e:
-    print(f"[worker] ERROR: Failed to import flows: {e}", file=sys.stderr)
+    print(f" ERROR: Failed to import flows: {e}", file=sys.stderr)
     sys.exit(1)
 
 
 def main():
-    """
-    Keep the worker process alive so Prefect can execute flows.
-    When Core calls flow.submit(), Prefect Server will execute the flow.
-    """
-    try:
-        while True:
-            time.sleep(5)  # Just stay alive
-    except KeyboardInterrupt:
-        print("\n[worker] Shutting down...")
-        sys.exit(0)
+    from prefect import serve
+    
+    print(" Serving flows as deployments:")
+    print("   - presenter-task-flow/default")
+    print("   - publisher-task-flow/default")
+    print("   - connector-task-flow/default")
+    print("   - bot-task-flow/default")
+    print()
+    print("⚡ Worker ready - waiting for flow runs...")
+    print("=" * 60)
+    print()
+    
+    serve(
+        presenter_task_flow.to_deployment(name="default"),
+        publisher_task_flow.to_deployment(name="default"),
+        connector_task_flow.to_deployment(name="default"),
+        bot_task_flow.to_deployment(name="default"),
+    )
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n Worker stopped ")
+        print("=" * 60)
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n\n Worker failed: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        print("=" * 60)
+        sys.exit(1)

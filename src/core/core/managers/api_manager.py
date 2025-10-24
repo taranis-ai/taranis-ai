@@ -28,6 +28,7 @@ def initialize(app):
     core_api.task.initialize(app)
     core_api.worker.initialize(app)
     core_api.static.initialize(app)
+    core_api.flows.initialize(app)
 
 
 def handle_bad_request(e):

@@ -15,6 +15,7 @@ from core.api import (
     worker,
     frontend,
     static,
+    flows,
 )
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "static",
     "frontend",
     "connectors",
+    "flows",
 ]
