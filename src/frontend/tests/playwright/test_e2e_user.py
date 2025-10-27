@@ -127,7 +127,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
         def create_report():
-            page.pause()
             page.get_by_test_id("new-report-button").click()
             page.get_by_role("textbox", name="Title").fill("Test report")
             page.get_by_label("Report Type Select a report").select_option("4")
