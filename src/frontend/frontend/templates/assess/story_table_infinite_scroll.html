@@ -1,5 +1,5 @@
 
-<div class="ml-4 mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+<div class="ml-4 mt-6 flex flex-col gap-4 flex-row items-center justify-between">
   <div class="text-sm text-base-content/70">
     Showing
     <span class="font-medium text-base-content">{{ pagination.page_start }} - {{ pagination.page_end }}</span>
@@ -17,7 +17,8 @@
               hx-target="#story-list"
               hx-select="#story-list > *"
               hx-swap="beforeend"
-              hx-push-url="true"
+              hx-history="false"
+              hx-push-url="false"
               hx-target-error="#notification-bar"
               hx-on:htmx:beforeRequest="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
               hx-on:htmx:afterRequest="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">

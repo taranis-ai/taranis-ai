@@ -101,9 +101,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("assess")).to_be_visible()
 
             expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57 Stories")
-
             page.mouse.wheel(0, 5500)
             expect(page.get_by_test_id("assess_story_count")).to_contain_text("40 / 57 Stories")
+            page.mouse.wheel(0, 5500)
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("57 / 57 Stories")
             page.mouse.wheel(0, 5500)
             expect(page.get_by_text("You're all caught up.")).to_be_visible()
 
