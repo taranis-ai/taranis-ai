@@ -1,6 +1,6 @@
 from typing import Any
 from flask_jwt_extended import current_user
-from flask import json, render_template, request, url_for, make_response, abort, Response
+from flask import json, render_template, request, url_for, make_response, abort, Response, redirect
 from pydantic import ValidationError
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -178,17 +178,10 @@ class StoryView(BaseView):
         # Flatten single-value entries for convenience in query_params
         query_params: dict[str, str | list[str]] = {k: v[0] if len(v) == 1 else v for k, v in args.items()}
 
-        # Extract known parameters (convert to correct types if possible)
-        def get_int(value: Any) -> int | None:
-            try:
-                return int(value)
-            except (TypeError, ValueError):
-                return None
-
-        page = get_int(query_params.get("page"))
-        limit = get_int(query_params.get("limit"))
-        order = str(query_params.get("order")) if "order" in query_params else None
-        search = str(query_params.get("search")) if "search" in query_params else None
+        page = request.args.get("page", type=int)
+        limit = request.args.get("limit", type=int)
+        order = request.args.get("order")
+        search = request.args.get("search")
 
         return PagingData(
             page=page,
@@ -482,6 +475,10 @@ class StoryView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         object_id = kwargs.get("story_id")
         if object_id is None:
+            if request.args.get("reset"):
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                logger.debug("Droping cache & resitting filters")
+                return redirect(url_for("assess.assess"))  # type: ignore
             return self.list_view()
         return self.edit_view(object_id=object_id)
 

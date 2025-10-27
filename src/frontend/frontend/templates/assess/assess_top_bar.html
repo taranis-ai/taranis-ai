@@ -8,8 +8,8 @@
       </div>
       <div class="flex flex-wrap items-center gap-3" x-show="!selectedItems.length" x-transition.opacity x-cloak>
         <div class="flex items-center gap-2">
-          <span class="font-medium text-base-content">Total stories</span>
-          <span class="badge badge-ghost badge-lg">{{ stories.total_count }}</span>
+          <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count }}</span>
+          <span class="font-medium text-base-content">Stories</span>
         </div>
       </div>
     </div>
