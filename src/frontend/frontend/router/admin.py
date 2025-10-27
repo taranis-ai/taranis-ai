@@ -145,6 +145,13 @@ class ReportItemTypeGroupItemAPI(MethodView):
         return ReportItemTypeView.get_report_item_type_group_items_view(group_index, attribute_index)
 
 
+class ConnectorParameterAPI(MethodView):
+    @auth_required()
+    def get(self, connector_id: str):
+        connector_type = request.args.get("type", "")
+        return ConnectorView.get_connector_parameters_view(connector_id, connector_type)
+
+
 def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
@@ -173,6 +180,7 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/connectors", view_func=ConnectorView.as_view("connectors"))
     admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
+    admin_bp.add_url_rule("/connector_parameters/<string:connector_id>", view_func=ConnectorParameterAPI.as_view("connector_parameters"))
 
     admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("worker_types"))
     admin_bp.add_url_rule("/workers/<string:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))

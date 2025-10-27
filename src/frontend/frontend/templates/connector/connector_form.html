@@ -1,4 +1,5 @@
 {% from "macros/forms.html" import form_input, form_textarea, form_fileinput, form_select %}
+{% from "macros/worker.html" import worker_status %}
 {% set connector_id = connector.id | default("0", true) %}
 {% set form_error = form_error | default({}) %}
 
@@ -11,6 +12,7 @@
   {% if connector.status %}
     <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(connector.status) }}</div>
   {% endif %}
+
   <form id="{{ model_name }}-form"
         class="w-1/2 ml-[10%]"
         {{ form_action }}
@@ -20,18 +22,29 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', connector.name, form_error.name) }}
     {{ form_textarea('Description', 'description', connector.description, form_error.description, required=False) }}
+    {{ form_fileinput('Icon', 'icon', connector.icon, type='file', required=False) }}
 
     <label class="select w-full mb-5">
       <span class="label">Connector Type</span>
-      <select id="connector_type" name="type" required class="validator select w-full" {% if connector.type %}disabled{% endif %}>
+      <select id="connector_type"
+              name="type"
+              required
+              class="validator select w-full"
+              hx-get="{{ url_for('admin.connector_parameters', connector_id=connector_id) }}"
+              hx-trigger="change"
+              hx-include="#connector_type"
+              hx-target="#parameters"
+              hx-swap="innerHTML"
+              {% if connector.type %}disabled{% endif %}>
         {% if not connector.type %}<option value="" selected disabled>Select a connector type</option>{% endif %}
         {% for option in connector_types -%}
-          <option value="{{ option.id }}" {% if option.id==connector.type %}selected{% endif %}>{{ option.name }}</option>
+          <option value="{{ option.id }}" {% if option.id == connector.type %}selected{% endif %}>{{ option.name }}</option>
         {% endfor -%}
       </select>
       {% if connector.type %}<input type="hidden" name="type" value="{{ connector.type }}">{% endif %}
     </label>
-    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
+
+    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 
     <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
   </form>

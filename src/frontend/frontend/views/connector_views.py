@@ -3,6 +3,8 @@ from models.admin import Connector
 from models.types import CONNECTOR_TYPES
 from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
 from frontend.views.admin_mixin import AdminMixin
+from frontend.log import logger
+from flask import render_template
 
 from typing import Any
 
@@ -46,3 +48,11 @@ class ConnectorView(AdminMixin, BaseView):
             },
             {"title": "Feed", "field": "parameters", "sortable": True, "renderer": render_source_parameter},
         ]
+
+    @classmethod
+    def get_connector_parameters_view(cls, connector_id: str, connector_type: str):
+        if not connector_id and not connector_type:
+            logger.warning("No connector ID or type provided.")
+
+        parameters = cls.get_worker_parameters(worker_type=connector_type)
+        return render_template("partials/worker_parameters.html", parameters=parameters)
