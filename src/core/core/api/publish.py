@@ -54,8 +54,8 @@ class PublishProduct(MethodView):
             # run_deployment is async; run it safely from a sync Flask handler
             fr = run_from_thread(
                 run_deployment,
-                name="publisher-task-flow/default",
-                parameters=params,
+                "publisher-task-flow/default",
+                params,
             )
             return {
                 "message": f"Publishing Product {product_id} scheduled",
@@ -64,7 +64,7 @@ class PublishProduct(MethodView):
                 "publisher_id": publisher_id,
             }, 202
         except Exception as e:
-            logger.exception("Failed to schedule publisher flow product=%s", product_id)
+            logger.exception(f"Failed to schedule publisher flow product {product_id}")
             return {"error": "Could not trigger Prefect flow", "details": str(e)}, 500
 
 
@@ -76,8 +76,8 @@ class ProductsRender(MethodView):
             params = {"request": {"product_id": product_id, "countdown": 0}}
             fr = run_from_thread(
                 run_deployment,
-                name="presenter-task-flow/default",
-                parameters=params,
+                "presenter-task-flow/default",
+                params,
             )
             return {
                 "message": f"Generating Product {product_id} scheduled",
@@ -85,7 +85,7 @@ class ProductsRender(MethodView):
                 "product_id": product_id,
             }, 202
         except Exception as e:
-            logger.exception("Failed to schedule presenter flow product=%s", product_id)
+            logger.exception(f"Failed to schedule publisher flow product {product_id}: {e}")
             return {"error": "Could not trigger Prefect flow", "details": str(e)}, 500
 
     @auth_required("PUBLISH_ACCESS")
