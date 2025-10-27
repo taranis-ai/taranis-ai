@@ -39,7 +39,6 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         # self.ci_run = True
         page = logged_in_page
-        page.pause()
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
@@ -65,7 +64,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             story.get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
             page.get_by_test_id("edit-story").click()
-            page.get_by_role("textbox", name="Title").fill(title + " edited title")
+            page.get_by_role("textbox", name="Title").fill(f"{title} edited title")
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             page.get_by_role("textbox", name="Tag name").fill("tag name")
@@ -101,16 +100,18 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             expect(page.get_by_test_id("assess")).to_be_visible()
 
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57 Stories")
+
             page.mouse.wheel(0, 5500)
-            page.wait_for_load_state("networkidle", timeout=2000)
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("40 / 57 Stories")
             page.mouse.wheel(0, 5500)
             expect(page.get_by_text("You're all caught up.")).to_be_visible()
 
-            expect(page.locator("#assess-container")).to_contain_text("0 stories selected Total stories 57")
+            expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
-            expect(page.locator("#assess-container")).to_contain_text("57 stories selected Total stories 57")
+            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("57 stories selected")
             page.get_by_role("button", name="Clear selection Esc").click()
-            expect(page.locator("#assess-container")).to_contain_text("0 stories selected Total stories 57")
+            expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
         go_to_assess()
         access_story()
@@ -126,6 +127,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
         def create_report():
+            page.pause()
             page.get_by_test_id("new-report-button").click()
             page.get_by_role("textbox", name="Title").fill("Test report")
             page.get_by_label("Report Type Select a report").select_option("4")

@@ -2,12 +2,12 @@
 <div class="sticky top-16 z-10 mb-4" @keydown.shift.window="showHints = true" @keyup.shift.window="showHints = false">
   <div class="flex p-2 flex-row justify-between min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
     <div class="flex flex-col gap-2 flex-row items-center text-sm">
-      <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak>
+      <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak data-testid="assess_story_selection_count">
         <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
         <span class="font-medium">stories selected</span>
       </div>
-      <div class="flex flex-wrap items-center gap-3" x-show="!selectedItems.length" x-transition.opacity x-cloak>
-        <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2" data-testid="assess_story_count">
           <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count }}</span>
           <span class="font-medium text-base-content">Stories</span>
         </div>
