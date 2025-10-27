@@ -4,8 +4,8 @@ from models.types import CONNECTOR_TYPES
 from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
 from frontend.views.admin_mixin import AdminMixin
 from frontend.log import logger
-from flask import render_template
 
+from flask import render_template
 from typing import Any
 
 
