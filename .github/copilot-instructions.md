@@ -31,7 +31,7 @@ For setup instructions, see [dev/README.md](../dev/README.md) for complete devel
 
 Use `./dev/start_tmux.sh` to start all services in tmux tabs:
 - `core` - Flask API server (port 5001)
-- `gui` - Vue.js dev server (port 5000)  
+- `gui` - Vue.js dev server (port 5000)
 - `worker` - Prefect worker serving flows
 - `tailwind` - CSS compilation watcher
 - `frontend` - HTMX frontend server (port 5002)
@@ -58,7 +58,7 @@ The system uses **Prefect 3.x** for distributed task execution:
 
 1. **Collection**: OSINT sources → Collectors (via Prefect flows) → News Items → Core API
 2. **Analysis**: News Items → Bot Flows → Enhanced content → Core API
-3. **Reporting**: Enhanced items → Presenter Flows → Reports → Core API  
+3. **Reporting**: Enhanced items → Presenter Flows → Reports → Core API
 4. **Publishing**: Reports → Publisher Flows → External systems
 
 ## Testing
