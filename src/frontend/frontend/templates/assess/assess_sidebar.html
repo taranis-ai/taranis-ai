@@ -52,16 +52,15 @@ const classNames = {
 
 const choicesConfig = {
   itemSelectText: '✓',
+  appendGroupInSearch: true,
   classNames: classNames
 }
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('source-group-filter', 'groups', choicesConfig);
     initChoices('source-filter', 'sources', choicesConfig);
   });
 } else {
-  initChoices('source-group-filter', 'groups', choicesConfig);
   initChoices('source-filter', 'sources', choicesConfig);
 }
 </script>
@@ -95,32 +94,36 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
                placeholder="Search stories"
                class="grow"
                autocomplete="off"
+               @keydown.window.prevent.slash="$el.focus()"
                hx-trigger="keyup changed delay:500ms, search">
+        <span class="text-xs">
+          <kbd class="kbd kbd-xs text-base-content">/</kbd>
+        </span>
       </label>
     </section>
 
     <div class="divider text-xs">Source</div>
-    <section class="space-y-4">
-      <select id="source-group-filter"
-              {% if selected_groups %}name="group"{% endif %}
-              onchange="this.name = this.value ? 'group' : ''"
-              class="select select-sm"
-              hx-trigger="change"
-              multiple>
-        {% for group in filter_lists.groups %}
-          <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
-        {% endfor %}
+    <section class="space-y-4"
+             x-data='{ groupIds: {{ filter_lists.groups | map(attribute="id") | list | tojson }}, updateHiddenInputs() { const select = document.getElementById("source-filter"); const selectedOptions = Array.from(select.selectedOptions);  const sourceContainer = document.getElementById("source-hidden-inputs"); const groupContainer = document.getElementById("group-hidden-inputs");  sourceContainer.innerHTML = ""; groupContainer.innerHTML = "";  selectedOptions.forEach(opt => { const input = document.createElement("input"); input.type = "hidden"; input.value = opt.value;  if (this.groupIds.includes(opt.value)) { input.name = "group"; groupContainer.appendChild(input); } else { input.name = "source"; sourceContainer.appendChild(input); } }); } }'>
+
+      <select id="source-filter" class="select select-sm" @change="updateHiddenInputs()" multiple>
+        <optgroup label="OSINT Sources">
+          {% for source in filter_lists.sources %}
+            <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Source Groups">
+          {% for group in filter_lists.groups %}
+            <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
+          {% endfor %}
+        </optgroup>
       </select>
-      <select id="source-filter"
-              {% if selected_sources %}name="source"{% endif %}
-              onchange="this.name = this.value ? 'source' : ''"
-              class="select select-sm"
-              hx-trigger="change"
-              multiple>
-        {% for source in filter_lists.sources %}
-          <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
-        {% endfor %}
-      </select>
+      <div id="source-hidden-inputs">
+        {% for source_id in selected_sources %}<input type="hidden" name="source" value="{{ source_id }}">{% endfor %}
+      </div>
+      <div id="group-hidden-inputs">
+        {% for group_id in selected_groups %}<input type="hidden" name="group" value="{{ group_id }}">{% endfor %}
+      </div>
     </section>
 
     <div class="divider text-xs">Filter</div>
@@ -239,8 +242,8 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
       {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
       Reset filters
-      <span class="text-xs opacity-80">
-        <kbd class="kbd kbd-xs">ctrl+esc</kbd>
+      <span class="text-xs">
+        <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
       </span>
     </a>
     <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.create_news_item', news_item_id='0') }}">
