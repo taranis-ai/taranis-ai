@@ -71,7 +71,8 @@ See .github/workflows for how tests are configured in CI.
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
 **Unit Tests:** In each component directory, run:
-- `uv run pytest` - run all tests for that component
+- `PYTHONPATH="../models:$PYTHONPATH" uv run pytest` - run all tests for core/worker/frontend components (includes models path)
+- `uv run pytest` - run all tests for other components
 - `uv run pytest tests/unit/` - run only unit tests
 - `uv run pytest tests/functional/` - run only functional tests
 - `uv run pytest -v` - verbose output
