@@ -143,7 +143,9 @@ def form_formats_from_models():
 
 
 @pytest.fixture
-def mock_core_get_endpoints(responses_mock, core_payloads):
+def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
+
     for data in core_payloads.values():
         responses_mock.get(
             data["_url"],
@@ -191,13 +193,14 @@ def mock_core_get_item_endpoint_data(core_payloads):
 
 
 @pytest.fixture
-def mock_core_get_item_endpoints(responses_mock, mock_core_get_item_endpoint_data):
+def mock_core_get_item_endpoints(responses_mock, mock_core_get_item_endpoint_data, worker_parameter_data):
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
             continue
         responses_mock.get(f"{url}/{data_id}", json=view_data)
+
     yield mock_core_get_item_endpoint_data
 
 
@@ -420,6 +423,11 @@ def organizations_delete_mock(responses_mock):
     yield response
 
 
+@pytest.fixture(autouse=True)
+def mock_worker_parameters_get(responses_mock, worker_parameter_data):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
+
+
 @pytest.fixture
 def organizations_put_mock(responses_mock):
     responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
@@ -436,3 +444,336 @@ def roles_delete_mock(responses_mock):
 @pytest.fixture
 def roles_put_mock(responses_mock):
     responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})
+
+
+@pytest.fixture
+def worker_parameter_data():
+    return {
+        "items": [
+            {
+                "id": "rss_collector",
+                "parameters": [
+                    {"label": "BROWSER_MODE", "name": "BROWSER_MODE", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "ADDITIONAL_HEADERS", "name": "ADDITIONAL_HEADERS", "parent": "parameters", "rules": ["json"], "type": "text"},
+                    {"label": "FEED_URL", "name": "FEED_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "CONTENT_LOCATION", "name": "CONTENT_LOCATION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "XPATH", "name": "XPATH", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                    {"label": "DIGEST_SPLITTING", "name": "DIGEST_SPLITTING", "parent": "parameters", "rules": [], "type": "switch"},
+                    {
+                        "label": "DIGEST_SPLITTING_LIMIT",
+                        "name": "DIGEST_SPLITTING_LIMIT",
+                        "parent": "parameters",
+                        "rules": ["digest_splitting_limit"],
+                        "type": "number",
+                    },
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "USE_GLOBAL_PROXY", "name": "USE_GLOBAL_PROXY", "parent": "parameters", "rules": [], "type": "switch"},
+                ],
+            },
+            {
+                "id": "email_collector",
+                "parameters": [
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_SERVER_TYPE", "name": "EMAIL_SERVER_TYPE", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_SERVER_HOSTNAME", "name": "EMAIL_SERVER_HOSTNAME", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_SERVER_PORT", "name": "EMAIL_SERVER_PORT", "parent": "parameters", "rules": [], "type": "number"},
+                    {"label": "EMAIL_USERNAME", "name": "EMAIL_USERNAME", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_PASSWORD", "name": "EMAIL_PASSWORD", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                ],
+            },
+            {
+                "id": "simple_web_collector",
+                "parameters": [
+                    {"label": "WEB_URL", "name": "WEB_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "XPATH", "name": "XPATH", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                    {"label": "ADDITIONAL_HEADERS", "name": "ADDITIONAL_HEADERS", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BROWSER_MODE", "name": "BROWSER_MODE", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "DIGEST_SPLITTING", "name": "DIGEST_SPLITTING", "parent": "parameters", "rules": [], "type": "switch"},
+                    {
+                        "label": "DIGEST_SPLITTING_LIMIT",
+                        "name": "DIGEST_SPLITTING_LIMIT",
+                        "parent": "parameters",
+                        "rules": ["digest_splitting_limit"],
+                        "type": "number",
+                    },
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "USE_GLOBAL_PROXY", "name": "USE_GLOBAL_PROXY", "parent": "parameters", "rules": [], "type": "switch"},
+                ],
+            },
+            {
+                "id": "manual_collector",
+                "parameters": [{"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"}],
+            },
+            {
+                "id": "rt_collector",
+                "parameters": [
+                    {"label": "BASE_URL", "name": "BASE_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "RT_TOKEN", "name": "RT_TOKEN", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                    {"label": "ADDITIONAL_HEADERS", "name": "ADDITIONAL_HEADERS", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "SEARCH_QUERY", "name": "SEARCH_QUERY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "FIELDS_TO_INCLUDE", "name": "FIELDS_TO_INCLUDE", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "USE_GLOBAL_PROXY", "name": "USE_GLOBAL_PROXY", "parent": "parameters", "rules": [], "type": "switch"},
+                ],
+            },
+            {
+                "id": "analyst_bot",
+                "parameters": [
+                    {"label": "REGULAR_EXPRESSION", "name": "REGULAR_EXPRESSION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ATTRIBUTE_NAME", "name": "ATTRIBUTE_NAME", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "grouping_bot",
+                "parameters": [
+                    {"label": "REGULAR_EXPRESSION", "name": "REGULAR_EXPRESSION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "nlp_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "ioc_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "tagging_bot",
+                "parameters": [
+                    {"label": "KEYWORDS", "name": "KEYWORDS", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "story_bot",
+                "parameters": [
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "summary_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "wordlist_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "disabled": True,
+                        "headers": [{"key": "name", "title": "Name"}, {"key": "description", "title": "Description"}],
+                        "items": [
+                            {"description": "List of Advanced Persistent Threat Groups", "name": "APT Groups"},
+                            {"description": "List of products that are known to be affected by a CVE.", "name": "CVE Products"},
+                            {"description": "List of vendors that are known to be affected by a CVE.", "name": "CVE Vendors"},
+                            {"description": "List of common cyber security terms", "name": "Common Cyber Security Terms"},
+                            {"description": "List of Countries", "name": "Countries"},
+                            {"description": "Wichtigsten internationalen Organisationen", "name": "Internationale Organisationen"},
+                            {"description": "Liste aller L\u00e4nder", "name": "L\u00e4nder"},
+                            {"description": "Gr\u00f6\u00dften Unternehmen in \u00d6sterreich", "name": "Unternehmen \u00d6sterreich"},
+                        ],
+                        "label": "TAGGING_WORDLISTS",
+                        "name": "TAGGING_WORDLISTS",
+                        "parent": "parameters",
+                        "rules": [],
+                        "type": "table",
+                        "value": [],
+                    },
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "pdf_presenter",
+                "parameters": [
+                    {"label": "TEMPLATE_PATH", "name": "TEMPLATE_PATH", "parent": "parameters", "rules": ["required"], "type": "text"}
+                ],
+            },
+            {
+                "id": "html_presenter",
+                "parameters": [
+                    {"label": "TEMPLATE_PATH", "name": "TEMPLATE_PATH", "parent": "parameters", "rules": ["required"], "type": "text"}
+                ],
+            },
+            {
+                "id": "text_presenter",
+                "parameters": [
+                    {"label": "TEMPLATE_PATH", "name": "TEMPLATE_PATH", "parent": "parameters", "rules": ["required"], "type": "text"}
+                ],
+            },
+            {
+                "id": "json_presenter",
+                "parameters": [
+                    {"label": "TEMPLATE_PATH", "name": "TEMPLATE_PATH", "parent": "parameters", "rules": ["required"], "type": "text"}
+                ],
+            },
+            {
+                "id": "ftp_publisher",
+                "parameters": [{"label": "FTP_URL", "name": "FTP_URL", "parent": "parameters", "rules": ["required"], "type": "text"}],
+            },
+            {
+                "id": "sftp_publisher",
+                "parameters": [
+                    {"label": "SFTP_URL", "name": "SFTP_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "PRIVATE_KEY", "name": "PRIVATE_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "email_publisher",
+                "parameters": [
+                    {
+                        "label": "SMTP_SERVER_ADDRESS",
+                        "name": "SMTP_SERVER_ADDRESS",
+                        "parent": "parameters",
+                        "rules": ["required"],
+                        "type": "text",
+                    },
+                    {"label": "SMTP_SERVER_PORT", "name": "SMTP_SERVER_PORT", "parent": "parameters", "rules": [], "type": "number"},
+                    {"label": "SERVER_TLS", "name": "SERVER_TLS", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "EMAIL_USERNAME", "name": "EMAIL_USERNAME", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_PASSWORD", "name": "EMAIL_PASSWORD", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "EMAIL_SENDER", "name": "EMAIL_SENDER", "parent": "parameters", "rules": ["required", "email"], "type": "text"},
+                    {
+                        "label": "EMAIL_RECIPIENT",
+                        "name": "EMAIL_RECIPIENT",
+                        "parent": "parameters",
+                        "rules": ["required", "email"],
+                        "type": "text",
+                    },
+                    {"label": "EMAIL_SUBJECT", "name": "EMAIL_SUBJECT", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "wordpress_publisher",
+                "parameters": [
+                    {"label": "WP_URL", "name": "WP_URL", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "WP_USER", "name": "WP_USER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "WP_PYTHON_APP_SECRET", "name": "WP_PYTHON_APP_SECRET", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "misp_publisher",
+                "parameters": [
+                    {"label": "MISP_URL", "name": "MISP_URL", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "MISP_API_KEY", "name": "MISP_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                ],
+            },
+            {
+                "id": "sentiment_analysis_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "misp_connector",
+                "parameters": [
+                    {"label": "URL", "name": "URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "ORGANISATION_ID", "name": "ORGANISATION_ID", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "SSL_CHECK", "name": "SSL_CHECK", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REQUEST_TIMEOUT", "name": "REQUEST_TIMEOUT", "parent": "parameters", "rules": [], "type": "number"},
+                    {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ADDITIONAL_HEADERS", "name": "ADDITIONAL_HEADERS", "parent": "parameters", "rules": ["json"], "type": "text"},
+                    {"label": "SHARING_GROUP_ID", "name": "SHARING_GROUP_ID", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "DISTRIBUTION", "name": "DISTRIBUTION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "API_KEY", "name": "API_KEY", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "USE_GLOBAL_PROXY", "name": "USE_GLOBAL_PROXY", "parent": "parameters", "rules": [], "type": "switch"},
+                ],
+            },
+            {
+                "id": "cybersec_classifier_bot",
+                "parameters": [
+                    {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "CLASSIFICATION_THRESHOLD",
+                        "name": "CLASSIFICATION_THRESHOLD",
+                        "parent": "parameters",
+                        "rules": [],
+                        "type": "text",
+                    },
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                ],
+            },
+            {
+                "id": "ppn_collector",
+                "parameters": [
+                    {"label": "PATH", "name": "PATH", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "DIGEST_SPLITTING", "name": "DIGEST_SPLITTING", "parent": "parameters", "rules": [], "type": "switch"},
+                ],
+            },
+            {
+                "id": "pandoc_presenter",
+                "parameters": [
+                    {"label": "TEMPLATE_PATH", "name": "TEMPLATE_PATH", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "CONVERT_FROM", "name": "CONVERT_FROM", "parent": "parameters", "rules": ["one_of:html|md"], "type": "text"},
+                    {"label": "CONVERT_TO", "name": "CONVERT_TO", "parent": "parameters", "rules": ["one_of:docx|odt"], "type": "text"},
+                ],
+            },
+            {
+                "id": "misp_collector",
+                "parameters": [
+                    {"label": "URL", "name": "URL", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "SSL_CHECK", "name": "SSL_CHECK", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REQUEST_TIMEOUT", "name": "REQUEST_TIMEOUT", "parent": "parameters", "rules": [], "type": "number"},
+                    {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "ADDITIONAL_HEADERS", "name": "ADDITIONAL_HEADERS", "parent": "parameters", "rules": ["json"], "type": "text"},
+                    {"label": "SHARING_GROUP_ID", "name": "SHARING_GROUP_ID", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "API_KEY", "name": "API_KEY", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
+                    {"label": "ORGANISATION_ID", "name": "ORGANISATION_ID", "parent": "parameters", "rules": ["required"], "type": "text"},
+                    {"label": "USE_GLOBAL_PROXY", "name": "USE_GLOBAL_PROXY", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
+                ],
+            },
+            {"id": "stix_presenter", "parameters": []},
+        ]
+    }

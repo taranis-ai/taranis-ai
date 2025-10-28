@@ -341,7 +341,7 @@ class Connector(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
-    type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
+    type: CONNECTOR_TYPES = Field(default=None)
     index: int | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
     icon: str | None = None
