@@ -71,10 +71,18 @@ class ReportItemView(BaseView):
         if report.grouped_attributes:
             context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
+        return context
+
+    @classmethod
+    def get_create_context(cls) -> dict[str, Any]:
+        context = super().get_create_context()
+        report = context.get("report")
+        if not report:
+            return context
         if story_ids := request.args.getlist("story_ids"):
-            report.stories.append([s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids])
+            report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
             context["report"] = report
-        logger.debug(f"Report item context: {len(context)}")
+
         return context
 
     @classmethod
@@ -106,7 +114,7 @@ class ReportItemView(BaseView):
     @auth_required()
     def clone_report(report_id: str) -> tuple[str, int] | Response:
         if not report_id:
-            abort(400, description="No report ID provided for cloning.")
+            return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
         return ReportItemView.list_view()
@@ -117,7 +125,7 @@ class ReportItemView(BaseView):
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.update_view(object_id=object_id)
 
     @staticmethod

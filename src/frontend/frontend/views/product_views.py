@@ -103,5 +103,5 @@ class ProductView(BaseView):
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.update_view(object_id=object_id)

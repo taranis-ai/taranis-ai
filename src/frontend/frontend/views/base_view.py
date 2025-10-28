@@ -406,7 +406,7 @@ class BaseView(MethodView):
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table
-        return response, core_response.status_code
+        return response, core_response.status_code or table_response
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
@@ -442,7 +442,7 @@ class BaseView(MethodView):
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.update_view_table(object_id=object_id)
 
     def delete(self, **kwargs):
@@ -452,5 +452,5 @@ class BaseView(MethodView):
             return self.delete_multiple_view(object_ids=ids)
         object_id = self._get_object_id(kwargs) or request.form.get("id")
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.delete_view(object_id=object_id)

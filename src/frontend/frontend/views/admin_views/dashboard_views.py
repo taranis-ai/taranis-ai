@@ -50,10 +50,10 @@ class AdminDashboardView(AdminMixin, BaseView):
         return self.static_view()
 
     def post(self):
-        abort(405)
+        return abort(405)
 
     def put(self, **kwargs):
-        abort(405)
+        return abort(405)
 
     def delete(self, **kwargs):
-        abort(405)
+        return abort(405)

@@ -485,13 +485,13 @@ class StoryView(BaseView):
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
         if object_id is None:
-            abort(405)
+            return abort(405)
 
         return self.patch_story(story_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = kwargs.get("story_id")
         if object_id is None:
-            abort(405)
+            return abort(405)
 
         return self.patch_story(story_id=object_id)

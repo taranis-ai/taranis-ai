@@ -59,9 +59,9 @@ class ReportItem(MethodView):
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
         except Exception as ex:
             logger.exception()
-            abort(400, f"Error adding report item: {ex}")
+            return abort(400, f"Error adding report item: {ex}")
         if status == 401:
-            abort(401, "Unauthorized")
+            return abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
@@ -94,7 +94,7 @@ class CloneReportItem(MethodView):
             result, status = report_item.ReportItem.clone(report_item_id, current_user)
         except Exception as ex:
             logger.exception()
-            abort(400, f"Error cloning report item: {ex}")
+            return abort(400, f"Error cloning report item: {ex}")
         if status == 200:
             sse_manager.report_item_updated(result["id"])
 
@@ -112,7 +112,7 @@ class ReportItemLock(MethodView):
     def put(self, report_item_id: str):
         user = current_user
         if not user:
-            abort(401, "User not found")
+            return abort(401, "User not found")
         try:
             return sse_manager.report_item_lock(report_item_id, user.id)
         except Exception as ex:
@@ -123,7 +123,7 @@ class ReportItemLock(MethodView):
     def delete(self, report_item_id: str):
         user = current_user
         if not user:
-            abort(401, "User not found")
+            return abort(401, "User not found")
         try:
             return sse_manager.report_item_unlock(report_item_id, user.id)
         except Exception as ex:

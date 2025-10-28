@@ -150,7 +150,7 @@ class DashboardView(BaseView):
         return response, table_response
 
     def put(self, **kwargs):
-        abort(405)
+        return abort(405)
 
     def delete(self, **kwargs):
-        abort(405)
+        return abort(405)
