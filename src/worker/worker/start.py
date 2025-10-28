@@ -13,6 +13,8 @@ try:
     from worker.flows.publisher_task_flow import publisher_task_flow
     from worker.flows.connector_task_flow import connector_task_flow
     from worker.flows.bot_task_flow import bot_task_flow
+    from worker.flows.collector_task_flow import collector_task_flow
+    from worker.flows.gather_word_list import gather_word_list_flow
     
     print("Starting Prefect Worker")
 
@@ -23,6 +25,8 @@ try:
     print("  - publisher_task_flow")
     print("  - connector_task_flow")
     print("  - bot_task_flow")
+    print("  - collector_task_flow")
+    print("  - gather_word_list_flow")
     print()
     
 except ImportError as e:
@@ -38,6 +42,8 @@ def main():
     print("   - publisher-task-flow/default")
     print("   - connector-task-flow/default")
     print("   - bot-task-flow/default")
+    print("   - collector-task-flow/default")
+    print("   - gather-word-list-flow/default")
     print()
     print("⚡ Worker ready - waiting for flow runs...")
     print("=" * 60)
@@ -48,6 +54,8 @@ def main():
         publisher_task_flow.to_deployment(name="default"),
         connector_task_flow.to_deployment(name="default"),
         bot_task_flow.to_deployment(name="default"),
+        collector_task_flow.to_deployment(name="default"),
+        gather_word_list_flow.to_deployment(name="default"),
     )
 
 

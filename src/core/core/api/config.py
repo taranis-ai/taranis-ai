@@ -1,12 +1,13 @@
 import io
 import base64
+from typing import cast
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from sqlalchemy.exc import IntegrityError  # noqa: F401
 from psycopg.errors import UniqueViolation  # noqa: F401
 from prefect.deployments import run_deployment
-from anyio.from_thread import run as run_sync
+from prefect.client.schemas.objects import FlowRun
 
 from core.managers import queue_manager
 from core.log import logger
@@ -440,10 +441,13 @@ class BotExecute(MethodView):
                 }
             }
 
-            fr = run_sync(
-                run_deployment,
-                name="bot-task-flow/default",  
-                parameters=params,
+            fr = cast(
+                FlowRun,
+                run_deployment(
+                    name="bot-task-flow/default",
+                    parameters=params,
+                    timeout=0,
+                ),
             )
 
             return {
@@ -453,7 +457,7 @@ class BotExecute(MethodView):
             }, 202
 
         except Exception as e:
-            logger.exception("Failed to execute bot %s", bot_id)
+            logger.exception(f"Failed to execute bot {bot_id}")
             return {"error": "Could not trigger Prefect flow", "details": str(e)}, 500
 
 

@@ -21,37 +21,38 @@ def run_async(coro):
 
 class ConnectorFlow(MethodView):
     """Trigger connector flows via Prefect"""
-    
+
     @auth_required("CONFIG_CONNECTOR_UPDATE")
     def post(self):
         """Trigger connector flow"""
         try:
             data = request.json or {}
             connector_id = data.get("connector_id")
-            
+
             if not connector_id:
                 return {"error": "connector_id is required"}, 400
-            
+
             params = {
                 "request": {
                     "connector_id": connector_id,
                     "story_ids": data.get("story_ids", [])
                 }
             }
-            
+
             fr = run_async(
                 run_deployment(
                     name="connector-task-flow/default",
                     parameters=params,
+                    timeout=0,
                 )
             )
-            
+
             return {
                 "flow_run_id": str(fr.id),
                 "message": f"Connector with id: {connector_id} scheduled",
                 "connector_id": connector_id
             }, 202
-            
+
         except Exception as e:
             logger.exception("Failed to trigger connector flow")
             return {"error": str(e)}, 500

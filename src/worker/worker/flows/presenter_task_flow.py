@@ -94,11 +94,8 @@ def presenter_task_flow(request: PresenterTaskRequest):
     try:
         logger.info("[presenter_task_flow] Starting presenter task ")
 
-        # Convert string product_id to int
-        product_id = int(request.product_id)
-
         # Get product info
-        product = get_product_info(product_id)
+        product = get_product_info(request.product_id)
 
         # Get presenter instance
         presenter = get_presenter_instance(product)
@@ -108,11 +105,11 @@ def presenter_task_flow(request: PresenterTaskRequest):
         template = get_template_info(type_id)
 
         # Generate and encode content
-        encoded_product = generate_product_content(presenter, product, template, product_id)
+        encoded_product = generate_product_content(presenter, product, template, request.product_id)
 
         logger.info("[presenter_task_flow] Presenter task completed successfully")
 
-        return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": encoded_product}
+        return {"product_id": request.product_id, "message": f"Product: {request.product_id} rendered successfully", "render_result": encoded_product}
 
     except Exception:
         logger.exception("[presenter_task_flow] Presenter task failed")

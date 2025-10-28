@@ -112,6 +112,7 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+- when discussing possible options, don't just implmement one without discussing it with the user
 
 ### Project-Specific Patterns
 

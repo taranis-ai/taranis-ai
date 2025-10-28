@@ -4,9 +4,8 @@ import asyncio
 from typing import Any
 
 from flask import Flask
-import requests
-from requests.auth import HTTPBasicAuth
 from prefect import get_client  # noqa: E402
+from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 
 from core.log import logger
 
@@ -15,18 +14,84 @@ queue_manager: "QueueManager | None" = None
 
 
 class QueueManager:
+    # Flow names used in the system
+    FLOW_NAMES = [
+        "collector-task-flow",
+        "bot-task-flow",
+        "presenter-task-flow",
+        "publisher-task-flow",
+        "connector-task-flow",
+        "gather-word-list-flow",
+    ]
+
     def __init__(self, app: Flask):
         self.app = app
         self.error: str = ""
-        self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
-        self.queue_user = app.config["QUEUE_BROKER_USER"]
-        self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
-        # Kept for compatibility with existing dashboards; not used by Prefect execution path
+        # No RabbitMQ dependencies - using Prefect directly
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers", "connectors"]
+        # Cache flow IDs to avoid repeated lookups
+        self._flow_id_cache: dict[str, str] = {}
+        # Try to pre-load flow IDs (best effort, may be empty if worker not started yet)
+        self._load_flow_ids()
+
+    def _load_flow_ids(self):
+        """Load all flow IDs from Prefect API into cache (best effort, non-blocking)."""
+        async def _fetch_flows():
+            async with get_client() as client:
+                # Fetch all flows at once
+                flow_filter = FlowFilter(name=FlowFilterName(any_=self.FLOW_NAMES))
+                flows = await client.read_flows(flow_filter=flow_filter)
+                flow_map = {flow.name: flow.id for flow in flows}
+
+                # Log if any expected flows are missing
+                missing_flows = [name for name in self.FLOW_NAMES if name not in flow_map]
+                if missing_flows:
+                    logger.info(f"Flows not yet deployed (will lookup on demand): {missing_flows}")
+
+                return flow_map
+
+        try:
+            self._flow_id_cache = asyncio.run(_fetch_flows())
+            if self._flow_id_cache:
+                logger.info(f"Pre-loaded {len(self._flow_id_cache)} flow IDs: {list(self._flow_id_cache.keys())}")
+            else:
+                logger.info("No flows pre-loaded. Will lookup flow IDs on demand when worker is available.")
+        except Exception as e:
+            logger.warning(f"Could not pre-load flows (worker may not be started): {e}")
+            self.error = ""  # Don't set error - this is expected if worker isn't running yet
 
     def post_init(self):
         self.clear_queues()
+        # Always try update - it will handle missing flows gracefully
         self.update_empty_word_lists()
+
+    async def _get_flow_id_async(self, client, flow_name: str) -> str:
+        """Get flow ID from cache, or lookup if not cached (async)."""
+        # Check cache first
+        if flow_name in self._flow_id_cache:
+            return self._flow_id_cache[flow_name]
+
+        # Not in cache - lookup from Prefect API
+        logger.debug(f"Flow '{flow_name}' not in cache, looking up from Prefect...")
+        flow_filter = FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        flows = await client.read_flows(flow_filter=flow_filter)
+        if not flows:
+            raise ValueError(f"Flow '{flow_name}' not found in Prefect. Is the worker running?")
+
+        # Cache it for next time
+        flow_id = flows[0].id
+        self._flow_id_cache[flow_name] = flow_id
+        logger.info(f"Cached flow ID for '{flow_name}'")
+        return flow_id
+
+    def _get_flow_id(self, flow_name: str) -> str:
+        """Get flow ID from cache (synchronous lookup - only works if already cached)."""
+        if flow_name not in self._flow_id_cache:
+            raise ValueError(
+                f"Flow '{flow_name}' not in cache. This should not happen - "
+                f"use _get_flow_id_async() within async context instead."
+            )
+        return self._flow_id_cache[flow_name]
 
     def clear_queues(self):
         # With Prefect, we don't push to broker queues anymore; keep this as a no-op/log
@@ -55,16 +120,28 @@ class QueueManager:
             return
 
         word_lists = WordList.get_all_empty() or []
-        
+
+        # Skip if no word lists need updating
+        if not word_lists:
+            return []
+
         async def _run_word_list_updates():
             async with get_client() as client:
+                try:
+                    flow_id = await self._get_flow_id_async(client, "gather-word-list-flow")
+                    flow = await client.read_flow(flow_id)
+                except ValueError as e:
+                    # Flow not found - worker probably not started yet
+                    logger.info(f"Skipping word list updates: {e}")
+                    return []
+
                 results: list[dict[str, Any]] = []
                 for word_list in word_lists:
                     try:
                         request = WordListTaskRequest(word_list_id=word_list.id)
                         flow_run = await client.create_flow_run(
-                            flow_name="gather-word-list-flow",
-                            parameters={"request": request.dict()}
+                            flow=flow,
+                            parameters={"request": request.model_dump()}
                         )
                         logger.info(f"[gather_word_list] Ran for WordList {word_list.id}")
                         results.append({"word_list_id": word_list.id, "status": "ok", "result": flow_run.id})
@@ -76,28 +153,46 @@ class QueueManager:
         try:
             return asyncio.run(_run_word_list_updates())
         except Exception as e:
-            logger.exception("Failed to update empty word lists")
+            logger.warning(f"Could not update empty word lists: {e}")
             return []
 
     def get_queued_tasks(self):
         """
-        Still calls RabbitMQ API for visibility in admin UI; does not drive Prefect.
+        Get running and pending flow runs from Prefect API for visibility in admin UI.
         """
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
 
-        response = requests.get(
-            f"{self.mgmt_api}queues/",
-            auth=HTTPBasicAuth(self.queue_user, self.queue_password),
-            timeout=5,
-        )
-        if not response.ok:
-            logger.error(response.text)
-            return {"error": "Could not reach rabbitmq"}, 500
+        async def _get_flow_runs():
+            async with get_client() as client:
+                # Get recent flow runs in running/pending states
+                flow_runs = await client.read_flow_runs(
+                    limit=50,
+                    sort="ID_DESC"  # Use valid sort option instead of CREATED_DESC
+                )
+                return flow_runs
 
-        tasks = [{key: d[key] for key in ("messages", "name") if key in d} for d in response.json()]
-        logger.debug(f"Queued tasks: {tasks}")
-        return tasks, 200
+        try:
+            flow_runs = asyncio.run(_get_flow_runs())
+
+            # Convert to format similar to RabbitMQ queues for compatibility
+            tasks = []
+            for run in flow_runs:
+                if run.state_name in ['Pending', 'Running', 'Scheduled']:
+                    tasks.append({
+                        "name": run.flow_name or "unknown",
+                        "messages": 1,  # Each flow run counts as 1 message
+                        "flow_run_id": str(run.id),
+                        "state": run.state_name,
+                        "created": run.created.isoformat() if run.created else None
+                    })
+
+            logger.debug(f"Queued tasks from Prefect: {len(tasks)} active flow runs")
+            return tasks, 200
+
+        except Exception as e:
+            logger.error(f"Could not reach Prefect API: {e}")
+            return {"error": "Could not reach Prefect API"}, 500
 
     def ping_workers(self):
         """
@@ -138,9 +233,12 @@ class QueueManager:
         async def _run_collector():
             async with get_client() as client:
                 request = CollectorTaskRequest(source_id=source_id, preview=False)
+                flow_id = await self._get_flow_id_async(client, "collector-task-flow")
+                flow = await client.read_flow(flow_id)
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="collector-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -156,9 +254,11 @@ class QueueManager:
         async def _run_preview():
             async with get_client() as client:
                 request = CollectorTaskRequest(source_id=source_id, preview=True)
+                flow_id = await self._get_flow_id_async(client, "collector-task-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="collector-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -182,13 +282,15 @@ class QueueManager:
 
         async def _run_all_collectors():
             async with get_client() as client:
+                flow_id = await self._get_flow_id_async(client, "collector-task-flow")
+                flow = await client.read_flow(flow_id)
                 results: list[dict[str, Any]] = []
                 for source in sources:
                     try:
                         request = CollectorTaskRequest(source_id=source.id, preview=False)
                         flow_run = await client.create_flow_run(
-                            flow_name="collector-task-flow",
-                            parameters={"request": request.dict()}
+                            flow=flow,
+                            parameters={"request": request.model_dump()}
                         )
                         logger.info(f"[collector_task_flow] Ran for {source.id}")
                         results.append({"source_id": source.id, "status": "ok", "result": flow_run.id})
@@ -210,9 +312,11 @@ class QueueManager:
             async with get_client() as client:
                 normalized_ids = list(story_ids) if story_ids else []
                 request = ConnectorTaskRequest(connector_id=connector_id, story_ids=normalized_ids)
+                flow_id = await self._get_flow_id_async(client, "connector-task-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="connector-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -230,9 +334,11 @@ class QueueManager:
         async def _run_connector_pull():
             async with get_client() as client:
                 request = ConnectorTaskRequest(connector_id=connector_id, story_ids=None)
+                flow_id = await self._get_flow_id_async(client, "connector-task-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="connector-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -250,9 +356,11 @@ class QueueManager:
         async def _run_word_list():
             async with get_client() as client:
                 request = WordListTaskRequest(word_list_id=word_list_id)
+                flow_id = await self._get_flow_id_async(client, "gather-word-list-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="gather-word-list-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -264,42 +372,38 @@ class QueueManager:
             logger.exception(f"Failed to gather WordList {word_list_id}")
             return {"error": "Failed to gather WordList", "details": str(e)}, 500
 
-    def execute_bot_task(self, bot_id: int, filter: dict | None = None):
+    def execute_bot_task(self, bot_id: str, news_item_ids: list[str], countdown: int = 0):
         from models.prefect import BotTaskRequest
 
         async def _run_bot_task():
             async with get_client() as client:
-                request = BotTaskRequest(bot_id=str(bot_id), filter=filter)
+                request = BotTaskRequest(bot_id=bot_id, news_item_ids=news_item_ids, countdown=countdown)
+                flow_id = await self._get_flow_id_async(client, "bot-task-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="bot-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
-
-        try:
-            result = asyncio.run(_run_bot_task())
-            logger.info(f"[bot_task] Executed for bot_id={bot_id}, result: {result}")
-            return {"message": f"Bot {bot_id} executed", "result": result}, 200
-        except Exception as e:
-            logger.exception(f"Failed to run bot_task_flow for {bot_id}")
-            return {"error": f"Failed to execute bot {bot_id}", "details": str(e)}, 500
 
     def generate_product(self, product_id: str, countdown: int = 0):
+        from typing import cast
         from models.prefect import PresenterTaskRequest
-
-        async def _run_presenter_task():
-            async with get_client() as client:
-                request = PresenterTaskRequest(product_id=product_id, countdown=countdown)
-                flow_run = await client.create_flow_run(
-                    flow_name="presenter-task-flow",
-                    parameters={"request": request.dict()}
-                )
-                return flow_run.id
+        from prefect.deployments import run_deployment
+        from prefect.client.schemas.objects import FlowRun
 
         try:
-            result = asyncio.run(_run_presenter_task())
+            request = PresenterTaskRequest(product_id=product_id, countdown=countdown)
+            flow_run = cast(
+                FlowRun,
+                run_deployment(
+                    name="presenter-task-flow/default",
+                    parameters={"request": request.model_dump()},
+                    timeout=0,
+                ),
+            )
             logger.info(f"[presenter_task] Product generation scheduled for {product_id}")
-            return {"message": f"Product {product_id} generated", "result": result}, 200
+            return {"message": f"Product {product_id} generated", "result": str(flow_run.id)}, 200
         except Exception as e:
             logger.exception(f"Failed to run presenter_task_flow for {product_id}")
             return {"error": f"Failed to generate product {product_id}", "details": str(e)}, 500
@@ -310,9 +414,11 @@ class QueueManager:
         async def _run_publisher_task():
             async with get_client() as client:
                 request = PublisherTaskRequest(product_id=product_id, publisher_id=publisher_id)
+                flow_id = await self._get_flow_id_async(client, "publisher-task-flow")
+                flow = await client.read_flow(flow_id)
                 flow_run = await client.create_flow_run(
-                    flow_name="publisher-task-flow",
-                    parameters={"request": request.dict()}
+                    flow=flow,
+                    parameters={"request": request.model_dump()}
                 )
                 return flow_run.id
 
@@ -320,14 +426,6 @@ class QueueManager:
             result = asyncio.run(_run_publisher_task())
             logger.info(f"[publisher_task] Publishing scheduled for {product_id}")
             return {"message": f"Product {product_id} published", "result": result}, 200
-        except Exception as e:
-            logger.exception(f"Failed to run publisher_task_flow for {product_id}")
-            return {"error": f"Failed to publish product {product_id}", "details": str(e)}, 500
-            logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
-            return {
-                "message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled",
-                "result": result,
-            }, 200
         except Exception as e:
             logger.exception(f"Failed to run publisher_task_flow for {product_id}")
             return {"error": f"Failed to publish product {product_id}", "details": str(e)}, 500
@@ -349,13 +447,15 @@ class QueueManager:
 
         async def _run_post_collection_bots():
             async with get_client() as client:
+                flow_id = await self._get_flow_id_async(client, "bot-task-flow")
+                flow = await client.read_flow(flow_id)
                 results: list[dict[str, Any]] = []
                 for bot_id in post_collection_bots:
                     try:
                         request = BotTaskRequest(bot_id=str(bot_id), filter={"SOURCE": source_id})
                         flow_run = await client.create_flow_run(
-                            flow_name="bot-task-flow",
-                            parameters={"request": request.dict()}
+                            flow=flow,
+                            parameters={"request": request.model_dump()}
                         )
                         results.append({"bot_id": bot_id, "result": flow_run.id})
                     except Exception as e:

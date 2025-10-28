@@ -169,3 +169,23 @@ def initialize():
 
 def get_client():
     return schedule.get_client() if schedule else None
+
+
+def add_prefect_task(task: dict):
+    """Module-level function to add a Prefect task"""
+    return schedule.add_prefect_task(task) if schedule else False
+
+
+def remove_periodic_task(job_id: str) -> bool:
+    """Module-level function to remove a periodic task"""
+    return schedule.remove_periodic_task(job_id) if schedule else False
+
+
+def get_periodic_tasks() -> dict:
+    """Module-level function to get all periodic tasks"""
+    return schedule.get_periodic_tasks() if schedule else {"items": [], "total_count": 0}
+
+
+def get_periodic_task(job_id: str) -> dict | None:
+    """Module-level function to get a specific periodic task"""
+    return schedule.get_periodic_task(job_id) if schedule else None
