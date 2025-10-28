@@ -13,11 +13,17 @@
         </select>
       </label>
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
-      <button type="button"
-              class="btn btn-outline btn-wide"
-              hx-post="{{ url_for('assess.submit_report_story') }}"
-              hx-target="{{ target | default('#assess') }}"
-              hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()">Share</button>
+      <div class="join gap-4">
+        <button type="button"
+                class="btn btn-outline btn-wide"
+                hx-post="{{ url_for('assess.submit_report_story') }}"
+                hx-target="{{ target | default('#assess') }}"
+                hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()">Share</button>
+        <a type="button"
+           class="btn btn-outline btn-wide"
+           href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}">New Report
+        </a>
+      </div>
     </form>
   </div>
 

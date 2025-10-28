@@ -3,6 +3,7 @@ from flask import request, abort, Response, url_for
 from pydantic import ValidationError
 
 from frontend.log import logger
+from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup
 from models.admin import ReportItemType
 from frontend.views.base_view import BaseView
@@ -51,21 +52,28 @@ class ReportItemView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
-        report = base_context.get("report")
         layout = request.args.get("layout", base_context.get("layout", "split"))
 
         base_context |= {
             "layout": layout,
             "actions": cls.get_report_actions(),
         }
-        if report and report.grouped_attributes:
-            base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
         return base_context
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
+        report = context.get("report")
+        if not report:
+            return context
+
+        if report.grouped_attributes:
+            context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
+
+        if story_ids := request.args.getlist("story_ids"):
+            report.stories.append([s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids])
+            context["report"] = report
         logger.debug(f"Report item context: {len(context)}")
         return context
 
