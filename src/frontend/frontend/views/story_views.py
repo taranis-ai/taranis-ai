@@ -45,7 +45,7 @@ class StoryView(BaseView):
 
     @classmethod
     def get_sidebar_template(cls) -> str:
-        return "assess/assess_sidebar.html"
+        return "assess/sidebar/sidebar.html"
 
     @staticmethod
     def _get_enhanced_stories(stories: CacheObject[Story], sources: list[AssessSource]) -> CacheObject[Story]:
@@ -119,25 +119,6 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def get_cluster_dialog(cls) -> tuple[str, int]:
-        story_ids = request.args.getlist("story_ids")
-        logger.debug(f"Opening cluster dialog for stories {story_ids}")
-        stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
-        return render_template("assess/story_grouping_dialog.html", stories=stories), 200
-
-    @classmethod
-    @auth_required()
-    def submit_cluster_dialog(cls) -> Response:
-        story_ids = request.form.getlist("story_ids")
-        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
-        response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        return cls.rerender_list(notification=cls.get_notification_from_response(response))
-
-    @classmethod
-    @auth_required()
     def submit_report_dialog(cls) -> Response:
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
@@ -153,6 +134,43 @@ class StoryView(BaseView):
         else:
             content = cls._get_action_response_content(story_ids[0])
             return make_response(notification_html + content, 200)
+
+    @classmethod
+    @auth_required()
+    def get_cluster_dialog(cls) -> tuple[str, int]:
+        story_ids = request.args.getlist("story_ids")
+        logger.debug(f"Opening cluster dialog for stories {story_ids}")
+        stories = [DataPersistenceLayer().get_object(Story, s) for s in story_ids]
+        return render_template("assess/story_grouping_dialog.html", stories=stories), 200
+
+    @classmethod
+    @auth_required()
+    def submit_cluster_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
+        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
+        logger.debug(f"Cluster response: {response.status_code} - {response.text}")
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        for story_id in story_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+
+    @classmethod
+    @auth_required()
+    def get_search_dialog(cls) -> tuple[str, int]:
+        current_search = request.args.get("search", "")
+        return render_template("assess/sidebar/search_dialog.html", current_search=current_search), 200
+
+    @classmethod
+    @auth_required()
+    def submit_search_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
+        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        for story_id in story_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
     @auth_required()

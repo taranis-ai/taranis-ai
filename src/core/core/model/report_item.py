@@ -381,6 +381,7 @@ class ReportItem(BaseModel):
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         retag_stories = False
+        logger.debug(f"Updating Report Item {report_id} with data: {data}")
         if err or not report_item:
             return err, status
 

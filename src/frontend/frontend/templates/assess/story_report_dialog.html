@@ -1,4 +1,7 @@
-<dialog id="share_story_to_report_dialog" class="modal" x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
+<dialog id="share_story_to_report_dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()">
   <div class="modal-box">
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
@@ -26,5 +29,4 @@
       </div>
     </form>
   </div>
-
 </dialog>

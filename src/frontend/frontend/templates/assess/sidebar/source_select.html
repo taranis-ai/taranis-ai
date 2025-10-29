@@ -1,0 +1,50 @@
+<div class="divider text-xs">Source</div>
+{# djlint:off #}
+<section class="space-y-4"
+          x-data='{
+            groupIds: {{ filter_lists.groups | map(attribute="id") | list | tojson }},
+            updateHiddenInputs() {
+              const select = document.getElementById("source-filter");
+              const selectedOptions = Array.from(select.selectedOptions);
+
+              const sourceContainer = document.getElementById("source-hidden-inputs");
+              const groupContainer = document.getElementById("group-hidden-inputs");
+
+              sourceContainer.innerHTML = "";
+              groupContainer.innerHTML = "";
+
+              selectedOptions.forEach(opt => {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.value = opt.value;
+
+                if (this.groupIds.includes(opt.value)) {
+                  input.name = "group";
+                  groupContainer.appendChild(input);
+                } else {
+                  input.name = "source";
+                  sourceContainer.appendChild(input);
+                }
+              });
+            }
+          }'>
+{# djlint:on #}
+<select id="source-filter" class="select select-sm" @change="updateHiddenInputs()" multiple>
+  <optgroup label="OSINT Sources">
+    {% for source in filter_lists.sources %}
+      <option class="truncate w-64" value="{{ source.id }}" {% if source.id in selected_sources %}selected{% endif %}>{{ source.name }}</option>
+    {% endfor %}
+  </optgroup>
+  <optgroup label="Source Groups">
+    {% for group in filter_lists.groups %}
+      <option class="truncate w-64" value="{{ group.id }}" {% if group.id in selected_groups %}selected{% endif %}>{{ group.name }}</option>
+    {% endfor %}
+  </optgroup>
+</select>
+<div id="source-hidden-inputs">
+  {% for source_id in selected_sources %}<input type="hidden" name="source" value="{{ source_id }}">{% endfor %}
+</div>
+<div id="group-hidden-inputs">
+  {% for group_id in selected_groups %}<input type="hidden" name="group" value="{{ group_id }}">{% endfor %}
+</div>
+</section>

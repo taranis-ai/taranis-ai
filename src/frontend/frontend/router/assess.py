@@ -19,6 +19,8 @@ def init(app: Flask):
         "/news-item/<string:news_item_id>", view_func=StoryView.create_news_item, methods=["POST"], endpoint="create_news_item"
     )
     assess_bp.add_url_rule("/news-item/<string:news_item_id>", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
+    assess_bp.add_url_rule("/search", view_func=StoryView.get_search_dialog, methods=["GET"], endpoint="search_stories")
+    assess_bp.add_url_rule("/search", view_func=StoryView.submit_search_dialog, methods=["POST"], endpoint="submit_search_stories")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.get_sharing_dialog, methods=["GET"], endpoint="share_story")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.submit_sharing_dialog, methods=["POST"], endpoint="submit_share_story")
     assess_bp.add_url_rule("/story/report", view_func=StoryView.get_report_dialog, methods=["GET"], endpoint="report_story")

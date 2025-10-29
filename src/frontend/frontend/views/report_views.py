@@ -136,6 +136,7 @@ class ReportItemView(BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
+            logger.debug(f"Parsed form data: {form_data}")
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:

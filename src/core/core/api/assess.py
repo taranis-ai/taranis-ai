@@ -227,6 +227,15 @@ class GroupAction(MethodView):
         sse_manager.news_items_updated()
         return response, code
 
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self):
+        if not (story_ids := request.json):
+            return {"error": "No story ids provided"}, 400
+        response, code = story.Story.group_stories(story_ids, current_user)
+        sse_manager.news_items_updated()
+        return response, code
+
 
 class BotActions(MethodView):
     @auth_required("ASSESS_UPDATE")

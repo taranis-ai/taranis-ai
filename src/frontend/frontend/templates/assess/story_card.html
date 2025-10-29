@@ -27,15 +27,6 @@
     {% set card_classes = card_classes + ['cursor-pointer'] %}
   {% endif %}
 
-  {% set tags_list = [] %}
-  {% if story.tags %}
-    {% if story.tags is mapping %}
-      {% set tags_list = story.tags.values() | list %}
-    {% else %}
-      {% set tags_list = story.tags | list %}
-    {% endif %}
-  {% endif %}
-
   {% set pub = story | get_published_dates %}
 
   <article id="story-{{ story_id }}"
@@ -91,18 +82,18 @@
               </div>
             {% endif %}
 
-            {% if tags_list %}
+            {% if story.tags %}
               <div class="space-y-1">
                 <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
                 <div class="flex flex-wrap gap-2">
-                  {% for tag in tags_list[:6] %}
+                  {% for tag in story.tags[:6] %}
                     {% if tag.name %}
                       <div class="tooltip before:z-[50]" data-tip="{{ tag.tag_type }}">
-                        <span class="badge badge-ghost badge-sm whitespace-nowrap">{{ tag.name | truncate(10, true) }}</span>
+                        <span class="badge badge-ghost badge-xs whitespace-nowrap">{{ tag.name | truncate(10, true) }}</span>
                       </div>
                     {% endif %}
                   {% endfor %}
-                  {% if tags_list | length > 6 %}<span class="badge badge-outline badge-sm">+{{ tags_list | length - 6 }}</span>{% endif %}
+                  {% if story.tags | length > 6 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 6 }}</span>{% endif %}
                 </div>
               </div>
             {% endif %}
