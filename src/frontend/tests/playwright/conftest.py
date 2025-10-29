@@ -1,5 +1,8 @@
+from datetime import datetime, timedelta
 import os
+import random
 import re
+from flask import json
 import pytest
 import time
 import subprocess
@@ -56,8 +59,8 @@ def run_core(app):
             ["flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # stdout=subprocess.PIPE,
+            # stderr=subprocess.PIPE,
             universal_newlines=True,
         )
 
@@ -260,6 +263,224 @@ def forward_console_and_page_errors(request, logged_in_page):
         if errors:
             bullet_list = "\n".join(f"  - {e}" for e in errors)
             pytest.fail(f"Console/Page errors detected:\n{bullet_list}")
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending_important(run_core, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    story_ids = []
+    stories = requests.get(f"{run_core}/assess/stories?important=true", headers=headers).json()
+    for story in stories.get("items", []):
+        story_ids.append(story.get("id"))
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
+def stories_relevance_descending(run_core, stories, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=RELEVANCE_DESC", headers=headers).json().get("items", [])
+    yield [story.get("id") for story in stories_relevance_desc]
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending(run_core, stories, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    story_ids = []
+    s = requests.get(f"{run_core}/assess", headers=headers).json()
+    for story in s:
+        story_ids.append(story.get("id"))
+
+    yield story_ids
+
+
+@pytest.fixture(scope="session")
+def stories_date_descending_not_important(run_core, stories, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+    headers = {"Authorization": f"Bearer {access_token}"}
+    story_ids = []
+    s = requests.get(f"{run_core}/assess/stories?important=false&limit=50", headers=headers).json()
+    for story in s.get("items"):
+        story_ids.append(story.get("id"))
+    yield story_ids
+
+
+def random_timestamp_last_5_days() -> str:
+    now = datetime.now()
+    start_time = now - timedelta(days=5)
+    return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
+
+
+def random_timestamp_last_shift() -> str:
+    ### Add a random timestamp between now and yesterday 18:00
+    now = datetime.now()
+    start_time = now - timedelta(days=1)
+    start_time = start_time.replace(hour=18, minute=0, second=0, microsecond=0)
+    return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
+
+
+@pytest.fixture(scope="session")
+def stories(run_core, api_header, fake_source, access_token):
+    """
+    Loads stories from test_stories.json, normalizes them to the structure
+    defined in story_item_list (only keeping relevant keys and nested keys),
+    and yields the cleaned list.
+    """
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    story_json = os.path.join(dir_path, "test_stories.json")
+
+    with open(story_json, encoding="utf-8") as f:
+        stories_raw = json.load(f)
+
+    def clean_news_item(item, story_id: str):
+        """Keep only the same fields as in story_item_list fixture."""
+        allowed_fields = {
+            "id",
+            "title",
+            "content",
+            "author",
+            "source",
+            "link",
+            "language",
+            # "osint_source_id",
+            "review",
+            "collected",
+            "published",
+            "story_id",
+            "hash",
+        }
+        cleaned = {k: v for k, v in item.items() if k in allowed_fields}
+
+        # Ensure required values are set
+        cleaned.setdefault("language", None)
+        cleaned["story_id"] = story_id
+        cleaned["osint_source_id"] = fake_source
+        return cleaned
+
+    def clean_story(story):
+        """Keep only whitelisted fields and clean nested news_items."""
+        allowed_story_fields = {
+            "id",
+            "title",
+            "description",
+            "created",
+            "read",
+            "important",
+            "likes",
+            "dislikes",
+            "relevance",
+            "comments",
+            "summary",
+            "news_items",
+            "tags",
+            "attributes",
+        }
+
+        cleaned_story = {k: v for k, v in story.items() if k in allowed_story_fields}
+
+        # Make sure all required top-level keys exist
+        cleaned_story.setdefault("description", "")
+        cleaned_story.setdefault("comments", "")
+        cleaned_story.setdefault("summary", "")
+        cleaned_story.setdefault("read", False)
+        cleaned_story.setdefault("important", False)
+        cleaned_story.setdefault("likes", 0)
+        cleaned_story.setdefault("dislikes", 0)
+        cleaned_story.setdefault("relevance", 0)
+
+        # Clean news_items list
+        news_items = story.get("news_items", [])
+        cleaned_story["news_items"] = [clean_news_item(item, story["id"]) for item in news_items]
+
+        return cleaned_story
+
+    cleaned_stories = [clean_story(s) for s in stories_raw]
+
+    # === Timestamp and importance logic ===
+    def _renew_story_timestamps():
+        # Randomize published/collected timestamps across stories
+        for idx, story in enumerate(cleaned_stories):
+            for item in story["news_items"]:
+                if idx < len(cleaned_stories) - 5:
+                    new_time = random_timestamp_last_shift()
+                else:
+                    new_time = random_timestamp_last_5_days()
+                item.update({"published": new_time, "collected": new_time})
+
+    def _set_important_flags():
+        important_indices = [0, 8, 13, 17, 21]
+        for idx in important_indices:
+            if idx < len(cleaned_stories):
+                cleaned_stories[idx]["important"] = True
+
+    _renew_story_timestamps()
+    _set_important_flags()
+    responses = []
+    for story in cleaned_stories[:36]:
+        r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
+        responses.append(r)
+        print(f"Posted story {story['id']} -> {r.status_code}")
+
+        # === Story grouping (clustering) logic ===
+    story_groups = [
+        [cleaned_stories[0]["id"], cleaned_stories[1]["id"]],
+        [cleaned_stories[2]["id"], cleaned_stories[3]["id"]],
+        [cleaned_stories[4]["id"], cleaned_stories[5]["id"]],
+    ]
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    group_url = f"{run_core}/assess/stories/group"
+    for group in story_groups:
+        group_ids = [story_id for story_id in group]
+        r = requests.put(group_url, json=group_ids, headers=headers)
+        print(f"Grouped stories {group_ids} -> {r.status_code}")
+        r.raise_for_status()
+
+    result_stories = requests.get(f"{run_core}/worker/stories", headers=api_header).json()
+    yield result_stories
+
+
+# @pytest.fixture(scope="session")
+# def create_html_render(app):
+#     # fixture returns a callable, so that we can choose the time to execute it
+#     def get_product_to_render(timeout=5.0, interval=1.0):
+#         with app.app_context():
+#             import time
+#             from core.model.product import Product
+#             from core.managers.db_manager import db
+
+#             # get id of first product in product table
+#             start_time = time.time()
+#             product = None
+
+#             while time.time() - start_time < timeout:
+#                 product = Product.get_first(db.select(Product))
+#                 if product:
+#                     break
+#                 time.sleep(interval)
+#             else:
+#                 raise RuntimeError("No products found in database")
+
+#             # test html for product rendering
+#             test_html_b64 = "VGhhbmtzIHRvIEN5YmVyc2VjdXJpdHkgZXhwZXJ0cywgdGhlIHdvcmxkIG9mIElUIGlzIG5vdyBzYWZlLg=="
+
+#             _, status_code = Product.update_render_for_id(product.id, test_html_b64)
+
+#             if status_code != 200:
+#                 raise RuntimeError(f"Failed to render product with id {product.id}")
+
+#     return get_product_to_render
 
 
 @pytest.fixture(scope="session")

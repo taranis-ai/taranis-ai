@@ -41,6 +41,7 @@
   <article id="story-{{ story_id }}"
            class="{{ ' '.join(card_classes) }}"
            data-story-id="{{ story_id }}"
+           data-testid="story-card-{{ story_id }}"
            x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
            :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
@@ -140,7 +141,7 @@
             {% endif %}
           </div>
 
-          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }">
+          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
             {% if summary_content %}
               {{ summary_content }}
             {% else %}

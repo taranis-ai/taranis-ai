@@ -118,6 +118,8 @@ def pytest_addoption(parser):
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")
     group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
+    group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
+
     group.addoption(
         "--fail-on-console",
         action="store",
@@ -181,6 +183,7 @@ def pytest_collection_modifyitems(config, items):
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
         "--e2e-user": ("e2e_user", "need --e2e-user option to run tests marked with e2e_user"),
+        "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
     }
 
     config.option.headed = True
