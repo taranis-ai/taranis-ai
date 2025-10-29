@@ -172,8 +172,8 @@
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(tag, index) in tags" :key="index">
                   <div class="flex gap-3">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.name" name="tags[][name]" placeholder="Tag name">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.tag_type" name="tags[][tag_type]" placeholder="Tag type (e.g. misc, location, actor)">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.name" name="tags[][name]" data-testid="tag-name-input" placeholder="Tag name">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.tag_type" name="tags[][tag_type]" data-testid="tag-value-input" placeholder="Tag type (e.g. misc, location, actor)">
                     <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeTag(index)">Remove</button>
                   </div>
                 </template>
@@ -190,8 +190,8 @@
               <div class="mt-4 flex flex-col gap-3">
                 <template x-for="(attribute, index) in attributes" :key="index">
                   <div class="flex gap-3">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" placeholder="Key (e.g. TLP)">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.value" name="attributes[][value]" placeholder="Value">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.key" name="attributes[][key]" data-testid="attribute-key-input" placeholder="Key (e.g. TLP)">
+                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="attribute.value" name="attributes[][value]" data-testid="attribute-value-input" placeholder="Value">
                     <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeAttribute(index)">Remove</button>
                   </div>
                 </template>

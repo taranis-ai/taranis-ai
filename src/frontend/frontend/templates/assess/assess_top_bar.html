@@ -82,7 +82,8 @@
       </div>
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
         {% if story_ids %}
-          <button type="button" class="btn btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll()">
+          <button type="button" class="btn btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll() " data-testid="assess-select-all-button">
+            {{ heroicon_mini("check-circle") }}
             <span class="text-sm">Select all</span>
             <span class="text-xs opacity-80" x-show="showHints">
               <kbd class="kbd kbd-xs">Shift+A</kbd>
