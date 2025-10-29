@@ -270,27 +270,31 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_placeholder("Handler", exact=True), scroll=False).fill("John Doe")
             self.highlight_element(page.get_by_placeholder("CO-Handler"), scroll=False).fill("Arthur Doyle")
-            page.get_by_role("searchbox", name="news").click()
+
+            # NEWS dropdown
+            self.highlight_element(page.get_by_role("searchbox", name="news")).click()
             news_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="news"))
-            news_choices.get_by_role("option").nth(0).click()
+            self.highlight_element(news_choices.get_by_role("option").nth(0)).click()
             news_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="news"))
-            news_choices.get_by_role("option").nth(1).click()
+            self.highlight_element(news_choices.get_by_role("option").nth(1)).click()
             page.keyboard.press("Escape")
 
-            page.get_by_role("searchbox", name="vulnerabilities").click()
+            # VULNERABILITIES dropdown
+            self.highlight_element(page.get_by_role("searchbox", name="vulnerabilities")).click()
+            vuln_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="vulnerabilities"))
+            self.highlight_element(vuln_choices.get_by_role("option").nth(2)).click()
 
+            self.highlight_element(page.get_by_role("searchbox", name="vulnerabilities")).click()
             vuln_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="vulnerabilities"))
-            vuln_choices.get_by_role("option").nth(2).click()
-            page.get_by_role("searchbox", name="vulnerabilities").click()
-            vuln_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="vulnerabilities"))
-            vuln_choices.get_by_role("option").nth(3).click()
+            self.highlight_element(vuln_choices.get_by_role("option").nth(3)).click()
             page.keyboard.press("Escape")
-            page.get_by_test_id("save-report").click()
-            page.get_by_role("link", name="Stacked view").click()
 
-            page.get_by_role("link", name="Split view").click()
+            # Save & toggle report views
+            self.highlight_element(page.get_by_test_id("save-report")).click()
+            self.highlight_element(page.get_by_role("link", name="Stacked view")).click()
+            self.highlight_element(page.get_by_role("link", name="Split view")).click()
 
-            page.get_by_role("button", name="Completed").click()
+            self.highlight_element(page.get_by_role("button", name="Completed")).click()
             # TODO: see if needed: page.get_by_test_id("save-report").click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/report_item_view.png")
@@ -332,7 +336,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         # check_reports_items_by_tag()
 
     def test_e2e_publish(self, taranis_frontend: Page):
-        # def test_e2e_publish(self, taranis_frontend: Page, create_html_render: Callable):
         page = taranis_frontend
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
@@ -340,13 +343,13 @@ class TestUserWorkflow(PlaywrightHelpers):
         # expect(page).to_have_title("Taranis AI | Publish")
 
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
-        page.get_by_label("Product Type Select an item").click()
+        self.highlight_element(page.get_by_label("Product Type Select an item")).click()
         page.get_by_label("Product Type Select an item").select_option("5")
 
-        page.get_by_role("textbox", name="Title").fill("Test Product Title")
-        page.get_by_role("textbox", name="Description").click()
-        page.get_by_role("textbox", name="Description").fill("Test Product Description")
-        page.get_by_role("button", name="! Create Product").click()
+        self.highlight_element(page.get_by_role("textbox", name="Title")).fill("Test Product Title")
+        self.highlight_element(page.get_by_role("textbox", name="Description")).click()
+        self.highlight_element(page.get_by_role("textbox", name="Description")).fill("Test Product Description")
+        self.highlight_element(page.get_by_role("button", name="! Create Product")).click()
 
         # self.short_sleep(duration=1)
         # create_html_render()
