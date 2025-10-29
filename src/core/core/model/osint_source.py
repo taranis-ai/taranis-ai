@@ -2,7 +2,6 @@ import uuid
 import json
 import base64
 from typing import Any, Sequence, TYPE_CHECKING
-from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
@@ -176,16 +175,9 @@ class OSINTSource(BaseModel):
         return {
             "id": self.task_id,
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab_str),
-                "max_instances": 1,
-            },
-            "celery": {
-                "name": "collector_task",
-                "args": [self.id],
-                "queue": "collectors",
-                "task_id": self.task_id,
-            },
+            "cron": crontab_str,
+            "flow_name": "collector-task-flow",
+            "parameters": {"source_id": self.id},
         }
 
     @classmethod

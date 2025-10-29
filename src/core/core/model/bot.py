@@ -4,7 +4,6 @@ from typing import Any, Sequence
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
-from apscheduler.triggers.cron import CronTrigger
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -136,16 +135,9 @@ class Bot(BaseModel):
         return {
             "id": self.task_id,
             "name": f"{self.type}_{self.name}",
-            "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab_str),
-                "max_instances": 1,
-            },
-            "celery": {
-                "name": "bot_task",
-                "args": [self.id],
-                "queue": "bots",
-                "task_id": self.task_id,
-            },
+            "cron": crontab_str,
+            "flow_name": "bot-task-flow",
+            "parameters": {"bot_id": self.id},
         }
 
     @classmethod
