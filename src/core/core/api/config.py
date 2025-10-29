@@ -1,6 +1,6 @@
 import io
 import base64
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
@@ -41,6 +41,19 @@ from core.config import Config
 
 # Project import for shared template logic
 from core.service.template_crud import create_or_update_template
+
+if TYPE_CHECKING:
+    from core.managers.queue_manager import QueueManager
+
+
+def _get_queue_manager() -> "QueueManager | None":
+    manager = queue_manager.queue_manager
+    if manager is None:
+        from flask import current_app
+
+        queue_manager.initialize(current_app, initial_setup=False)
+        manager = queue_manager.queue_manager
+    return manager
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -465,13 +478,19 @@ class BotExecute(MethodView):
 class QueueStatus(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        return queue_manager.queue_manager.get_queue_status()
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.get_queue_status()
 
 
 class QueueTasks(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        return queue_manager.queue_manager.get_queued_tasks()
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.get_queued_tasks()
 
 
 class Schedule(MethodView):
@@ -555,7 +574,11 @@ class ConnectorsPull(MethodView):
     def post(self, connector_id):
         """Trigger collection of stories from the external system."""
         try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
+            manager = _get_queue_manager()
+            if manager is None:
+                return {"error": "Queue manager not initialized"}, 503
+
+            collected_stories = manager.pull_from_connector(connector_id=connector_id)
 
             return {"message": "Stories successfully collected.", "data": collected_stories}, 200
         except Exception as e:
@@ -611,13 +634,16 @@ class OSINTSources(MethodView):
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+
         if source_id:
-            if source := osint_source.OSINTSource.get(source_id):
-                from flask import current_app
-                manager = queue_manager.QueueManager(app=current_app)
+            if osint_source.OSINTSource.get(source_id):
                 return manager.collect_osint_source(source_id)
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
-        return queue_manager.queue_manager.collect_all_osint_sources()
+
+        return manager.collect_all_osint_sources()
 
 
 class OSINTSourcePreview(MethodView):
@@ -627,11 +653,17 @@ class OSINTSourcePreview(MethodView):
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id):
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.preview_osint_source(source_id)
 
 
 class OSINTSourcesExport(MethodView):
@@ -779,8 +811,12 @@ class WordListImport(MethodView):
             logger.error("Failed to import Word Lists")
             return {"error": "Unable to import Word Lists"}, 400
 
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+
         for wl in wls:
-            queue_manager.queue_manager.gather_word_list(wl.id)
+            manager.gather_word_list(wl.id)
 
         return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
 
@@ -806,13 +842,19 @@ class WordListGather(MethodView):
         if not word_list_id:
             return
             # return queue_manager.queue_manager.gather_all_word_lists()
-        return queue_manager.queue_manager.gather_word_list(word_list_id)
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.gather_word_list(word_list_id)
 
 
 class WorkerInstances(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        return queue_manager.queue_manager.ping_workers()
+        manager = _get_queue_manager()
+        if manager is None:
+            return {"error": "Queue manager not initialized"}, 503
+        return manager.ping_workers()
 
 
 class Workers(MethodView):
