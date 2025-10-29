@@ -14,6 +14,8 @@ from playwright_helpers import PlaywrightHelpers
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
     def test_e2e_login(self, taranis_frontend: Page):
+        self.ci_run = True
+
         page = taranis_frontend
         page.goto(url_for("base.login", _external=True))
 
@@ -27,16 +29,26 @@ class TestUserWorkflow(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+        expect(page.locator("#dashboard")).to_contain_text("Assess")
+        expect(page.locator("#dashboard")).to_contain_text("Analyze")
+        expect(page.locator("#dashboard")).to_contain_text("Publish")
+        expect(page.locator("#dashboard")).to_contain_text("Connectors")
 
     def test_instance_setup(self, taranis_frontend: Page):
+        self.ci_run = True
+
         page = taranis_frontend
         self.highlight_element(page.get_by_role("link", name="Assess").first).click()
         self.highlight_element(page.get_by_role("heading", name="No stories found."))
         self.highlight_element(page.get_by_role("link", name="Administration")).click()
         self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
         self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
+        page.wait_for_selector("tbody tr")
+        rows = page.locator("tbody tr").count()
+        assert rows == 10
 
     def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
+        self.ci_run = True
         #        Test definitions
         # ===============================
 
@@ -90,17 +102,17 @@ class TestUserWorkflow(PlaywrightHelpers):
             expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
 
         def apply_filter():
-            page.get_by_role("radio", name="Shift").check()
-            page.get_by_label("Read").select_option("true")
-            page.get_by_label("Read").select_option("false")
-            page.get_by_label("Important").select_option("false")
-            page.get_by_label("Important").select_option("true")
-            page.get_by_role("link", name="Reset filters ctrl+esc").click()
-            page.get_by_label("Important").select_option("true")
+            self.highlight_element(page.get_by_role("radio", name="Shift")).check()
+            self.highlight_element(page.get_by_label("Read")).select_option("true")
+            self.highlight_element(page.get_by_label("Read")).select_option("false")
+            self.highlight_element(page.get_by_label("Important")).select_option("false")
+            self.highlight_element(page.get_by_label("Important")).select_option("true")
+            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
+            self.highlight_element(page.get_by_label("Important")).select_option("true")
             expect(page.get_by_test_id("assess_story_count").get_by_text("5")).to_be_visible()
-            page.get_by_role("link", name="Reset filters ctrl+esc").click()
-            page.get_by_label("Read").select_option("false")
-            page.get_by_label("Important").select_option("false")
+            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
+            self.highlight_element(page.get_by_label("Read")).select_option("false")
+            self.highlight_element(page.get_by_label("Important")).select_option("false")
 
         def assess_workflow_1(non_important_story_ids):
             # Check summary and mark as read
@@ -183,6 +195,14 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}")).click()
             self.highlight_element(page.get_by_role("button", name="Cluster")).click()
+            expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
+            self.expect_list_of_test_ids_visible(
+                page,
+                [
+                    f"story-card-{important_story_ids[2]}",
+                    f"story-card-{important_story_ids[3]}",
+                ],
+            )
             page.get_by_test_id("dialog-story-cluster-submit").click()
 
             # Edit story
@@ -215,7 +235,8 @@ class TestUserWorkflow(PlaywrightHelpers):
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
-    def test_reports(self, taranis_frontend: Page):
+    def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
+        self.ci_run = True
         #        Test definitions
         # ===============================
 
@@ -257,24 +278,23 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
             # First dialog
-            dialog = page.locator("#share_story_to_report_dialog:visible")
-            self.highlight_element(dialog.get_by_label("Report Add Stories to report")).click()
-            self.highlight_element(dialog.get_by_text("Test Report")).click()
-            self.highlight_element(dialog.get_by_role("button", name="Share")).click()
-            dialog.wait_for(state="hidden")
+            self.highlight_element(page.get_by_test_id("select-report-input")).click()
+            self.highlight_element(page.get_by_text("Test Report")).click()
+            self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
 
             # Second dialog
             self.highlight_element(page.get_by_test_id("story-title").first).click()
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
 
-            dialog = page.locator("#share_story_to_report_dialog:visible")
-            self.highlight_element(dialog.get_by_label("Report Add Stories to report")).click()
-            self.highlight_element(dialog.get_by_text("Test Disinformation Title")).click()
-            self.highlight_element(dialog.get_by_role("button", name="Share")).click()
+            self.highlight_element(page.get_by_test_id("select-report-input")).click()
+            self.highlight_element(page.get_by_text("Test Disinformation Title")).click()
+            self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             page.keyboard.press("Escape")
 
-        def modify_report_1():
+        def modify_report_1(stories_date_descending):
+            page.pause()
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
             self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
             self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_placeholder("Handler", exact=True), scroll=False).fill("John Doe")
@@ -300,11 +320,19 @@ class TestUserWorkflow(PlaywrightHelpers):
 
             # Save & toggle report views
             self.highlight_element(page.get_by_test_id("save-report")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
             self.highlight_element(page.get_by_role("link", name="Stacked view")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
             self.highlight_element(page.get_by_role("link", name="Split view")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
 
             self.highlight_element(page.get_by_role("button", name="Completed")).click()
-            # TODO: see if needed: page.get_by_test_id("save-report").click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
+            # TODO: see if needed:
+            # page.get_by_test_id("save-report").click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/report_item_view.png")
 
@@ -324,6 +352,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         # ============================
 
         page = taranis_frontend
+        # page.pause()
 
         go_to_analyze()
         report_1()
@@ -338,13 +367,14 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         go_to_analyze()
 
-        modify_report_1()
+        modify_report_1(stories_date_descending)
 
         # TODO: tag search not implemented yet
         # go_to_assess()
         # check_reports_items_by_tag()
 
     def test_e2e_publish(self, taranis_frontend: Page):
+        self.ci_run = True
         page = taranis_frontend
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
@@ -359,6 +389,18 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("textbox", name="Description")).click()
         self.highlight_element(page.get_by_role("textbox", name="Description")).fill("Test Product Description")
         self.highlight_element(page.get_by_role("button", name="! Create Product")).click()
+
+        # Assert the existing Product
+        expect(page.get_by_label("Product Type CERT Daily")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Title")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Description")).to_be_visible()
+        expect(page.get_by_role("cell", name="Test Report")).to_be_visible()
+        expect(page.get_by_role("heading", name="No Report selected")).to_be_visible()
+        expect(page.get_by_text("Please select at least one")).to_be_visible()
+        expect(page.get_by_role("button", name="Render")).to_be_visible()
+        expect(page.get_by_test_id("save-product")).to_be_visible()
+        expect(page.get_by_text("Render Product first, to")).to_be_visible()
+        expect(page.get_by_role("button", name="Update Product - Test Product")).to_be_visible()
 
         # self.short_sleep(duration=1)
         # create_html_render()

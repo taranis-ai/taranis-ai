@@ -44,7 +44,8 @@
              data-story-id="{{ story.id }}"
              data-index="{{ loop.index0 }}"
              x-data="() => ({ index: Number($el.dataset.index) })"
-             x-on:sortable-index-changed="index = event.detail.index">
+             x-on:sortable-index-changed="index = event.detail.index"
+             data-testid="story-to-merge">
           <input type="hidden" name="story_ids" value="{{ story.id }}">
           <div class="handle card-body p-4 flex items-start gap-4">
             <div class="handle cursor-grab active:cursor-grabbing" title="Drag to reorder" aria-label="Drag story">
