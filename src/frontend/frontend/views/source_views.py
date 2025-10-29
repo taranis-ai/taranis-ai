@@ -174,26 +174,23 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def _collect_source_view(cls, response):
-        if not response:
+        dpl = DataPersistenceLayer()
+
+        if response is None:
             logger.error("Failed to start OSINT source collection")
-            notification, status = (
-                render_template(
-                    "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
-                ),
-                500,
+            notification = render_template(
+                "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
             )
+            status = 500
         else:
-            notification, status = (
-                render_template(
-                    "notification/index.html",
-                    notification={
-                        "message": "OSINT source collection started successfully",
-                        "icon": "check-circle",
-                        "class": "alert-success",
-                    },
-                ),
-                200,
-            )
+            notification = cls.get_notification_from_response(response)
+            status = response.status_code or 500
+
+            if response.ok:
+                # Refresh cached OSINT source data so the table reflects new jobs immediately
+                dpl.invalidate_cache_by_object(OSINTSource)
+                dpl.invalidate_cache_by_object(Job)
+                status = 200 if status < 400 else status
 
         table, table_response = cls.list_view()
         status = table_response if table_response != 200 else status
