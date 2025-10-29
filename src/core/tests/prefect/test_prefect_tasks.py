@@ -1,15 +1,16 @@
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from models import (
-    CollectorTaskRequest, 
-    PresenterTaskRequest, 
-    PublisherTaskRequest, 
-    ConnectorTaskRequest, 
-    BotTaskRequest,
-    WordListTaskRequest
-)
+import asyncio
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-pytestmark = pytest.mark.unit
+import pytest
+
+models_prefect = pytest.importorskip("models.prefect")
+
+CollectorTaskRequest = models_prefect.CollectorTaskRequest
+PresenterTaskRequest = models_prefect.PresenterTaskRequest
+PublisherTaskRequest = models_prefect.PublisherTaskRequest
+ConnectorTaskRequest = models_prefect.ConnectorTaskRequest
+BotTaskRequest = models_prefect.BotTaskRequest
+WordListTaskRequest = models_prefect.WordListTaskRequest
 
 
 @pytest.fixture
@@ -30,111 +31,108 @@ def queue_manager(mock_app):
 class TestQueueManagerTaskExecution:
     """Test specific Prefect task execution methods"""
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_collect_osint_source(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_collect_osint_source(self, mock_run_deployment, queue_manager):
         """Test OSINT source collection task"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="flow-run-123")
+        mock_run_deployment.return_value = MagicMock(id="flow-run-123")
 
-        result = queue_manager.collect_osint_source("source-123")
+        payload, status = queue_manager.collect_osint_source("source-123")
 
-        assert result is True
-        mock_client.create_flow_run.assert_called_once()
-        # Verify the correct flow was called with correct parameters
-        call_args = mock_client.create_flow_run.call_args
-        assert "collector-flow" in str(call_args)
+        assert status == 200
+        assert payload["result"] == "flow-run-123"
+        mock_run_deployment.assert_called_once_with(
+            name="collector-task-flow/default",
+            parameters={"request": ANY},
+            timeout=0,
+        )
+        call_params = mock_run_deployment.call_args.kwargs["parameters"]["request"]
+        assert call_params["source_id"] == "source-123"
+        assert call_params["preview"] is False
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_preview_osint_source(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_preview_osint_source(self, mock_run_deployment, queue_manager):
         """Test OSINT source preview task"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="flow-run-456")
+        mock_run_deployment.return_value = MagicMock(id="flow-run-456")
 
-        result = queue_manager.preview_osint_source("source-456")
+        payload, status = queue_manager.preview_osint_source("source-456")
 
-        assert result is True
-        mock_client.create_flow_run.assert_called_once()
-        # Verify preview parameter is set correctly
-        call_args = mock_client.create_flow_run.call_args
-        assert "preview" in str(call_args) or "True" in str(call_args)
+        assert status == 200
+        assert payload["result"] == "flow-run-456"
+        call_params = mock_run_deployment.call_args.kwargs["parameters"]["request"]
+        assert call_params["preview"] is True
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_collect_all_osint_sources(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_collect_all_osint_sources(self, mock_run_deployment, queue_manager):
         """Test collecting all OSINT sources"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="flow-run-all")
-
-        with patch("core.model.osint_source.OSINTSource.get_all_enabled") as mock_sources:
+        with patch("core.model.osint_source.OSINTSource.get_all_for_collector") as mock_sources:
             mock_sources.return_value = [
                 MagicMock(id="source1"),
                 MagicMock(id="source2"),
-                MagicMock(id="source3")
+                MagicMock(id="source3"),
             ]
 
-            result = queue_manager.collect_all_osint_sources()
+            payload, status = queue_manager.collect_all_osint_sources()
 
-            assert result is True
-            # Should create flow runs for each enabled source
-            assert mock_client.create_flow_run.call_count >= 1
+        assert status == 200
+        assert payload["message"].startswith("Ran collector flow for 3")
+        assert mock_run_deployment.call_count == 3
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_push_to_connector(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_push_to_connector(self, mock_run_deployment, queue_manager):
         """Test pushing stories to connector"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="connector-flow-123")
+        mock_run_deployment.return_value = MagicMock(id="connector-flow-123")
 
         story_ids = ["story1", "story2", "story3"]
-        result = queue_manager.push_to_connector("connector-123", story_ids)
+        payload, status = queue_manager.push_to_connector("connector-123", story_ids)
 
-        assert result is True
-        mock_client.create_flow_run.assert_called_once()
-        # Verify connector parameters
-        call_args = mock_client.create_flow_run.call_args
-        assert "connector-123" in str(call_args)
+        assert status == 200
+        assert payload["result"] == "connector-flow-123"
+        call_params = mock_run_deployment.call_args.kwargs["parameters"]["request"]
+        assert call_params["connector_id"] == "connector-123"
+        assert call_params["story_ids"] == story_ids
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_pull_from_connector(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_pull_from_connector(self, mock_run_deployment, queue_manager):
         """Test pulling from connector"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="connector-pull-123")
+        mock_run_deployment.return_value = MagicMock(id="connector-pull-123")
 
-        result = queue_manager.pull_from_connector("connector-456")
+        payload, status = queue_manager.pull_from_connector("connector-456")
 
-        assert result is True
-        mock_client.create_flow_run.assert_called_once()
+        assert status == 200
+        assert payload["result"] == "connector-pull-123"
+        call_params = mock_run_deployment.call_args.kwargs["parameters"]["request"]
+        assert call_params["story_ids"] is None
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_update_empty_word_lists(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment")
+    def test_update_empty_word_lists(self, mock_run_deployment, queue_manager):
         """Test word list update task"""
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_client.create_flow_run.return_value = MagicMock(id="wordlist-flow-123")
+        mock_run_deployment.side_effect = [
+            MagicMock(id="wordlist-flow-1"),
+            MagicMock(id="wordlist-flow-2"),
+        ]
 
-        with patch("core.model.word_list.WordList.get_empty_word_lists") as mock_lists:
+        with patch("core.model.word_list.WordList.get_all_empty") as mock_lists:
             mock_lists.return_value = [
                 MagicMock(id=1, name="List 1"),
-                MagicMock(id=2, name="List 2")
+                MagicMock(id=2, name="List 2"),
             ]
 
-            result = queue_manager.update_empty_word_lists()
+            results = queue_manager.update_empty_word_lists()
 
-            assert result is True
-            # Should create flow runs for empty word lists
-            assert mock_client.create_flow_run.call_count >= 1
+        assert results == [
+            {"word_list_id": 1, "status": "ok", "result": "wordlist-flow-1"},
+            {"word_list_id": 2, "status": "ok", "result": "wordlist-flow-2"},
+        ]
+        assert mock_run_deployment.call_count == 2
 
-    @patch("core.managers.queue_manager.get_client")
-    def test_task_execution_failure_handling(self, mock_get_client, queue_manager):
+    @patch("core.managers.queue_manager.run_deployment", side_effect=Exception("Prefect server unreachable"))
+    def test_task_execution_failure_handling(self, mock_run_deployment, queue_manager):
         """Test error handling when Prefect task execution fails"""
-        mock_get_client.side_effect = Exception("Prefect server unreachable")
 
-        result = queue_manager.collect_osint_source("source-fail")
+        payload, status = queue_manager.collect_osint_source("source-fail")
 
-        assert result is False
+        assert status == 500
+        assert payload["error"] == "Failed to schedule collection for source source-fail"
 
 
 class TestPrefectTaskModels:
@@ -144,15 +142,11 @@ class TestPrefectTaskModels:
         """Test CollectorTaskRequest model validation"""
         # Valid request
         task = CollectorTaskRequest(source_id="source-123", preview=True, manual=False)
-        assert task.source_id == "source-123"
-        assert task.preview is True
-        assert task.manual is False
+        assert (task.source_id, task.preview, task.manual) == ("source-123", True, False)
 
         # Minimal request
         task_minimal = CollectorTaskRequest(source_id="source-456")
-        assert task_minimal.source_id == "source-456"
-        assert task_minimal.preview is False  # default
-        assert task_minimal.manual is False   # default
+        assert (task_minimal.source_id, task_minimal.preview, task_minimal.manual) == ("source-456", False, False)
 
     def test_presenter_task_request_model(self):
         """Test PresenterTaskRequest model validation"""
@@ -205,27 +199,32 @@ class TestPrefectTaskModels:
 class TestQueueManagerAsyncIntegration:
     """Test async integration points"""
 
-    @patch("core.managers.queue_manager.asyncio.run")
-    def test_async_method_wrapping(self, mock_asyncio_run, queue_manager):
-        """Test that sync methods properly wrap async operations"""
-        mock_asyncio_run.return_value = True
+    def test_get_queue_status_uses_asyncio_run(self, queue_manager):
+        """Ensure queue status delegates to asyncio run loop"""
+        mock_client = AsyncMock()
+        mock_client.read_flow_runs.return_value = []
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
 
-        result = queue_manager.collect_osint_source("source-123")
+        with patch("core.managers.queue_manager.get_client", return_value=mock_context):
+            with patch("core.managers.queue_manager.asyncio.run", wraps=asyncio.run) as mock_run:
+                payload, status = queue_manager.get_queue_status()
 
-        assert result is True
-        mock_asyncio_run.assert_called_once()
+        assert status == 200
+        assert payload["status"] == "Prefect agent reachable"
+        mock_run.assert_called_once()
 
     @patch("core.managers.queue_manager.get_client")
-    def test_prefect_client_context_manager(self, mock_get_client, queue_manager):
-        """Test proper use of Prefect client context manager"""
+    def test_list_worker_queues_uses_prefect_client(self, mock_get_client, queue_manager):
+        """Verify Prefect client context manager is used for async listing"""
         mock_client = AsyncMock()
+        mock_client.read_flow_runs.return_value = ["run"]
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__.return_value = mock_client
         mock_get_client.return_value = mock_context_manager
-        mock_client.create_flow_run.return_value = MagicMock(id="test-run")
 
-        queue_manager.collect_osint_source("source-test")
+        runs = asyncio.run(queue_manager.list_worker_queues(limit=5))
 
-        # Verify context manager was used correctly
+        assert runs == ["run"]
         mock_get_client.assert_called_once()
-        mock_context_manager.__aenter__.assert_called_once()
+        mock_client.read_flow_runs.assert_awaited_once_with(limit=5)
