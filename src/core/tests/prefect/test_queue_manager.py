@@ -1,7 +1,7 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
-pytestmark = pytest.mark.unit
+import pytest
 
 
 @pytest.fixture
@@ -23,23 +23,27 @@ def queue_manager(mock_app):
 class TestQueueManager:
     """Core queue manager tests - focusing on Prefect integration"""
 
-    @patch("prefect.client.orchestration.get_client")
+    @patch("core.managers.queue_manager.get_client")
     def test_get_queue_status_success(self, mock_get_client, queue_manager):
         """Test successful Prefect connection"""
         # Mock the async context manager
         mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
         mock_client.read_flow_runs.return_value = []
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
 
         result, status_code = queue_manager.get_queue_status()
 
         assert status_code == 200
         assert result["status"] == "Prefect agent reachable"
 
-    @patch("prefect.client.orchestration.get_client")
+    @patch("core.managers.queue_manager.get_client")
     def test_get_queue_status_failure(self, mock_get_client, queue_manager):
         """Test Prefect connection failure"""
-        mock_get_client.side_effect = Exception("Connection failed")
+        mock_context = AsyncMock()
+        mock_context.__aenter__.side_effect = Exception("Connection failed")
+        mock_get_client.return_value = mock_context
 
         result, status_code = queue_manager.get_queue_status()
 
@@ -51,8 +55,10 @@ class TestQueueManager:
     def test_ping_workers_success(self, mock_get_client, queue_manager):
         """Test successful worker ping"""
         mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
         mock_client.read_flow_runs.return_value = [{"id": "run1"}, {"id": "run2"}]
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
 
         result = queue_manager.ping_workers()
 
@@ -79,27 +85,28 @@ class TestQueueManager:
         assert status_code == 500
         assert "QueueManager not initialized" in result["error"]
 
-    @patch("requests.get")
-    def test_get_queued_tasks_success(self, mock_requests, queue_manager):
-        """Test getting queued tasks from RabbitMQ"""
-        mock_response = MagicMock()
-        mock_response.ok = True
-        mock_response.json.return_value = [
-            {"messages": 5, "name": "collectors", "other": "data"},
-            {"messages": 2, "name": "bots", "other": "data"},
+    @patch("core.managers.queue_manager.get_client")
+    def test_get_queued_tasks_success(self, mock_get_client, queue_manager):
+        """Test getting queued tasks via Prefect API"""
+        mock_client = AsyncMock()
+        mock_client.read_flow_runs.return_value = [
+            SimpleNamespace(id="1", flow_name="collectors", state_name="Running", created=None),
+            SimpleNamespace(id="2", flow_name="bots", state_name="Pending", created=None),
+            SimpleNamespace(id="3", flow_name="bots", state_name="Completed", created=None),
         ]
-        mock_requests.return_value = mock_response
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
 
         result, status_code = queue_manager.get_queued_tasks()
 
         assert status_code == 200
         assert len(result) == 2
-        assert result[0]["messages"] == 5
-        assert result[0]["name"] == "collectors"
+        assert {task["state"] for task in result} == {"Running", "Pending"}
 
     def test_get_task_method_not_supported(self, queue_manager):
         """Test get_task returns not supported in Prefect"""
         result, status_code = queue_manager.get_task("test_id")
 
-        assert status_code == 400
-        assert "Method not supported in Prefect" in result["error"]
+        assert status_code == 501
+        assert "Method not supported" in result["error"]
