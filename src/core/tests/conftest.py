@@ -8,6 +8,10 @@ from urllib.parse import urlparse
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
+models_dir = os.path.abspath(os.path.join(base_dir, "..", "..", "models"))
+if models_dir not in sys.path:
+    sys.path.insert(0, models_dir)
+
 current_path = os.getcwd()
 
 if not current_path.endswith("src/core"):
