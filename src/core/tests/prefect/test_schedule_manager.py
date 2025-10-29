@@ -1,8 +1,6 @@
 import pytest
 from datetime import datetime
 
-pytestmark = pytest.mark.unit
-
 
 @pytest.fixture
 def schedule_manager():
@@ -34,9 +32,7 @@ class TestScheduleManager:
         stored_task = schedule_manager.jobs["test_task"]
         assert stored_task["id"] == "test_task"
         assert stored_task["name"] == "Test Task"
-        # The stored task should have cron = None since there's no trigger processing
-        # in the current implementation for direct cron input
-        assert stored_task["cron"] is None
+        assert stored_task["cron"] == "0 * * * *"
 
     def test_add_prefect_task_invalid_data(self, schedule_manager):
         """Test handling of invalid task data"""
@@ -45,7 +41,7 @@ class TestScheduleManager:
         result = schedule_manager.add_prefect_task(invalid_task)
 
         assert result is False
-        assert len(schedule_manager.jobs) == 0
+        assert not schedule_manager.jobs
 
     def test_get_periodic_tasks(self, schedule_manager):
         """Test getting all periodic tasks"""
@@ -168,12 +164,10 @@ class TestScheduleManagerModuleFunctions:
         """Test module-level get_client function delegates to schedule instance"""
         from core.managers.schedule_manager import get_client, schedule
         
+        result = get_client()
         if schedule:
             # get_client should delegate to the schedule instance
-            result = get_client()
-            expected = schedule.get_client()
-            assert result == expected
+            assert result == schedule.get_client()
         else:
             # If no schedule instance, should return None
-            result = get_client()
             assert result is None
