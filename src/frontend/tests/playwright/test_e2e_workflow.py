@@ -10,6 +10,7 @@ from flask import url_for
 from playwright_helpers import PlaywrightHelpers
 
 
+@pytest.mark.usefixtures("e2e_ci")
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
     def test_e2e_login(self, taranis_frontend: Page):
