@@ -1,21 +1,19 @@
 import contextlib
-import json
-
 from datetime import datetime, timezone
-from typing import Callable
 from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
 from worker.connectors.definitions.misp_objects import BaseMispObject
+from worker.connectors import base_misp_builder
 from worker.core_api import CoreApi
 from worker.log import logger
 
 
-class MISPConnector:
+class MispConnector:
     def __init__(self):
-        self.core_api = CoreApi()
         self.type = "MISP_CONNECTOR"
         self.name = "MISP Connector"
         self.description = "Connector for MISP"
+        self.core_api = CoreApi()
 
         self.proxies = None
         self.headers = {}
@@ -56,8 +54,12 @@ class MISPConnector:
             logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
             return 0
 
-    def execute(self, connector_config: dict, stories: list) -> None:
-        logger.debug(f"{connector_config=}")
+    def execute(self, connector_data: dict) -> None:
+        connector_config = connector_data.get("connector_config")
+        stories = connector_data.get("story", [])
+        if connector_config is None:
+            logger.error("A MISP Connector has not been found")
+            return None
         self.parse_parameters(connector_config.get("parameters", ""))
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
@@ -74,50 +76,13 @@ class MISPConnector:
             None,
         )
 
-    @staticmethod
-    def get_news_item_object_dict() -> dict:
-        """
-        Useful for unit testing or ensuring consistent keys.
-        If you add or remove a key from here, do the same for the respective object definition file.
-        """
-        return {
-            "author": "",
-            "content": "",
-            "link": "",
-            "title": "",
-            "hash": "",
-            "id": "",
-            "language": "",
-            "osint_source_id": "",
-            "review": "",
-            "source": "manual",
-            "story_id": "",
-        }
-
-    @staticmethod
-    def get_story_object_dict() -> dict:
-        """
-        Useful for unit testing or ensuring consistent keys.
-        If you add or remove a key from here, do the same for the respective object definition file.
-        """
-        return {
-            "id": "",
-            "title": "<no_data>",
-            "description": "<no_data>",
-            "attributes": {"no_data": {"key": "no_data", "value": "<no_data>"}},
-            "comments": "<no_data>",
-            "summary": "<no_data>",
-            "links": [{"link": "no_data", "news_item_id": "<no_data>"}],
-            "tags": {"no_data": {"name": "no_data", "tag_type": "<no_data>"}},
-        }
-
     def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
         """
         For each news item in 'news_items', create a TaranisObject and add it to the event.
         """
         for news_item in news_items:
             news_item.pop("last_change", None)  # key intended for internal use only
-            object_data = self.get_news_item_object_dict()
+            object_data = base_misp_builder.get_news_item_object_dict_empty()
             # sourcery skip: dict-assign-update-to-union
             object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
 
@@ -125,141 +90,6 @@ class MISPConnector:
                 parameters=object_data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
             )
             event.add_object(news_item_object)
-
-    def add_story_object(self, story: dict, event: MISPEvent) -> None:
-        """
-        Create a TaranisObject for the story itself, add attributes, links, and tags from the story,
-        and attach it to the event with all data correctly stored under their respective keys.
-        """
-        # Remove internal keys not meant for external processing
-        story.pop("last_change", None)
-
-        object_data = self.get_story_object_dict()
-        object_data.update(
-            {property: story[property] for property in object_data if property in story and story[property] not in (None, "", [], {})}
-        )
-        object_data["attributes"] = []
-
-        links_to_process = story.get("links") or object_data["links"]
-        object_data["links"] = self._process_items({"links": links_to_process}, "links", self._process_link)
-
-        tags_to_process = story.get("tags") or object_data["tags"]
-        object_data["tags"] = self._process_items({"tags": tags_to_process}, "tags", self._process_tags)
-
-        logger.debug(f"Adding story object with data: {object_data}")
-
-        story_object = BaseMispObject(
-            parameters=object_data,
-            template="taranis-story",
-            misp_objects_path_custom="worker/connectors/definitions/objects",
-        )
-        attribute_list = self.add_attributes_from_story(story)
-        if story.get("attributes"):
-            story_object.add_attributes("attributes", *attribute_list)
-        event.add_object(story_object)
-
-    def set_misp_event_uuid_attribute(self, story: dict) -> None:
-        """
-        Ensure the story has a 'misp_event_uuid' attribute so that the system can determine if it is
-        an update or a new event.
-        """
-        if not story.get("attributes", {}).get("misp_event_uuid"):
-            story.get("attributes", {})["misp_event_uuid"] = {"key": "misp_event_uuid", "value": story.get("id", "")}
-
-    def add_attributes_from_story(self, story: dict) -> list:
-        """
-        Process attributes from the story, ensuring internal metadata (like misp_event_uuid)
-        is added and only valid attributes are included.
-        """
-        self.set_misp_event_uuid_attribute(story)
-        return self._process_items(story, "attributes", self._process_attribute)
-
-    @staticmethod
-    def _process_items(story: dict, key: str, processor: Callable) -> list:
-        """
-        Process items from the story, handling both dict and list formats.
-        """
-        data = story.get(key, {})
-        items_list = []
-
-        if isinstance(data, dict):
-            for k, v in data.items():
-                processed = processor(k, v)
-                if processed is not None:
-                    items_list.append(processed)
-        elif isinstance(data, list):
-            for item in data:
-                processed = processor(item)
-                if processed is not None:
-                    items_list.append(processed)
-        else:
-            logger.warning(f"Unexpected data format for '{key}': {type(data)}")
-
-        return items_list
-
-    @staticmethod
-    def _process_attribute(key: str, value_dict: dict) -> str | None:
-        """
-        Process a single attribute from key and value_dict.
-        """
-        if not isinstance(value_dict, dict):
-            logger.warning(f"Skipping attribute with invalid value: {key} -> {value_dict}")
-            return None
-
-        value = value_dict.get("value")
-        if value is not None:
-            attribute_value = f"{{'key': '{key}', 'value': '{value}'}}"
-            logger.debug(f"Adding attribute: {attribute_value}")
-            return attribute_value
-        else:
-            logger.warning(f"Skipping attribute with missing value: {key}")
-            return None
-
-    @staticmethod
-    def _process_link(link_item: dict) -> str | None:
-        """
-        Process a single link dict into its string representation.
-        """
-        link = link_item.get("link", "")
-        news_item_id = link_item.get("news_item_id", "")
-        if link and news_item_id:
-            link_value = f"{{'link': '{link}', 'news_item_id': '{news_item_id}'}}"
-            logger.debug(f"Adding link: {link_value}")
-            return link_value
-        else:
-            logger.warning(f"Skipping link with missing data: {link_item}")
-            return None
-
-    @staticmethod
-    def _process_tags(name: str, tag_dict: dict) -> str | None:
-        """
-        Process a single tag from key and value_dict.
-        """
-        if not isinstance(tag_dict, dict):
-            logger.warning(f"Skipping tag with invalid value: {name} -> {tag_dict}")
-            return None
-
-        tag_type = tag_dict.get("tag_type", "misc")
-        tag_json = json.dumps({"name": name, "tag_type": tag_type})
-        logger.debug(f"Adding tag: {tag_json}")
-        return tag_json
-
-    def create_misp_event(self, story: dict) -> MISPEvent:
-        """
-        Create a MISPEvent from the 'story' dictionary.
-        """
-        event = MISPEvent()
-        event.uuid = story.get("id", "")
-        event.info = story.get("title", "")
-        event.threat_level_id = 4
-        event.analysis = 0
-        if self.sharing_group_id:
-            event.sharing_group_id = self.sharing_group_id
-        if self.distribution:
-            event.distribution = self.distribution
-
-        self.add_event_attributes(story, event)
-        return event
 
     def create_event_report_content(self, story) -> str:
         return "# Story description\n" + story.get("description") + "\n\n" + "# Story comment\n" + story.get("comments")
@@ -285,13 +115,16 @@ class MISPConnector:
             logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
             return None
 
-    def add_event_attributes(self, story: dict, event: MISPEvent) -> None:
+    def add_story_properties_to_event(self, story: dict, event: MISPEvent) -> None:
         if news_items := story.pop("news_items", None):
             self.add_news_item_objects(news_items, event)
-        self.add_story_object(story, event)
+        base_misp_builder.add_story_object(story, event)
 
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
-        event = self.create_misp_event(story)
+        event = MISPEvent()
+        base_misp_builder.init_misp_event(event, story, self.sharing_group_id, self.distribution)
+        self.add_story_properties_to_event(story, event)
+
         # Create a new report without reusing any UUID.
         new_report = self.create_event_report(story)
         event.EventReport = [new_report]
@@ -466,7 +299,7 @@ class MISPConnector:
             h = ni.get("hash")
             if not h or h not in hashes_to_add:
                 continue
-            data = self.get_news_item_object_dict()
+            data = base_misp_builder.get_news_item_object_dict_empty()
             data.update({k: ni[k] for k in data if k in ni})
             base_obj = BaseMispObject(
                 parameters=data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
@@ -655,15 +488,18 @@ class MISPConnector:
         logger.debug(f"Proposed attributes (shadow attributes): {shadow_attributes=}")
         return shadow_attributes
 
-    def _create_event(self, story_prepared, misp_event_uuid, existing_event):
-        result = self.create_misp_event(story_prepared)
-        result.uuid = misp_event_uuid
+    def _create_event(self, story_prepared, misp_event_uuid, existing_event) -> MISPEvent:
+        event = MISPEvent()
+        base_misp_builder.init_misp_event(event, story_prepared, self.sharing_group_id, self.distribution)
+        self.add_story_properties_to_event(story_prepared, event)
+
+        event.uuid = misp_event_uuid
         existing_report_uuid = None
         if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
             existing_report_uuid = existing_event.EventReport[0].uuid
         new_report = self.create_event_report(story_prepared, existing_report_uuid)
-        result.EventReport = [new_report]
-        return result
+        event.EventReport = [new_report]
+        return event
 
     def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | list[MISPShadowAttribute] | None:
         """
@@ -734,71 +570,3 @@ class MISPConnector:
             "news_items": news_item_changes,
         }
         self.core_api.api_post("/connectors/last-change", payload)
-
-
-def sending():
-    connector = MISPConnector()
-    connector_config = {
-        "description": "",
-        "icon": None,
-        "id": "b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28",
-        "last_attempted": None,
-        "last_collected": None,
-        "last_error_message": None,
-        "name": "https",
-        "parameters": {
-            "ADDITIONAL_HEADERS": "",
-            # "API_KEY": "bXSZEtpNQL6somSCz08x3IzEnDx1bkM6wwZRd0uZ", # org original
-            # test@test.com
-            "API_KEY": "Q3XI3zQaTQN35Qrx3wvG1iUoQqzwb8m0cd2XcOzK",  # org another one
-            "PROXY_SERVER": "",
-            "REFRESH_INTERVAL": "",
-            "URL": "https://localhost",
-            "USER_AGENT": "",
-            "SHARING_GROUP_ID": "1",
-            "DISTRIBUTION": "",
-        },
-        "state": -1,
-        "type": "misp_connector",
-    }
-    stories = [
-        {
-            "comments": "",
-            "created": "2024-12-10T07:15:00+01:00",
-            "description": 'Adventkalender\nTürchen Nr. 10: Eine kleine Hommage an den Notruf\nDie Weihnachtszeit ist da. Sehen Sie sich täglich das neue Türchen unseres Adventkalenders an und lassen Sie sich von der friedlichen Adventsstimmung verzaubern.\nEine Polizistin und ein Polizist halten Kekse hoch. Sie lächeln, als sie die Zahlen "1-3-3" erkennen – eine kleine Hommage an den Notruf. Die Stimmung und der Duft des frisch gebackenen Gebäcks verbreiteten eine Weihnachtsstimmung. Sie freuen sich auf die besinnliche Zeit, die Momente der Ruhe und des Zusammenhalts inmitten des hektischen Alltags.\nVerfolgen Sie den Adventkalender des Innenministeriums auch auf Facebook und\nInstagram unter "Weiterführende Links".',
-            "dislikes": 0,
-            "id": "13a3781b-9068-4ae9-a2fa-9da44e4fb230",
-            "important": False,
-            "likes": 0,
-            "links": [],
-            "news_items": [
-                {
-                    "author": "Aktuelles aus dem BM.I",
-                    "collected": "2024-12-10T15:37:01.752976+01:00",
-                    "content": 'Adventkalender\nTürchen Nr. 10: Eine kleine Hommage an den Notruf\nDie Weihnachtszeit ist da. Sehen Sie sich täglich das neue Türchen unseres Adventkalenders an und lassen Sie sich von der friedlichen Adventsstimmung verzaubern.\nEine Polizistin und ein Polizist halten Kekse hoch. Sie lächeln, als sie die Zahlen "1-3-3" erkennen – eine kleine Hommage an den Notruf. Die Stimmung und der Duft des frisch gebackenen Gebäcks verbreiteten eine Weihnachtsstimmung. Sie freuen sich auf die besinnliche Zeit, die Momente der Ruhe und des Zusammenhalts inmitten des hektischen Alltags.\nVerfolgen Sie den Adventkalender des Innenministeriums auch auf Facebook und\nInstagram unter "Weiterführende Links".',
-                    "hash": "be225cdb83c8ab06528af22eabfc28942e272e54694d5f9f5b18ea80993fa580",
-                    "id": "335d2d0d-e824-443d-ba8a-68e787b4b3b0",
-                    "language": "",
-                    "link": "https://www.bmi.gv.at/news.aspx?id=4D737532623078435875493D",
-                    "osint_source_id": "9b243209-19ad-4f90-9a7f-b6e957c867c1",
-                    "published": "2024-12-10T07:15:00+01:00",
-                    "review": "",
-                    "source": "https://www.bmi.gv.at/rss/bmi_presse.xml",
-                    "story_id": "13a3781b-9068-4ae9-a2fa-9da44e4fb230",
-                    "title": "Türchen Nr. 10: Eine kleine Hommage an den Notruf",
-                    "updated": "2024-12-10T15:37:01.173551+01:00",
-                }
-            ],
-            "read": False,
-            "relevance": 0,
-            "summary": "",
-            "tags": {},
-            "title": "Türchen Nr. 10: Eine kleine Hommage an den Notruf",
-            "updated": "2024-12-10T15:37:46.641183+01:00",
-        }
-    ]
-    connector.execute(connector_config, stories)
-
-
-if __name__ == "__main__":
-    sending()

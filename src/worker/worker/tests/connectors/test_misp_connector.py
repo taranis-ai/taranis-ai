@@ -1,9 +1,9 @@
 import pytest
 import json
-import worker.connectors as connectors
-from worker.connectors.misp_connector import MISPConnector
+from worker.connectors.misp_connector import MispConnector
 
 from worker.connectors import connector_tasks
+from worker.connectors import base_misp_builder
 from worker.config import Config
 
 
@@ -29,7 +29,7 @@ def core_mock(requests_mock, stories):
 
 def test_news_item_object_keys_completeness(news_item_template):
     """Test that the object data keys match the template keys"""
-    object_data = connectors.MISPConnector.get_news_item_object_dict()
+    object_data = base_misp_builder.get_news_item_object_dict_empty()
 
     template_keys = set(news_item_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
@@ -44,7 +44,7 @@ def test_news_item_object_keys_completeness(news_item_template):
 
 def test_story_object_completion(story_template):
     """Test that the object data keys match the template keys"""
-    object_data = connectors.MISPConnector.get_story_object_dict()
+    object_data = base_misp_builder.get_story_object_dict_empty()
 
     template_keys = set(story_template["attributes"].keys())
     object_data_keys = set(object_data.keys())
@@ -112,18 +112,13 @@ def test_drop_utf16_surrogates_edge_cases():
     # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
 
 
-def test_connector_story_processing(core_mock, caplog):
+def test_connector_story_processing(core_mock, connector_task, caplog):
     import logging
 
     # Set the logging level to ERROR to capture only error logs and fail properly
     caplog.set_level(logging.ERROR, logger="root")
 
-    from worker.connectors.connector_tasks import ConnectorTask
-
-    connector = ConnectorTask()
-
-    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
-
+    result = connector_task.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
 
@@ -131,30 +126,30 @@ def test_connector_story_processing(core_mock, caplog):
 
 
 def test_valid_distribution():
-    connector = MISPConnector()
+    connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "2"})
     assert connector.distribution == 2
 
 
 def test_empty_distribution_with_sharing_group():
-    connector = MISPConnector()
+    connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1", "DISTRIBUTION": ""})
     assert connector.distribution == 4
 
 
 def test_empty_distribution_no_sharing_group():
-    connector = MISPConnector()
+    connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": ""})
     assert connector.distribution == 0
 
 
 def test_invalid_distribution_string():
-    connector = MISPConnector()
+    connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "abc"})
     assert connector.distribution == 0
 
 
 def test_distribution_not_provided():
-    connector = MISPConnector()
+    connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
     assert connector.distribution == 4

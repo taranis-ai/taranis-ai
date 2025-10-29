@@ -46,3 +46,10 @@ def story_template():
 def story_get_by_id_mock(requests_mock, stories):
     # stories_json = json.dumps(stories[10])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=11", json=[stories[10]])
+
+
+@pytest.fixture
+def connector_task():
+    from worker.connectors.connector_tasks import ConnectorTask
+
+    return ConnectorTask()

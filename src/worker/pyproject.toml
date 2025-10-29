@@ -36,6 +36,7 @@ dependencies = [
     # Presenters
     "weasyprint",
     "jinja2",
+    "misp-stix",
     # Connectors
     "pymisp",
     # Bots

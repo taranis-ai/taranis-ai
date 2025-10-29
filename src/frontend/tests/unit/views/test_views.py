@@ -45,9 +45,12 @@ class TestAdminViews:
 
 @pytest.mark.parametrize("view_name,view_cls", CRUD_ITEMS, ids=CRUD_IDS)
 class TestCRUDViews:
-    def test_create_form_renders(self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client):
+    def test_create_form_renders(
+        self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client, mock_core_get_endpoints
+    ):
         # GET the edit form for item_id
         item_id = "0"
+        # from pdb import set_trace; set_trace()
         key = view_cls._get_object_key()
         url = view_cls.get_edit_route(**{key: item_id})
         resp = authenticated_client.get(url)

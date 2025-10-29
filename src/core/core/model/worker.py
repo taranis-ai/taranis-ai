@@ -40,6 +40,7 @@ class PRESENTER_TYPES(StrEnum):
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
+    STIX_PRESENTER = auto()
 
 
 class PUBLISHER_TYPES(StrEnum):
@@ -73,6 +74,7 @@ class WORKER_TYPES(StrEnum):
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
+    STIX_PRESENTER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
@@ -104,13 +106,14 @@ class Worker(BaseModel):
     category: Mapped[WORKER_CATEGORY] = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
     parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
-    def __init__(self, name, description, type, parameters):
+    def __init__(self, name, description, type, parameters=None):
         self.id = str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
         self.category = type.split("_")[-1]
-        self.parameters = ParameterValue.get_or_create_from_list(parameters)
+        if parameters:
+            self.parameters = ParameterValue.get_or_create_from_list(parameters)
 
     @classmethod
     def add(cls, data) -> tuple[dict[str, str], int]:

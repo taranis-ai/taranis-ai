@@ -117,8 +117,19 @@
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
-            <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
-
+            <span
+              v-if="renderedProductMimeType === 'text/html'"
+              v-dompurify-html="renderedProduct"
+            ></span>
+            <pre
+              v-else-if="
+                renderedProductMimeType === 'application/json' ||
+                renderedProductMimeType === 'application/stix+json'
+              "
+              class="json-render"
+              data-testid="json-render"
+              >{{ renderedProduct }}
+            </pre>
             <object
               v-else-if="renderedProductMimeType === 'application/pdf'"
               class="pdf-container"
@@ -290,7 +301,8 @@ export default {
     const render_html = computed(() => {
       return (
         renderedProductMimeType.value === 'text/html' ||
-        renderedProductMimeType.value === 'application/json'
+        renderedProductMimeType.value === 'application/json' ||
+        renderedProductMimeType.value === 'application/stix+json'
       )
     })
 
@@ -358,6 +370,7 @@ export default {
       const mimeToExtension = {
         'text/html': 'html',
         'application/json': 'json',
+        'application/stix+json': 'stix.json',
         'text/plain': 'txt',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
           'docx',
@@ -524,6 +537,15 @@ export default {
 <style scoped>
 .pdf-container {
   height: 80vh !important;
+}
+
+.json-render {
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 
 .unsupported-format-warning {
