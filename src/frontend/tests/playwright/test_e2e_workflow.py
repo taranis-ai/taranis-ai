@@ -27,6 +27,15 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="login")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
+    def test_instance_setup(self, taranis_frontend: Page):
+        page = taranis_frontend
+        self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+        page.pause()
+        self.highlight_element(page.get_by_role("heading", name="No stories found."))
+        self.highlight_element(page.get_by_role("link", name="Administration")).click()
+        self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
+        self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
+
     def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
         #        Test definitions
         # ===============================
