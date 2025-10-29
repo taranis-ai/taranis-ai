@@ -36,23 +36,13 @@ class Scheduler:
             logger.error("Task missing ID, cannot schedule")
             return False
 
-        # Extract cron schedule from APScheduler trigger
-        cron_expr = None
-        if "jobs_params" in task and "trigger" in task["jobs_params"]:
-            trigger = task["jobs_params"]["trigger"]
-            if hasattr(trigger, 'fields'):
-                # Convert APScheduler CronTrigger to cron expression
-                fields = trigger.fields
-                cron_expr = f"{fields[5].expressions[0]} {fields[2].expressions[0]} {fields[3].expressions[0]} {fields[4].expressions[0]} {fields[6].expressions[0]}"
+        cron_expr = task.get("cron")
+        if not cron_expr:
+            logger.error(f"Task {task_id} missing cron expression, cannot schedule")
+            return False
 
-        # For OSINT source tasks, extract flow name from celery config
-        flow_name = "collector-task-flow"  # Default for collector tasks
-        if "celery" in task:
-            celery_name = task["celery"].get("name", "")
-            if "collector" in celery_name:
-                flow_name = "collector-task-flow"
-            elif "bot" in celery_name:
-                flow_name = "bot-task-flow"
+        flow_name = task.get("flow_name", "collector-task-flow")
+        parameters = task.get("parameters", {})
 
         # Store the task for Prefect scheduling
         prefect_task = {
@@ -60,16 +50,16 @@ class Scheduler:
             "name": task.get("name", task_id),
             "flow_name": flow_name,
             "cron": cron_expr,
-            "args": task.get("celery", {}).get("args", []),
-            "enabled": True
+            "parameters": parameters,
+            "enabled": True,
         }
 
         self._scheduled_tasks[task_id] = prefect_task
 
         # For now, we don't create actual Prefect schedules - just store the task info
         # In a full implementation, this would create a Prefect deployment with a schedule
-        return True
         logger.info(f"Prefect task '{task_id}' scheduled with cron: {cron_expr}")
+        return True
 
     @property
     def scheduler(self):
@@ -118,7 +108,7 @@ class Scheduler:
         if not task:
             return {}
 
-        cron_expr = task.get("cron", None)
+        cron_expr = task.get("cron")
         return {
             "id": task["id"],
             "trigger": "cron" if cron_expr else "unknown",
