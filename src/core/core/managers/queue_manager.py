@@ -365,10 +365,12 @@ class QueueManager:
                     timeout=0,
                 ),
             )
-            logger.info(f"[bot_task] Scheduled bot {bot_id} (flow_run={flow_run.id})")
+            task_id = f"bot_task_{bot_id}"
+            logger.info(f"[bot_task] Scheduled bot {bot_id} (flow_run={flow_run.id}, task_id={task_id})")
             return {
                 "message": f"Executing Bot {bot_id} scheduled",
-                "result": str(flow_run.id),
+                "flow_run_id": str(flow_run.id),
+                "task_id": task_id,
                 "id": bot_id,
             }, 202
         except Exception as e:
