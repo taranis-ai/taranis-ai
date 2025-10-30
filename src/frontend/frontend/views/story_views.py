@@ -319,6 +319,9 @@ class StoryView(BaseView):
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
+            sources = list(cls._get_filter_lists().sources)
+            source_dict = {source.id: source for source in sources if source.id}
+            cls._enhance_story_with_details(story, source_dict)
         else:
             context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
@@ -471,9 +474,7 @@ class StoryView(BaseView):
     @auth_required()
     def patch_story(cls, story_id: str):
         try:
-            logger.debug(f"Raw form data for story update: {request.form}")
             form_data = parse_formdata(request.form)
-            logger.debug(f"Parsed form data for story update: {form_data}")
             story_update = StoryUpdatePayload(**form_data)
             logger.debug(f"Validated story update payload: {story_update.model_dump(mode='json')}")
         except ValidationError as exc:

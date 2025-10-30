@@ -126,7 +126,6 @@ class ReportItemView(BaseView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
-            logger.debug(f"raw form data: {request.form}")
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
