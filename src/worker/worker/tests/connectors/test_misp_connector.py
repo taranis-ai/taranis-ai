@@ -1,8 +1,7 @@
 import pytest
 import json
 import worker.connectors as connectors
-
-from worker.connectors import connector_tasks
+from worker.flows.connector_task_flow import drop_utf16_surrogates
 from worker.config import Config
 
 
@@ -57,71 +56,68 @@ def test_story_object_completion(story_template):
 
 
 def test_story_utf8_decoding_mock(story_get_by_id_mock):
-    """Test that the object data keys match the template keys"""
-
-    connector = connector_tasks.ConnectorTask()
-    surrogate_story = connector.get_story_by_id(["11"])[0]
-    print(f"{surrogate_story=}")
+    """Test that UTF-16 surrogates are properly cleaned from story data"""
+    from worker.core_api import CoreApi
+    
+    core_api = CoreApi()
+    stories_raw = core_api.get_stories({"story_id": "11"})
+    
+    # Apply the same cleaning as connector_task_flow
+    story_json = json.dumps(stories_raw)
+    cleaned_json = drop_utf16_surrogates(story_json)
+    cleaned_stories = json.loads(cleaned_json)
+    
+    surrogate_story = cleaned_stories[0]
     assert surrogate_story["summary"] == "Following some utf 16 chars  and  and "
     assert surrogate_story["news_items"][0]["content"] == "Following some utf 16 chars "
 
 
 def test_story_utf8_decoding(stories):
-    """Test that the object data keys match the template keys"""
+    """Test that UTF-16 surrogates are dropped from story JSON"""
     story_json = json.dumps(stories)
-    cleaned_json_str = connector_tasks.ConnectorTask().drop_utf16_surrogates(story_json)
+    cleaned_json_str = drop_utf16_surrogates(story_json)
     result = json.loads(cleaned_json_str)
-    cleand_story = result[10]
-    assert cleand_story["summary"] == "Following some utf 16 chars  and  and "
+    cleaned_story = result[10]
+    assert cleaned_story["summary"] == "Following some utf 16 chars  and  and "
 
 
 def test_drop_utf16_surrogates_edge_cases():
     """Test drop_utf16_surrogates for various edge cases."""
-    task = connector_tasks.ConnectorTask()
 
-    # TODO: Fix commented edge cases
-    # # 1. Inputs triggering a UnicodeDecodeError should return the original string.
-    # # The invalid surrogate below might trigger a UnicodeDecodeError in some implementations.
-    # input_invalid = 'Invalid surrogate: \udcff'
-    # cleaned_invalid = task.drop_utf16_surrogates(input_invalid)
-    # assert cleaned_invalid == input_invalid, "Original string not returned on UnicodeDecodeError"
-
-    # 2. Strings containing \n, \t, and " should be preserved.
+    # Strings containing \n, \t, and " should be preserved.
     input_special = 'Line1\nLine2\t"Quoted text"'
-    cleaned_special = task.drop_utf16_surrogates(input_special)
-    print(f"cleaned_special: {cleaned_special}")
+    cleaned_special = drop_utf16_surrogates(input_special)
     assert cleaned_special == input_special, 'Special characters (\\n, \\t, ") modified incorrectly'
 
-    # 3. An empty string should be returned as an empty string.
+    # An empty string should be returned as an empty string.
     input_empty = ""
-    cleaned_empty = task.drop_utf16_surrogates(input_empty)
-    print(f"cleaned_empty: {cleaned_empty}")
+    cleaned_empty = drop_utf16_surrogates(input_empty)
     assert cleaned_empty == "", "Empty string not handled correctly"
 
-    # 4. A pure ASCII string remains unaltered.
+    # A pure ASCII string remains unaltered.
     input_ascii = "This is a simple ASCII string."
-    cleaned_ascii = task.drop_utf16_surrogates(input_ascii)
-    print(f"cleaned_ascii: {cleaned_ascii}")
+    cleaned_ascii = drop_utf16_surrogates(input_ascii)
     assert cleaned_ascii == input_ascii, "ASCII string altered unexpectedly"
-
-    # # 5. Valid non-BMP characters (emojis) should not be modified.
-    # input_emoji = 'I love 🍕 and 😄!'
-    # cleaned_emoji = task.drop_utf16_surrogates(input_emoji)
-    # print(f"cleaned_emoji: {cleaned_emoji}")
-    # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
 
 
 def test_connector_story_processing(core_mock, caplog):
+    """Test MISP connector processing with mocked Core API (adapted for Prefect flows)"""
     import logging
 
     # Set the logging level to ERROR to capture only error logs and fail properly
     caplog.set_level(logging.ERROR, logger="root")
 
-    from worker.connectors.connector_tasks import ConnectorTask
+    from worker.flows.connector_task_flow import get_connector_config, get_connector_instance, get_stories_by_id, execute_connector
 
-    connector = ConnectorTask()
-
-    result = connector.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    # Get connector config and instance (mimics Prefect flow)
+    connector_config, connector_type = get_connector_config("74981521-4ba7-4216-b9ca-ebc00ffec29c")
+    connector = get_connector_instance(connector_type)
+    
+    # Get stories with UTF-16 surrogate cleaning
+    stories = get_stories_by_id(["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    
+    # Execute connector
+    result = execute_connector(connector, connector_config, stories)
 
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
