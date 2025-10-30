@@ -18,7 +18,7 @@ class SummaryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
+        self.bot_api.update_parameters(parameters=parameters)
 
         for story in data:
             news_items = story.get("news_items", [])

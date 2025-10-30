@@ -18,7 +18,7 @@ class SentimentAnalysisBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No stories found for sentiment analysis"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.SENTIMENT_ANALYSIS_API_ENDPOINT)
+        self.bot_api.update_parameters(parameters=parameters)
 
         logger.debug(f"Analyzing sentiment for {len(data)} news items")
 

@@ -20,7 +20,7 @@ class StoryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT)
+        self.bot_api.update_parameters(parameters=parameters)
 
         logger.info(f"Clustering {len(data)} news items")
         if response := self.bot_api.api_post("/", {"stories": data}):

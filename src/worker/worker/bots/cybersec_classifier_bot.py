@@ -18,7 +18,7 @@ class CyberSecClassifierBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT)
+        self.bot_api.update_parameters(parameters=parameters)
 
         num_news_items = 0
         for story in data:
