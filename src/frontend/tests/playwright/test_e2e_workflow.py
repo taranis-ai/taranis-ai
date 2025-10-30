@@ -115,7 +115,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Important")).select_option("false")
 
         def assess_workflow_1(non_important_story_ids):
-            page.pause()
             # Check summary and mark as read
             assert len(non_important_story_ids) == 28
 
