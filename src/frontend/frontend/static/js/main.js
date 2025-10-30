@@ -1,18 +1,18 @@
 function getCSRFToken() {
-    return document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("csrf_access_token="))
-            ?.split("=")[1];
+  return document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("csrf_access_token="))
+    ?.split("=")[1];
 }
 
 function getConfirmOptions(el, question) {
-  const title = el.getAttribute('data-confirm-title') || question;
+  const title = el.getAttribute("data-confirm-title") || question;
   return {
     title,
-    text:    title === question ? '' : question,
-    icon:    el.getAttribute('data-confirm-icon') || 'question',
-    confirmButtonText: el.getAttribute('data-confirm-confirm') || 'OK',
-    cancelButtonText:  el.getAttribute('data-confirm-cancel')  || 'Cancel'
+    text: title === question ? "" : question,
+    icon: el.getAttribute("data-confirm-icon") || "question",
+    confirmButtonText: el.getAttribute("data-confirm-confirm") || "OK",
+    cancelButtonText: el.getAttribute("data-confirm-cancel") || "Cancel",
   };
 }
 
@@ -20,31 +20,31 @@ function showConfirmDialog(opts) {
   return Swal.fire({ ...opts, showCancelButton: true });
 }
 
-document.body.addEventListener('htmx:confirm', function(evt) {
-  if (!evt.target.hasAttribute('hx-confirm')) {
+document.body.addEventListener("htmx:confirm", function (evt) {
+  if (!evt.target.hasAttribute("hx-confirm")) {
     return;
   }
 
-  if (evt.detail.elt.matches('[data-swal-confirm]')) {
+  if (evt.detail.elt.matches("[data-swal-confirm]")) {
     return;
   }
 
   evt.preventDefault();
   const opts = getConfirmOptions(evt.target, evt.detail.question);
-  showConfirmDialog(opts).then(r => {
+  showConfirmDialog(opts).then((r) => {
     if (r.isConfirmed) {
       evt.detail.issueRequest(true);
     }
   });
 });
 
-document.body.addEventListener('htmx:configRequest', function(evt) {
-    evt.detail.headers['X-CSRF-TOKEN'] = getCSRFToken(); // add CSRF to every request
+document.body.addEventListener("htmx:configRequest", function (evt) {
+  evt.detail.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
 });
 
 function initChoices(elementID, placeholder = "items", config = {}) {
   const select = document.getElementById(elementID);
-  if (!select || select.classList.contains('choices__input')) {
+  if (!select || select.classList.contains("choices__input")) {
     return;
   }
 

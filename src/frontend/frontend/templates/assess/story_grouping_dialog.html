@@ -1,4 +1,7 @@
-<dialog id="story_grouping_dialog" class="modal" x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
+<dialog id="story_grouping_dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()">
   {% set base_classes = "sortable-item card mb-3 border" %}
   {% set primary_classes = "border-primary ring-2 ring-primary/30 hover:ring-primary/50 hover:bg-primary/10" %}
   {% set secondary_classes = "border-dashed border-base-300 bg-base-100 hover:border-primary hover:shadow-lg" %}

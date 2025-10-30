@@ -120,16 +120,21 @@
                 <button type="button"
                         class="btn btn-sm btn-outline"
                         data-testid="remove-all-stories"
-                        onclick="document.querySelectorAll('input[name=\'stories[]\']').forEach(el => el.checked = false);">
+                        {{ form_action }}
+                        hx-vals='{"stories[]": [""]}'
+                        hx-target="#report"
+                        hx-target-error="#report">
                   Remove all
                 </button>
               </div>
             </header>
 
             {% if stories %}
-              <p class="text-sm text-base-content/70">Uncheck a story to remove it when saving the report.</p>
               <div class="space-y-3" data-testid="report-stories">
-                {% for story in stories %}{{ analyze_story_card(story, used_story_ids) }}{% endfor %}
+                {% for story in stories %}
+                  {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
+                  {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
+                {% endfor %}
               </div>
             {% else %}
               <div class="alert alert-info">No stories assigned to this report.</div>

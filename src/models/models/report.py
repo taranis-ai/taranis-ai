@@ -31,7 +31,7 @@ class ReportItem(TaranisBaseModel):
     user_id: int | None = None
     report_item_type_id: int | None = None
     report_item_type: str | None = None
-    stories: list[Story | str] = Field(default_factory=list)
+    stories: list[Story | str] | None = None
     grouped_attributes: list[ReportItemAttributeGroup] | None = None
     attributes: list[ReportItemAttribute] | dict[str, str] = Field(default_factory=list)
-    report_item_cpes: list[ReportItemCpe] = Field(default_factory=list)
+    report_item_cpes: list[ReportItemCpe] | None = None

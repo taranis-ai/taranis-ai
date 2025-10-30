@@ -53,6 +53,9 @@ class ReportItemView(BaseView):
         report_types = DataPersistenceLayer().get_objects(ReportItemType)
         base_context["report_types"] = report_types
         layout = request.args.get("layout", base_context.get("layout", "split"))
+        report = base_context.get("report")
+        if report and report.grouped_attributes:
+            base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
         base_context |= {
             "layout": layout,
@@ -60,18 +63,6 @@ class ReportItemView(BaseView):
         }
 
         return base_context
-
-    @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        context = super().get_item_context(object_id)
-        report = context.get("report")
-        if not report:
-            return context
-
-        if report.grouped_attributes:
-            context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
-
-        return context
 
     @classmethod
     def get_create_context(cls) -> dict[str, Any]:
@@ -135,6 +126,7 @@ class ReportItemView(BaseView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
+            logger.debug(f"raw form data: {request.form}")
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
