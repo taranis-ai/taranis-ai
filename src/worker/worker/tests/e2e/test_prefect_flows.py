@@ -150,7 +150,7 @@ class TestConnectorFlow:
         print(f"Initially pushed items: {len(initially_pushed)}")
 
         # Trigger connector flow
-        flow_run_id = api_client.trigger_connector_flow(connector_id=test_data.connector_id, story_ids=test_data.news_item_ids)
+        flow_run_id = api_client.trigger_connector_flow(connector_id=test_data.connector_id, story_ids=test_data.story_ids)
 
         # Wait for completion
         wait_for_flow_completion(api_client, flow_run_id, timeout=180)
@@ -206,7 +206,7 @@ class TestBotFlow:
         print(f"Initial total attributes: {initial_attributes}")
 
         # Trigger bot flow
-        flow_run_id = api_client.trigger_bot_flow(bot_id=test_data.bot_id, story_ids=test_data.news_item_ids)
+        flow_run_id = api_client.trigger_bot_flow(bot_id=test_data.bot_id, story_ids=test_data.story_ids)
 
         # Wait for completion
         wait_for_flow_completion(api_client, flow_run_id, timeout=180)
@@ -251,7 +251,7 @@ class TestFlowIntegration:
 
         # Step 1: Process news with bot
         print("Step 1: Processing news items with bot...")
-        bot_flow_id = api_client.trigger_bot_flow(bot_id=test_data.bot_id, story_ids=test_data.news_item_ids)
+        bot_flow_id = api_client.trigger_bot_flow(bot_id=test_data.bot_id, story_ids=test_data.story_ids)
         wait_for_flow_completion(api_client, bot_flow_id, timeout=180)
 
         # Step 2: Generate report from product
@@ -266,7 +266,7 @@ class TestFlowIntegration:
 
         # Step 4: Push news to external system
         print("Step 4: Pushing news to external system...")
-        connector_flow_id = api_client.trigger_connector_flow(connector_id=test_data.connector_id, story_ids=test_data.news_item_ids)
+        connector_flow_id = api_client.trigger_connector_flow(connector_id=test_data.connector_id, story_ids=test_data.story_ids)
         wait_for_flow_completion(api_client, connector_flow_id, timeout=180)
 
         # Verify end-to-end results
