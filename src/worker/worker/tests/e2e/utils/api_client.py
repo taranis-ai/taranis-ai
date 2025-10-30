@@ -29,7 +29,7 @@ def _join_url(base: str, path: str) -> str:
 @dataclass
 class TestData:
     """Container for test data IDs"""
-    __test__ = False  
+    __test__ = False
 
     product_type_id: Optional[str] = None
     product_id: Optional[str] = None
@@ -53,7 +53,7 @@ class TaranisAPIClient:
     def __init__(self, base_url: str = None, timeout: int = 30):
         if base_url is None:
             base_url = os.getenv("CORE_API_URL", "http://127.0.0.1:5000/api")
-            
+
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
@@ -124,7 +124,7 @@ class TaranisAPIClient:
 
         flows_list = []
         for d in deployments:
-            entrypoint = d.get("entrypoint", "")  
+            entrypoint = d.get("entrypoint", "")
             func = entrypoint.split(":")[-1] if ":" in entrypoint else ""
             if not func:
                 m = re.search(r'/flows/([a-zA-Z0-9_]+)', entrypoint)
@@ -135,8 +135,8 @@ class TaranisAPIClient:
 
             if flow_name:
                 flows_list.append({
-                    "name": flow_name,             
-                    "deployment": d.get("name"),     
+                    "name": flow_name,
+                    "deployment": d.get("name"),
                     "entrypoint": entrypoint,
                     "id": d.get("id"),
                 })
@@ -279,7 +279,7 @@ class TaranisAPIClient:
                 "osint_source_id": "manual",
                 "id": unique_string,
                 "attributes": []
-                
+
             }
             try:
 
@@ -288,17 +288,17 @@ class TaranisAPIClient:
                 if isinstance(response, dict):
                     returned_news_item_ids = response.get("news_item_ids", [])
                     story_id = response.get("story_id")
-                    
+
                     if returned_news_item_ids and len(returned_news_item_ids) > 0:
                         item_id = returned_news_item_ids[0]
                     else:
                         item_id = None
-                    
+
                     if story_id:
                         story_ids_set.add(str(story_id))
                 else:
                     item_id = None
-                    
+
                 if not item_id:
                     raise APIError(f"No news_item_ids returned when creating news item {i + 1}. Response: {response}")
                 news_item_ids.append(str(item_id))
@@ -398,28 +398,28 @@ def wait_for_flow_completion(api_client: TaranisAPIClient, flow_run_id: str, tim
     terminal_states = {"COMPLETED", "FAILED", "CANCELLED", "CRASHED"}
     start_time = time.time()
     last_state = None
-    
+
     print(f"Waiting for flow {flow_run_id} to complete (timeout: {timeout}s)")
     print(f"Polling Prefect API at: {url}")
-    
+
     while time.time() - start_time < timeout:
         try:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             data = response.json()
-            
+
             # Try different possible state field names in Prefect API
             state = (
                 (data.get("state") or {}).get("type") or
                 data.get("state_name") or
                 data.get("state")
             )
-            
+
             # Log state changes
             if state != last_state:
                 print(f"Flow {flow_run_id} state: {last_state} → {state}")
                 last_state = state
-            
+
             # Check terminal state
             if state in terminal_states:
                 if state == "COMPLETED":
@@ -429,9 +429,9 @@ def wait_for_flow_completion(api_client: TaranisAPIClient, flow_run_id: str, tim
 
         except requests.RequestException as e:
             print(f"⚠ Error polling Prefect API: {e}")
-        
+
         time.sleep(1.0)
-    
+
     # Timeout reached
     raise AssertionError(f"Timeout waiting for flow {flow_run_id} after {timeout}s (last state: {last_state})")
 
@@ -441,12 +441,12 @@ def create_test_data(api_client: TaranisAPIClient) -> TestData:
     print("Creating test data for Prefect E2E tests")
 
     data = TestData()
-    
+
     # Create entities in dependency order
     data.product_type_id = api_client.create_product_type()
     data.product_id = api_client.create_product(data.product_type_id)
-    
-    # Get first available presenter 
+
+    # Get first available presenter
     try:
         response = api_client._make_request("GET", "/config/presenters")
 
@@ -470,7 +470,7 @@ def create_test_data(api_client: TaranisAPIClient) -> TestData:
     except Exception as e:
         print(f" Could not get presenters: {e}")
         data.presenter_id = None
-    
+
     # Continue creating other test entities
     data.publisher_id = api_client.create_publisher()
     data.connector_id = api_client.create_connector()
