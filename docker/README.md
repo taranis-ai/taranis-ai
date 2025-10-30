@@ -128,6 +128,15 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `QUEUE_BROKER_PASSWORD` | RabbitMQ password                          | `supersecret`               |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
+
+### `frontend`
+
+| Environment variable    | Description                                | Default                     |
+| ----------------------- | ------------------------------------------ | --------------------------- |
+| `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
+| `DEBUG`                 | Debug logging                              | `False`                     |
+
+
 > [!NOTE]
 > ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
 >
