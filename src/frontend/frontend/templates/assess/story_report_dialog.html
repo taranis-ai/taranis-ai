@@ -1,7 +1,8 @@
 <dialog id="share_story_to_report_dialog"
         class="modal"
         x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
-        x-on:close="$el.remove()">
+        x-on:close="$el.remove()"
+        data-testid="share-story-to-report-dialog">
   <div class="modal-box">
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
@@ -10,7 +11,7 @@
     <form>
       <label class="select w-full mb-5">
         <span class="label">Report</span>
-        <select id="report" name="report" required class="validator select w-full">
+        <select id="report" name="report" required class="validator select w-full" data-testid="select-report-input">
           <option selected disabled>Add Stories to report</option>
           {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}</option>{% endfor %}
         </select>
@@ -21,11 +22,12 @@
                 class="btn btn-outline btn-wide"
                 hx-post="{{ url_for('assess.submit_report_story') }}"
                 hx-target="{{ target | default('#assess') }}"
-                hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()">Share</button>
+                hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()"
+                data-testid="share-to-report-dialog-button">Share</button>
         <a type="button"
            class="btn btn-outline btn-wide"
-           href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}">New Report
-        </a>
+           href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}"
+           data-testid="new-report-button-dialog">New Report</a>
       </div>
     </form>
   </div>

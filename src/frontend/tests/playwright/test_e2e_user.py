@@ -14,7 +14,6 @@ class TestEndToEndUser(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI user interface."""
 
     def test_login(self, taranis_frontend: Page):
-        # self.ci_run = True
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
@@ -30,14 +29,12 @@ class TestEndToEndUser(PlaywrightHelpers):
         expect(page.locator("#dashboard")).to_be_visible()
 
     def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
-        # self.ci_run = True
         page = logged_in_page
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
 
     def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        # self.ci_run = True
         page = logged_in_page
 
         def go_to_assess():

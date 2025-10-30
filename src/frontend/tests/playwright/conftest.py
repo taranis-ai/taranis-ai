@@ -296,9 +296,11 @@ def stories_date_descending(run_core, stories, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
 
     story_ids = []
-    s = requests.get(f"{run_core}/assess", headers=headers).json()
-    for story in s:
+    s = requests.get(f"{run_core}/assess/stories", headers=headers).json()
+    for story in s.get("items", []):
         story_ids.append(story.get("id"))
+
+    assert len(story_ids) > 0, "No stories found for stories_date_descending fixture"
 
     yield story_ids
 
