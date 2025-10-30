@@ -81,8 +81,7 @@ export default {
           'cybersec_classifier_bot',
           props.storyProp.id
         )
-        notifySuccess(result.data.message)
-        await fetchStoryData(props.storyProp.id)
+        notifySuccess(result.data.message + ' - Refresh the page to see results after bot completes.')
       } catch (e) {
         notifyFailure(e)
       }

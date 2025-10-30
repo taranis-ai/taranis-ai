@@ -356,7 +356,7 @@ export default {
     async function triggerSummaryBot() {
       try {
         const result = await triggerBot('summary_bot', props.storyProp.id)
-        notifySuccess(result.data.message)
+        notifySuccess(result.data.message + ' - Refresh the page to see results after bot completes.')
       } catch (e) {
         notifyFailure(e)
       }
@@ -379,8 +379,7 @@ export default {
           'sentiment_analysis_bot',
           props.storyProp.id
         )
-        notifySuccess(result.data.message)
-        await fetchStoryData()
+        notifySuccess(result.data.message + ' - Refresh the page to see results after bot completes.')
       } catch (e) {
         notifyFailure(e)
       }
@@ -392,8 +391,7 @@ export default {
           'cybersec_classifier_bot',
           props.storyProp.id
         )
-        notifySuccess(result.data.message)
-        await fetchStoryData()
+        notifySuccess(result.data.message + ' - Refresh the page to see results after bot completes.')
       } catch (e) {
         notifyFailure(e)
       }
