@@ -20,7 +20,7 @@ class NLPBot(BaseBot):
         update_result = {}
 
         if not parameters:
-            parameters = {}
+            parameters = {"BOT_ENDPOINT": Config.NLP_API_ENDPOINT}
         if stories := self.get_stories(parameters):
             self.bot_api.update_parameters(parameters=parameters)
             for story_batch in batched(stories):

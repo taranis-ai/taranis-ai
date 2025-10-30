@@ -35,7 +35,7 @@ def test_nlp_bot(story_get_mock, tags_update_mock, ner_bot_mock):
     import worker.bots as bots
 
     nlp_bot = bots.NLPBot()
-    ner_bot_result = nlp_bot.execute(parameters={"BOT_ENDPOINT": Config.NLP_API_ENDPOINT})
+    ner_bot_result = nlp_bot.execute()
 
     assert story_get_mock.call_count == 1
     assert tags_update_mock.call_count == 2
@@ -59,7 +59,7 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     # threshold 0.65 -> all news items classified as no
     cybersec_class_bot = bots.CyberSecClassifierBot()
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.65
-    result_msg = cybersec_class_bot.execute(parameters={"BOT_ENDPOINT": Config.CYBERSEC_CLASSIFIER_API_ENDPOINT})
+    result_msg = cybersec_class_bot.execute()
     assert result_msg == {"message": f"Classified {num_news_items} news items"}
     assert story_get_mock.call_count == 1
     assert news_item_attribute_update_mock.call_count == num_news_items
@@ -71,7 +71,7 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
 
     # threshold 0.5 -> all news items classified as yes
     Config.CYBERSEC_CLASSIFIER_THRESHOLD = 0.5
-    _ = cybersec_class_bot.execute(parameters={"BOT_ENDPOINT": Config.CYBERSEC_CLASSIFIER_API_ENDPOINT})
+    _ = cybersec_class_bot.execute()
     request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][
         num_stories : 2 * num_stories
     ]
@@ -84,7 +84,7 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
         json={"error": f"{Config.CYBERSEC_CLASSIFIER_API_ENDPOINT} not reachable"},
         status_code=404,
     )
-    result_msg = cybersec_class_bot.execute(parameters={"BOT_ENDPOINT": Config.CYBERSEC_CLASSIFIER_API_ENDPOINT})
+    result_msg = cybersec_class_bot.execute()
 
     assert result_msg == {"message": "Classified 0 news items"}
     request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][2 * num_stories :]

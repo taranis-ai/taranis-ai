@@ -13,7 +13,7 @@ class CyberSecClassifierBot(BaseBot):
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
-            parameters = {}
+            parameters = {"BOT_ENDPOINT": Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}
 
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}

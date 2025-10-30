@@ -16,7 +16,7 @@ class StoryBot(BaseBot):
 
     def execute(self, parameters: dict | None = None):
         if not parameters:
-            parameters = {}
+            parameters = {"BOT_ENDPOINT": Config.STORY_API_ENDPOINT}
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
