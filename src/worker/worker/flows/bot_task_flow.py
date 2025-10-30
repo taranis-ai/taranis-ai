@@ -6,17 +6,35 @@ import worker.bots
 
 
 @task
+def store_task_result(bot_id: str, result: dict, status: str = "SUCCESS"):
+    """Store bot task result in the Task table via Core API"""
+    core_api = CoreApi()
+    task_id = f"bot_task_{bot_id}"
+
+    task_data = {
+        "task_id": task_id,
+        "status": status,
+        "result": result,
+        "task": f"bot_task_{bot_id}",
+    }
+
+    logger.info(f"[bot_task] Storing result for task {task_id}: {result}")
+    core_api.store_task_result(task_data)
+
+    # Trigger SSE event to notify frontend that news items have been updated
+    core_api.trigger_sse_news_items_updated()
+
+
+@task
 def get_bot_config(bot_id: int):
     """Get bot configuration from CoreApi"""
     logger.info(f"[bot_task] Getting bot config for {bot_id}")
 
     core_api = CoreApi()
-    bot_config = core_api.get_bot_config(bot_id)
-
-    if not bot_config:
+    if bot_config := core_api.get_bot_config(bot_id):
+        return bot_config
+    else:
         raise ValueError(f"Bot with id {bot_id} not found")
-
-    return bot_config
 
 
 @task

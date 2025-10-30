@@ -245,3 +245,12 @@ class CoreApi:
             return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         except Exception as e:
             raise e
+
+    def trigger_sse_news_items_updated(self) -> bool:
+        """Trigger SSE event to notify frontend that news items have been updated"""
+        try:
+            response = self.api_post(url="/worker/sse/news-items-updated", json_data={})
+            return response.get("success", False) if response else False
+        except Exception:
+            logger.exception("Cannot trigger SSE news items updated event")
+            return False

@@ -230,6 +230,14 @@ class Connectors(MethodView):
         return {"error": f"Connector with id {connector_id} not found"}, 404
 
 
+class SSENewsItemsUpdated(MethodView):
+    @api_key_required
+    def post(self):
+        """Endpoint for workers to trigger SSE news items updated event"""
+        sse_manager.news_items_updated()
+        return {"success": True}, 200
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
@@ -249,5 +257,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/stories/misp", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+    worker_bp.add_url_rule("/sse/news-items-updated", view_func=SSENewsItemsUpdated.as_view("sse_news_items_updated"))
 
     app.register_blueprint(worker_bp)
