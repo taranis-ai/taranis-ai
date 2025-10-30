@@ -38,10 +38,13 @@ class TestData:
     connector_id: Optional[str] = None
     bot_id: Optional[str] = None
     news_item_ids: List[str] = None
+    story_ids: List[str] = None
 
     def __post_init__(self):
         if self.news_item_ids is None:
             self.news_item_ids = []
+        if self.story_ids is None:
+            self.story_ids = []
 
 
 class TaranisAPIClient:
@@ -245,19 +248,27 @@ class TaranisAPIClient:
         print(f"Created Bot: {bot_id}")
         return str(bot_id)
 
-    def create_news_items(self, count: int = 3) -> List[str]:
-        """Create news items for testing"""
-        ids = []
+    def create_news_items(self, count: int = 3) -> tuple[List[str], List[str]]:
+        """
+        Create news items for testing
+        Returns: (news_item_ids, story_ids)
+        """
+        news_item_ids = []
+        story_ids_set = set()  # Use set to avoid duplicates since multiple items might go to same story
 
         for i in range(count):
             import hashlib
-            unique_string = f"test-news-{i+1}-{int(time.time())}"
+            import random
+            # Make each news item truly unique by adding timestamp and random component
+            timestamp_ms = time.time_ns()  # Use nanoseconds for higher resolution
+            random_suffix = random.randint(10000, 99999)
+            unique_string = f"test-news-{i+1}-{timestamp_ms}-{random_suffix}"
             hash_value = hashlib.sha256(unique_string.encode()).hexdigest()
 
             item = {
-                "title": f"E2E Test News Item {i + 1}",
-                "content": f"This is test news content #{i + 1} for Prefect E2E testing.",
-                "link":      f"https://example.com/test-news-{i+1}",
+                "title": f"E2E Test News Item {i + 1} - {timestamp_ms}",
+                "content": f"This is test news content #{i + 1} for Prefect E2E testing. Unique ID: {unique_string}",
+                "link":      f"https://example.com/test-news-{i+1}-{timestamp_ms}",
                 "source": "e2e-test-source",
                 "author": "E2E Test Author",
                 "published": "2024-01-01T12:00:00.000Z",
@@ -266,21 +277,39 @@ class TaranisAPIClient:
                 "language": "en",
                 "review": "Test review",
                 "osint_source_id": "manual",
-                "id": f"test-news-{i+1}-{int(time.time())}",
+                "id": unique_string,
                 "attributes": []
                 
             }
             try:
 
                 response = self._make_request("POST", "/assess/news-items", json=item)
-                item_id = response.get("id") if isinstance(response, dict) else None
-                ids.append(str(item_id) if item_id else f"fallback-{i}")
+                # API returns news_item_ids and story_id
+                if isinstance(response, dict):
+                    returned_news_item_ids = response.get("news_item_ids", [])
+                    story_id = response.get("story_id")
+                    
+                    if returned_news_item_ids and len(returned_news_item_ids) > 0:
+                        item_id = returned_news_item_ids[0]
+                    else:
+                        item_id = None
+                    
+                    if story_id:
+                        story_ids_set.add(str(story_id))
+                else:
+                    item_id = None
+                    
+                if not item_id:
+                    raise APIError(f"No news_item_ids returned when creating news item {i + 1}. Response: {response}")
+                news_item_ids.append(str(item_id))
             except APIError as e:
                 print(f"⚠ Failed to create news item {i + 1}: {e}")
-                ids.append(f"fallback-{i}")
+                raise
 
-        print(f"Created {len(ids)} News Items: {ids}")
-        return ids
+        story_ids = list(story_ids_set)
+        print(f"Created {len(news_item_ids)} News Items: {news_item_ids}")
+        print(f"Created {len(story_ids)} Stories: {story_ids}")
+        return news_item_ids, story_ids
 
     # Flow trigger methods
     def trigger_presenter_flow(self, product_id: str, presenter_id: str = None) -> str:
@@ -446,7 +475,7 @@ def create_test_data(api_client: TaranisAPIClient) -> TestData:
     data.publisher_id = api_client.create_publisher()
     data.connector_id = api_client.create_connector()
     data.bot_id = api_client.create_bot()
-    data.news_item_ids = api_client.create_news_items(count=3)
+    data.news_item_ids, data.story_ids = api_client.create_news_items(count=3)
 
     print(" Test data created successfully")
     return data
