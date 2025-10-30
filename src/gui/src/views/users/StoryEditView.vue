@@ -26,7 +26,7 @@ export default {
     const story = ref()
 
     onBeforeMount(async () => {
-      story.value = await assessStore.getStoryByID(props.storyId)
+      story.value = await assessStore.updateStoryByID(props.storyId)
     })
 
     return {
