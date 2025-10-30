@@ -53,6 +53,7 @@ dev = [
     "ruff",
     "pytest",
     "requests-mock",
+    "responses",
     "watchdog",
     "build",
     "wheel",
