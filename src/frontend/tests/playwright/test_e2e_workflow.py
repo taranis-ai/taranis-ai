@@ -115,6 +115,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Important")).select_option("false")
 
         def assess_workflow_1(non_important_story_ids):
+            page.pause()
             # Check summary and mark as read
             assert len(non_important_story_ids) == 28
 
@@ -122,22 +123,28 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary"), scroll=False
             )
+            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("toggle-read"), scroll=False
             ).click()
+            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
 
             # next story
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary"), scroll=False
             )
+            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary")).to_be_visible()
+
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("toggle-read"), scroll=False
             ).click()
+            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary")).to_be_visible()
 
             for i in range(2, 7):
                 self.highlight_element(
                     page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("toggle-read"), scroll=False
                 ).click()
+                expect(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-summary")).to_be_visible()
 
             # select multiple, press mark as read once
             for i in range(7, 10):
@@ -149,6 +156,7 @@ class TestUserWorkflow(PlaywrightHelpers):
                 self.highlight_element(
                     page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("toggle-read"), scroll=False
                 ).click()
+                expect(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-summary")).to_be_visible()
 
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
             self.highlight_element(
