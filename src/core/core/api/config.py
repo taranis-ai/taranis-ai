@@ -1,13 +1,13 @@
 import io
 import base64
-from typing import TYPE_CHECKING, cast
+import asyncio
+from typing import TYPE_CHECKING
 from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from sqlalchemy.exc import IntegrityError  # noqa: F401
 from psycopg.errors import UniqueViolation  # noqa: F401
 from prefect.deployments import run_deployment
-from prefect.client.schemas.objects import FlowRun
 
 from core.managers import queue_manager
 from core.log import logger
@@ -454,14 +454,15 @@ class BotExecute(MethodView):
                 }
             }
 
-            fr = cast(
-                FlowRun,
-                run_deployment(
+            # Define async wrapper and run with asyncio.run()
+            async def trigger_flow():
+                return await run_deployment(
                     name="bot-task-flow/default",
                     parameters=params,
                     timeout=0,
-                ),
-            )
+                )
+            
+            fr = asyncio.run(trigger_flow())
 
             return {
                 "flow_run_id": str(fr.id),

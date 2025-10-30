@@ -1,22 +1,13 @@
 """Prefect Flow Trigger Endpoints"""
 
+import asyncio
 from flask import Blueprint, request
 from flask.views import MethodView
 from prefect.deployments import run_deployment
-import asyncio
 
 from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.log import logger
-
-
-def run_async(coro):
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
 
 
 class ConnectorFlow(MethodView):
@@ -39,13 +30,15 @@ class ConnectorFlow(MethodView):
                 }
             }
 
-            fr = run_async(
-                run_deployment(
+            # Define async wrapper and run with asyncio.run()
+            async def trigger_flow():
+                return await run_deployment(
                     name="connector-task-flow/default",
                     parameters=params,
                     timeout=0,
                 )
-            )
+            
+            fr = asyncio.run(trigger_flow())
 
             return {
                 "flow_run_id": str(fr.id),

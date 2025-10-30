@@ -1,9 +1,9 @@
+import asyncio
 from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from prefect.deployments import run_deployment
-from anyio.from_thread import run as run_from_thread
 
 from core.managers.auth_manager import auth_required
 from core.model import product_type, product
@@ -51,12 +51,16 @@ class PublishProduct(MethodView):
         """Trigger publisher deployment and return a Prefect flow_run_id."""
         try:
             params = {"request": {"product_id": product_id, "publisher_id": publisher_id}}
-            # run_deployment is async; run it safely from a sync Flask handler
-            fr = run_from_thread(
-                run_deployment,
-                "publisher-task-flow/default",
-                params,
-            )
+            
+            # Define async wrapper and run with asyncio.run()
+            async def trigger_flow():
+                return await run_deployment(
+                    name="publisher-task-flow/default",
+                    parameters=params,
+                    timeout=0,
+                )
+            
+            fr = asyncio.run(trigger_flow())
             return {
                 "message": f"Publishing Product {product_id} scheduled",
                 "flow_run_id": str(fr.id),
@@ -74,11 +78,16 @@ class ProductsRender(MethodView):
         """Trigger presenter deployment and return a Prefect flow_run_id."""
         try:
             params = {"request": {"product_id": product_id, "countdown": 0}}
-            fr = run_from_thread(
-                run_deployment,
-                "presenter-task-flow/default",
-                params,
-            )
+            
+            # Define async wrapper and run with asyncio.run()
+            async def trigger_flow():
+                return await run_deployment(
+                    name="presenter-task-flow/default",
+                    parameters=params,
+                    timeout=0,
+                )
+            
+            fr = asyncio.run(trigger_flow())
             return {
                 "message": f"Generating Product {product_id} scheduled",
                 "flow_run_id": str(fr.id),
