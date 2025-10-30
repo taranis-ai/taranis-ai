@@ -159,8 +159,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_role("link", name="Analyze").click()
             page.get_by_role("link", name="Test report").click()
-            page.get_by_role("checkbox", name="Report Story 1 https://url/").uncheck()
-            page.get_by_test_id("save-report").click()
+            page.get_by_test_id("remove-story-78049551-dcef-45bd-a5cd-4fe842c4d5e3").click()
 
             page.get_by_role("link", name="Assess").click()
             page.get_by_placeholder("Search stories").fill("report story")
@@ -178,7 +177,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             page.get_by_role("link", name="Test report").click()
             expect(page.get_by_test_id("report-stories").locator("label")).to_contain_text("Report Story 2")
-            expect(page.get_by_test_id("story-link-").locator("span")).to_contain_text("https://securitynews.example.com/item1")
+            expect(page.get_by_test_id("story-link-f2bbda19-c353-4ea4-922c-388c5ce80172")).to_contain_text(
+                "https://securitynews.example.com/item1"
+            )
 
         go_to_analyze()
         create_report()

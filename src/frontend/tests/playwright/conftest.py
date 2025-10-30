@@ -510,16 +510,13 @@ def pre_seed_report_stories(story_item_list, run_core, api_header, access_token)
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    print(f"{api_header=}")
-    # access_token_headers = {"Authorization": f"Bearer {access_token}"}
     print("Pre-seeding stories via worker API")
 
     for story in story_item_list:
         r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
-        print(f"POST {r.url} -> {r.status_code} {r.text}")
         r.raise_for_status()
 
-    yield []
+    yield story_item_list
 
 
 def report_item_dict(story_item_list):
