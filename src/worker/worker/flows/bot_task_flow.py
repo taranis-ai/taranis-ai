@@ -86,8 +86,14 @@ def bot_task_flow(request: BotTaskRequest):
 
         logger.info("[bot_task_flow] Bot task completed successfully")
 
+        # Store the result in the Task table
+        store_task_result(request.bot_id, result, "SUCCESS")
+
         return result
 
-    except Exception:
+    except Exception as e:
         logger.exception("[bot_task_flow] Bot task failed")
+        # Store the failure in the Task table
+        error_result = {"error": str(e), "message": "Bot task failed"}
+        store_task_result(request.bot_id, error_result, "FAILURE")
         raise
