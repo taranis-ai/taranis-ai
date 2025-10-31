@@ -14,6 +14,7 @@ class ConnectorTask(Task):
     priority = 5
     default_retry_delay = 60
     time_limit = 300
+    ignore_result = True
 
     def __init__(self):
         self.core_api = CoreApi()
