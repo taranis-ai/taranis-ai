@@ -431,7 +431,6 @@ def stories(run_core, api_header, fake_source, access_token):
     for story in cleaned_stories[:36]:
         r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
         responses.append(r)
-        print(f"Posted story {story['id']} -> {r.status_code}")
 
         # === Story grouping (clustering) logic ===
     story_groups = [
@@ -492,15 +491,11 @@ def pre_seed_stories(news_items_list, run_core, access_token):
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    print("Posting to /stories/misp with payload:", news_items_list)
-    print("Type of news_items_list:", type(news_items_list))
 
     print("Pre-seeding stories via assess API")
     for item in news_items_list:
-        print(" - Story ID:", item.get("id"), "Title:", item.get("title"))
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
         r.raise_for_status()
-        print(r.json())
 
     yield []
 
@@ -571,7 +566,6 @@ def fake_source(app, run_core, access_token):
 
     r = requests.post(f"{run_core}/config/osint-sources", json=source_data, headers=headers)
     r.raise_for_status()
-    print(r.json())
 
     yield source_data["id"]
 

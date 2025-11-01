@@ -134,6 +134,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | Environment variable    | Description                                | Default                     |
 | ----------------------- | ------------------------------------------ | --------------------------- |
 | `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
+| `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 

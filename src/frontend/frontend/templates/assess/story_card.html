@@ -37,7 +37,7 @@
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
            :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
            :aria-selected="isSelected('{{ story_id }}')">
-    <div class="p-2 space-y-2">
+    <div class="p-2 space-y-2" id="story-card-content-{{ story_id }}">
       <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
 
         <!-- status and metadata column -->
