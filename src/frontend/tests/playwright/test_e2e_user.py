@@ -108,6 +108,10 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_stories):
         # self.ci_run = True
         page = logged_in_page
+        report_story_one, report_story_two = pre_seed_report_stories
+        story_search_term = " ".join(report_story_one["title"].split()[:2])
+        story_search_term_lower = story_search_term.lower()
+        report_story_two_primary_link = report_story_two["news_items"][0]["link"]
 
         def go_to_analyze():
             page.goto(url_for("analyze.analyze", _external=True))
@@ -132,11 +136,11 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_role("searchbox", name="Select sources").click()
 
-            page.get_by_placeholder("Search stories").fill("Report Story")
+            page.get_by_placeholder("Search stories").fill(story_search_term)
             page.get_by_placeholder("Search stories").press("Enter")
 
-            page.get_by_role("heading", name="Report Story 1").click()
-            page.get_by_role("heading", name="Report Story 2").click()
+            page.get_by_role("heading", name=report_story_one["title"]).click()
+            page.get_by_role("heading", name=report_story_two["title"]).click()
             page.get_by_role("button", name="Add to Report").click()
             popup = page.get_by_label("Add Stories to report")
             popup.click()
@@ -149,10 +153,10 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_role("link", name="Analyze").click()
             page.get_by_role("link", name="Test report").click()
-            page.get_by_test_id("remove-story-78049551-dcef-45bd-a5cd-4fe842c4d5e3").click()
+            page.get_by_test_id(f"remove-story-{report_story_one['id']}").click()
 
             page.get_by_role("link", name="Assess").click()
-            page.get_by_placeholder("Search stories").fill("report story")
+            page.get_by_placeholder("Search stories").fill(story_search_term_lower)
             page.get_by_placeholder("Search stories").press("Enter")
             expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible()  # only one should be in a report now
 
@@ -166,17 +170,14 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_test_id("report-table").get_by_role("button").nth(3).click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("link", name="Test report").click()
-            expect(page.get_by_test_id("report-stories").locator("label")).to_contain_text("Report Story 2")
-            expect(page.get_by_test_id("story-link-f2bbda19-c353-4ea4-922c-388c5ce80172")).to_contain_text(
-                "https://securitynews.example.com/item1"
-            )
+            expect(page.get_by_test_id("report-stories").locator("label")).to_contain_text(report_story_two["title"])
+            expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
 
         go_to_analyze()
         create_report()
         add_stories_to_report()
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        # self.ci_run = True
         page = logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 

@@ -514,6 +514,13 @@ def pre_seed_report_stories(story_item_list, run_core, api_header, access_token)
     yield story_item_list
 
 
+@pytest.fixture(scope="session")
+def test_osint_source():
+    # get absoulute path to testdata/test_osint_source.json
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+
+
 def report_item_dict(story_item_list):
     yield {
         "title": "Weekly APT Activity Report",

@@ -55,51 +55,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            # expect(page).to_have_title("Taranis AI | Assess")
-
-        # def test_hotkey_menu():
-        #     page.keyboard.press("Control+Shift+L")
-        #     self.short_sleep(duration=1)
-        #     assert_hotkey_menu()
-        #     self.short_sleep(duration=2)
-        #     page.keyboard.press("Escape")
-        #     self.short_sleep(duration=1)
-
-        def assert_hotkey_menu():
-            expect(page.get_by_role("listbox")).to_contain_text("General")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + L")
-            expect(page.get_by_role("listbox")).to_contain_text("Open the HotKeys Legend.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + K")
-            expect(page.get_by_role("listbox")).to_contain_text("Focus the Search Bar.")
-            expect(page.get_by_role("listbox")).to_contain_text("Assess")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
-            expect(page.get_by_role("listbox")).to_contain_text(
-                "Mark all selected items as read (if all are read already, mark them as unread)."
-            )
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
-            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + A")
-            expect(page.get_by_role("listbox")).to_contain_text("Select all items currently loaded.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
-            expect(page.get_by_role("listbox")).to_contain_text("Add selected items to last report.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
-            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
-            expect(page.get_by_role("listbox")).to_contain_text("Stories")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
-            expect(page.get_by_role("listbox")).to_contain_text("Create a new story.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
-            expect(page.get_by_role("listbox")).to_contain_text(
-                "Mark all selected items as read (if all are read already, mark them as unread)."
-            )
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
-            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
-            expect(page.get_by_role("listbox")).to_contain_text("Add open story to last report.")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
-            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
-            expect(page.get_by_role("listbox")).to_contain_text("Reports")
-            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
-            expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
 
         def apply_filter():
             self.highlight_element(page.get_by_role("radio", name="Shift")).check()
@@ -279,7 +234,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
 
         def add_stories_to_report_1():
-            # TODO: Fix bug: Modal popup is _never_ detached from DOM, only hidden -> locator with :visible needed and after secod add to report the modal does not even disapear
             # Select all
             self.highlight_element(page.get_by_test_id("assess-select-all-button")).click()
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
@@ -299,7 +253,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.keyboard.press("Escape")
 
         def modify_report_1(stories_date_descending):
-            page.pause()
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
             self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
             self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
@@ -326,6 +279,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.keyboard.press("Escape")
 
             # Save & toggle report views
+            page.pause()
             self.highlight_element(page.get_by_test_id("save-report")).click()
             self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
 
@@ -359,7 +313,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         # ============================
 
         page = taranis_frontend
-        # page.pause()
 
         go_to_analyze()
         report_1()

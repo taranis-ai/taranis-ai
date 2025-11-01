@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import uuid
+import json
 import pytest
 from flask import url_for
 
@@ -31,6 +32,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
+        page.pause()
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
 
@@ -175,7 +177,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         # update_template()
         # remove_template()
 
-    def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source):
         page = logged_in_page
         osint_source_name = f"test_source_{uuid.uuid4().hex[:6]}"
 
@@ -190,6 +192,24 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
+            page.get_by_role("button", name="OK").click()
+            page.get_by_role("alert").click()
+
+        def import_export_osint_sources():
+            page.get_by_role("button", name="Import").click()
+            page.get_by_role("button", name="Choose File").set_input_files(test_osint_source)
+            page.get_by_role("button", name="Submit").click()
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export").click()
+            assert download_info.value is not None
+            download_path = download_info.value.path()
+            with open(test_osint_source, "r") as f:
+                original_content = json.load(f)
+            with open(download_path, "r") as f:
+                downloaded_content = json.load(f)
+            assert original_content == downloaded_content, "Downloaded file content does not match uploaded file content"
+            page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
+            page.get_by_test_id("delete-osint_source-button").click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("alert").click()
 
@@ -217,6 +237,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         load_osint_sources()
         load_default_sources()
+        import_export_osint_sources()
         add_osint_sources()
         update_osint_sources()
         remove_osint_sources()
