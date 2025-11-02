@@ -1,6 +1,8 @@
 FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=denoland/deno:bin-2.5.6 /deno /usr/local/bin/deno
+
 WORKDIR /app/
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -17,8 +19,7 @@ COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3
 
 ENV UV_COMPILE_BYTECODE=1
 
-RUN curl -fsSL https://deno.land/install.sh | sh -s -- -y && \
-    /app/build_tailwindcss.sh && \
+RUN /app/build_tailwindcss.sh && \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen
