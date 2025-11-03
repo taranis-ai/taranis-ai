@@ -279,7 +279,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.keyboard.press("Escape")
 
             # Save & toggle report views
-            page.pause()
             self.highlight_element(page.get_by_test_id("save-report")).click()
             self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
 

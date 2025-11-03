@@ -32,7 +32,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
-        page.pause()
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
 
