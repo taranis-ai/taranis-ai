@@ -25,6 +25,7 @@ class CyberSecClassifierBot(BaseBot):
         num_news_items = 0
         for story in data:
             story_class_list = []
+            story_cybersecurity_status = "incomplete"
             for news_item in story.get("news_items", []):
                 result = self._process_news_item(news_item)
                 story_class_list.append(result)
@@ -49,7 +50,7 @@ class CyberSecClassifierBot(BaseBot):
             )
         return {"message": f"Classified {num_news_items} news items"}
 
-    def classify_news_item(self, content: str) -> dict | None:
+    def _classify_news_item(self, content: str) -> dict | None:
         class_result = self.bot_api.api_post("/", {"text": content})
 
         if not class_result:
@@ -66,7 +67,7 @@ class CyberSecClassifierBot(BaseBot):
         news_item_id = news_item.get("id", "")
 
         logger.debug(f"Classifying news item with id: {news_item_id}.")
-        class_result = self.classify_news_item(news_item_content)
+        class_result = self._classify_news_item(news_item_content)
         if not class_result:
             return "none"
 

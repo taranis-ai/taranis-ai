@@ -25,6 +25,7 @@ class StoryBot(BaseBot):
         )
 
         logger.info(f"Clustering {len(data)} news items")
+
         if response := self.bot_api.api_post("/", {"stories": data}):
             cluster_data = response.get("cluster_ids", {})
             message = response.get("message", "")

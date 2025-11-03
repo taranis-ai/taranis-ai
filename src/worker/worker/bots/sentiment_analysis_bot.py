@@ -25,7 +25,7 @@ class SentimentAnalysisBot(BaseBot):
         logger.debug(f"Analyzing sentiment for {len(data)} news items")
 
         # Process each story
-        if sentiment_results := self.analyze_news_items(data):
+        if sentiment_results := self._analyze_news_items(data):
             self.update_news_items(sentiment_results)
             return {
                 "message": "Sentiment analysis complete",
@@ -33,8 +33,9 @@ class SentimentAnalysisBot(BaseBot):
 
         return {"message": "No sentiment analysis results"}
 
-    def analyze_news_items(self, stories: list) -> dict:
+    def _analyze_news_items(self, stories: list) -> dict:
         results = {}
+
         for story in stories:
             for news_item in story.get("news_items", []):
                 text_content = news_item.get("content", "")

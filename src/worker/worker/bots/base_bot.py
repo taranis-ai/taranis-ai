@@ -12,6 +12,7 @@ class BaseBot:
         self.description = "Base abstract type for all bots"
         self.language = None
         self.model = None
+        self.bot_api = None
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
