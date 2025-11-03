@@ -119,6 +119,26 @@ class Stories(MethodView):
             logger.exception("Failed to get Stories")
             return {"error": "Failed to get Stories"}, 400
 
+    @auth_required("ASSESS_UPDATE")
+    def post(self):
+        if not (data_json := request.json):
+            return {"error": "No story ids provided"}, 400
+        story_ids = data_json.get("story_ids")
+        payload = data_json.get("payload")
+        result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
+        for s in [story.Story.get(sid) for sid in story_ids if sid]:
+            if not s:
+                return {"error": "Story not found"}, 404
+            response, code = story.Story.update(s.id, payload, current_user)
+            if code != 200:
+                result_dict["errors"].append({"story_id": s.id, "response": response})
+            else:
+                result_dict["success"].append({"story_id": s.id, "response": response})
+                result_dict["updated"] += 1
+
+        result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
+        return result_dict, 200
+
 
 class StoryTags(MethodView):
     @auth_required("ASSESS_ACCESS")
@@ -207,6 +227,15 @@ class GroupAction(MethodView):
         sse_manager.news_items_updated()
         return response, code
 
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self):
+        if not (story_ids := request.json):
+            return {"error": "No story ids provided"}, 400
+        response, code = story.Story.group_stories(story_ids, current_user)
+        sse_manager.news_items_updated()
+        return response, code
+
 
 class BotActions(MethodView):
     @auth_required("ASSESS_UPDATE")
@@ -244,6 +273,15 @@ class Connectors(MethodView):
             return {"error": str(e)}, 500
 
 
+class FilterLists(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        tag_list = news_item_tag.NewsItemTag.get_list({})
+        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)[0]["items"]
+        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)[0]["items"]
+        return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
+
+
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     def get(self):
@@ -254,12 +292,14 @@ def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
+    assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
     assess_bp.add_url_rule(
@@ -269,6 +309,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+    assess_bp.add_url_rule("/stories/bulk_action", view_func=Stories.as_view("bulk_action"))
     assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
     assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
 

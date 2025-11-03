@@ -14,7 +14,7 @@
       <tbody>
         {% if data %}
           {% for item in data %}
-            {% set edit_route = '/assess?tags=' ~ item.name %}
+            {% set edit_route = url_for("assess.assess") ~ "?tags=" ~ item.name %}
             <tr class="hover:bg-info">
               {% for col in columns %}
                 <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">{{ item[col.field] }}</td>

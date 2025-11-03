@@ -1,7 +1,213 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="p-8" id="{{ model_name }}">
-    <div class="text-3xl font-bold mb-4">{{ user.name }}</div>
-    <div class="bg-base p-4" id="form-container">{{ user }}</div>
+  {% set profile = user.profile if user.profile is not none else {} %}
+  {% set dashboard = profile.dashboard if profile else {} %}
+  {% if dashboard is undefined or dashboard is none %}
+    {% set dashboard = {} %}
+  {% endif %}
+  {% set end_of_shift = profile.end_of_shift if profile else {} %}
+  {% if end_of_shift is undefined or end_of_shift is none %}
+    {% set end_of_shift = {} %}
+  {% endif %}
+  {% set hotkeys = profile.hotkeys if profile else {} %}
+  {% if hotkeys is undefined or hotkeys is none %}
+    {% set hotkeys = {} %}
+  {% endif %}
+  <div class="max-w-5xl mx-auto px-4 py-10 space-y-6" id="{{ model_name }}">
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body gap-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex items-center gap-4">
+            <div class="avatar placeholder">
+              <div class="avatar avatar-online avatar-placeholder">
+                <div class="bg-neutral text-neutral-content w-16 rounded-full">
+                  <span class="text-xl">{{ user.username[:2]|upper }}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h1 class="text-3xl font-bold">{{ user.name or user.username }}</h1>
+              <p class="text-sm text-base-content/70">@{{ user.username }}</p>
+              <p class="text-sm text-base-content/70">User ID {{ user.id }}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {% if user.roles %}
+              {% for role in user.roles %}<span class="badge badge-outline badge-lg">{{ role.get("name") }}</span>{% endfor %}
+            {% else %}
+              <span class="badge badge-ghost badge-lg">No roles assigned</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="stats stats-vertical bg-base-200/60 rounded-box sm:stats-horizontal">
+          <div class="stat">
+            <div class="stat-title">Organization</div>
+            <div class="stat-value text-lg text-base-content">{{ user.organization.get("name") or "Not set" }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Permissions</div>
+            <div class="stat-value text-3xl text-base-content">{{ user.permissions|length }}</div>
+            <div class="stat-desc text-base-content/70">Total granted permissions</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Interface</div>
+            <div class="stat-value text-lg text-base-content">
+              {% if profile.dark_theme|default(false) %}
+                Dark
+              {% else %}
+                Light
+              {% endif %}
+            </div>
+            <div class="stat-desc text-base-content/70">Language {{ profile.language|default("N/A") }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title text-xl">Profile Preferences</h2>
+          <div class="mt-4 grid gap-3">
+            {% set advanced_story_options = profile.advanced_story_options|default(false) %}
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Advanced story options</span>
+              <span class="badge badge-sm {% if advanced_story_options %}badge-success{% else %}badge-ghost{% endif %}">
+                {% if advanced_story_options %}
+                  On
+                {% else %}
+                  Off
+                {% endif %}
+              </span>
+            </div>
+            {% set compact_view = profile.compact_view|default(false) %}
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Compact view</span>
+              <span class="badge badge-sm {% if compact_view %}badge-success{% else %}badge-ghost{% endif %}">
+                {% if compact_view %}
+                  On
+                {% else %}
+                  Off
+                {% endif %}
+              </span>
+            </div>
+            {% set infinite_scroll = profile.infinite_scroll|default(false) %}
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Infinite scroll</span>
+              <span class="badge badge-sm {% if infinite_scroll %}badge-success{% else %}badge-ghost{% endif %}">
+                {% if infinite_scroll %}
+                  On
+                {% else %}
+                  Off
+                {% endif %}
+              </span>
+            </div>
+            {% set split_view = profile.split_view|default(false) %}
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Split view</span>
+              <span class="badge badge-sm {% if split_view %}badge-success{% else %}badge-ghost{% endif %}">
+                {% if split_view %}
+                  On
+                {% else %}
+                  Off
+                {% endif %}
+              </span>
+            </div>
+            {% set global_show_charts = profile.show_charts|default(false) %}
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Show charts</span>
+              <span class="badge badge-sm {% if global_show_charts %}badge-success{% else %}badge-ghost{% endif %}">
+                {% if global_show_charts %}
+                  On
+                {% else %}
+                  Off
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title text-xl">Dashboard</h2>
+          {% set dash_show_charts = dashboard.show_charts|default('No') %}
+          {% set dash_trending = dashboard.show_trending_clusters|default('No') %}
+          {% set trending_days = dashboard.trending_cluster_days|default('0') %}
+          {% set trending_filter = dashboard.trending_cluster_filter|default([]) %}
+          <div class="mt-4 space-y-3">
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Show charts</span>
+              <span class="badge badge-sm {% if dash_show_charts|string|lower == 'yes' %}badge-primary{% else %}badge-ghost{% endif %}">
+                {{ dash_show_charts }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Trending clusters</span>
+              <span class="badge badge-sm {% if dash_trending|string|lower == 'yes' %}badge-primary{% else %}badge-ghost{% endif %}">
+                {{ dash_trending }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Trending window</span>
+              <span class="text-sm font-semibold">{{ trending_days }} days</span>
+            </div>
+            <div class="rounded-lg border border-base-200 px-3 py-2">
+              <span class="text-sm font-medium">Trending filter</span>
+              <div class="mt-2 flex flex-wrap gap-2">
+                {% if trending_filter %}
+                  {% for item in trending_filter %}<span class="badge badge-outline">{{ item }}</span>{% endfor %}
+                {% else %}
+                  <span class="badge badge-ghost">No filters applied</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title text-xl">End of Shift</h2>
+          {% set shift_hour = end_of_shift.hours|default(0) %}
+          {% set shift_minute = end_of_shift.minutes|default(0) %}
+          <div class="mt-4 flex items-center justify-between rounded-lg border border-base-200 px-4 py-3">
+            <span class="text-sm font-medium">End time</span>
+            <span class="font-mono text-lg font-semibold">{{ shift_hour }}:{{ "%02d" % shift_minute }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title text-xl">Hotkeys</h2>
+          <div class="mt-4">
+            {% if hotkeys %}
+              <div class="space-y-2">
+                {% for action, combo in hotkeys|dictsort %}
+                  <div class="rounded-lg border border-base-200 px-3 py-2">
+                    <p class="text-sm font-medium">{{ action }}</p>
+                    <p class="text-xs uppercase tracking-wide text-base-content/60">{{ combo }}</p>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-sm text-base-content/70">No custom hotkeys configured.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow">
+      <div class="card-body">
+        <h2 class="card-title text-xl">Permissions</h2>
+        <p class="text-sm text-base-content/70">
+          This user has <span class="font-semibold">{{ user.permissions|length }}</span> permissions assigned.
+        </p>
+      </div>
+    </div>
   </div>
 {% endblock content %}

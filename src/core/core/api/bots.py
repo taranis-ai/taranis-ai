@@ -45,14 +45,14 @@ class BotUnGroupAction(MethodView):
 
 class NewsItem(MethodView):
     @api_key_required
-    def get(self, news_item_id=None):
+    def get(self, news_item_id: str | None = None):
         try:
             if news_item_id:
                 return news_item.NewsItem.get_for_api(news_item_id)
             filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
             return news_item.NewsItem.get_all_for_api(filtre_args)
         except Exception as e:
-            logger.error(str(e))
+            logger.error((e))
             return {"error": str(e)}, 400
 
     @api_key_required
@@ -94,11 +94,11 @@ class StoryAttributes(MethodView):
 
 class UpdateStory(MethodView):
     @api_key_required
-    def get(self, story_id):
+    def get(self, story_id: str):
         return story.Story.get_for_api(story_id, None)
 
     @api_key_required
-    def put(self, story_id):
+    def put(self, story_id: str):
         return story.Story.update(story_id, request.json)
 
 

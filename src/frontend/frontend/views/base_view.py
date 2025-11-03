@@ -1,12 +1,13 @@
 from flask import render_template, request, url_for, current_app, abort, make_response
 from jinja2 import TemplateNotFound
-from typing import ClassVar, Type, Any
+from typing import ClassVar, Any, Callable
 from pydantic import ValidationError
 from flask.views import MethodView
 from requests import Response as RequestsResponse
 from werkzeug.wrappers import Response
 
-from models.admin import TaranisBaseModel, WorkerParameter, WorkerParameterValue
+from models.admin import WorkerParameter, WorkerParameterValue
+from models.base import TaranisBaseModel
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request, convert_query_params
 from frontend.utils.form_data_parser import parse_formdata
@@ -17,9 +18,9 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 
 
 class BaseView(MethodView):
-    model: ClassVar[Type[TaranisBaseModel]]
+    model: ClassVar[type[TaranisBaseModel]]
 
-    decorators = [auth_required()]
+    decorators: ClassVar[list[Callable[..., Any]]] = [auth_required()]
     htmx_update_template: ClassVar[str] = ""
     htmx_list_template: ClassVar[str] = ""
     default_template: ClassVar[str] = ""
@@ -29,9 +30,9 @@ class BaseView(MethodView):
     import_route: ClassVar[str] = ""
     icon: ClassVar[str] = "wrench"
     _is_admin: ClassVar[bool] = False
-    _show_sidebar: ClassVar[bool] = True
+    _show_sidebar: ClassVar[bool] = False
     _index: ClassVar[float | int] = float("inf")
-    _read_only: ClassVar[bool] = False
+    _read_only: ClassVar[bool] = True
 
     _registry: ClassVar[dict[str, Any]] = {}
 
@@ -41,8 +42,7 @@ class BaseView(MethodView):
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: int | str = 0) -> dict[str, Any]:
-        return {
-            "error": error,
+        context = {
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
@@ -56,6 +56,9 @@ class BaseView(MethodView):
             "model_plural_name": cls.model_plural_name(),
             cls._get_object_key(): object_id,
         }
+        if error:
+            context["notification"] = {"message": error, "error": True}
+        return context
 
     @classmethod
     def model_name(cls) -> str:
@@ -78,8 +81,7 @@ class BaseView(MethodView):
             current_app.jinja_env.get_template(path)
             return path
         except TemplateNotFound:
-            base_fallback = request.endpoint.split(".")[0] if request.endpoint else cls.model_name().lower()
-            return f"default/{base_fallback}{fallback_suffix}"
+            return "default/index.html"
 
     @classmethod
     def get_htmx_list_template(cls) -> str:
@@ -163,7 +165,7 @@ class BaseView(MethodView):
         return cls.get_htmx_update_template() if is_htmx_request() else cls.get_edit_template()
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         return base_context
 
     @classmethod
@@ -229,7 +231,7 @@ class BaseView(MethodView):
         object_id: int | str,
         error: str | None = None,
         form_error: str | None = None,
-        resp_obj=None,
+        resp_obj: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         key = cls._get_object_key()
         form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
@@ -246,11 +248,16 @@ class BaseView(MethodView):
         )
 
         if resp_obj:
-            context[cls.model_name()] = cls.model(**resp_obj.get(cls.model_name()))
+            if model_instance := resp_obj.get(cls.model_name()):
+                context[cls.model_name()] = cls.model(**model_instance)
             if msg := resp_obj.get("message"):
                 context["message"] = msg
+            if new_id := resp_obj.get("id"):
+                context["form_action"] = f"hx-put={cls.get_edit_route(**{key: new_id})}"
+        else:
+            context[cls.model_name()] = cls.model.model_construct(id="0")
 
-        return cls.get_extra_context(context)
+        return cls.get_extra_context(base_context=context)
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
@@ -283,15 +290,14 @@ class BaseView(MethodView):
 
     @classmethod
     def update_view_table(cls, object_id: int | str = 0):
-        logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(object_id, error=error),
             ), 400
 
-        notification_response = cls.get_notification_from_dict(core_response)
+        notification_response = cls.render_response_notification(core_response)
         table_response, table_status = cls.list_view()
         response = notification_response + table_response
         flask_response = make_response(response, table_status)
@@ -300,7 +306,6 @@ class BaseView(MethodView):
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
-        logger.debug(f"Updating {cls.model_name()} with ID {object_id} - {request.form}")
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
             return render_template(
@@ -308,7 +313,7 @@ class BaseView(MethodView):
                 **cls.get_update_context(object_id, error=error, resp_obj=core_response),
             ), 400
 
-        notification_response = cls.get_notification_from_dict(core_response)
+        notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
             **cls.get_update_context(object_id, error=error, resp_obj=core_response),
@@ -335,7 +340,24 @@ class BaseView(MethodView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
-        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 400 if error else 200
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
+
+    @classmethod
+    def render_list(cls) -> tuple[str, int]:
+        try:
+            items = DataPersistenceLayer().get_objects(cls.model)
+            status_code = 200
+            error = None
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, cls.model))
+            items, error = None, format_pydantic_errors(exc, cls.model)
+            status_code = 400
+        except Exception as exc:
+            logger.exception(f"Error retrieving {cls.model_name()} items")
+            items, error = None, str(exc)
+            status_code = 500
+
+        return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
 
     @classmethod
     def static_view(cls):
@@ -357,41 +379,40 @@ class BaseView(MethodView):
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse) -> str:
-        """
-        Extracts the notification from the response object.
-        If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
-        If it was ok it should render it as a success message, otherwise it should render it as an error message.
-        """
-        if response.ok and response.json():
-            return render_template("notification/index.html", notification={"message": response.json().get("message"), "error": False})
-        return render_template("notification/index.html", notification={"message": response.json().get("error"), "error": True})
+        if not response or not response.json():
+            return render_template("notification/index.html", notification={"message": "No response from core API", "error": True})
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response.json()))
 
     @classmethod
-    def get_notification_from_dict(cls, response: dict) -> str:
+    def render_response_notification(cls, response: dict) -> str:
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
+
+    @staticmethod
+    def get_notification_from_dict(response: dict[str, Any]) -> dict[str, Any]:
         """
         Extracts the notification from the response object.
         If the response contains a JSON body and response.ok it extracts the 'message' key otherwise it extracts the 'error' key.
         If it was ok it should render it as a success message, otherwise it should render it as an error message.
         """
         if response.get("message"):
-            return render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
-        return render_template("notification/index.html", notification={"message": response.get("error"), "error": True})
+            return {"message": response.get("message"), "error": False}
+        return {"message": response.get("error"), "error": True}
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
         response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.list_view()
+        table, table_response = cls.render_list()
         if table_response == 200:
             response += table
-        return response, core_response.status_code
+        return response, core_response.status_code or table_response
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        response, status_code = cls.list_view()
+        response, status_code = cls.render_list()
         if all(r.ok for r in results):
             response += render_template(
                 "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
@@ -421,7 +442,7 @@ class BaseView(MethodView):
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.update_view_table(object_id=object_id)
 
     def delete(self, **kwargs):
@@ -431,5 +452,5 @@ class BaseView(MethodView):
             return self.delete_multiple_view(object_ids=ids)
         object_id = self._get_object_id(kwargs) or request.form.get("id")
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.delete_view(object_id=object_id)

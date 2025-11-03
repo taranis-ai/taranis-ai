@@ -1,0 +1,14 @@
+<label class="input input-bordered input-sm items-center gap-2">
+  {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
+  <input type="search"
+         id="omnisearch"
+         placeholder="Search..."
+         @keydown.window.prevent.slash="$el.focus()"
+         hx-get="{{ url_for('base.omnisearch') }}"
+         hx-target="body"
+         hx-swap="beforeend"
+         hx-trigger="focus">
+  <span class="text-xs">
+    <kbd class="kbd kbd-xs text-base-content">/</kbd>
+  </span>
+</label>

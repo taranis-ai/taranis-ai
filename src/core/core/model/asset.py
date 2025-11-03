@@ -28,14 +28,18 @@ class Asset(BaseModel):
     )
     vulnerabilities_count: Mapped[int] = db.Column(db.Integer, default=0)
 
-    def __init__(self, name, serial, description, group, asset_cpes=None, id=None):
+    def __init__(self, name, serial, description, group=None, asset_cpes=None, vulnerabilities=None, id=None):
         if id:
             self.id = id
         self.name = name
         self.serial = serial
         self.description = description
-        self.asset_group_id = group if isinstance(group, str) else group.id
+        if group:
+            self.asset_group_id = group if isinstance(group, str) else group.id
+        else:
+            self.asset_group_id = AssetGroup.get_default_group().id
         self.asset_cpes = [a for a in (AssetCpe.get(cpe) for cpe in asset_cpes) if a] if asset_cpes else []
+        self.vulnerabilities = [v for v in (AssetVulnerability.get(vuln) for vuln in vulnerabilities) if v] if vulnerabilities else []
 
     @classmethod
     def get_by_cpe(cls, cpes):
@@ -233,8 +237,19 @@ class AssetGroup(BaseModel):
         return False
 
     @classmethod
-    def get_default_group(cls):
-        return cls.get("default")
+    def get_default_group(cls) -> "AssetGroup":
+        if default_group := cls.get("default"):
+            return default_group
+        if not (org := Organization.get(1)):
+            raise Exception("Default organization (id=1) not found. Cannot create default asset group.")
+        return AssetGroup.add(
+            {
+                "name": "Default",
+                "description": "Default group for uncategorized assets",
+                "organization": org,
+                "id": "default",
+            }
+        )
 
     @classmethod
     def get_for_api(cls, item_id, organization: Organization) -> tuple[dict[str, Any], int]:

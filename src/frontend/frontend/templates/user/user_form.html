@@ -5,33 +5,25 @@
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
-{% set user_roles = user.roles %}
-
+{% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
 
 <script type="text/javascript">
-  var settings = {
-    plugins: ['remove_button'],
-    persist:false,
-    onItemAdd:function(){
-			this.setTextboxValue('');
-			this.refreshOptions();
-		}
-  };
-
-  htmx.onLoad(function(elt) {
-    var elt = document.getElementById('user-role-select');
-    if (elt && elt.classList.contains('tomselected')) return;
-    new TomSelect(elt, settings);
-  });
+  if (typeof htmx !== 'undefined' && htmx.onLoad) {
+    htmx.onLoad(function (elt) {
+      initChoices('user-role-select', 'roles');
+    });
+  } else {
+    initChoices('user-role-select', 'roles');
+  }
 
   function generatePassword(
-      length = 20,
-      characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
-    ) {
-      return Array.from(crypto.getRandomValues(new Uint32Array(length)))
-        .map((x) => characters[x % characters.length])
-        .join('')
-    }
+    length = 20,
+    characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
+  ) {
+    return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+      .map((x) => characters[x % characters.length])
+      .join('');
+  }
 </script>
 
 <div class="bg-base-100 p-4">
@@ -68,17 +60,15 @@
               onclick="document.getElementById('user-password').value = generatePassword();">Generate Password</button>
     </div>
 
-    <fieldset class="fieldset bg-base-100 w-3/4">
-      <legend class="fieldset-legend">Roles</legend>
-      <select name="roles[]" multiple required type="number" id="user-role-select" class="tomselect">
+    <div class="mb-5 w-3/4">
+      <select name="roles[]" multiple required id="user-role-select">
         {% for role in roles %}
-          <option value="{{ role.id }}" {% if role.id in user_roles %}selected{% endif %}>
+          <option value="{{ role.id }}" {% if role.id in user_role_ids %}selected{% endif %}>
             {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
           </option>
         {% endfor %}
       </select>
-      <p class="validator-hint">Required</p>
-    </fieldset>
+    </div>
 
     {{ form_select('Organization', 'organization', user.organization, organizations, width="w-3/4") }}
 

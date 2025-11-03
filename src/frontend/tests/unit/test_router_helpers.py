@@ -62,6 +62,9 @@ def test_parse_formdata_with_list_of_dicts():
             ("attribute_groups[][index]", "0"),
             ("attribute_groups[][title]", "XXX"),
             ("attribute_groups[][description]", "uiae"),
+            ("attribute_groups[][index]", "1"),
+            ("attribute_groups[][title]", "YYY"),
+            ("attribute_groups[][description]", "zzzz"),
         ]
     )
     expected = {
@@ -69,6 +72,7 @@ def test_parse_formdata_with_list_of_dicts():
         "description": "XXX",
         "attribute_groups": [
             {"index": "0", "title": "XXX", "description": "uiae"},
+            {"index": "1", "title": "YYY", "description": "zzzz"},
         ],
     }
     assert parse_formdata(formdata) == expected

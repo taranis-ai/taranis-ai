@@ -1,0 +1,22 @@
+<dialog id="assess_search_dialog"
+        class="modal modal-top"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+  <div class="modal-box">
+    <form>
+      <label class="input input-bordered input-sm flex items-center gap-2">
+        {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
+        <input type="search"
+               id="omni_search"
+               name="omni_search"
+               value="{{ current_search }}"
+               placeholder="Search"
+               class="grow"
+               autocomplete="off"
+               hx-trigger="keyup changed delay:500ms, search">
+      </label>
+    </form>
+  </div>
+</dialog>

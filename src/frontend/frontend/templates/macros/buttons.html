@@ -1,3 +1,5 @@
+{# djlint:off #}
+
 {% macro export_button(export_url, text="Export") %}
   <a class="btn btn-outline btn-info" href="{{ export_url }}" download>
     {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
@@ -13,7 +15,6 @@
 {% endmacro %}
 
 {% macro action_button(action, item_id) %}
-  {# djlint:off #}
   {% if item_id %}
     {% if action.url.endswith('/') %}
       {% set action_url = action.url ~ item_id %}
@@ -50,5 +51,23 @@
   </button>
   {% endif %}
   </div>
-  {# djlint:on #}
 {% endmacro %}
+
+{% macro state_toggle_button(current_state, hx_val_true, hx_val_false, text_true, text_false, hx_target, action_url, action_method='post') %}
+<div class="join">
+  <button type="button"
+          hx-{{ action_method }}="{{ action_url }}"
+          hx-vals="{{ hx_val_true }}"
+          hx-target="{{ hx_target }}"
+          class="btn btn-sm join-item {% if current_state == true %}btn-active btn-success{% endif %}">{{ text_true }}
+  </button>
+  <button type="button"
+          hx-{{ action_method }}="{{ action_url }}"
+          hx-vals="{{ hx_val_false }}"
+          hx-target="{{ hx_target }}"
+          class="btn btn-sm join-item {% if current_state == false %}btn-active{% endif %}">{{ text_false }}
+  </button>
+</div>
+{% endmacro %}
+
+{# djlint:on #}

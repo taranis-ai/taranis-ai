@@ -2,7 +2,10 @@
   {% from "macros/table.html" import table_header %}
   {% from "macros/buttons.html" import action_button %}
   {% set item_ids = data | map(attribute='id') | list %}
-  <table class="table shadow table-zebra table-sm" id="{{ table_id }}" {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
+  <table class="table shadow table-zebra table-sm"
+         id="{{ table_id }}"
+         data-testid="{{ table_id }}"
+         {% if standalone %}x-data="{ selectedItems: {{ selected_items }} }"{% endif %}>
     <thead>
       <tr>
         {% if selectable %}
@@ -21,7 +24,7 @@
     <tbody>
       {% if data %}
         {% for item in data %}
-          {% set edit_route = routes.base_route ~ '/' ~ item.id %}
+          {% set edit_route = routes.edit_route[:-1] ~ item.id %}
           <tr class="hover:bg-info">
             {% if selectable %}
               <td>
@@ -29,8 +32,8 @@
               </td>
             {% endif %}
             {% for col in columns %}
-              <td class="cursor-pointer max-w-[50ch]">
-                <a href="{{ edit_route }}" class="block w-full h-full">
+              <td class="relative max-w-[50ch] p-0">
+                <a href="{{ edit_route }}" class="absolute inset-0 flex w-full items-center px-3 py-1">
                   {% if col.renderer %}
                     {% if 'render_args' in col %}
                       {{ col.renderer(item, **col.render_args) }}
@@ -162,7 +165,10 @@
           hx-target-error="#notification-bar"
           hx-trigger="input delay:500ms"
           hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
-      <input type="search" id="{{ table_id }}-search" name="search" class="input w-full" placeholder="Search..." value="{{ current_search }}" />
+      <label class="input w-full">
+        {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
+        <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" />
+      </label>
     </form>
   </div>
 {% endmacro %}

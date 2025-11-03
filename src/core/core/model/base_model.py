@@ -111,7 +111,7 @@ class BaseModel(db.Model):
         return list(db.session.execute(db.select(cls).filter(cls.id.in_(item_ids))).scalars().all())
 
     @classmethod
-    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
+    def get_for_api(cls, item_id, **kwargs) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404

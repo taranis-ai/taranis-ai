@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'assess/story/story_card.html' import story_card %}
+{% from 'assess/simple_story_card.html' import preview_story_card %}
 
 {% block content %}
   <div id="source_preview">
@@ -10,7 +10,7 @@
         </div>
       {% elif task_result.status == 'SUCCESS' %}
         {% if task_result.result %}
-          {% for story in task_result.result %}{{ story_card(story) }}{% endfor %}
+          {% for story in task_result.result %}{{ preview_story_card(story) }}{% endfor %}
         {% else %}
           <div class="alert alert-info my-5 mx-5">
             <p>No results found for this OSINT source.</p>

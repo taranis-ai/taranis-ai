@@ -18,11 +18,11 @@ class ReportTypes(MethodView):
 
 class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    def get(self, report_item_id):
+    def get(self, report_item_id: str):
         return report_item.ReportItem.get_story_ids(report_item_id)
 
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
@@ -30,7 +30,7 @@ class ReportStories(MethodView):
         return report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
 
     @auth_required("ANALYZE_UPDATE")
-    def post(self, report_item_id):
+    def post(self, report_item_id: str):
         request_data = request.json
         if not isinstance(request_data, list):
             logger.warning("No data in request")
@@ -40,7 +40,7 @@ class ReportStories(MethodView):
 
 class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
-    def get(self, report_item_id=None):
+    def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id)
         filter_keys = ["search", "completed", "range", "sort", "group"]
@@ -55,29 +55,32 @@ class ReportItem(MethodView):
         try:
             if not request.json:
                 logger.debug("No data in request")
-                return "No data in request", 400
+                return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
         except Exception as ex:
             logger.exception()
-            abort(400, f"Error adding report item: {ex}")
+            return abort(400, f"Error adding report item: {ex}")
         if status == 401:
-            abort(401, "Unauthorized")
+            return abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
 
-        return new_report_item.to_detail_dict(), status
+        return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         request_data = request.json
         if not request_data:
             logger.debug("No data in request")
-            return "No data in request", 400
-        return report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
+            return {"error": "No data in request"}, 400
+        updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
+        if status == 200:
+            sse_manager.report_item_updated(report_item_id)
+        return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")
-    def delete(self, report_item_id):
+    def delete(self, report_item_id: str):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
             sse_manager.report_item_updated(report_item_id)
@@ -86,12 +89,12 @@ class ReportItem(MethodView):
 
 class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
-    def post(self, report_item_id):
+    def post(self, report_item_id: str):
         try:
             result, status = report_item.ReportItem.clone(report_item_id, current_user)
         except Exception as ex:
             logger.exception()
-            abort(400, f"Error cloning report item: {ex}")
+            return abort(400, f"Error cloning report item: {ex}")
         if status == 200:
             sse_manager.report_item_updated(result["id"])
 
@@ -100,16 +103,16 @@ class CloneReportItem(MethodView):
 
 class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    def get(self, report_item_id):
+    def get(self, report_item_id: str):
         return sse_manager.to_report_item_json(report_item_id)
 
 
 class ReportItemLock(MethodView):
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id):
+    def put(self, report_item_id: str):
         user = current_user
         if not user:
-            abort(401, "User not found")
+            return abort(401, "User not found")
         try:
             return sse_manager.report_item_lock(report_item_id, user.id)
         except Exception as ex:
@@ -117,10 +120,10 @@ class ReportItemLock(MethodView):
             return str(ex), 500
 
     @auth_required("ANALYZE_UPDATE")
-    def delete(self, report_item_id):
+    def delete(self, report_item_id: str):
         user = current_user
         if not user:
-            abort(401, "User not found")
+            return abort(401, "User not found")
         try:
             return sse_manager.report_item_unlock(report_item_id, user.id)
         except Exception as ex:
@@ -133,7 +136,9 @@ def initialize(app: Flask):
 
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
+    analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
+    analyze_bp.add_url_rule("/report/<string:report_item_id>", view_func=ReportItem.as_view("report"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))

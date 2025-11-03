@@ -18,9 +18,9 @@ class BotApi:
             return {}
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
-    def update_parameters(self, parameters: dict[str, str]):
-        self.api_url = parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT)
-        self.api_key = parameters.get("BOT_API_KEY", Config.BOT_API_KEY)
+    def update_parameters(self, api_url: str, api_key: str | None = None):
+        self.api_url = api_url
+        self.api_key = api_key or Config.BOT_API_KEY
 
     def check_response(self, response: requests.Response, url: str):
         try:

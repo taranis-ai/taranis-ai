@@ -1,16 +1,12 @@
 {% from "macros/table.html" import table, table_decoration %}
 {% from "macros/buttons.html" import import_button %}
 
-{% set columns = columns | default([
-  {'title': 'name', 'field': 'name', 'sortable': True, 'renderer': None},
-  {'title': 'description', 'field': 'description', 'sortable': False, 'renderer': None}
-]) %}
+{% set columns = columns | default([]) %}
+{% set actions = actions | default([]) %}
+{% set data = word_lists %}
+{% set table_container = "word_list-table-container" %}
 
-{% set data = model_plural_name | get_var %}
-
-{% set table_container = model_name + '-table-container' %}
-
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for("admin.export_word_lists") }}' }">
+<div id="{{ table_container }}" class="table-container" x-data='{ selectedItems: [], exportUrl: "{{ url_for("admin.export_word_lists") }}" }'>
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
@@ -29,7 +25,7 @@
     </div>
   {% endcall %}
   {% if data and data | length > 0 %}
-    {{ table(model_name + '-table', data, columns, actions=true, standalone=false, routes=routes) }}
+    {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>

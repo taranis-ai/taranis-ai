@@ -80,56 +80,10 @@ jobs:
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
-  test_gui:
-    name: test gui
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/gui
-    outputs:
-      gui_artifact_name: ${{ steps.set_gui_artifact_name.outputs.gui_artifact_name }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: src/gui/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Lint with eslint
-        run: pnpm run lint_and_format
-
-      - name: Build frontend
-        run: pnpm run build
-
-      - name: Preperae GUI artifact
-        id: set_gui_artifact_name
-        run: |
-          GUI_ARTIFACT_NAME="built-frontend-${{ github.event.pull_request.number || github.run_number }}"
-          GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}
-          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME}" >> $GITHUB_ENV
-          echo "gui_artifact_name=${GUI_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-          tar -czf ${{ runner.temp }}/${GUI_ARTIFACT_NAME}.tar.gz dist/
-
-      - name: Upload built frontend
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: ${{ runner.temp }}/${{ env.GUI_ARTIFACT_NAME }}.tar.gz
-
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    needs: [test_core, test_gui, test_frontend]
+    needs: [test_core, test_frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -148,25 +102,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          FRONTEND_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
-          CORE_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
+          FRONTEND_PLAYWRIGHT_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/frontend | grep '^playwright==' | cut -d= -f3)
+          CORE_PLAYWRIGHT_VERSION=$(uv export --frozen --no-hashes --all-extras --directory src/core | grep '^playwright==' | cut -d= -f3)
 
-          echo "Frontend playwright version: $FRONTEND_VERSION"
-          echo "Core playwright version:     $CORE_VERSION"
+          echo "Frontend playwright version: $FRONTEND_PLAYWRIGHT_VERSION"
+          echo "Core playwright version:     $CORE_PLAYWRIGHT_VERSION"
 
-          if [ "$FRONTEND_VERSION" != "$CORE_VERSION" ]; then
+          if [ "$FRONTEND_PLAYWRIGHT_VERSION" != "$CORE_PLAYWRIGHT_VERSION" ]; then
             echo "::error ::Mismatch in declared playwright versions!"
-            echo "::error ::src/frontend declares $FRONTEND_VERSION, but src/core declares $CORE_VERSION."
+            echo "::error ::src/frontend declares $FRONTEND_PLAYWRIGHT_VERSION, but src/core declares $CORE_PLAYWRIGHT_VERSION."
             echo "::error ::Please run \`uv sync --upgrade --all-extras\` in both folders to align."
             exit 1
           fi
 
-      - name: Set up Python
-        working-directory: src/core
-        run: uv python install
+          echo "PLAYWRIGHT_VERSION=$FRONTEND_PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
 
-      - name: Install core
+
+      - name: Install core dependencies
         working-directory: src/core
+        run: uv sync --all-extras
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
         run: uv sync --all-extras
 
       - name: Cache Playwright Browsers
@@ -174,31 +131,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: Install Playwright dependencies
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: src/core
-        run: uv run playwright install --with-deps chromium
-
-      - name: Download built frontend
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.test_gui.outputs.gui_artifact_name }}
-          path: src/gui/
-
-      - name: Extract Artifact for CI/CD
-        working-directory: src/gui
-        run: tar xf ${{ needs.test_gui.outputs.gui_artifact_name }}.tar.gz
-
-      - name: Run e2e tests
-        id: run_e2e
-        working-directory: src/core
-        run: uv run pytest --e2e-ci
-
-      - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras
+        run: uv run playwright install --with-deps --only-shell chromium
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+          cache: true
 
       - name: Build Tailwind CSS
         working-directory: src/frontend
@@ -239,7 +182,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Install playwright dependencies
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install --with-deps --only-shell chromium
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .

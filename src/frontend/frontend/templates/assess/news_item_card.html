@@ -1,0 +1,18 @@
+{% macro news_item_card(news_item) %}
+  <article class="rounded-lg border border-base-200 bg-base-100 p-2 shadow-sm">
+    <div class="flex flex-col gap-2">
+      <div class="flex flex-wrap items-start gap-2">
+        <h4 class="font-semibold text-base text-base-content" data-testid="news-item-title">{{ news_item.title or 'Untitled news item' }}</h4>
+        {% if news_item.published %}<span class="badge badge-ghost badge-sm">{{ news_item.published | format_datetime }}</span>{% endif %}
+        {% if news_item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ news_item.language }}</span>{% endif %}
+      </div>
+      {% if news_item.link %}
+        <a href="{{ news_item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
+          {{ heroicon_mini("arrow-top-right-on-square") }}
+          <span>{{ news_item.link }}</span>
+        </a>
+      {% endif %}
+      {% if news_item.content %}<p class="text-sm leading-relaxed text-base-content/80 whitespace-pre-line">{{ news_item.content }}</p>{% endif %}
+    </div>
+  </article>
+{% endmacro %}

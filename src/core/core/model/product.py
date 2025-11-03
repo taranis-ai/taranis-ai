@@ -180,9 +180,9 @@ class Product(BaseModel):
         report_items = data.get("report_items")
         if report_items is not None:
             product.report_items = ReportItem.get_bulk(report_items)
-            queue_manager.queue_manager.generate_product(product.id)
 
         db.session.commit()
+        queue_manager.queue_manager.generate_product(product.id)
         return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
 
     @classmethod

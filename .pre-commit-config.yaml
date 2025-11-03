@@ -2,10 +2,11 @@ exclude: ^src/frontend/frontend/static/.*$
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.2
+    rev: v0.14.0
     hooks:
-      - id: ruff
+      - id: ruff-check
         files: ^(src/core|src/worker|src/frontend|src/models)
+        args: [ --fix ]
       - id: ruff-format
         files: ^(src/core|src/worker|src/frontend|src/models)
 
@@ -30,7 +31,6 @@ repos:
         name: djlint
         language: system
         files: ^src/frontend/frontend/templates
-        entry: uvx djlint --profile=jinja --check
-        # pass_filenames: false
+        entry: uvx djlint --profile=jinja --reformat
         types_or: [jinja, html]
 

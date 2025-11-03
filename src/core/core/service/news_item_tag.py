@@ -7,7 +7,6 @@ from core.model.news_item_tag import NewsItemTag
 from core.managers.db_manager import db
 from core.log import logger
 
-
 if TYPE_CHECKING:
     from core.model.report_item import ReportItem
 
@@ -91,8 +90,14 @@ class NewsItemTagService:
 
     @classmethod
     def add_report_tag(cls, story: "Story", report: "ReportItem"):
+        story_tags = []
+        for tag in story.tags:
+            if tag.tag_type == f"report_{report.id}":
+                return
+            story_tags.append(tag)
         new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
-        story.tags.append(new_tag)
+        story_tags.append(new_tag)
+        story.tags = story_tags
         db.session.commit()
 
     @classmethod

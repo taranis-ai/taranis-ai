@@ -1,6 +1,6 @@
 from flask import request
 from werkzeug.datastructures import MultiDict
-from typing import Type, get_origin, Union, get_args
+from typing import get_origin, get_args, Union, Any
 from pydantic import BaseModel
 
 
@@ -8,7 +8,7 @@ def is_htmx_request() -> bool:
     return "HX-Request" in request.headers
 
 
-def convert_query_params(query_params: MultiDict[str, str], model: Type[BaseModel]) -> dict:
+def convert_query_params(query_params: MultiDict[str, str], model: type[BaseModel]) -> dict[str, Any]:
     """
     group query parameters into lists if model defines them
 
@@ -26,7 +26,7 @@ def convert_query_params(query_params: MultiDict[str, str], model: Type[BaseMode
     }
 
 
-def _is_list(type_: Type) -> bool:
+def _is_list(type_: type) -> bool:
     origin = get_origin(type_)
     if origin is list:
         return True

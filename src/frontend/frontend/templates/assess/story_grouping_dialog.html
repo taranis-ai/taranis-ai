@@ -1,0 +1,67 @@
+<dialog id="story_grouping_dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()">
+  {% set base_classes = "sortable-item card mb-3 border" %}
+  {% set primary_classes = "border-primary ring-2 ring-primary/30 hover:ring-primary/50 hover:bg-primary/10" %}
+  {% set secondary_classes = "border-dashed border-base-300 bg-base-100 hover:border-primary hover:shadow-lg" %}
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-2">Group Stories</h3>
+    <p class="text-sm text-base-content/70 mb-4">
+      Drag to reorder. The first story becomes the primary story—everything else will merge into it.
+    </p>
+    {# djlint: off #}
+    <form id="sortable-form"
+          hx-post="{{ url_for('assess.submit_cluster_story') }}"
+          hx-target="#assess"
+          hx-on::after-request="document.getElementById('story_grouping_dialog').close()"
+          x-init="
+            const sortableContainer = $el.querySelector('#sortable-container');
+            if (!sortableContainer || sortableContainer.dataset.sortableInitialized === 'true') return;
+            sortableContainer.dataset.sortableInitialized = 'true';
+            Sortable.create(sortableContainer, {
+              handle: '.handle',
+              draggable: '.sortable-item',
+              animation: 150,
+              onEnd: function (evt) {
+                if (evt.oldIndex === 0 || evt.newIndex === 0) {
+                  console.log('Primary story changed, updating classes');
+                  const items = evt.to.querySelectorAll('.sortable-item');
+                  items.forEach((item, index) => {
+                    item.dataset.index = index;
+                    item.dispatchEvent(new CustomEvent('sortable-index-changed', {
+                      detail: { index }
+                    }));
+                  });
+                }
+              }
+            });
+          ">
+    {# djlint: on#}
+    <div class="sortable" id="sortable-container">
+      {% for story in stories %}
+        <div :class="index === 0 ? 'sortable-item card mb-3 border border-primary ring-2 ring-primary/30 hover:ring-primary/50 hover:bg-primary/10' : 'sortable-item card mb-3 border border-dashed border-base-300 bg-base-100 hover:border-primary hover:shadow-lg'"
+             data-story-id="{{ story.id }}"
+             data-index="{{ loop.index0 }}"
+             x-data="() => ({ index: Number($el.dataset.index) })"
+             x-on:sortable-index-changed="index = event.detail.index"
+             data-testid="story-to-merge">
+          <input type="hidden" name="story_ids" value="{{ story.id }}">
+          <div class="handle card-body p-4 flex items-start gap-4">
+            <div class="handle cursor-grab active:cursor-grabbing" title="Drag to reorder" aria-label="Drag story">
+              <h4 class="font-semibold text-lg text-base-content leading-tight">{{ story.title or "Untitled story" }}</h4>
+              <p class="text-xs text-base-content/60 my-1">Story ID: {{ story.id }}</p>
+              <span x-show="index === 0" class="badge badge-primary badge-outline text-xs uppercase tracking-wide" x-cloak>Primary story</span>
+              <span x-show="index !== 0" class="badge badge-outline text-xs uppercase tracking-wide" x-cloak>Merges into primary</span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-outline btn-wide" data-testid="dialog-story-cluster-submit">Cluster</button>
+  </form>
+</div>
+</dialog>
