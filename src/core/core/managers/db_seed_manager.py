@@ -83,6 +83,8 @@ def pre_seed_update(db_engine: Engine):
 
 def migrate_user_profile(user_profile: dict, template: dict) -> dict:
     out = dict(user_profile)
+    if end_of_shift := out.get("end_of_shift"):
+        out["end_of_shift"] = f"{end_of_shift['hours']}:{end_of_shift['minutes']}" if isinstance(end_of_shift, dict) else end_of_shift
     for key, value in template.items():
         if key in out and isinstance(value, dict) and not isinstance(out[key], dict) or key not in out:
             out[key] = deepcopy(value)
