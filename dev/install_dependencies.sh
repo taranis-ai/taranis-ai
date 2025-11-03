@@ -46,10 +46,8 @@ install_docker() {
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 }
 
-# Setup Node.js from Nodesource
-setup_nodejs() {
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+setup_deno() {
+    curl -fsSL https://deno.land/install.sh | sh
 }
 
 # setup local.taranis.ai
@@ -69,7 +67,7 @@ main() {
     install_basic_utils
     install_astral
     install_docker
-    setup_nodejs
+    setup_deno
     setup_nginx
     touch ./dev/.installed
 }

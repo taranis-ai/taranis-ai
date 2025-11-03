@@ -54,7 +54,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `gui`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
+Taranis AI supports advanced monitoring of `ingress`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
 
 ## Advanced build methods
 
@@ -71,15 +71,17 @@ Afterwards go to the cloned repository and launch the `docker build` command for
 ```bash
 cd Taranis AI
 docker build -t taranis-core . -f ./docker/Containerfile.core
-docker build -t taranis-gui . -f ./docker/Containerfile.gui
+docker build -t taranis-ingress . -f ./docker/Containerfile.ingress
 docker build -t taranis-worker . -f ./docker/Containerfile.worker
+docker build -t taranis-frontend . -f ./docker/Containerfile.frontend
 ```
 
 There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
 
 - [Dockerfile.worker](Dockerfile.worker)
 - [Dockerfile.core](Dockerfile.core)
-- [Dockerfile.gui](Dockerfile.gui)
+- [Dockerfile.ingress](Dockerfile.ingress)
+- [Dockerfile.frontend](Dockerfile.frontend)
 
 # Configuration
 
@@ -126,18 +128,27 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `QUEUE_BROKER_PASSWORD` | RabbitMQ password                          | `supersecret`               |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
+
+### `frontend`
+
+| Environment variable    | Description                                | Default                     |
+| ----------------------- | ------------------------------------------ | --------------------------- |
+| `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
+| `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `DEBUG`                 | Debug logging                              | `False`                     |
+
+
 > [!NOTE]
 > ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
 >
 > If you set `TARANIS_CORE_URL`: `TARANIS_CORE_HOST` and `TARANIS_BASE_PATH` will be ignored.
 
-### `gui`
+### `ingress`
 
 | Environment variable     | Description                                       | Default      |
 | ------------------------ | ------------------------------------------------- | ------------ |
 | `TARANIS_CORE_API`       | URL of the Taranis core API.                      | `/api/`      |
 | `TARANIS_CORE_UPSTREAM`  | nginx upstream for the Taranis Core               | `core:8080`  |
-| `TARANIS_GUI_SENTRY_DSN` | Sentry DSN                                        | ''           |
 | `NGINX_WORKERS`          | Number of nginx worker threads to spawn.          | `4`          |
 | `NGINX_CONNECTIONS`      | Maximum number of connections per worker thread.  | `16`         |
 | `TARANIS_BASE_PATH`      | Path under which Taranis AI is reachable          | `/`          |

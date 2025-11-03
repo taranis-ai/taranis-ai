@@ -36,29 +36,29 @@ class TaranisLogger:
 
         self.logger.addHandler(stream_handler)
 
-    def debug(self, message):
+    def debug(self, message: str) -> None:
         self.logger.debug(message)
 
-    def exception(self, message=None):
+    def exception(self, message: str | None = None) -> None:
         if message:
             self.logger.debug(message)
         self.logger.debug(traceback.format_exc())
 
-    def info(self, message):
+    def info(self, message: str) -> None:
         self.logger.info(message)
 
-    def critical(self, message):
+    def critical(self, message: str) -> None:
         self.logger.critical(message)
 
-    def warning(self, message):
+    def warning(self, message: str) -> None:
         self.logger.warning(message)
 
-    def error(self, message):
+    def error(self, message: str) -> None:
         self.logger.error(message)
 
 
 class TaranisLogFormatter(logging.Formatter):
-    def __init__(self, module):
+    def __init__(self, module: str):
         grey = "\x1b[38;20m"
         blue = "\x1b[1;36m"
         yellow = "\x1b[33;20m"
@@ -96,13 +96,8 @@ class Logger(TaranisLogger):
     def resolve_data(self):
         if "application/json" not in request.headers.get("Content-Type", ""):
             return ""
-        if request.data is None:
-            return ""
 
         return str(request.data)[:4096].replace("\\r", "").replace("\\n", "").replace(" ", "")[2:-1]
-
-    def store_user_activity(self, user, activity_type, activity_detail):
-        self.logger.debug(f"User: {user.name} activity_type: {activity_type} activity_detail: {activity_detail}")
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)

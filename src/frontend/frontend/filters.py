@@ -1,12 +1,14 @@
-from jinja2 import pass_context
-from flask import url_for, render_template
 import base64
+from typing import Any
 import filetype
-
+from flask import render_template, url_for
+from jinja2 import pass_context
 from heroicons.jinja import heroicon_outline
 from markupsafe import Markup, escape
 from datetime import datetime
+
 from models.admin import OSINTSource
+from models.assess import Story
 
 __all__ = [
     "human_readable_trigger",
@@ -27,10 +29,11 @@ __all__ = [
     "normalize_validation_status",
     "render_worker_status",
     "format_datetime",
+    "get_published_dates",
 ]
 
 
-def badge_class(status):
+def badge_class(status: str) -> str:
     """Return the CSS class for a badge based on validation status."""
     if status == "valid":
         return "badge-success"
@@ -39,7 +42,7 @@ def badge_class(status):
     return "badge-neutral"
 
 
-def badge_label(status):
+def badge_label(status: str) -> str:
     """Return the label for a badge based on validation status."""
     if status == "valid":
         return "Valid"
@@ -48,7 +51,7 @@ def badge_label(status):
     return "Unknown"
 
 
-def normalize_validation_status(status) -> str:
+def normalize_validation_status(status: dict[str, Any] | None) -> str:
     """Normalize to 'valid' | 'invalid' | 'unknown'.
     Expected input: dict with key 'is_valid' or None. Any other type -> 'unknown'.
     """
@@ -61,10 +64,10 @@ def normalize_validation_status(status) -> str:
     return "unknown"
 
 
-def parse_interval_trigger(trigger):
+def parse_interval_trigger(trigger: str) -> str:
     time_part = trigger.split("[")[1].rstrip("]")
     hours, minutes, seconds = map(int, time_part.split(":"))
-    parts = []
+    parts: list[str] = []
     if hours > 0:
         parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
     if minutes > 0:
@@ -152,19 +155,19 @@ def render_worker_status(item) -> str:
     return Markup(render_template("partials/status_badge.html", status=status, enabled=enabled))
 
 
-def last_path_segment(value):
+def last_path_segment(value: str) -> str:
     return value.strip("/").split("/")[-1]
 
 
-def admin_action(value):
+def admin_action(value: str) -> str:
     return url_for("admin_settings.settings_action", action=last_path_segment(value))
 
 
-def b64decode(value):
+def b64decode(value: str) -> str:
     return base64.b64decode(value).decode("utf-8")
 
 
-def render_validation_status(status) -> str:
+def render_validation_status(status: dict[str, Any] | None) -> str:
     """Render validation status badge for a status dict.
     Expected: dict with keys is_valid, error_type?, error_message?; anything else -> Unknown.
     """
@@ -196,8 +199,23 @@ def format_datetime(value: datetime | str) -> str:
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     if isinstance(value, datetime):
-        return value.strftime("%A, %d. %B %Y %H:%M")
+        return value.strftime("%d. %B %Y %H:%M")
     return value
+
+
+def get_published_dates(story: Story) -> dict[str, datetime | None]:
+    published = {}
+    if not story.news_items:
+        return {"earliest": story.created, "latest": story.updated}
+    for news_item in story.news_items:
+        if published_at := news_item.published or news_item.collected:
+            published["earliest"] = published.get("earliest", published_at)
+            published["latest"] = published.get("latest", published_at)
+            if published_at < published["earliest"]:
+                published["earliest"] = published_at
+            if published_at > published["latest"]:
+                published["latest"] = published_at
+    return published
 
 
 @pass_context

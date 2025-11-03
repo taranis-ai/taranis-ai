@@ -75,7 +75,9 @@ pythonpath = ["."]
 markers = [
     "e2e_ci: marks tests as to run only when calling with --e2e-ci option",
     "e2e_timeout: time in milliseconds to wait for the e2e tests to finish",
-    "e2e_admin: marks tests that produce pictures for the documentation",
+    "e2e_admin: run e2e tests of admin interface",
+    "e2e_user: run e2e tests of user interface",
+    "e2e_user_workflow: run e2e user workflow"
 ]
 
 [tool.pylint.'MESSAGES CONTROL']
@@ -106,3 +108,18 @@ indent=2
 config-settings = { editable_mode = "compat" }
 prerelease = "allow"
 
+[tool.pyright]
+typeCheckingMode = "standard"
+reportConstantRedefinition = "error"
+reportDuplicateImport = "error"
+reportMissingTypeStubs = "warning"
+reportMissingParameterType = "warning"
+reportMissingTypeArgument = "warning"
+
+reportDeprecated = "warning"
+reportMatchNotExhaustive = "warning"
+reportUnnecessaryCast = "warning"
+reportUnreachable = "warning"
+reportUnusedClass = "warning"
+reportUnusedFunction = "warning"
+reportUnusedImport = "warning"

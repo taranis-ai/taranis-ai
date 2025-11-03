@@ -1,0 +1,98 @@
+{% from "assess/story_card.html" import story_card with context %}
+<div id="assess" data-testid="assess">
+  {% set actions = actions | default([]) %}
+  {% set pagination = pagination | default({}) %}
+
+  <div
+    id="assess-container"
+    class="p-4"
+    @keyup.escape.window="clearSelection()"
+    {# djlint:off #}
+    x-data='{
+      selectedItems: [],
+      storyIds: [],
+      showHints: false,
+      init() {
+        this.refreshStoryIds();
+        const storyList = this.$refs.storyList || document.querySelector("#story-list");
+        if (storyList) {
+          const observer = new MutationObserver(() => {
+            this.refreshStoryIds();
+          });
+          observer.observe(storyList, { childList: true, subtree: true });
+        }
+        this.$watch("storyIds", ids => {
+          this.selectedItems = this.selectedItems.filter(id => ids.includes(id));
+        });
+      },
+      toggleSelection(id) {
+        if (this.selectedItems.includes(id)) {
+          this.selectedItems = this.selectedItems.filter(item => item !== id);
+        } else {
+          this.selectedItems = [...this.selectedItems, id];
+        }
+      },
+      isSelected(id) {
+        return this.selectedItems.includes(id);
+      },
+      clearSelection() {
+        this.selectedItems = [];
+      },
+      refreshStoryIds() {
+        const storyList = this.$refs.storyList || document.querySelector("#story-list");
+        if (!storyList) {
+          this.storyIds = [];
+          return;
+        }
+        const ids = Array.from(storyList.querySelectorAll("article[data-story-id]"))
+          .map(node => node.dataset.storyId)
+          .filter(Boolean);
+        this.storyIds = Array.from(new Set(ids));
+      },
+      selectAll() {
+        this.refreshStoryIds();
+        if (!this.storyIds.length) {
+          this.selectedItems = [];
+          return;
+        }
+        this.selectedItems = [...this.storyIds];
+      },
+      action_vals(action, value) {
+        if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
+        return JSON.stringify({ story_ids: this.selectedItems, action: action, value: value });
+      },
+      openStoryEdit() {
+        if (this.selectedItems.length !== 1) return;
+        const storyId = this.selectedItems[0];
+        const storyEditTemplate = "{{ url_for("assess.story_edit", story_id="__ID__") }}";
+        const url = storyEditTemplate.replace("__ID__", storyId);
+        window.location.href = url;
+      }
+    }'
+    {# djlint:on #}
+    >
+
+    {% if stories %}
+      {% include "assess/assess_top_bar.html" %}
+      <div id="story-list" x-ref="storyList">
+        {% for story in stories %}{{ story_card(story) }}{% endfor %}
+      </div>
+      {% if pagination %}
+        {% set hx_target = request.headers.get("HX-Target") %}
+        <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
+          {% if pagination.infinite_scroll %}
+            {% include "assess/story_table_infinite_scroll.html" %}
+          {% else %}
+            {% include "assess/story_table_paging.html" %}
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
+      <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
+        {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
+        Reset filters
+      </a>
+    {% endif %}
+  </div>
+</div>

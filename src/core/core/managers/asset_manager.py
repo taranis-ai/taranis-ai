@@ -14,12 +14,10 @@ def report_item_changed(report_item: "ReportItem"):
     if not report_item.completed:
         return
     cpes = [cpe.value for cpe in report_item.report_item_cpes]
-    assets = Asset.get_by_cpe(cpes)
-
-    notification_groups = set()
-
-    for asset in assets:
-        asset.add_vulnerability(report_item)
-        notification_groups.add(asset.asset_group)
+    if assets := Asset.get_by_cpe(cpes):
+        notification_groups = set()
+        for asset in assets:
+            asset.add_vulnerability(report_item)
+            notification_groups.add(asset.asset_group)
 
     db.session.commit()

@@ -1,13 +1,31 @@
 import os
 import pytest
 from dotenv import load_dotenv
+import subprocess
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
 
 if not current_path.endswith("src/frontend"):
-    pytest.skip("Tests must be run from within src/frontend")
+    # Change to git_root/src/frontend instead of skipping
+    try:
+        git_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        git_root = None
+
+    if git_root:
+        frontend_path = os.path.join(git_root, "src", "frontend")
+        if os.path.isdir(frontend_path):
+            os.chdir(frontend_path)
+        else:
+            pytest.skip(f"Expected directory does not exist: {frontend_path}")
+    else:
+        pytest.skip("Unable to locate git root to change into src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
 
@@ -34,12 +52,12 @@ def auth_user():
 
     debug_user = {
         "id": 1,
-        "name": "Arthur Dent",
-        "organization": 1,
-        "permissions": [],
-        "profile": {},
-        "roles": [1],
         "username": "admin",
+        "name": "Arthur Dent",
+        "organization": {"id": 1, "name": "Galactic Government"},
+        "permissions": ["ALL"],
+        "profile": {},
+        "roles": [{"id": 1, "name": "Admin"}],
     }
 
     yield add_user_to_cache(debug_user)
@@ -53,8 +71,13 @@ def access_token(app, auth_user):
         yield create_access_token(identity=auth_user)
 
 
+@pytest.fixture(scope="session")
+def api_header():
+    return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+
+
 @pytest.fixture
-def access_token_response(app, auth_user):
+def access_token_response(app, auth_user, run_core):
     from flask import jsonify
     from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
 
@@ -91,9 +114,12 @@ def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
     group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
-    group.addoption("--highlight-delay", action="store", default="1", help="delay for highlighting elements in e2e tests")
+    group.addoption("--highlight-delay", action="store", default="0", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
-    group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+    group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")
+    group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
+    group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
+
     group.addoption(
         "--fail-on-console",
         action="store",
@@ -115,7 +141,23 @@ def pytest_addoption(parser):
 
 
 def _is_vscode(config) -> bool:
-    # Primary: pytest plugin loaded by the VS Code Python extension
+    """
+    Return True when: pytest was invoked with:
+       -k EXP
+       -  was started from from Zed or VSCode
+    """
+
+    k_expr = None
+    try:
+        k_expr = config.getoption("-k")
+    except Exception:
+        k_expr = None
+    if k_expr:
+        return True
+    # Detect Zed editor
+    if os.getenv("ZED_TERM") or os.getenv("TERM_PROGRAM") == "Zed":
+        return True
+    # VS Code plugin loaded by the VS Code Python extension
     if config.pluginmanager.hasplugin("vscode_pytest"):
         return True
     # Fallbacks (sometimes present when launched from VS Code)
@@ -140,6 +182,8 @@ def pytest_collection_modifyitems(config, items):
     options = {
         "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
+        "--e2e-user": ("e2e_user", "need --e2e-user option to run tests marked with e2e_user"),
+        "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
     }
 
     config.option.headed = True

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, model_validator, ValidationInfo
+from pydantic import field_validator, model_validator, ValidationInfo, SecretStr
 from datetime import datetime
 
 
@@ -13,12 +13,12 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
-    JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_TOKEN_LOCATION: list[str] = ["headers", "cookies"]
     JWT_CSRF_CHECK_FORM: bool = True
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
     JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True
-    JWT_CSRF_METHODS: list = ["POST", "PUT", "PATCH", "DELETE"]
+    JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     TARANIS_BASE_PATH: str = "/"
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    REQUESTS_TRUST_ENV: bool = True
+    CORE_API_KEY: SecretStr = SecretStr("supersecret")
+
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"
     CACHE_TYPE: str = "SimpleCache"
@@ -44,7 +47,7 @@ class Settings(BaseSettings):
     def set_taranis_core(self):
         if self.TARANIS_CORE_URL:
             return self
-        self.TARANIS_CORE_URL = f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api"
+        self.TARANIS_CORE_URL = f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api"  # type: ignore
         return self
 
 

@@ -14,7 +14,6 @@ class NLPBot(BaseBot):
         super().__init__()
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
-        self.bot_api = BotApi(Config.NLP_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         update_result = {}
@@ -22,16 +21,17 @@ class NLPBot(BaseBot):
         if not parameters:
             parameters = {}
         if stories := self.get_stories(parameters):
-            self.bot_api.update_parameters(parameters=parameters)
+            self.bot_api = BotApi(
+                bot_endpoint=parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT),
+                bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+            )
+
             for story_batch in batched(stories):
-                update_result |= self.process_stories(story_batch)
+                update_result |= self._process_stories(story_batch)
             return update_result
         return {"message": "No new stories found"}
 
-    def collect_keywords(self, stories: list) -> dict:
-        return {k: v for story in stories for k, v in story["tags"].items()}
-
-    def process_stories(self, stories: list) -> dict:
+    def _process_stories(self, stories: list) -> dict:
         update_result = {}
 
         for story in stories:
@@ -40,17 +40,17 @@ class NLPBot(BaseBot):
             else:
                 is_cybersecurity = False
             story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
-            current_keywords = self.extract_ner(story_content, is_cybersecurity)
+            current_keywords = self._extract_ner(story_content, is_cybersecurity)
             update_result[story["id"]] = current_keywords
 
-        return self.update_tags(update_result)
+        return self._update_tags(update_result)
 
-    def update_tags(self, update_result: dict) -> dict:
+    def _update_tags(self, update_result: dict) -> dict:
         logger.debug(f"Extracted {len(update_result)} tags")
         self.core_api.update_tags(update_result, self.type)
         return update_result
 
-    def extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
+    def _extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
         if keywords := self.bot_api.api_post("/", {"text": text, "cybersecurity": is_cybersecurity}):
             return keywords
         return {}

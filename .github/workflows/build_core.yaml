@@ -45,24 +45,6 @@ jobs:
       - name: unit tests
         run: uv run pytest
 
-      - name: Install Playwright dependencies
-        run: uv run playwright install --with-deps chromium
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: src/gui/pnpm-lock.yaml
-
-      - name: e2e tests
-        id: e2e_tests
-        run: uv run pytest --e2e-ci
-
       - name: Create SBOM
         run: uvx --from cyclonedx-bom cyclonedx-py environment '.venv' -o ${{ runner.temp }}/taranis_core_sbom.json
 
@@ -73,15 +55,6 @@ jobs:
           overwrite: true
           name: taranis_core_sbom.json
           path: ${{ runner.temp }}/taranis_core_sbom.json
-
-      - name: Upload a e2e-test trace
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && steps.e2e_tests.outcome == 'failure' }}
-        with:
-          retention-days: 7
-          overwrite: true
-          name: playwright-traces-build-core
-          path: src/core/taranis_ai_core_trace.zip
 
 
   build_wheel:

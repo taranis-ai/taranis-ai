@@ -1,87 +1,72 @@
-import json
 from typing import Any
-from flask import render_template, request, Response
-from flask_jwt_extended import get_jwt_identity
+from flask import render_template
+from flask_jwt_extended import current_user
+from pydantic import ValidationError
+from werkzeug.wrappers import Response
 
-from frontend.core_api import CoreApi
-from models.admin import Role, Organization, User
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_count
-from frontend.views.admin_mixin import AdminMixin
+from models.user import UserProfile, ProfileSettings
 from frontend.views.base_view import BaseView
-from frontend.config import Config
 from frontend.log import logger
-from frontend.auth import auth_required
+from frontend.auth import auth_required, update_current_user_cache
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.utils.validation_helpers import format_pydantic_errors
 
 
-class UserView(AdminMixin, BaseView):
-    model = User
+class UserProfileView(BaseView):
+    model = UserProfile
     icon = "user"
     _index = 20
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
-        base_context["organizations"] = dpl.get_objects(Organization)
-        base_context["roles"] = dpl.get_objects(Role)
-        base_context["current_user"] = get_jwt_identity()
+        base_context["current_user"] = current_user
         return base_context
 
     @classmethod
-    def get_columns(cls):
-        return [
-            {"title": "username", "field": "username", "sortable": True, "renderer": None},
-            {"title": "name", "field": "name", "sortable": True, "renderer": None},
-            {"title": "roles", "field": "roles", "sortable": False, "renderer": render_count, "render_args": {"field": "roles"}},
-            {
-                "title": "permissions",
-                "field": "permissions",
-                "sortable": False,
-                "renderer": render_count,
-                "render_args": {"field": "permissions"},
-            },
+    @auth_required()
+    def get_settings_view(cls):
+        LANGUAGE_OPTIONS = [
+            {"id": "en", "name": "English"},
         ]
-
-    @classmethod
-    def import_view(cls, error=None):
-        organizations = DataPersistenceLayer().get_objects(Organization)
-        roles = DataPersistenceLayer().get_objects(Role)
-
-        return render_template(
-            f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", roles=roles, organizations=organizations, error=error
-        )
-
-    @classmethod
-    def import_post_view(cls):
-        roles = [int(role) for role in request.form.getlist("roles[]")]
-        organization = int(request.form.get("organization", "0"))
-        users = request.files.get("file")
-        if not users or organization == 0:
-            return cls.import_view("No file or organization provided")
-        data = users.read()
-        data = json.loads(data)
-        for user in data["data"]:
-            user["roles"] = roles
-            user["organization"] = organization
-        data = json.dumps(data["data"])
-
-        response = CoreApi().import_users(json.loads(data))
-
-        if not response:
-            error = "Failed to import users"
-            return cls.import_view(error)
-
-        DataPersistenceLayer().invalidate_cache_by_object(User)
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        return render_template("user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS)
 
     @classmethod
     @auth_required()
-    def export_view(cls):
-        user_ids = request.args.getlist("ids")
-        core_resp = CoreApi().export_users({"ids": user_ids})
+    def post_settings_view(cls):
+        LANGUAGE_OPTIONS = [
+            {"id": "en", "name": "English"},
+        ]
+        core_response, error = cls.process_form_data(0)
+        if not core_response or error:
+            return render_template(
+                "user_profile/settings.html",
+                **cls.get_update_context(0, error=error),
+            ), 400
 
-        if not core_resp:
-            logger.debug(f"Failed to fetch users from: {Config.TARANIS_CORE_URL}")
-            return f"Failed to fetch users from: {Config.TARANIS_CORE_URL}", 500
+        notification_response = cls.get_notification_from_dict(core_response)
+        update_current_user_cache()
+        logger.debug(f"Profile settings updated: {core_response}")
 
-        return CoreApi.stream_proxy(core_resp, "users_export.json")
+        return render_template(
+            "user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS, notification=notification_response
+        ), 200
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        try:
+            obj = ProfileSettings(**processed_data)
+            dpl = DataPersistenceLayer()
+            result = dpl.store_object(obj)
+            return (result.json(), None) if result.ok else (None, result.json())
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
+        except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
+            return None, str(exc)
+
+    def get(self, **kwargs) -> tuple[str, int]:
+        return render_template("user_profile/profile.html", user=current_user), 200
+
+    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+        return self.post_settings_view()

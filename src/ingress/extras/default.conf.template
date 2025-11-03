@@ -1,0 +1,48 @@
+upstream coreupstream {
+  server ${TARANIS_CORE_UPSTREAM};
+}
+
+upstream sseupstream {
+  server ${TARANIS_SSE_UPSTREAM};
+}
+
+upstream frontendupstream {
+  server ${TARANIS_FRONTEND_UPSTREAM};
+}
+
+server {
+    listen       8080;
+    server_name  _;
+
+    client_max_body_size 50m;
+
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location ${TARANIS_BASE_PATH} {
+        proxy_pass http://frontendupstream;
+    }
+
+    location ${TARANIS_BASE_PATH}frontend {
+        proxy_pass http://frontendupstream;
+    }
+
+    location ${TARANIS_BASE_PATH}api {
+        proxy_pass http://coreupstream;
+        proxy_redirect off;
+    }
+
+    location ${TARANIS_BASE_PATH}sse {
+        proxy_pass http://sseupstream;
+        proxy_read_timeout 24h;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        proxy_buffering off;
+    }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html/taranis;
+    }
+}

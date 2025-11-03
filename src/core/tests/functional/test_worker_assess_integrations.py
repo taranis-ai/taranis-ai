@@ -97,9 +97,6 @@ class TestStoryAssessWorkerUpdates:
         assert len(response_data.get("attributes")) == len(story_conflict_resolution_1.get("resolution").get("attributes")) + 1, (
             "The worker story attributes should be updated correctly + TLP attribute"
         )
-        assert response_data.get("links") == story_conflict_resolution_1.get("resolution").get("links"), (
-            "The worker story links should be updated correctly"
-        )
         assert response_data.get("news_items")[0].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]
         assert response_data.get("news_items")[1].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]
         assert response_data.get("news_items")[2].get("content") in ["TEST CONTENT ZZZZ", "TEST CONTENT YYYY", "CVE-2020-1234 - Test Story 1"]

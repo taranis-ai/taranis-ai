@@ -1,0 +1,213 @@
+{% macro story_card(story, detail_view=False) %}
+  {% from "assess/story_card_actions.html" import story_card_actions %}
+  {% from "assess/news_item_card.html" import news_item_card %}
+  {% set story_id = story.id %}
+  {% set news_items = (story.news_items | default([])) | list %}
+  {% set news_count = news_items | length %}
+  {% set compact_view = false if detail_view else current_user.profile.compact_view %}
+  {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
+  {% set summary_content = story.model_extra.summary_content %}
+
+  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative"] %}
+  {% if story.read | default(false) %}
+    {% set card_classes = card_classes + ['border-base-200'] %}
+  {% else %}
+    {% set card_classes = card_classes + ['border-primary'] %}
+  {% endif %}
+  {% if story.important | default(false) %}
+    {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
+  {% endif %}
+  {% if compact_view %}
+    {% set card_classes = card_classes + ['mb-1'] %}
+  {% else %}
+    {% set card_classes = card_classes + ['mb-3'] %}
+  {% endif %}
+
+  {% if not detail_view %}
+    {% set card_classes = card_classes + ['cursor-pointer'] %}
+  {% endif %}
+
+  {% set pub = story | get_published_dates %}
+
+  <article id="story-{{ story_id }}"
+           class="{{ ' '.join(card_classes) }}"
+           data-story-id="{{ story_id }}"
+           data-testid="story-card-{{ story_id }}"
+           x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
+           {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
+           :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
+           :aria-selected="isSelected('{{ story_id }}')">
+    <div class="p-2 space-y-2" id="story-card-content-{{ story_id }}">
+      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+
+        <!-- status and metadata column -->
+        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0 lg:w-64">
+          <div class="flex items-start gap-2">
+            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
+            <div class="flex flex-col gap-1">
+              {% if pub.get("earliest") %}
+                <span class="text-xs">{{ pub.get("earliest") | format_datetime }}</span>
+                {% if pub.get("latest") and pub.get("latest") != pub.get("earliest") %}
+                  <span class="text-xs">{{ pub.get("latest") | format_datetime }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-base-content/60">Not available</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if not compact_view %}
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 text-xs">
+                {% if story.read | default(false) %}
+                  <span class="badge badge-success badge-outline badge-xs">Read</span>
+                {% else %}
+                  <span class="badge badge-primary badge-xs">Unread</span>
+                {% endif %}
+                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs">Important</span>{% endif %}
+                {% if story.relevance is not none %}<span class="badge badge-outline badge-xs">Relevance {{ story.relevance }}</span>{% endif %}
+              </div>
+            </div>
+
+            {% if story.in_reports_count %}
+              {% set report_count = story.in_reports_count | int %}
+              <div class="flex items-center gap-2">
+                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
+                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+                  {% if report_count < 2 %}
+                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
+                  {% else %}
+                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+
+            {% if story.tags %}
+              <div class="space-y-1">
+                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
+                <div class="flex flex-wrap gap-2">
+                  {% for tag in story.tags[:6] %}
+                    {% if tag.name %}
+                      <div class="tooltip before:z-[50]" data-tip="{{ tag.tag_type }}">
+                        <span class="badge badge-ghost badge-xs whitespace-nowrap">{{ tag.name | truncate(10, true) }}</span>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                  {% if story.tags | length > 6 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 6 }}</span>{% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+
+          {% if story.model_extra.source_info %}
+            <div class="flex gap-2">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Source</span>
+              <div class="flex gap-1 text-xs truncate">
+                <span class="whitespace-nowrap truncate">{{ story.model_extra.source_info.name }}</span>
+                {% if story.model_extra.source_info.icon %}
+                  <img src="data:image/png;base64,{{ story.model_extra.source_info.icon | string }}"
+                       alt="{{ story.model_extra.source_info.name }}"
+                       height="16"
+                       width="16" />
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        <!-- main content column -->
+        <section class="space-y-3 lg:flex-1">
+          <div class="flex flex-col gap-2">
+            <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ story.title }}</h2>
+            {% if story.links %}
+              <a href="{{ story.links[0] }}"
+                 target="_blank"
+                 rel="noopener"
+                 class="link link-primary text-xs inline-flex items-center gap-1 w-fit"
+                 data-testid="story-link-{{ story_id }}">
+                {{ heroicon_mini("arrow-top-right-on-square") }}
+                <span>{{ story.links[0] }}</span>
+              </a>
+            {% endif %}
+          </div>
+
+          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
+            {% if summary_content %}
+              {{ summary_content }}
+            {% else %}
+              {{ story.description }}
+            {% endif %}
+          </div>
+        </section>
+
+        <!-- actions column -->
+        <section class="flex flex-col items-end gap-1 text-xs lg:flex-shrink-0 lg:ml-auto" @click.stop>
+          {{ story_card_actions(story, story_id, compact_view=compact_view) }}
+        </section>
+      </div>
+
+      <!-- expandable details section -->
+      <div class="border-t border-base-200 pt-4 space-y-2" x-show="isOpen" x-transition x-cloak>
+        <div class="stats stats-horizontal shadow bg-base-100">
+          <div class="stat">
+            <div class="stat-title">News items</div>
+            <div class="stat-value text-lg">{{ news_count }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Likes</div>
+            <div class="stat-value text-lg">{{ story.likes | default(0) }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Dislikes</div>
+            <div class="stat-value text-lg">{{ story.dislikes | default(0) }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Created</div>
+            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.created | format_datetime if story.created else '—' }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Updated</div>
+            <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.updated | format_datetime if story.updated else '—' }}</div>
+          </div>
+        </div>
+
+        {% if story.comments %}
+          <div class="flex flex-col gap-1 rounded-box bg-base-200/20 p-3 text-sm text-base-content/80">
+            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Comments</span>
+            <p class="whitespace-pre-line">{{ story.comments }}</p>
+          </div>
+        {% endif %}
+
+        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80">
+          {% if tags_list %}
+            <div class="space-y-2 lg:flex-1">
+              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
+              <ul class="space-y-1">
+                {% for tag in tags_list[:8] %}
+                  <li class="flex items-center gap-2">
+                    {{ heroicon_mini("tag") }}
+                    <span>{{ tag.name or tag.title or tag }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- news items list -->
+        {% if news_items %}
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
+              <span class="badge badge-outline badge-sm">{{ news_count }}</span>
+            </div>
+            <div class="space-y-2">
+              {% for item in news_items %}{{ news_item_card(item) }}{% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+{% endmacro %}

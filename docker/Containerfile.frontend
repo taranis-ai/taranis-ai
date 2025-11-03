@@ -1,11 +1,14 @@
 FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=denoland/deno:bin-2.5.6 /deno /usr/local/bin/deno
+
 WORKDIR /app/
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     git \
     curl \
+    7zip \
     openssl \
     build-essential \
     python3-dev
@@ -33,7 +36,6 @@ COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/frontend/. /app/
 COPY --from=builder --chown=user:user /app/frontend/static/ /app/frontend/static/
 
-# Copy the OpenAPI spec file
 USER user
 
 ENV PYTHONOPTIMIZE=1

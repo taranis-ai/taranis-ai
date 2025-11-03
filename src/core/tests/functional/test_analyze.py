@@ -10,7 +10,7 @@ class TestAnalyzeApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
-        assert response.get_json()["title"] == cleanup_report_item["title"]
+        assert response.get_json()["report"]["title"] == cleanup_report_item["title"]
 
     def test_get_Reports(self, client, auth_header, cleanup_report_item):
         """
@@ -32,9 +32,8 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
         url = f"report-items/{report_id}"
         response = self.assert_put_ok(client, url, json_data=updated_data, auth_header=auth_header)
-        assert response.json["message"] == "Successfully updated Report Item"
-        response = self.assert_get_ok(client, url, auth_header)
-        assert response.json["title"] == "Updated Report Title"
+        assert response.json["message"] == "Report item updated"
+        assert response.json["report"]["title"] == "Updated Report Title"
 
     def test_clone_report(self, client, auth_header, cleanup_report_item):
         """
@@ -54,7 +53,7 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
 
         response = self.assert_get_ok(client, f"report-items/{report_id}/stories", auth_header=auth_header)
-        assert isinstance(response.get_json(), list), "The response should be a list of stories."
+        assert response.get_json()["report"]["story_ids"] == [], "The response should be a list of stories."
 
     def test_update_report_stories(self, client, auth_header, cleanup_report_item, stories):
         """
@@ -64,6 +63,7 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
 
         response = self.assert_put_ok(client, f"report-items/{report_id}/stories", json_data=stories, auth_header=auth_header)
+        print(response.get_json())
         response_data = response.get_json()
 
         assert "Successfully updated Report Item" in response_data.get("message"), "The update operation should return a success message."

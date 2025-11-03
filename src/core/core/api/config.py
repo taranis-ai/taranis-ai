@@ -4,7 +4,7 @@ from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from sqlalchemy.exc import IntegrityError  # noqa: F401
-from psycopg.errors import UniqueViolation  # noqa: F401
+from psycopg.errors import UniqueViolation, NotNullViolation  # noqa: F401
 
 from core.managers import queue_manager
 from core.log import logger
@@ -43,14 +43,25 @@ from core.service.template_crud import create_or_update_template
 def convert_integrity_error(error: IntegrityError) -> str:
     """
     Converts an IntegrityError into a more descriptive ValidationError.
-    Currently handles UniqueViolation errors using psycopg2's diagnostics.
+    Currently handles UniqueViolation and NotNullViolation errors using psycopg2's diagnostics.
     """
     orig = error.orig
     if isinstance(orig, UniqueViolation):
         constraint = orig.diag.constraint_name
-        field = constraint.split("_")[1] if constraint else None
+        field = constraint.rsplit("_", 2)[-2] if constraint else None
         if field:
-            return f"A record with this {field} already exists."
+            return f"A record with this field: '{field}' already exists."
+    if isinstance(orig, NotNullViolation):
+        column = getattr(orig.diag, "column_name", None)
+        table = getattr(orig.diag, "table_name", None)
+        if column and table:
+            pretty_column = column.replace("_", " ")
+            pretty_table = table.replace("_", " ")
+            return f"Cannot set {pretty_column} to null because {pretty_table} still requires a value."
+        if column:
+            pretty_column = column.replace("_", " ")
+            return f"A value for {pretty_column} is required."
+        return "A required value is missing."
     return str(error)
 
 
@@ -170,16 +181,32 @@ class ProductTypes(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
-        product = product_type.ProductType.add(request.json)
-        return {"message": "Product type created", "id": product.id}, 201
+        try:
+            product = product_type.ProductType.add(request.json)
+            return {"message": "Product type created", "id": product.id}, 201
+        except IntegrityError as e:
+            return {"error": convert_integrity_error(e)}, 400
+        except Exception as e:
+            logger.error(f"Error creating product type: {e}")
+            return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
-        return product_type.ProductType.update(type_id, request.json, current_user)
+        try:
+            return product_type.ProductType.update(type_id, request.json, current_user)
+        except Exception as e:
+            logger.error(f"Error updating product type: {e}")
+            return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id):
-        return product_type.ProductType.delete(type_id)
+        try:
+            return product_type.ProductType.delete(type_id)
+        except IntegrityError as e:
+            return {"error": convert_integrity_error(e)}, 400
+        except Exception as e:
+            logger.error(f"Error deleting product type: {e}")
+            return {"error": "Failed to delete product type"}, 500
 
 
 class Parameters(MethodView):
@@ -241,7 +268,6 @@ class Templates(MethodView):
         items = build_templates_list()
         return jsonify({"items": items, "total_count": len(items)}), 200
 
-
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path=None):
         # Use shared logic for create/update
@@ -250,7 +276,6 @@ class Templates(MethodView):
         template_id = request.json.get("id")
         base64_content = request.json.get("content")
         return create_or_update_template(template_id, base64_content)
-
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
@@ -271,7 +296,7 @@ class Templates(MethodView):
 
 class TemplateValidation(MethodView):
     """Endpoint for validating Jinja2 templates without saving them."""
-    
+
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def post(self):
         """Validate a Jinja2 template without saving it."""
@@ -292,7 +317,7 @@ class TemplateValidation(MethodView):
                 "is_valid": validation_result["is_valid"],
                 "error_message": validation_result.get("error_message", ""),
                 "error_type": validation_result.get("error_type", ""),
-                "message": "Template is valid" if validation_result["is_valid"] else "Template has validation errors"
+                "message": "Template is valid" if validation_result["is_valid"] else "Template has validation errors",
             }, 200
 
         except Exception as e:
@@ -707,7 +732,13 @@ class WordLists(MethodView):
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id):
-        return word_list.WordList.delete(word_list_id)
+        try:
+            return word_list.WordList.delete(word_list_id)
+        except IntegrityError as e:
+            return {"error": convert_integrity_error(e)}, 400
+        except Exception:
+            logger.exception(f"Failed to delete word list {word_list_id}")
+            return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    {
+      "name": "Aktuelles aus dem BM.I",
+      "description": "\u00dcbersicht der neuesten Artikel aus dem Bundesministerium f\u00fcr Inneres",
+      "type": "rss_collector",
+      "parameters": [{ "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml" }]
+    }
+  ]
+}
