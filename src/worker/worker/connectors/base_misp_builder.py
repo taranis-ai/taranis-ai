@@ -60,17 +60,17 @@ def add_attributes_from_story(story: dict) -> list[str]:
     return results
 
 
-def init_misp_event(event: MISPEvent, data: dict, sharing_group_id: str | None = None, distribution: str | None = None) -> None:
+def init_misp_event(event: MISPEvent, data: dict, sharing_group_id: int | None = None, distribution: int | None = None) -> None:
     event.uuid = data.get("id", "")
     event.info = data.get("title", "")
     event.threat_level_id = 4
     event.analysis = 0
 
     if sharing_group_id:
-        event.sharing_group_id = int(sharing_group_id)
+        event.sharing_group_id = sharing_group_id
 
     if distribution:
-        event.distribution = int(distribution)
+        event.distribution = distribution
 
     return None
 

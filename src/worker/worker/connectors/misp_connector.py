@@ -24,8 +24,8 @@ class MispConnector:
         self.org_id: str = ""
         self.ssl: bool = False
         self.request_timeout: int = 5
-        self.sharing_group_id: str = ""
-        self.distribution: str = "1"
+        self.sharing_group_id: int | None = None
+        self.distribution: int | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
@@ -35,12 +35,24 @@ class MispConnector:
         self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
         self.proxies = parameters.get("PROXIES")
         self.headers = parameters.get("HEADERS", {})
-        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
-        self.distribution = parameters.get("DISTRIBUTION", "")
-        if not self.distribution and self.sharing_group_id:
-            self.distribution = "4"
+        try:
+            self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
+        except ValueError:
+            logger.warning(f"Invalid SHARING_GROUP_ID value: {parameters.get('SHARING_GROUP_ID')}. Setting to None.")
+            self.sharing_group_id = None
+
+        self.distribution = self._parse_distribution(parameters.get("DISTRIBUTION", ""))
         if not self.url or not self.api_key:
             raise ValueError("Missing required parameters")
+
+    def _parse_distribution(self, raw_distribution: str | None) -> int:
+        if not raw_distribution:
+            raw_distribution = "4" if self.sharing_group_id else "0"
+        try:
+            return int(raw_distribution)
+        except ValueError:
+            logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
+            return 0
 
     def execute(self, connector_data: dict) -> None:
         connector_config = connector_data.get("connector_config")
@@ -269,7 +281,7 @@ class MispConnector:
         new_event.analysis = existing_event.analysis
         new_event.extends_uuid = existing_event.uuid
         if self.sharing_group_id:
-            new_event.sharing_group_id = int(self.sharing_group_id)
+            new_event.sharing_group_id = self.sharing_group_id
         try:
             created = misp.add_event(new_event, pythonify=True)
             return None if isinstance(created, dict) and created.get("errors") else created  # type: ignore
