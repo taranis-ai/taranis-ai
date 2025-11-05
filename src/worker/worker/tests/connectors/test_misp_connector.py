@@ -8,7 +8,7 @@ from worker.config import Config
 
 
 @pytest.fixture
-def mock_connector_responses(requests_mock, stories):
+def misp_connector_core_mock(requests_mock, stories):
     from worker.tests.misp_connector_test_data import misp_connector
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
@@ -116,7 +116,7 @@ def test_drop_utf16_surrogates_edge_cases():
     # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
 
 
-def test_connector_story_processing(mock_connector_responses, misp_api_mock, connector_task, caplog):
+def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, connector_task, caplog):
     import logging
 
     # Set the logging level to ERROR to capture only error logs and fail properly

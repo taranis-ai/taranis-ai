@@ -291,7 +291,6 @@ class MISPCollector(BaseCollector):
             pythonify=False,
             extended=True,
         )
-        logger.debug(f"Raw response from MISP search: {raw=}")
 
         if isinstance(raw, dict) and "message" in raw:
             logger.error(f"Error fetching Taranis events: {raw['message']}")
