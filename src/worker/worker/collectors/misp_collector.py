@@ -1,6 +1,8 @@
 import ast
+from typing import Any, cast
 from pymisp import PyMISP
 
+from worker.config import Config
 from worker.core_api import CoreApi
 from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
@@ -16,23 +18,27 @@ class MISPCollector(BaseCollector):
         self.description: str = "Connector for MISP"
 
         self.proxies: dict | None = None
-        self.headers: dict = {}
+        self.headers: dict | None = None
         self.connector_id: str
 
         self.url: str = ""
         self.api_key: str = ""
         self.ssl: bool = False
-        self.sharing_group_id: str = ""
+        self.sharing_group_id: int | None = None
         self.org_id: str = ""
+        self.days_without_change: str | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
-        self.ssl = parameters.get("SSL", False)
-        self.proxies = parameters.get("PROXIES", "")
-        self.headers = parameters.get("HEADERS", "")
-        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
+        self.proxies = parameters.get("PROXY_SERVER", "")
+        self.headers = parameters.get("ADDITIONAL_HEADERS", "")
+        self.ssl = parameters.get("SSL_CHECK", "") == "true"
+        sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
+        self.sharing_group_id = int(sharing_group_id) if sharing_group_id else None
         self.org_id = parameters.get("ORGANISATION_ID", "")
+        self.timeout = parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)
+        self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE", "")
 
         if not self.url:
             raise ValueError("Missing URL parameter")
@@ -150,7 +156,6 @@ class MISPCollector(BaseCollector):
             "relevance": 0,
             "read": False,
             "important": False,
-            "links": [],
             "tags": [],
             "attributes": [],
         }
@@ -171,9 +176,6 @@ class MISPCollector(BaseCollector):
                     story_properties["important"] = bool(int(item.get("value", 0)))
                 case "read":
                     story_properties["read"] = bool(int(item.get("value", 0)))
-                case "links":
-                    if value := item.get("value", None):
-                        story_properties["links"].append(ast.literal_eval(value))
                 case "tags":
                     if value := item.get("value", ""):
                         story_properties["tags"].append(ast.literal_eval(value))
@@ -208,8 +210,6 @@ class MISPCollector(BaseCollector):
             cleaned["tags"] = {}
         if not cleaned.get("attributes"):
             cleaned["attributes"] = {}
-        if not cleaned.get("links"):
-            cleaned["links"] = []
         if not cleaned.get("news_items"):
             cleaned["news_items"] = []
         if not cleaned.get("id"):
@@ -278,23 +278,32 @@ class MISPCollector(BaseCollector):
                 logger.warning(f"Unknown object type in MISP event: {object.get('name')}")
         return story_properties, story_news_items
 
-    def get_taranis_event_ids(self, misp) -> set[int]:
-        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
-        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[dict] = misp.search(
-            controller="objects", object_name="taranis-news-item", sharinggroup=self.sharing_group_id or None, pythonify=False
+    def get_recent_taranis_events(self, misp: PyMISP) -> list[dict[str, Any]]:
+        """
+        Fetch all MISP events that contain 'taranis-news-item' objects
+        changed within the last `days` days.
+        """
+        raw = misp.search(
+            controller="events",
+            object_name="taranis-news-item",
+            timestamp=f"{self.days_without_change}d" if self.days_without_change else None,
+            sharinggroup=self.sharing_group_id,
+            pythonify=False,
+            extended=True,
         )
-        if isinstance(taranis_objects, dict):
-            logger.error(f"Error fetching objects from MISP: {taranis_objects.get('message', 'Unknown error')}")
-            return set()
+        logger.debug(f"Raw response from MISP search: {raw=}")
 
-        event_ids = set()
-        for obj_dict in taranis_objects:
-            obj_event_id = obj_dict.get("Object", {}).get("Event", {}).get("id")
-            logger.debug(f"Object ID: {obj_dict.get('id')}, Event ID: {obj_event_id}")
-            if obj_event_id is not None:
-                event_ids.add(obj_event_id)
-        return event_ids
+        if isinstance(raw, dict) and "message" in raw:
+            logger.error(f"Error fetching Taranis events: {raw['message']}")
+            return []
+
+        events = cast(list[dict[str, Any]], raw)
+
+        if self.days_without_change:
+            logger.info(f"Fetched {len(events)} Taranis events (last {self.days_without_change} days).")
+        else:
+            logger.info(f"Fetched {len(events)} Taranis events.")
+        return [event for event in events if self.is_sharing_group_match(event)]
 
     # TODO: this looks wrong in general for distribution options (this community and so on)
     def is_sharing_group_match(self, event: dict) -> bool:
@@ -309,11 +318,10 @@ class MISPCollector(BaseCollector):
             if self.check_for_proposal_existence(misp, story.get("id", "")):
                 story["attributes"]["has_proposals"] = {"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"}
 
-    def misp_collector(self, source: dict) -> None:
+    def misp_collector(self, source: dict[str, str]) -> None:
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
-        event_ids: set[int] = self.get_taranis_event_ids(misp)
+        events = self.get_recent_taranis_events(misp)
 
-        events: list[dict] = [misp.get_event(event_id, extended=True, pythonify=False) for event_id in event_ids]  # type: ignore
         story_dicts = self.get_taranis_story_dicts(misp, events, source)
         logger.info(f"{len(story_dicts)} stories have been collected from MISP")
         self.set_story_proposal_status(misp, story_dicts)
