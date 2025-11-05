@@ -3,7 +3,6 @@ from typing import Any, cast
 from pymisp import PyMISP
 
 from worker.config import Config
-from worker.core_api import CoreApi
 from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
 from worker.log import logger
@@ -12,7 +11,6 @@ from worker.log import logger
 class MISPCollector(BaseCollector):
     def __init__(self):
         super().__init__()
-        self.core_api: CoreApi = CoreApi()
         self.type: str = "MISP_CONNECTOR"
         self.name: str = "MISP Connector"
         self.description: str = "Connector for MISP"
@@ -37,7 +35,7 @@ class MISPCollector(BaseCollector):
         sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
         self.sharing_group_id = int(sharing_group_id) if sharing_group_id else None
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.timeout = parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)
+        self.core_api.timeout = parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)
         self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE", "")
 
         if not self.url:
@@ -302,7 +300,7 @@ class MISPCollector(BaseCollector):
             logger.info(f"Fetched {len(events)} Taranis events (last {self.days_without_change} days).")
         else:
             logger.info(f"Fetched {len(events)} Taranis events.")
-        return [event for event in events if self.is_sharing_group_match(event)]
+        return events
 
     # TODO: this looks wrong in general for distribution options (this community and so on)
     def is_sharing_group_match(self, event: dict) -> bool:
