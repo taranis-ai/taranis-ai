@@ -26,14 +26,22 @@ class MISPCollector(BaseCollector):
         self.org_id: str = ""
         self.days_without_change: str | None = None
 
+    def _as_bool(self, val: str) -> bool:
+        return val.lower() == "true"
+
+    def _as_int(self, val: str) -> int | None:
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.proxies = parameters.get("PROXY_SERVER", "")
         self.headers = parameters.get("ADDITIONAL_HEADERS", "")
-        self.ssl = parameters.get("SSL_CHECK", "") == "true"
-        sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
-        self.sharing_group_id = int(sharing_group_id) if sharing_group_id else None
+        self.ssl = self._as_bool(parameters.get("SSL_CHECK", ""))
+        self.sharing_group_id = self._as_int(parameters.get("SHARING_GROUP_ID", ""))
         self.org_id = parameters.get("ORGANISATION_ID", "")
         self.core_api.timeout = parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)
         self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE", "")
