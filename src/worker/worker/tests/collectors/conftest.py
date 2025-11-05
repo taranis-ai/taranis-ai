@@ -46,7 +46,7 @@ def rt_collector():
 
 @pytest.fixture
 def misp_collector():
-    yield collectors.MISPCollector()
+    yield collectors.MispCollector()
 
 
 @pytest.fixture

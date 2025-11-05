@@ -8,7 +8,7 @@ from worker.types import NewsItem
 from worker.log import logger
 
 
-class MISPCollector(BaseCollector):
+class MispCollector(BaseCollector):
     def __init__(self):
         super().__init__()
         self.type: str = "MISP_CONNECTOR"
@@ -131,11 +131,11 @@ class MISPCollector(BaseCollector):
 
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
-        story_properties["news_items"] = MISPCollector.remove_duplicate_news_items(news_items_list)
+        story_properties["news_items"] = MispCollector.remove_duplicate_news_items(news_items_list)
         if story_properties.get("attributes"):
-            story_properties["attributes"] = MISPCollector.to_new_attribute_dict(story_properties.get("attributes", []))
+            story_properties["attributes"] = MispCollector.to_new_attribute_dict(story_properties.get("attributes", []))
         if story_properties.get("tags"):
-            story_properties["tags"] = MISPCollector.to_new_tag_dict(story_properties.get("tags", []))
+            story_properties["tags"] = MispCollector.to_new_tag_dict(story_properties.get("tags", []))
         return story_properties
 
     @staticmethod

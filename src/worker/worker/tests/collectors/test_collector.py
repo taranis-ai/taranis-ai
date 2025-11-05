@@ -1,6 +1,7 @@
 import pytest
 import requests
 from worker.tests.testdata import news_items
+from worker.config import Config
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
@@ -298,3 +299,146 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
     include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, multiple_include_exclude_list)
 
     assert include_exclude_list_results == expected_news_items
+
+
+@pytest.mark.parametrize(
+    "parameters,expected,expected_timeout",
+    [
+        # Happy path: all fields present, typical values
+        (
+            {
+                "URL": "https://example.com",
+                "API_KEY": "secret",
+                "PROXY_SERVER": "proxy:8080",
+                "ADDITIONAL_HEADERS": {"X-Test": "1"},
+                "SSL_CHECK": "true",
+                "SHARING_GROUP_ID": "42",
+                "ORGANISATION_ID": "org-123",
+                "REQUEST_TIMEOUT": 15,
+                "DAYS_WITHOUT_CHANGE": "7",
+            },
+            {
+                "url": "https://example.com",
+                "api_key": "secret",
+                "proxies": "proxy:8080",
+                "headers": {"X-Test": "1"},
+                "ssl": True,
+                "sharing_group_id": 42,
+                "org_id": "org-123",
+                "days_without_change": "7",
+            },
+            15,
+        ),
+        # Happy path: minimal required fields, others default
+        (
+            {"URL": "u", "API_KEY": "k"},
+            {
+                "url": "u",
+                "api_key": "k",
+                "proxies": "",
+                "headers": "",
+                "ssl": False,
+                "sharing_group_id": None,
+                "org_id": "",
+                "days_without_change": "",
+            },
+            Config.REQUESTS_TIMEOUT,
+        ),
+        # Edge: SHARING_GROUP_ID as int
+        (
+            {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": 99},
+            {
+                "url": "u",
+                "api_key": "k",
+                "proxies": "",
+                "headers": "",
+                "ssl": False,
+                "sharing_group_id": 99,
+                "org_id": "",
+                "days_without_change": "",
+            },
+            Config.REQUESTS_TIMEOUT,
+        ),
+        # Edge: REQUEST_TIMEOUT missing, should use default
+        (
+            {"URL": "u", "API_KEY": "k"},
+            {
+                "url": "u",
+                "api_key": "k",
+                "proxies": "",
+                "headers": "",
+                "ssl": False,
+                "sharing_group_id": None,
+                "org_id": "",
+                "days_without_change": "",
+            },
+            Config.REQUESTS_TIMEOUT,
+        ),
+        # Edge: SHARING_GROUP_ID not convertible to int
+        (
+            {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": "not-an-int"},
+            {
+                "url": "u",
+                "api_key": "k",
+                "proxies": "",
+                "headers": "",
+                "ssl": False,
+                "sharing_group_id": None,
+                "org_id": "",
+                "days_without_change": "",
+            },
+            Config.REQUESTS_TIMEOUT,
+        ),
+    ],
+    ids=[
+        "all_fields_typical",
+        "minimal_required",
+        "sharing_group_id_int",
+        "request_timeout_default",
+        "sharing_group_id_invalid",
+    ],
+)
+def test_parse_parameters_happy_and_edge(parameters, expected, expected_timeout):
+    from worker.collectors.misp_collector import MispCollector
+
+    collector = MispCollector()
+
+    collector.parse_parameters(parameters)
+
+    assert collector.url == expected["url"]
+    assert collector.api_key == expected["api_key"]
+    assert collector.proxies == expected["proxies"]
+    assert collector.headers == expected["headers"]
+    assert collector.ssl == expected["ssl"]
+    assert collector.sharing_group_id == expected["sharing_group_id"]
+    assert collector.org_id == expected["org_id"]
+    assert collector.days_without_change == expected["days_without_change"]
+    assert collector.core_api.timeout == expected_timeout
+
+
+@pytest.mark.parametrize(
+    "parameters,missing_field,expected_message",
+    [
+        # Error: missing URL
+        ({"API_KEY": "k"}, "URL", "Missing URL parameter"),
+        # Error: missing API_KEY
+        ({"URL": "u"}, "API_KEY", "Missing API_KEY parameter"),
+        # Error: both missing
+        ({}, "URL", "Missing URL parameter"),
+        # Error: URL present but empty string
+        ({"URL": "", "API_KEY": "k"}, "URL", "Missing URL parameter"),
+        # Error: API_KEY present but empty string
+        ({"URL": "u", "API_KEY": ""}, "API_KEY", "Missing API_KEY parameter"),
+    ],
+    ids=["missing_url", "missing_api_key", "missing_both", "url_empty_string", "api_key_empty_string"],
+)
+def test_parse_parameters_error_cases(parameters, missing_field, expected_message):
+    from worker.collectors.misp_collector import MispCollector
+
+    # Arrange
+    collector = MispCollector()
+
+    # Act & Assert
+    with pytest.raises(ValueError) as excinfo:
+        collector.parse_parameters(parameters)
+    assert expected_message in str(excinfo.value)
