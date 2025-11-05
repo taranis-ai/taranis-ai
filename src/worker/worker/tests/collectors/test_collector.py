@@ -435,10 +435,8 @@ def test_parse_parameters_happy_and_edge(parameters, expected, expected_timeout)
 def test_parse_parameters_error_cases(parameters, missing_field, expected_message):
     from worker.collectors.misp_collector import MispCollector
 
-    # Arrange
     collector = MispCollector()
 
-    # Act & Assert
     with pytest.raises(ValueError) as excinfo:
         collector.parse_parameters(parameters)
     assert expected_message in str(excinfo.value)
