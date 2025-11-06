@@ -72,3 +72,6 @@ AFTER INSERT OR UPDATE OF title, content OR DELETE
 ON news_item
 FOR EACH ROW
 EXECUTE FUNCTION fts_refresh_parent_story_vector();
+
+CREATE INDEX IF NOT EXISTS ix_story_search_vector_gin
+  ON story USING GIN (search_vector);

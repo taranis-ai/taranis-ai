@@ -49,9 +49,7 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
-    search_vector = db.Column(TSVECTOR, nullable=False, server_default="''")
-
-    __table_args__ = (db.Index("ix_story_search_vector_gin", search_vector, postgresql_using="gin"),)
+    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), nullable=False, server_default="''")
 
     def __init__(
         self,
@@ -249,8 +247,8 @@ class Story(BaseModel):
             # return (query.where(cls.search_vector.op('@@')(ts_query))
             #              .order_by(desc(func.ts_rank_cd(cls.search_vector, ts_query, 32))))
             return query.where(cls.search_vector.op("@@")(ts_query))
-        else:
-            return cls._add_sqlite_search_query(search, query)
+
+        return cls._add_sqlite_search_query(search, query)
 
     @classmethod
     def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
