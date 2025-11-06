@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 import json
-from core.log import logger
-from typing import Any
-from typing import ClassVar, Dict
+from typing import ClassVar, Dict, Any
 
+from core.log import logger
 from core.model.user import User
 
 
@@ -15,16 +14,20 @@ class StoryConflict:
     has_proposals: str | None = None
     conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
 
-    def resolve(self, resolution: dict, user: User) -> tuple[dict, int]:
+    def resolve(self, resolution: dict[str, Any], user: User) -> tuple[dict[str, Any], int]:
         from core.model.story import Story
 
         try:
-            updated_data = json.loads(self.updated)
+            updated_data: dict[str, Any] = json.loads(self.updated)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse updated data for story {self.story_id}: {e}")
             return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400
 
-        updated_data.update(resolution)
+        logger.debug(f"Resolving conflict for story {self.story_id} with resolution: {resolution}")
+        logger.debug(f"{updated_data=}")
+
+        # @param: resolution - comes without certain Story keys (e.g. story ID), it needs to be merged back
+        updated_data |= resolution
         story = Story.get(self.story_id)
         if not story:
             logger.error(f"Story with id {self.story_id} not found for resolution.")
@@ -78,7 +81,7 @@ class StoryConflict:
         return obj
 
     @classmethod
-    def stable_stringify(cls, obj: Any, indent=2) -> str:
+    def stable_stringify(cls, obj: Any, indent: int = 2) -> str:
         return json.dumps(obj, sort_keys=True, indent=indent, ensure_ascii=False)
 
     @classmethod
@@ -86,3 +89,15 @@ class StoryConflict:
         normalized_current = cls.remove_keys_deep(current_data)
         normalized_new = cls.remove_keys_deep(new_data)
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
+
+    @classmethod
+    def enforce_quota(cls, max_items: int = 200):
+        """Keep only the most recent N conflicts.
+        NOTE: relies on deterministic Python 3.7+ key ordering
+        """
+        if len(cls.conflict_store) > max_items:
+            excess = len(cls.conflict_store) - max_items
+            oldest_keys = list(cls.conflict_store.keys())[:excess]
+            for k in oldest_keys:
+                cls.conflict_store.pop(k, None)
+            logger.info(f"Trimmed {excess} oldest conflicts from Story conflicts store")

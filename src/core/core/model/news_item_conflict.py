@@ -217,3 +217,15 @@ class NewsItemConflict:
         if errors:
             return {"message": "Some news items could not be added", "added_ids": added_ids, "errors": errors}, 207
         return {"message": "News items added successfully", "added_ids": added_ids}, 200
+
+    @classmethod
+    def enforce_quota(cls, max_items: int = 200):
+        """Keep only the most recent N conflicts.
+        NOTE: relies on deterministic Python 3.7+ key ordering
+        """
+        if len(cls.conflict_store) > max_items:
+            excess = len(cls.conflict_store) - max_items
+            oldest_keys = list(cls.conflict_store.keys())[:excess]
+            for k in oldest_keys:
+                cls.conflict_store.pop(k, None)
+            logger.warning(f"Trimmed {excess} oldest conflicts from News Item conflicts store")
