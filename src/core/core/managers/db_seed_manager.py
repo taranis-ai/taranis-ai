@@ -67,7 +67,8 @@ def pre_seed_update(db_engine: Engine):
     migrate_refresh_intervals()
     migrate_user_profiles()
     cleanup_empty_stories()
-    migrate_search_indexes()
+    if db_engine.dialect.name == "postgresql":
+        migrate_search_indexes()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
