@@ -231,4 +231,4 @@ class NewsItemConflict:
             oldest_keys = list(cls.conflict_store.keys())[:excess]
             for k in oldest_keys:
                 cls.conflict_store.pop(k, None)
-            logger.warning(f"Trimmed {excess} oldest conflicts from News Item conflicts store")
+            logger.info(f"Trimmed {excess} oldest conflicts from News Item conflicts store")
