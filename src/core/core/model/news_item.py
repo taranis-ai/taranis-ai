@@ -218,8 +218,6 @@ class NewsItem(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data) -> tuple[dict, int]:
-        from core.model.story import StorySearchIndex
-
         if self.source != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
@@ -247,7 +245,6 @@ class NewsItem(BaseModel):
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
-        StorySearchIndex.prepare(self.story)
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod

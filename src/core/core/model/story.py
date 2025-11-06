@@ -6,6 +6,7 @@ from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
 from collections import Counter
 
@@ -48,6 +49,9 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
+    search_vector = db.Column(TSVECTOR, nullable=False, server_default="''")
+
+    __table_args__ = (db.Index("ix_story_search_vector_gin", search_vector, postgresql_using="gin"),)
 
     def __init__(
         self,
@@ -162,17 +166,7 @@ class Story(BaseModel):
             query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
-            search = search.strip()
-            if search.startswith('"') and search.endswith('"'):
-                words = [search[1:-1]]
-            else:
-                words = search.split()
-            query = query.join(
-                StorySearchIndex,
-                Story.id == StorySearchIndex.story_id,
-            )
-            for word in words:
-                query = query.filter(StorySearchIndex.data.ilike(f"%{word}%"))
+            query = cls._add_search_to_query(search, query)
 
         if exclude_attr := filter_args.get("exclude_attr"):
             query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
@@ -246,6 +240,33 @@ class Story(BaseModel):
             query = query.filter(cls.updated <= datetime.fromisoformat(timeto))
 
         return query
+
+    @classmethod
+    def _add_search_to_query(cls, search: str, query: Select) -> Select:
+        if db.engine.dialect.name == "postgresql":
+            ts_query = func.websearch_to_tsquery("simple", func.unaccent(search.strip()))
+            # TODO: rank ordering
+            # return (query.where(cls.search_vector.op('@@')(ts_query))
+            #              .order_by(desc(func.ts_rank_cd(cls.search_vector, ts_query, 32))))
+            return query.where(cls.search_vector.op("@@")(ts_query))
+        else:
+            return cls._add_sqlite_search_query(search, query)
+
+    @classmethod
+    def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
+        pattern = f"%{search}%"
+
+        news_exists = db.exists(
+            db.select(1).where((NewsItem.story_id == cls.id) & (NewsItem.title.ilike(pattern) | NewsItem.content.ilike(pattern)))
+        )
+
+        return query.where(
+            or_(
+                cls.title.ilike(pattern),
+                cls.summary.ilike(pattern),
+                news_exists,
+            )
+        )
 
     @classmethod
     def _add_sorting_to_query(cls, filter_args: dict, query: Select) -> Select:
@@ -473,7 +494,6 @@ class Story(BaseModel):
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
-            StorySearchIndex.prepare(story)
             if (
                 story.news_items[0].osint_source_id == "manual"
             ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
@@ -627,7 +647,6 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
-        StorySearchIndex.prepare(story)
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
@@ -1050,7 +1069,6 @@ class Story(BaseModel):
         db.session.add(new_story)
         db.session.commit()
 
-        StorySearchIndex.prepare(new_story)
         new_story.update_status()
         return new_story.id or None
 
@@ -1085,7 +1103,6 @@ class Story(BaseModel):
 
     def remove_empty_story(self) -> bool:
         if len(self.news_items) == 0:
-            StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
             db.session.delete(self)
             logger.debug(f"Deleting empty Story - 'ID': {self.id}")
@@ -1158,53 +1175,6 @@ class Story(BaseModel):
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
 
         return data
-
-
-class StorySearchIndex(BaseModel):
-    __tablename__ = "story_search_index"
-
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    data: Mapped[str] = db.Column(db.String)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), index=True)
-
-    def __init__(self, story_id, data=None):
-        self.story_id = story_id
-        self.data = data or ""
-
-    @classmethod
-    def remove(cls, story: "Story"):
-        search_index = db.session.execute(db.select(cls).filter_by(story_id=story.id)).scalar_one_or_none()
-        if search_index is not None:
-            db.session.delete(search_index)
-            db.session.commit()
-
-    @classmethod
-    def prepare(cls, story: "Story"):
-        search_index = db.session.execute(db.select(cls).filter_by(story_id=story.id)).scalar_one_or_none()
-        if search_index is None:
-            search_index = StorySearchIndex(story.id)
-            db.session.add(search_index)
-
-        data_components = [
-            story.title,
-            story.description,
-            story.comments,
-            story.summary,
-        ]
-
-        for news_item in story.news_items:
-            data_components.extend(
-                [
-                    news_item.title,
-                    news_item.review,
-                    news_item.content,
-                    news_item.author,
-                    news_item.link,
-                ]
-            )
-
-        search_index.data = " ".join(data_components).lower()
-        db.session.commit()
 
 
 class NewsItemVote(BaseModel):

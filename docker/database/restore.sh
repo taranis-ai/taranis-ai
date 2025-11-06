@@ -33,7 +33,7 @@ restore_postgresql() {
         -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
         -v $backup_file:/tmp/database_backup.tar \
-        -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
+        -v ./restore_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
         -v $volume_name:/var/lib/postgresql/data \
         --name "${compose_project_name}_database_restore" docker.io/library/postgres:17-alpine
 

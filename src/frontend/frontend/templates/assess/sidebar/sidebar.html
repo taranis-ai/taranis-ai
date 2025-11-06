@@ -210,6 +210,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              value="true"
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
+             hx:after-swap="window.location.reload()"
              {% if compact_view %}checked{% endif %}>
       <span class="label-text">Compact view</span>
     </label>

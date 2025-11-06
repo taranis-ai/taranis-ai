@@ -6,19 +6,9 @@ repos:
     hooks:
       - id: ruff-check
         files: ^(src/core|src/worker|src/frontend|src/models)
-        args: [ --fix ]
+        args: [--fix]
       - id: ruff-format
         files: ^(src/core|src/worker|src/frontend|src/models)
-
-  - repo: local
-    hooks:
-      - id: eslint
-        name: lint
-        language: node
-        entry: pnpm --prefix src/gui run lint_and_format
-        files: ^src/gui
-        types_or: [javascript, jsx, ts, tsx, vue]
-        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -33,4 +23,3 @@ repos:
         files: ^src/frontend/frontend/templates
         entry: uvx djlint --profile=jinja --reformat
         types_or: [jinja, html]
-

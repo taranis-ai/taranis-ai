@@ -66,3 +66,30 @@ class StoryService:
                 for cluster in clusters
             ]
         return []
+
+    @staticmethod
+    def update_search_vector(force: bool = False) -> int:
+        condition = "" if force else "WHERE s.search_vector = ''::tsvector"
+
+        query = f"""
+            UPDATE story AS s
+            SET search_vector = fts_build_story_search_vector(s.id::text)
+            {condition}
+            RETURNING s.id
+        """
+
+        result = db.session.execute(db.text(query))
+        updated_ids = result.scalars().all()
+        db.session.commit()
+
+        return len(updated_ids)
+
+    @staticmethod
+    def delete_stories_with_no_items() -> int:
+        query = db.delete(Story).where(~db.exists().where(NewsItem.story_id == Story.id)).returning(Story.id)
+
+        result = db.session.execute(query)
+        deleted_ids = result.scalars().all()
+        db.session.commit()
+
+        return len(deleted_ids)
