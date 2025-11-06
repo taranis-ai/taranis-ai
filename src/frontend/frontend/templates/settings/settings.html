@@ -21,20 +21,48 @@
     <h1 class="text-2xl font-bold">Admin Settings</h1>
   </div>
 
-  <!-- Default TLP Level -->
+  <!-- Default Settings -->
   <div class="w-full px-2 mt-2">
     <div class="card bg-base-100 shadow-xl p-3">
       <div class="card-body">
-        <h2 class="card-title">Default TLP Level</h2>
-        <div class="card-actions">
-          <form class="form-control w-1/2" id="admin-settings-form" hx-post="{{ links.update_settings | admin_action }}">
-            <p class="mb-5">Set the default TLP Level for new Sources, Roles, and Reports.</p>
+        <h2 class="card-title mb-4">General Defaults</h2>
+        <form class="form-control w-full space-y-6" id="admin-settings-form" hx-post="{{ links.update_settings | admin_action }}">
+
+          <!-- Setting 1 -->
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default TLP Level</h3>
+            <p class="text-sm text-gray-500 mb-3">Set the default TLP Level for new Sources, Roles, and Reports.</p>
             {{ tlp_levels(selected=current_settings.default_tlp_level, name='settings[default_tlp_level]', input_id='tlp_level') }}
+          </div>
+
+          <!-- Setting 2 -->
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Collector Proxy</h3>
+            <p class="text-sm text-gray-500 mb-3">Set the default Collector Proxy and Interval for new Sources.</p>
             {{ form_input('Default Collector Proxy', 'settings[default_collector_proxy]', current_settings.default_collector_proxy, required=False) }}
+          </div>
+
+          <!-- Setting 3 -->
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Collector Interval</h3>
+            <p class="text-sm text-gray-500 mb-3">Set the default Collector Interval for new Sources.</p>
             {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval) }}
-            <input type="submit" class="btn btn-primary w-full" value="Update Settings" />
-          </form>
-        </div>
+          </div>
+
+          <!-- Setting 4 -->
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Conflict Retention Settings</h3>
+            <p class="text-sm text-gray-500 mb-3">
+              Set the default number of <b>Story Conflicts</b> that are retained.
+            </p>
+            {{ form_input('Default Story Conflict Retention', 'settings[default_story_conflict_retention]', current_settings.default_story_conflict_retention) }}
+            <p class="text-sm text-gray-500 mb-3">
+              Set the default number of <b>News Item Conflicts</b> that are retained.
+            </p>
+            {{ form_input('Default News Item Conflict Retention', 'settings[default_news_item_conflict_retention]', current_settings.default_news_item_conflict_retention) }}
+          </div>
+          <input type="submit" class="btn btn-primary w-full mt-4" value="Update Settings" />
+        </form>
       </div>
     </div>
   </div>
