@@ -92,9 +92,7 @@ class StoryConflict:
 
     @classmethod
     def enforce_quota(cls):
-        """Keep only the most recent N conflicts.
-        NOTE: relies on deterministic Python 3.7+ key ordering
-        """
+        """Keep only the most recent N conflicts."""
         settings = Settings.get_settings()
         max_items = int(settings.get("default_story_conflict_retention", "200"))
         if len(cls.conflict_store) > max_items:
