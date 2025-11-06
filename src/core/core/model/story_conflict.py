@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 from typing import ClassVar, Dict, Any
 
+from core.model.settings import Settings
 from core.log import logger
 from core.model.user import User
 
@@ -91,10 +92,12 @@ class StoryConflict:
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
 
     @classmethod
-    def enforce_quota(cls, max_items: int = 200):
+    def enforce_quota(cls):
         """Keep only the most recent N conflicts.
         NOTE: relies on deterministic Python 3.7+ key ordering
         """
+        settings = Settings.get_settings()
+        max_items = int(settings.get("default_story_conflict_retention", "200"))
         if len(cls.conflict_store) > max_items:
             excess = len(cls.conflict_store) - max_items
             oldest_keys = list(cls.conflict_store.keys())[:excess]

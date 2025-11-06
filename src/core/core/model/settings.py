@@ -1,3 +1,4 @@
+import copy
 from sqlalchemy.orm import Mapped
 from sqlalchemy.schema import CheckConstraint
 
@@ -20,6 +21,8 @@ class Settings(BaseModel):
             "default_collector_proxy": "",
             "default_collector_interval": "0 */8 * * *",
             "default_tlp_level": TLPLevel.CLEAR.value,
+            "default_story_conflict_retention": "200",
+            "default_news_item_conflict_retention": "200",
         }
 
     @classmethod
@@ -40,13 +43,18 @@ class Settings(BaseModel):
     @classmethod
     def initialize(cls):
         if settings := cls.get(1):
-            current_settings = settings.settings
+            current_settings = copy.deepcopy(settings.settings)
             if "default_collector_proxy" not in current_settings:
                 current_settings["default_collector_proxy"] = ""
             if "default_collector_interval" not in current_settings:
                 current_settings["default_collector_interval"] = "0 */8 * * *"
             if "default_tlp_level" not in current_settings:
                 current_settings["default_tlp_level"] = TLPLevel.CLEAR.value
+            if "default_story_conflict_retention" not in current_settings:
+                current_settings["default_story_conflict_retention"] = "200"
+            if "default_news_item_conflict_retention" not in current_settings:
+                current_settings["default_news_item_conflict_retention"] = "200"
+            settings.settings = current_settings
         else:
             db.session.add(Settings())
 
