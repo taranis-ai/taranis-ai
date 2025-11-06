@@ -13,6 +13,7 @@ WITH story_text AS (
 news_text AS (
     SELECT
         unaccent(coalesce(string_agg(n.title,  ' '), ''))  AS news_titles,
+        -- The 8000/200000 truncations keep the aggregated text well under PostgreSQL's ~1MB tsvector size limit.
         left(unaccent(coalesce(string_agg(left(n.content, 8000),' '), '')), 200000)  AS news_contents
     FROM news_item n
     WHERE n.story_id::text = story_row_id

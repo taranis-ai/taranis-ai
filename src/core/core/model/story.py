@@ -64,9 +64,9 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
-        attributes: list[dict] | None = None,
-        tags=None,
-        news_items=None,
+        attributes: list[dict[str, Any]] | None = None,
+        tags: list[dict[str, Any]] | None = None,
+        news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
         last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
@@ -87,7 +87,7 @@ class Story(BaseModel):
         if tags:
             self.tags = NewsItemTag.load_multiple(tags)
 
-    def get_creation_date(self, created):
+    def get_creation_date(self, created: datetime | str | None):
         if isinstance(created, datetime):
             return created
         if isinstance(created, str):
@@ -265,7 +265,7 @@ class Story(BaseModel):
         )
 
     @classmethod
-    def _add_sorting_to_query(cls, filter_args: dict, query: Select) -> Select:
+    def _add_sorting_to_query(cls, filter_args: dict[str, str], query: Select) -> Select:
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
                 query = query.order_by(db.desc(cls.created), db.desc(cls.title))
@@ -316,7 +316,7 @@ class Story(BaseModel):
         return query.filter(Story.id.in_(subquery))
 
     @classmethod
-    def _add_paging_to_query(cls, filter_args: dict, query: Select) -> Select:
+    def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
         if limit := filter_args.get("limit"):
@@ -357,7 +357,7 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def get_by_filter(cls, filter_args: dict, user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
+    def get_by_filter(cls, filter_args: dict[str, Any], user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
         base_query = cls.get_filter_query(filter_args)
         if user:
             base_query = cls._add_ACL_check(base_query, user)
@@ -406,7 +406,7 @@ class Story(BaseModel):
         return {"items": stories}, 200
 
     @classmethod
-    def get_for_worker(cls, filter_args: dict) -> list[dict[str, Any]]:
+    def get_for_worker(cls, filter_args: dict[str, Any]) -> list[dict[str, Any]]:
         filter_args["worker"] = True
         stories, _ = cls.get_by_filter(filter_args=filter_args)
         return stories

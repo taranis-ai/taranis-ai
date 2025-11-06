@@ -136,7 +136,7 @@ class User(BaseModel):
         return self.organization.name if self.organization else ""
 
     @classmethod
-    def get_filter_query(cls, filter_args: dict) -> Select:
+    def get_filter_query(cls, filter_args: dict[str, Any]) -> Select:
         query = db.select(cls)
 
         if organization := filter_args.get("organization"):
