@@ -254,9 +254,7 @@ class Story(BaseModel):
     def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
         pattern = f"%{search}%"
 
-        news_exists = db.exists(
-            db.select(1).where((NewsItem.story_id == cls.id) & (NewsItem.title.ilike(pattern) | NewsItem.content.ilike(pattern)))
-        )
+        news_exists = cls.news_items.any(or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern)))
 
         return query.where(
             or_(
@@ -342,14 +340,16 @@ class Story(BaseModel):
 
         query = query.outerjoin(vote_subquery, Story.id == vote_subquery.c.item_id)
         query = query.add_columns(func.coalesce(vote_subquery.c.user_vote, "").label("user_vote"))
-        query = query.group_by(Story.id, vote_subquery.c.user_vote)
 
         return query
 
     @classmethod
     def enhance_with_report_count(cls, query: Select) -> Select:
         report_subquery = (
-            db.select(ReportItemStory.story_id, func.count().label("report_count")).group_by(ReportItemStory.story_id).subquery()
+            db.select(ReportItemStory.story_id, func.count().label("report_count"))
+            .group_by(ReportItemStory.story_id)
+            .correlate(None)
+            .subquery()
         )
         query = query.outerjoin(report_subquery, Story.id == report_subquery.c.story_id)
         query = query.add_columns(func.coalesce(report_subquery.c.report_count, 0).label("report_count"))
