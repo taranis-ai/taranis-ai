@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 from typing import ClassVar, Dict, Any
 
+from core.model.news_item_conflict import NewsItemConflict
 from core.model.settings import Settings
 from core.log import logger
 from core.model.user import User
@@ -24,9 +25,6 @@ class StoryConflict:
             logger.error(f"Failed to parse updated data for story {self.story_id}: {e}")
             return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400
 
-        logger.debug(f"Resolving conflict for story {self.story_id} with resolution: {resolution}")
-        logger.debug(f"{updated_data=}")
-
         # @param: resolution - comes without certain Story keys (e.g. story ID), it needs to be merged back
         updated_data |= resolution
         story = Story.get(self.story_id)
@@ -40,6 +38,7 @@ class StoryConflict:
             logger.debug(f"Removed conflict for story {self.story_id} after successful update.")
         elif code == 409:
             StoryConflict.conflict_store.pop(self.story_id, None)
+            NewsItemConflict.enforce_quota()
             logger.warning(f"Conflict resolution for story {self.story_id}.")
 
         return response, code
