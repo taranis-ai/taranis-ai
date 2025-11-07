@@ -49,7 +49,7 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
-    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), nullable=False, server_default="''")
+    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), nullable=False, server_default="")
 
     def __init__(
         self,
