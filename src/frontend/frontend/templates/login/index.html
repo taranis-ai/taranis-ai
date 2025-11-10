@@ -18,8 +18,16 @@
   </head>
 
   <body>
-    <main>
+    <main class="min-h-screen flex flex-col">
+      {% include "notification/index.html" %}
       {% include "login/login.html" %}
+      {% if notification %}
+        <div class="flex flex-1 items-center justify-center px-4">
+          <div role="alert" class="alert alert-warning shadow-lg w-full max-w-xl text-center">
+            {{ notification.get('message', 'Error contacting Core API') }}
+          </div>
+        </div>
+      {% endif %}
     </main>
   </body>
 </html>
