@@ -4,6 +4,7 @@ migrate search_vector
 
 from yoyo import step
 
+
 __depends__ = {"20251010_01_OQVEW-migrate-story-links"}
 
 steps = [
@@ -28,7 +29,7 @@ steps = [
     step(
         """
         ALTER TABLE story
-        ADD COLUMN IF NOT EXISTS search_vector tsvector NOT NULL DEFAULT ''::tsvector;
+        ADD COLUMN IF NOT EXISTS search_vector tsvector DEFAULT ''::tsvector;
         """,
         """
         ALTER TABLE story

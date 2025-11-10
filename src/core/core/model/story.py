@@ -1,28 +1,29 @@
 import uuid
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
-from sqlalchemy import or_, func
-from sqlalchemy.orm import aliased, Mapped, relationship
-from sqlalchemy.sql.expression import false, null, true
-from sqlalchemy.sql import Select
-from sqlalchemy.ext.hybrid import hybrid_property
+
+from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
-from collections import Counter
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped, aliased, relationship
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import false, null, true
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
-from core.model.user import User
-from core.model.role import TLPLevel
-from core.model.news_item_tag import NewsItemTag
-from core.model.role_based_access import ItemType
-from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
-from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
+from core.model.news_item_tag import NewsItemTag
+from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
+from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType
+from core.model.story_conflict import StoryConflict
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class Story(BaseModel):
@@ -49,7 +50,7 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
-    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), nullable=False, server_default="")
+    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
 
     def __init__(
         self,
