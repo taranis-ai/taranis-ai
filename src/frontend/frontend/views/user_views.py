@@ -35,7 +35,6 @@ class UserProfileView(BaseView):
     @auth_required()
     def change_password(cls):
         if result := CoreApi().api_post("/auth/change_password", json_data=request.form):
-            logger.debug(result.json())
             return cls.get_notification_from_response(result)
         logger.error("Failed to change password.")
         return render_template(
