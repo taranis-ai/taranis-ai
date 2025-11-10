@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt, current_user
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.managers import auth_manager
 from core.config import Config
+from core.log import logger
 
 
 class Login(MethodView):
@@ -49,6 +50,15 @@ class AuthMethod(MethodView):
         return {"auth_method": Config.TARANIS_AUTHENTICATOR}, 200
 
 
+class UserChangePassword(MethodView):
+    @jwt_required()
+    def post(self):
+        logger.debug(f"Received request to change password. - {request.json}")
+        if not (json_data := request.json):
+            return {"error": "No input data provided"}, 400
+        return auth_manager.change_password(json_data.get("current_password", ""), json_data.get("new_password", ""))
+
+
 def initialize(app: Flask):
     auth_bp = Blueprint("auth", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/auth")
 
@@ -56,5 +66,6 @@ def initialize(app: Flask):
     auth_bp.add_url_rule("/refresh", view_func=Refresh.as_view("refresh"))
     auth_bp.add_url_rule("/logout", view_func=Logout.as_view("logout"))
     auth_bp.add_url_rule("/method", view_func=AuthMethod.as_view("auth_method"))
+    auth_bp.add_url_rule("/change_password", view_func=UserChangePassword.as_view("change_password"), methods=["POST"])
 
     app.register_blueprint(auth_bp)

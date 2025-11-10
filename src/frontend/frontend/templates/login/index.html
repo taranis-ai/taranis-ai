@@ -19,7 +19,11 @@
 
   <body>
     <main>
-      {% include "login/login.html" %}
+      {% if auth_method == 'database' %}
+        {% include "login/login.html" %}
+      {% else %}
+        {% include "login/external_login.html" %}
+      {% endif %}
     </main>
   </body>
 </html>

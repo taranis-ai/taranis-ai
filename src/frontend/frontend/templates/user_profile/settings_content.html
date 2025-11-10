@@ -158,18 +158,71 @@
       </div>
     </div>
   </div>
+</form>
 
+<form id="user-password-form"
+      class="grid gap-4 my-6"
+      method="post"
+      hx-post="{{ url_for('user.change_password') }}"
+      hx-target="#notification-bar"
+      hx-swap="outerHTML">
   <div class="card bg-base-100 shadow">
     <div class="card-body gap-4">
-      <div class="flex flex-col gap-2">
-        <h3 class="card-title text-2xl">Keyboard Shortcuts</h3>
-        <p class="text-sm text-base-content/70">
-          HotKeys are currently static only.
-          <a class="link" href="https://github.com/taranis-ai/taranis-ai/issues/137" target="_blank" rel="noreferrer">Issue #137</a>
-          tracks progress on making them configurable.
-        </p>
+      <div tabindex="0" class="collapse collapse-arrow rounded-box border border-base-300 bg-base-200">
+        <input type="checkbox" />
+        <div class="collapse-title flex flex-col gap-1">
+          <p class="text-sm font-semibold uppercase text-base-content/60">Password</p>
+          <h3 class="text-2xl font-semibold text-base-content">Change your password</h3>
+          <p class="text-sm text-base-content/70">Keep this secure and avoid reusing passwords from other systems.</p>
+        </div>
+        <div class="collapse-content p-0">
+          <div class="flex flex-col gap-4 p-4">
+            <label class="form-control w-full" for="current-password-input">
+              <div class="label">
+                <span class="label-text font-semibold text-base-content">Current password</span>
+              </div>
+              <input id="current-password-input"
+                     name="current_password"
+                     type="password"
+                     class="input input-bordered w-full"
+                     autocomplete="current-password"
+                     required>
+            </label>
+
+            <label class="form-control w-full" for="new-password-input">
+              <div class="label">
+                <span class="label-text font-semibold text-base-content">New password</span>
+              </div>
+              <input id="new-password-input" name="new_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
+            </label>
+
+            <label class="form-control w-full" for="confirm-password-input">
+              <div class="label">
+                <span class="label-text font-semibold text-base-content">Confirm new password</span>
+              </div>
+              <input id="confirm-password-input" name="confirm_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
+            </label>
+
+            <div class="flex items-center justify-end">
+              <button type="submit" class="btn btn-primary">Update password</button>
+            </div>
+          </div>
+        </div>
       </div>
-      {% include "user_profile/hotkey_kbd.html" %}
     </div>
   </div>
 </form>
+
+<div class="card bg-base-100 shadow">
+  <div class="card-body gap-4">
+    <div class="flex flex-col gap-2">
+      <h3 class="card-title text-2xl">Keyboard Shortcuts</h3>
+      <p class="text-sm text-base-content/70">
+        HotKeys are currently static only.
+        <a class="link" href="https://github.com/taranis-ai/taranis-ai/issues/137" target="_blank" rel="noreferrer">Issue #137</a>
+        tracks progress on making them configurable.
+      </p>
+    </div>
+    {% include "user_profile/hotkey_kbd.html" %}
+  </div>
+</div>

@@ -33,7 +33,7 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def check_if_api_connected(self):
+    def check_if_core_connected(self):
         try:
             url = f"{self.api_url}/isalive"
             response = self.session.get(url=url, timeout=self.timeout)
@@ -188,6 +188,9 @@ class CoreApi:
     def login(self, username: str, password: str):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
+
+    def get_login_data(self):
+        return self.api_get("/auth/method")
 
     def logout(self):
         return self.api_delete("/auth/logout")
