@@ -1,14 +1,10 @@
-from flask import Flask, render_template, Blueprint, request, Response, jsonify, url_for, send_from_directory, make_response
+from flask import Blueprint, Flask, Response, jsonify, render_template, send_from_directory
 from flask.views import MethodView
-import requests
 
-from frontend.core_api import CoreApi
-from frontend.config import Config
+from frontend.auth import auth_required, logout
 from frontend.cache import get_cached_users, list_cache_keys
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.auth import auth_required, logout
-from frontend.views import DashboardView
-from frontend.log import logger
+from frontend.views import AuthView, DashboardView
 
 
 class InvalidateCache(MethodView):
@@ -37,62 +33,6 @@ class ListUserCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
         return jsonify(get_cached_users())
-
-
-class LoginView(MethodView):
-    def login_flow(self, core_response: requests.Response) -> Response:
-        if not core_response or not core_response.json():
-            return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
-
-        if not core_response.ok:
-            return make_response(
-                render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
-            )
-
-        location = request.args.get("next", url_for("base.dashboard"))
-        response = Response(status=302, headers={"Location": location})
-
-        for h in core_response.raw.headers.getlist("Set-Cookie"):
-            response.headers.add("Set-Cookie", h)
-
-        return response
-
-    def get(self):
-        if login_data := CoreApi().get_login_data():
-            auth_method = login_data.get("auth_method", "database")
-            auth_header_names = login_data.get("auth_headers", {})
-            if auth_method == "external" and auth_header_names:
-                auth_headers = {k.upper(): v for k, v in request.headers.items() if k.upper() in auth_header_names.values()}
-                if auth_header_names.get("username_header") not in auth_headers:
-                    logger.debug(f"Missing required auth header for external login: {auth_header_names.get('username_header')}")
-                    return render_template(
-                        "login/index.html",
-                        notification={"message": "Missing required authentication headers - contact your admin", "error": True},
-                    ), 400
-                if core_response := CoreApi().external_login(auth_headers):
-                    return self.login_flow(core_response)
-            return render_template("login/index.html", auth_method=auth_method)
-
-        return render_template(
-            "login/index.html", notification={"message": f"API is not reachable - {Config.TARANIS_CORE_URL}", "error": True}
-        ), 500
-
-    def post(self):
-        username = request.form.get("username")
-        password = request.form.get("password")
-
-        if not username or not password:
-            return render_template("login/index.html", login_error="Username and password are required"), 400
-
-        try:
-            core_response = CoreApi().login(username, password)
-        except Exception:
-            return render_template("login/index.html", login_error="Login failed, no response from server"), 500
-
-        return self.login_flow(core_response)
-
-    def delete(self):
-        return logout()
 
 
 class LogoutView(MethodView):
@@ -145,7 +85,7 @@ def init(app: Flask):
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
 
-    base_bp.add_url_rule("/login", view_func=LoginView.as_view("login"))
+    base_bp.add_url_rule("/login", view_func=AuthView.as_view("login"))
     base_bp.add_url_rule("/logout", view_func=LogoutView.as_view("logout"))
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
