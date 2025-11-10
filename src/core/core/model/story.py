@@ -536,7 +536,7 @@ class Story(BaseModel):
         return cls.add(data)
 
     @classmethod
-    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict[str, Any], int]":
+    def add_or_update_for_misp(cls, data: list[dict[str, Any]], force: bool = False) -> "tuple[dict[str, Any], int]":
         if not data:
             return {"error": "No data provided"}, 400
         prepared_stories = cls.prepare_misp_stories(data, force=force)
@@ -549,7 +549,8 @@ class Story(BaseModel):
                 results.append(result)
             elif status == 200:
                 story_ids.append(result.get("story_id", result.get("id", result)))
-
+        StoryConflict.enforce_quota()
+        NewsItemConflict.enforce_quota()
         if results:
             return {"error": "Some stories could not be added", "details": {"errors": results}}, status
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
@@ -649,7 +650,7 @@ class Story(BaseModel):
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
     @classmethod
-    def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:
+    def update_with_conflicts(cls, story_id: str, upstream_data: dict[str, Any]) -> tuple[dict[str, Any], int]:
         current_story = Story.get(story_id)
         if not current_story:
             return {
@@ -666,8 +667,7 @@ class Story(BaseModel):
 
         original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
 
-        existing_conflict = StoryConflict.conflict_store.get(story_id)
-        if existing_conflict:
+        if existing_conflict := StoryConflict.conflict_store.get(story_id):
             existing_conflict.original = original_str
             existing_conflict.updated = updated_str
             existing_conflict.has_proposals = has_proposals_value

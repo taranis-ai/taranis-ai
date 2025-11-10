@@ -1,43 +1,77 @@
 import ast
+import json
+from typing import Any, cast
 from pymisp import PyMISP
 
-from worker.core_api import CoreApi
+from worker.config import Config
 from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
 from worker.log import logger
 
 
-class MISPCollector(BaseCollector):
+class MispCollector(BaseCollector):
     def __init__(self):
         super().__init__()
-        self.core_api: CoreApi = CoreApi()
         self.type: str = "MISP_CONNECTOR"
         self.name: str = "MISP Connector"
         self.description: str = "Connector for MISP"
 
-        self.proxies: dict | None = None
-        self.headers: dict = {}
+        self.proxies: dict[str, Any] | None = None
+        self.headers: dict[str, Any] = {"User-Agent": "TaranisAI/1.0"}
         self.connector_id: str
 
         self.url: str = ""
         self.api_key: str = ""
         self.ssl: bool = False
-        self.sharing_group_id: str = ""
+        self.sharing_group_id: int | None = None
         self.org_id: str = ""
+        self.days_without_change: str | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
-        self.ssl = parameters.get("SSL", False)
-        self.proxies = parameters.get("PROXIES", "")
-        self.headers = parameters.get("HEADERS", "")
-        self.sharing_group_id = parameters.get("SHARING_GROUP_ID", "")
+        if additional_headers := parameters.get("ADDITIONAL_HEADERS", ""):
+            self.update_headers(additional_headers)
+
+        self.ssl = self._as_bool(parameters.get("SSL_CHECK", ""))
+        self.sharing_group_id = self._as_int(parameters.get("SHARING_GROUP_ID", ""))
         self.org_id = parameters.get("ORGANISATION_ID", "")
+        self.core_api.timeout = self._as_int(parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)) or Config.REQUESTS_TIMEOUT
+        self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE", "")
+        self.parse_header_parameters(parameters)
 
         if not self.url:
             raise ValueError("Missing URL parameter")
         if not self.api_key:
             raise ValueError("Missing API_KEY parameter")
+
+    def _as_bool(self, val: str) -> bool:
+        return val.lower() == "true"
+
+    def _as_int(self, val: str) -> int | None:
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
+    def parse_header_parameters(self, parameters: dict):
+        self.set_proxies(parameters.get("PROXY_SERVER"))
+        if additional_headers := parameters.get("ADDITIONAL_HEADERS"):
+            self.update_headers(additional_headers)
+        if user_agent := parameters.get("USER_AGENT"):
+            self.headers.update({"User-Agent": user_agent})
+
+    def set_proxies(self, proxy_server: str | None):
+        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
+
+    def update_headers(self, headers: str):
+        try:
+            headers_dict = json.loads(headers)
+            if not isinstance(headers_dict, dict):
+                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
+            self.headers.update(headers_dict)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
     def collect(self, source: dict, manual: bool = False) -> None:
         self.parse_parameters(source.get("parameters", ""))
@@ -119,11 +153,11 @@ class MISPCollector(BaseCollector):
 
     @staticmethod
     def to_story_dict(story_properties: dict, news_items_list: list[NewsItem]) -> dict:
-        story_properties["news_items"] = MISPCollector.remove_duplicate_news_items(news_items_list)
+        story_properties["news_items"] = MispCollector.remove_duplicate_news_items(news_items_list)
         if story_properties.get("attributes"):
-            story_properties["attributes"] = MISPCollector.to_new_attribute_dict(story_properties.get("attributes", []))
+            story_properties["attributes"] = MispCollector.to_new_attribute_dict(story_properties.get("attributes", []))
         if story_properties.get("tags"):
-            story_properties["tags"] = MISPCollector.to_new_tag_dict(story_properties.get("tags", []))
+            story_properties["tags"] = MispCollector.to_new_tag_dict(story_properties.get("tags", []))
         return story_properties
 
     @staticmethod
@@ -150,7 +184,6 @@ class MISPCollector(BaseCollector):
             "relevance": 0,
             "read": False,
             "important": False,
-            "links": [],
             "tags": [],
             "attributes": [],
         }
@@ -171,9 +204,6 @@ class MISPCollector(BaseCollector):
                     story_properties["important"] = bool(int(item.get("value", 0)))
                 case "read":
                     story_properties["read"] = bool(int(item.get("value", 0)))
-                case "links":
-                    if value := item.get("value", None):
-                        story_properties["links"].append(ast.literal_eval(value))
                 case "tags":
                     if value := item.get("value", ""):
                         story_properties["tags"].append(ast.literal_eval(value))
@@ -208,8 +238,6 @@ class MISPCollector(BaseCollector):
             cleaned["tags"] = {}
         if not cleaned.get("attributes"):
             cleaned["attributes"] = {}
-        if not cleaned.get("links"):
-            cleaned["links"] = []
         if not cleaned.get("news_items"):
             cleaned["news_items"] = []
         if not cleaned.get("id"):
@@ -278,42 +306,48 @@ class MISPCollector(BaseCollector):
                 logger.warning(f"Unknown object type in MISP event: {object.get('name')}")
         return story_properties, story_news_items
 
-    def get_taranis_event_ids(self, misp) -> set[int]:
-        # Note: searching here directly for objects that belong to a sharing group by id using the sharinggroup parameter does not work in 2.5.2.
-        # It seems to completely ingnore the sharinggroup parameter and return all objects. The objects controller is poorly documented.
-        taranis_objects: list[dict] = misp.search(
-            controller="objects", object_name="taranis-news-item", sharinggroup=self.sharing_group_id or None, pythonify=False
+    def get_recent_taranis_events(self, misp: PyMISP) -> list[dict[str, Any]]:
+        """
+        Fetch all MISP events that contain 'taranis-news-item' objects
+        changed within the last days.
+        """
+        raw = misp.search(
+            controller="events",
+            object_name="taranis-news-item",
+            timestamp=f"{self.days_without_change}d" if self.days_without_change else None,
+            sharinggroup=self.sharing_group_id,
+            pythonify=False,
+            extended=True,
         )
-        if isinstance(taranis_objects, dict):
-            logger.error(f"Error fetching objects from MISP: {taranis_objects.get('message', 'Unknown error')}")
-            return set()
 
-        event_ids = set()
-        for obj_dict in taranis_objects:
-            obj_event_id = obj_dict.get("Object", {}).get("Event", {}).get("id")
-            logger.debug(f"Object ID: {obj_dict.get('id')}, Event ID: {obj_event_id}")
-            if obj_event_id is not None:
-                event_ids.add(obj_event_id)
-        return event_ids
+        if isinstance(raw, dict) and "message" in raw:
+            logger.error(f"Error fetching Taranis events: {raw['message']}")
+            return []
 
-    # TODO: this looks wrong in general for distribution options (this community and so on)
+        events = cast(list[dict[str, Any]], raw)
+
+        if self.days_without_change:
+            logger.info(f"Fetched {len(events)} Taranis events (last {self.days_without_change} days).")
+        else:
+            logger.info(f"Fetched {len(events)} Taranis events.")
+        return events
+
     def is_sharing_group_match(self, event: dict) -> bool:
         event_sg_id = str(event.get("Event", {}).get("sharing_group_id"))
         return not self.sharing_group_id or event_sg_id == self.sharing_group_id
 
     def get_taranis_story_dicts(self, misp, events: list[dict], source) -> list[dict]:
-        return [story for event in events if self.is_sharing_group_match(event) if (story := self.get_story(misp, event, source)) is not None]
+        return [story for event in events if (story := self.get_story(misp, event, source)) is not None]
 
     def set_story_proposal_status(self, misp, story_dicts: list[dict]) -> None:
         for story in story_dicts:
             if self.check_for_proposal_existence(misp, story.get("id", "")):
                 story["attributes"]["has_proposals"] = {"key": "has_proposals", "value": f"{self.url}/events/view/{story.get('id')}"}
 
-    def misp_collector(self, source: dict) -> None:
+    def misp_collector(self, source: dict[str, str]) -> None:
         misp = PyMISP(url=self.url, key=self.api_key, ssl=self.ssl, proxies=self.proxies, http_headers=self.headers)
-        event_ids: set[int] = self.get_taranis_event_ids(misp)
+        events = self.get_recent_taranis_events(misp)
 
-        events: list[dict] = [misp.get_event(event_id, extended=True, pythonify=False) for event_id in event_ids]  # type: ignore
         story_dicts = self.get_taranis_story_dicts(misp, events, source)
         logger.info(f"{len(story_dicts)} stories have been collected from MISP")
         self.set_story_proposal_status(misp, story_dicts)
