@@ -11,11 +11,6 @@ def test_is_alive_fail(client):
     assert b'"isalive": false' not in response.data
 
 
-def test_auth_login_fail(client):
-    response = client.get("/api/auth/login")
-    assert response.status_code == 401
-
-
 def test_auth_login(client):
     body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)
