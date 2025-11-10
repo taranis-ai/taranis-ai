@@ -122,6 +122,10 @@ class User(BaseModel):
         permissions = {permission for role in self.roles if role for permission in role.get_permissions()}
         return list(permissions)
 
+    def change_password(self, new_password: str):
+        self.password = generate_password_hash(new_password)
+        db.session.commit()
+
     def get_roles(self):
         return [role.id for role in self.roles]
 

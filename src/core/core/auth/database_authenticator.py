@@ -1,4 +1,4 @@
-from flask import Response
+from flask import Response, make_response
 from core.log import logger
 from core.auth.base_authenticator import BaseAuthenticator
 from werkzeug.security import check_password_hash
@@ -21,3 +21,10 @@ class DatabaseAuthenticator(BaseAuthenticator):
 
         logger.store_auth_error_activity(f"Authentication failed with credentials: {credentials}")
         return BaseAuthenticator.generate_error()
+
+    def change_password(self, user: "User", old_password: str, new_password: str) -> Response:
+        if not check_password_hash(user.password, old_password):
+            return make_response({"error": "Old password is incorrect"}, 400)
+
+        user.change_password(new_password)
+        return make_response({"message": "Password changed successfully"}, 200)

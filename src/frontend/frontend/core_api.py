@@ -3,7 +3,7 @@ from flask import request, Response
 from frontend.log import logger
 from frontend.config import Config
 from werkzeug.wsgi import wrap_file
-from typing import cast, IO
+from typing import cast, IO, Any
 
 
 class CoreApi:
@@ -33,7 +33,7 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def check_if_api_connected(self):
+    def check_if_core_connected(self):
         try:
             url = f"{self.api_url}/isalive"
             response = self.session.get(url=url, timeout=self.timeout)
@@ -188,6 +188,12 @@ class CoreApi:
     def login(self, username: str, password: str):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
+
+    def external_login(self, headers: dict[str, Any]):
+        return self.session.post(url=f"{self.api_url}/auth/login", headers=headers, timeout=self.timeout)
+
+    def get_login_data(self):
+        return self.api_get("/auth/method")
 
     def logout(self):
         return self.api_delete("/auth/logout")
