@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Dict, Any, Iterable, Optional
 import copy
 
+from core.model.settings import Settings
 from core.log import logger
 from core.model.news_item import NewsItem
 from core.model.user import User
@@ -217,3 +218,15 @@ class NewsItemConflict:
         if errors:
             return {"message": "Some news items could not be added", "added_ids": added_ids, "errors": errors}, 207
         return {"message": "News items added successfully", "added_ids": added_ids}, 200
+
+    @classmethod
+    def enforce_quota(cls):
+        """Keep only the most recent N conflicts."""
+        settings = Settings.get_settings()
+        max_items = int(settings.get("default_news_item_conflict_retention", "200"))
+        if len(cls.conflict_store) > max_items:
+            excess = len(cls.conflict_store) - max_items
+            oldest_keys = list(cls.conflict_store.keys())[:excess]
+            for k in oldest_keys:
+                cls.conflict_store.pop(k, None)
+            logger.info(f"Trimmed {excess} oldest conflicts from News Item conflicts store")
