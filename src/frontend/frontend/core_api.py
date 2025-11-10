@@ -3,7 +3,7 @@ from flask import request, Response
 from frontend.log import logger
 from frontend.config import Config
 from werkzeug.wsgi import wrap_file
-from typing import cast, IO
+from typing import cast, IO, Any
 
 
 class CoreApi:
@@ -188,6 +188,9 @@ class CoreApi:
     def login(self, username: str, password: str):
         data = {"username": username, "password": password}
         return self.api_post("/auth/login", json_data=data)
+
+    def external_login(self, headers: dict[str, Any]):
+        return self.session.post(url=f"{self.api_url}/auth/login", headers=headers, timeout=self.timeout)
 
     def get_login_data(self):
         return self.api_get("/auth/method")

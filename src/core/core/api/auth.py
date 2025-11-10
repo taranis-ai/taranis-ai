@@ -1,5 +1,4 @@
-from urllib.parse import quote
-from flask import Blueprint, redirect, make_response, request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required, get_jwt, current_user
 
@@ -11,10 +10,6 @@ from core.log import logger
 
 
 class Login(MethodView):
-    @jwt_required()
-    def get(self):
-        return make_response(redirect(quote(request.args.get(key="gotoUrl", default="/"))))
-
     def post(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
@@ -47,6 +42,16 @@ class Logout(MethodView):
 
 class AuthMethod(MethodView):
     def get(self):
+        if Config.TARANIS_AUTHENTICATOR == "external":
+            return {
+                "auth_method": Config.TARANIS_AUTHENTICATOR,
+                "auth_headers": {
+                    "username_header": Config.EXTERNAL_AUTH_USER,
+                    "roles_header": Config.EXTERNAL_AUTH_ROLES,
+                    "name_header": Config.EXTERNAL_AUTH_NAME,
+                    "organization_header": Config.EXTERNAL_AUTH_ORGANIZATION,
+                },
+            }
         return {"auth_method": Config.TARANIS_AUTHENTICATOR}, 200
 
 

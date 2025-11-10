@@ -18,11 +18,20 @@
   </head>
 
   <body>
-    <main>
-      {% if auth_method == 'database' %}
+    <main class="min-h-screen flex flex-col">
+      {% include "notification/index.html" %}
+      {% if auth_method is defined %}
         {% include "login/login.html" %}
       {% else %}
-        {% include "login/external_login.html" %}
+        <div class="flex flex-1 items-center justify-center px-4">
+          <div role="alert" class="alert alert-warning shadow-lg w-full max-w-xl text-center">
+            {% if notification %}
+              {{ notification.get('message', 'Error contacting Core API') }}
+            {% else %}
+              Error contacting Core API
+            {% endif %}
+          </div>
+        </div>
       {% endif %}
     </main>
   </body>
