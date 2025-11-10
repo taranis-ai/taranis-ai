@@ -9,7 +9,6 @@ class SummaryBot(BaseBot):
         super().__init__()
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
-        self.bot_api = BotApi(Config.SUMMARY_API_ENDPOINT)
 
     def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
@@ -18,7 +17,10 @@ class SummaryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api.api_url = parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
+        self.bot_api = BotApi(
+            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT),
+            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+        )
 
         for story in data:
             news_items = story.get("news_items", [])

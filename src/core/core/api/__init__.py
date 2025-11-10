@@ -13,7 +13,6 @@ from core.api import (
     user,
     task,
     worker,
-    frontend,
     static,
     flows,
 )
@@ -33,7 +32,6 @@ __all__ = [
     "task",
     "worker",
     "static",
-    "frontend",
     "connectors",
     "flows",
 ]

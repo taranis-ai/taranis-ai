@@ -1,5 +1,5 @@
 services:
-  gui:
+  ingress:
     # This is the entrypoint for all requests
     ports:
     - "${TARANIS_PORT:-8080}:8080"
@@ -8,14 +8,13 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-gui:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ingress:${TARANIS_TAG:-latest}"
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
-      TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
     healthcheck:
       test: ["CMD-SHELL", "/usr/bin/curl --fail http://localhost:8080"]

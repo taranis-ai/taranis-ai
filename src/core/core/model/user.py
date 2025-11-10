@@ -21,7 +21,7 @@ PROFILE_TEMPLATE = {
     "show_charts": False,
     "infinite_scroll": True,
     "advanced_story_options": False,
-    "end_of_shift": {"hours": 18, "minutes": 0},
+    "end_of_shift": "18:00",
     "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
     "language": "en",
 }
@@ -78,8 +78,8 @@ class User(BaseModel):
             "id": self.id,
             "name": self.name,
             "username": self.username,
-            "organization": self.organization.id,
-            "roles": [role.id for role in self.roles if role],
+            "organization": {"name": self.organization.name, "id": self.organization.id},
+            "roles": [{"name": role.name, "id": role.id} for role in self.roles if role],
             "permissions": self.get_permissions(),
             "profile": self.profile,
         }
@@ -176,7 +176,7 @@ class User(BaseModel):
 
         user.profile = updated_profile
         db.session.commit()
-        return {"message": "Profile updated"}, 200
+        return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile()}, 200
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:

@@ -72,10 +72,10 @@ class CoreApi:
     def get_connector_config(self, connector_id: str) -> dict | None:
         return self.api_get(f"/worker/connectors/{connector_id}")
 
-    def get_product(self, product_id: int) -> dict | None:
+    def get_product(self, product_id: str) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
-    def get_product_render(self, product_id: int) -> Product | None:
+    def get_product_render(self, product_id: str) -> Product | None:
         try:
             url = f"{self.api_url}/worker/products/{product_id}/render"
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)

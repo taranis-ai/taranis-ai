@@ -138,12 +138,12 @@ class User(TaranisBaseModel):
 
     id: int | None = None
     name: str
-    organization: int
+    organization: dict | int
     permissions: list[str] | None = None
     profile: dict | None = None
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
-    password: str | None = None
+    password: str | None = Field(default=None, exclude=True)
 
 
 class TaranisConfig(TaranisBaseModel):
@@ -175,7 +175,7 @@ class WordList(TaranisBaseModel):
 
     id: int | None = None
     name: str
-    description: str = ""
+    description: str | None = ""
     usage: list[str] = Field(default_factory=list)
     link: str = ""
     entries: list[WordListEntry] | None = Field(default_factory=list)
@@ -261,6 +261,7 @@ class ReportItemAttribute(TaranisBaseModel):
     description: str | None = None
     index: int | None = None
     required: bool | None = None
+    type: str | None = None
 
 
 class ReportItemAttributeGroup(TaranisBaseModel):
@@ -284,7 +285,6 @@ class ReportItemType(TaranisBaseModel):
 
 
 class Template(TaranisBaseModel):
-    
     _core_endpoint = "/config/templates"
     _model_name = "template"
     _pretty_name = "Template"
@@ -341,9 +341,9 @@ class Connector(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
-    type: CONNECTOR_TYPES = Field(default=CONNECTOR_TYPES.MISP_CONNECTOR)
+    type: CONNECTOR_TYPES | None = Field(default=None)
     index: int | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
+    parameters: dict[str, str] | None = Field(default_factory=dict)
     icon: str | None = None
     status: TaskResult | None = None
 

@@ -61,3 +61,22 @@ disable = """
     missing-class-docstring,
     missing-function-docstring
 """
+
+[tool.pyright]
+typeCheckingMode = "standard"
+reportConstantRedefinition = "error"
+reportDuplicateImport = "error"
+reportMissingTypeStubs = "warning"
+reportMissingParameterType = "warning"
+reportMissingTypeArgument = "warning"
+
+reportDeprecated = "warning"
+reportMatchNotExhaustive = "warning"
+reportUnnecessaryCast = "warning"
+reportUnreachable = "warning"
+reportUnusedClass = "warning"
+reportUnusedFunction = "warning"
+reportUnusedImport = "warning"
+
+reportIncompatibleVariableOverride = "none"
+reportIncompatibleMethodOverride = "none"

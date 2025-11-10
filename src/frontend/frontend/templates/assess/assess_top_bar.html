@@ -1,0 +1,104 @@
+
+<div class="sticky top-16 z-10 mb-4" @keydown.shift.window="showHints = true" @keyup.shift.window="showHints = false">
+  <div class="flex p-2 flex-row justify-between min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
+    <div class="flex flex-col gap-2 flex-row items-center text-sm">
+      <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak data-testid="assess_story_selection_count">
+        <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
+        <span class="font-medium">stories selected</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2" data-testid="assess_story_count">
+          <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count }}</span>
+          <span class="font-medium text-base-content">Stories</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
+        <button type="button"
+                class="btn btn-outline"
+                x-show="selectedItems.length == 1"
+                @click="openStoryEdit()"
+                @keyup.shift.e.prevent.window="openStoryEdit()">
+          {{ heroicon_mini("pencil") }}
+          <span class="text-sm">Edit</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
+                hx-get="{{ url_for('assess.report_story') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :hx-vals='action_vals()'>
+          {{ heroicon_mini("document-chart-bar") }}
+          <span class="text-sm">Add to Report</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+R</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("read", true)'>
+          {{ heroicon_mini("eye") }}
+          <span class="text-sm">Mark as read</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+Space</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("important", true)'>
+          {{ heroicon_mini("star") }}
+          <span class="text-sm">Mark as important</span>
+          <span class="text-xs" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+I</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                x-show="selectedItems.length > 1"
+                hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
+                hx-get="{{ url_for('assess.cluster_story') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :hx-vals='action_vals()'>
+          {{ heroicon_mini("rectangle-group") }}
+          <span class="text-sm">Cluster</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+G</kbd>
+          </span>
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
+        {% if story_ids %}
+          <button type="button" class="btn btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll() " data-testid="assess-select-all-button">
+            {{ heroicon_mini("check-circle") }}
+            <span class="text-sm">Select all</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+A</kbd>
+            </span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-2" x-show="selectedItems.length">
+      <button type="button" class="btn btn-outline" @click="clearSelection()">
+        <span class="text-sm">Clear selection</span>
+        <span class="text-xs opacity-80">
+          <kbd class="kbd kbd-xs">Esc</kbd>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>

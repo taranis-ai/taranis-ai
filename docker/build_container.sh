@@ -28,11 +28,11 @@ build_worker() {
     --load .
 }
 
-build_gui() {
-  docker buildx build --file docker/Containerfile.gui \
+build_ingress() {
+  docker buildx build --file docker/Containerfile.ingress \
     --build-arg git_info="${GIT_INFO}" \
-    --tag "${REPO}/taranis-gui:latest" \
-    --tag "${REPO}/taranis-gui:${CURRENT_BRANCH}" \
+    --tag "${REPO}/taranis-ingress:latest" \
+    --tag "${REPO}/taranis-ingress:${CURRENT_BRANCH}" \
     --load .
 }
 
@@ -48,7 +48,7 @@ if [[ $# -eq 0 ]]; then
   echo "No specific container specified. Building all containers..."
   build_core
   build_worker
-  build_gui
+  build_ingress
   build_frontend
 else
   case $1 in
@@ -60,9 +60,9 @@ else
       echo "Building worker container..."
       build_worker
       ;;
-    gui)
-      echo "Building GUI container..."
-      build_gui
+    ingress)
+      echo "Building ingress container..."
+      build_ingress
       ;;
     frontend)
       echo "Building frontend container..."
@@ -70,7 +70,7 @@ else
       ;;
     *)
       echo "Unknown container: $1"
-      echo "Usage: $0 [core|worker|gui|frontend]"
+      echo "Usage: $0 [core|worker|ingress|frontend]"
       exit 1
       ;;
   esac

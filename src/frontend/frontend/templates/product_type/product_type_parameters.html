@@ -1,0 +1,17 @@
+{% from "macros/forms.html" import form_input, form_select, form_textarea, form_switch %}
+{% set parameter_values = parameter_values | default({}) %}
+{% set template_options = template_options | default([]) %}
+
+{% for field in parameters %}
+  {% set field_value = parameter_values.get(field.name, field.value) %}
+  {% set required, pattern, invalid_msg = get_html5_pattern_from_rule(field.rules) %}
+  {% if field.name == 'TEMPLATE_PATH' %}
+    {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=template_options, required=required) }}
+  {% elif field.type == 'text' or field.type == 'number' %}
+    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=required, pattern=pattern, invalid_msg=invalid_msg, preserve=preserve) }}
+  {% elif field.type == 'textarea' %}
+    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=required, preserve=preserve) }}
+  {% elif field.type == 'switch' %}
+    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=required, preserve=preserve) }}
+  {% endif %}
+{% endfor %}

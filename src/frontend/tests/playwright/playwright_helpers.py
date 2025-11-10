@@ -1,4 +1,5 @@
 import time
+from playwright.sync_api import expect, Page
 
 
 class PlaywrightHelpers:
@@ -10,7 +11,7 @@ class PlaywrightHelpers:
 
     @classmethod
     def setup_class(cls):
-        cls.ci_run: bool = False
+        cls.ci_run: bool = True
         cls.wait_duration: float = 0
 
     def smooth_scroll(self, locator):
@@ -103,3 +104,13 @@ class PlaywrightHelpers:
         if self.ci_run:
             return
         time.sleep(duration)
+
+    def expect_list_of_test_ids_visible(self, page: Page, test_ids: list[str]):
+        """Assert that a list of elements identified by their test IDs are visible on the page."""
+        if not test_ids:
+            raise ValueError("The list of test IDs is empty.")
+        for test_id in test_ids:
+            try:
+                expect(page.get_by_test_id(test_id)).to_be_visible(timeout=3000)
+            except Exception as e:
+                raise AssertionError(f"❌ Expected test ID '{test_id}' to be visible, but it was not.") from e

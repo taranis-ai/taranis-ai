@@ -43,7 +43,6 @@ class Story(BaseModel):
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
-    links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
@@ -63,7 +62,6 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
-        links=None,
         attributes: list[dict] | None = None,
         tags=None,
         news_items=None,
@@ -81,7 +79,6 @@ class Story(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
-        self.links = links or []
         self.last_change = "external" if last_change is None else last_change
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
@@ -107,8 +104,12 @@ class Story(BaseModel):
             return news_items
         return []
 
+    @property
+    def links(self) -> list[str]:
+        return [item.link for item in self.news_items if getattr(item, "link", None)]
+
     @classmethod
-    def get_for_api(cls, item_id: str, user: User | None) -> tuple[dict[str, Any], int]:
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         query = db.select(cls).filter(cls.id == item_id)
         if user:
@@ -219,9 +220,12 @@ class Story(BaseModel):
 
         if filter_range := filter_args.get("range", "").lower():
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            if filter_range in ["day", "week", "month"]:
+            if filter_range in ["day", "week", "month", "24h"]:
                 if filter_range == "day":
                     date_limit -= timedelta(days=1)
+
+                elif filter_range == "24h":
+                    date_limit -= timedelta(hours=24)
 
                 elif filter_range == "week":
                     date_limit -= timedelta(days=date_limit.weekday())
@@ -436,7 +440,7 @@ class Story(BaseModel):
         return cls.update(data["id"], data, external=True)
 
     @classmethod
-    def _process_news_items(cls, data) -> "tuple[list[str], list[str]]":
+    def _process_news_items(cls, data: dict[str, Any]) -> "tuple[list[str], list[str]]":
         skipped = []
         added = []
         for news_item in data.get("news_items", []):
@@ -514,12 +518,13 @@ class Story(BaseModel):
         return cls.add(data)
 
     @classmethod
-    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict, int]":
+    def add_or_update_for_misp(cls, data: list, force: bool = False) -> "tuple[dict[str, Any], int]":
         if not data:
             return {"error": "No data provided"}, 400
         prepared_stories = cls.prepare_misp_stories(data, force=force)
         results = []
         story_ids = []
+        status = 200
         for story in prepared_stories:
             result, status = cls.add_or_update(story)
             if status != 200:
@@ -532,7 +537,7 @@ class Story(BaseModel):
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
-    def check_news_item_data(cls, news_item: dict) -> dict | None:
+    def check_news_item_data(cls, news_item: dict[str, Any]) -> dict[str, str] | None:
         title = news_item.get("title", "")
         link = news_item.get("link", "")
         content = news_item.get("content", "")
@@ -580,14 +585,15 @@ class Story(BaseModel):
             logger.warning(result)
             return result, 200
         if skipped_items:
-            result["warning"] = f"Some items were skipped: {', '.join(skipped_items)}"
+            result["warning"] = f"{len(skipped_items)} items were skipped"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
         return result, 200
 
     @classmethod
     def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
-        story = cls.get(story_id)
+        story: "Story | None" = cls.get(story_id)
+        logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
@@ -610,7 +616,7 @@ class Story(BaseModel):
             story.comments = data["comments"]
 
         if "tags" in data:
-            story.set_tags(data["tags"])
+            story.tags = story.get_tags(data["tags"])
 
         if "summary" in data:
             story.summary = data["summary"]
@@ -618,21 +624,15 @@ class Story(BaseModel):
         if "attributes" in data:
             story.set_attributes(data["attributes"])
 
-        if "links" in data:
-            story.links = data["links"]
-
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
         StorySearchIndex.prepare(story)
         db.session.commit()
-        return {"message": "Story updated successfully", "id": f"{story_id}"}, 200
+        return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict) -> tuple[dict, int]:
-        from core.model.story import Story
-        from core.model.news_item import NewsItemAttribute  # adjust import if needed
-
         current_story = Story.get(story_id)
         if not current_story:
             return {
@@ -706,6 +706,8 @@ class Story(BaseModel):
         remove_attributes() for deletions.
         """
         parsed_attributes = NewsItemAttribute.parse_attributes(attributes)
+        if len(parsed_attributes) == 0:
+            return
         input_keys = set(parsed_attributes.keys())
         existing_keys = {attr.key for attr in self.attributes}
 
@@ -838,6 +840,10 @@ class Story(BaseModel):
         existing_tag_names = {tag.name for tag in self.tags}
         return existing_tag_names - incoming_tag_names
 
+    @classmethod
+    def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
+        return list(NewsItemTag.parse_tags(incoming_tags).values())
+
     def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
         try:
             return self._update_tags(incoming_tags)
@@ -885,7 +891,7 @@ class Story(BaseModel):
         return {"message": "success"}, 200
 
     @classmethod
-    def move_items_to_story(cls, story_id: str, news_item_ids: list[int], user: User | None = None):
+    def move_items_to_story(cls, story_id: str, news_item_ids: list[str], user: User | None = None):
         try:
             story = cls.get(story_id)
             if not story:
@@ -939,7 +945,7 @@ class Story(BaseModel):
             return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
 
     @classmethod
-    def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
+    def ungroup_multiple_stories(cls, story_ids: list[str], user: User | None = None):
         results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
         if errors := [res[0].get("error") for res in results if res[1] != 200 and res[0].get("error") is not None]:
             error_message = "; ".join(filter(None, errors))
@@ -948,7 +954,7 @@ class Story(BaseModel):
         return {"message": "success"}, 200
 
     @classmethod
-    def ungroup_story(cls, story_id: int, user: User | None = None):
+    def ungroup_story(cls, story_id: str, user: User | None = None):
         try:
             if ReportItemStory.is_assigned(story_id):
                 return {"error": f"Story {story_id} is assigned to a report"}, 400
@@ -1001,7 +1007,7 @@ class Story(BaseModel):
                 logger.exception(f"Update Story: {story.id} Failed")
 
     @classmethod
-    def prepare_misp_stories(cls, story_lists: list[dict], force) -> list[dict]:
+    def prepare_misp_stories(cls, story_lists: list[dict], force: bool) -> list[dict]:
         stories = []
         for story in story_lists:
             if story_id := story.get("id"):
@@ -1024,7 +1030,7 @@ class Story(BaseModel):
         return existing_story.get("last_change") == "internal"
 
     @classmethod
-    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list:
+    def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list[str]:
         existing_news_items = existing_story.get("news_items", [])
         new_news_items = new_story.get("news_items", [])
 
@@ -1034,7 +1040,7 @@ class Story(BaseModel):
         return list(existing_ids - new_ids)
 
     @classmethod
-    def create_from_item(cls, news_item) -> str | None:
+    def create_from_item(cls, news_item: NewsItem) -> str | None:
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
@@ -1131,6 +1137,7 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
+        data["links"] = self.links
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
@@ -1139,6 +1146,8 @@ class Story(BaseModel):
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
+        data["in_reports_count"] = ReportItemStory.count(self.id)
+        data["links"] = self.links
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1256,9 +1265,9 @@ class ReportItemStory(BaseModel):
     story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
-    def is_assigned(cls, story_id):
+    def is_assigned(cls, story_id: str) -> bool:
         return db.session.query(db.exists().where(cls.story_id == story_id)).scalar()
 
     @classmethod
-    def count(cls, story_id):
+    def count(cls, story_id: str) -> int:
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))

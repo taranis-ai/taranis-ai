@@ -13,6 +13,7 @@ from core.model.publisher_preset import PublisherPreset
 from core.model.word_list import WordList
 from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
+from core.model.report_item import ReportItem
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.managers.decorators import extract_args
@@ -236,6 +237,10 @@ class SSENewsItemsUpdated(MethodView):
         """Endpoint for workers to trigger SSE news items updated event"""
         sse_manager.news_items_updated()
         return {"success": True}, 200
+class Reports(MethodView):
+    @api_key_required
+    def get(self, report_id: str):
+        return ReportItem.get_for_api(report_id)
 
 
 def initialize(app: Flask):
@@ -258,5 +263,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/sse/news-items-updated", view_func=SSENewsItemsUpdated.as_view("sse_news_items_updated"))
+    worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
 
     app.register_blueprint(worker_bp)

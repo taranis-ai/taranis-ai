@@ -1,7 +1,151 @@
-{% from "macros/forms.html" import form_input, form_textarea, form_select %}
+{% from "macros/forms.html" import form_input, form_switch %}
+{% from "analyze/attribute_macros.html" import attribute_field %}
+{% from "assess/simple_story_card.html" import analyze_story_card %}
 
 {% set form_error = form_error | default({}) %}
 {% set report = report | default({}) %}
 {% set report_types = report_types | default([]) %}
+{% set grouped_attributes = report.grouped_attributes | default([]) %}
+{% set stories = report.stories | default([]) %}
+{% set used_story_ids = story_attributes | map(attribute='value') | reject('equalto', '') | list %}
+{% set layout = layout | default('split') %}
+{% set is_edit = report.id is not none and report.id != '0' %}
+{% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
 
-<div class="p-4" id="report">{{ report }}</div>
+<script type="text/javascript">
+  function initAttributeStoryChoices() {
+    const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
+    story_attribute_ids.forEach(attr => {
+      const field_id = `attribute_story_${attr.id}`;
+      const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
+    });
+  }
+
+  if (typeof htmx !== 'undefined' && htmx.onLoad) {
+    htmx.onLoad(function(elt) {
+      initAttributeStoryChoices();
+    });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      initAttributeStoryChoices();
+    });
+  }
+</script>
+
+<div class="p-4 card bg-base-100 shadow" id="report">
+  <div class="card-body gap-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="card-title">
+        {{ submit_text }}
+        {% if is_edit and report.title %}- {{ report.title }}{% endif %}
+      </h2>
+      <div class="col-span-12 md:col-span-6 flex items-end text-sm text-base-content/60">
+        <span>ID: {{ report.id }}</span>
+      </div>
+      <div class="flex-1"></div>
+      {% if is_edit %}
+        <a class="btn btn-outline btn-sm"
+           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
+           data-testid="report-new-product">New Product from Report</a>
+        <div class="join">
+          <button type="button"
+                  {{ form_action }}
+                  hx-vals='{"completed": true}'
+                  hx-target="#report"
+                  hx-target-error="#report"
+                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
+          </button>
+          <button type="button"
+                  {{ form_action }}
+                  hx-vals='{"completed": false}'
+                  hx-target="#report"
+                  hx-target-error="#report"
+                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
+          </button>
+        </div>
+      {% endif %}
+      <div class="join">
+        <a href="?layout=split" class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
+        <a href="?layout=stacked" class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
+      </div>
+    </div>
+
+    <form id="report_form" class="w-full" {{ form_action }} hx-swap="innerHTML" hx-target="#report" hx-target-error="#report">
+
+      {% include "partials/admin_form_error.html" %}
+
+      <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-12 {{ column_class }}">
+          <div class="grid grid-cols-12 gap-4">
+            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title) }}</div>
+            <div class="col-span-12 md:col-span-6">
+              <label class="select w-full mb-5">
+                <span class="label">Report Type</span>
+                <select id="report_item_selector" name="report_item_type_id" class="select select-bordered w-full" {% if is_edit %}disabled{% endif %}>
+                  {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
+                  {% for report_type in report_types %}
+                    <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
+                      {{ report_type.title }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% if is_edit %}<input type="hidden" name="report_item_type_id" value="{{ report.report_item_type_id }}">{% endif %}
+            </div>
+          </div>
+
+          {% if not is_edit %}
+            <div class="alert alert-info/50 mt-4">Attributes will be generated after the report item has been created.</div>
+          {% endif %}
+
+          {% if is_edit %}
+            {% if grouped_attributes %}
+              {% for group in grouped_attributes %}
+                <div class="bg-base-200 rounded-box p-4 mb-4">
+                  {% if group.title %}<h3 class="text-lg font-semibold mb-3">{{ group.title }}</h3>{% endif %}
+                  {% for attribute in group.attributes %}{{ attribute_field(attribute, stories=stories) }}{% endfor %}
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="alert alert-warning mt-4">No attributes found for this report.</div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="col-span-12 {{ column_class }}">
+          <section class="space-y-4">
+            <header class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Stories</h3>
+              <div>
+                <button type="button"
+                        class="btn btn-sm btn-outline"
+                        data-testid="remove-all-stories"
+                        {{ form_action }}
+                        hx-vals='{"stories[]": [""]}'
+                        hx-target="#report"
+                        hx-target-error="#report">
+                  Remove all
+                </button>
+              </div>
+            </header>
+
+            {% if stories %}
+              <div class="space-y-3" data-testid="report-stories">
+                {% for story in stories %}
+                  {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
+                  {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="alert alert-info">No stories assigned to this report.</div>
+            {% endif %}
+          </section>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+      </div>
+    </form>
+  </div>
+</div>

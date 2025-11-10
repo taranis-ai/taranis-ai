@@ -5,9 +5,9 @@
   <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost normal-case text-xl">
     <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="Taranis AI Logo" height="auto" width="auto" class="h-8">
   </a>
+  {# {% include "partials/omnisearch/omni_search.html" %} #}
 </div>
 
-{# djlint:off J018 #}
 <nav>
   <ul class="menu bg-base-200 menu-horizontal rounded-box">
     {% if is_admin %}
@@ -25,37 +25,37 @@
       </a>
     </li>
     <li>
-      <a href="/assess">
+      <a href="{{ url_for('assess.assess') }}">
         {{ heroicon_outline("newspaper") }}
         Assess
       </a>
     </li>
     <li>
-      <a href="/analyze">
+      <a href="{{ url_for('analyze.analyze') }}">
         {{ heroicon_outline("presentation-chart-bar") }}
         Analyze
       </a>
     </li>
     <li>
-      <a href="/publish">
+      <a href="{{ url_for('publish.publish') }}">
         {{ heroicon_outline("paper-airplane") }}
         Publish
       </a>
     </li>
     <li>
-      <a href="/assets">
+      <a href="{{ url_for('assets.assets') }}">
         {{ heroicon_outline("document-chart-bar") }}
         Assets
       </a>
     </li>
-    <li class="dropdown dropdown-end">
+    <li class="dropdown dropdown-end z-50">
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">{{ heroicon_outline("user-circle") }}</div>
-      <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+      <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow">
         <li>
-          <a href="/user">Profile</a>
+          <a href="{{ url_for('user.profile') }}">Profile</a>
         </li>
         <li>
-          <a href="/user/settings">User Settings</a>
+          <a href="{{ url_for('user.settings') }}">User Settings</a>
         </li>
         <li>
           <a href="{{ url_for('base.logout') }}">Logout</a>
@@ -64,4 +64,3 @@
     </li>
   </ul>
 </nav>
-{# djlint:on #}

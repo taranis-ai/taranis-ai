@@ -1,0 +1,35 @@
+{% from "macros/forms.html" import form_input, form_textarea, form_select %}
+{% from "macros/datatable.html" import datatable %}
+
+{% set form_error = form_error | default({}) %}
+{% set asset = asset | default({}) %}
+
+{# djlint:off #}
+<div class="p-4"
+     id="asset">
+
+<div class="card bg-base-100 shadow">
+  <div class="card-body gap-3">
+    <div class="flex items-center gap-3">
+      <h2 class="card-title">{{ submit_text }}</h2>
+    </div>
+
+    <div class="grid grid-cols-12 gap-4">
+        <form id="asset_form"
+              {{ form_action }}
+              hx-swap="innerHTML"
+              hx-target="#asset"
+              hx-target-error="#asset"
+              class="col-span-6"
+              data-testid="asset-form">
+          {% include "partials/admin_form_error.html" %}
+          {{ form_input('Name', 'name', asset.name, form_error.name, width="w-full") }}
+          {{ form_textarea('Description', 'description', asset.description, form_error.description, width="w-full", required=false) }}
+          {{ form_input('Serial Number', 'serial', asset.serial, form_error.serial, width="w-full", required=false) }}
+          <input type="submit" class="btn btn-primary w-3/4 mt-8" value="{{ submit_text }}" />
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

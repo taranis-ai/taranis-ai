@@ -11,9 +11,13 @@ class BasePresenter:
     def print_exception(self, error):
         logger.exception(f"[{self.name}] {error}")
 
-    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
+    def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | bytes:
         if parameters is None:
             parameters = {}
+
+        if not template:
+            self.print_exception("No template provided")
+            raise ValueError("No template provided to BasePresenter.generate()")
 
         env = jinja2.Environment(
             autoescape=False,

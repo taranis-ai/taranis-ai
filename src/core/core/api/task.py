@@ -32,7 +32,8 @@ class Task(MethodView):
 
         logger.debug(f"Received task result with id {task_id} and status {status}")
 
-        handle_task_specific_result(task_id, result, status)
+        if status == "SUCCESS" and result:
+            handle_task_specific_result(task_id, result, status)
         TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status, "task": task})
         return {"status": status}, 200
 

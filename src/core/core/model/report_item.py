@@ -1,12 +1,12 @@
+from collections import OrderedDict
 from datetime import datetime, timedelta
-
 import uuid
-from sqlalchemy import or_
-from sqlalchemy.sql.expression import false
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
-
 from typing import Any, Optional
+
+from sqlalchemy import or_
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import false
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -42,7 +42,11 @@ class ReportItem(BaseModel):
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
-        "ReportItemAttribute", back_populates="report_item", cascade="all, delete-orphan", order_by="ReportItemAttribute.index"
+        "ReportItemAttribute",
+        back_populates="report_item",
+        cascade="all, delete-orphan",
+        order_by="ReportItemAttribute.index",
+        lazy="selectin",
     )
 
     report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
@@ -56,6 +60,7 @@ class ReportItem(BaseModel):
         stories=None,
         attributes=None,
         completed=False,
+        report_item_cpes=None,
         id=None,
     ):
         self.id = id or str(uuid.uuid4())
@@ -63,12 +68,12 @@ class ReportItem(BaseModel):
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
         self.completed = completed
-        self.report_item_cpes = []
+        self.report_item_cpes = report_item_cpes or []
         if stories is not None:
             self.stories = Story.get_bulk(stories)
 
     @classmethod
-    def count_all(cls, is_completed):
+    def count_all(cls, is_completed: bool) -> int:
         return cls.get_filtered_count(db.select(cls).filter_by(completed=is_completed))
 
     @classmethod
@@ -83,31 +88,41 @@ class ReportItem(BaseModel):
         return item.to_detail_dict(), 200
 
     @classmethod
-    def get_story_ids(cls, item_id):
+    def get_story_ids(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if report_item := cls.get(item_id):
-            return [story.id for story in report_item.stories], 200
+            return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
         return {"error": "Report Item not found"}, 404
 
     @classmethod
-    def get_detail_json(cls, id):
+    def get_detail_json(cls, id: str) -> dict[str, Any] | None:
         report_item = cls.get(id)
         return report_item.to_detail_dict() if report_item else None
 
     def to_dict(self):
         data = super().to_dict()
         data["stories"] = [story.id for story in self.stories]
+        data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
-    def get_attribute_groups(self) -> list[str]:
-        return list(dict.fromkeys(attr.group_title for attr in self.attributes))
+    def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
+        grouped: OrderedDict[str | None, list[dict[str, Any]]] = OrderedDict()
+        for attribute in attribute_dicts:
+            group_title = attribute.get("group_title")
+            grouped.setdefault(group_title, []).append(attribute)
+        return [{"title": title, "attributes": items} for title, items in grouped.items()]
+
+    def get_attribute_groups(self, attributes: list[dict[str, Any]] | None = None) -> list[str]:
+        grouped_attributes = self.get_grouped_attributes(attributes)
+        return [(group["title"] or "") for group in grouped_attributes]
 
     def to_detail_dict(self):
         data = super().to_dict()
-        data["attributes"] = self.get_attribute_dict()
-        data["attribute_groups"] = self.get_attribute_groups()
+        attributes = self.get_attribute_dict()
+        data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 
@@ -121,8 +136,24 @@ class ReportItem(BaseModel):
 
     def to_product_dict(self):
         data = super().to_dict()
-        data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
-        data["stories"] = [story.to_dict() for story in self.stories if story]
+
+        if self.attributes:
+            grouped_attributes = {}
+            for attribute in self.attributes:
+                group_title = attribute.group_title
+                attribute_title = attribute.title
+                attribute_value = attribute.value
+
+                if group_title not in grouped_attributes:
+                    grouped_attributes[group_title] = {}
+
+                grouped_attributes[group_title][attribute_title] = attribute_value
+
+            data["attributes"] = grouped_attributes
+        else:
+            data["attributes"] = {}
+
+        data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
     def clone_report(self):
@@ -298,7 +329,8 @@ class ReportItem(BaseModel):
         for story in stories:
             NewsItemTagService.add_report_tag(story, report_item)
 
-        return {"message": f"Successfully added {story_ids} to {report_item.id}"}, 200
+        logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
+        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
@@ -317,7 +349,8 @@ class ReportItem(BaseModel):
 
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
-        return cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+        new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+        return {"message": f"Successfully updated Report Item {report_id}", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str]):
         new_stories = Story.get_bulk(story_ids)
@@ -348,6 +381,7 @@ class ReportItem(BaseModel):
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         retag_stories = False
+        logger.debug(f"Updating Report Item {report_id} with data: {data}")
         if err or not report_item:
             return err, status
 
@@ -362,7 +396,7 @@ class ReportItem(BaseModel):
         if attributes_data := data.pop("attributes", None):
             report_item.update_attributes(attributes_data)
 
-        story_ids = data.get("story_ids")
+        story_ids = data.get("story_ids", data.get("stories"))
         if story_ids is not None:
             report_item.update_stories(story_ids)
 
@@ -373,13 +407,13 @@ class ReportItem(BaseModel):
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
-        return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
+        return report_item.to_detail_dict(), 200
 
     def update_attributes(self, attributes_data: dict, commit=False):
-        for attribute in self.attributes:
-            update_value = attributes_data.get(str(attribute.id), {}).get("value", attribute.value)
-            attribute.value = update_value
-
+        for attr in self.attributes:
+            attr_id_str = str(attr.id)
+            if attr_id_str in attributes_data:
+                attr.value = attributes_data[attr_id_str]
         if commit:
             db.session.commit()
 

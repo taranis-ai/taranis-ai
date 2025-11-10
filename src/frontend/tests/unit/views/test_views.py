@@ -5,7 +5,7 @@ from io import BytesIO
 
 
 from frontend.views.base_view import BaseView
-from frontend.views.source_views import SourceView
+from frontend.views.admin_views.source_views import SourceView
 
 
 VIEW_ITEMS = BaseView._registry.items()
@@ -45,15 +45,20 @@ class TestAdminViews:
 
 @pytest.mark.parametrize("view_name,view_cls", CRUD_ITEMS, ids=CRUD_IDS)
 class TestCRUDViews:
-    def test_create_form_renders(self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client):
+    def test_create_form_renders(
+        self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client, mock_core_get_endpoints
+    ):
         # GET the edit form for item_id
         item_id = "0"
+        # from pdb import set_trace; set_trace()
         key = view_cls._get_object_key()
         url = view_cls.get_edit_route(**{key: item_id})
         resp = authenticated_client.get(url)
         assert resp.status_code == 200
 
         html = resp.get_data(as_text=True)
+        print(f"FORMDATA FOR : {view_name}")
+        print(form_formats_from_models[view_name])
         actual_keys = form_data(html).get_cleaned_keys()
         allowed = form_formats_from_models[view_name]["allowed"]
         required = form_formats_from_models[view_name]["required"]
@@ -127,7 +132,7 @@ class TestSourceView:
         dummy_file.name = "test.json"
 
         # Mock the CoreApi().import_sources method
-        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
+        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
             mock_api_instance.import_sources.return_value = MagicMock(ok=True)
@@ -137,10 +142,8 @@ class TestSourceView:
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
-            # Assert that the response is successful
-            assert resp.status_code == 200
+            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
 
-            # Assert that CoreApi().import_sources was called with the correct data
             mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 
     def test_import_post_view_no_file(self, authenticated_client):
@@ -149,7 +152,7 @@ class TestSourceView:
         """
         resp = authenticated_client.post(SourceView.get_import_route(), data={}, content_type="multipart/form-data")
 
-        assert resp.status_code == 200  # The view returns a 200 but with an error message in the HTML
+        assert resp.status_code == 200, "Expected 200 OK response with error message in content"
         html = resp.get_data(as_text=True)
         assert "No file or organization provided" in html
 
@@ -162,10 +165,10 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        with patch("frontend.views.source_views.CoreApi") as mock_core_api:
+        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
             mock_api_instance = MagicMock()
             mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = None  # Simulate API failure
+            mock_api_instance.import_sources.return_value = None
 
             resp = authenticated_client.post(
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"

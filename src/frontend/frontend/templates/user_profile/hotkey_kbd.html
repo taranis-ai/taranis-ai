@@ -1,0 +1,111 @@
+{% set assess_shortcuts = [
+  {
+    "keys": [
+      "Shift",
+      "E"
+    ],
+    "label": "Edit selected story",
+    "available": [
+      "Assess"
+    ],
+    "hint": "Requires exactly one story selected."
+  },
+  {
+    "keys": [
+      "Shift",
+      "R"
+    ],
+    "label": "Add selection to report",
+    "available": [
+      "Assess"
+    ],
+    "hint": "Available when one or more stories are selected."
+  },
+  {
+    "keys": [
+      "Shift",
+      "Space"
+    ],
+    "label": "Mark selection as read",
+    "available": [
+      "Assess"
+    ],
+    "hint": "Available when one or more stories are selected."
+  },
+  {
+    "keys": [
+      "Shift",
+      "I"
+    ],
+    "label": "Mark selection as important",
+    "available": [
+      "Assess"
+    ],
+    "hint": "Available when one or more stories are selected."
+  },
+  {
+    "keys": [
+      "Shift",
+      "G"
+    ],
+    "label": "Cluster selected stories",
+    "available": [
+      "Assess"
+    ],
+    "hint": "Requires two or more stories selected."
+  },
+  {
+    "keys": [
+      "Shift",
+      "A"
+    ],
+    "label": "Select all items in view",
+    "available": [
+      "Assess",
+      "Analyze",
+      "Publish"
+    ],
+    "hint": "Available when story results are loaded."
+  }
+] %}
+
+<div id="hotkeys" class="container flex flex-col gap-4">
+  <p class="text-sm text-base-content/80">
+    Hold <span class="font-semibold">Shift</span> while browsing Assess to reveal these shortcuts in the toolbar.
+  </p>
+  <div class="overflow-x-auto rounded-box border border-base-300">
+    <table class="table table-zebra table-sm">
+      <thead>
+        <tr>
+          <th class="w-48">Shortcut</th>
+          <th>Label</th>
+          <th>Hint</th>
+          <th class="w-40">Available in</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shortcut in assess_shortcuts %}
+          <tr>
+            <td class="align-top">
+              <div class="flex flex-wrap items-center gap-1">
+                {% for key in shortcut.get("keys") %}
+                  <kbd class="kbd kbd-sm">{{ key }}</kbd>
+                  {% if not loop.last %}<span class="text-xs font-medium text-base-content/70">+</span>{% endif %}
+                {% endfor %}
+              </div>
+            </td>
+            <td class="align-top text-sm font-medium text-base-content">{{ shortcut.label }}</td>
+            <td class="align-top text-xs text-base-content/70">
+              {% if shortcut.hint %}
+                {{ shortcut.hint }}
+              {% else %}
+                &mdash;
+              {% endif %}
+            </td>
+            <td class="align-top text-xs text-base-content/70">{{ shortcut.available | join(", ") }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

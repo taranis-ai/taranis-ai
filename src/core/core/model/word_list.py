@@ -24,17 +24,16 @@ class WordList(BaseModel):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
-    description: Mapped[str] = db.Column(db.String(), default=None)
+    description: Mapped[str] = db.Column(db.String(), default="")
     usage: Mapped[int] = db.Column(db.Integer, default=0)
     link: Mapped[str] = db.Column(db.String(), nullable=True, default=None)
     entries: Mapped[list["WordListEntry"]] = relationship("WordListEntry", cascade="all, delete")
 
-    def __init__(self, name: str, description: str | None = None, usage: int = 0, link: str = "", entries=None, id: int | None = None):
+    def __init__(self, name: str, description: str = "", usage: int = 0, link: str = "", entries=None, id: int | None = None):
         if id:
             self.id = id
         self.name = name
-        if description:
-            self.description = description
+        self.description = description
         self.update_usage(usage)
         self.link = link
         self.entries = entries or []
@@ -144,7 +143,7 @@ class WordList(BaseModel):
         return cls(
             id=data.get("id"),
             name=data.get("name", ""),
-            description=data.get("description"),
+            description=data.get("description", ""),
             usage=data.get("usage", 0),
             link=data.get("link", ""),
             entries=data.get("entries", []),

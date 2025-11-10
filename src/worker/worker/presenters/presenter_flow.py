@@ -24,9 +24,10 @@ class PresenterTask:
             "pandoc_presenter": worker.presenters.PANDOCPresenter(),
             "pdf_presenter": worker.presenters.PDFPresenter(),
             "text_presenter": worker.presenters.TextPresenter(),
+            "stix_presenter": worker.presenters.STIXPresenter(),
         }
 
-    def get_product(self, product_id: int) -> dict[str, Any]:
+    def get_product(self, product_id: str) -> dict[str, Any]:
         product = None
         try:
             product = self.core_api.get_product(product_id)
@@ -58,13 +59,16 @@ class PresenterTask:
 
         raise ValueError(f"Presenter {presenter_type} not implemented")
 
-    def run(self, product_id: int):
+    def run(self, product_id: str):
         product = self.get_product(product_id)
 
         presenter = self.get_presenter(product)
 
         type_id: int = int(product["type_id"])
-        template = self.get_template(type_id)
+        if "TEMPLATE_PATH" in product.get("parameters", {}):
+            template = self.get_template(type_id)
+        else:
+            template = None
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 

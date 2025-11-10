@@ -20,8 +20,6 @@ class ProductView(BaseView):
 
     base_route = "publish.publish"
     edit_route = "publish.product"
-    _read_only = True
-    _show_sidebar = False
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -105,5 +103,5 @@ class ProductView(BaseView):
     def put(self, **kwargs) -> tuple[str, int] | Response:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
-            abort(405)
+            return abort(405)
         return self.update_view(object_id=object_id)
