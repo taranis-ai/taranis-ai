@@ -90,7 +90,7 @@ workers = [
             {"parameter": "API_KEY", "rules": "required"},
             {"parameter": "ORGANISATION_ID", "rules": "required"},
             {"parameter": "SHARING_GROUP_ID"},
-            {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "DAYS_WITHOUT_CHANGE", "type": "number"},
             {"parameter": "SSL_CHECK", "type": "switch"},
             {"parameter": "REQUEST_TIMEOUT", "type": "number"},
             {"parameter": "USER_AGENT"},

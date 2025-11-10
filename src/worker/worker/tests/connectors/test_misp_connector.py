@@ -1,20 +1,24 @@
 import pytest
 import json
-from worker.connectors.misp_connector import MispConnector
 
+from worker.connectors.misp_connector import MispConnector
 from worker.connectors import connector_tasks
 from worker.connectors import base_misp_builder
 from worker.config import Config
 
 
 @pytest.fixture
-def core_mock(requests_mock, stories):
+def misp_connector_core_mock(requests_mock, stories):
     from worker.tests.misp_connector_test_data import misp_connector
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/connectors/last-change", json={})
     requests_mock.patch(f"{Config.TARANIS_CORE_URL}/bots/story/ed13a0b1-4f5f-4c43-bdf2-820ee0d43448/attributes", json={})
+
+
+@pytest.fixture
+def misp_api_mock(requests_mock):
     requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
     requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})
     requests_mock.get(
@@ -102,7 +106,7 @@ def test_drop_utf16_surrogates_edge_cases():
     assert cleaned_ascii == input_ascii, "ASCII string altered unexpectedly"
 
 
-def test_connector_story_processing(core_mock, connector_task, caplog):
+def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, connector_task, caplog):
     import logging
 
     # Set the logging level to ERROR to capture only error logs and fail properly

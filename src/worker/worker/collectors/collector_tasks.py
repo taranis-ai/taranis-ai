@@ -30,7 +30,7 @@ class Collector:
             "rss_collector": worker.collectors.RSSCollector(),
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
             "rt_collector": worker.collectors.RTCollector(),
-            "misp_collector": worker.collectors.MISPCollector(),
+            "misp_collector": worker.collectors.MispCollector(),
             "ppn_collector": worker.collectors.PPNCollector(),
         }
 
