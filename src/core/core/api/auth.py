@@ -1,5 +1,4 @@
-from urllib.parse import quote
-from flask import Blueprint, redirect, make_response, request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required, get_jwt, current_user
 
@@ -7,13 +6,10 @@ from flask_jwt_extended import jwt_required, get_jwt, current_user
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.managers import auth_manager
 from core.config import Config
+from core.log import logger
 
 
 class Login(MethodView):
-    @jwt_required()
-    def get(self):
-        return make_response(redirect(quote(request.args.get(key="gotoUrl", default="/"))))
-
     def post(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
@@ -46,7 +42,26 @@ class Logout(MethodView):
 
 class AuthMethod(MethodView):
     def get(self):
+        if Config.TARANIS_AUTHENTICATOR == "external":
+            return {
+                "auth_method": Config.TARANIS_AUTHENTICATOR,
+                "auth_headers": {
+                    "username_header": Config.EXTERNAL_AUTH_USER,
+                    "roles_header": Config.EXTERNAL_AUTH_ROLES,
+                    "name_header": Config.EXTERNAL_AUTH_NAME,
+                    "organization_header": Config.EXTERNAL_AUTH_ORGANIZATION,
+                },
+            }
         return {"auth_method": Config.TARANIS_AUTHENTICATOR}, 200
+
+
+class UserChangePassword(MethodView):
+    @jwt_required()
+    def post(self):
+        logger.debug(f"Received request to change password. - {request.json}")
+        if not (json_data := request.json):
+            return {"error": "No input data provided"}, 400
+        return auth_manager.change_password(json_data.get("current_password", ""), json_data.get("new_password", ""))
 
 
 def initialize(app: Flask):
@@ -56,5 +71,6 @@ def initialize(app: Flask):
     auth_bp.add_url_rule("/refresh", view_func=Refresh.as_view("refresh"))
     auth_bp.add_url_rule("/logout", view_func=Logout.as_view("logout"))
     auth_bp.add_url_rule("/method", view_func=AuthMethod.as_view("auth_method"))
+    auth_bp.add_url_rule("/change_password", view_func=UserChangePassword.as_view("change_password"), methods=["POST"])
 
     app.register_blueprint(auth_bp)

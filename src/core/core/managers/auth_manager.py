@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Response, request, Flask, jsonify
+from flask import Response, make_response, request, Flask, jsonify
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
 from core.log import logger
@@ -43,6 +43,16 @@ def initialize(app: Flask):
 
 def authenticate(credentials: dict[str, str]) -> Response:
     return current_authenticator.authenticate(credentials)
+
+
+def change_password(old_password: str, new_password: str) -> Response:
+    try:
+        if Config.TARANIS_AUTHENTICATOR != "database":
+            return make_response({"error": "Password change is only supported with 'database' authenticator"}, 400)
+        return DatabaseAuthenticator().change_password(current_user, old_password, new_password)
+    except Exception:
+        logger.exception("Error changing password")
+        return make_response({"error": "Internal server error"}, 500)
 
 
 def refresh(user: "User"):
