@@ -20,6 +20,8 @@ class TestAdminApi(BaseTest):
                 "default_collector_proxy": "http://test_server:1111",
                 "default_collector_interval": "5 5 * * *",
                 "default_tlp_level": "clear",
+                "default_story_conflict_retention": "150",
+                "default_news_item_conflict_retention": "150",
             }
         }
 
