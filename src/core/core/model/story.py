@@ -1,3 +1,4 @@
+import re
 import uuid
 from collections import Counter
 from datetime import datetime, timedelta
@@ -243,10 +244,25 @@ class Story(BaseModel):
     @classmethod
     def _add_search_to_query(cls, search: str, query: Select) -> Select:
         if db.engine.dialect.name == "postgresql":
-            ts_query = func.websearch_to_tsquery("simple", func.unaccent(search.strip()))
             # TODO: rank ordering
             # return (query.where(cls.search_vector.op('@@')(ts_query))
             #              .order_by(desc(func.ts_rank_cd(cls.search_vector, ts_query, 32))))
+            search_term = search.strip()
+            if not search_term:
+                return query
+
+            ts_query = None
+            if search_term.endswith("*"):
+                prefix_body = search_term[:-1].strip()
+                prefix_tokens = [cleaned for token in prefix_body.split() if (cleaned := re.sub(r"[^\w]", "", token))]
+                if prefix_tokens:
+                    prefix_query = " & ".join(f"{token}:*" for token in prefix_tokens)
+                    ts_query = func.to_tsquery("simple", func.unaccent(prefix_query))
+
+            if ts_query is None:
+                ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
+
+            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search}")
             return query.where(cls.search_vector.op("@@")(ts_query))
 
         return cls._add_sqlite_search_query(search, query)
@@ -341,6 +357,7 @@ class Story(BaseModel):
 
         query = query.outerjoin(vote_subquery, Story.id == vote_subquery.c.item_id)
         query = query.add_columns(func.coalesce(vote_subquery.c.user_vote, "").label("user_vote"))
+        query = query.group_by(Story.id, vote_subquery.c.user_vote)
 
         return query
 

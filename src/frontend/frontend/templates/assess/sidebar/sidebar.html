@@ -18,6 +18,7 @@
 {% set relevant_filter = request.args.get('relevant', '') %}
 {% set cybersecurity_filter = request.args.get('cybersecurity', '') %}
 {% set sort_choices = sort_choices | default([
+  {'label': 'Auto', 'value': ''},
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
   {'label': 'Most relevant', 'value': 'relevance_desc'},
