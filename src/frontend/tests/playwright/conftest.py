@@ -1,19 +1,19 @@
-from datetime import datetime, timedelta
+import contextlib
 import os
 import random
 import re
-from flask import json
-import pytest
-import time
 import subprocess
+import time
+import warnings as pywarnings
+from datetime import datetime, timedelta
+from http.cookies import SimpleCookie
+from urllib.parse import urlparse
+
+import pytest
 import requests
 import responses
-import contextlib
-import warnings as pywarnings
 from dotenv import dotenv_values
-from urllib.parse import urlparse
-from http.cookies import SimpleCookie
-
+from flask import json
 from playwright.sync_api import Browser, Page
 
 
@@ -285,7 +285,7 @@ def stories_relevance_descending(run_core, stories, access_token):
     responses.add_passthru(pattern)
 
     headers = {"Authorization": f"Bearer {access_token}"}
-    stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=RELEVANCE_DESC", headers=headers).json().get("items", [])
+    stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=relevance", headers=headers).json().get("items", [])
     yield [story.get("id") for story in stories_relevance_desc]
 
 

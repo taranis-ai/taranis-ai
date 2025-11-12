@@ -166,7 +166,8 @@ class Story(BaseModel):
             query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
-            query = cls._add_search_to_query(search, query)
+            sort = filter_args.get("sort", "relevance").lower()
+            query = cls._add_search_to_query(search, sort, query)
 
         if exclude_attr := filter_args.get("exclude_attr"):
             query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
@@ -242,11 +243,8 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_search_to_query(cls, search: str, query: Select) -> Select:
+    def _add_search_to_query(cls, search: str, sort: str, query: Select) -> Select:
         if db.engine.dialect.name == "postgresql":
-            # TODO: rank ordering
-            # return (query.where(cls.search_vector.op('@@')(ts_query))
-            #              .order_by(desc(func.ts_rank_cd(cls.search_vector, ts_query, 32))))
             search_term = search.strip()
             if not search_term:
                 return query
@@ -263,7 +261,10 @@ class Story(BaseModel):
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
             logger.debug(f"Adding full-text search for PostgreSQL with search term: {search}")
-            return query.where(cls.search_vector.op("@@")(ts_query))
+            q = query.where(cls.search_vector.op("@@")(ts_query))
+            if "relevance" in sort:
+                q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
+            return q
 
         return cls._add_sqlite_search_query(search, query)
 
@@ -290,11 +291,8 @@ class Story(BaseModel):
             elif sort == "date_asc":
                 query = query.order_by(db.asc(cls.created), db.asc(cls.title))
 
-            elif sort == "relevance_desc":
+            elif sort == "relevance":
                 query = query.order_by(db.desc(cls.relevance), db.desc(cls.created))
-
-            elif sort == "relevance_asc":
-                query = query.order_by(db.asc(cls.relevance), db.asc(cls.created))
 
             elif sort == "updated_desc":
                 query = query.order_by(db.desc(cls.updated), db.desc(cls.title))
