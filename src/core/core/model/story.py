@@ -166,8 +166,11 @@ class Story(BaseModel):
             query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
-            sort = filter_args.get("sort", "relevance").lower()
-            query = cls._add_search_to_query(search, sort, query)
+            sort: bool = (
+                "relevance" in filter_args.get("sort", "relevance").lower()
+                and filter_args.get("timefrom", filter_args.get("timeto", filter_args.get("range"))) is not None
+            )
+            query = cls._add_search_to_query(search, query, sort=sort)
 
         if exclude_attr := filter_args.get("exclude_attr"):
             query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
@@ -243,7 +246,7 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_search_to_query(cls, search: str, sort: str, query: Select) -> Select:
+    def _add_search_to_query(cls, search: str, query: Select, sort: bool = False) -> Select:
         if db.engine.dialect.name == "postgresql":
             search_term = search.strip()
             if not search_term:
@@ -260,9 +263,9 @@ class Story(BaseModel):
             if ts_query is None:
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
-            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search}")
+            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
             q = query.where(cls.search_vector.op("@@")(ts_query))
-            if "relevance" in sort:
+            if sort:
                 q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
             return q
 
