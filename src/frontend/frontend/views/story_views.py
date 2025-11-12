@@ -1,21 +1,22 @@
 from typing import Any
-from flask_jwt_extended import current_user
-from flask import json, render_template, request, url_for, make_response, abort, Response, redirect
-from pydantic import ValidationError
-from urllib.parse import urlencode, urlparse, parse_qs
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
-from models.report import ReportItem
+from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
+from flask_jwt_extended import current_user
 from models.admin import Connector
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.base_view import BaseView
-from frontend.core_api import CoreApi
-from frontend.cache import get_model_from_cache, add_model_to_cache
+from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.report import ReportItem
+from pydantic import ValidationError
+
 from frontend.auth import auth_required
+from frontend.cache import add_model_to_cache, get_model_from_cache
+from frontend.cache_models import CacheObject, PagingData
+from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
-from frontend.cache_models import PagingData, CacheObject
+from frontend.views.base_view import BaseView
 
 
 class StoryView(BaseView):
@@ -149,7 +150,6 @@ class StoryView(BaseView):
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
-        logger.debug(f"Cluster response: {response.status_code} - {response.text}")
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         for story_id in story_ids:
             DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
@@ -263,7 +263,6 @@ class StoryView(BaseView):
         paging_data: PagingData,
         request_params: dict[str, list[str]],
     ):
-        logger.debug(f"Got request params: {request_params}")
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
             error = None if items else f"No {cls.model_name()} items found"
@@ -419,6 +418,18 @@ class StoryView(BaseView):
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
         return render_template("assess/news_item_create.html", news_item=news_item), 200
 
+    @staticmethod
+    @auth_required()
+    def get_tags():
+        query = request.args.get("q", "")
+        api = CoreApi()
+        try:
+            tags = api.api_get(f"/assess/taglist?search={query}")
+        except Exception:
+            logger.exception("Failed to fetch tag suggestions.")
+            tags = []
+        return render_template("assess/sidebar/tags_suggestions.html", suggested_tags=tags), 200
+
     @classmethod
     @auth_required()
     def create_news_item(cls, news_item_id: str = "0"):
@@ -476,7 +487,6 @@ class StoryView(BaseView):
         try:
             form_data = parse_formdata(request.form)
             story_update = StoryUpdatePayload(**form_data)
-            logger.debug(f"Validated story update payload: {story_update.model_dump(mode='json')}")
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
             notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}

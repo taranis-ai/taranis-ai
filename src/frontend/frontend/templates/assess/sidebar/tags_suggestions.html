@@ -1,0 +1,7 @@
+{% for tag in suggested_tags %}
+  <li role="option" class="w-full">
+    <button type="button" class="btn btn-ghost btn-sm justify-start w-full text-left" @click="addTag('{{ tag }}')">{{ tag }}</button>
+  </li>
+{% else %}
+  <li class="w-full px-4 py-2 text-sm text-base-content/70">No tags found.</li>
+{% endfor %}

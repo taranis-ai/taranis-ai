@@ -66,6 +66,9 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_manual_source()
     migrate_refresh_intervals()
     migrate_user_profiles()
+    cleanup_empty_stories()
+    if db_engine.dialect.name == "postgresql":
+        migrate_search_indexes()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -79,6 +82,20 @@ def pre_seed_update(db_engine: Engine):
             Bot.add(b)
 
     Settings.initialize()
+
+
+def migrate_search_indexes():
+    from core.service.story import StoryService
+
+    count = StoryService.update_search_vector()
+    logger.info(f"Updated search indexes for {count} stories")
+
+
+def cleanup_empty_stories():
+    from core.service.story import StoryService
+
+    empty_stories = StoryService.delete_stories_with_no_items()
+    logger.info(f"Deleted {empty_stories} empty stories")
 
 
 def migrate_user_profile(user_profile: dict, template: dict) -> dict:

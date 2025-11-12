@@ -21,7 +21,7 @@ See [README.md](../README.md) for more information.
 ## Architecture
 
 - **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
-- **gui** (`src/gui/`) - Vue.js 3 frontend application
+- **ingress** (`src/ingress/`) - Nginx entrypoint for routing requests to frontend and backend
 - **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
 - **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation

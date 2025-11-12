@@ -19,7 +19,7 @@ We welcome contributions from the community! If you're interested in contributin
 
 ## Documentation
 
-See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS](./doc/2023_IKTSichKonf_AWAKE_v3.pdf) for a presentation about the current features.
+See [taranis.ai/media](https://taranis.ai/media/) for a presentations about the current features.
 
 See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and deployment guides.
 
@@ -27,7 +27,7 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 | Type       | Name      | Description                           |
 | :--------- | :-------- | :------------------------------------ |
-| Entrypoint | gui       | Nginx serving static assets and Vuejs3 based Frontend |
+| Entrypoint | ingress   | Nginx entrypoint configured as reverse proxy |
 | Frontend   | frontend  | Flask, HTMX & tailwindcss based REST frontend |
 | Backend    | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
 | Worker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
@@ -65,7 +65,7 @@ Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
 
 * src/ - Taranis AI source code:
   * [core](src/core/) is the REST API, the central component of Taranis AI
-  * [gui](src/gui/) vuejs part of the web user interface
+  * [ingress](src/ingress/) Nginx reverse proxy configuration
   * [frontend](src/frontend/) flask & htmx part of the web user interface
   * [models](src/models/) pydantic models for validating inputs and outputs
   * [worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.

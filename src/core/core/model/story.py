@@ -1,27 +1,30 @@
+import re
 import uuid
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
-from sqlalchemy import or_, func
-from sqlalchemy.orm import aliased, Mapped, relationship
-from sqlalchemy.sql.expression import false, null, true
-from sqlalchemy.sql import Select
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.exc import IntegrityError
-from collections import Counter
 
+from sqlalchemy import func, or_
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped, aliased, relationship
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import false, null, true
+
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
-from core.model.user import User
-from core.model.role import TLPLevel
-from core.model.news_item_tag import NewsItemTag
-from core.model.role_based_access import ItemType
-from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
-from core.model.story_conflict import StoryConflict
 from core.model.news_item_conflict import NewsItemConflict
+from core.model.news_item_tag import NewsItemTag
+from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
+from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType
+from core.model.story_conflict import StoryConflict
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class Story(BaseModel):
@@ -48,6 +51,7 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
+    search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
 
     def __init__(
         self,
@@ -62,9 +66,9 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
-        attributes: list[dict] | None = None,
-        tags=None,
-        news_items=None,
+        attributes: list[dict[str, Any]] | None = None,
+        tags: list[dict[str, Any]] | None = None,
+        news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
         last_change: str = "external",
     ):
         self.id = id or str(uuid.uuid4())
@@ -85,7 +89,7 @@ class Story(BaseModel):
         if tags:
             self.tags = NewsItemTag.load_multiple(tags)
 
-    def get_creation_date(self, created):
+    def get_creation_date(self, created: datetime | str | None):
         if isinstance(created, datetime):
             return created
         if isinstance(created, str):
@@ -162,17 +166,8 @@ class Story(BaseModel):
             query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
-            search = search.strip()
-            if search.startswith('"') and search.endswith('"'):
-                words = [search[1:-1]]
-            else:
-                words = search.split()
-            query = query.join(
-                StorySearchIndex,
-                Story.id == StorySearchIndex.story_id,
-            )
-            for word in words:
-                query = query.filter(StorySearchIndex.data.ilike(f"%{word}%"))
+            sort: bool = "relevance" in filter_args.get("sort", "").lower()
+            query = cls._add_search_to_query(search, query, sort=sort)
 
         if exclude_attr := filter_args.get("exclude_attr"):
             query = cls._add_attribute_filter_to_query(query, exclude_attr, exclude=True)
@@ -248,7 +243,47 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_sorting_to_query(cls, filter_args: dict, query: Select) -> Select:
+    def _add_search_to_query(cls, search: str, query: Select, sort: bool = False) -> Select:
+        if db.engine.dialect.name == "postgresql":
+            search_term = search.strip()
+            if not search_term:
+                return query
+
+            ts_query = None
+            if search_term.endswith("*"):
+                prefix_body = search_term[:-1].strip()
+                prefix_tokens = [cleaned for token in prefix_body.split() if (cleaned := re.sub(r"[^\w]", "", token))]
+                if prefix_tokens:
+                    prefix_query = " & ".join(f"{token}:*" for token in prefix_tokens)
+                    ts_query = func.to_tsquery("simple", func.unaccent(prefix_query))
+
+            if ts_query is None:
+                ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
+
+            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
+            q = query.where(cls.search_vector.op("@@")(ts_query))
+            if sort:
+                q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
+            return q
+
+        return cls._add_sqlite_search_query(search, query)
+
+    @classmethod
+    def _add_sqlite_search_query(cls, search: str, query: Select) -> Select:
+        pattern = f"%{search}%"
+
+        news_exists = cls.news_items.any(or_(NewsItem.title.ilike(pattern), NewsItem.content.ilike(pattern)))
+
+        return query.where(
+            or_(
+                cls.title.ilike(pattern),
+                cls.summary.ilike(pattern),
+                news_exists,
+            )
+        )
+
+    @classmethod
+    def _add_sorting_to_query(cls, filter_args: dict[str, str], query: Select) -> Select:
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
                 query = query.order_by(db.desc(cls.created), db.desc(cls.title))
@@ -256,11 +291,8 @@ class Story(BaseModel):
             elif sort == "date_asc":
                 query = query.order_by(db.asc(cls.created), db.asc(cls.title))
 
-            elif sort == "relevance_desc":
+            elif sort == "relevance":
                 query = query.order_by(db.desc(cls.relevance), db.desc(cls.created))
-
-            elif sort == "relevance_asc":
-                query = query.order_by(db.asc(cls.relevance), db.asc(cls.created))
 
             elif sort == "updated_desc":
                 query = query.order_by(db.desc(cls.updated), db.desc(cls.title))
@@ -299,7 +331,7 @@ class Story(BaseModel):
         return query.filter(Story.id.in_(subquery))
 
     @classmethod
-    def _add_paging_to_query(cls, filter_args: dict, query: Select) -> Select:
+    def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
         if limit := filter_args.get("limit"):
@@ -330,7 +362,10 @@ class Story(BaseModel):
     @classmethod
     def enhance_with_report_count(cls, query: Select) -> Select:
         report_subquery = (
-            db.select(ReportItemStory.story_id, func.count().label("report_count")).group_by(ReportItemStory.story_id).subquery()
+            db.select(ReportItemStory.story_id, func.count().label("report_count"))
+            .group_by(ReportItemStory.story_id)
+            .correlate(None)
+            .subquery()
         )
         query = query.outerjoin(report_subquery, Story.id == report_subquery.c.story_id)
         query = query.add_columns(func.coalesce(report_subquery.c.report_count, 0).label("report_count"))
@@ -338,7 +373,7 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def get_by_filter(cls, filter_args: dict, user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
+    def get_by_filter(cls, filter_args: dict[str, Any], user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
         base_query = cls.get_filter_query(filter_args)
         if user:
             base_query = cls._add_ACL_check(base_query, user)
@@ -387,7 +422,7 @@ class Story(BaseModel):
         return {"items": stories}, 200
 
     @classmethod
-    def get_for_worker(cls, filter_args: dict) -> list[dict[str, Any]]:
+    def get_for_worker(cls, filter_args: dict[str, Any]) -> list[dict[str, Any]]:
         filter_args["worker"] = True
         stories, _ = cls.get_by_filter(filter_args=filter_args)
         return stories
@@ -473,7 +508,6 @@ class Story(BaseModel):
             story = cls.from_dict(data)
             db.session.add(story)
             db.session.commit()
-            StorySearchIndex.prepare(story)
             if (
                 story.news_items[0].osint_source_id == "manual"
             ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
@@ -628,7 +662,6 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
-        StorySearchIndex.prepare(story)
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
@@ -1050,7 +1083,6 @@ class Story(BaseModel):
         db.session.add(new_story)
         db.session.commit()
 
-        StorySearchIndex.prepare(new_story)
         new_story.update_status()
         return new_story.id or None
 
@@ -1085,7 +1117,6 @@ class Story(BaseModel):
 
     def remove_empty_story(self) -> bool:
         if len(self.news_items) == 0:
-            StorySearchIndex.remove(self)
             NewsItemTag.remove_by_story(self)
             db.session.delete(self)
             logger.debug(f"Deleting empty Story - 'ID': {self.id}")
@@ -1158,53 +1189,6 @@ class Story(BaseModel):
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
 
         return data
-
-
-class StorySearchIndex(BaseModel):
-    __tablename__ = "story_search_index"
-
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    data: Mapped[str] = db.Column(db.String)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), index=True)
-
-    def __init__(self, story_id, data=None):
-        self.story_id = story_id
-        self.data = data or ""
-
-    @classmethod
-    def remove(cls, story: "Story"):
-        search_index = db.session.execute(db.select(cls).filter_by(story_id=story.id)).scalar_one_or_none()
-        if search_index is not None:
-            db.session.delete(search_index)
-            db.session.commit()
-
-    @classmethod
-    def prepare(cls, story: "Story"):
-        search_index = db.session.execute(db.select(cls).filter_by(story_id=story.id)).scalar_one_or_none()
-        if search_index is None:
-            search_index = StorySearchIndex(story.id)
-            db.session.add(search_index)
-
-        data_components = [
-            story.title,
-            story.description,
-            story.comments,
-            story.summary,
-        ]
-
-        for news_item in story.news_items:
-            data_components.extend(
-                [
-                    news_item.title,
-                    news_item.review,
-                    news_item.content,
-                    news_item.author,
-                    news_item.link,
-                ]
-            )
-
-        search_index.data = " ".join(data_components).lower()
-        db.session.commit()
 
 
 class NewsItemVote(BaseModel):
