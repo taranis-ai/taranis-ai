@@ -1,9 +1,11 @@
+from typing import IO, Any, cast
+
 import requests
-from flask import request, Response
-from frontend.log import logger
-from frontend.config import Config
+from flask import Response, request
 from werkzeug.wsgi import wrap_file
-from typing import cast, IO, Any
+
+from frontend.config import Config
+from frontend.log import logger
 
 
 class CoreApi:
@@ -76,12 +78,6 @@ class CoreApi:
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
         return self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params, stream=True)
-
-    def get_users(self, query_params=None):
-        return self.api_get("/config/users", params=query_params)
-
-    def get_organizations(self, query_params=None):
-        return self.api_get("/config/organizations", params=query_params)
 
     def export_users(self, user_ids=None):
         try:

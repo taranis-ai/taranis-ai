@@ -1,10 +1,12 @@
+from typing import TYPE_CHECKING, Any
+
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 
-from typing import Any, TYPE_CHECKING
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
+
 
 if TYPE_CHECKING:
     from core.model.story import Story
@@ -134,6 +136,7 @@ class NewsItemTag(BaseModel):
             else:
                 raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
 
+            tag_type = tag_type if tag_type else "misc"
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags

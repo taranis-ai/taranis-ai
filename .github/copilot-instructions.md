@@ -18,48 +18,13 @@ See [README.md](../README.md) for more information.
 - see pyproject.toml for the python packages used (and their versions)
 - uv.lock contains information about used libraries and their versions
 
-For setup instructions, see [dev/README.md](../dev/README.md) for complete development environment setup.
-
-**Environment Setup Note:** Only copy environment files if they don't already exist:
-```bash
-# Only if files don't exist
-[ ! -f src/core/.env ] && cp dev/env.dev src/core/.env
-[ ! -f src/worker/.env ] && cp dev/env.dev src/worker/.env
-```
-
-### Development Workflow
-
-Use `./dev/start_tmux.sh` to start all services in tmux tabs:
-- `core` - Flask API server (port 5001)
-- `gui` - Vue.js dev server (port 5000)
-- `worker` - Prefect worker serving flows
-- `tailwind` - CSS compilation watcher
-- `frontend` - HTMX frontend server (port 5002)
-
-Each component has `install_and_run_dev.sh` scripts that handle uv sync and startup.
-
 ## Architecture
 
-- **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM, integrates with Prefect for workflow orchestration
-- **gui** (`src/gui/`) - Vue.js 3 frontend application
+- **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
+- **ingress** (`src/ingress/`) - Nginx entrypoint for routing requests to frontend and backend
 - **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
-- **worker** (`src/worker/`) - Prefect flows for collectors, bots, presenters and publishers (migrated from Celery)
-- **models** (`src/models/`) - Pydantic models for input/output validation, including Prefect task request models
-
-### Workflow Orchestration
-
-The system uses **Prefect 3.x** for distributed task execution:
-- Worker processes are organized as Prefect flows in `src/worker/worker/flows/`
-- Core API communicates with Prefect deployments to trigger workflows
-- Each component type has dedicated flows: `collector_task_flow.py`, `bot_task_flow.py`, `presenter_task_flow.py`, etc.
-- Use `models.prefect.*` classes for type-safe task parameters (e.g., `CollectorTaskRequest`, `BotTaskRequest`)
-
-### Data Flow
-
-1. **Collection**: OSINT sources → Collectors (via Prefect flows) → News Items → Core API
-2. **Analysis**: News Items → Bot Flows → Enhanced content → Core API
-3. **Reporting**: Enhanced items → Presenter Flows → Reports → Core API
-4. **Publishing**: Reports → Publisher Flows → External systems
+- **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
+- **models** (`src/models/`) - Pydantic models for input/output validation
 
 ## Testing
 
@@ -71,8 +36,7 @@ See .github/workflows for how tests are configured in CI.
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
 **Unit Tests:** In each component directory, run:
-- `PYTHONPATH="../models:$PYTHONPATH" uv run pytest` - run all tests for core/worker/frontend components (includes models path)
-- `uv run pytest` - run all tests for other components
+- `uv run pytest` - run all tests for that component
 - `uv run pytest tests/unit/` - run only unit tests
 - `uv run pytest tests/functional/` - run only functional tests
 - `uv run pytest -v` - verbose output
@@ -112,22 +76,3 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
-- when discussing possible options, don't just implmement one without discussing it with the user
-
-### Project-Specific Patterns
-
-**Prefect Task Organization:**
-- All flows are in `src/worker/worker/flows/` with descriptive names (`collector_task_flow.py`, `bot_task_flow.py`)
-- Use `models.prefect.*` classes for task parameters - never plain dicts
-- Tasks are decorated with `@task`, flows with `@flow`
-- Each flow type has a dedicated request model in `models/prefect.py`
-
-**Cross-Component Communication:**
-- Worker uses `CoreApi` class to communicate with core backend
-- Models package is shared dependency across all components
-- Use typed request/response models for API interactions
-
-**Component Structure:**
-- Each `src/` component has its own `pyproject.toml` and virtual environment
-- Shared models in `src/models/` are included as editable dependency
-- Tests are component-specific in each `tests/` directory
