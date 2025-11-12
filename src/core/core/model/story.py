@@ -166,10 +166,7 @@ class Story(BaseModel):
             query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
-            sort: bool = (
-                "relevance" in filter_args.get("sort", "relevance").lower()
-                and filter_args.get("timefrom", filter_args.get("timeto", filter_args.get("range"))) is not None
-            )
+            sort: bool = "relevance" in filter_args.get("sort", "").lower()
             query = cls._add_search_to_query(search, query, sort=sort)
 
         if exclude_attr := filter_args.get("exclude_attr"):

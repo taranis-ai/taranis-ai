@@ -23,7 +23,7 @@
               this.selectedTags = updated;
               this.requestSidebarRefresh();
             },
-            requestSidebarRefresh() {
+           requestSidebarRefresh() {
               this.ensureForm();
               if (!this.formEl) return;
               this.$nextTick(() => {
@@ -41,7 +41,7 @@
             hasQuery() {
               return this.tagInput.trim().length > 0;
             },
-            clearSuggestionsIfNeeded() {
+           clearSuggestionsIfNeeded() {
               if (!this.hasQuery() && this.$refs.suggestionsList) {
                 this.$refs.suggestionsList.innerHTML = "";
               }
@@ -64,6 +64,7 @@
            hx-target="#tag-suggestion-list"
            hx-push-url="false"
            hx-swap="innerHTML"
+           :hx-vals="JSON.stringify({ q: tagInput })"
            hx-on::beforeRequest="if (!hasQuery()) event.preventDefault()">
   </label>
   <ul id="tag-suggestion-list"

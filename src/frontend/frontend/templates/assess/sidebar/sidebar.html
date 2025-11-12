@@ -18,7 +18,6 @@
 {% set relevant_filter = request.args.get('relevant', '') %}
 {% set cybersecurity_filter = request.args.get('cybersecurity', '') %}
 {% set sort_choices = sort_choices | default([
-  {'label': 'Auto', 'value': ''},
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
   {'label': 'Most relevant', 'value': 'relevance'},
@@ -34,7 +33,7 @@
   {'name': 'read', 'label': 'Read', 'value': read_filter},
   {'name': 'important', 'label': 'Important', 'value': important_filter},
   {'name': 'in_report', 'label': 'In Reports', 'value': in_report_filter},
-  {'name': 'relevant', 'label': 'Relevant', 'value': relevant_filter}
+  {'name': 'impact', 'label': 'Impact', 'value': relevant_filter}
 ] %}
 
 <script type="text/javascript">
