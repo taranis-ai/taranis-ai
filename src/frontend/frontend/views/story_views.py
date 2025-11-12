@@ -150,7 +150,6 @@ class StoryView(BaseView):
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
-        logger.debug(f"Cluster response: {response.status_code} - {response.text}")
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         for story_id in story_ids:
             DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
@@ -264,7 +263,6 @@ class StoryView(BaseView):
         paging_data: PagingData,
         request_params: dict[str, list[str]],
     ):
-        logger.debug(f"Got request params: {request_params}")
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
             error = None if items else f"No {cls.model_name()} items found"
@@ -427,7 +425,6 @@ class StoryView(BaseView):
         api = CoreApi()
         try:
             tags = api.api_get(f"/assess/taglist?search={query}")
-            logger.debug(f"Fetched tag suggestions: {tags}")
         except Exception:
             logger.exception("Failed to fetch tag suggestions.")
             tags = []
@@ -490,7 +487,6 @@ class StoryView(BaseView):
         try:
             form_data = parse_formdata(request.form)
             story_update = StoryUpdatePayload(**form_data)
-            logger.debug(f"Validated story update payload: {story_update.model_dump(mode='json')}")
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
             notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}
