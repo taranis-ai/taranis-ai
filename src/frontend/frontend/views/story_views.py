@@ -1,21 +1,22 @@
 from typing import Any
-from flask_jwt_extended import current_user
-from flask import json, render_template, request, url_for, make_response, abort, Response, redirect
-from pydantic import ValidationError
-from urllib.parse import urlencode, urlparse, parse_qs
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from models.assess import Story, FilterLists, AssessSource, NewsItem, BulkAction, StoryUpdatePayload
-from models.report import ReportItem
+from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
+from flask_jwt_extended import current_user
 from models.admin import Connector
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.base_view import BaseView
-from frontend.core_api import CoreApi
-from frontend.cache import get_model_from_cache, add_model_to_cache
+from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.report import ReportItem
+from pydantic import ValidationError
+
 from frontend.auth import auth_required
+from frontend.cache import add_model_to_cache, get_model_from_cache
+from frontend.cache_models import CacheObject, PagingData
+from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
-from frontend.cache_models import PagingData, CacheObject
+from frontend.views.base_view import BaseView
 
 
 class StoryView(BaseView):
@@ -418,6 +419,19 @@ class StoryView(BaseView):
     def news_item_view(cls, news_item_id: str = "0"):
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
         return render_template("assess/news_item_create.html", news_item=news_item), 200
+
+    @staticmethod
+    @auth_required()
+    def get_tags():
+        query = request.args.get("q", "")
+        api = CoreApi()
+        try:
+            tags = api.api_get(f"/assess/taglist?search={query}")
+            logger.debug(f"Fetched tag suggestions: {tags}")
+        except Exception:
+            logger.exception("Failed to fetch tag suggestions.")
+            tags = []
+        return render_template("assess/sidebar/tags_suggestions.html", suggested_tags=tags), 200
 
     @classmethod
     @auth_required()

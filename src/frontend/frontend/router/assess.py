@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint
+from flask import Blueprint, Flask
 
 from frontend.views.story_views import StoryView
 
@@ -27,6 +27,7 @@ def init(app: Flask):
     assess_bp.add_url_rule("/story/report", view_func=StoryView.submit_report_dialog, methods=["POST"], endpoint="submit_report_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.get_cluster_dialog, methods=["GET"], endpoint="cluster_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.submit_cluster_dialog, methods=["POST"], endpoint="submit_cluster_story")
+    assess_bp.add_url_rule("/tags", view_func=StoryView.get_tags, methods=["GET"], endpoint="get_tags")
 
     assess_bp.add_url_rule("/stories/bulk_action", view_func=StoryView.bulk_action, methods=["POST"], endpoint="bulk_action")
 

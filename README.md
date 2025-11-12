@@ -19,7 +19,7 @@ We welcome contributions from the community! If you're interested in contributin
 
 ## Documentation
 
-See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS](./doc/2023_IKTSichKonf_AWAKE_v3.pdf) for a presentation about the current features.
+See [taranis.ai/media](https://taranis.ai/media/) for a presentations about the current features.
 
 See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and deployment guides.
 

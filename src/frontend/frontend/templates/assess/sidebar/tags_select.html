@@ -1,0 +1,89 @@
+{# djlint:off #}
+<section class="space-y-4 relative"
+          x-data='{
+            selectedTags: {{ selected_tags | tojson }},
+            tagInput: "",
+            formEl: null,
+            init() {
+              this.ensureForm();
+            },
+            addTag(tag) {
+              tag = tag.trim();
+              if (!tag || this.selectedTags.includes(tag)) return;
+              this.selectedTags = [...this.selectedTags, tag];
+              this.tagInput = "";
+              this.$nextTick(() => {
+                this.$refs.tagInput?.focus();
+              });
+              this.requestSidebarRefresh();
+            },
+            removeTag(tag) {
+              const updated = this.selectedTags.filter(t => t !== tag);
+              if (updated.length === this.selectedTags.length) return;
+              this.selectedTags = updated;
+              this.requestSidebarRefresh();
+            },
+            requestSidebarRefresh() {
+              this.ensureForm();
+              if (!this.formEl) return;
+              this.$nextTick(() => {
+                if (window.htmx && typeof window.htmx.trigger === "function") {
+                  window.htmx.trigger(this.formEl, "change");
+                }
+                this.formEl.dispatchEvent(new Event("change", { bubbles: true }));
+              });
+            },
+            ensureForm() {
+              if (!this.formEl) {
+                this.formEl = this.$root.closest("form") || document.getElementById("assess-sidebar");
+              }
+            },
+            hasQuery() {
+              return this.tagInput.trim().length > 0;
+            },
+            clearSuggestionsIfNeeded() {
+              if (!this.hasQuery() && this.$refs.suggestionsList) {
+                this.$refs.suggestionsList.innerHTML = "";
+              }
+            }
+          }'
+          x-effect="clearSuggestionsIfNeeded()">
+{# djlint:on #}
+<div class="dropdown w-full" :class="{'dropdown-open': hasQuery()}">
+  <label class="input input-bordered input-sm flex items-center gap-2">
+    {{ heroicon_outline('tag', class='h-4 w-4 text-base-content/70') }}
+    <input type="search"
+           id="tag_search"
+           placeholder="Search tags"
+           class="grow"
+           autocomplete="off"
+           x-model="tagInput"
+           x-ref="tagInput"
+           hx-get="{{ url_for('assess.get_tags') }}"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#tag-suggestion-list"
+           hx-push-url="false"
+           hx-swap="innerHTML"
+           hx-on::beforeRequest="if (!hasQuery()) event.preventDefault()">
+  </label>
+  <ul id="tag-suggestion-list"
+      x-ref="suggestionsList"
+      class="dropdown-content menu menu-compact w-full max-h-60 bg-base-200 text-sm rounded-box p-2 shadow flex-nowrap overflow-y-auto z-30"
+      role="listbox"
+      x-show="hasQuery()"
+      x-transition.opacity>
+  </ul>
+</div>
+
+<!-- Selected tags displayed as DaisyUI badges -->
+<div id="selected-tags" class="mt-2 flex flex-wrap gap-2">
+  <template x-for="tag in selectedTags" :key="tag">
+    <div class="badge badge-primary gap-2 items-center">
+      <span x-text="tag"></span>
+      <button type="button" class="btn btn-xs btn-circle btn-ghost ml-1" @click="removeTag(tag)" aria-label="Remove tag">✕</button>
+      <input type="hidden" name="tags" :value="tag">
+    </div>
+  </template>
+</div>
+
+</section>

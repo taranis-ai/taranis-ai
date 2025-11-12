@@ -101,6 +101,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
           <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
         </span>
       </label>
+      {% include 'assess/sidebar/tags_select.html' %}
     </section>
 
     {% include 'assess/sidebar/source_select.html' %}
@@ -108,7 +109,6 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     <div class="divider text-xs">Filter</div>
     <section class="space-y-4">
       <div>
-        <span class="label-text text-xs font-medium uppercase text-base-content/70">Quick range</span>
         <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets">
           {% for preset in quick_ranges %}
             {% set input_id = 'quick-range-' ~ preset.value %}

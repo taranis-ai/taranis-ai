@@ -1,6 +1,7 @@
 {% macro story_card(story, detail_view=False) %}
   {% from "assess/story_card_actions.html" import story_card_actions %}
   {% from "assess/news_item_card.html" import news_item_card %}
+  {% from "macros/query_params.html" import update_query_params %}
   {% set story_id = story.id %}
   {% set news_items = (story.news_items | default([])) | list %}
   {% set news_count = news_items | length %}
@@ -86,12 +87,12 @@
             {% if story.tags %}
               <div class="space-y-1">
                 <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-1">
                   {% for tag in story.tags[:6] %}
                     {% if tag.name %}
-                      <div class="tooltip before:z-[50]" data-tip="{{ tag.tag_type }}">
-                        <span class="badge badge-ghost badge-xs whitespace-nowrap">{{ tag.name | truncate(10, true) }}</span>
-                      </div>
+                      <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                         class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
+                         data-tip="{{ tag.tag_type }}">{{ tag.name | truncate(10, true) }}</a>
                     {% endif %}
                   {% endfor %}
                   {% if story.tags | length > 6 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 6 }}</span>{% endif %}
