@@ -9,7 +9,7 @@
 {% set current_preset = request.args.get('range', '') %}
 {% set time_from = request.args.get('timefrom', '') %}
 {% set time_to = request.args.get('timeto', '') %}
-{% set highlight = current_user.profile.highlight %}
+{% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
 {% set read_filter = request.args.get('read', '') %}
@@ -37,7 +37,6 @@
 ] %}
 
 <script type="text/javascript">
-
 const classNames = {
   containerOuter: ['choices', '!bg-base-200'],
   containerInner: ['choices__inner', '!bg-base-200'],
@@ -58,10 +57,20 @@ const choicesConfig = {
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
     initChoices('source-filter', 'sources', choicesConfig);
+    highlightSearch({{ current_search }});
   });
 } else {
   initChoices('source-filter', 'sources', choicesConfig);
+  highlightSearch({{ current_search }});
 }
+
+function highlightSearch(searchTerm) {
+  if ({{ highlight | tojson }}) {
+    console.log("Highlighting search term: ", searchTerm);
+    highlightSearchTerm({ search: searchTerm, selector: ".highlight"});
+  }
+}
+
 </script>
 
 <div class="p-4 space-y-4">
@@ -94,7 +103,8 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
                class="grow"
                autocomplete="off"
                @keydown.window.prevent.ctrl.k="$el.focus()"
-               hx-trigger="keyup changed delay:500ms, search">
+               hx-trigger="keyup changed delay:500ms, search"
+               hx-on="htmx:afterSwap: highlightSearch(this.value)">
         <span class="text-xs">
           <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
         </span>
@@ -185,7 +195,6 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              class="checkbox checkbox-sm"
              name="highlight"
              value="true"
-             disabled
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
              {% if highlight %}checked{% endif %}>

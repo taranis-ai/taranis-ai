@@ -133,7 +133,7 @@
             {% endif %}
           </div>
 
-          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
+          <div class="text-sm text-base-content/80 prose highlight" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
             {% if summary_content %}
               {{ summary_content }}
             {% else %}
