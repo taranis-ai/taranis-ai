@@ -104,10 +104,6 @@ ignore = "J018,T028"
 profile="jinja"
 indent=2
 
-[tool.uv]
-config-settings = { editable_mode = "compat" }
-prerelease = "allow"
-
 [tool.pyright]
 typeCheckingMode = "standard"
 reportConstantRedefinition = "error"
@@ -123,3 +119,13 @@ reportUnreachable = "warning"
 reportUnusedClass = "warning"
 reportUnusedFunction = "warning"
 reportUnusedImport = "warning"
+
+[tool.uv]
+config-settings = { editable_mode = "compat" }
+prerelease = "allow"
+required-environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
