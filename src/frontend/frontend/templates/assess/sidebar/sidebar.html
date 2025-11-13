@@ -57,19 +57,29 @@ const choicesConfig = {
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
     initChoices('source-filter', 'sources', choicesConfig);
-    highlightSearch({{ current_search }});
+    highlightSearch({{ current_search | tojson }});
   });
 } else {
   initChoices('source-filter', 'sources', choicesConfig);
-  highlightSearch({{ current_search }});
+  highlightSearch({{ current_search | tojson }});
 }
 
 function highlightSearch(searchTerm) {
-  if ({{ highlight | tojson }}) {
+  const term = typeof searchTerm === 'string' ? searchTerm : '';
+  if ({{ highlight | tojson }} && term.trim().length > 0) {
     console.log("Highlighting search term: ", searchTerm);
-    highlightSearchTerm({ search: searchTerm, selector: ".highlight"});
+    highlightSearchTerm({ search: term, selector: ".highlight"});
   }
 }
+
+document.addEventListener('htmx:afterSwap', function (event) {
+  if (event.target && event.target.id === 'assess') {
+    const searchInput = document.getElementById('story_search');
+    if (searchInput) {
+      highlightSearch(searchInput.value || '');
+    }
+  }
+});
 
 </script>
 
@@ -96,15 +106,14 @@ function highlightSearch(searchTerm) {
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
                id="story_search"
-               oninput="this.name = this.value ? 'search' : ''"
+               oninput="this.name = this.value ? 'search' : '';"
                value="{{ current_search }}"
                {% if current_search %}name="search"{% endif %}
                placeholder="Search stories"
                class="grow"
                autocomplete="off"
                @keydown.window.prevent.ctrl.k="$el.focus()"
-               hx-trigger="keyup changed delay:500ms, search"
-               hx-on="htmx:afterSwap: highlightSearch(this.value)">
+               hx-trigger="keyup changed delay:500ms, search">
         <span class="text-xs">
           <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
         </span>
@@ -197,6 +206,7 @@ function highlightSearch(searchTerm) {
              value="true"
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
+             hx-on::after-swap="window.location.reload()"
              {% if highlight %}checked{% endif %}>
       <span class="label-text">Highlight searchterms</span>
     </label>
@@ -218,7 +228,7 @@ function highlightSearch(searchTerm) {
              value="true"
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
-             hx:after-swap="window.location.reload()"
+             hx-on::after-swap="window.location.reload()"
              {% if compact_view %}checked{% endif %}>
       <span class="label-text">Compact view</span>
     </label>

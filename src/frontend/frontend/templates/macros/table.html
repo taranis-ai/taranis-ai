@@ -164,7 +164,7 @@
           hx-target="#{{ table_id }}"
           hx-target-error="#notification-bar"
           hx-trigger="input delay:500ms"
-          hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
+          hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
         <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" />
