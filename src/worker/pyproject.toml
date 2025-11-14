@@ -44,6 +44,7 @@ dependencies = [
     "ioc-fanger",
     "langdetect",
     "pypandoc-binary>=1.15",
+    "sentence_transformers"
 ]
 dynamic = ["version"]
 

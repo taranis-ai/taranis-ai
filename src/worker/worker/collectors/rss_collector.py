@@ -5,6 +5,8 @@ import requests
 import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
+from sentence_transformers import SentenceTransformer
+
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
@@ -34,6 +36,9 @@ class RSSCollector(BaseWebCollector):
         self.last_modified: datetime.datetime | None = None
         self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
+
+        model_name_or_path = "Alibaba-NLP/gte-multilingual-base"
+        self.model = SentenceTransformer(model_name_or_path, trust_remote_code=True)
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -100,9 +105,7 @@ class RSSCollector(BaseWebCollector):
 
         if content == description:
             description = ""
-
         for_hash: str = title + self.clean_url(link)
-
         return NewsItem(
             osint_source_id=source["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
@@ -113,6 +116,7 @@ class RSSCollector(BaseWebCollector):
             web_url=link,
             published_date=published,
             language=self.language,
+            embedding=self.model.encode(content, normalize_embeddings=True).tolist(),
         )
 
     # TODO: This function is renamed because of inheritance issues.

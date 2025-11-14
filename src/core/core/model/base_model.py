@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
+import numpy as np
 
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
@@ -46,6 +47,8 @@ class BaseModel(db.Model):
                 data[key] = value.astimezone().isoformat()
             elif isinstance(value, Enum):
                 data[key] = value.value
+            elif isinstance(value, np.ndarray):
+                data[key] = value.tolist()
         return data
 
     def to_json(self) -> str:

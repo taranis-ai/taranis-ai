@@ -27,6 +27,7 @@ class NewsItem:
         attributes: list | None = None,
         last_change: str = "external",
         story_id: str = "",
+        embedding: list[float] = [0.0] * 768,
     ):
         self.osint_source_id = osint_source_id
         self.id = id
@@ -47,6 +48,7 @@ class NewsItem:
         self.attributes = attributes or []
         self.last_change = last_change
         self.story_id = story_id
+        self.embedding = embedding
 
     def to_dict(self):
         result = {
@@ -64,6 +66,7 @@ class NewsItem:
             "story_id": self.story_id,
             "review": self.review,
             "language": self.language,
+            "embedding": self.embedding,
         }
         if self.attributes:
             result["attributes"] = self.attributes

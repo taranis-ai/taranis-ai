@@ -71,6 +71,7 @@ class NewsItem(BaseModel):
         id=None,
         last_change="external",
         story_id: str = "",
+        embedding: list[float] = [0.0] * 768,
     ):
         self.id = id or str(uuid.uuid4())
         self.title = title
@@ -91,6 +92,7 @@ class NewsItem(BaseModel):
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
+        self.embedding = embedding
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
