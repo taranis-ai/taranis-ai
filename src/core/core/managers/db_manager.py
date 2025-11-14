@@ -13,6 +13,7 @@ db: SQLAlchemy = SQLAlchemy()
 
 def initial_database_setup(engine: Engine):
     is_empty = is_db_empty(engine)
+    setup_pgvector(engine)
     db.metadata.create_all(bind=engine)
     setup_fts(engine)
     if is_empty:
@@ -41,6 +42,13 @@ def setup_fts(engine: Engine):
         return
     with engine.begin() as conn:
         conn.execute(text(open("core/sql/fulltext_search.sql", "r").read()))
+
+
+def setup_pgvector(engine: Engine):
+    if db.engine.dialect.name != "postgresql":
+        return
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
 
 def is_db_empty(engine: Engine) -> bool:

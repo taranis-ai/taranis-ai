@@ -34,6 +34,7 @@ dependencies = [
     "taranis-models",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
+    "pgvector"
 ]
 dynamic = ["version"]
 

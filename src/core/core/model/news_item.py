@@ -3,9 +3,12 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from pgvector.sqlalchemy import Vector
+
+
 from typing import TYPE_CHECKING
 
 from core.managers.db_manager import db
@@ -39,6 +42,7 @@ class NewsItem(BaseModel):
     last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
     updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(768), nullable=True)
 
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
