@@ -1,17 +1,18 @@
 import json
 import secrets
-from werkzeug.security import generate_password_hash
-from typing import Any, Sequence
 from copy import deepcopy
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
+from typing import Any, Sequence
 
-from core.managers.db_manager import db
-from core.model.role import Role
-from core.model.organization import Organization
-from core.model.base_model import BaseModel
-from core.model.role import TLPLevel
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
+from werkzeug.security import generate_password_hash
+
 from core.log import logger
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
+from core.model.organization import Organization
+from core.model.role import Role, TLPLevel
+
 
 PROFILE_TEMPLATE = {
     "dark_theme": False,
@@ -21,6 +22,7 @@ PROFILE_TEMPLATE = {
     "show_charts": False,
     "infinite_scroll": True,
     "advanced_story_options": False,
+    "highlight": False,
     "end_of_shift": "18:00",
     "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
     "language": "en",

@@ -9,7 +9,7 @@
 {% set current_preset = request.args.get('range', '') %}
 {% set time_from = request.args.get('timefrom', '') %}
 {% set time_to = request.args.get('timeto', '') %}
-{% set highlight = current_user.profile.highlight %}
+{% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
 {% set read_filter = request.args.get('read', '') %}
@@ -37,7 +37,6 @@
 ] %}
 
 <script type="text/javascript">
-
 const classNames = {
   containerOuter: ['choices', '!bg-base-200'],
   containerInner: ['choices__inner', '!bg-base-200'],
@@ -58,10 +57,30 @@ const choicesConfig = {
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
     initChoices('source-filter', 'sources', choicesConfig);
+    highlightSearch({{ current_search | tojson }});
   });
 } else {
   initChoices('source-filter', 'sources', choicesConfig);
+  highlightSearch({{ current_search | tojson }});
 }
+
+function highlightSearch(searchTerm) {
+  const term = typeof searchTerm === 'string' ? searchTerm : '';
+  if ({{ highlight | tojson }} && term.trim().length > 0) {
+    console.log("Highlighting search term: ", searchTerm);
+    highlightSearchTerm({ search: term, selector: ".highlight"});
+  }
+}
+
+document.addEventListener('htmx:afterSwap', function (event) {
+  if (event.target && event.target.id === 'assess') {
+    const searchInput = document.getElementById('story_search');
+    if (searchInput) {
+      highlightSearch(searchInput.value || '');
+    }
+  }
+});
+
 </script>
 
 <div class="p-4 space-y-4">
@@ -87,7 +106,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
                id="story_search"
-               oninput="this.name = this.value ? 'search' : ''"
+               oninput="this.name = this.value ? 'search' : '';"
                value="{{ current_search }}"
                {% if current_search %}name="search"{% endif %}
                placeholder="Search stories"
@@ -185,9 +204,9 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              class="checkbox checkbox-sm"
              name="highlight"
              value="true"
-             disabled
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
+             hx-on::after-swap="window.location.reload()"
              {% if highlight %}checked{% endif %}>
       <span class="label-text">Highlight searchterms</span>
     </label>
@@ -209,7 +228,7 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
              value="true"
              hx-post="{{ url_for('user.settings') }}"
              hx-trigger="change"
-             hx:after-swap="window.location.reload()"
+             hx-on::after-swap="window.location.reload()"
              {% if compact_view %}checked{% endif %}>
       <span class="label-text">Compact view</span>
     </label>
