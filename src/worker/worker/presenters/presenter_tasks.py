@@ -47,17 +47,29 @@ def presenter_task(product_id: str):
     logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
     # Generate the product
+    result_data = None
     if rendered_product := presenter.generate(product, template, parameters=product.get("parameters", {})):
         if isinstance(rendered_product, str):
             rendered_product = b64encode(rendered_product.encode("utf-8")).decode("ascii")
         else:
             rendered_product = b64encode(rendered_product).decode("ascii")
 
-        return {
+        result_data = {
             "product_id": product_id,
             "message": f"Product: {product_id} rendered successfully",
             "render_result": rendered_product
         }
+
+        # Save task result to database
+        if job:
+            _save_task_result(job.id, "presenter_task", result_data, "SUCCESS", core_api)
+
+        return result_data
+
+    # Failed to generate product
+    if job:
+        error_msg = f"Presenter {presenter.type} returned no content"
+        _save_task_result(job.id, "presenter_task", error_msg, "FAILURE", core_api)
 
     raise ValueError(f"Presenter {presenter.type} returned no content")
 
@@ -141,3 +153,25 @@ def _get_presenter(product: dict[str, Any]) -> BasePresenter:
         return presenter
 
     raise ValueError(f"Presenter {presenter_type} not implemented")
+
+
+def _save_task_result(job_id: str, task_name: str, result: str | dict, status: str, core_api: CoreApi):
+    """Save task execution result to Core API.
+
+    Args:
+        job_id: RQ job ID
+        task_name: Name of the task function
+        result: Task result (string or dict)
+        status: Task status (SUCCESS, FAILURE, etc.)
+        core_api: CoreApi instance for making API calls
+    """
+    task_data = {
+        "id": job_id,
+        "task": task_name,
+        "result": result,
+        "status": status,
+    }
+
+    response = core_api.api_put("/worker/task-results", task_data)
+    if not response:
+        logger.warning(f"Failed to save task result for {job_id}")

@@ -242,7 +242,21 @@ class TaskResults(MethodView):
     def put(self):
         """Save or update task result from worker."""
         from core.model.task import Task
-        return Task.add_or_update(request.json)
+        from core.api.task import handle_task_specific_result
+
+        data = request.json
+        if not data:
+            return {"error": "No data provided"}, 400
+
+        task_id = data.get("id")
+        result = data.get("result")
+        status = data.get("status")
+
+        # Handle task-specific result processing (e.g., presenter results)
+        if status == "SUCCESS" and result and task_id:
+            handle_task_specific_result(task_id, result, status)
+
+        return Task.add_or_update(data)
 
 
 def initialize(app: Flask):
