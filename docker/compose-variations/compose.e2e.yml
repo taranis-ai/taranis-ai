@@ -26,7 +26,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
-      rabbitmq:
+      redis:
         condition: service_healthy
     deploy:
       restart_policy:
@@ -42,9 +42,8 @@ services:
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
 
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      REDIS_URL: "redis://redis:6379/0"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-taranis}"
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
@@ -115,22 +114,22 @@ services:
 
   collector:
     depends_on:
-      rabbitmq:
+      redis:
         condition: service_healthy
     deploy:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    command: ["python", "-m", "worker", "--queues", "collectors"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      REDIS_URL: "redis://redis:6379/0"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
+      test: ["CMD-SHELL", "python -c \"import redis; r = redis.Redis(host='redis', port=6379, decode_responses=True); r.ping()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -144,23 +143,23 @@ services:
 
   workers:
     depends_on:
-      rabbitmq:
+      redis:
         condition: service_healthy
     deploy:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    command: ["python", "-m", "worker", "--queues", "presenters", "publishers", "bots", "connectors"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       BOT_API_KEY: "${BOT_API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      REDIS_URL: "redis://redis:6379/0"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
+      test: ["CMD-SHELL", "python -c \"import redis; r = redis.Redis(host='redis', port=6379, decode_responses=True); r.ping()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -171,22 +170,26 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  rabbitmq:
-    image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
+  redis:
+    image: "redis:7-alpine"
     deploy:
       restart_policy:
         condition: always
-    user: rabbitmq
-    # ports:
-    #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
-    #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
+    command: |
+      sh -c '
+        mkdir -p /data
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+        else
+          redis-server --appendonly yes
+        fi
+      '
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq/
+      - redis_data:/data
     environment:
-      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+      - "REDIS_PASSWORD=${REDIS_PASSWORD:-}"
     healthcheck:
-      test: "rabbitmqctl await_startup"
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -218,4 +221,4 @@ services:
 volumes:
   database_data:
   core_data:
-  rabbitmq_data:
+  redis_data:
