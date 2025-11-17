@@ -54,6 +54,7 @@ dev = [
     "fakeredis",
     "requests-mock",
     "watchdog",
+    "rq-dashboard",
     "build",
     "wheel",
     "setuptools",
