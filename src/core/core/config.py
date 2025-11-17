@@ -93,34 +93,8 @@ class Settings(BaseSettings):
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
 
-    QUEUE_BROKER_SCHEME: Literal["amqp", "amqps"] = "amqp"
-    QUEUE_BROKER_HOST: str = "localhost"
-    QUEUE_BROKER_PORT: int = 5672
-    QUEUE_BROKER_USER: str = "taranis"
-    QUEUE_BROKER_PASSWORD: SecretStr = SecretStr("supersecret")
-    QUEUE_BROKER_URL: str | None = None
-    QUEUE_BROKER_VHOST: str = "/"
-    CELERY: dict[str, Any] | None = None
-
-    @model_validator(mode="after")
-    def set_celery(self):
-        if self.CELERY and len(self.CELERY) > 1:
-            return self
-        if self.QUEUE_BROKER_URL:
-            broker_url = self.QUEUE_BROKER_URL
-        else:
-            broker_url = (
-                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD.get_secret_value()}"
-                f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
-            )
-        self.CELERY = {
-            "broker_url": broker_url,
-            "create_missing_queues": True,
-            "broker_connection_retry_on_startup": True,
-            "broker_connection_retry": False,  # To suppress deprecation warning
-            "enable_utc": True,
-        }
-        return self
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_PASSWORD: SecretStr | None = None
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
     def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:

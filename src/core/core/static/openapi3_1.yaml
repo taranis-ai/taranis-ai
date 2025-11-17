@@ -1807,7 +1807,7 @@ paths:
     get:
       tags: [config]
       operationId: Workers
-      description: get all workers connected for CELERY (via RabbitMQ)
+      description: get all workers connected for RQ (via Redis)
       security:
         - UserAuth: []
       responses:

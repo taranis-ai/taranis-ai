@@ -237,6 +237,14 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
+class TaskResults(MethodView):
+    @api_key_required
+    def put(self):
+        """Save or update task result from worker."""
+        from core.model.task import Task
+        return Task.add_or_update(request.json)
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
@@ -257,5 +265,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
+    worker_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results_worker"))
 
     app.register_blueprint(worker_bp)
