@@ -18,13 +18,44 @@ See [README.md](../README.md) for more information.
 - see pyproject.toml for the python packages used (and their versions)
 - uv.lock contains information about used libraries and their versions
 
+### Starting the Development Environment
+
+The recommended way to start the development environment is to run `./dev/start_dev.sh` from the repository root. This script:
+1. Sources environment variables from `dev/env.dev`
+2. Installs system dependencies (Ubuntu only)
+3. Creates `.env` files for core, worker, and frontend components by copying `dev/env.dev`
+4. Starts Docker Compose services (PostgreSQL database + Redis) via `dev/compose.yml`
+5. Launches a tmux session via `start_tmux.sh` with 4 windows:
+   - **core**: Flask REST API (port 5001)
+   - **tailwind**: CSS watcher for frontend development
+   - **frontend**: Flask frontend (port 5002)
+   - **worker**: RQ workers for background tasks
+
+Each component automatically runs `uv sync` and starts its service when the tmux window is created.
+
 ## Architecture
 
 - **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
 - **ingress** (`src/ingress/`) - Nginx entrypoint for routing requests to frontend and backend
 - **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
-- **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
+- **worker** (`src/worker/`) - RQ workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation
+
+### Task Queue System
+
+The application uses **RQ (Redis Queue)** with **Redis** as the message broker for background task processing:
+- **Queue Manager** (`src/core/core/managers/queue_manager.py`) - Manages job scheduling and enqueueing using RQ
+- **Task Functions** (`src/worker/worker/*/`) - Background jobs for data collection, analysis, and publishing
+- **Redis** - Message broker (port 6379) and job persistence
+- **Scheduling** - Uses RQ's built-in scheduler with cron expressions via `croniter>=6.0.0`
+
+Task modules:
+- `collector_tasks.py` - OSINT source data collection
+- `bot_tasks.py` - Automated analysis and processing
+- `presenter_tasks.py` - Report and product generation
+- `publisher_tasks.py` - Publishing to external systems
+- `connector_tasks.py` - Story sharing with MISP and other systems
+- `misc_tasks.py` - Maintenance tasks (token cleanup, wordlist updates)
 
 ## Testing
 

@@ -117,7 +117,7 @@ source .venv/bin/activate
 uv sync --upgrade --all-extras
 
 # Run worker
-celery -A worker worker
+uv run python start_dev_worker.py
 ```
 
 In Frontend Tab:
@@ -152,7 +152,7 @@ Taranis AI should be reachable on _local.taranis.ai_.
 ### Backend
 
 * Python: Used for the core backend services including [REST API](../src/core/README.md).
-* Celery: For managing asynchronous tasks and [worker processes](../src/worker/README.md).
+* RQ (Redis Queue): For managing asynchronous tasks and [worker processes](../src/worker/README.md).
 
 ### Frontend
 
