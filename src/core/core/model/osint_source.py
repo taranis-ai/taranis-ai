@@ -143,7 +143,7 @@ class OSINTSource(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         if self.status:
             data["status"] = self.status
-        
+
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule()
 
@@ -266,23 +266,23 @@ class OSINTSource(BaseModel):
 
         cron_schedule = self.get_schedule()
         logger.info(f"Scheduling source {self.name} (id={self.id}, type={self.type}) with cron: {cron_schedule}")
-        
+
         # Cancel any existing scheduled job
         queue_manager.queue_manager.cancel_job(self.task_id)
-        
+
         # Schedule the next run using cron expression
         # Pass both osint_source_id and manual=False explicitly
         if queue_manager.queue_manager.schedule_cron_task(
-            "collectors", 
-            "collector_task", 
-            cron_schedule, 
+            "collectors",
+            "collector_task",
+            cron_schedule,
             self.id,
             False,  # manual=False for scheduled collection
             job_id=self.task_id
         ):
             logger.info(f"Schedule for source {self.id} updated - next run scheduled at job_id={self.task_id}")
             return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
-        
+
         return {"error": "Failed to schedule source"}, 500
 
     def unschedule_osint_source(self):

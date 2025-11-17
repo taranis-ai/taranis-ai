@@ -30,7 +30,7 @@ class QueueManager:
         self.error: str = ""
         self.redis_url = app.config["REDIS_URL"]
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
-        
+
         try:
             self.init_app(app)
         except Exception as e:
@@ -40,14 +40,14 @@ class QueueManager:
     def init_app(self, app: Flask):
         """Initialize Redis connection and create queues"""
         self._redis = Redis.from_url(self.redis_url, decode_responses=False)
-        
+
         # Test connection
         self._redis.ping()
-        
+
         # Create queue instances
         for queue_name in self.queue_names:
             self._queues[queue_name] = Queue(queue_name, connection=self._redis)
-        
+
         app.extensions["rq"] = self
         logger.info(f"QueueManager initialized with Redis: {self.redis_url}")
 
@@ -56,7 +56,7 @@ class QueueManager:
         self.clear_queues()
         self.reschedule_all()
         self.update_empty_word_lists()
-    
+
     def reschedule_all(self):
         """Reschedule all enabled OSINT sources and bots"""
         if self.error:
@@ -64,14 +64,14 @@ class QueueManager:
         try:
             from core.model.osint_source import OSINTSource
             from core.model.bot import Bot
-            
+
             # Schedule all enabled OSINT sources
             sources = OSINTSource.get_all_for_collector()
             for source in sources:
                 if source.enabled:
                     source.schedule_osint_source()
             logger.info(f"Rescheduled {len(sources)} OSINT sources")
-            
+
             # Schedule all enabled bots
             bots = Bot.get_all_for_collector()
             scheduled_bots = 0
@@ -131,7 +131,7 @@ class QueueManager:
         """Get queued tasks from all queues"""
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
-        
+
         try:
             tasks = []
             for queue_name, queue in self._queues.items():
@@ -148,7 +148,7 @@ class QueueManager:
         if self.error:
             logger.error("QueueManager not initialized")
             return {"error": "QueueManager not initialized"}, 500
-        
+
         try:
             from rq.worker import Worker
             workers = Worker.all(connection=self._redis)
@@ -169,18 +169,18 @@ class QueueManager:
         """Enqueue a task immediately"""
         if self.error:
             return False
-        
+
         try:
             queue = self.get_queue(queue_name)
             if not queue:
                 logger.error(f"Queue {queue_name} not found")
                 return False
-            
+
             task_func = TASK_MAP.get(task_name)
             if not task_func:
                 logger.error(f"Unknown task: {task_name}")
                 return False
-            
+
             job = queue.enqueue(
                 task_func,
                 *args,
@@ -196,18 +196,18 @@ class QueueManager:
         """Enqueue a task to run at a specific time"""
         if self.error:
             return False
-        
+
         try:
             queue = self.get_queue(queue_name)
             if not queue:
                 logger.error(f"Queue {queue_name} not found")
                 return False
-            
+
             task_func = TASK_MAP.get(task_name)
             if not task_func:
                 logger.error(f"Unknown task: {task_name}")
                 return False
-            
+
             logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}")
             job = queue.enqueue_at(
                 scheduled_time,
@@ -226,16 +226,16 @@ class QueueManager:
         """Schedule a task using cron expression"""
         if self.error:
             return False
-        
+
         try:
             from datetime import timezone
-            
+
             # Calculate next run time from cron expression
             # Use UTC timezone-aware datetime for RQ scheduling
             now_utc = datetime.now(timezone.utc)
             cron = croniter(cron_string, now_utc)
             next_run = cron.get_next(datetime)
-            
+
             logger.info(f"schedule_cron_task: task={task_name}, cron={cron_string}, next_run={next_run}, job_id={job_id}, args={args}")
             return self.enqueue_at(queue_name, task_name, next_run, *args, job_id=job_id, **kwargs)
         except Exception as e:
@@ -246,7 +246,7 @@ class QueueManager:
         """Cancel a scheduled or queued job"""
         if self.error:
             return False
-        
+
         try:
             job = Job.fetch(job_id, connection=self._redis)
             job.cancel()
@@ -266,7 +266,7 @@ class QueueManager:
         """Get task status"""
         if self.error:
             return {"error": "Could not reach Redis"}, 500
-        
+
         try:
             job = Job.fetch(task_id, connection=self._redis)
             if job.is_finished:
@@ -299,7 +299,7 @@ class QueueManager:
 
         if self.error:
             return {"error": "Could not reach Redis"}, 500
-        
+
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
             self.enqueue_task("collectors", "collector_task", source.id, True, job_id=source.task_id)
@@ -332,7 +332,7 @@ class QueueManager:
         bot_args: dict = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
-        
+
         if self.enqueue_task("bots", "bot_task", job_id=f"bot_{bot_id}", **bot_args):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
@@ -341,13 +341,13 @@ class QueueManager:
     def generate_product(self, product_id: str, countdown: int = 0):
         """Generate product"""
         from datetime import timedelta
-        
+
         if countdown > 0:
             scheduled_time = datetime.now() + timedelta(seconds=countdown)
             job = self.enqueue_at("presenters", "presenter_task", scheduled_time, product_id, job_id=f"presenter_task_{product_id}")
         else:
             job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=f"presenter_task_{product_id}")
-        
+
         if job:
             logger.info(f"Generating Product {product_id} scheduled")
             return {"message": f"Generating Product {product_id} scheduled"}, 200
@@ -373,13 +373,13 @@ class QueueManager:
         for bot_id in post_collection_bots:
             bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
             self.enqueue_task("bots", "bot_task", job_id=f"bot_{bot_id}_{source_id}", **bot_args)
-        
+
         return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
         func_name = job.func_name or "unknown"
-        
+
         # For collector tasks, show the source name
         if "collector_task" in func_name and job.args:
             try:
@@ -392,7 +392,7 @@ class QueueManager:
                         return f"Collector: {source.name}"
             except Exception as e:
                 logger.debug(f"Failed to get source name for job {job.id}: {e}")
-        
+
         # For bot tasks, show the bot name
         if "bot_task" in func_name and job.args:
             try:
@@ -405,7 +405,7 @@ class QueueManager:
                         return f"Bot: {bot.name}"
             except Exception as e:
                 logger.debug(f"Failed to get bot name for job {job.id}: {e}")
-        
+
         # For other tasks, return the function name
         return func_name
 
@@ -414,48 +414,48 @@ class QueueManager:
         """Calculate next n fire times from a cron expression"""
         cron = croniter(cron_expr, datetime.now())
         fire_times: list[datetime] = []
-        
+
         for _ in range(n):
             try:
                 next_time = cron.get_next(datetime)
                 fire_times.append(next_time)
             except Exception:
                 break
-        
+
         return fire_times
 
     def get_scheduled_jobs(self) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues"""
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
-        
+
         try:
             from rq.registry import ScheduledJobRegistry
-            
+
             all_jobs = []
             for queue_name, queue in self._queues.items():
                 registry = ScheduledJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
                 logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs")
-                
+
                 for job_id in job_ids:
                     try:
                         job = Job.fetch(job_id, connection=self._redis)
                         # Get scheduled time from registry for this specific job
                         scheduled_time = registry.get_scheduled_time(job_id)
-                        
+
                         logger.debug(f"Job {job_id}: func={job.func_name}, scheduled_time={scheduled_time}")
-                        
+
                         # scheduled_time is a datetime object from RQ, not a timestamp
                         if scheduled_time:
                             from datetime import datetime
                             scheduled_for = scheduled_time.isoformat() if isinstance(scheduled_time, datetime) else None
                         else:
                             scheduled_for = None
-                        
+
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
-                        
+
                         all_jobs.append({
                             "id": job.id,
                             "name": job_name,
@@ -465,7 +465,7 @@ class QueueManager:
                     except Exception as e:
                         logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
                         continue
-            
+
             logger.info(f"get_scheduled_jobs: returning {len(all_jobs)} total jobs")
             return {"items": all_jobs, "total_count": len(all_jobs)}, 200
         except Exception as e:
@@ -477,11 +477,11 @@ def initialize(app: Flask, initial_setup: bool = True):
     """Initialize the queue manager"""
     global queue_manager
     queue_manager = QueueManager(app)
-    
+
     if queue_manager.error:
         logger.error(f"QueueManager initialization failed: {queue_manager.error}")
         return
-    
+
     if initial_setup:
         queue_manager.post_init()
         logger.info("QueueManager initialized successfully")

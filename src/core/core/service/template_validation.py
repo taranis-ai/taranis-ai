@@ -10,13 +10,13 @@ from jinja2 import Environment, TemplateSyntaxError, DebugUndefined, UndefinedEr
 def validate_template_content(template_content: str) -> dict:
     """
     Validate Jinja2 template content with comprehensive validation.
-    
+
     Performs both syntax parsing and render testing to catch template errors.
     Uses DebugUndefined to provide better error messages for undefined variables.
-    
+
     Args:
         template_content (str): The template string to validate
-        
+
     Returns:
         dict: {
             "is_valid": bool,

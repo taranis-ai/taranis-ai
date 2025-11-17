@@ -103,7 +103,7 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None):
 
 def _reschedule_bot(bot_id: str, cron_expr: str):
     """Re-schedule the bot job for next run.
-    
+
     Fetches the latest configuration from Core API to avoid race conditions
     where configuration is updated while a job is running.
 
@@ -125,14 +125,14 @@ def _reschedule_bot(bot_id: str, cron_expr: str):
         if not bot_config:
             logger.error(f"Failed to reschedule: bot {bot_id} not found")
             return
-        
+
         # Use fresh schedule from database to avoid race conditions
         # If configuration was updated during job execution, we use the new schedule
         fresh_schedule = bot_config.get("refresh")
         if not fresh_schedule:
             logger.warning(f"Bot {bot_id} has no schedule, skipping reschedule")
             return
-        
+
         # Verify bot is still enabled before rescheduling
         if not bot_config.get("enabled"):
             logger.info(f"Bot {bot_id} is disabled, skipping reschedule")

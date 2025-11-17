@@ -119,12 +119,12 @@ class Bot(BaseModel):
         if crontab_str := self.get_schedule():
             # Cancel any existing scheduled job
             queue_manager.queue_manager.cancel_job(self.task_id)
-            
+
             # Schedule the next run using cron expression
             if queue_manager.queue_manager.schedule_cron_task(
-                "bots", 
-                "bot_task", 
-                crontab_str, 
+                "bots",
+                "bot_task",
+                crontab_str,
                 self.id,
                 job_id=self.task_id
             ):

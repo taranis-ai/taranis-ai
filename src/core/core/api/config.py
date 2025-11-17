@@ -476,7 +476,7 @@ class Schedule(MethodView):
                         }, 200
                 except Exception:
                     return {"error": "Task not found"}, 404
-            
+
             # Get all scheduled jobs
             schedules, status = queue_manager.queue_manager.get_scheduled_jobs()
             return schedules, status
