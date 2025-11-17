@@ -232,16 +232,4 @@ class CoreApi:
             logger.exception("Cannot add or update story.")
             return None
 
-    def store_task_result(self, data: dict) -> dict | None:
-        try:
-            return self.api_post(url="/tasks/", json_data=data)
-        except Exception:
-            logger.exception("Cannot store task result")
-            return None
 
-    def get_task(self, task_id) -> requests.Response:
-        try:
-            url = f"{self.api_url}/tasks/{task_id}"
-            return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        except Exception as e:
-            raise e

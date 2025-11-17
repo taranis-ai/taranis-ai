@@ -48,8 +48,5 @@ def story_get_by_id_mock(requests_mock, stories):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=11", json=[stories[10]])
 
 
-@pytest.fixture
-def connector_task():
-    from worker.connectors.connector_tasks import ConnectorTask
-
-    return ConnectorTask()
+# Connector task fixture is no longer needed as we use functions directly
+# Tests should call connector_tasks.connector_task() instead
