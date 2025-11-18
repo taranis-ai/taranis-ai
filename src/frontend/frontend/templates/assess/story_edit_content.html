@@ -9,6 +9,7 @@
 {% set card_id = 'story-' ~ story_id %}
 {% set toggled_read = (not (story.read | default(false))) | tojson %}
 {% set toggled_important = (not (story.important | default(false))) | tojson %}
+{% from "assess/news_item_card.html" import news_item_card %}
 
 <section id="{{ card_id }}"
          class="space-y-6 p-6"
@@ -298,25 +299,6 @@
                     {% if item.source %}{{ item.source }}{% endif %}
                   </p>
                 </div>
-
-                {% if layout == 'advanced' %}
-                  <form class="flex items-center gap-2"
-                        hx-post="{{ url_for('assess.story_trigger_bot', story_id=item.id) }}"
-                        hx-target="#notification-bar"
-                        hx-swap="innerHTML">
-                    <input type="hidden" name="story_id" value="{{ story.id }}">
-                    <button type="submit"
-                            name="status"
-                            value="yes"
-                            class="btn btn-sm {% if status_value == 'yes' %}btn-success{% else %}btn-outline{% endif %}"
-                            {% if has_rt_id %}disabled{% endif %}>Cybersecurity</button>
-                    <button type="submit"
-                            name="status"
-                            value="no"
-                            class="btn btn-sm {% if status_value == 'no' %}btn-error{% else %}btn-outline{% endif %}"
-                            {% if has_rt_id %}disabled{% endif %}>Not cybersecurity</button>
-                  </form>
-                {% endif %}
               </header>
 
               {% if item.content %}
@@ -337,6 +319,7 @@
                 {% if item.published %}<span class="badge badge-outline">Published · {{ item.published | format_datetime }}</span>{% endif %}
               </footer>
             </article>
+            {{ news_item_card(item) }}
           {% endfor %}
         </div>
       {% else %}
