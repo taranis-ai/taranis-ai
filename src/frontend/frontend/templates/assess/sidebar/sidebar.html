@@ -124,136 +124,160 @@ document.addEventListener('htmx:afterSwap', function (event) {
     {% include 'assess/sidebar/source_select.html' %}
 
     <div class="divider text-xs">Filter</div>
-    <section class="space-y-4">
-      <button type="button"
-              class="btn btn-outline btn-sm mb-2 w-full"
-              title="Clear time filters"
-              hx-get="{{ base_url }}"
-              hx-params="remove:timefrom,timeto,range"
-              hx-target="#assess"
-              hx-swap="outerHTML">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
-      <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets">
-        {% for preset in quick_ranges %}
-          {% set input_id = 'quick-range-' ~ preset.value %}
-          <label class="cursor-pointer">
-            <span class="label-text text-sm">{{ preset.label }}</span>
-            <input id="{{ input_id }}"
-                   type="radio"
-                   name="range"
-                   value="{{ preset.value }}"
-                   class="radio"
-                   hx-trigger="change"
-                   {% if current_preset == preset.value %}checked{% endif %}>
-          </label>
+    {# djlint: off #}
+    <section class="space-y-4"
+             x-data='{
+               clearTimeFilters() {
+                 const timeFrom = this.$refs.timeFrom;
+                 const timeTo = this.$refs.timeTo;
+                 if (timeFrom) {
+                   timeFrom.value = "";
+                   timeFrom.removeAttribute("name");
+                 }
+                 if (timeTo) {
+                   timeTo.value = "";
+                   timeTo.removeAttribute("name");
+                 }
+                 if (this.$refs.rangeRadios) {
+                   this.$refs.rangeRadios.querySelectorAll("input").forEach((radio) => {
+                     radio.checked = false;
+                   });
+                 }
+               }
+             }'>
+    {# djlint:on #}
+    <button type="button"
+            class="btn btn-outline btn-sm mb-2 w-full"
+            title="Clear time filters"
+            hx-get="{{ base_url }}"
+            hx-params="remove:timefrom,timeto,range"
+            hx-target="#assess"
+            hx-swap="outerHTML"
+            @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
+    <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets" x-ref="rangeRadios">
+      {% for preset in quick_ranges %}
+        {% set input_id = 'quick-range-' ~ preset.value %}
+        <label class="cursor-pointer">
+          <span class="label-text text-sm">{{ preset.label }}</span>
+          <input id="{{ input_id }}"
+                 type="radio"
+                 name="range"
+                 value="{{ preset.value }}"
+                 class="radio"
+                 hx-trigger="change"
+                 {% if current_preset == preset.value %}checked{% endif %}>
+        </label>
+      {% endfor %}
+    </div>
+    <div class="grid grid-cols-1 gap-3">
+      <label class="input w-full p-1">
+        <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
+        <input type="datetime-local"
+               x-ref="timeFrom"
+               value="{{ time_from }}"
+               {% if time_from %}name="timefrom"{% endif %}
+               onchange="this.name = this.value ? 'timefrom' : ''"
+               class="input-bordered input-xs -ml-3"
+               hx-trigger="change delay:250ms">
+      </label>
+      <label class="input w-full p-1">
+        <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
+        <input type="datetime-local"
+               x-ref="timeTo"
+               value="{{ time_to }}"
+               {% if time_to %}name="timeto"{% endif %}
+               onchange="this.name = this.value ? 'timeto' : ''"
+               class="input-bordered input-xs -ml-3"
+               hx-trigger="change delay:250ms">
+      </label>
+    </div>
+  </section>
+
+  <div class="divider text-xs">Status</div>
+  <section class="space-y-3">
+    {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
+    <label class="select w-full">
+      <span class="label">Cybersecurity</span>
+      <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}
+              onchange="this.name = this.value ? 'cybersecurity' : ''"
+              class="select select-bordered select-sm"
+              hx-trigger="change">
+        <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
+        {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
+          <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
         {% endfor %}
-      </div>
-      <div class="grid grid-cols-1 gap-3">
-        <label class="input w-full p-1">
-          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
-          <input type="datetime-local"
-                 value="{{ time_from }}"
-                 {% if time_from %}name="timefrom"{% endif %}
-                 onchange="this.name = this.value ? 'timefrom' : ''"
-                 class="input-bordered input-xs -ml-3"
-                 hx-trigger="change delay:250ms">
-        </label>
-        <label class="input w-full p-1">
-          <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
-          <input type="datetime-local"
-                 value="{{ time_to }}"
-                 {% if time_to %}name="timeto"{% endif %}
-                 onchange="this.name = this.value ? 'timeto' : ''"
-                 class="input-bordered input-xs -ml-3"
-                 hx-trigger="change delay:250ms">
-        </label>
-      </div>
-    </section>
-
-    <div class="divider text-xs">Status</div>
-    <section class="space-y-3">
-      {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
-      <label class="select w-full">
-        <span class="label">Cybersecurity</span>
-        <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}
-                onchange="this.name = this.value ? 'cybersecurity' : ''"
-                class="select select-bordered select-sm"
-                hx-trigger="change">
-          <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
-          {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
-            <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </section>
-
-    <div class="divider text-xs">Sort</div>
-    <section>
-      <label class="select w-full">
-        <span class="label">Sort</span>
-        <select {% if current_sort %}name="sort"{% endif %}
-                onchange="this.name = this.value ? 'sort' : ''"
-                class="select select-bordered select-sm"
-                hx-trigger="change">
-          {% for option in sort_choices %}
-            <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </section>
-  </form>
-
-  <div class="divider text-xs">Display</div>
-  <section class="space-y-2">
-    <label class="label cursor-pointer justify-start gap-3">
-      <input type="checkbox"
-             class="checkbox checkbox-sm"
-             name="highlight"
-             value="true"
-             hx-post="{{ url_for('user.settings') }}"
-             hx-trigger="change"
-             hx-on::after-swap="window.location.reload()"
-             {% if highlight %}checked{% endif %}>
-      <span class="label-text">Highlight searchterms</span>
-    </label>
-    <label class="label cursor-pointer justify-start gap-3">
-      <input type="checkbox"
-             class="checkbox checkbox-sm"
-             name="show_week_chart"
-             value="true"
-             disabled
-             hx-post="{{ url_for('user.settings') }}"
-             hx-trigger="change"
-             {% if show_week_chart %}checked{% endif %}>
-      <span class="label-text">Show charts</span>
-    </label>
-    <label class="label cursor-pointer justify-start gap-3">
-      <input type="checkbox"
-             class="checkbox checkbox-sm"
-             name="compact_view"
-             value="true"
-             hx-post="{{ url_for('user.settings') }}"
-             hx-trigger="change"
-             hx-on::after-swap="window.location.reload()"
-             {% if compact_view %}checked{% endif %}>
-      <span class="label-text">Compact view</span>
+      </select>
     </label>
   </section>
 
-  <div class="divider"></div>
-  <div class="space-y-3">
-    <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
-      {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
-      Reset filters
-      <span class="text-xs">
-        <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
-      </span>
-    </a>
-    <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.create_news_item', news_item_id='0') }}">
-      {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
-      Create new item
-    </a>
-  </div>
+  <div class="divider text-xs">Sort</div>
+  <section>
+    <label class="select w-full">
+      <span class="label">Sort</span>
+      <select {% if current_sort %}name="sort"{% endif %}
+              onchange="this.name = this.value ? 'sort' : ''"
+              class="select select-bordered select-sm"
+              hx-trigger="change">
+        {% for option in sort_choices %}
+          <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </section>
+</form>
 
-  <div class="divider mb-0"></div>
-  {% include "partials/keyboard_hint.html" %}
+<div class="divider text-xs">Display</div>
+<section class="space-y-2">
+  <label class="label cursor-pointer justify-start gap-3">
+    <input type="checkbox"
+           class="checkbox checkbox-sm"
+           name="highlight"
+           value="true"
+           hx-post="{{ url_for('user.settings') }}"
+           hx-trigger="change"
+           hx-on::after-swap="window.location.reload()"
+           {% if highlight %}checked{% endif %}>
+    <span class="label-text">Highlight searchterms</span>
+  </label>
+  <label class="label cursor-pointer justify-start gap-3">
+    <input type="checkbox"
+           class="checkbox checkbox-sm"
+           name="show_week_chart"
+           value="true"
+           disabled
+           hx-post="{{ url_for('user.settings') }}"
+           hx-trigger="change"
+           {% if show_week_chart %}checked{% endif %}>
+    <span class="label-text">Show charts</span>
+  </label>
+  <label class="label cursor-pointer justify-start gap-3">
+    <input type="checkbox"
+           class="checkbox checkbox-sm"
+           name="compact_view"
+           value="true"
+           hx-post="{{ url_for('user.settings') }}"
+           hx-trigger="change"
+           hx-on::after-swap="window.location.reload()"
+           {% if compact_view %}checked{% endif %}>
+    <span class="label-text">Compact view</span>
+  </label>
+</section>
+
+<div class="divider"></div>
+<div class="space-y-3">
+  <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
+    {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
+    Reset filters
+    <span class="text-xs">
+      <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
+    </span>
+  </a>
+  <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.create_news_item', news_item_id='0') }}">
+    {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
+    Create new item
+  </a>
+</div>
+
+<div class="divider mb-0"></div>
+{% include "partials/keyboard_hint.html" %}
 </div>

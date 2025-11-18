@@ -2,9 +2,9 @@
   "nodeModulesDir": "auto",
   "imports": {
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.1.17",
-    "alpinejs": "npm:alpinejs@^3.15.1",
+    "alpinejs": "npm:alpinejs@^3.15.2",
     "choices.js": "npm:choices.js@^11.1.0",
-    "daisyui": "npm:daisyui@^5.5.0",
+    "daisyui": "npm:daisyui@^5.5.5",
     "fuse.js": "npm:fuse.js@^7.1.0",
     "highlight-search-term": "npm:highlight-search-term@^1.0.3",
     "htmx-ext-response-targets": "npm:htmx-ext-response-targets@^2.0.4",
@@ -13,7 +13,7 @@
     "sweetalert2": "npm:sweetalert2@^11.26.3",
     "tailwindcss": "npm:tailwindcss@^4.1.17",
     "@codemirror/state": "npm:@codemirror/state@^6.5.2",
-    "@codemirror/view": "npm:@codemirror/view@^6.38.6",
+    "@codemirror/view": "npm:@codemirror/view@^6.38.8",
     "@codemirror/commands": "npm:@codemirror/commands@^6.10.0",
     "@codemirror/language": "npm:@codemirror/language@^6.11.3",
     "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.2"
