@@ -125,22 +125,27 @@ document.addEventListener('htmx:afterSwap', function (event) {
 
     <div class="divider text-xs">Filter</div>
     <section class="space-y-4">
-      <div>
-        <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets">
-          {% for preset in quick_ranges %}
-            {% set input_id = 'quick-range-' ~ preset.value %}
-            <label class="cursor-pointer">
-              <span class="label-text text-sm">{{ preset.label }}</span>
-              <input id="{{ input_id }}"
-                     type="radio"
-                     name="range"
-                     value="{{ preset.value }}"
-                     class="radio"
-                     hx-trigger="change"
-                     {% if current_preset == preset.value %}checked{% endif %}>
-            </label>
-          {% endfor %}
-        </div>
+      <button type="button"
+              class="btn btn-outline btn-sm mb-2 w-full"
+              title="Clear time filters"
+              hx-get="{{ base_url }}"
+              hx-params="remove:timefrom,timeto,range"
+              hx-target="#assess"
+              hx-swap="outerHTML">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
+      <div class="mt-2 flex w-full flex-wrap gap-2" role="radiogroup" aria-label="Time presets">
+        {% for preset in quick_ranges %}
+          {% set input_id = 'quick-range-' ~ preset.value %}
+          <label class="cursor-pointer">
+            <span class="label-text text-sm">{{ preset.label }}</span>
+            <input id="{{ input_id }}"
+                   type="radio"
+                   name="range"
+                   value="{{ preset.value }}"
+                   class="radio"
+                   hx-trigger="change"
+                   {% if current_preset == preset.value %}checked{% endif %}>
+          </label>
+        {% endfor %}
       </div>
       <div class="grid grid-cols-1 gap-3">
         <label class="input w-full p-1">
