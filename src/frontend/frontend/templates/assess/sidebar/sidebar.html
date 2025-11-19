@@ -242,17 +242,6 @@ document.addEventListener('htmx:afterSwap', function (event) {
   <label class="label cursor-pointer justify-start gap-3">
     <input type="checkbox"
            class="checkbox checkbox-sm"
-           name="show_week_chart"
-           value="true"
-           disabled
-           hx-post="{{ url_for('user.settings') }}"
-           hx-trigger="change"
-           {% if show_week_chart %}checked{% endif %}>
-    <span class="label-text">Show charts</span>
-  </label>
-  <label class="label cursor-pointer justify-start gap-3">
-    <input type="checkbox"
-           class="checkbox checkbox-sm"
            name="compact_view"
            value="true"
            hx-post="{{ url_for('user.settings') }}"
@@ -263,7 +252,6 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </label>
 </section>
 
-<div class="divider"></div>
 <div class="space-y-3">
   <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
     {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
@@ -278,6 +266,5 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </a>
 </div>
 
-<div class="divider mb-0"></div>
 {% include "partials/keyboard_hint.html" %}
 </div>

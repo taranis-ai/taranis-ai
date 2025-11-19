@@ -49,7 +49,7 @@
           }'
           x-effect="clearSuggestionsIfNeeded()">
 {# djlint:on #}
-<div class="dropdown w-full" :class="{'dropdown-open': hasQuery()}">
+<div class="dropdown w-full mb-1" :class="{'dropdown-open': hasQuery()}">
   <label class="input input-bordered input-sm flex items-center gap-2">
     {{ heroicon_outline('tag', class='h-4 w-4 text-base-content/70') }}
     <input type="search"

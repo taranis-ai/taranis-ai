@@ -1,14 +1,15 @@
 import base64
+from datetime import datetime
 from typing import Any
+
 import filetype
 from flask import render_template, url_for
-from jinja2 import pass_context
 from heroicons.jinja import heroicon_outline
+from jinja2 import pass_context
 from markupsafe import Markup, escape
-from datetime import datetime
-
 from models.admin import OSINTSource
 from models.assess import Story
+
 
 __all__ = [
     "human_readable_trigger",

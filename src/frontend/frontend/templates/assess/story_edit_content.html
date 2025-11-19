@@ -266,61 +266,7 @@
 
       {% if story.news_items %}
         <div class="space-y-4">
-          {% for item in story.news_items %}
-            {% set human_status = None %}
-            {% set bot_status = None %}
-            {% for attr in item.attributes or [] %}
-              {% if attr.key == "cybersecurity_human" %}
-                {% set human_status = attr.value %}
-              {% elif attr.key == "cybersecurity_bot" %}
-                {% set bot_status = attr.value %}
-              {% endif %}
-            {% endfor %}
-            {% if human_status %}
-              {% set status_value = human_status %}
-              {% set status_source = "Human" %}
-            {% elif bot_status %}
-              {% set status_value = bot_status %}
-              {% set status_source = "AI" %}
-            {% else %}
-              {% set status_value = None %}
-              {% set status_source = None %}
-            {% endif %}
-
-            <article class="rounded-xl border border-base-200 bg-base-200/30 p-4 space-y-3">
-              <header class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div class="space-y-1">
-                  <h4 class="text-lg font-semibold leading-tight">{{ item.title or "Untitled news item" }}</h4>
-                  <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-sm inline-flex items-center gap-1">
-                    <span>{{ item.link }}</span>
-                    {{ heroicon_mini("arrow-top-right-on-square") }}
-                  </a>
-                  <p class="text-xs text-base-content/60">
-                    {% if item.source %}{{ item.source }}{% endif %}
-                  </p>
-                </div>
-              </header>
-
-              {% if item.content %}
-                <p class="text-sm text-base-content/80 line-clamp-5">{{ item.content }}</p>
-              {% elif item.review %}
-                <p class="text-sm text-base-content/80 line-clamp-5">{{ item.review }}</p>
-              {% endif %}
-
-              <footer class="flex flex-wrap gap-2 text-xs text-base-content/60">
-                {% if status_value %}
-                  <span class="badge {% if status_value == 'yes' %}badge-success{% elif status_value == 'no' %}badge-error{% else %}badge-outline{% endif %}">
-                    Classified · {{ status_value }}
-                    {% if status_source %}({{ status_source }}){% endif %}
-                  </span>
-                {% endif %}
-                {% if item.author %}<span class="badge badge-outline">Author · {{ item.author }}</span>{% endif %}
-                {% if item.collected %}<span class="badge badge-outline">Collected · {{ item.collected | format_datetime }}</span>{% endif %}
-                {% if item.published %}<span class="badge badge-outline">Published · {{ item.published | format_datetime }}</span>{% endif %}
-              </footer>
-            </article>
-            {{ news_item_card(item) }}
-          {% endfor %}
+          {% for item in story.news_items %}{{ news_item_card(item) }}{% endfor %}
         </div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
