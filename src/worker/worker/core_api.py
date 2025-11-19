@@ -59,6 +59,40 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
+    def get_all_osint_sources(self) -> list[dict] | None:
+        """Get all OSINT sources from the Core API.
+        
+        Returns:
+            List of source dictionaries, or None if the request fails
+        """
+        try:
+            response = self.api_get("/worker/osint-sources")
+            if response and "sources" in response:
+                return response["sources"]
+            return None
+        except Exception:
+            logger.exception("Can't get all OSINT sources")
+            return None
+
+    def get_all_bots(self) -> list[dict] | None:
+        """Get all bots from the Core API.
+        
+        Returns:
+            List of bot dictionaries, or None if the request fails
+        """
+        try:
+            response = self.api_get("/worker/bots")
+            # API returns {"items": [...]} format
+            if response and isinstance(response, dict) and "items" in response:
+                return response["items"]
+            # Fallback for direct list format (backwards compatibility)
+            if response and isinstance(response, list):
+                return response
+            return None
+        except Exception:
+            logger.exception("Can't get all bots")
+            return None
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
