@@ -65,8 +65,14 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
-    def get(self, source_id: str):
+    def get(self, source_id: str | None = None):
         try:
+            # Get all sources (for cron scheduler)
+            if source_id is None:
+                sources = OSINTSource.get_all_for_collector()
+                return {"sources": [source.to_worker_dict() for source in sources]}, 200
+            
+            # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
@@ -262,6 +268,7 @@ class TaskResults(MethodView):
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
