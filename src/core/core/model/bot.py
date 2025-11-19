@@ -10,7 +10,6 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
-from core.managers import queue_manager
 from core.model.task import Task as TaskModel
 
 
@@ -59,8 +58,6 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
-        bot.unschedule_bot()
-        bot.schedule_bot()
         return bot
 
     @classmethod
@@ -109,36 +106,9 @@ class Bot(BaseModel):
             return {"error": "Bot not found"}, 404
 
         TaskModel.delete(bot.task_id)
-        bot.unschedule_bot()
         db.session.delete(bot)
         db.session.commit()
         return {"message": f"Bot {bot.name} deleted"}, 200
-
-    def schedule_bot(self):
-        """Schedule this bot using RQ"""
-        if crontab_str := self.get_schedule():
-            # Cancel any existing scheduled job
-            queue_manager.queue_manager.cancel_job(self.task_id)
-
-            # Schedule the next run using cron expression
-            if queue_manager.queue_manager.schedule_cron_task(
-                "bots",
-                "bot_task",
-                crontab_str,
-                self.id,
-                job_id=self.task_id
-            ):
-                logger.info(f"Schedule for bot {self.id} updated with cron: {crontab_str}")
-                return {"message": f"Schedule for bot {self.id} updated"}, 200
-            return {"error": "Failed to schedule bot"}, 500
-        return {"message": "Bot has no refresh interval"}, 200
-
-    def unschedule_bot(self):
-        """Cancel scheduled execution for this bot"""
-        if queue_manager.queue_manager.cancel_job(self.task_id):
-            logger.info(f"Schedule for bot {self.id} removed")
-            return {"message": f"Schedule for bot {self.id} removed"}, 200
-        return {"message": f"No schedule found for bot {self.id}", "id": self.task_id}, 200
 
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")

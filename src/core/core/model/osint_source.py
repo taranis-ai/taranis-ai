@@ -8,7 +8,6 @@ from sqlalchemy.sql import Select
 from sqlalchemy import and_, cast, String, literal, func
 
 from core.managers.db_manager import db
-from core.managers import queue_manager
 from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
@@ -255,7 +254,12 @@ class OSINTSource(BaseModel):
         logger.info(f"Scheduling for {len(sources)} OSINT Sources completed")
 
     def schedule_osint_source(self):
-        """Schedule this OSINT source collection using RQ"""
+        """Schedule this OSINT source collection using RQ
+        
+        Note: The actual scheduling is done by the RQ cron scheduler process.
+        This method just validates that the source can be scheduled.
+        The cron scheduler automatically picks up enabled sources from the database.
+        """
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
@@ -265,32 +269,17 @@ class OSINTSource(BaseModel):
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
         cron_schedule = self.get_schedule()
-        logger.info(f"Scheduling source {self.name} (id={self.id}, type={self.type}) with cron: {cron_schedule}")
-
-        # Cancel any existing scheduled job
-        queue_manager.queue_manager.cancel_job(self.task_id)
-
-        # Schedule the next run using cron expression
-        # Pass both osint_source_id and manual=False explicitly
-        if queue_manager.queue_manager.schedule_cron_task(
-            "collectors",
-            "collector_task",
-            cron_schedule,
-            self.id,
-            False,  # manual=False for scheduled collection
-            job_id=self.task_id
-        ):
-            logger.info(f"Schedule for source {self.id} updated - next run scheduled at job_id={self.task_id}")
-            return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
-
-        return {"error": "Failed to schedule source"}, 500
+        logger.info(f"Source {self.name} has schedule: {cron_schedule}. Cron scheduler will pick it up automatically.")
+        return {"message": f"Source {self.name} will be scheduled by cron scheduler", "id": f"{self.id}"}, 200
 
     def unschedule_osint_source(self):
-        """Cancel scheduled collection for this OSINT source"""
-        if queue_manager.queue_manager.cancel_job(self.task_id):
-            logger.info(f"Schedule for source {self.id} removed")
-            return {"message": f"Schedule for source {self.name} removed", "id": f"{self.id}"}, 200
-        return {"message": f"No schedule found for source {self.name}", "id": f"{self.id}"}, 200
+        """Cancel scheduled collection for this OSINT source
+        
+        Note: The cron scheduler automatically picks up enabled/disabled state from the database.
+        If the source is disabled, it won't be scheduled. No explicit unscheduling needed.
+        """
+        logger.info(f"Source {self.name} unscheduling - cron scheduler will stop scheduling it if disabled")
+        return {"message": f"Source {self.name} will not be scheduled if disabled", "id": f"{self.id}"}, 200
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
