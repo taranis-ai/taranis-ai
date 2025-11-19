@@ -3,14 +3,10 @@
 Functions for executing bots to process news items.
 """
 from rq import get_current_job
-from datetime import datetime
-from croniter import croniter
-import redis
 
 import worker.bots
 from worker.log import logger
 from worker.core_api import CoreApi
-from worker.config import Config
 
 
 def bot_task(bot_id: str, filter: dict | None = None):
@@ -39,10 +35,6 @@ def bot_task(bot_id: str, filter: dict | None = None):
     try:
         if bot_config := core_api.get_bot_config(bot_id):
             result = _execute_by_config(bot_config, filter)
-
-            # Re-schedule if this bot is scheduled (has a refresh interval)
-            if not filter and bot_config.get("enabled") and (refresh := bot_config.get("refresh")):
-                _reschedule_bot(bot_id, refresh)
 
             # Save successful result to database
             _save_task_result(task_id, f"bot_{bot_id}", result_message, task_status, core_api)
@@ -101,60 +93,6 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None):
 
     return bot.execute(bot_params)
 
-def _reschedule_bot(bot_id: str, cron_expr: str):
-    """Re-schedule the bot job for next run.
-
-    Fetches the latest configuration from Core API to avoid race conditions
-    where configuration is updated while a job is running.
-
-    Args:
-        bot_id: ID of the bot
-        cron_expr: Fallback cron expression (not used, fresh schedule fetched from Core)
-    """
-    try:
-        from rq import Queue
-        from datetime import timezone
-
-        # Connect to Redis
-        redis_conn = redis.Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
-        queue = Queue("bots", connection=redis_conn)
-
-        # Fetch latest bot configuration from Core API
-        core_api = CoreApi()
-        bot_config = core_api.get_bot_config(bot_id)
-        if not bot_config:
-            logger.error(f"Failed to reschedule: bot {bot_id} not found")
-            return
-
-        # Use fresh schedule from database to avoid race conditions
-        # If configuration was updated during job execution, we use the new schedule
-        fresh_schedule = bot_config.get("refresh")
-        if not fresh_schedule:
-            logger.warning(f"Bot {bot_id} has no schedule, skipping reschedule")
-            return
-
-        # Verify bot is still enabled before rescheduling
-        if not bot_config.get("enabled"):
-            logger.info(f"Bot {bot_id} is disabled, skipping reschedule")
-            return
-
-        # Calculate next run time from fresh cron expression using UTC
-        now_utc = datetime.now(timezone.utc)
-        cron = croniter(fresh_schedule, now_utc)
-        next_run = cron.get_next(datetime)
-
-        # Schedule the task
-        task_id = f"bot_{bot_id}"
-        queue.enqueue_at(
-            next_run,
-            "worker.bots.bot_tasks.bot_task",
-            bot_id,
-            job_id=task_id
-        )
-        logger.debug(f"Rescheduled bot {bot_id} for {next_run} with schedule {fresh_schedule}")
-    except Exception as e:
-        logger.error(f"Failed to reschedule bot {bot_id}: {e}")
-
 
 def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api):
     """Save task result to database via Core API.
@@ -178,4 +116,3 @@ def _save_task_result(job_id: str, task_name: str, result: str, status: str, cor
             logger.debug(f"Saved task result for {task_name}: {status}")
     except Exception as e:
         logger.error(f"Failed to save task result for {task_name}: {e}")
-

@@ -4,16 +4,13 @@ Functions for collecting news from OSINT sources.
 """
 from contextlib import contextmanager
 from rq import get_current_job
-from datetime import datetime
-from croniter import croniter
-import redis
+from typing import Any
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
-from worker.config import Config
-from typing import Any
+
 
 
 @contextmanager
@@ -96,9 +93,6 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 job.meta["status"] = "NOT_MODIFIED"
                 job.meta["message"] = str(e)
                 job.save_meta()
-            # Re-schedule if this was a scheduled job and not manual
-            if not manual and source.get("enabled") and (refresh := source.get("refresh")):
-                _reschedule_collector(osint_source_id, refresh)
 
             # Save task result to database
             if job:
@@ -114,81 +108,16 @@ def collector_task(osint_source_id: str, manual: bool = False):
             if job:
                 _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
 
-            # Re-schedule even on failure if this was a scheduled job
-            if not manual and source.get("enabled") and (refresh := source.get("refresh")):
-                _reschedule_collector(osint_source_id, refresh)
             raise RuntimeError(e) from e
 
     # Run post-collection bots
     core_api.run_post_collection_bots(osint_source_id)
-
-    # Re-schedule if this was a scheduled job and not manual
-    if not manual and source.get("enabled") and (refresh := source.get("refresh")):
-        _reschedule_collector(osint_source_id, refresh)
 
     # Save task result to database
     if job:
         _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
 
     return result_message
-
-
-def _reschedule_collector(osint_source_id: str, cron_expr: str):
-    """Re-schedule the collector job for next run.
-
-    Fetches the latest configuration from Core API to avoid race conditions
-    where configuration is updated while a job is running.
-
-    Args:
-        osint_source_id: ID of the OSINT source
-        cron_expr: Fallback cron expression (not used, fresh schedule fetched from Core)
-    """
-    try:
-        from rq import Queue
-        from datetime import timezone
-
-        # Connect to Redis
-        redis_conn = redis.Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
-        queue = Queue("collectors", connection=redis_conn)
-
-        # Fetch latest source configuration from Core API
-        core_api = CoreApi()
-        source = core_api.get_osint_source(osint_source_id)
-        if not source:
-            logger.error(f"Failed to reschedule: source {osint_source_id} not found")
-            return
-
-        # Use fresh schedule from database to avoid race conditions
-        # If configuration was updated during job execution, we use the new schedule
-        fresh_schedule = source.get("refresh")
-        if not fresh_schedule:
-            logger.warning(f"Source {osint_source_id} has no schedule, skipping reschedule")
-            return
-
-        # Verify source is still enabled before rescheduling
-        if not source.get("enabled"):
-            logger.info(f"Source {osint_source_id} is disabled, skipping reschedule")
-            return
-
-        # Calculate next run time from fresh cron expression using UTC
-        now_utc = datetime.now(timezone.utc)
-        cron = croniter(fresh_schedule, now_utc)
-        next_run = cron.get_next(datetime)
-
-        # Generate task_id matching the format used by core: collect_{type}_{id}
-        task_id = f"collect_{source.get('type')}_{osint_source_id}"
-
-        queue.enqueue_at(
-            next_run,
-            "worker.collectors.collector_tasks.collector_task",
-            osint_source_id,
-            False,  # manual=False for scheduled jobs
-            job_id=task_id
-        )
-        logger.debug(f"Rescheduled collector {osint_source_id} for {next_run} with schedule {fresh_schedule}")
-    except Exception as e:
-        logger.exception(f"Failed to reschedule collector {osint_source_id}: {e}")
-
 
 
 def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api: CoreApi):
