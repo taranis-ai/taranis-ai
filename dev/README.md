@@ -72,7 +72,7 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
-Start a tmux session with 3 panes for the 3 processes:
+Start a tmux session with multiple panes for the different processes:
 
 ```bash
 # Start a new session named taranis with the first tab and cd to src/core
@@ -84,9 +84,17 @@ tmux new-window -t taranis:1 -n frontend -c src/frontend
 # Create the third tab and cd to src/worker
 tmux new-window -t taranis:2 -n worker -c src/worker
 
+# Create the fourth tab for cron scheduler
+tmux new-window -t taranis:3 -n cron -c src/worker
+
+# Create the fifth tab for rq-dashboard (optional, for monitoring)
+tmux new-window -t taranis:4 -n rq-dashboard -c src/worker
+
 # Attach to the session
 tmux attach-session -t taranis
 ```
+
+Or simply run `./dev/start_tmux.sh` which sets up all windows automatically.
 
 In Core Tab:
 
@@ -146,6 +154,50 @@ flask run
 ```
 
 Taranis AI should be reachable on _local.taranis.ai_.
+
+## Development Tools
+
+### RQ Cron Scheduler
+
+The development setup includes an **RQ Cron Scheduler** that automatically enqueues recurring jobs based on database schedules. It:
+
+* Monitors OSINT sources and bots with cron schedules in the database
+* Automatically enqueues collection and bot tasks at their scheduled times
+* Dynamically updates when schedules change (reloads configuration)
+
+When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in window 4.
+
+**Manual start:**
+```bash
+cd src/worker
+uv sync --dev
+uv run python start_cron_scheduler.py
+```
+
+**Updating schedules:**
+When you update a source/bot schedule in the database (via the UI or API):
+1. The change is immediately saved to the database
+2. The cron scheduler will automatically reload and pick up the changes
+3. For immediate updates during development, you can restart the cron scheduler window in tmux (Ctrl+b, then select window 4, Ctrl+C to stop, up arrow and Enter to restart)
+
+### RQ Dashboard
+
+The development setup includes [rq-dashboard](https://github.com/Parallels/rq-dashboard) for monitoring RQ workers and jobs. It provides:
+
+* Real-time view of queues, workers, and jobs
+* Job details including arguments, results, and tracebacks
+* Ability to cancel jobs, requeue failed jobs, and empty queues
+
+When using `./dev/start_tmux.sh`, rq-dashboard is automatically started on port **9181** in window 5.
+
+Access it at: http://localhost:9181
+
+**Manual start:**
+```bash
+cd src/worker
+uv sync --dev
+uv run rq-dashboard --redis-url redis://localhost:6379
+```
 
 ## Technology stack
 
