@@ -1,3 +1,36 @@
+"""Queue Manager for RQ (Redis Queue) task management
+
+This module manages job queues and task scheduling using RQ and Redis.
+
+Architecture:
+------------
+1. Core Application (this module):
+   - Manages RQ queues (collectors, bots, presenters, publishers, etc.)
+   - Enqueues immediate tasks via enqueue_task()
+   - Provides API endpoints for workers to fetch schedules
+
+2. RQ Cron Scheduler (separate process):
+   - Runs as standalone process (src/worker/start_cron_scheduler.py)
+   - Loads cron configuration from worker.cron_config module
+   - Fetches all enabled sources/bots from Core API
+   - Registers cron jobs with RQ using register()
+   - Automatically enqueues jobs at specified cron intervals
+
+3. RQ Workers:
+   - Pick up enqueued jobs from queues
+   - Execute task functions (collectors, bots, etc.)
+   - No self-rescheduling logic needed
+
+Schedule Updates:
+----------------
+When a source/bot schedule is updated:
+1. Changes are saved to the database
+2. The cron scheduler process will pick up changes on its next reload cycle
+3. For immediate updates, restart the cron scheduler process
+
+See: src/worker/worker/cron_config.py for cron job registration logic
+"""
+
 from flask import Flask
 from redis import Redis
 from rq import Queue
@@ -58,30 +91,26 @@ class QueueManager:
         self.update_empty_word_lists()
 
     def reschedule_all(self):
-        """Reschedule all enabled OSINT sources and bots"""
+        """Check enabled sources and bots - cron scheduler will pick them up automatically"""
         if self.error:
             return
         try:
             from core.model.osint_source import OSINTSource
             from core.model.bot import Bot
 
-            # Schedule all enabled OSINT sources
+            # Count enabled sources and bots for logging
             sources = OSINTSource.get_all_for_collector()
-            for source in sources:
-                if source.enabled:
-                    source.schedule_osint_source()
-            logger.info(f"Rescheduled {len(sources)} OSINT sources")
-
-            # Schedule all enabled bots
+            enabled_sources = sum(1 for s in sources if s.enabled and s.get_schedule())
+            
             bots = Bot.get_all_for_collector()
-            scheduled_bots = 0
-            for bot in bots:
-                if bot.enabled and bot.get_schedule():
-                    bot.schedule_bot()
-                    scheduled_bots += 1
-            logger.info(f"Rescheduled {scheduled_bots} bots")
+            enabled_bots = sum(1 for b in bots if b.enabled and b.get_schedule())
+            
+            logger.info(
+                f"Found {enabled_sources} enabled sources and {enabled_bots} enabled bots with schedules. "
+                f"Cron scheduler will automatically pick them up."
+            )
         except Exception as e:
-            logger.error(f"Failed to reschedule sources and bots: {e}")
+            logger.error(f"Failed to check sources and bots: {e}")
 
     def clear_queues(self):
         """Clear all queues on startup"""
@@ -222,39 +251,51 @@ class QueueManager:
             logger.exception(f"Failed to schedule task {task_name}: {e}")
             return False
 
-    def schedule_cron_task(self, queue_name: str, task_name: str, cron_string: str, *args, job_id: str | None = None, **kwargs):
-        """Schedule a task using cron expression"""
-        if self.error:
-            return False
-
-        try:
-            from datetime import timezone
-
-            # Calculate next run time from cron expression
-            # Use UTC timezone-aware datetime for RQ scheduling
-            now_utc = datetime.now(timezone.utc)
-            cron = croniter(cron_string, now_utc)
-            next_run = cron.get_next(datetime)
-
-            logger.info(f"schedule_cron_task: task={task_name}, cron={cron_string}, next_run={next_run}, job_id={job_id}, args={args}")
-            return self.enqueue_at(queue_name, task_name, next_run, *args, job_id=job_id, **kwargs)
-        except Exception as e:
-            logger.error(f"Failed to schedule cron task {task_name}: {e}")
-            return False
-
     def cancel_job(self, job_id: str) -> bool:
-        """Cancel a scheduled or queued job"""
-        if self.error:
+        """Cancel a scheduled or queued job (including cron jobs)
+        
+        This method handles both:
+        1. Cancelling any currently queued/running job instance
+        2. Removing the cron job definition so it won't reschedule
+        
+        Args:
+            job_id: The job ID to cancel
+            
+        Returns:
+            True if at least one (job or cron entry) was cancelled, False if neither existed
+        """
+        if self.error or not self._redis:
             return False
 
+        cancelled = False
+
+        # Try to fetch and cancel any existing job instance
         try:
             job = Job.fetch(job_id, connection=self._redis)
             job.cancel()
             job.delete()
-            return True
+            logger.info(f"Cancelled and deleted job instance {job_id}")
+            cancelled = True
         except Exception as e:
-            logger.debug(f"Failed to cancel job {job_id}: {e}")
-            return False
+            logger.debug(f"No job instance found for {job_id}: {e}")
+            
+        # Also remove from cron scheduler (if it's a recurring cron job)
+        # This prevents the job from being rescheduled automatically
+        try:
+            # RQ stores cron jobs with prefix "rq:cron:"
+            cron_key = f"rq:cron:{job_id}"
+            if self._redis.delete(cron_key):
+                logger.info(f"Removed cron job registration {job_id}")
+                cancelled = True
+            else:
+                logger.debug(f"No cron registration found for {job_id}")
+        except Exception as e:
+            logger.debug(f"Failed to remove cron registration for {job_id}: {e}")
+
+        if not cancelled:
+            logger.warning(f"Job {job_id} not found (neither job instance nor cron registration)")
+            
+        return cancelled
 
     def get_queue_status(self) -> tuple[dict, int]:
         """Get queue status"""
@@ -425,18 +466,26 @@ class QueueManager:
         return fire_times
 
     def get_scheduled_jobs(self) -> tuple[dict, int]:
-        """Get all scheduled jobs across all queues"""
-        if self.error:
+        """Get all scheduled jobs across all queues
+        
+        Returns both:
+        1. Jobs currently in the scheduled registry (enqueued but waiting to run)
+        2. Cron jobs registered with the cron scheduler
+        """
+        if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
 
         try:
             from rq.registry import ScheduledJobRegistry
+            from datetime import datetime
 
             all_jobs = []
+            
+            # 1. Get jobs from scheduled registries (already enqueued, waiting to run)
             for queue_name, queue in self._queues.items():
                 registry = ScheduledJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
-                logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs")
+                logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs in registry")
 
                 for job_id in job_ids:
                     try:
@@ -446,12 +495,7 @@ class QueueManager:
 
                         logger.debug(f"Job {job_id}: func={job.func_name}, scheduled_time={scheduled_time}")
 
-                        # scheduled_time is a datetime object from RQ, not a timestamp
-                        if scheduled_time:
-                            from datetime import datetime
-                            scheduled_for = scheduled_time.isoformat() if isinstance(scheduled_time, datetime) else None
-                        else:
-                            scheduled_for = None
+                        scheduled_for = scheduled_time.isoformat() if isinstance(scheduled_time, datetime) else None
 
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
@@ -461,10 +505,76 @@ class QueueManager:
                             "name": job_name,
                             "queue": queue_name,
                             "next_run_time": scheduled_for,
+                            "type": "scheduled"
                         })
                     except Exception as e:
                         logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
                         continue
+
+            # 2. Get cron schedules from database (since cron jobs are in scheduler's memory)
+            try:
+                # Check if any cron schedulers are active
+                scheduler_names = self._redis.zrange('rq:cron_schedulers', 0, -1)  # type: ignore
+                scheduler_count = len(scheduler_names) if scheduler_names else 0  # type: ignore
+                
+                if scheduler_count > 0:
+                    logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
+                    
+                    # Import here to avoid circular dependencies
+                    from core.model.osint_source import OSINTSource
+                    from core.model.bot import Bot
+                    from datetime import datetime
+                    from croniter import croniter
+                    
+                    # Get all enabled sources with schedules
+                    sources = OSINTSource.get_all_for_collector()
+                    for source in sources:
+                        if source.enabled and (cron_schedule := source.get_schedule()):
+                            try:
+                                # Calculate next run time
+                                now = datetime.now()
+                                cron = croniter(cron_schedule, now)
+                                next_run = cron.get_next(datetime)
+                                
+                                all_jobs.append({
+                                    "id": f"cron_collector_{source.id}",
+                                    "name": f"Collector: {source.name}",
+                                    "queue": "collectors",
+                                    "next_run_time": next_run.isoformat(),
+                                    "schedule": cron_schedule,
+                                    "type": "cron",
+                                    "source_id": source.id
+                                })
+                            except Exception as e:
+                                logger.error(f"Failed to calculate next run for source {source.id}: {e}")
+                    
+                    # Get all enabled bots with schedules
+                    bots = Bot.get_all_for_collector()
+                    for bot in bots:
+                        if bot.enabled and (cron_schedule := bot.get_schedule()):
+                            try:
+                                # Calculate next run time
+                                now = datetime.now()
+                                cron = croniter(cron_schedule, now)
+                                next_run = cron.get_next(datetime)
+                                
+                                all_jobs.append({
+                                    "id": f"cron_bot_{bot.id}",
+                                    "name": f"Bot: {bot.name}",
+                                    "queue": "bots",
+                                    "next_run_time": next_run.isoformat(),
+                                    "schedule": cron_schedule,
+                                    "type": "cron",
+                                    "bot_id": bot.id
+                                })
+                            except Exception as e:
+                                logger.error(f"Failed to calculate next run for bot {bot.id}: {e}")
+                else:
+                    logger.info("No active cron schedulers found")
+                        
+            except Exception as e:
+                logger.warning(f"Failed to fetch cron schedules: {e}")
+                # Don't fail the whole request if cron scheduler is not available
 
             logger.info(f"get_scheduled_jobs: returning {len(all_jobs)} total jobs")
             return {"items": all_jobs, "total_count": len(all_jobs)}, 200
