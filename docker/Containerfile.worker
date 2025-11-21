@@ -1,4 +1,4 @@
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app/
@@ -24,7 +24,7 @@ RUN uv venv && \
     playwright install --with-deps --only-shell chromium
 
 
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim
 
 LABEL description="Taranis AI Python Celery Worker"
 
@@ -33,7 +33,8 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
       libpango-1.0-0 \
-      libpangoft2-1.0-0
+      libpangoft2-1.0-0 \
+      libnspr4
 
 
 RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
