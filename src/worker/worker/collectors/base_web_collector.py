@@ -109,7 +109,7 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime] | tuple[Literal[""], None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
@@ -118,10 +118,8 @@ class BaseWebCollector(BaseCollector):
         if not response.text:
             return "", None
 
-        if published_date := self.get_last_modified(response):
-            return response.text, published_date
-
-        return "", None
+        published_date = self.get_last_modified(response)
+        return response.text, published_date
 
     def xpath_extraction(self, html_content: str, xpath: str, get_content: bool = True) -> str | None:
         logger.info(f"Attempting extraction for xpath: {xpath}")
