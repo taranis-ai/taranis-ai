@@ -19,6 +19,13 @@ import {
   syntaxHighlighting,
 } from "npm:@codemirror/language";
 import { jinja2 } from "npm:@codemirror/legacy-modes/mode/jinja2";
+import { basicSetup } from "codemirror";
+import { unifiedMergeView } from "@codemirror/merge";
+
+window.EditorView = EditorView;
+window.EditorState = EditorState;
+window.basicSetup = basicSetup;
+
 
 const DEFAULT_OPTIONS = {
   language: StreamLanguage.define(jinja2),
@@ -148,4 +155,30 @@ function mount({ textarea, parent, options = {} }) {
   };
 }
 
-window.TemplateEditor = { mount };
+function mountUnifiedMerge({ parent, originalDoc, newDoc, options = {} }) {
+  if (!parent) return null;
+
+  parent.innerHTML = "";
+  parent.classList.remove("hidden");
+
+  const view = new window.EditorView({
+    doc: newDoc,
+    extensions: [
+      window.basicSetup,
+      unifiedMergeView({
+        original: originalDoc,
+        highlightChanges: true,
+        gutter: true,
+        allowInlineDiffs: true,
+        mergeControls: true,
+        collapseUnchanged: { margin: 3, minSize: 4 },
+        ...options
+      })
+    ],
+    parent: parent,
+  });
+
+  return view;
+}
+
+window.TemplateEditor = { mount, mountUnifiedMerge };

@@ -11,8 +11,8 @@ from core.model.user import User
 @dataclass
 class StoryConflict:
     story_id: str
-    original: str
-    updated: str
+    existing_story: str
+    incoming_story: str
     has_proposals: str | None = None
     conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
 
@@ -20,7 +20,7 @@ class StoryConflict:
         from core.model.story import Story
 
         try:
-            updated_data: dict[str, Any] = json.loads(self.updated)
+            updated_data: dict[str, Any] = json.loads(self.incoming_story)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse updated data for story {self.story_id}: {e}")
             return {"error": "Updated data is not valid JSON", "id": self.story_id}, 400

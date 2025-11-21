@@ -20,17 +20,17 @@ class StoryConflicts(MethodView):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
                 return {
-                    "storyId": conflict.story_id,
-                    "original": conflict.original,
-                    "updated": conflict.updated,
-                    "hasProposals": conflict.has_proposals,
+                    "story_id": conflict.story_id,
+                    "existing_story": conflict.existing_story,
+                    "incoming_story": conflict.incoming_story,
+                    "has_proposals": conflict.has_proposals,
                 }, 200
         conflicts = [
             {
-                "storyId": conflict.story_id,
-                "original": conflict.original,
-                "updated": conflict.updated,
-                "hasProposals": conflict.has_proposals,
+                "story_id": conflict.story_id,
+                "existing_story": conflict.existing_story,
+                "incoming_story": conflict.incoming_story,
+                "has_proposals": conflict.has_proposals,
             }
             for conflict in StoryConflict.conflict_store.values()
         ]

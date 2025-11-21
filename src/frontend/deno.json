@@ -15,8 +15,9 @@
     "@codemirror/view": "npm:@codemirror/view@^6.38.6",
     "@codemirror/commands": "npm:@codemirror/commands@^6.10.0",
     "@codemirror/language": "npm:@codemirror/language@^6.11.3",
-    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.2"
-  },
+    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.2",
+    "@codemirror/merge": "npm:@codemirror/merge@^6.3.0",
+    "codemirror": "npm:codemirror@^6.0.0"  },
   "tasks": {
     "tw:build": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify",
     "tw:watch": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",

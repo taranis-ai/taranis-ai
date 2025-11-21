@@ -27,3 +27,4 @@ if (typeof Alpine.start === "function") {
     Alpine.start();
   }
 }
+console.log("Alpine version:", Alpine.version);

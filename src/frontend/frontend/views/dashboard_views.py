@@ -1,11 +1,11 @@
-from flask import render_template, abort, request
+from flask import json, render_template, abort, request
 from flask_jwt_extended import current_user
 import plotly.express as px
 import pandas as pd
 from werkzeug.wrappers import Response
 
 
-from models.dashboard import Dashboard, TrendingCluster, Cluster
+from models.dashboard import Dashboard, TrendingCluster, Cluster, StoryConflict
 from models.user import ProfileSettingsDashboard
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
@@ -109,6 +109,61 @@ class DashboardView(BaseView):
             trending_clusters = []
 
         return render_template("dashboard/edit.html", dashboard=current_user.profile.dashboard, clusters=trending_clusters)
+
+    @classmethod
+    @auth_required()
+    def conflict_menu(cls):
+        return render_template("conflicts/conflict_menu.html")
+
+    @classmethod
+    @auth_required()
+    def story_conflict_view(cls):
+        result = CoreApi().get_story_conflicts()
+        if result is None:
+            return render_template("errors/404.html", error="No story conflicts found"), 404
+        conflict_list = []
+        conflict_list.extend(StoryConflict(**conflict) for conflict in result.get("conflicts", []))
+        logger.debug(f"Story conflict result: {result=}")
+        return render_template("conflicts/story_conflicts.html", story_conflicts=conflict_list)
+
+    @classmethod
+    @auth_required()
+    def news_item_conflict_view(cls):
+        return render_template("conflicts/news_item_conflicts.html")
+
+    @classmethod
+    @auth_required("ASSESS_UPDATE")
+    def resolve_story_conflict(cls, story_id: str):
+        resolved = request.form.get("resolved_story")
+        incoming_original = request.form.get("incoming_original")
+
+        if not resolved:
+            return Response("Missing resolved_story", 400)
+
+        try:
+            resolved_json = json.loads(resolved)
+        except Exception:
+            return Response("Invalid JSON in resolved_story", 400)
+
+        try:
+            incoming_json = json.loads(incoming_original) if incoming_original else {}
+        except Exception:
+            incoming_json = {}
+
+        api = CoreApi()
+        resp = api.resolve_story_conflict(
+            story_id=story_id,
+            resolution=resolved_json,
+            incoming_story_original=incoming_json,
+        )
+
+        if not resp.ok:
+            return Response(f"Error resolving conflict: {resp.text}", resp.status_code)
+
+        result = api.get_story_conflicts()
+        conflict_list = [StoryConflict(**c) for c in result.get("conflicts", [])]
+
+        return render_template("conflicts/story_conflicts.html", story_conflicts=conflict_list)
 
     @classmethod
     def get_build_info(cls):

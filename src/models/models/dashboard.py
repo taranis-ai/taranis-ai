@@ -38,3 +38,25 @@ class Cluster(TaranisBaseModel):
 
     name: str
     size: int | None = None
+
+
+class StoryConflict(TaranisBaseModel):
+    _core_endpoint = "connectors/conflicts/story-conflicts"
+    _cache_timeout = 5
+    _model_name = "story_conflicts"
+    _pretty_name = "Story Conflicts"
+
+    story_id: str
+    existing_story: str
+    incoming_story: str
+    has_proposals: str | None = None
+
+
+class NewsItemConflict(TaranisBaseModel):
+    _core_endpoint = "/dashboard/news-item-conflicts"
+    _cache_timeout = 5
+    _model_name = "news_conflicts"
+    _pretty_name = "News Conflicts"
+
+    news_item_id: str
+    conflict_count: int | None = None

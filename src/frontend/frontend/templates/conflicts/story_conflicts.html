@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock head %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold p-6">Story Conflicts</h1>
+
+  <div id="story-conflicts-wrapper" class="p-6 space-y-6">
+    {% if not story_conflicts %}<p>No conflicts found.</p>{% endif %}
+
+    {% for sc in story_conflicts %}
+      <div x-data="{ open: false }" class="border rounded-lg bg-base-200 shadow">
+
+        <div class="flex justify-between items-center p-4 cursor-pointer bg-base-300" @click="open = !open">
+          <div>
+            <h2 class="font-bold text-lg">Story ID: {{ sc.story_id }}</h2>
+            <p class="text-sm opacity-70">
+              {% if sc.has_proposals %}
+                Has proposals {{ sc.has_proposals }}
+              {% else %}
+                No proposals
+              {% endif %}
+            </p>
+          </div>
+
+          <div>
+            <svg x-show="!open" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <svg x-show="open" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+            </svg>
+          </div>
+        </div>
+
+        <div x-show="open" class="p-4 space-y-4">
+
+          <div id="merge-editor-{{ loop.index }}" class="w-full min-h-[60vh] bg-base-100"></div>
+
+          <script>
+            window.incomingStory{{ loop.index }} = {{ sc.incoming_story | tojson | safe }};
+            window.existingStory{{ loop.index }} = {{ sc.existing_story | tojson | safe }};
+          </script>
+
+          <script>
+            document.addEventListener('DOMContentLoaded', () => {
+              const view = TemplateEditor.mountUnifiedMerge({
+                parent: document.getElementById("merge-editor-{{ loop.index }}"),
+                originalDoc: window.existingStory{{ loop.index }},
+                newDoc: window.incomingStory{{ loop.index }},
+              });
+
+              window["mergeEditor{{ loop.index }}"] = view;
+            });
+          </script>
+
+          <form hx-post="{{ url_for('base.story_conflict_resolve', story_id=sc.story_id) }}"
+                hx-trigger="submit"
+                hx-target="#story-conflicts-wrapper"
+                hx-swap="innerHTML"
+                onsubmit=" document.getElementById('resolved-{{ loop.index }}').value = window['mergeEditor{{ loop.index }}'].state.doc.toString(); document.getElementById('incoming-original-{{ loop.index }}').value = JSON.stringify(window.incomingStory{{ loop.index }}); ">
+            <input type="hidden" id="resolved-{{ loop.index }}" name="resolved_story">
+            <input type="hidden" id="incoming-original-{{ loop.index }}" name="incoming_original">
+
+            <button class="btn btn-primary">Submit Resolution</button>
+          </form>
+
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+{% endblock content %}

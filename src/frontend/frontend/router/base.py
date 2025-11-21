@@ -82,6 +82,16 @@ def init(app: Flask):
     app.add_url_rule("/favicon.ico", view_func=FaviconView.as_view("favicon_base"))
 
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
+    base_bp.add_url_rule("/conflicts/menu", view_func=DashboardView.conflict_menu, methods=["GET"], endpoint="conflict_menu")
+    base_bp.add_url_rule("/conflicts/story", view_func=DashboardView.story_conflict_view, methods=["GET"], endpoint="story_conflicts")
+    base_bp.add_url_rule("/conflicts/news", view_func=DashboardView.news_item_conflict_view, methods=["GET"], endpoint="news_conflicts")
+    base_bp.add_url_rule(
+        "/conflicts/story/<string:story_id>/resolve",
+        view_func=DashboardView.resolve_story_conflict,
+        methods=["POST"],
+        endpoint="story_conflict_resolve",
+    )
+
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
 
