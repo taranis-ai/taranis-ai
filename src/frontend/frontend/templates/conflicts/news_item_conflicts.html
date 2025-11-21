@@ -2,105 +2,102 @@
 
 {% block head %}
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- HTMX and JSON extension must use `type="module"` for HTMX 2.x to work with extensions -->
+  <script src="https://unpkg.com/htmx.org@2.0.8" type="module"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js" type="module"></script>
 {% endblock head %}
 
 {% block content %}
-  {% from "macros/news_item_conflict.html" import render_news_item %}
+  MARKER: {{ template_marker }}
 
   <h1 class="text-2xl font-bold p-6">News Item Conflicts</h1>
 
   <div id="newsitem-conflicts-wrapper" class="p-6 space-y-6">
 
-    {% if grouped_conflicts|length == 0 %}<p>No news item conflicts found.</p>{% endif %}
-
     {% for incoming_story_id, conflict_group in grouped_conflicts.items() %}
+      <p>Type: {{ incoming_ids[incoming_story_id].__class__.__name__ }}</p>
+      <p>Value: {{ incoming_ids[incoming_story_id] }}</p>
 
-      <div x-data="{ isOpen: false }" class="border rounded-lg bg-base-200 shadow">
+      <script type="application/json" id="payload-{{ incoming_story_id }}">
+        {{ {
+          "incomingStoryId": incoming_story_id,
+          "incomingStory": conflict_group.incoming_story,
+          "existingStoryIds": conflict_group.internal_stories | map(attribute='story_id') | list,
+          "incomingNewsItemIds": incoming_ids[incoming_story_id] | list,
+          "remainingStories": remaining_stories | map(attribute='id') | list
+        } | tojson }}
+      </script>
 
-        <!-- Header -->
+      <div x-data="{ isOpen: false }" class="border rounded-lg bg-base-200 shadow" hx-ext="json-enc">
         <div class="p-4 bg-base-300 flex justify-between items-center cursor-pointer" @click="isOpen = !isOpen">
-
           <div>
             <h2 class="font-bold text-lg">Incoming Story — ID: {{ incoming_story_id }}</h2>
-
             <p class="text-sm opacity-70">{{ conflict_group.incoming_story.title or "Untitled" }}</p>
           </div>
 
           <svg x-show="!isOpen" class="w-6 h-6" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-
           <svg x-show="isOpen" class="w-6 h-6" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
           </svg>
         </div>
 
-        <!-- Body -->
         <div x-show="isOpen" class="p-6 space-y-6">
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <!-- Incoming Story Column -->
             <div class="border rounded-lg p-4 bg-base-100 shadow">
-
               <h3 class="font-semibold text-lg">Incoming Story</h3>
               <p class="text-xs opacity-70">ID: {{ incoming_story_id }}</p>
-
-              <h4 class="font-semibold mt-3">{{ conflict_group.incoming_story.title or "Untitled" }}</h4>
-
               <ul class="list-disc pl-6 mt-2 space-y-1">
-                {% for item in conflict_group.incoming_story.news_items %}
-                  {{ render_news_item(item,
-                                    is_duplicate_incoming=item.id in duplicate_incoming_ids,
-                                    is_existing=False) }}
-                {% endfor %}
+                {% for item in conflict_group.incoming_story.news_items %}<li>{{ item.title }}</li>{% endfor %}
               </ul>
-
             </div>
 
-            <!-- Internal Stories Column -->
             <div class="space-y-4">
-
               {% for internal in conflict_group.internal_stories %}
                 <div class="border rounded-lg p-4 bg-base-100 shadow">
-
                   <h3 class="font-semibold text-lg">Internal Story</h3>
                   <p class="text-xs opacity-70">ID: {{ internal.story_id }}</p>
 
                   {% set summary = internal.summary %}
-
                   {% if summary %}
                     <h4 class="font-semibold mt-3">
                       <a href="{{ url_for('assess.story', story_id=internal.story_id) }}" class="text-primary hover:underline">{{ summary.title }}</a>
                     </h4>
-
-                    <p class="text-xs mt-1 opacity-75">{{ summary.news_item_count }} item(s) — Relevance: {{ summary.relevance }}</p>
-
-                    {% if summary.is_misp_story %}<span class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded inline-block mt-1">MISP</span>{% endif %}
-
                     <ul class="list-disc pl-6 mt-3 space-y-1">
-                      {% for item in summary.news_item_data %}
-                        {{ render_news_item(item,
-                                                is_existing=item.id in incoming_ids[incoming_story_id],
-                                                is_duplicate_incoming=False) }}
-                      {% endfor %}
+                      {% for item in summary.news_item_data %}<li>{{ item.title }}</li>{% endfor %}
                     </ul>
-
-                  {% else %}
-                    <p class="italic opacity-70">No summary available for this story.</p>
                   {% endif %}
 
+                  <div class="flex flex-col md:flex-row justify-between mt-6 gap-4">
+
+                    <button class="btn btn-error"
+                            hx-ext="json-enc"
+                            hx-encoding="json"
+                            hx-put="{{ url_for('base.news_conflicts_put') }}"
+                            hx-vals='{{ { "incoming_story_id": incoming_story_id, "resolving_story_id": incoming_story_id, "existing_story_ids": conflict_group.internal_stories | map(attribute="story_id") | list, "incoming_news_item_ids": incoming_ids[incoming_story_id] | list, "remaining_stories": remaining_stories | map(attribute="id") | list } | tojson | safe }}'
+                            hx-target="#newsitem-conflicts-wrapper"
+                            hx-swap="innerHTML">Take Incoming Story (Replace Local)</button>
+
+                    <button class="btn btn-primary"
+                            hx-ext="json-enc"
+                            hx-encoding="json"
+                            hx-post="{{ url_for('base.news_conflicts_post') }}"
+                            hx-vals='{{ { "story_id": internal.story_id, "incoming_story_id": incoming_story_id, "resolved_conflict_item_ids": incoming_ids[incoming_story_id] | list, "remaining_stories": remaining_stories | map(attribute="id") | list } | tojson | safe }}'
+                            hx-target="#newsitem-conflicts-wrapper"
+                            hx-swap="innerHTML">Keep Local Story + Add Unique Items</button>
+
+                  </div>
                 </div>
               {% endfor %}
-
             </div>
-          </div>
 
+          </div>
         </div>
       </div>
 
     {% endfor %}
-
   </div>
-
 {% endblock content %}

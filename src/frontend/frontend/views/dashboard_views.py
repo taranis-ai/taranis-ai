@@ -13,7 +13,6 @@ from frontend.views.base_view import BaseView
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.config import Config
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import cache
 from frontend.utils.router_helpers import convert_query_params
@@ -188,16 +187,43 @@ class DashboardView(BaseView):
                     news_item_occurrences[item["id"]] += 1
 
             duplicate_incoming_ids = {item_id for item_id, count in news_item_occurrences.items() if count > 1}
+            remaining_stories = [group_data["incoming_story"] for group_data in grouped_conflicts.values()]
 
             return render_template(
                 "conflicts/news_item_conflicts.html",
                 grouped_conflicts=grouped_conflicts,
                 incoming_ids=incoming_ids,
                 duplicate_incoming_ids=duplicate_incoming_ids,
+                remaining_stories=remaining_stories,
+                template_marker="USING CORRECT FILE",
             )
+            # return render_template("conflicts/news_item_conflicts.html", template_marker="USING CORRECT FILE")
         except Exception as error:
             logger.exception(f"Failed to render News Item Conflict View: {error}")
             return render_template("errors/404.html", error="No news item conflicts found"), 404
+
+    @staticmethod
+    def _load_incoming_story_snapshot(incoming_story_id: str | None) -> dict | None:
+        if not incoming_story_id:
+            return None
+
+        try:
+            persistence_layer = DataPersistenceLayer()
+            conflict_cache_object = persistence_layer.get_objects(NewsItemConflict)
+            for conflict in conflict_cache_object.items:
+                if conflict.incoming_story_id == incoming_story_id:
+                    return conflict.incoming_story
+        except Exception as exc:
+            logger.exception(f"Failed loading incoming story snapshot for {incoming_story_id}: {exc}")
+        return None
+
+    @staticmethod
+    def _select_news_items(incoming_story: dict, allowed_ids: list[str] | None) -> list[dict]:
+        news_items = incoming_story.get("news_items", [])
+        if not allowed_ids:
+            return news_items
+        allowed_set = set(allowed_ids)
+        return [item for item in news_items if item.get("id") in allowed_set]
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
@@ -234,11 +260,138 @@ class DashboardView(BaseView):
         return render_template("conflicts/story_conflicts.html", story_conflicts=conflict_list)
 
     @classmethod
-    def get_build_info(cls):
-        result = {"build_date": Config.BUILD_DATE.isoformat()}
-        if Config.GIT_INFO:
-            result |= Config.GIT_INFO
-        return result
+    @auth_required("ASSESS_UPDATE")
+    def resolve_news_item_conflict_post(cls):
+        """
+        Keep local story but ingest unique items.
+        Accepts both JSON and form-encoded HTMX data.
+        Includes full debugging output.
+        """
+        try:
+            logger.warning("========== DEBUG: NEWS CONFLICT POST ==========")
+            logger.warning(f"Content-Type: {request.content_type}")
+            logger.warning(f"RAW request.data: {request.data}")
+            logger.warning(f"RAW request.get_data(): {request.get_data()}")
+            logger.warning(f"request.json: {request.json}")
+            logger.warning(f"request.form: {request.form}")
+            logger.warning("================================================")
+
+            # Try JSON first
+            payload = request.get_json(silent=True)
+            logger.warning(f"DEBUG: payload from get_json(): {payload} ({type(payload)})")
+
+            # Fall back to form
+            if not payload:
+                logger.warning("DEBUG: Falling back to form data")
+                form = request.form.to_dict(flat=False)
+                logger.warning(f"DEBUG: Raw form dict: {form}")
+
+                payload = {k: (v[0] if len(v) == 1 else v) for k, v in form.items()}
+
+            logger.warning(f"DEBUG BEFORE NORMALIZATION: {payload}")
+
+            # Normalize fields that must be lists
+            def ensure_list(v):
+                if v is None:
+                    return []
+                if isinstance(v, list):
+                    return v
+                if isinstance(v, str):
+                    if "," in v:
+                        return [x.strip() for x in v.split(",") if x.strip()]
+                    return [v]
+                return [v]
+
+            payload["incoming_story_id"] = payload.get("incoming_story_id") or payload.get("resolving_story_id")
+            payload["news_items"] = ensure_list(payload.get("news_items"))
+            payload["resolved_conflict_item_ids"] = ensure_list(payload.get("resolved_conflict_item_ids"))
+            payload["remaining_stories"] = ensure_list(payload.get("remaining_stories"))
+
+            logger.warning(f"DEBUG AFTER NORMALIZATION: {payload}")
+
+            # Required fields
+            required_fields = [
+                "story_id",
+                "news_items",
+                "resolved_conflict_item_ids",
+                "remaining_stories",
+            ]
+
+            missing = [f for f in required_fields if f not in payload]
+            if missing:
+                logger.error(f"Missing required fields: {missing}")
+                return Response(f"Missing fields: {', '.join(missing)}", 400)
+
+            incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
+            if not incoming_story:
+                logger.error("Unable to load incoming story snapshot for POST payload")
+                return Response("Unable to load incoming story data", 400)
+
+            payload["news_items"] = cls._select_news_items(incoming_story, payload.get("resolved_conflict_item_ids"))
+            payload.pop("incoming_story_id", None)
+
+            # Forward to core API
+            logger.warning(f"DEBUG: Sending payload to Core API: {payload}")
+            api = CoreApi()
+            response = api.api_post("/connectors/conflicts/news-items", json_data=payload)
+
+            if not response.ok:
+                logger.error(f"Core API error: {response.status_code} {response.text}")
+                return Response(response.text, response.status_code)
+
+            logger.warning("DEBUG: Core API returned OK, reloading conflict view")
+            return cls.news_item_conflict_view()
+
+        except Exception as exc:
+            logger.exception(f"Failed POST add-unique-items: {exc}")
+            return Response("Internal error adding unique news items", 500)
+
+    @classmethod
+    @auth_required("ASSESS_UPDATE")
+    def resolve_news_item_conflict_put(cls):
+        """
+        Accept JSON or HTMX form-encoded data.
+        """
+        try:
+            payload = request.get_json(silent=True)
+
+            if not payload:
+                form = request.form.to_dict(flat=False)
+                payload = {key: (value[0] if len(value) == 1 else value) for key, value in form.items()}
+
+            payload["incoming_story_id"] = payload.get("incoming_story_id") or payload.get("resolving_story_id")
+
+            required_fields = [
+                "resolving_story_id",
+                "incoming_story_id",
+                "existing_story_ids",
+                "incoming_news_item_ids",
+                "remaining_stories",
+            ]
+
+            if missing := [f for f in required_fields if f not in payload]:
+                return Response(f"Missing fields: {', '.join(missing)}", 400)
+
+            if not payload.get("incoming_story"):
+                incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
+                if not incoming_story:
+                    logger.error("Unable to load incoming story snapshot for PUT payload")
+                    return Response("Unable to load incoming story data", 400)
+                payload["incoming_story"] = incoming_story
+
+            payload.pop("incoming_story_id", None)
+
+            api = CoreApi()
+            response = api.api_put("/connectors/conflicts/news-items", json_data=payload)
+
+            if not response.ok:
+                return Response(response.text, response.status_code)
+
+            return cls.news_item_conflict_view()
+
+        except Exception as exc:
+            logger.exception(f"Failed PUT news-item conflict resolve: {exc}")
+            return Response("Internal error resolving conflict", 500)
 
     @classmethod
     def render_country_chart(cls, country_data: list[dict]) -> str:
