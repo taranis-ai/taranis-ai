@@ -1,5 +1,6 @@
-from playwright.sync_api import sync_playwright, BrowserContext, TimeoutError
 from urllib.parse import urlparse
+
+from playwright.sync_api import BrowserContext, TimeoutError, sync_playwright
 
 from worker.log import logger
 
@@ -46,7 +47,7 @@ class PlaywrightManager:
             logger.debug("No Playwright to stop")
 
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
-        logger.debug(f"Getting web content with JS for {url} and XPATH {xpath=}")
+        logger.debug(f"Getting web content with JS for {url} - {xpath=}")
         try:
             self.page.goto(url)
 

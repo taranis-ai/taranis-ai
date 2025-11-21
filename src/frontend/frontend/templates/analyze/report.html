@@ -132,6 +132,7 @@
             {% if stories %}
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
+                  {% if not is_edit %}<input type="hidden" name="stories[]" value="{{ story.id }}">{% endif %}
                   {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
                   {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
                 {% endfor %}
