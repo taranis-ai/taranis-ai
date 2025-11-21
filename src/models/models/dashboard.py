@@ -53,10 +53,13 @@ class StoryConflict(TaranisBaseModel):
 
 
 class NewsItemConflict(TaranisBaseModel):
-    _core_endpoint = "/dashboard/news-item-conflicts"
+    _core_endpoint = "/connectors/conflicts/news-items"
     _cache_timeout = 5
-    _model_name = "news_conflicts"
-    _pretty_name = "News Conflicts"
+    _model_name = "news_item_conflict"
+    _pretty_name = "News Item Conflicts"
 
+    incoming_story_id: str
     news_item_id: str
-    conflict_count: int | None = None
+    existing_story_id: str
+    incoming_story: dict
+    misp_address: str | None = None

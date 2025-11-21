@@ -5,7 +5,7 @@ import pandas as pd
 from werkzeug.wrappers import Response
 
 
-from models.dashboard import Dashboard, TrendingCluster, Cluster, StoryConflict
+from models.dashboard import Dashboard, TrendingCluster, Cluster, StoryConflict, NewsItemConflict
 from models.user import ProfileSettingsDashboard
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
@@ -129,7 +129,75 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def news_item_conflict_view(cls):
-        return render_template("conflicts/news_item_conflicts.html")
+        try:
+            persistence_layer = DataPersistenceLayer()
+
+            conflict_cache_object = persistence_layer.get_objects(NewsItemConflict)
+            conflict_records = conflict_cache_object.items
+
+            logger.debug(f"Loaded {len(conflict_records)} news item conflicts.")
+            logger.debug(f"Conflict records: {[conflict.model_dump() for conflict in conflict_records]}")
+
+            internal_story_ids = {conflict.existing_story_id for conflict in conflict_records}
+
+            internal_story_summaries = {}
+
+            for story_id in internal_story_ids:
+                summary_endpoint = f"/connectors/story-summary/{story_id}"
+                summary_cache_key = persistence_layer.make_user_key(summary_endpoint)
+
+                if cached_summary := cache.get(summary_cache_key):
+                    internal_story_summaries[story_id] = cached_summary
+                    continue
+
+                if summary_response := persistence_layer.api.api_get(summary_endpoint):
+                    internal_story_summaries[story_id] = summary_response
+                    cache.set(summary_cache_key, summary_response)
+
+            grouped_conflicts = {}
+
+            for conflict in conflict_records:
+                incoming_id = conflict.incoming_story_id
+
+                if incoming_id not in grouped_conflicts:
+                    grouped_conflicts[incoming_id] = {
+                        "incoming_story": conflict.incoming_story,
+                        "conflict_entries": [],
+                        "internal_stories": [],
+                    }
+
+                grouped_conflicts[incoming_id]["conflict_entries"].append(conflict)
+
+            for group_data in grouped_conflicts.values():
+                internal_ids_for_group = {c.existing_story_id for c in group_data["conflict_entries"]}
+
+                group_data["internal_stories"] = [
+                    {"story_id": story_id, "summary": internal_story_summaries.get(story_id)} for story_id in internal_ids_for_group
+                ]
+            incoming_ids = {
+                incoming_id: {item["id"] for item in group_data["incoming_story"]["news_items"]}
+                for incoming_id, group_data in grouped_conflicts.items()
+            }
+
+            news_item_occurrences = {}
+
+            for group_data in grouped_conflicts.values():
+                for item in group_data["incoming_story"]["news_items"]:
+                    if item["id"] not in news_item_occurrences:
+                        news_item_occurrences[item["id"]] = 0
+                    news_item_occurrences[item["id"]] += 1
+
+            duplicate_incoming_ids = {item_id for item_id, count in news_item_occurrences.items() if count > 1}
+
+            return render_template(
+                "conflicts/news_item_conflicts.html",
+                grouped_conflicts=grouped_conflicts,
+                incoming_ids=incoming_ids,
+                duplicate_incoming_ids=duplicate_incoming_ids,
+            )
+        except Exception as error:
+            logger.exception(f"Failed to render News Item Conflict View: {error}")
+            return render_template("errors/404.html", error="No news item conflicts found"), 404
 
     @classmethod
     @auth_required("ASSESS_UPDATE")

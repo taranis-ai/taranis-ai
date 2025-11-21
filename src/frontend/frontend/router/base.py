@@ -83,8 +83,8 @@ def init(app: Flask):
 
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
     base_bp.add_url_rule("/conflicts/menu", view_func=DashboardView.conflict_menu, methods=["GET"], endpoint="conflict_menu")
-    base_bp.add_url_rule("/conflicts/story", view_func=DashboardView.story_conflict_view, methods=["GET"], endpoint="story_conflicts")
-    base_bp.add_url_rule("/conflicts/news", view_func=DashboardView.news_item_conflict_view, methods=["GET"], endpoint="news_conflicts")
+    base_bp.add_url_rule("/conflicts/stories", view_func=DashboardView.story_conflict_view, methods=["GET"], endpoint="story_conflicts")
+    base_bp.add_url_rule("/conflicts/news-items", view_func=DashboardView.news_item_conflict_view, methods=["GET"], endpoint="news_conflicts")
     base_bp.add_url_rule(
         "/conflicts/story/<string:story_id>/resolve",
         view_func=DashboardView.resolve_story_conflict,

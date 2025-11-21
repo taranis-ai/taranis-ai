@@ -71,7 +71,7 @@ class NewsItemConflicts(MethodView):
             }
             for conflict in NewsItemConflict.conflict_store.values()
         ]
-        return {"conflicts": conflicts}, 200
+        return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
     @validate_json
