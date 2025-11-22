@@ -1,10 +1,13 @@
 import contextlib
-from io import BytesIO
-import paramiko
-from urllib.parse import urlsplit, ParseResult
 from base64 import b64decode
+from io import BytesIO
+from typing import Any
+from urllib.parse import ParseResult, urlsplit
+
+import paramiko
 
 from worker.log import logger
+
 from .base_publisher import BasePublisher
 
 
@@ -18,7 +21,7 @@ class SFTPPublisher(BasePublisher):
         self.name = "SFTP Publisher"
         self.description = "Publisher for publishing to a SFTP server"
 
-    def publish(self, publisher, product, rendered_product):
+    def publish(self, publisher: dict[str, Any], product, rendered_product):
         parameters = publisher.get("parameters", {})
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
@@ -52,20 +55,18 @@ class SFTPPublisher(BasePublisher):
             raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'sftp'")
 
     def parse_private_key(self, private_key: str) -> paramiko.PKey:
-        from paramiko.rsakey import RSAKey
-        from paramiko.dsskey import DSSKey
         from paramiko.ecdsakey import ECDSAKey
         from paramiko.ed25519key import Ed25519Key
+        from paramiko.rsakey import RSAKey
 
-        for pkey_class in (RSAKey, DSSKey, ECDSAKey, Ed25519Key):
+        for pkey_class in (RSAKey, ECDSAKey, Ed25519Key):
             with contextlib.suppress(paramiko.SSHException):
                 return pkey_class.from_private_key(BytesIO(private_key.encode("utf-8")))
 
     def upload_to_sftp(self, server_config: ParseResult, data_to_upload: BytesIO, private_key: paramiko.PKey = None):
         ssh_port = server_config.port or 22
         remote_path = server_config.path + self.file_name
-        if private_key:
-            server_config.password = None
+        connect_password = None if private_key else server_config.password
 
         logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
@@ -74,7 +75,7 @@ class SFTPPublisher(BasePublisher):
             hostname=server_config.hostname,
             port=ssh_port,
             username=server_config.username,
-            password=server_config.password,
+            password=connect_password,
             pkey=private_key,
             look_for_keys=False,
             allow_agent=False,
