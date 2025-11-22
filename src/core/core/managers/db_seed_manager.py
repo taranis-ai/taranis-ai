@@ -1,8 +1,9 @@
 from copy import deepcopy
+
 from sqlalchemy.engine import Engine
 
-from core.log import logger
 from core.config import Config
+from core.log import logger
 from core.managers.db_enum_manager import sync_enum_with_db
 
 
@@ -41,7 +42,8 @@ def pre_seed():
 
 
 def sync_enums(db_engine: Engine):
-    from core.model.worker import WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from models.types import BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES, WORKER_CATEGORY, WORKER_TYPES
+
     from core.model.parameter_value import PARAMETER_TYPES
 
     with db_engine.connect() as connection:
@@ -57,10 +59,10 @@ def sync_enums(db_engine: Engine):
 
 
 def pre_seed_update(db_engine: Engine):
-    from core.managers.pre_seed_data import workers, bots
-    from core.model.worker import Worker
+    from core.managers.pre_seed_data import bots, workers
     from core.model.bot import Bot
     from core.model.settings import Settings
+    from core.model.worker import Worker
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -111,7 +113,7 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
 
 
 def migrate_user_profiles():
-    from core.model.user import User, PROFILE_TEMPLATE
+    from core.model.user import PROFILE_TEMPLATE, User
 
     users = User.get_all_for_collector() or []
     for user in users:
@@ -177,10 +179,10 @@ def pre_seed_manual_source():
 
 
 def pre_seed_workers():
-    from core.managers.pre_seed_data import workers, bots, product_types
+    from core.managers.pre_seed_data import bots, product_types, workers
+    from core.model.bot import Bot
     from core.model.product_type import ProductType
     from core.model.worker import Worker
-    from core.model.bot import Bot
 
     for w in workers:
         Worker.add(w)
@@ -193,15 +195,15 @@ def pre_seed_workers():
 
 
 def pre_seed_permissions():
-    from core.model.permission import Permission
     from core.managers.pre_seed_data import permissions
+    from core.model.permission import Permission
 
     Permission.add_multiple(permissions)
 
 
 def pre_seed_roles():
-    from core.model.role import Role, TLPLevel
     from core.model.permission import Permission
+    from core.model.role import Role, TLPLevel
 
     admin_permissions = Permission.get_all_ids()
     if not Role.filter_by_name("Admin"):
@@ -240,8 +242,8 @@ def pre_seed_roles():
 
 
 def pre_seed_attributes():
-    from core.model.attribute import Attribute
     from core.managers.pre_seed_data import attrs_with_enum
+    from core.model.attribute import Attribute
 
     base_attr = {
         "name": "Text",
@@ -275,8 +277,8 @@ def pre_seed_attributes():
 
 
 def pre_seed_report_items():
-    from core.model.report_item_type import ReportItemType
     from core.managers.pre_seed_data import report_types
+    from core.model.report_item_type import ReportItemType
 
     for report_type in report_types:
         if not ReportItemType.get_by_title(title=report_type["title"]):
@@ -285,8 +287,8 @@ def pre_seed_report_items():
 
 def pre_seed_default_user():
     from core.model.organization import Organization
-    from core.model.user import User
     from core.model.role import Role
+    from core.model.user import User
 
     user_count = User.get_filtered_count(User.get_filter_query({}))
     if user_count > 0:

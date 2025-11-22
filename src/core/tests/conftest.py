@@ -1,10 +1,12 @@
 import contextlib
 import os
 import sys
+from urllib.parse import urlparse
+
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
-from urllib.parse import urlparse
+
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -85,6 +87,7 @@ def session(db):
 @pytest.fixture(scope="session")
 def access_token(app):
     from flask_jwt_extended import create_access_token
+
     from core.model.user import User
 
     with app.app_context():
@@ -116,6 +119,7 @@ def api_header():
 @pytest.fixture(scope="session")
 def access_token_user_permissions(app):
     from flask_jwt_extended import create_access_token
+
     from core.model.user import User
 
     with app.app_context():
@@ -257,9 +261,10 @@ def sample_report_type(app):
 def sample_product_type(app, sample_report_type):
     """Create a sample ProductType linked to the ReportItemType"""
     with app.app_context():
+        from models.types import PRESENTER_TYPES
+
         from core.managers.db_manager import db
         from core.model.product_type import ProductType
-        from core.model.worker import PRESENTER_TYPES
 
         product_type = ProductType(
             title="Test Product Type",
@@ -282,9 +287,10 @@ def sample_product_type(app, sample_report_type):
 def additional_product_type(app, sample_report_type):
     """Create another ProductType linked to the same ReportItemType"""
     with app.app_context():
+        from models.types import PRESENTER_TYPES
+
         from core.managers.db_manager import db
         from core.model.product_type import ProductType
-        from core.model.worker import PRESENTER_TYPES
 
         product_type2 = ProductType(
             title="Second Test Product Type",
@@ -306,10 +312,11 @@ def additional_product_type(app, sample_report_type):
 @pytest.fixture
 def sample_product_type_multi_report_types(app):
     with app.app_context():
+        from models.types import PRESENTER_TYPES
+
         from core.managers.db_manager import db
-        from core.model.report_item_type import ReportItemType
-        from core.model.worker import PRESENTER_TYPES
         from core.model.product_type import ProductType
+        from core.model.report_item_type import ReportItemType
 
         # Create multiple ReportItemTypes
         report_type1 = ReportItemType(title="Report Type 1", description="First report type")

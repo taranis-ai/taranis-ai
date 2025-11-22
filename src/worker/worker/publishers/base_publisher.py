@@ -1,8 +1,8 @@
 import mimetypes
 from datetime import datetime
 
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 from worker.types import Product
 
 
@@ -11,7 +11,7 @@ class BasePublisher:
         self.type = "BASE_PUBLISHER"
         self.name = "Base Publisher"
         self.description = "Base abstract type for all publishers"
-        self.file_name = None
+        self.file_name: str = f"Taranis_product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}"
         self.core_api = CoreApi()
 
     def publish(self, publisher: dict, product: dict, rendered_product: Product) -> str:
@@ -26,4 +26,4 @@ class BasePublisher:
 
         file_extension = mimetypes.guess_extension(mime_type, strict=False)
         self.file_name = f"{product_title}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
-        logger.debug(f"{self.file_name=}")
+        logger.debug(f"Remote filename set to: {self.file_name}")
