@@ -272,10 +272,14 @@ workers = [
         "name": "S3 Publisher",
         "description": "Publisher for publishing to S3 compatible storage",
         "parameters": [
-            {"parameter": "S3_ENDPOINT_URL", "rules": "required"},
+            {"parameter": "S3_ENDPOINT", "rules": "required"},
             {"parameter": "S3_ACCESS_KEY", "rules": "required"},
             {"parameter": "S3_SECRET_KEY", "rules": "required"},
             {"parameter": "S3_BUCKET_NAME", "rules": "required"},
+            {"parameter": "S3_SESSION_TOKEN"},
+            {"parameter": "S3_REGION"},
+            {"parameter": "S3_SECURE", "type": "switch", "value": "true"},
+            {"parameter": "S3_CERT_CHECK", "type": "switch", "value": "true"},
         ],
     },
     {

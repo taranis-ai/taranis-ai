@@ -1,6 +1,6 @@
 import contextlib
 from base64 import b64decode
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import Any
 from urllib.parse import ParseResult, urlsplit
 
@@ -61,18 +61,22 @@ class SFTPPublisher(BasePublisher):
 
         for pkey_class in (RSAKey, ECDSAKey, Ed25519Key):
             with contextlib.suppress(paramiko.SSHException):
-                return pkey_class.from_private_key(BytesIO(private_key.encode("utf-8")))
+                return pkey_class.from_private_key(StringIO(private_key))
+        raise ValueError("Invalid private key format for SFTP")
 
-    def upload_to_sftp(self, server_config: ParseResult, data_to_upload: BytesIO, private_key: paramiko.PKey = None):
+    def upload_to_sftp(self, server_config: ParseResult, data_to_upload: BytesIO, private_key: paramiko.PKey | None = None):
         ssh_port = server_config.port or 22
         remote_path = server_config.path + self.file_name
         connect_password = None if private_key else server_config.password
+        hostname = server_config.hostname
+        if not hostname:
+            raise ValueError("Hostname is required for SFTP")
 
         logger.debug(f"Uploading to SFTP: {server_config.hostname}:{ssh_port} {remote_path}")
 
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh.connect(
-            hostname=server_config.hostname,
+            hostname=hostname,
             port=ssh_port,
             username=server_config.username,
             password=connect_password,
