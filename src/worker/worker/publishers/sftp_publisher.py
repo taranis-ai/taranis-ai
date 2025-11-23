@@ -2,7 +2,7 @@ import contextlib
 from base64 import b64decode
 from io import BytesIO, StringIO
 from typing import Any
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import ParseResult, urlparse
 
 import paramiko
 
@@ -12,6 +12,8 @@ from .base_publisher import BasePublisher
 
 
 class SFTPPublisher(BasePublisher):
+    REQUIRED_PARAMETERS = ("SFTP_URL",)
+
     def __init__(self):
         super().__init__()
         self.ftp_url = None
@@ -22,19 +24,21 @@ class SFTPPublisher(BasePublisher):
         self.description = "Publisher for publishing to a SFTP server"
 
     def publish(self, publisher: dict[str, Any], product, rendered_product):
-        parameters = publisher.get("parameters", {})
+        parameters = self._extract_parameters(publisher)
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
 
         self.set_file_name(product)
-        server_config = urlsplit(ftp_url)
+        server_config: ParseResult = urlparse(ftp_url)  # type: ignore
 
         if rendered_product.mime_type in ["text/plain", "text/html"]:
             data_to_upload = BytesIO(rendered_product.data)
         else:
             data_to_upload = BytesIO(b64decode(rendered_product.data))
 
-        self.input_validation(server_config, private_key)
+        if not server_config:
+            raise ValueError("Invalid SFTP URL")
+        self.input_validation(server_config)
         if private_key:
             private_key = self.parse_private_key(private_key)
 
@@ -42,14 +46,10 @@ class SFTPPublisher(BasePublisher):
 
         return "SFTP Publisher Task Successful"
 
-    def input_validation(self, server_config: ParseResult, private_key: str):
+    def input_validation(self, server_config: ParseResult):
         if not server_config.username:
             logger.error(f"{server_config.username=}")
             raise ValueError("Username is required for SFTP")
-
-        if not private_key and not server_config.password:
-            logger.error(f"Private key: {private_key}, Password: {server_config.password}")
-            raise ValueError("Private key or password are required for SFTP")
 
         if server_config.scheme != "sftp":
             raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'sftp'")
