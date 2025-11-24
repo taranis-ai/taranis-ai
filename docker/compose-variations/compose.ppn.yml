@@ -200,7 +200,7 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-nlp-bot:${TARANIS_BOT_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-latest}"
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
