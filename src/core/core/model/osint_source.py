@@ -1,28 +1,36 @@
 import uuid
 import json
 import base64
+
 from typing import Any, Sequence, TYPE_CHECKING
+
+from apscheduler.triggers.cron import CronTrigger
+from models.types import COLLECTOR_TYPES
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
 from sqlalchemy import and_, cast, String, literal, func
 
-from core.managers.db_manager import db
-from core.managers import schedule_manager
+
 from core.log import logger
-from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.parameter_value import ParameterValue
-from core.model.word_list import WordList
+from core.managers import schedule_manager
+from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.settings import Settings
-from core.model.worker import COLLECTOR_TYPES, Worker
+from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.word_list import WordList
+from core.model.worker import Worker
+from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
+from core.service.news_item import NewsItem
+from core.model.user import User
+
 
 if TYPE_CHECKING:
-    from core.model.user import User
     from core.model.news_item import NewsItem
+    from core.model.user import User
 
 
 class OSINTSource(BaseModel):

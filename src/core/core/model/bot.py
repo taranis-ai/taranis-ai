@@ -1,17 +1,19 @@
 import uuid
 from typing import Any, Sequence
 
+from apscheduler.triggers.cron import CronTrigger
+from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
 from core.log import logger
+from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
-from core.model.worker import BOT_TYPES, Worker
-from core.managers import schedule_manager
 from core.model.task import Task as TaskModel
+from core.model.worker import Worker
 
 
 class Bot(BaseModel):
