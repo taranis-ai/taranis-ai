@@ -1,7 +1,7 @@
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
@@ -356,7 +356,10 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def story_view(cls, story_id: str):
-        return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
+        item_context = cls.get_item_context(story_id)
+        if not item_context.get("story"):
+            return redirect(url_for("assess.assess"))
+        return render_template("assess/story_view.html", **item_context), 200
 
     @classmethod
     def update_from_form(cls, story_id: str):
@@ -416,19 +419,36 @@ class StoryView(BaseView):
     @auth_required()
     def news_item_view(cls, news_item_id: str = "0"):
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
-        return render_template("assess/news_item_create.html", news_item=news_item), 200
+        return render_template("assess/news_item/news_item.html", news_item=news_item), 200
 
     @staticmethod
     @auth_required()
     def get_tags():
         query = request.args.get("q", "")
-        api = CoreApi()
         try:
-            tags = api.api_get(f"/assess/taglist?search={query}")
+            tags = CoreApi().api_get(f"/assess/taglist?search={query}")
         except Exception:
             logger.exception("Failed to fetch tag suggestions.")
             tags = []
         return render_template("assess/sidebar/tags_suggestions.html", suggested_tags=tags), 200
+
+    @classmethod
+    @auth_required()
+    def delete_news_item(cls, news_item_id: str):
+        story_id = request.args.get("story_id", "")
+        core_response = None
+        try:
+            core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+            notification = cls.get_notification_from_response(core_response)
+            DataPersistenceLayer().invalidate_cache_by_object(Story)
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        except Exception:
+            logger.exception("Failed to delete news item.")
+            notification = render_template("notification/index.html", notification={"message": "Failed to delete news item.", "error": True})
+
+        response = make_response(notification, 200 if core_response else 400)
+        response.headers["HX-Redirect"] = url_for("assess.assess")
+        return response
 
     @classmethod
     @auth_required()
@@ -441,12 +461,12 @@ class StoryView(BaseView):
         else:
             response = api.api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
+        story_id = response.json().get("story_id", "")
         notification = cls.get_notification_from_response(response)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
 
-        notification_html = render_template("notification/index.html", notification=notification)
-        response = make_response(notification_html, 200 if getattr(response, "ok", False) else 400)
-        response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
+        response = make_response(notification, 200 if getattr(response, "ok", False) else 400)
+        response.headers["HX-Redirect"] = url_for("assess.story", story_id=story_id)
         return response
 
     @staticmethod

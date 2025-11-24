@@ -1116,6 +1116,7 @@ class Story(BaseModel):
         return leaders[0] if len(leaders) == 1 else "mixed"
 
     def remove_empty_story(self) -> bool:
+        logger.debug(f"Checking if Story {self.id} is empty - News items count: {len(self.news_items)}")
         if len(self.news_items) == 0:
             NewsItemTag.remove_by_story(self)
             db.session.delete(self)

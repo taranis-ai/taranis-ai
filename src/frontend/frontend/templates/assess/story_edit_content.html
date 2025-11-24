@@ -9,7 +9,7 @@
 {% set card_id = 'story-' ~ story_id %}
 {% set toggled_read = (not (story.read | default(false))) | tojson %}
 {% set toggled_important = (not (story.important | default(false))) | tojson %}
-{% from "assess/news_item_card.html" import news_item_card %}
+{% from "assess/news_item/news_item_card.html" import news_item_card %}
 
 <section id="{{ card_id }}"
          class="space-y-6 p-6"
@@ -202,7 +202,7 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="submit" class="btn btn-primary sm:w-48" {% if has_rt_id %}disabled{% endif %}>Save changes</button>
+            <button type="submit" class="btn btn-primary sm:w-48 hover:bg-primary/10" {% if has_rt_id %}disabled{% endif %}>Save changes</button>
             <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-ghost sm:w-48">Return to story</a>
             {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
           </footer>
