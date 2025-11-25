@@ -566,6 +566,30 @@ report_types = [
             }
         ],
     },
+    {
+        "title": "Impact Assessment",
+        "description": "Example Impact Assessment provided by Taranis AI",
+        "attribute_groups": [
+            {
+                "title": "Properties",
+                "description": "Properties of Impact Assessment",
+                "index": 0,
+                "attribute_group_items": [
+                    {"title": "Assessment ID", "description": "Assessment ID", "index": 0, "attribute": "Text", "required": True},
+                    {"title": "Title", "description": "Title", "index": 1, "attribute": "Text Area", "required": True},
+                    {"title": "Author", "description": "Author", "index": 2, "attribute": "Text", "required": True},
+                    {"title": "Created", "description": "Date of Creation", "index": 3, "attribute": "Text", "required": True},
+                    {"title": "Summary", "description": "Summary", "index": 4, "attribute": "Text Area", "required": True},
+                    {"title": "Scope", "description": "Scope", "index": 5, "attribute": "Text Area", "required": True},
+                    {"title": "Methodology", "description": "Methodology", "index": 6, "attribute": "Text Area", "required": True},
+                    {"title": "Findings", "description": "Findings", "index": 7, "attribute": "Text Area", "required": True},
+                    {"title": "Recommendations", "description": "Recommendations", "index": 8, "attribute": "Text Area", "required": True},
+                    {"title": "Appendices", "description": "Appendices", "index": 9, "attribute": "Text Area"},
+                    {"title": "References", "description": "References", "index": 10, "attribute": "Text Area"},
+                ],
+            }
+        ],
+    },
 ]
 
 
