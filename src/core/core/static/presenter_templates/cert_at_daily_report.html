@@ -1,7 +1,7 @@
 {% if data.report_items|length != 1 -%}
 This Template needs exactly one Report
 {% else -%}
-{% set report = data.report_items[0].attributes -%}
+{% set report = data.report_items[0].attributes.Data -%}
 {% set stories = data.report_items[0].stories -%}
 
 <!doctype html>
