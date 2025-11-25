@@ -206,7 +206,7 @@ class Product(BaseModel):
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found get worker"}, 404
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
 
 class ProductReportItem(BaseModel):
