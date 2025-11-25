@@ -134,6 +134,46 @@ class CoreApi:
             url=f"/worker/word-list/{word_list_id}",
         )
 
+    def update_word_list(self, word_list_id: int, content: str | dict | list, content_type: str) -> dict | None:
+        """Update a word list with new content.
+        
+        Args:
+            word_list_id: ID of the word list to update
+            content: The content to upload (text/csv string or json list/dict)
+            content_type: MIME type of the content ('text/csv' or 'application/json')
+            
+        Returns:
+            Response from the API or None on failure
+        """
+        try:
+            url = f"{self.api_url}/worker/word-list/{word_list_id}"
+            headers = {**self.headers, "Content-Type": content_type}
+            
+            if content_type == "application/json":
+                response = requests.put(
+                    url=url,
+                    headers=headers,
+                    json=content,
+                    verify=self.verify,
+                    timeout=self.timeout
+                )
+            elif content_type == "text/csv":
+                response = requests.put(
+                    url=url,
+                    headers=headers,
+                    data=content.encode('utf-8') if isinstance(content, str) else content,
+                    verify=self.verify,
+                    timeout=self.timeout
+                )
+            else:
+                logger.error(f"Unsupported content type: {content_type}")
+                return None
+            
+            return self.check_response(response, url)
+        except Exception as e:
+            logger.exception(f"Failed to update word list {word_list_id}: {e}")
+            return None
+
     def get_news_items(self, limit) -> dict | None:
         try:
             return self.api_get("/bots/news-item", params={"limit": limit})
