@@ -59,6 +59,14 @@ class ProductsRender(MethodView):
         return ProductService.get_render(product_id)
 
 
+class AutoRenderProducts(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self, report_item_id: str):
+        products = ProductService.get_products_for_auto_render(report_item_id)
+        product_list = [product.to_dict() for product in products]
+        return {"products": product_list}, 200
+
+
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
 

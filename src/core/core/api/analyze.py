@@ -8,6 +8,8 @@ from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
 from core.config import Config
+from core.service.product import ProductService
+from core.managers import queue_manager
 
 
 class ReportTypes(MethodView):
@@ -77,6 +79,10 @@ class ReportItem(MethodView):
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
+            product_ids = ProductService.get_products_for_auto_render(report_item_id)
+            for product_id in product_ids:
+                queue_manager.queue_manager.autopublish_product(product_id, "auto_publisher_id")
+
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")

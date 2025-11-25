@@ -201,6 +201,17 @@ class QueueManager:
         except Exception as e:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500
 
+    def autopublish_product(self, product_id: str, auto_publisher_id: str):
+        render_sig = queue_manager.celery.signature(
+            "presenter_task", args=[product_id], queue="presenters", task_id=f"presenter_task_{product_id}"
+        )
+
+        publish_sig = queue_manager.celery.signature(
+            "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
+        )
+
+        (render_sig | publish_sig).apply_async()
+
 
 def initialize(app: Flask, initial_setup: bool = True):
     global queue_manager
