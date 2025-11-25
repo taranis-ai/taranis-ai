@@ -153,7 +153,7 @@ class Product(BaseModel):
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result: str):
         if not (product := cls.get(product_id)):
-            return {"error": f"Product {product_id} not found update render for id"}, 404
+            return {"error": f"Product {product_id} not found"}, 404
         if product.update_render(render_result):
             logger.debug(f"Render result for Product {product_id} updated")
             return {"message": f"Product {product_id} updated"}, 200
@@ -179,7 +179,7 @@ class Product(BaseModel):
     def update(cls, product_id: str, data) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
-            return {"error": f"Product {product_id} not found update"}, 404
+            return {"error": f"Product {product_id} not found"}, 404
 
         if title := data.get("title"):
             product.title = title
