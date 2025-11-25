@@ -58,6 +58,10 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
+        
+        # Notify cron scheduler of config change
+        bot._publish_cron_reload(f"bot_{bot_id}")
+        
         return bot
 
     @classmethod
@@ -129,12 +133,33 @@ class Bot(BaseModel):
 
     @classmethod
     def schedule_all_bots(cls):
-        """Schedule all enabled bots using RQ"""
+        """Schedule all enabled bots using RQ cron scheduler
+        
+        Note: Just logs - the cron scheduler automatically picks up bots from database.
+        """
         bots = cls.get_all_for_collector()
-        for bot in bots:
-            if bot.get_schedule():
-                bot.schedule_bot()
-        logger.info(f"Scheduling for {len(bots)} Bots completed")
+        enabled_with_schedule = [bot for bot in bots if bot.get_schedule()]
+        logger.info(f"Found {len(enabled_with_schedule)} enabled bots with schedules. Cron scheduler will pick them up automatically.")
+
+    def _publish_cron_reload(self, reason: str):
+        """Publish a signal to reload cron scheduler configuration"""
+        try:
+            from core.managers import queue_manager
+            
+            qm = queue_manager.queue_manager
+            if qm.error or not qm._redis:
+                return
+            
+            # Publish reload signal to cron scheduler
+            qm._redis.publish("taranis:cron:reload", reason)
+            logger.debug(f"Published cron reload signal: {reason}")
+            
+            # Publish cache invalidation signal to frontend
+            qm._redis.publish("taranis:cache:invalidate", "schedule")
+            logger.debug("Published cache invalidation signal for schedules")
+            
+        except Exception as e:
+            logger.warning(f"Failed to publish cron reload signal: {e}")
 
 
 class BotParameterValue(BaseModel):

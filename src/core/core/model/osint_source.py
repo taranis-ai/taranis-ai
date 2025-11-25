@@ -257,8 +257,7 @@ class OSINTSource(BaseModel):
         """Schedule this OSINT source collection using RQ
         
         Note: The actual scheduling is done by the RQ cron scheduler process.
-        This method just validates that the source can be scheduled.
-        The cron scheduler automatically picks up enabled sources from the database.
+        This method validates the source and publishes a reload signal.
         """
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
@@ -269,15 +268,40 @@ class OSINTSource(BaseModel):
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
         cron_schedule = self.get_schedule()
-        logger.info(f"Source {self.name} has schedule: {cron_schedule}. Cron scheduler will pick it up automatically.")
+        logger.info(f"Source {self.name} has schedule: {cron_schedule}. Notifying cron scheduler...")
+        
+        # Publish reload signal
+        self._publish_cron_reload(f"osint_source_{self.id}")
+        
         return {"message": f"Source {self.name} will be scheduled by cron scheduler", "id": f"{self.id}"}, 200
 
     def unschedule_osint_source(self):
         """Cancel scheduled collection for this OSINT source
         
         Note: The cron scheduler automatically picks up enabled/disabled state from the database.
-        If the source is disabled, it won't be scheduled. No explicit unscheduling needed.
         """
+        logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
+        self._publish_cron_reload(f"osint_source_{self.id}_disabled")
+        
+    def _publish_cron_reload(self, reason: str):
+        """Publish a signal to reload cron scheduler configuration"""
+        try:
+            from core.managers import queue_manager
+            
+            qm = queue_manager.queue_manager
+            if qm.error or not qm._redis:
+                return
+            
+            # Publish reload signal to cron scheduler
+            qm._redis.publish("taranis:cron:reload", reason)
+            logger.debug(f"Published cron reload signal: {reason}")
+            
+            # Publish cache invalidation signal to frontend
+            qm._redis.publish("taranis:cache:invalidate", "schedule")
+            logger.debug("Published cache invalidation signal for schedules")
+            
+        except Exception as e:
+            logger.warning(f"Failed to publish cron reload signal: {e}")
         logger.info(f"Source {self.name} unscheduling - cron scheduler will stop scheduling it if disabled")
         return {"message": f"Source {self.name} will not be scheduled if disabled", "id": f"{self.id}"}, 200
 
