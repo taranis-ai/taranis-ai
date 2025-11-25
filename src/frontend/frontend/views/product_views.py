@@ -2,7 +2,7 @@ from typing import Any
 from flask import render_template, request, Response, abort
 
 from models.product import Product
-from models.admin import ProductType
+from models.admin import ProductType, PublisherPreset
 from frontend.views.base_view import BaseView
 from frontend.filters import render_datetime, render_count, render_item_type
 from frontend.core_api import CoreApi
@@ -40,6 +40,9 @@ class ProductView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
+        publishers = DataPersistenceLayer().get_objects(PublisherPreset)
+        base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]
+
         if cls.model_name() in base_context:
             product: Product = base_context[cls.model_name()]
             is_edit = product.id is not None and product.id != "0"
@@ -84,7 +87,7 @@ class ProductView(BaseView):
     def product_publish(cls, product_id: str):
         error = "Failed to publish product"
         try:
-            publisher = request.args.get("publisher", "")
+            publisher = request.form.get("publisher", "")
             core_resp = CoreApi().publish_product(product_id, publisher_id=publisher)
             if not core_resp.ok:
                 error = core_resp.json().get("error", "Unknown error")
