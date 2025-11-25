@@ -16,14 +16,12 @@ steps = [
         ADD CONSTRAINT fk_product_default_publisher
         FOREIGN KEY (default_publisher)
         REFERENCES publisher_preset(id)
-        ON DELETE SET NULL
+        ON DELETE SET NULL;
         """,
         """
-        ALTER TABLE product
-        DROP CONSTRAINT fk_product_default_publisher;
+        ALTER TABLE product DROP CONSTRAINT fk_product_default_publisher;
 
-        ALTER TABLE product
-        DROP COLUMN default_publisher;
+        ALTER TABLE product DROP COLUMN default_publisher;
         """,
     )
 ]

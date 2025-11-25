@@ -24,13 +24,13 @@ class Product(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
-    auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)  # to be implemented
+    auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     product_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
-    default_publisher: Mapped[str] = db.Column(db.String(64), db.ForeignKey("publisher_preset.id"))
+    default_publisher: Mapped[str | None] = db.Column(db.String(64), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
