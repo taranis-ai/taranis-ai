@@ -20,6 +20,7 @@ class Product(TaranisBaseModel):
     description: str | None = ""
     created: datetime | None = None
     auto_publish: bool | None = None
+    default_publisher: str | None = None
     product_type_id: int
     report_items: list[str] = Field(default_factory=list)
     last_rendered: datetime | None = None

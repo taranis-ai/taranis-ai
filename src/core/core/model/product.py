@@ -30,14 +30,26 @@ class Product(BaseModel):
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
+    default_publisher: Mapped[str] = db.Column(db.String(64), db.ForeignKey("publisher_preset.id"))
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
-    def __init__(self, title: str, product_type_id: int, description: str = "", report_items: list[str] | None = None, id: str | None = None):
+    def __init__(
+        self,
+        title: str,
+        product_type_id: int,
+        description: str = "",
+        auto_publish: bool = False,
+        report_items: list[str] | None = None,
+        default_publisher: str | None = None,
+        id: str | None = None,
+    ):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
+        self.auto_publish = auto_publish
+        self.default_publisher = default_publisher
         if report_items is not None:
             self.report_items = ReportItem.get_bulk(report_items)
             queue_manager.queue_manager.generate_product(self.id, countdown=5)
@@ -141,7 +153,7 @@ class Product(BaseModel):
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result: str):
         if not (product := cls.get(product_id)):
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": f"Product {product_id} not found update render for id"}, 404
         if product.update_render(render_result):
             logger.debug(f"Render result for Product {product_id} updated")
             return {"message": f"Product {product_id} updated"}, 200
@@ -167,7 +179,7 @@ class Product(BaseModel):
     def update(cls, product_id: str, data) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": f"Product {product_id} not found update"}, 404
 
         if title := data.get("title"):
             product.title = title
@@ -181,6 +193,11 @@ class Product(BaseModel):
         if report_items is not None:
             product.report_items = ReportItem.get_bulk(report_items)
 
+        if "auto_publish" in data:
+            product.auto_publish = data.get("auto_publish")
+        if "default_publisher" in data:
+            product.default_publisher = data.get("default_publisher")
+
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id)
         return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
@@ -189,7 +206,7 @@ class Product(BaseModel):
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} {item_id} not found get worker"}, 404
 
 
 class ProductReportItem(BaseModel):
