@@ -1,5 +1,6 @@
-from flask import json, render_template, abort, request
+from flask import render_template, abort, request
 from flask_jwt_extended import current_user
+import json
 import plotly.express as px
 import pandas as pd
 from werkzeug.wrappers import Response
@@ -167,16 +168,33 @@ class DashboardView(BaseView):
 
                 grouped_conflicts[incoming_id]["conflict_entries"].append(conflict)
 
-            for group_data in grouped_conflicts.values():
-                internal_ids_for_group = {c.existing_story_id for c in group_data["conflict_entries"]}
+            incoming_ids: dict[str, set[str]] = {}
 
-                group_data["internal_stories"] = [
-                    {"story_id": story_id, "summary": internal_story_summaries.get(story_id)} for story_id in internal_ids_for_group
-                ]
-            incoming_ids = {
-                incoming_id: {item["id"] for item in group_data["incoming_story"]["news_items"]}
-                for incoming_id, group_data in grouped_conflicts.items()
-            }
+            for incoming_id, group_data in grouped_conflicts.items():
+                incoming_ids_set = {item["id"] for item in group_data["incoming_story"]["news_items"]}
+                incoming_ids[incoming_id] = incoming_ids_set
+
+                conflicts_by_story: dict[str, set[str]] = {}
+                for entry in group_data["conflict_entries"]:
+                    conflicts_by_story.setdefault(entry.existing_story_id, set()).add(entry.news_item_id)
+
+                internal_ids_for_group = {c.existing_story_id for c in group_data["conflict_entries"]}
+                enriched_internal_stories = []
+
+                for story_id in internal_ids_for_group:
+                    summary = internal_story_summaries.get(story_id) or {}
+                    existing_news_item_ids = [item.get("id") for item in summary.get("news_item_data", []) if item.get("id")]
+                    unique_ids = sorted(incoming_ids_set - conflicts_by_story.get(story_id, set()))
+                    enriched_internal_stories.append(
+                        {
+                            "story_id": story_id,
+                            "summary": summary or None,
+                            "existing_news_item_ids": existing_news_item_ids,
+                            "unique_news_item_ids": unique_ids,
+                        }
+                    )
+
+                group_data["internal_stories"] = enriched_internal_stories
 
             news_item_occurrences = {}
 
@@ -224,6 +242,20 @@ class DashboardView(BaseView):
             return news_items
         allowed_set = set(allowed_ids)
         return [item for item in news_items if item.get("id") in allowed_set]
+
+    @staticmethod
+    def _load_internal_story_news_item_ids(story_id: str | None) -> list[str]:
+        if not story_id:
+            return []
+
+        try:
+            api = CoreApi()
+            summary = api.api_get(f"/connectors/story-summary/{story_id}")
+            if summary:
+                return [item.get("id") for item in summary.get("news_item_data", []) if item.get("id")]
+        except Exception as exc:
+            logger.exception(f"Failed loading news items for internal story {story_id}: {exc}")
+        return []
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
@@ -303,8 +335,9 @@ class DashboardView(BaseView):
                 return [v]
 
             payload["incoming_story_id"] = payload.get("incoming_story_id") or payload.get("resolving_story_id")
-            payload["news_items"] = ensure_list(payload.get("news_items"))
+            payload["unique_incoming_news_item_ids"] = ensure_list(payload.get("unique_incoming_news_item_ids"))
             payload["resolved_conflict_item_ids"] = ensure_list(payload.get("resolved_conflict_item_ids"))
+            payload["existing_story_news_item_ids"] = ensure_list(payload.get("existing_story_news_item_ids"))
             payload["remaining_stories"] = ensure_list(payload.get("remaining_stories"))
 
             logger.warning(f"DEBUG AFTER NORMALIZATION: {payload}")
@@ -312,7 +345,8 @@ class DashboardView(BaseView):
             # Required fields
             required_fields = [
                 "story_id",
-                "news_items",
+                "incoming_story_id",
+                "unique_incoming_news_item_ids",
                 "resolved_conflict_item_ids",
                 "remaining_stories",
             ]
@@ -322,12 +356,33 @@ class DashboardView(BaseView):
                 logger.error(f"Missing required fields: {missing}")
                 return Response(f"Missing fields: {', '.join(missing)}", 400)
 
-            incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
+            incoming_story = payload.get("incoming_story") or cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
+            if isinstance(incoming_story, str):
+                try:
+                    incoming_story = json.loads(incoming_story)
+                except json.JSONDecodeError:
+                    logger.error("Incoming story payload is not valid JSON string")
+                    incoming_story = None
             if not incoming_story:
                 logger.error("Unable to load incoming story snapshot for POST payload")
                 return Response("Unable to load incoming story data", 400)
 
-            payload["news_items"] = cls._select_news_items(incoming_story, payload.get("resolved_conflict_item_ids"))
+            existing_ids = payload.get("existing_story_news_item_ids") or cls._load_internal_story_news_item_ids(payload.get("story_id"))
+            existing_ids = [str(item_id) for item_id in existing_ids if item_id]
+
+            allowed_items = cls._select_news_items(incoming_story, payload.get("unique_incoming_news_item_ids"))
+            unique_news_items = [item for item in allowed_items if item.get("id") not in existing_ids]
+            unique_ids = [item.get("id") for item in unique_news_items if item.get("id")]
+
+            if not unique_ids:
+                logger.warning("No unique news items identified for ingestion")
+                return Response("No unique news items to ingest", 400)
+
+            payload["news_items"] = unique_news_items
+            payload["resolved_conflict_item_ids"] = unique_ids
+            payload.pop("existing_story_news_item_ids", None)
+            payload.pop("unique_incoming_news_item_ids", None)
+            payload.pop("incoming_story", None)
             payload.pop("incoming_story_id", None)
 
             # Forward to core API
@@ -372,12 +427,20 @@ class DashboardView(BaseView):
             if missing := [f for f in required_fields if f not in payload]:
                 return Response(f"Missing fields: {', '.join(missing)}", 400)
 
-            if not payload.get("incoming_story"):
+            incoming_story = payload.get("incoming_story")
+            if isinstance(incoming_story, str):
+                try:
+                    incoming_story = json.loads(incoming_story)
+                except json.JSONDecodeError:
+                    incoming_story = None
+
+            if not incoming_story:
                 incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
                 if not incoming_story:
                     logger.error("Unable to load incoming story snapshot for PUT payload")
                     return Response("Unable to load incoming story data", 400)
-                payload["incoming_story"] = incoming_story
+
+            payload["incoming_story"] = incoming_story
 
             payload.pop("incoming_story_id", None)
 

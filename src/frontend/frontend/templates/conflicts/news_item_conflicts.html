@@ -85,7 +85,7 @@
                             hx-ext="json-enc"
                             hx-encoding="json"
                             hx-post="{{ url_for('base.news_conflicts_post') }}"
-                            hx-vals='{{ { "story_id": internal.story_id, "incoming_story_id": incoming_story_id, "resolved_conflict_item_ids": incoming_ids[incoming_story_id] | list, "remaining_stories": remaining_stories | map(attribute="id") | list } | tojson | safe }}'
+                            hx-vals='{{ { "story_id": internal.story_id, "incoming_story_id": incoming_story_id, "unique_incoming_news_item_ids": internal.unique_news_item_ids or [], "resolved_conflict_item_ids": internal.unique_news_item_ids or [], "existing_story_news_item_ids": internal.existing_news_item_ids or [], "remaining_stories": remaining_stories | map(attribute="id") | list } | tojson | safe }}'
                             hx-target="#newsitem-conflicts-wrapper"
                             hx-swap="innerHTML">Keep Local Story + Add Unique Items</button>
 
