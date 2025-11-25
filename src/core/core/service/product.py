@@ -20,6 +20,6 @@ class ProductService:
         return {"error": f"Product {product_id} not found"}, 404
 
     @classmethod
-    def get_products_for_auto_render(cls, report_item_id: str) -> list[str]:
-        stmt = select(Product.id).join(Product.report_items).where(Product.auto_publish.is_(True), ReportItem.id == report_item_id).distinct()
+    def get_products_for_auto_render(cls, report_item_id: str) -> list[Product]:
+        stmt = select(Product).join(Product.report_items).where(Product.auto_publish.is_(True), ReportItem.id == report_item_id).distinct()
         return db.session.scalars(stmt).all()
