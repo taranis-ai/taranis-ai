@@ -162,14 +162,14 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
-    command: ["python", "-m", "worker", "--queues", "presenters", "publishers", "bots", "connectors"]
+    command: ["python", "-m", "worker", "--queues", "presenters", "publishers", "bots", "connectors", "misc"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       BOT_API_KEY: "${BOT_API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-      WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
+      WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import redis; r = redis.Redis(host='redis', port=6379, decode_responses=True); r.ping()\""]

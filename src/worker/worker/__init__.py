@@ -43,6 +43,8 @@ def get_queues():
         queue_names.append("publishers")
     if "Connectors" in worker_types:
         queue_names.append("connectors")
+    if "Misc" in worker_types:
+        queue_names.append("misc")
 
     return queue_names
 

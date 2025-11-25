@@ -19,12 +19,13 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors"]] = [
+    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [
         "Bots",
         "Collectors",
         "Presenters",
         "Publishers",
         "Connectors",
+        "Misc",
     ]
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
