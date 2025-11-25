@@ -470,6 +470,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("option", name="CERT Report").click()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_add.png")
+            page.get_by_role("searchbox", name="Select report types").press("Escape")
             with page.expect_response(url_for("admin.product_types", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
