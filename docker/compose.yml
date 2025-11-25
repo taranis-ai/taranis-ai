@@ -226,6 +226,7 @@ services:
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
+      CONFIDENCE_THRESHOLD: "${NLP_CONFIDENCE_THRESHOLD:-0.5}"  # Lowered from 0.7 default
     logging:
       driver: "json-file"
       options:
