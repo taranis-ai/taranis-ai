@@ -28,6 +28,13 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
+    queue: str | None = None
+    type: Literal["scheduled", "cron"] | None = None
+    schedule: str | None = None
+    status: str | None = None
+    started_at: str | None = None
+    failed_at: str | None = None
+    error: str | None = None
 
 
 class TaskResult(TaranisBaseModel):
