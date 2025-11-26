@@ -85,28 +85,23 @@
 
           {% if is_edit %}
             {% if rendered_product %}
-
-              <div class="mt-4 flex items-center gap-4"
-                   x-data="{ auto: {{ 'true' if product.auto_publish else 'false' }} }"
-                   x-init="auto = document.querySelector('#autopublish-switch')?.checked"
-                   x-on:change.document="auto = document.querySelector('#autopublish-switch')?.checked">
-
+              <div class="mt-4 flex items-center gap-4" x-data="publisherToggle()" x-init="init()">
+                <!-- BUTTON -->
                 <button type="button" class="btn btn-accent flex-1" @click="triggerAction('publish')">Publish</button>
 
+                <!-- SELECT -->
                 <select name="default_publisher"
-                        id="default_publisher"
+                        x-ref="publisher"
                         class="select select-bordered min-w-[12rem] appearance-none"
-                        :disabled="!auto"
-                        :required="auto"
-                        x-bind:class="!auto ? 'opacity-50' : ''">
-
-                  <option value="" {% if not product.default_publisher %}selected{% endif %}>—</option>
-
+                        :class="{ 'opacity-50 pointer-events-none bg-base-200': !auto }"
+                        :required="auto">
+                  <option value="">—</option>
                   {% for p in publishers %}
                     <option value="{{ p.id }}" {% if p.id == product.default_publisher %}selected{% endif %}>{{ p.name }}</option>
                   {% endfor %}
                 </select>
 
+                <!-- SWITCH -->
                 <div class="flex items-center gap-2">
                   {{ form_switch(label='',
                                     name='auto_publish',
@@ -118,8 +113,35 @@
                                     input_id='autopublish-switch') }}
                   <span class="text-sm">Autopublish</span>
                 </div>
-
               </div>
+
+              <script>
+  function publisherToggle() {
+    return {
+      auto: {{ 'true' if product.auto_publish else 'false' }},
+      init() {
+        this.toggleRequired(this.auto);
+
+        const switchEl = document.getElementById('autopublish-switch');
+        switchEl?.addEventListener('change', () => {
+          this.auto = switchEl.checked;
+          this.toggleRequired(this.auto);
+        });
+      },
+      toggleRequired(isRequired) {
+        const sel = this.$refs.publisher;
+        if (!sel) return;
+
+        if (isRequired) {
+          sel.setAttribute('required', 'required');
+        } else {
+          sel.removeAttribute('required');
+        }
+      }
+    };
+  }
+              </script>
+
 
             {% else %}
               <div class="alert alert-info">Render Product first, to enable publishing</div>
