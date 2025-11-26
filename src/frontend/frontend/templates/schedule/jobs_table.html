@@ -1,0 +1,59 @@
+{% if jobs and jobs|length > 0 %}
+<div class="overflow-x-auto">
+  <table class="table table-zebra w-full">
+    <thead>
+      <tr>
+        <th>Job Name</th>
+        <th>Queue</th>
+        <th>Type</th>
+        <th>Schedule</th>
+        <th>Next Run <span class="text-xs opacity-50">↓ Soonest first</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td>
+          <div class="font-medium">{{ job.name }}</div>
+          <div class="text-xs opacity-50">{{ job.id }}</div>
+        </td>
+        <td>
+          <span class="badge badge-outline badge-sm">{{ job.queue }}</span>
+        </td>
+        <td>
+          {% if job.type == 'cron' %}
+          <span class="badge badge-info badge-sm">Cron</span>
+          {% else %}
+          <span class="badge badge-ghost badge-sm">Scheduled</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.schedule %}
+          <code class="text-xs">{{ job.schedule }}</code>
+          {% else %}
+          <span class="text-xs opacity-50">One-time</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.next_run_time %}
+          <span class="text-sm">{{ job.next_run_time }}</span>
+          {% else %}
+          <span class="text-xs opacity-50">-</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="text-sm text-center mt-4 opacity-70">
+  Total: {{ jobs|length }} scheduled jobs
+</div>
+{% else %}
+<div class="text-center py-8">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 mx-auto opacity-30">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+  </svg>
+  <p class="mt-4 text-base-content/50">No scheduled jobs</p>
+</div>
+{% endif %}
