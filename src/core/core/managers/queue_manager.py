@@ -422,7 +422,7 @@ class QueueManager:
         func_name = job.func_name or "unknown"
 
         # For collector tasks, show the source name
-        if "collector_task" in func_name and job.args:
+        if "collector" in func_name.lower() and job.args:
             try:
                 source_id = job.args[0] if len(job.args) > 0 else None
                 if source_id:
@@ -431,11 +431,16 @@ class QueueManager:
                     source = db.session.get(OSINTSource, source_id)
                     if source:
                         return f"Collector: {source.name}"
+                    else:
+                        logger.debug(f"OSINT Source with ID {source_id} not found in database")
             except Exception as e:
                 logger.debug(f"Failed to get source name for job {job.id}: {e}")
+            
+            # Fallback if source lookup failed
+            return f"Collector Task (ID: {job.args[0] if job.args else 'unknown'})"
 
         # For bot tasks, show the bot name
-        if "bot_task" in func_name and job.args:
+        if "bot" in func_name.lower() and job.args:
             try:
                 bot_id = job.args[0] if len(job.args) > 0 else None
                 if bot_id:
@@ -444,11 +449,28 @@ class QueueManager:
                     bot = db.session.get(Bot, bot_id)
                     if bot:
                         return f"Bot: {bot.name}"
+                    else:
+                        logger.debug(f"Bot with ID {bot_id} not found in database")
             except Exception as e:
                 logger.debug(f"Failed to get bot name for job {job.id}: {e}")
+            
+            # Fallback if bot lookup failed
+            return f"Bot Task (ID: {job.args[0] if job.args else 'unknown'})"
 
-        # For other tasks, return the function name
-        return func_name
+        # For presenter tasks
+        if "presenter" in func_name.lower():
+            return f"Presenter: {func_name.split('.')[-1].replace('_', ' ').title()}"
+
+        # For publisher tasks
+        if "publisher" in func_name.lower():
+            return f"Publisher: {func_name.split('.')[-1].replace('_', ' ').title()}"
+
+        # For maintenance tasks
+        if "cleanup" in func_name.lower() or "update" in func_name.lower():
+            return f"Maintenance: {func_name.split('.')[-1].replace('_', ' ').title()}"
+
+        # For other tasks, return the function name (last part only)
+        return func_name.split('.')[-1].replace('_', ' ').title()
 
     @staticmethod
     def get_next_fire_times_from_cron(cron_expr: str, n: int = 3) -> list[datetime]:
