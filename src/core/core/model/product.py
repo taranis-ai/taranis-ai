@@ -196,7 +196,7 @@ class Product(BaseModel):
         if "auto_publish" in data:
             product.auto_publish = data.get("auto_publish")
         if "default_publisher" in data:
-            product.default_publisher = data.get("default_publisher")
+            product.default_publisher = data.get("default_publisher") or None
 
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id)

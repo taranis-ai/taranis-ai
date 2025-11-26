@@ -9,7 +9,6 @@ from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
 from core.config import Config
 from core.service.product import ProductService
-from core.managers import queue_manager
 
 
 class ReportTypes(MethodView):
@@ -79,13 +78,7 @@ class ReportItem(MethodView):
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
-            products = ProductService.get_products_for_auto_render(report_item_id)
-            for product in products:
-                auto_publisher_id = product.default_publisher
-                if not auto_publisher_id:
-                    logger.warning(f"Product {product.id} is set to auto publish but has no default publisher")
-                    continue
-                queue_manager.queue_manager.autopublish_product(product.id, auto_publisher_id)
+            ProductService.autopublish_product(report_item_id)
 
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
