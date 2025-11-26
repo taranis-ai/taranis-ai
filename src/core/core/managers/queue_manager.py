@@ -582,6 +582,128 @@ class QueueManager:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": f"Failed to get scheduled jobs: {str(e)}"}, 500
 
+    def get_active_jobs(self) -> tuple[dict, int]:
+        """Get currently running jobs from StartedJobRegistry"""
+        if self.error or not self._redis:
+            return {"error": "QueueManager not initialized"}, 500
+
+        try:
+            from rq.registry import StartedJobRegistry
+
+            active_jobs = []
+            for queue_name, queue in self._queues.items():
+                registry = StartedJobRegistry(queue=queue)
+                job_ids = list(registry.get_job_ids())
+
+                for job_id in job_ids:
+                    try:
+                        job = Job.fetch(job_id, connection=self._redis)
+                        job_name = self._get_job_display_name(job)
+
+                        active_jobs.append({
+                            "id": job.id,
+                            "name": job_name,
+                            "queue": queue_name,
+                            "started_at": job.started_at.isoformat() if job.started_at else None,
+                            "status": "running"
+                        })
+                    except Exception as e:
+                        logger.error(f"Failed to fetch active job {job_id}: {e}")
+                        continue
+
+            return {"items": active_jobs, "total_count": len(active_jobs)}, 200
+        except Exception as e:
+            logger.exception(f"Failed to get active jobs: {e}")
+            return {"error": f"Failed to get active jobs: {str(e)}"}, 500
+
+    def get_failed_jobs(self) -> tuple[dict, int]:
+        """Get failed jobs from FailedJobRegistry"""
+        if self.error or not self._redis:
+            return {"error": "QueueManager not initialized"}, 500
+
+        try:
+            from rq.registry import FailedJobRegistry
+
+            failed_jobs = []
+            for queue_name, queue in self._queues.items():
+                registry = FailedJobRegistry(queue=queue)
+                job_ids = list(registry.get_job_ids())
+
+                for job_id in job_ids:
+                    try:
+                        job = Job.fetch(job_id, connection=self._redis)
+                        job_name = self._get_job_display_name(job)
+
+                        failed_jobs.append({
+                            "id": job.id,
+                            "name": job_name,
+                            "queue": queue_name,
+                            "failed_at": job.ended_at.isoformat() if job.ended_at else None,
+                            "error": str(job.exc_info) if job.exc_info else "Unknown error",
+                            "status": "failed"
+                        })
+                    except Exception as e:
+                        # Skip jobs that can't be fetched (might have been cleaned up)
+                        logger.debug(f"Skipping failed job {job_id}: {e}")
+                        continue
+
+            return {"items": failed_jobs, "total_count": len(failed_jobs)}, 200
+        except Exception as e:
+            logger.exception(f"Failed to get failed jobs: {e}")
+            return {"error": f"Failed to get failed jobs: {str(e)}"}, 500
+
+    def retry_failed_job(self, job_id: str) -> tuple[dict, int]:
+        """Retry a failed job"""
+        if self.error or not self._redis:
+            return {"error": "QueueManager not initialized"}, 500
+
+        try:
+            job = Job.fetch(job_id, connection=self._redis)
+            
+            if job.is_failed:
+                # Requeue the job
+                job.retry()
+                logger.info(f"Retrying failed job {job_id}")
+                return {"message": f"Job {job_id} queued for retry"}, 200
+            else:
+                return {"error": f"Job {job_id} is not in failed state"}, 400
+
+        except Exception as e:
+            logger.error(f"Failed to retry job {job_id}: {e}")
+            # Job might have been cleaned up already
+            if "No such job" in str(e):
+                return {"error": f"Job {job_id} not found (may have been already cleaned up)"}, 404
+            return {"error": f"Failed to retry job: {str(e)}"}, 500
+
+    def get_worker_stats(self) -> tuple[dict, int]:
+        """Get worker statistics"""
+        if self.error or not self._redis:
+            return {"error": "QueueManager not initialized"}, 500
+
+        try:
+            from rq.worker import Worker
+
+            workers = Worker.all(connection=self._redis)
+            worker_stats = {
+                "total_workers": len(workers),
+                "busy_workers": sum(1 for w in workers if w.state == "busy"),
+                "idle_workers": sum(1 for w in workers if w.state == "idle"),
+                "workers": [
+                    {
+                        "name": w.name,
+                        "state": w.state,
+                        "queues": [q.name for q in w.queues],
+                        "current_job": w.get_current_job().id if w.get_current_job() else None
+                    }
+                    for w in workers
+                ]
+            }
+
+            return worker_stats, 200
+        except Exception as e:
+            logger.exception(f"Failed to get worker stats: {e}")
+            return {"error": f"Failed to get worker stats: {str(e)}"}, 500
+
 
 def initialize(app: Flask, initial_setup: bool = True):
     """Initialize the queue manager"""

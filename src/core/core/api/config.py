@@ -458,6 +458,30 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
+class ActiveJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_active_jobs()
+
+
+class FailedJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_failed_jobs()
+
+
+class RetryFailedJob(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def post(self, job_id: str):
+        return queue_manager.queue_manager.retry_failed_job(job_id)
+
+
+class WorkerStats(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_worker_stats()
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
@@ -884,6 +908,10 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view("active_jobs"))
+    config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view("failed_jobs"))
+    config_bp.add_url_rule("/workers/failed/<string:job_id>/retry", view_func=RetryFailedJob.as_view("retry_failed_job"))
+    config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view("worker_stats"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
