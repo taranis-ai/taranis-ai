@@ -17,17 +17,18 @@ This Template needs exactly one Report
       <div class="container stage-push-top stage-domain-statiskten stage-body content-section" role="main">
       <div class="row">
       <div class="col-sm-12">
-        <h1>Tageszusammenfassung - {{ report.date }}</h1>
+        <h1>Tageszusammenfassung - {{ report.date | default('') }}</h1>
         <h2>End-of-Day report</h2>
-          Timeframe:   {{ report.timeframe }}
-          Handler:     {{ report.handler }}
-          Co-Handler:  {{ report.co_handler }}
+          Timeframe:   {{ report.timeframe | default('') }}
+          Handler:     {{ report.handler | default('') }}
+          Co-Handler:  {{ report.co_handler | default('') }}
 
         {% for group in ['News' , 'Vulnerabilities'] -%}
         <h2> {{ group }} </h2>
-        {% for group_id in report[group.lower()].split(',') -%}
+        {% if group.lower() in report and report[group.lower()] %}
+        {% for stories_in_group in report[group.lower()].split(',') -%}
         {% for story in stories -%}
-        {% if story.id|string == group_id -%}
+        {% if story.id|string == stories_in_group -%}
         <h3>{{ story.title }}</h3>
         <p>
         {% if story.summary|length -%}
@@ -43,6 +44,7 @@ This Template needs exactly one Report
         {%- endif %}
         {%- endfor %}
         {%- endfor %}
+        {%- endif %}
         {%- endfor %}
       </div>
       </div>
