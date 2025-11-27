@@ -3,6 +3,8 @@ import pytest
 
 @pytest.fixture(scope="session")
 def cleanup_sources(app):
+    import contextlib
+
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
@@ -18,12 +20,15 @@ def cleanup_sources(app):
 
         yield source_data
 
-        if OSINTSource.get(source_data["id"]):
-            OSINTSource.delete(source_data["id"])
+        with contextlib.suppress(Exception):
+            if OSINTSource.get(source_data["id"]):
+                OSINTSource.delete(source_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_source_groups(app):
+    import contextlib
+
     with app.app_context():
         from core.model.osint_source import OSINTSourceGroup
 
@@ -35,12 +40,15 @@ def cleanup_source_groups(app):
 
         yield source_group_data
 
-        if OSINTSourceGroup.get(source_group_data["id"]):
-            OSINTSourceGroup.delete(source_group_data["id"])
+        with contextlib.suppress(Exception):
+            if OSINTSourceGroup.get(source_group_data["id"]):
+                OSINTSourceGroup.delete(source_group_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_word_lists(app):
+    import contextlib
+
     with app.app_context():
         from core.model.word_list import WordList
 
@@ -55,12 +63,15 @@ def cleanup_word_lists(app):
 
         yield word_list_data
 
-        if WordList.get(word_list_data["id"]):
-            WordList.delete(word_list_data["id"])
+        with contextlib.suppress(Exception):
+            if WordList.get(word_list_data["id"]):
+                WordList.delete(word_list_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_user(app):
+    import contextlib
+
     with app.app_context():
         from core.model.user import User
 
@@ -75,12 +86,15 @@ def cleanup_user(app):
 
         yield user_data
 
-        if User.get(user_data["id"]):
-            User.delete(user_data["id"])
+        with contextlib.suppress(Exception):
+            if User.get(user_data["id"]):
+                User.delete(user_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_role(app):
+    import contextlib
+
     with app.app_context():
         from core.model.role import Role
 
@@ -93,12 +107,15 @@ def cleanup_role(app):
 
         yield role_data
 
-        if Role.get(role_data["id"]):
-            Role.delete(role_data["id"])
+        with contextlib.suppress(Exception):
+            if Role.get(role_data["id"]):
+                Role.delete(role_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_organization(app):
+    import contextlib
+
     with app.app_context():
         from core.model.organization import Organization
 
@@ -111,12 +128,15 @@ def cleanup_organization(app):
 
         yield organization_data
 
-        if Organization.get(organization_data["id"]):
-            Organization.delete(organization_data["id"])
+        with contextlib.suppress(Exception):
+            if Organization.get(organization_data["id"]):
+                Organization.delete(organization_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_bot(app):
+    import contextlib
+
     with app.app_context():
         from core.model.bot import Bot
 
@@ -130,12 +150,15 @@ def cleanup_bot(app):
 
         yield bot_data
 
-        if Bot.get(bot_data["id"]):
-            Bot.delete(bot_data["id"])
+        with contextlib.suppress(Exception):
+            if Bot.get(bot_data["id"]):
+                Bot.delete(bot_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_report_item_type(app):
+    import contextlib
+
     with app.app_context():
         from core.model.report_item_type import ReportItemType
 
@@ -163,12 +186,15 @@ def cleanup_report_item_type(app):
 
         yield report_type_data
 
-        if ReportItemType.get(report_type_data["id"]):
-            ReportItemType.delete(report_type_data["id"])
+        with contextlib.suppress(Exception):
+            if ReportItemType.get(report_type_data["id"]):
+                ReportItemType.delete(report_type_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_product_types(app):
+    import contextlib
+
     with app.app_context():
         from core.model.product_type import ProductType
 
@@ -182,12 +208,15 @@ def cleanup_product_types(app):
 
         yield product_type_data
 
-        if ProductType.get(product_type_data["id"]):
-            ProductType.delete(product_type_data["id"])
+        with contextlib.suppress(Exception):
+            if ProductType.get(product_type_data["id"]):
+                ProductType.delete(product_type_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_acls(app):
+    import contextlib
+
     with app.app_context():
         from core.model.role_based_access import RoleBasedAccess
 
@@ -202,12 +231,15 @@ def cleanup_acls(app):
 
         yield rbac_data
 
-        if RoleBasedAccess.get(rbac_data["id"]):
-            RoleBasedAccess.delete(rbac_data["id"])
+        with contextlib.suppress(Exception):
+            if RoleBasedAccess.get(rbac_data["id"]):
+                RoleBasedAccess.delete(rbac_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_publisher_preset(app):
+    import contextlib
+
     with app.app_context():
         from core.model.publisher_preset import PublisherPreset
 
@@ -221,12 +253,15 @@ def cleanup_publisher_preset(app):
 
         yield publisher_presets
 
-        if PublisherPreset.get(publisher_presets["id"]):
-            PublisherPreset.delete(publisher_presets["id"])
+        with contextlib.suppress(Exception):
+            if PublisherPreset.get(publisher_presets["id"]):
+                PublisherPreset.delete(publisher_presets["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_attribute(app):
+    import contextlib
+
     with app.app_context():
         from core.model.attribute import Attribute
 
@@ -240,14 +275,18 @@ def cleanup_attribute(app):
 
         yield attribute_data
 
-        if Attribute.get(attribute_data["id"]):
-            Attribute.delete(attribute_data["id"])
+        with contextlib.suppress(Exception):
+            if Attribute.get(attribute_data["id"]):
+                Attribute.delete(attribute_data["id"])
 
 
 @pytest.fixture(scope="session")
 def cleanup_worker_types(app):
-    with app.app_context():
-        from core.model.worker import Worker
+    import contextlib
 
-        if rss_worker := Worker.filter_by_type("rss_collector"):
-            yield rss_worker.to_dict()
+    with app.app_context():
+        with contextlib.suppress(Exception):
+            from core.model.worker import Worker
+
+            if rss_worker := Worker.filter_by_type("rss_collector"):
+                yield rss_worker.to_dict()
