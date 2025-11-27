@@ -633,6 +633,13 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
+        # For legacy stories without revision history, create initial revision first (before changes)
+        revision_count = story.get_revision_count()
+        if revision_count == 0:
+            from core.model.revision import StoryRevision
+            StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
+            db.session.flush()
+
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
@@ -1189,6 +1196,7 @@ class Story(BaseModel):
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["links"] = self.links
+        data["revision_count"] = self.get_revision_count()
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1210,6 +1218,14 @@ class Story(BaseModel):
 
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return StoryRevision.create_from_story(self, created_by_id=created_by_id, note=note)
+
+    def get_revision_count(self) -> int:
+        """Get the number of revisions for this story"""
+        if not self.id:
+            return 0
+        return db.session.execute(
+            db.select(db.func.count()).select_from(StoryRevision).filter(StoryRevision.story_id == self.id)
+        ).scalar() or 0
 
 
 class NewsItemVote(BaseModel):

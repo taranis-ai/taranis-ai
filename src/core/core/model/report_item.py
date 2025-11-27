@@ -486,6 +486,13 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
+        # For legacy reports without revision history, create initial revision first (before changes)
+        revision_count = report_item.get_revision_count()
+        if revision_count == 0:
+            from core.model.revision import ReportRevision
+            ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
+            db.session.flush()
+
         if title := data.get("title"):
             retag_stories = True
             report_item.title = title
@@ -503,14 +510,6 @@ class ReportItem(BaseModel):
             if normalized_ids is None:
                 return {"error": "stories must be a list of story ids"}, 400
             report_item.update_stories(normalized_ids)
-
-        # For legacy reports without revision history, create initial revision first
-        revision_count = report_item.get_revision_count()
-        if revision_count == 0:
-            # Create initial revision snapshot before changes
-            from core.model.revision import ReportRevision
-            ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
-            db.session.flush()
 
         report_item.record_revision(user, note="update")
         db.session.commit()
