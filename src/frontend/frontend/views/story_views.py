@@ -525,3 +525,164 @@ class StoryView(BaseView):
             return abort(405)
 
         return self.patch_story(story_id=object_id)
+
+    @staticmethod
+    @auth_required()
+    def versions_view(story_id: str) -> tuple[str, int] | Response:
+        """Display revision history for a story"""
+        if not story_id:
+            return abort(400, description="No story ID provided.")
+        
+        # Get story data
+        story = DataPersistenceLayer().get_object(Story, story_id)
+        if not story:
+            return abort(404, description="Story not found.")
+        
+        # Get revisions from core API
+        revisions_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions")
+        revisions = revisions_data.get("items", []) if revisions_data else []
+        
+        context = {
+            "story": story,
+            "revisions": revisions,
+        }
+        
+        return render_template("assess/story_versions.html", **context), 200
+
+    @staticmethod
+    @auth_required()
+    def diff_view(story_id: str, from_rev: int, to_rev: int) -> tuple[str, int] | Response:
+        """Display diff between two story revisions"""
+        if not story_id:
+            return abort(400, description="No story ID provided.")
+        
+        # Get story data
+        story = DataPersistenceLayer().get_object(Story, story_id)
+        if not story:
+            return abort(404, description="Story not found.")
+        
+        # Get revision data from core API
+        from_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
+        to_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
+        
+        if not from_data or not to_data:
+            return abort(404, description="Revision not found.")
+        
+        # Calculate diff
+        from_revision_data = from_data.get("data", {})
+        to_revision_data = to_data.get("data", {})
+        
+        # Prepare diff data
+        diff_data = {
+            "from_revision": from_data,
+            "to_revision": to_data,
+            "changes": _calculate_story_diff(from_revision_data, to_revision_data),
+        }
+        
+        context = {
+            "story": story,
+            "diff": diff_data,
+            "from_rev": from_rev,
+            "to_rev": to_rev,
+        }
+        
+        return render_template("assess/story_diff.html", **context), 200
+
+
+def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
+    """Calculate differences between two story data dictionaries"""
+    changes = []
+    
+    # Compare title
+    if from_data.get("title") != to_data.get("title"):
+        changes.append({
+            "field": "Title",
+            "old_value": from_data.get("title"),
+            "new_value": to_data.get("title"),
+        })
+    
+    # Compare description
+    if from_data.get("description") != to_data.get("description"):
+        changes.append({
+            "field": "Description",
+            "old_value": from_data.get("description"),
+            "new_value": to_data.get("description"),
+        })
+    
+    # Compare summary
+    if from_data.get("summary") != to_data.get("summary"):
+        changes.append({
+            "field": "Summary",
+            "old_value": from_data.get("summary"),
+            "new_value": to_data.get("summary"),
+        })
+    
+    # Compare comments
+    if from_data.get("comments") != to_data.get("comments"):
+        changes.append({
+            "field": "Comments",
+            "old_value": from_data.get("comments"),
+            "new_value": to_data.get("comments"),
+        })
+    
+    # Compare tags
+    from_tags = {tag.get("name") for tag in from_data.get("tags", [])}
+    to_tags = {tag.get("name") for tag in to_data.get("tags", [])}
+    
+    added_tags = to_tags - from_tags
+    removed_tags = from_tags - to_tags
+    
+    if added_tags:
+        changes.append({
+            "field": "Tags Added",
+            "old_value": None,
+            "new_value": ", ".join(sorted(added_tags)),
+        })
+    
+    if removed_tags:
+        changes.append({
+            "field": "Tags Removed",
+            "old_value": ", ".join(sorted(removed_tags)),
+            "new_value": None,
+        })
+    
+    # Compare news items
+    from_news_items = {item.get("id") for item in from_data.get("news_items", [])}
+    to_news_items = {item.get("id") for item in to_data.get("news_items", [])}
+    
+    added_items = to_news_items - from_news_items
+    removed_items = from_news_items - to_news_items
+    
+    if added_items:
+        item_titles = [item.get("title", item.get("id")) for item in to_data.get("news_items", []) if item.get("id") in added_items]
+        changes.append({
+            "field": "News Items Added",
+            "old_value": None,
+            "new_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
+        })
+    
+    if removed_items:
+        item_titles = [item.get("title", item.get("id")) for item in from_data.get("news_items", []) if item.get("id") in removed_items]
+        changes.append({
+            "field": "News Items Removed",
+            "old_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
+            "new_value": None,
+        })
+    
+    # Compare attributes
+    from_attrs = {attr.get("key"): attr.get("value") for attr in from_data.get("attributes", [])}
+    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", [])}
+    
+    # Find changed, added, and removed attributes
+    all_keys = set(from_attrs.keys()) | set(to_attrs.keys())
+    for key in sorted(all_keys):
+        from_val = from_attrs.get(key)
+        to_val = to_attrs.get(key)
+        if from_val != to_val:
+            changes.append({
+                "field": f"Attribute: {key}",
+                "old_value": from_val,
+                "new_value": to_val,
+            })
+    
+    return changes
