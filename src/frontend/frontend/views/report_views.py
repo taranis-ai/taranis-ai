@@ -1,5 +1,5 @@
 from typing import Any
-from flask import request, abort, Response, url_for
+from flask import request, abort, Response, url_for, render_template
 from pydantic import ValidationError
 
 from frontend.log import logger
@@ -136,3 +136,137 @@ class ReportItemView(BaseView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @staticmethod
+    @auth_required()
+    def versions_view(report_id: str) -> tuple[str, int] | Response:
+        """Display revision history for a report"""
+        if not report_id:
+            return abort(400, description="No report ID provided.")
+        
+        # Get report data
+        report = DataPersistenceLayer().get_object(ReportItem, report_id)
+        if not report:
+            return abort(404, description="Report not found.")
+        
+        # Get revisions from core API
+        revisions_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions")
+        revisions = revisions_data.get("items", []) if revisions_data else []
+        
+        context = {
+            "report": report,
+            "revisions": revisions,
+        }
+        
+        return render_template("analyze/report_versions.html", **context), 200
+
+    @staticmethod
+    @auth_required()
+    def diff_view(report_id: str, from_rev: int, to_rev: int) -> tuple[str, int] | Response:
+        """Display diff between two revisions"""
+        if not report_id:
+            return abort(400, description="No report ID provided.")
+        
+        # Get report data
+        report = DataPersistenceLayer().get_object(ReportItem, report_id)
+        if not report:
+            return abort(404, description="Report not found.")
+        
+        # Get revision data from core API
+        from_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{from_rev}")
+        to_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{to_rev}")
+        
+        if not from_data or not to_data:
+            return abort(404, description="Revision not found.")
+        
+        # Calculate diff
+        from_revision_data = from_data.get("data", {})
+        to_revision_data = to_data.get("data", {})
+        
+        # Prepare diff data
+        diff_data = {
+            "from_revision": from_data,
+            "to_revision": to_data,
+            "changes": _calculate_diff(from_revision_data, to_revision_data),
+        }
+        
+        context = {
+            "report": report,
+            "diff": diff_data,
+            "from_rev": from_rev,
+            "to_rev": to_rev,
+        }
+        
+        return render_template("analyze/report_diff.html", **context), 200
+
+
+def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
+    """Calculate differences between two report data dictionaries"""
+    changes = []
+    
+    # Compare title
+    if from_data.get("title") != to_data.get("title"):
+        changes.append({
+            "field": "Title",
+            "old_value": from_data.get("title"),
+            "new_value": to_data.get("title"),
+        })
+    
+    # Compare completed status
+    if from_data.get("completed") != to_data.get("completed"):
+        changes.append({
+            "field": "Completed",
+            "old_value": from_data.get("completed"),
+            "new_value": to_data.get("completed"),
+        })
+    
+    # Compare attributes
+    from_attrs = from_data.get("grouped_attributes", [])
+    to_attrs = to_data.get("grouped_attributes", [])
+    
+    # Create flattened attribute dictionaries for comparison
+    from_attr_dict = {}
+    for group in from_attrs:
+        for attr in group.get("attributes", []):
+            from_attr_dict[f"{group.get('title', '')}.{attr.get('title', '')}"] = attr.get("value")
+    
+    to_attr_dict = {}
+    for group in to_attrs:
+        for attr in group.get("attributes", []):
+            to_attr_dict[f"{group.get('title', '')}.{attr.get('title', '')}"] = attr.get("value")
+    
+    # Find changed and new attributes
+    for key in set(from_attr_dict.keys()) | set(to_attr_dict.keys()):
+        from_val = from_attr_dict.get(key)
+        to_val = to_attr_dict.get(key)
+        if from_val != to_val:
+            changes.append({
+                "field": key,
+                "old_value": from_val,
+                "new_value": to_val,
+            })
+    
+    # Compare stories
+    from_story_ids = {s.get("id") for s in from_data.get("stories", [])}
+    to_story_ids = {s.get("id") for s in to_data.get("stories", [])}
+    
+    added_stories = to_story_ids - from_story_ids
+    removed_stories = from_story_ids - to_story_ids
+    
+    if added_stories:
+        story_titles = [s.get("title", s.get("id")) for s in to_data.get("stories", []) if s.get("id") in added_stories]
+        changes.append({
+            "field": "Stories Added",
+            "old_value": None,
+            "new_value": ", ".join(story_titles),
+        })
+    
+    if removed_stories:
+        story_titles = [s.get("title", s.get("id")) for s in from_data.get("stories", []) if s.get("id") in removed_stories]
+        changes.append({
+            "field": "Stories Removed",
+            "old_value": ", ".join(story_titles),
+            "new_value": None,
+        })
+    
+    return changes
