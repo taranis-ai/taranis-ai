@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="p-4 card bg-base-100 shadow">
+    <div class="card-body gap-4">
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('assess.story_versions', story_id=story.id) }}" class="btn btn-sm btn-ghost">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to Versions
+        </a>
+        <h2 class="card-title flex-1">Changes: {{ story.title }}</h2>
+      </div>
+
+      <div class="flex gap-4 p-4 bg-base-200 rounded-lg">
+        <div class="flex-1">
+          <div class="text-sm text-base-content/60">From Revision</div>
+          <div class="font-mono text-lg">{{ from_rev }}</div>
+          <div class="text-sm">{{ diff.from_revision.created_at | format_datetime }}</div>
+          <div class="text-sm">by {{ diff.from_revision.created_by or 'System' }}</div>
+        </div>
+        <div class="flex items-center">
+          <svg class="w-8 h-8 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-sm text-base-content/60">To Revision</div>
+          <div class="font-mono text-lg">{{ to_rev }}</div>
+          <div class="text-sm">{{ diff.to_revision.created_at | format_datetime }}</div>
+          <div class="text-sm">by {{ diff.to_revision.created_by or 'System' }}</div>
+          {% if diff.to_revision.note %}
+            <div class="text-sm mt-1">
+              <span class="badge badge-sm">{{ diff.to_revision.note }}</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if diff.changes %}
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Old Value</th>
+                <th>New Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for change in diff.changes %}
+                <tr>
+                  <td class="font-semibold">{{ change.field }}</td>
+                  <td>
+                    {% if change.old_value is not none %}
+                      <div class="bg-error/10 text-error p-2 rounded">
+                        <span class="line-through">{{ change.old_value }}</span>
+                      </div>
+                    {% else %}
+                      <span class="text-base-content/40">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if change.new_value is not none %}
+                      <div class="bg-success/10 text-success p-2 rounded">
+                        <span>{{ change.new_value }}</span>
+                      </div>
+                    {% else %}
+                      <span class="text-base-content/40">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>No changes detected between these revisions.</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

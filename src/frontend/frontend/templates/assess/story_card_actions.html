@@ -72,6 +72,15 @@
       {{ heroicon_mini("pencil-square") }}
       <span>Edit story</span>
     </a>
+    {% if story.revision_count and story.revision_count > 0 %}
+      <a type="button"
+         href="{{ url_for('assess.story_versions', story_id=story_id) }}"
+         class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+         data-testid="version-history">
+        {{ heroicon_mini("clock") }}
+        <span>Version History ({{ story.revision_count }})</span>
+      </a>
+    {% endif %}
   {% endset %}
 
   {% if compact_view %}

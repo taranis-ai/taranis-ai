@@ -30,5 +30,14 @@ def init(app: Flask):
     assess_bp.add_url_rule("/tags", view_func=StoryView.get_tags, methods=["GET"], endpoint="get_tags")
 
     assess_bp.add_url_rule("/stories/bulk_action", view_func=StoryView.bulk_action, methods=["POST"], endpoint="bulk_action")
+    
+    # Story revision history routes
+    assess_bp.add_url_rule("/story/<string:story_id>/versions", view_func=StoryView.versions_view, methods=["GET"], endpoint="story_versions")
+    assess_bp.add_url_rule(
+        "/story/<string:story_id>/diff/<int:from_rev>.<int:to_rev>",
+        view_func=StoryView.diff_view,
+        methods=["GET"],
+        endpoint="story_diff",
+    )
 
     app.register_blueprint(assess_bp)
