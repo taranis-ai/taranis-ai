@@ -44,6 +44,14 @@
       </div>
       <div class="flex-1"></div>
       {% if is_edit %}
+        {% if report.revision_count and report.revision_count > 0 %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_versions', report_id=report.id) }}" data-testid="report-versions">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Version History ({{ report.revision_count }})
+          </a>
+        {% endif %}
         <a class="btn btn-outline btn-sm"
            href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
            data-testid="report-new-product">New Product from Report</a>
