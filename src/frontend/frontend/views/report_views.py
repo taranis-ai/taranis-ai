@@ -220,30 +220,52 @@ def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
             "new_value": to_data.get("completed"),
         })
     
+    # Build story ID to title mapping for resolving STORY attribute values
+    story_map = {}
+    for story in from_data.get("stories", []) + to_data.get("stories", []):
+        if story.get("id"):
+            story_map[story["id"]] = story.get("title", story["id"])
+    
     # Compare attributes
     from_attrs = from_data.get("grouped_attributes", [])
     to_attrs = to_data.get("grouped_attributes", [])
     
-    # Create flattened attribute dictionaries for comparison
+    # Create flattened attribute dictionaries for comparison, with type info
     from_attr_dict = {}
+    from_attr_types = {}
     for group in from_attrs:
         for attr in group.get("attributes", []):
-            from_attr_dict[f"{group.get('title', '')}.{attr.get('title', '')}"] = attr.get("value")
+            key = f"{group.get('title', '')}.{attr.get('title', '')}"
+            from_attr_dict[key] = attr.get("value")
+            from_attr_types[key] = attr.get("type")
     
     to_attr_dict = {}
+    to_attr_types = {}
     for group in to_attrs:
         for attr in group.get("attributes", []):
-            to_attr_dict[f"{group.get('title', '')}.{attr.get('title', '')}"] = attr.get("value")
+            key = f"{group.get('title', '')}.{attr.get('title', '')}"
+            to_attr_dict[key] = attr.get("value")
+            to_attr_types[key] = attr.get("type")
     
     # Find changed and new attributes
     for key in set(from_attr_dict.keys()) | set(to_attr_dict.keys()):
         from_val = from_attr_dict.get(key)
         to_val = to_attr_dict.get(key)
+        
         if from_val != to_val:
+            # Resolve STORY attribute values to titles
+            attr_type = from_attr_types.get(key) or to_attr_types.get(key)
+            if attr_type == "STORY":
+                from_display = story_map.get(from_val, from_val) if from_val else None
+                to_display = story_map.get(to_val, to_val) if to_val else None
+            else:
+                from_display = from_val
+                to_display = to_val
+            
             changes.append({
                 "field": key,
-                "old_value": from_val,
-                "new_value": to_val,
+                "old_value": from_display,
+                "new_value": to_display,
             })
     
     # Compare stories
