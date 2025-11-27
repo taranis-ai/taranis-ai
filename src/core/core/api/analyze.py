@@ -7,6 +7,7 @@ from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
+from core.model.revision import ReportRevision
 from core.config import Config
 
 
@@ -133,6 +134,60 @@ class ReportItemLock(MethodView):
             return str(ex), 500
 
 
+class ReportItemRevisions(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id: str):
+        """Get all revisions for a report item"""
+        from core.managers.db_manager import db
+        
+        revisions = db.session.execute(
+            db.select(ReportRevision)
+            .filter(ReportRevision.report_item_id == report_item_id)
+            .order_by(ReportRevision.revision.desc())
+        ).scalars().all()
+        
+        return {
+            "total_count": len(revisions),
+            "items": [
+                {
+                    "id": rev.id,
+                    "revision": rev.revision,
+                    "created_at": rev.created_at.isoformat() if rev.created_at else None,
+                    "created_by": rev.created_by.username if rev.created_by else None,
+                    "created_by_id": rev.created_by_id,
+                    "note": rev.note,
+                }
+                for rev in revisions
+            ]
+        }, 200
+
+
+class ReportItemRevisionData(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id: str, revision_number: int):
+        """Get data for a specific revision"""
+        from core.managers.db_manager import db
+        
+        revision = db.session.execute(
+            db.select(ReportRevision)
+            .filter(ReportRevision.report_item_id == report_item_id)
+            .filter(ReportRevision.revision == revision_number)
+        ).scalar_one_or_none()
+        
+        if not revision:
+            return {"error": "Revision not found"}, 404
+            
+        return {
+            "id": revision.id,
+            "revision": revision.revision,
+            "created_at": revision.created_at.isoformat() if revision.created_at else None,
+            "created_by": revision.created_by.username if revision.created_by else None,
+            "created_by_id": revision.created_by_id,
+            "note": revision.note,
+            "data": revision.data,
+        }, 200
+
+
 def initialize(app: Flask):
     analyze_bp = Blueprint("analyze", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/analyze")
 
@@ -145,5 +200,10 @@ def initialize(app: Flask):
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/revisions", view_func=ReportItemRevisions.as_view("report_item_revisions"))
+    analyze_bp.add_url_rule(
+        "/report-items/<string:report_item_id>/revisions/<int:revision_number>",
+        view_func=ReportItemRevisionData.as_view("report_item_revision_data"),
+    )
 
     app.register_blueprint(analyze_bp)

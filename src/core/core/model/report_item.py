@@ -127,6 +127,7 @@ class ReportItem(BaseModel):
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["revision_count"] = self.get_revision_count()
         return data
 
     def to_supported_products_dict(self):
@@ -169,6 +170,14 @@ class ReportItem(BaseModel):
 
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
+
+    def get_revision_count(self) -> int:
+        """Get the number of revisions for this report"""
+        if not self.id:
+            return 0
+        return db.session.execute(
+            db.select(db.func.count()).select_from(ReportRevision).filter(ReportRevision.report_item_id == self.id)
+        ).scalar() or 0
 
     @staticmethod
     def _clean_title(raw_title: Any) -> str | None:
@@ -494,6 +503,14 @@ class ReportItem(BaseModel):
             if normalized_ids is None:
                 return {"error": "stories must be a list of story ids"}, 400
             report_item.update_stories(normalized_ids)
+
+        # For legacy reports without revision history, create initial revision first
+        revision_count = report_item.get_revision_count()
+        if revision_count == 0:
+            # Create initial revision snapshot before changes
+            from core.model.revision import ReportRevision
+            ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
+            db.session.flush()
 
         report_item.record_revision(user, note="update")
         db.session.commit()
