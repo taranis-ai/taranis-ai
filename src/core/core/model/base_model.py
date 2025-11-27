@@ -5,7 +5,6 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
 
 from sqlalchemy import func
-from sqlalchemy.exc import ResourceClosedError
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
@@ -22,18 +21,6 @@ class BaseModel(db.Model):
 
     if TYPE_CHECKING:
         id: Mapped[int | str]
-
-    @staticmethod
-    def _execute_with_retry(action):
-        try:
-            return action(db.session)
-        except ResourceClosedError:
-            db.session.remove()
-            temp_session = db.create_scoped_session()
-            try:
-                return action(temp_session)
-            finally:
-                temp_session.remove()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -89,7 +76,7 @@ class BaseModel(db.Model):
 
     @classmethod
     def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
-        cls._execute_with_retry(lambda session: session.execute(db.delete(cls)))
+        db.session.execute(db.delete(cls))
         db.session.commit()
         logger.debug(f"All {cls.__name__} deleted")
         return {"message": f"All {cls.__name__} deleted"}, 200
@@ -113,11 +100,11 @@ class BaseModel(db.Model):
     def get(cls: Type[T], item_id: str | int) -> T | None:
         if (isinstance(item_id, int) and (item_id < 0 or item_id > 2**63 - 1)) or item_id is None:
             return None
-        return cls._execute_with_retry(lambda session: session.get(cls, item_id))
+        return db.session.get(cls, item_id)
 
     @classmethod
     def get_all_for_collector(cls: Type[T]) -> Sequence[T] | None:
-        return cls._execute_with_retry(lambda session: session.execute(db.select(cls)).scalars().all())
+        return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod
     def get_bulk(cls: Type[T], item_ids: list[int] | list[str]) -> list[T]:
@@ -144,11 +131,11 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_filtered(cls: Type[T], query: Select) -> Sequence[T] | None:
-        return cls._execute_with_retry(lambda session: session.execute(query).scalars().all())
+        return db.session.execute(query).scalars().all()
 
     @classmethod
     def get_first(cls: Type[T], query: Select) -> T | None:
-        return cls._execute_with_retry(lambda session: session.execute(query).scalar())
+        return db.session.execute(query).scalar()
 
     @classmethod
     def get_by_filter(cls: Type[T], filter_args: dict) -> Sequence[T] | None:
@@ -171,12 +158,12 @@ class BaseModel(db.Model):
     @classmethod
     def get_filtered_count(cls: Type[T], query: Select) -> int:
         count_query = db.select(func.count()).select_from(query).order_by(None).offset(None).limit(None)
-        return cls._execute_with_retry(lambda session: session.execute(count_query).scalar() or 0)
+        return db.session.execute(count_query).scalar() or 0
 
     @classmethod
     def get_count(cls: Type[T]) -> int:
         count_query = db.select(func.count()).select_from(cls)
-        return cls._execute_with_retry(lambda session: session.execute(count_query).scalar() or 0)
+        return db.session.execute(count_query).scalar() or 0
 
     def is_valid_base64(self, s) -> bytes | None:
         try:
