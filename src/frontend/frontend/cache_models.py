@@ -1,7 +1,10 @@
-from typing import TypeVar, Generic
-from pydantic import BaseModel
+from typing import Generic, TypeVar
+
 from models.base import TaranisBaseModel
+from pydantic import BaseModel
+
 from frontend.config import Config
+
 
 T = TypeVar("T", bound="TaranisBaseModel")
 
@@ -22,6 +25,7 @@ class CacheObject(list[T], Generic[T]):
         limit: int = 20,
         order: str = "",
         links: dict | None = None,
+        query_params: dict | None = None,
         total_count: int | None = None,
     ):
         iterable = iterable or []
@@ -29,8 +33,9 @@ class CacheObject(list[T], Generic[T]):
         self.page = page
         self.limit = limit
         self.order = order
-        self._total_count = total_count or len(iterable)
         self._links: dict = links or {}
+        self._query_params: dict = query_params or {}
+        self._total_count = total_count or len(iterable)
 
     def __getitem__(self, item):  # type: ignore[override]
         result = super().__getitem__(item)
@@ -145,6 +150,9 @@ class CacheObject(list[T], Generic[T]):
         """
         Apply search, ordering, and pagination all at once
         """
+        from frontend.log import logger
+
+        logger.debug(f"Applying search and paginate with: {paging=} - {self._query_params=}")
         if not paging or paging.query_params:
             return self
 

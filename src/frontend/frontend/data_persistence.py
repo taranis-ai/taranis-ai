@@ -1,15 +1,16 @@
-from flask import request
-import json
-from flask_jwt_extended import get_jwt_identity
-from typing import Type, Any
-from requests import Response
 import hashlib
+import json
+from typing import Any, Type
 
-from frontend.core_api import CoreApi
-from frontend.config import Config
+from flask import request
+from flask_jwt_extended import get_jwt_identity
+from models.base import T, TaranisBaseModel
+from requests import Response
+
 from frontend.cache import cache
-from models.base import TaranisBaseModel, T
 from frontend.cache_models import CacheObject, PagingData
+from frontend.config import Config
+from frontend.core_api import CoreApi
 from frontend.log import logger
 
 
@@ -95,9 +96,13 @@ class DataPersistenceLayer:
         cache_object = CacheObject(
             result_object,
             total_count=total_count,
+            limit=paging_data.limit if paging_data and paging_data.limit else 20,
+            page=paging_data.page if paging_data and paging_data.page else 1,
+            order=paging_data.order if paging_data and paging_data.order else "",
+            query_params=paging_data.query_params if paging_data else {},
             links=links,
         )
-        logger.debug(f"Adding {endpoint} to cache with timeout: {cache_object.timeout}")
+        logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
         cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
         return cache_object.search_and_paginate(paging_data)
 

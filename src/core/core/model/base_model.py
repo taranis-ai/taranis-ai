@@ -142,16 +142,29 @@ class BaseModel(db.Model):
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
+    def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+        page = int(filter_args.get("page", 1)) - 1
+        limit = int(filter_args.get("limit", 20))
+        offset = filter_args.get("offset", page * limit if limit else None)
+        logger.debug(f"Applying paging to query: {page=}, {limit=}, {offset=}")
+        if offset:
+            query = query.offset(offset)
+        if limit:
+            query = query.limit(limit)
+        return query
+
+    @classmethod
     def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
         if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
-            query = cls.get_filter_query(filter_args)
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
         items = cls.get_filtered(query) or []
         if with_count:
-            count = cls.get_filtered_count(query)
+            count = cls.get_filtered_count(base_query)
             return {"total_count": count, "items": cls.to_list(items)}, 200
         return {"items": cls.to_list(items)}, 200
 

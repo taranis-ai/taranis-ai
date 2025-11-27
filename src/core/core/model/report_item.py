@@ -1,23 +1,23 @@
+import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import uuid
 from typing import Any, Optional
 
 from sqlalchemy import or_
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
-from sqlalchemy.orm import Mapped, relationship
 
-from core.managers.db_manager import db
-from core.model.base_model import BaseModel
-from core.model.story import Story
-from core.model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
-from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.user import User
 from core.log import logger
-from core.model.attribute import AttributeType, AttributeEnum
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.managers.db_manager import db
+from core.model.attribute import AttributeEnum, AttributeType
+from core.model.base_model import BaseModel
+from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.story import Story
+from core.model.user import User
 from core.service.news_item_tag import NewsItemTagService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItem(BaseModel):
@@ -287,10 +287,7 @@ class ReportItem(BaseModel):
             elif sort == "DATE_ASC":
                 query = query.order_by(db.asc(ReportItem.created))
 
-        offset = filter_args.get("offset", 0)
-        limit = filter_args.get("limit", 20)
-
-        return query.offset(offset).limit(limit)
+        return query
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
