@@ -66,7 +66,10 @@ def db(app):
 
         yield db
 
-        db.drop_all()
+        # Clean up all data and drop tables at the end of the session
+        with contextlib.suppress(Exception):
+            db.session.remove()
+            db.drop_all()
 
 
 @pytest.fixture
@@ -75,13 +78,25 @@ def session(db):
     connection = db.engine.connect()
     transaction = connection.begin()
 
+    # Store the original session to restore later
+    original_session = db.session
+
     db.session = scoped_session(session_factory=sessionmaker(bind=connection))
 
     yield db.session
 
-    transaction.rollback()
+    # Ensure all pending changes are cleared before rollback
+    db.session.expunge_all()
+    
+    # Check if transaction is still active before rolling back
+    if transaction.is_active:
+        transaction.rollback()
+    
     connection.close()
     db.session.remove()
+
+    # Restore the original session for cleanup fixtures
+    db.session = original_session
 
 
 @pytest.fixture(scope="session")
