@@ -14,6 +14,7 @@ from core.model.story import Story
 from core.model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
+from core.model.revision import ReportRevision
 from core.log import logger
 from core.model.attribute import AttributeType, AttributeEnum
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -156,6 +157,10 @@ class ReportItem(BaseModel):
         data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
+    def record_revision(self, user: User | None = None, note: str | None = None) -> ReportRevision:
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
+
     def clone_report(self):
         attributes = [a.clone_attribute() for a in self.attributes]
 
@@ -180,6 +185,8 @@ class ReportItem(BaseModel):
             return {"error": "Permission Denied"}, 403
 
         new_report = report.clone_report()
+        new_report.record_revision(user, note="cloned")
+        db.session.commit()
         return {
             "message": f"Successfully cloned Report '{new_report.title}'",
             "report": new_report.to_detail_dict(),
@@ -204,10 +211,10 @@ class ReportItem(BaseModel):
         if stories := report_item.stories:
             for story in stories:
                 NewsItemTagService.add_report_tag(story, report_item)
-
         db.session.add(report_item)
+        db.session.flush()
+        report_item.record_revision(user, note="created")
         db.session.commit()
-
         return report_item, 200
 
     def add_attributes(self):
@@ -324,6 +331,7 @@ class ReportItem(BaseModel):
 
         stories = Story.get_bulk(story_ids)
         report_item.stories.extend(stories)
+        report_item.record_revision(user, note="add_stories")
         db.session.commit()
 
         for story in stories:
@@ -343,6 +351,7 @@ class ReportItem(BaseModel):
             NewsItemTagService.remove_report_tag(story, report_item.id)
 
         report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
+        report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
         return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
@@ -400,6 +409,7 @@ class ReportItem(BaseModel):
         if story_ids is not None:
             report_item.update_stories(story_ids)
 
+        report_item.record_revision(user, note="update")
         db.session.commit()
 
         if retag_stories:
