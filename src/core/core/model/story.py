@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, inspect
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -1090,9 +1090,10 @@ class Story(BaseModel):
             news_items=[news_item.id],
         )
         db.session.add(new_story)
-        db.session.commit()
+        db.session.flush()
 
         new_story.update_status()
+        db.session.commit()
         return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
@@ -1199,7 +1200,14 @@ class Story(BaseModel):
 
         return data
 
-    def record_revision(self, user: User | None = None, note: str | None = None) -> StoryRevision:
+    def record_revision(self, user: User | None = None, note: str | None = None) -> StoryRevision | None:
+        if not self.id:
+            return None
+
+        state = inspect(self)
+        if state.deleted or state.detached or self in db.session.deleted:
+            return None
+
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return StoryRevision.create_from_story(self, created_by_id=created_by_id, note=note)
 

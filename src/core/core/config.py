@@ -77,6 +77,7 @@ class Settings(BaseSettings):
                 "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
             }
         )
+        self.SQLALCHEMY_ENGINE_OPTIONS.setdefault("pool_pre_ping", True)
         self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 

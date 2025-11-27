@@ -57,6 +57,8 @@ class ReportItem(MethodView):
                 logger.debug("No data in request")
                 return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
+            if status != 200:
+                return new_report_item, status
         except Exception as ex:
             logger.exception()
             return abort(400, f"Error adding report item: {ex}")

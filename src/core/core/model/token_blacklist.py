@@ -23,9 +23,9 @@ class TokenBlacklist(BaseModel):
     @classmethod
     def invalid(cls, token: str) -> bool:
         query = db.select(db.exists().where(cls.token == token))
-        return db.session.execute(query).scalar_one()
+        return cls._execute_with_retry(lambda session: session.execute(query).scalar_one())
 
     @classmethod
     def delete_older(cls, check_time: datetime):
-        db.session.execute(db.delete(cls).where(cls.created < check_time))
+        cls._execute_with_retry(lambda session: session.execute(db.delete(cls).where(cls.created < check_time)))
         db.session.commit()
