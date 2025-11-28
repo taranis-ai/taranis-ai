@@ -156,7 +156,7 @@ class ReportItem(BaseModel):
         data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
-    def clone_report(self):
+    def clone_report(self, user: User | None = None) -> "ReportItem":
         attributes = [a.clone_attribute() for a in self.attributes]
 
         report = ReportItem(
@@ -166,6 +166,8 @@ class ReportItem(BaseModel):
             completed=self.completed,
             stories=[],
         )
+        if user:
+            report.user_id = user.id
         db.session.add(report)
         db.session.commit()
         return report
@@ -179,7 +181,7 @@ class ReportItem(BaseModel):
         if not report.allowed_with_acl(user, True):
             return {"error": "Permission Denied"}, 403
 
-        new_report = report.clone_report()
+        new_report = report.clone_report(user)
         return {
             "message": f"Successfully cloned Report '{new_report.title}'",
             "report": new_report.to_detail_dict(),
