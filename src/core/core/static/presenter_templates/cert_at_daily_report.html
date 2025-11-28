@@ -25,27 +25,30 @@ This Template needs exactly one Report
 
         {% for group in ['News' , 'Vulnerabilities'] -%}
         <h2> {{ group }} </h2>
-        {% if group.lower() in report and report[group.lower()] %}
-        {% for stories_in_group in report[group.lower()].split(',') -%}
-        {% for story in stories -%}
-        {% if story.id|string == stories_in_group -%}
-        <h3>{{ story.title }}</h3>
-        <p>
-        {% if story.summary|length -%}
-        {{ story.summary }}
-        {% else -%}
-        {{ story.news_items[0].content }}
-        {%- endif %}
-        </p>
-        {% for item in story.news_items -%}
-        <p><a href="{{ item.link }}">{{ item.link }}</a></p>
-        {% endfor %}
-        <hr>
-        {%- endif %}
-        {%- endfor %}
-        {%- endfor %}
-        {%- endif %}
-        {%- endfor %}
+        {% set story_ids_in_group = report.get(group.lower()) %}
+        STORIES IN GROUP: {{ story_ids_in_group }}
+        {% if story_ids_in_group %}
+          {% set story_ids = story_ids_in_group.split(',') %}
+          {% for story_id in story_ids -%}
+            {% set story = stories | selectattr('id', 'equalto', story_id) | first %}
+            {% if story %}
+              <h3>{{ story.title }}</h3>
+              <p>
+                {% if story.summary|length -%}
+                  {{ story.summary }}
+                {% else -%}
+                  {{ story.news_items[0].content }}
+                {%- endif %}
+              </p>
+
+              {% for item in story.news_items -%}
+                <p><a href="{{ item.link }}">{{ item.link }}</a></p>
+              {% endfor %}
+              <hr>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
       </div>
       </div>
       </div>

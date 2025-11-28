@@ -150,9 +150,7 @@ class CacheObject(list[T], Generic[T]):
         """
         Apply search, ordering, and pagination all at once
         """
-        from frontend.log import logger
 
-        logger.debug(f"Applying search and paginate with: {paging=} - {self._query_params=}")
         if not paging or paging.query_params:
             return self
 
