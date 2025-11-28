@@ -55,21 +55,29 @@ def _fetch_report_revisions(report_id: str) -> list[ReportRevision]:
 def test_story_revisions_are_created_on_updates():
     user = User.find_by_name("admin")
     story = _create_story()
+    original_title = story.title
 
     Story.update(story.id, {"title": "Updated Title"}, user)
     revisions = _fetch_story_revisions(story.id)
-    assert len(revisions) == 1
+    # Expect 2 revisions: initial (legacy) + update
+    assert len(revisions) == 2
+    # Check initial revision (first in list, revision 1)
     assert revisions[0].revision == 1
-    assert revisions[0].data["title"] == "Updated Title"
-    assert revisions[0].note == "update"
-    assert revisions[0].created_by_id == user.id
+    assert revisions[0].data["title"] == original_title
+    assert revisions[0].note == "initial"
+    # Check update revision (second in list, revision 2)
+    assert revisions[1].revision == 2
+    assert revisions[1].data["title"] == "Updated Title"
+    assert revisions[1].note == "update"
+    assert revisions[1].created_by_id == user.id
 
     Story.update(story.id, {"description": "Changed description"}, user)
     revisions = _fetch_story_revisions(story.id)
-    assert len(revisions) == 2
-    assert revisions[-1].revision == 2
+    assert len(revisions) == 3
+    assert revisions[-1].revision == 3
     assert revisions[-1].data["description"] == "Changed description"
     assert revisions[-1].note == "update"
+    assert revisions[-1].created_by_id == user.id
 
 
 @pytest.mark.usefixtures("session")
