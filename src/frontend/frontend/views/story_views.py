@@ -127,9 +127,6 @@ class StoryView(BaseView):
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         notification_html = cls.get_notification_from_response(response)
         if StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
@@ -152,8 +149,6 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -169,8 +164,6 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -460,6 +453,26 @@ class StoryView(BaseView):
             detail_view=False,
             **context,
         )
+
+    @classmethod
+    @auth_required()
+    def ungroup(cls, story_id: str):
+        news_item_ids = request.form.getlist("news_item_ids[]")
+        if not news_item_ids:
+            notification = {"message": "No news items selected for ungrouping.", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+        try:
+            response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+            notification_html = cls.get_notification_from_response(response)
+        except Exception:
+            logger.exception("Failed to ungroup news item.")
+            notification = {"message": "Failed to ungroup news item.", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        content = cls._get_action_response_content(story_id)
+        return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()

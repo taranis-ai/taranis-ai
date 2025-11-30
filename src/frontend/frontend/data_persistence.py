@@ -44,7 +44,7 @@ class DataPersistenceLayer:
 
     def get_object(self, object_model: Type[T], object_id: int | str) -> T | None:
         endpoint = self.get_endpoint(object_model)
-        cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+        cache_key = f"{object_id}_{self.make_user_key(endpoint)}"
         if cache_object := cache.get(key=cache_key):
             return cache_object
         if result := self.api.api_get(f"{endpoint}/{object_id}"):
@@ -67,7 +67,7 @@ class DataPersistenceLayer:
 
     def invalidate_cache_by_object_id(self, object: TaranisBaseModel | Type[TaranisBaseModel], object_id: int | str):
         endpoint = self.get_endpoint(object)
-        cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
+        cache_key = f"{object_id}_{self.make_user_key(endpoint)}"
         cache.delete(cache_key)
 
     def get_raw_objects(self, model: Type[TaranisBaseModel], endpoint: str) -> list[TaranisBaseModel]:
@@ -133,5 +133,4 @@ class DataPersistenceLayer:
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
-            self.invalidate_cache_by_object_id(object, object_id)
         return response
