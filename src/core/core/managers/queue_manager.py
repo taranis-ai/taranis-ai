@@ -1,4 +1,4 @@
-from celery import Celery
+from celery import Celery, chain
 from flask import Flask
 import requests
 import contextlib
@@ -210,7 +210,7 @@ class QueueManager:
             "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
         )
 
-        (render_sig | publish_sig).apply_async()
+        chain(render_sig, publish_sig).apply_async()
 
 
 def initialize(app: Flask, initial_setup: bool = True):
