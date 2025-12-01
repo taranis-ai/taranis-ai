@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import time
+
 import pytest
-from playwright.sync_api import expect, Page
 
 # from typing import Callable
 from flask import url_for
-
-
+from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
 
@@ -14,8 +13,6 @@ from playwright_helpers import PlaywrightHelpers
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
     def test_e2e_login(self, taranis_frontend: Page):
-        self.ci_run = True
-
         page = taranis_frontend
         page.goto(url_for("base.login", _external=True))
 
@@ -35,8 +32,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         expect(page.locator("#dashboard")).to_contain_text("Connectors")
 
     def test_instance_setup(self, taranis_frontend: Page):
-        self.ci_run = True
-
         page = taranis_frontend
         self.highlight_element(page.get_by_role("link", name="Assess").first).click()
         self.highlight_element(page.get_by_role("heading", name="No stories found."))
@@ -48,10 +43,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         assert rows == 10
 
     def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
-        self.ci_run = True
-        #        Test definitions
-        # ===============================
-
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess**", wait_until="domcontentloaded")
@@ -198,10 +189,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         assess_workflow_2(stories_date_descending_important)
 
     def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
-        self.ci_run = True
-        #        Test definitions
-        # ===============================
-
         def go_to_analyze():
             self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
             page.wait_for_url("**/analyze", wait_until="domcontentloaded")
@@ -333,7 +320,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         # check_reports_items_by_tag()
 
     def test_e2e_publish(self, taranis_frontend: Page):
-        self.ci_run = True
         page = taranis_frontend
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
