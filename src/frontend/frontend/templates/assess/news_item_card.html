@@ -1,7 +1,6 @@
 {% macro news_item_card(news_item) %}
   <article class="rounded-lg border border-base-200 bg-base-100 p-2 shadow-sm">
     <div class="flex flex-col gap-2">
-
       <div class="flex items-center justify-between gap-2">
         <div class="flex flex-wrap items-start gap-2">
           <h4 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title">
@@ -28,6 +27,7 @@
                   hx-delete="{{ url_for('assess.delete_news_item', news_item_id=news_item.id) }}"
                   hx-target="#story-{{ news_item.story_id }}">{{ heroicon_mini("trash") }}</button>
         </div>
+
       </div>
       {% if news_item.link %}
         <a href="{{ news_item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">

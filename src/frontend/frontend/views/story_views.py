@@ -16,6 +16,7 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -127,9 +128,6 @@ class StoryView(BaseView):
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         notification_html = cls.get_notification_from_response(response)
         if StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
@@ -152,8 +150,6 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -169,8 +165,6 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -187,28 +181,6 @@ class StoryView(BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
-
-    @staticmethod
-    def parse_paging_data(params: dict[str, list[str]] | None = None) -> PagingData:
-        """Unmarshal query parameters into a PagingData model."""
-        source_params = params if params is not None else request.args.to_dict(flat=False)
-        args: dict[str, list[str]] = {key: list(value) for key, value in source_params.items()}
-
-        # Flatten single-value entries for convenience in query_params
-        query_params: dict[str, str | list[str]] = {k: v[0] if len(v) == 1 else v for k, v in args.items()}
-
-        page = request.args.get("page", type=int)
-        limit = request.args.get("limit", type=int)
-        order = request.args.get("order")
-        search = request.args.get("search")
-
-        return PagingData(
-            page=page,
-            limit=limit,
-            order=order,
-            search=search,
-            query_params=query_params,
-        )
 
     @classmethod
     def _build_pagination_context(
@@ -289,7 +261,7 @@ class StoryView(BaseView):
             parsed_url = urlparse(url)
             request_params = parse_qs(parsed_url.query)
 
-        paging_data = cls.parse_paging_data(request_params)
+        paging_data = parse_paging_data(request_params)
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
             return make_response(notification + table, status)
@@ -298,7 +270,7 @@ class StoryView(BaseView):
     @classmethod
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
-        paging_data = cls.parse_paging_data(request_params)
+        paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
@@ -563,6 +535,7 @@ class StoryView(BaseView):
         except Exception:
             logger.exception("Failed to ungroup news item.")
             return cls.render_response_notification({"error": "Failed to ungroup news item."})
+
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)

@@ -1,11 +1,12 @@
-from core.log import logger
+import base64
+import hashlib
 import json
 from pathlib import Path
 from shutil import copy
-from core.config import Config
 
-import hashlib
-import base64
+from core.config import Config
+from core.log import logger
+
 
 def file_hash(file_path):
     hash_md5 = hashlib.md5(usedforsecurity=False)
@@ -63,7 +64,11 @@ def list_templates() -> list[str]:
         path = Path(Config.DATA_FOLDER) / "presenter_templates"
         if not path.exists():
             return []
-        return [f.name for f in path.iterdir() if f.is_file() and not f.name.startswith('.') and f.name not in ["README.md", "template_hashes.json"]]
+        return [
+            f.name
+            for f in path.iterdir()
+            if f.is_file() and not f.name.startswith(".") and f.name not in ["README.md", "template_hashes.json"]
+        ]
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
         return []
@@ -131,11 +136,3 @@ def get_default_json(filename: str) -> str:
 def initialize(initial_setup: bool = True) -> None:
     if initial_setup:
         sync_presenter_templates_to_data()
-
-
-
-
-
-
-
-

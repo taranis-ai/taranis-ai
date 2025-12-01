@@ -1,12 +1,12 @@
-from flask import Blueprint, request, Flask
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.model import product_type, product
+from core.model import product, product_type
 from core.service.product import ProductService
-from core.config import Config
 
 
 class ProductTypes(MethodView):
@@ -21,11 +21,8 @@ class Products(MethodView):
         if product_id:
             return product.Product.get_for_api(product_id)
 
-        filter_keys = ["search", "range", "sort"]
+        filter_keys = ["search", "range", "sort", "page", "limit", "offset"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-
-        filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        filter_args["offset"] = int(request.args.get("offset", 0))
 
         return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 

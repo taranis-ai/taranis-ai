@@ -1,22 +1,21 @@
-from flask import render_template, abort, request
-from flask_jwt_extended import current_user
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+from flask import abort, render_template, request
+from flask_jwt_extended import current_user
+from models.dashboard import Cluster, Dashboard, TrendingCluster
+from models.user import ProfileSettingsDashboard
 from werkzeug.wrappers import Response
 
-
-from models.dashboard import Dashboard, TrendingCluster, Cluster
-from models.user import ProfileSettingsDashboard
-from frontend.cache_models import CacheObject, PagingData
-from frontend.core_api import CoreApi
-from frontend.views.base_view import BaseView
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.log import logger
-from frontend.config import Config
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import cache
-from frontend.utils.router_helpers import convert_query_params
+from frontend.cache_models import CacheObject
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import parse_paging_data
+from frontend.views.base_view import BaseView
 
 
 class DashboardView(BaseView):
@@ -61,10 +60,9 @@ class DashboardView(BaseView):
     def get_cluster(cls, cluster_name: str):
         cluster = None
         try:
-            params = convert_query_params(request.args, PagingData)
-            page = PagingData(**params)
+            page = parse_paging_data(request.args.to_dict(flat=False))
 
-            logger.debug(f"Fetching Cluster {cluster_name} with params: {params}")
+            logger.debug(f"Fetching Cluster {cluster_name} with: {page=}")
 
             dpl = DataPersistenceLayer()
             endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
