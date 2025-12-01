@@ -503,10 +503,7 @@ class StoryView(BaseView):
             response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
             notification_html = cls.get_notification_from_response(response)
         except Exception:
-            logger.exception("Failed to delete news item.")
-            notification = {"message": "Failed to delete news item.", "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls.render_response_notification({"error": "Failed to delete news item"})
 
         story_id = response.json().get("story_id", "")
         DataPersistenceLayer().invalidate_cache_by_object(Story)
@@ -551,6 +548,24 @@ class StoryView(BaseView):
             detail_view=False,
             **context,
         )
+
+    @classmethod
+    @auth_required()
+    def ungroup(cls, story_id: str):
+        news_item_ids = request.form.getlist("news_item_ids[]")
+        if not news_item_ids:
+            notification = {"message": "No news items selected for ungrouping.", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+        try:
+            response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+            notification_html = cls.get_notification_from_response(response)
+        except Exception:
+            logger.exception("Failed to ungroup news item.")
+            return cls.render_response_notification({"error": "Failed to ungroup news item."})
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        content = cls._get_action_response_content(story_id)
+        return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()
