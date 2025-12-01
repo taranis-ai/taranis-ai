@@ -165,6 +165,53 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             status=200,
             content_type="application/json",
         )
+
+    # Provide scheduler-specific endpoints so the dashboard renders during tests
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
+        json=[
+            {"name": "collectors", "messages": 0},
+            {"name": "bots", "messages": 2},
+        ],
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        json={
+            "total_workers": 3,
+            "busy_workers": 1,
+            "idle_workers": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        json={
+            "items": [
+                {
+                    "id": "task-1",
+                    "task": "collectors.fetch",
+                    "status": "SUCCESS",
+                    "result": None,
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                },
+                {
+                    "id": "task-2",
+                    "task": "bots.process",
+                    "status": "FAILURE",
+                    "result": {"error": "timeout"},
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                },
+            ],
+            "total_count": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
     yield core_payloads
 
 
