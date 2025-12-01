@@ -14,19 +14,21 @@
     "npm:@codemirror/state@*": "6.5.2",
     "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
-    "npm:@codemirror/view@*": "6.38.6",
-    "npm:@codemirror/view@6.38.6": "6.38.6",
-    "npm:@codemirror/view@^6.38.6": "6.38.6",
+
+    "npm:@codemirror/view@*": "6.38.8",
+    "npm:@codemirror/view@^6.38.8": "6.38.8",
     "npm:@tailwindcss/cli@*": "4.1.17",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.17",
-    "npm:alpinejs@*": "3.15.1",
-    "npm:alpinejs@^3.15.1": "3.15.1",
+    "npm:alpinejs@*": "3.15.2",
+    "npm:alpinejs@^3.15.2": "3.15.2",
     "npm:choices.js@*": "11.1.0",
     "npm:choices.js@^11.1.0": "11.1.0",
     "npm:codemirror@6": "6.0.2",
-    "npm:daisyui@^5.4.7": "5.4.7",
+    "npm:daisyui@^5.5.5": "5.5.5",
     "npm:fuse.js@*": "7.1.0",
     "npm:fuse.js@^7.1.0": "7.1.0",
+    "npm:highlight-search-term@*": "1.0.3",
+    "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
     "npm:htmx.org@*": "2.0.8",
@@ -52,7 +54,7 @@
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.38.6",
         "@lezer/common"
       ]
     },
@@ -60,7 +62,7 @@
       "integrity": "sha512-9HBM2XnwDj7fnu0551HkGdrUrrqmYq/WC5iv6nbY2WdicXdGbhR/gfbZOH73Aqj4351alY1+aoG9rCNfiwS1RA==",
       "dependencies": [
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.38.6",
         "@lezer/common",
         "@lezer/highlight",
         "@lezer/lr",
@@ -107,6 +109,15 @@
     },
     "@codemirror/view@6.38.6": {
       "integrity": "sha512-qiS0z1bKs5WOvHIAC0Cybmv4AJSkAXgX5aD6Mqd2epSLlVJsQl8NG23jCVouIgkh4All/mrbdsf2UOLFnJw0tw==",
+      "dependencies": [
+        "@codemirror/state",
+        "crelt",
+        "style-mod",
+        "w3c-keyname"
+      ]
+    },
+    "@codemirror/view@6.38.8": {
+      "integrity": "sha512-XcE9fcnkHCbWkjeKyi0lllwXmBLtyYb5dt89dJyx23I9+LSh5vZDIuk7OLG4VM1lgrXZQcY6cxyZyk5WVPRv/A==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -359,8 +370,8 @@
     "@vue/shared@3.1.5": {
       "integrity": "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="
     },
-    "alpinejs@3.15.1": {
-      "integrity": "sha512-HLO1TtiE92VajFHtLLPK8BWaK1YepV/uj31UrfoGnQ00lyFOJZ+oVY3F0DghPAwvg8sLU79pmjGQSytERa2gEg==",
+    "alpinejs@3.15.2": {
+      "integrity": "sha512-2kYF2aG+DTFkE6p0rHG5XmN4VEb6sO9b02aOdU4+i8QN6rL0DbRZQiypDE1gBcGO65yDcqMz5KKYUYgMUxgNkw==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -392,8 +403,8 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.4.7": {
-      "integrity": "sha512-2wYO61vTPCXk7xEBgnzLZAYoE0xS5IRLu/GSq0vORpB+cTrtubdx69NnA0loc0exvCY1s2fYL4lGZtFHe2ohNQ=="
+    "daisyui@5.5.5": {
+      "integrity": "sha512-ekvI93ZkWIJoCOtDl0D2QMxnWvTejk9V5nWBqRv+7t0xjiBXqAK5U6o6JE2RPvlIC3EqwNyUoIZSdHX9MZK3nw=="
     },
     "detect-libc@1.0.3": {
       "integrity": "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==",
@@ -420,6 +431,9 @@
     },
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
+    },
+    "highlight-search-term@1.0.3": {
+      "integrity": "sha512-cCZNdQp6Dpq54QvixkrUltZ6rPHnLHapQUOQiZqTojntJRyBuX/jeWY0LvBS76JcDEd7QKbZL780vz3TtbJDJQ=="
     },
     "htmx-ext-response-targets@2.0.4": {
       "integrity": "sha512-Q/yfH0N2A40j903mr6ldGV3qLWMQeufROylYIbYQLBGrCpmydflxXmQwDOEhEWdPnBTgiHofkAo0gQ3S1BmyxQ==",
@@ -583,13 +597,14 @@
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/merge@^6.3.0",
       "npm:@codemirror/state@^6.5.2",
-      "npm:@codemirror/view@^6.38.6",
+      "npm:@codemirror/view@^6.38.8",
       "npm:@tailwindcss/cli@^4.1.17",
-      "npm:alpinejs@^3.15.1",
+      "npm:alpinejs@^3.15.2",
       "npm:choices.js@^11.1.0",
       "npm:codemirror@6",
-      "npm:daisyui@^5.4.7",
+      "npm:daisyui@^5.5.5",
       "npm:fuse.js@^7.1.0",
+      "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.8",
       "npm:sortablejs@^1.15.6",

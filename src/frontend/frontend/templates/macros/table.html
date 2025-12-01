@@ -33,7 +33,7 @@
             {% endif %}
             {% for col in columns %}
               <td class="relative max-w-[50ch] p-0">
-                <a href="{{ edit_route }}" class="flex w-full items-center px-3 py-1">
+                <a href="{{ edit_route }}" class="flex w-full items-center px-3 py-1 truncate">
                   {% if col.renderer %}
                     {% if 'render_args' in col %}
                       {{ col.renderer(item, **col.render_args) }}
@@ -164,7 +164,7 @@
           hx-target="#{{ table_id }}"
           hx-target-error="#notification-bar"
           hx-trigger="input delay:500ms"
-          hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
+          hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
         <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" />

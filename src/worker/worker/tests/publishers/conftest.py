@@ -1,7 +1,8 @@
 from unittest.mock import patch
-from pytest import yield_fixture
+
 import mockssh
 import pytest
+from pytest import yield_fixture
 
 import worker.publishers as publishers
 
@@ -19,7 +20,23 @@ def email_publisher():
 
 @pytest.fixture
 def sftp_publisher():
-    return publishers.SFTPPublisher()
+    yield publishers.SFTPPublisher()
+
+
+@pytest.fixture
+def s3_publisher():
+    yield publishers.S3Publisher()
+
+
+@pytest.fixture
+def s3_publisher_testdata():
+    s3_publisher_data = {
+        "S3_ENDPOINT": "play.min.io",
+        "S3_ACCESS_KEY": "Q3AM3UQ867SPQQA43P2F",
+        "S3_SECRET_KEY": "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        "S3_BUCKET_NAME": "taranis-test-bucket",
+    }
+    yield {"parameters": s3_publisher_data}
 
 
 @pytest.fixture
@@ -46,14 +63,15 @@ def smtp_mock():
 
 @yield_fixture()
 def sftp_mock(request):
-    from worker.tests.publishers.publishers_data import product_text
-    import os
     import glob
+    import os
+
+    from worker.tests.publishers.publishers_data import product_text
 
     users = {
         "user": {"type": "password", "password": "password"},
     }
-    with mockssh.Server(users) as s:
+    with mockssh.Server(users) as s:  # type: ignore
         yield s
 
     for product in glob.glob(f"{product_text['title']}*"):

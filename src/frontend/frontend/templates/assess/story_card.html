@@ -9,7 +9,7 @@
   {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
   {% set summary_content = story.model_extra.summary_content %}
 
-  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative"] %}
+  {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full"] %}
   {% if story.read | default(false) %}
     {% set card_classes = card_classes + ['border-base-200'] %}
   {% else %}
@@ -38,11 +38,11 @@
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
            :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
            :aria-selected="isSelected('{{ story_id }}')">
-    <div class="p-2 space-y-2" id="story-card-content-{{ story_id }}">
-      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+    <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
+      <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
 
         <!-- status and metadata column -->
-        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0 lg:w-64">
+        <section class="space-y-4 text-sm text-base-content/80 lg:flex-shrink-0 lg:w-64 min-w-0">
           <div class="flex items-start gap-2">
             <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Published</span>
             <div class="flex flex-col gap-1">
@@ -118,22 +118,22 @@
         </section>
 
         <!-- main content column -->
-        <section class="space-y-3 lg:flex-1">
-          <div class="flex flex-col gap-2">
-            <h2 class="text-lg font-semibold leading-tight text-base-content" data-testid="story-title">{{ story.title }}</h2>
+        <section class="space-y-3 lg:flex-1 min-w-0">
+          <div class="flex flex-col gap-2 min-w-0">
+            <h2 class="text-lg font-semibold leading-tight text-base-content highlight truncate" data-testid="story-title">{{ story.title }}</h2>
             {% if story.links %}
               <a href="{{ story.links[0] }}"
                  target="_blank"
                  rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1 w-fit"
+                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full truncate"
                  data-testid="story-link-{{ story_id }}">
                 {{ heroicon_mini("arrow-top-right-on-square") }}
-                <span>{{ story.links[0] }}</span>
+                <span class="truncate">{{ story.links[0] }}</span>
               </a>
             {% endif %}
           </div>
 
-          <div class="text-sm text-base-content/80 prose" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
+          <div class="text-sm text-base-content/80 prose highlight break-words" :class="{ '{{ line_clamp }}': !isOpen }" data-testid="story-summary">
             {% if summary_content %}
               {{ summary_content }}
             {% else %}
@@ -149,38 +149,31 @@
       </div>
 
       <!-- expandable details section -->
-      <div class="border-t border-base-200 pt-4 space-y-2" x-show="isOpen" x-transition x-cloak>
-        <div class="stats stats-horizontal shadow bg-base-100">
-          <div class="stat">
+      <div class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full" x-show="isOpen" x-transition x-cloak>
+        <div class="stats stats-horizontal shadow bg-base-100 w-full max-w-full">
+          <div class="stat py-1">
             <div class="stat-title">News items</div>
-            <div class="stat-value text-lg">{{ news_count }}</div>
+            <div class="stat-value text-base">{{ news_count }}</div>
           </div>
-          <div class="stat">
+          <div class="stat py-1">
             <div class="stat-title">Likes</div>
-            <div class="stat-value text-lg">{{ story.likes | default(0) }}</div>
+            <div class="stat-value text-base">{{ story.likes | default(0) }}</div>
           </div>
-          <div class="stat">
+          <div class="stat py-1">
             <div class="stat-title">Dislikes</div>
-            <div class="stat-value text-lg">{{ story.dislikes | default(0) }}</div>
+            <div class="stat-value text-base">{{ story.dislikes | default(0) }}</div>
           </div>
-          <div class="stat">
+          <div class="stat py-1">
             <div class="stat-title">Created</div>
             <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.created | format_datetime if story.created else '—' }}</div>
           </div>
-          <div class="stat">
+          <div class="stat py-1">
             <div class="stat-title">Updated</div>
             <div class="stat-value text-sm text-base-content/80 whitespace-nowrap">{{ story.updated | format_datetime if story.updated else '—' }}</div>
           </div>
         </div>
 
-        {% if story.comments %}
-          <div class="flex flex-col gap-1 rounded-box bg-base-200/20 p-3 text-sm text-base-content/80">
-            <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Comments</span>
-            <p class="whitespace-pre-line">{{ story.comments }}</p>
-          </div>
-        {% endif %}
-
-        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80">
+        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80 w-full max-w-full">
           {% if tags_list %}
             <div class="space-y-2 lg:flex-1">
               <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
@@ -198,7 +191,7 @@
 
         <!-- news items list -->
         {% if news_items %}
-          <div class="space-y-2">
+          <div class="space-y-2 w-full max-w-full">
             <div class="flex items-center gap-2">
               <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">News Items</h3>
               <span class="badge badge-outline badge-sm">{{ news_count }}</span>

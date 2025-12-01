@@ -268,6 +268,21 @@ workers = [
         "parameters": [{"parameter": "SFTP_URL", "rules": "required"}, {"parameter": "PRIVATE_KEY"}],
     },
     {
+        "type": "S3_PUBLISHER",
+        "name": "S3 Publisher",
+        "description": "Publisher for publishing to S3 compatible storage",
+        "parameters": [
+            {"parameter": "S3_ENDPOINT", "rules": "required"},
+            {"parameter": "S3_ACCESS_KEY", "rules": "required"},
+            {"parameter": "S3_SECRET_KEY", "rules": "required"},
+            {"parameter": "S3_BUCKET_NAME", "rules": "required"},
+            {"parameter": "S3_SESSION_TOKEN"},
+            {"parameter": "S3_REGION"},
+            {"parameter": "S3_SECURE", "type": "switch", "value": "true"},
+            {"parameter": "S3_CERT_CHECK", "type": "switch", "value": "true"},
+        ],
+    },
+    {
         "type": "EMAIL_PUBLISHER",
         "name": "EMAIL Publisher",
         "description": "Publisher for publishing by email",
@@ -547,6 +562,30 @@ report_types = [
                     {"title": "co_handler", "description": "CO-Handler", "index": 3, "attribute": "Text"},
                     {"title": "news", "description": "News", "index": 4, "attribute": "Story", "required": True},
                     {"title": "vulnerabilities", "description": "Vulnerabilities", "index": 5, "attribute": "Story", "required": True},
+                ],
+            }
+        ],
+    },
+    {
+        "title": "Impact Assessment",
+        "description": "Example Impact Assessment provided by Taranis AI",
+        "attribute_groups": [
+            {
+                "title": "Properties",
+                "description": "Properties of Impact Assessment",
+                "index": 0,
+                "attribute_group_items": [
+                    {"title": "Assessment ID", "description": "Assessment ID", "index": 0, "attribute": "Text", "required": True},
+                    {"title": "Title", "description": "Title", "index": 1, "attribute": "Text Area", "required": True},
+                    {"title": "Author", "description": "Author", "index": 2, "attribute": "Text", "required": True},
+                    {"title": "Created", "description": "Date of Creation", "index": 3, "attribute": "Text", "required": True},
+                    {"title": "Summary", "description": "Summary", "index": 4, "attribute": "Text Area", "required": True},
+                    {"title": "Scope", "description": "Scope", "index": 5, "attribute": "Text Area", "required": True},
+                    {"title": "Methodology", "description": "Methodology", "index": 6, "attribute": "Text Area", "required": True},
+                    {"title": "Findings", "description": "Findings", "index": 7, "attribute": "Text Area", "required": True},
+                    {"title": "Recommendations", "description": "Recommendations", "index": 8, "attribute": "Text Area", "required": True},
+                    {"title": "Appendices", "description": "Appendices", "index": 9, "attribute": "Text Area"},
+                    {"title": "References", "description": "References", "index": 10, "attribute": "Text Area"},
                 ],
             }
         ],

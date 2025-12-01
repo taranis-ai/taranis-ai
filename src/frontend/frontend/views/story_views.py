@@ -442,6 +442,7 @@ class StoryView(BaseView):
             response = api.api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
         notification = cls.get_notification_from_response(response)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
 
         notification_html = render_template("notification/index.html", notification=notification)
         response = make_response(notification_html, 200 if getattr(response, "ok", False) else 400)
