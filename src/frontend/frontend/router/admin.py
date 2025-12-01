@@ -69,10 +69,10 @@ class ScheduleQueuesAPI(MethodView):
         try:
             queues_data = CoreApi().api_get("/config/workers/tasks")
             queues = queues_data if isinstance(queues_data, list) else []
-            
+
             worker_stats_data = CoreApi().api_get("/config/workers/stats")
             worker_stats = worker_stats_data if isinstance(worker_stats_data, dict) else None
-            
+
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
         except Exception as e:
             return f"<p class='text-error'>Failed to load queues: {str(e)}</p>", 500
@@ -118,43 +118,46 @@ class ScheduleHistoryAPI(MethodView):
             return SchedulerView().get(initial_tab="history")
         try:
             from models.task import Task
-            
+
             task_results = DataPersistenceLayer().get_objects(Task)
             task_stats = {}
             total_successes = 0
             total_failures = 0
-            
+
             if task_results:
                 for task in task_results:
                     if task.task and task.status:
                         if task.task not in task_stats:
                             task_stats[task.task] = {
-                                "successes": 0, 
-                                "failures": 0, 
+                                "successes": 0,
+                                "failures": 0,
                                 "total": 0,
                                 "last_run": None,
                                 "last_success": None
                             }
-                        
+
                         # Track latest timestamps
-                        if task.last_run:
-                            if not task_stats[task.task]["last_run"] or task.last_run > task_stats[task.task]["last_run"]:
-                                task_stats[task.task]["last_run"] = task.last_run
-                        
+                        if task.last_run and (
+                            not task_stats[task.task]["last_run"] or task.last_run > task_stats[task.task]["last_run"]
+                        ):
+                            task_stats[task.task]["last_run"] = task.last_run
+
                         if task.status == "SUCCESS":
                             task_stats[task.task]["successes"] += 1
                             total_successes += 1
-                            if task.last_success:
-                                if not task_stats[task.task]["last_success"] or task.last_success > task_stats[task.task]["last_success"]:
-                                    task_stats[task.task]["last_success"] = task.last_success
+                            if task.last_success and (
+                                not task_stats[task.task]["last_success"]
+                                or task.last_success > task_stats[task.task]["last_success"]
+                            ):
+                                task_stats[task.task]["last_success"] = task.last_success
                         elif task.status == "FAILURE":
                             task_stats[task.task]["failures"] += 1
                             total_failures += 1
-                        
+
                         task_stats[task.task]["total"] = (
                             task_stats[task.task]["successes"] + task_stats[task.task]["failures"]
                         )
-                        
+
                         total = task_stats[task.task]["total"]
                         task_stats[task.task]["success_pct"] = (
                             int((task_stats[task.task]["successes"] * 100) / total) if total > 0 else 0
@@ -162,14 +165,14 @@ class ScheduleHistoryAPI(MethodView):
 
             overall_total = total_successes + total_failures
             overall_success_rate = int((total_successes * 100) / overall_total) if overall_total > 0 else 0
-            
+
             # Sort task_stats by last_run (most recent first)
             task_stats = dict(sorted(
-                task_stats.items(), 
+                task_stats.items(),
                 key=lambda x: x[1].get("last_run") or "",
                 reverse=True
             ))
-            
+
             return render_template(
                 "schedule/execution_history.html",
                 task_results=task_results,
@@ -188,7 +191,7 @@ class ScheduleRetryJobAPI(MethodView):
     def post(self, job_id: str):
         try:
             result = CoreApi().post(f"/config/workers/failed/{job_id}/retry")
-            
+
             # Return updated failed jobs list
             failed_jobs_data = CoreApi().get("/config/workers/failed")
             failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
