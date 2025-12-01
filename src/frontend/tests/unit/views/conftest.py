@@ -1,6 +1,15 @@
+import sys
+from pathlib import Path
+
 import pytest
 from typing import get_origin
 import responses
+
+root_path = Path(__file__).resolve().parents[5] / "src" / "models"
+root_str = str(root_path)
+if root_str in sys.path:
+    sys.path.remove(root_str)
+sys.path.insert(0, root_str)
 
 from frontend.log import logger
 from frontend.config import Config
