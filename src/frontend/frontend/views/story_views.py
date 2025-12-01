@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
@@ -404,16 +404,38 @@ class StoryView(BaseView):
         return render_template("assess/news_item_create.html", news_item=news_item), 200
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> Response:
+    def _handle_news_item_response(
+        cls,
+        core_response,
+        *,
+        content_builder: Callable[[str], str] | None = None,
+        redirect_on_story: bool = False,
+        status_override: int | None = None,
+    ) -> Response:
+        try:
+            story_id = core_response.json().get("story_id", "")
+        except Exception:
+            story_id = ""
+
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+        if story_id:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
         notification = cls.get_notification_from_response(core_response)
-        response = make_response(notification, 200 if getattr(core_response, "ok", False) else 400)
-        if story_id := core_response.json().get("story_id"):
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        status = status_override if status_override is not None else 200 if getattr(core_response, "ok", False) else 400
+
+        if redirect_on_story and story_id:
+            response = make_response(notification, status)
             response.headers["HX-Redirect"] = url_for("assess.story_edit", story_id=story_id)
-        return response
+            return response
+
+        content = content_builder(story_id) if content_builder else ""
+        return make_response(notification + content, status)
+
+    @classmethod
+    def news_item_edit_view(cls, core_response) -> Response:
+        return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
     @auth_required()
@@ -436,11 +458,10 @@ class StoryView(BaseView):
         news_item = NewsItem(**form_data)
         core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
-        notification = cls.get_notification_from_response(core_response)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
-
-        return notification + cls.news_item_view(news_item_id=news_item_id)[0], 200 if getattr(core_response, "ok", False) else 400
+        return cls._handle_news_item_response(
+            core_response,
+            content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
+        )
 
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
@@ -472,18 +493,15 @@ class StoryView(BaseView):
     @auth_required()
     def delete_news_item(cls, news_item_id: str):
         try:
-            response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
-            notification_html = cls.get_notification_from_response(response)
+            core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
-        story_id = response.json().get("story_id", "")
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
-        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-
-        content = cls._get_action_response_content(story_id)
-        return make_response(notification_html + content, 200)
+        return cls._handle_news_item_response(
+            core_response,
+            content_builder=cls._get_action_response_content,
+            status_override=200,
+        )
 
     @staticmethod
     def _get_current_url_path() -> str:
