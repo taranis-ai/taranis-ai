@@ -47,7 +47,7 @@
     <span class="label">{{ label }}</span>
     <textarea class="textarea w-full"
               type="{{ type }}"
-              placeholder="{{ placeholder if placeholder is not none else label }}"
+              placeholder="{{ placeholder if placeholder is not none else label }}{% if required %}*{% endif %}"
               class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
               name="{{ name }}"
               {% if required %} required {% endif %}
