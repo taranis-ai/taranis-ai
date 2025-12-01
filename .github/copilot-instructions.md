@@ -66,7 +66,7 @@ See .github/workflows for how tests are configured in CI.
 **Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
-**Unit Tests:** In each component directory, run:
+**Unit Tests:** In each component directory, run (after changing into that directory, e.g. `cd src/frontend`):
 - `uv run pytest` - run all tests for that component
 - `uv run pytest tests/unit/` - run only unit tests
 - `uv run pytest tests/functional/` - run only functional tests
@@ -89,6 +89,7 @@ See .github/workflows for how tests are configured in CI.
 
 **Important Notes:**
 - You must run commands separately in each src directory to ensure all dependencies are installed
+- Always execute test and lint commands from within the corresponding component directory (`cd src/<component>`), then run `uv run ...`
 - E2E tests require the application to be running (they start their own test server)
 - Tests are located in each component's `tests/` directory
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
@@ -107,3 +108,4 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+- do not leave trailing whitespace anywhere (especially on otherwise empty lines)
