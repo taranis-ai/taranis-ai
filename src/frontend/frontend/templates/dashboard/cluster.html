@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% from 'macros/table.html' import table_header %}
+  {% from "macros/table.html" import table_header, table_controls %}
   {% set table_id = 'cluster-' ~ cluster_name %}
 
   <div class="p-8" id="{{ table_id }}-container">
@@ -34,7 +34,7 @@
       <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
           <td colspan="{{ (columns|length) }}">
-            <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
+            <div class="flex justify-center">{{ table_controls(base_url=routes.base_route, data=data) }}</div>
           </td>
         </tr>
       </tfoot>

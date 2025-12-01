@@ -1,14 +1,15 @@
 from datetime import datetime
-from pydantic import field_validator
-import langcodes
-from typing import Literal
 from functools import cached_property
+from typing import Literal
+
+import langcodes
+from pydantic import field_validator
 
 from models.base import TaranisBaseModel
 
 
 class NewsItem(TaranisBaseModel):
-    _core_endpoint = "/assess/newsitems"
+    _core_endpoint = "/assess/news-items"
 
     osint_source_id: str
     hash: str | None = None
@@ -21,6 +22,7 @@ class NewsItem(TaranisBaseModel):
     published: datetime | None = None
     collected: datetime | None = None
     attributes: list[str | dict] | None = None
+    story_id: str | None = None
     language: str | None = None
 
     @field_validator("language", mode="before")

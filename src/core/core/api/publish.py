@@ -4,12 +4,12 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from prefect.deployments import run_deployment
+from core.log import logger
 
 from core.managers.auth_manager import auth_required
-from core.model import product_type, product
+from core.model import product, product_type
 from core.service.product import ProductService
 from core.config import Config
-from core.log import logger
 
 
 class ProductTypes(MethodView):
@@ -25,7 +25,8 @@ class Products(MethodView):
             return product.Product.get_for_api(product_id)
 
         filter_keys = ["search", "range", "sort"]
-        filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+        filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
+
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
         filter_args["offset"] = int(request.args.get("offset", 0))
 
@@ -51,7 +52,7 @@ class PublishProduct(MethodView):
         """Trigger publisher deployment and return a Prefect flow_run_id."""
         try:
             params = {"request": {"product_id": product_id, "publisher_id": publisher_id}}
-            
+
             # Define async wrapper and run with asyncio.run()
             async def trigger_flow():
                 return await run_deployment(
@@ -59,7 +60,7 @@ class PublishProduct(MethodView):
                     parameters=params,
                     timeout=0,
                 )
-            
+
             fr = asyncio.run(trigger_flow())
             return {
                 "message": f"Publishing Product {product_id} scheduled",
@@ -78,7 +79,7 @@ class ProductsRender(MethodView):
         """Trigger presenter deployment and return a Prefect flow_run_id."""
         try:
             params = {"request": {"product_id": product_id, "countdown": 0}}
-            
+
             # Define async wrapper and run with asyncio.run()
             async def trigger_flow():
                 return await run_deployment(
@@ -86,7 +87,7 @@ class ProductsRender(MethodView):
                     parameters=params,
                     timeout=0,
                 )
-            
+
             fr = asyncio.run(trigger_flow())
             return {
                 "message": f"Generating Product {product_id} scheduled",
