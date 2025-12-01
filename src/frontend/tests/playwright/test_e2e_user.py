@@ -170,7 +170,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_test_id("report-table").get_by_role("button").nth(3).click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("link", name="Test report").click()
-            expect(page.get_by_test_id("report-stories").locator("label")).to_contain_text(report_story_two["title"])
+            expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
             expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
 
         go_to_analyze()
