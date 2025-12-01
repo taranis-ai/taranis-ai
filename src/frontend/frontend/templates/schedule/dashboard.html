@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
 {% block content %}
   <div class="p-4" id="scheduler-dashboard">
     <div class="flex justify-between items-center mb-6">
@@ -16,16 +17,16 @@
 
     <!-- Tabs for different views -->
     <div class="tabs tabs-boxed mt-6 mb-4">
-      <a class="tab tab-active" data-tab="scheduled">Scheduled Jobs</a>
-      <a class="tab" data-tab="active">Active Jobs</a>
-      <a class="tab" data-tab="failed">Failed Jobs</a>
-      <a class="tab" data-tab="history">Execution History</a>
+      <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
+      <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
+      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Failed Jobs</a>
+      <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Execution History</a>
     </div>
 
     <!-- Tab Content -->
     <div id="tab-content">
       <!-- Scheduled Jobs Tab -->
-      <div id="scheduled-tab" class="tab-panel">
+      <div id="scheduled-tab" class="tab-panel {% if current_tab != 'scheduled' %}hidden{% endif %}">
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -45,7 +46,7 @@
       </div>
 
       <!-- Active Jobs Tab -->
-      <div id="active-tab" class="tab-panel hidden">
+      <div id="active-tab" class="tab-panel {% if current_tab != 'active' %}hidden{% endif %}">
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -65,7 +66,7 @@
       </div>
 
       <!-- Failed Jobs Tab -->
-      <div id="failed-tab" class="tab-panel hidden">
+      <div id="failed-tab" class="tab-panel {% if current_tab != 'failed' %}hidden{% endif %}">
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">
@@ -85,7 +86,7 @@
       </div>
 
       <!-- Execution History Tab -->
-      <div id="history-tab" class="tab-panel hidden">
+      <div id="history-tab" class="tab-panel {% if current_tab != 'history' %}hidden{% endif %}">
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body">
             <h2 class="card-title">

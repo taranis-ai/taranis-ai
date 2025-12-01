@@ -6,7 +6,7 @@ from frontend.config import Config
 from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
-from frontend.utils.router_helpers import convert_query_params
+from frontend.utils.router_helpers import convert_query_params, is_htmx_request
 from frontend.core_api import CoreApi
 from frontend.views import (
     AdminDashboardView,
@@ -48,6 +48,8 @@ class ScheduleJobsAPI(MethodView):
     """HTMX endpoint for scheduled jobs table"""
     @auth_required()
     def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="scheduled")
         try:
             jobs_data = CoreApi().api_get("/config/schedule")
             jobs = jobs_data.get("items", []) if jobs_data else []
@@ -62,6 +64,8 @@ class ScheduleQueuesAPI(MethodView):
     """HTMX endpoint for queue status cards"""
     @auth_required()
     def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="scheduled")
         try:
             queues_data = CoreApi().api_get("/config/workers/tasks")
             queues = queues_data if isinstance(queues_data, list) else []
@@ -78,6 +82,8 @@ class ScheduleActiveJobsAPI(MethodView):
     """HTMX endpoint for active jobs"""
     @auth_required()
     def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="active")
         try:
             active_jobs_data = CoreApi().api_get("/config/workers/active")
             active_jobs = active_jobs_data.get("items", []) if active_jobs_data else []
@@ -92,6 +98,8 @@ class ScheduleFailedJobsAPI(MethodView):
     """HTMX endpoint for failed jobs"""
     @auth_required()
     def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="failed")
         try:
             failed_jobs_data = CoreApi().api_get("/config/workers/failed")
             failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
@@ -106,6 +114,8 @@ class ScheduleHistoryAPI(MethodView):
     """HTMX endpoint for execution history"""
     @auth_required()
     def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="history")
         try:
             from models.task import Task
             
