@@ -52,8 +52,6 @@ class DataPersistenceLayer:
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
-        logger.warning(f"Failed to fetch object from: {endpoint}")
-
     def invalidate_cache(self, suffix: str | None = None) -> None:
         keys = list(cache.cache._cache.keys())
         for key in keys:

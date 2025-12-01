@@ -7,6 +7,7 @@ from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
 from pydantic import ValidationError
+from werkzeug.datastructures import FileStorage
 
 from frontend.auth import auth_required
 from frontend.cache import add_model_to_cache, get_model_from_cache
@@ -104,7 +105,7 @@ class StoryView(BaseView):
     def submit_sharing_dialog(cls) -> str:
         story_id = request.form.get("story_id", "")
         logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
-        return cls.render_response_notification({"message": "Story shared successfully", "category": "success"})
+        return cls.render_response_notification({"message": "Story shared successfully"})
 
     @classmethod
     @auth_required()
@@ -412,12 +413,6 @@ class StoryView(BaseView):
         content = StoryView._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
-    @classmethod
-    @auth_required()
-    def news_item_view(cls, news_item_id: str = "0"):
-        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
-        return render_template("assess/news_item_create.html", news_item=news_item), 200
-
     @staticmethod
     @auth_required()
     def get_tags():
@@ -432,22 +427,94 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def create_news_item(cls, news_item_id: str = "0"):
+    def news_item_view(cls, news_item_id: str = ""):
+        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "" else NewsItem.model_construct(id="")
+        return render_template("assess/news_item_create.html", news_item=news_item), 200
+
+    @classmethod
+    def news_item_edit_view(cls, core_response) -> Response:
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+
+        notification = cls.get_notification_from_response(core_response)
+        response = make_response(notification, 200 if getattr(core_response, "ok", False) else 400)
+        if story_id := core_response.json().get("story_id"):
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+            response.headers["HX-Redirect"] = url_for("assess.story_edit", story_id=story_id)
+        return response
+
+    @classmethod
+    @auth_required()
+    def create_news_item(cls):
+        if url := request.form.get("fetch_url"):
+            return cls._create_news_item_from_url(url)
+
+        if upload_file := request.files.get("file"):
+            return cls._create_news_item_from_file(upload_file)
+
+        item_data = parse_formdata(request.form)
+        news_item = NewsItem(**item_data)
+        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+        return cls.news_item_edit_view(core_response)
+
+    @classmethod
+    @auth_required()
+    def update_news_item(cls, news_item_id: str):
         form_data = parse_formdata(request.form)
         news_item = NewsItem(**form_data)
-        api = CoreApi()
-        if news_item_id == "0":
-            response = api.api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
-        else:
-            response = api.api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
-        notification = cls.get_notification_from_response(response)
+        notification = cls.get_notification_from_response(core_response)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
 
-        notification_html = render_template("notification/index.html", notification=notification)
-        response = make_response(notification_html, 200 if getattr(response, "ok", False) else 400)
-        response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
-        return response
+        return notification + cls.news_item_view(news_item_id=news_item_id)[0], 200 if getattr(core_response, "ok", False) else 400
+
+    @classmethod
+    def _create_news_item_from_file(cls, file: FileStorage):
+        if file.filename == "":
+            return cls.render_response_notification({"error": "No selected file."}), 400
+        elif file.mimetype not in ["text/plain", "application/json"]:
+            return cls.render_response_notification({"error": "Unsupported file type. Please upload a .txt or .json file."}), 400
+
+        try:
+            data = file.read()
+            json_data = json.loads(data)
+            news_item = NewsItem(**json_data)
+            core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+            return cls.news_item_edit_view(core_response)
+        except Exception:
+            logger.exception("Failed to create news item from file.")
+            return cls.render_response_notification({"error": "Failed to create news item from file."}), 400
+
+    @classmethod
+    def _create_news_item_from_url(cls, url: str):
+        try:
+            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
+            return cls.news_item_edit_view(core_response)
+        except Exception:
+            logger.exception("Failed to create news item from URL.")
+            return cls.render_response_notification({"error": "Failed to create news item from URL."})
+
+    @classmethod
+    @auth_required()
+    def delete_news_item(cls, news_item_id: str):
+        try:
+            response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+            notification_html = cls.get_notification_from_response(response)
+        except Exception:
+            logger.exception("Failed to delete news item.")
+            notification = {"message": "Failed to delete news item.", "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+
+        story_id = response.json().get("story_id", "")
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+
+        content = cls._get_action_response_content(story_id)
+        return make_response(notification_html + content, 200)
 
     @staticmethod
     def _get_current_url_path() -> str:
@@ -464,6 +531,9 @@ class StoryView(BaseView):
         detail_path = url_for("assess.story", story_id=story_id)
 
         context = StoryView.get_item_context(story_id)
+        if not context.get("story"):
+            logger.warning(f"Story {story_id} not found")
+            return render_template("partials/404.html")
         if current_url == edit_path:
             return render_template(
                 "assess/story_edit_content.html",

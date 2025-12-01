@@ -4,6 +4,7 @@
   {% set title = news_item.title or '' %}
   {% set review = news_item.review or '' %}
   {% set source = news_item.source or 'manual' %}
+  {% set content = news_item.content or '' %}
   {% set osint_source_id = news_item.osint_source_id or 'manual' %}
   {% set published = news_item.published or '' %}
   {% set attributes_list = news_item.attributes or [] %}
@@ -14,8 +15,9 @@
   {% set submit_label = 'Add to story' if story_id_val else ('Update news item' if is_edit else 'Create news item') %}
   {% set source_badge = 'badge-success' if source == 'manual' else 'badge-warning' %}
   {% set current_url = request.full_path.rstrip('?') if request.full_path else request.path %}
+  {% set form_submit_url = url_for('assess.update_news_item', news_item_id=item_id) if is_edit else url_for('assess.create_news_item') %}
 
-  <section id="news-item-editor" class="px-4 py-4" hx-get="{{ current_url }}" hx-trigger="story:reload from:body" hx-target="this" hx-swap="outerHTML">
+  <section id="news-item-editor" class="px-4 py-4">
     <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <header class="space-y-3">
         <p class="text-xs uppercase tracking-wide text-base-content/60">News item · {{ item_id if is_edit else 'manual-draft' }}</p>
@@ -38,11 +40,43 @@
         </div>
       {% endif %}
 
+      <div class="grid gap-4 md:grid-cols-2">
+        <form class="card border border-base-200 bg-base-100 shadow-sm"
+              hx-post="{{ url_for('assess.create_news_item') }}"
+              hx-target="#notification-bar"
+              hx-swap="outerHTML"
+              hx-encoding="multipart/form-data"
+              enctype="multipart/form-data">
+          <div class="card-body space-y-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Create from file</h2>
+              <p class="text-xs text-base-content/60">Upload a document to ingest it as a new news item.</p>
+            </div>
+            <input type="file" name="file" class="file-input file-input-bordered w-full" required>
+            <button type="submit" class="btn btn-outline">Create from file</button>
+          </div>
+        </form>
+
+        <form class="card border border-base-200 bg-base-100 shadow-sm"
+              hx-post="{{ url_for('assess.create_news_item') }}"
+              hx-target="#notification-bar"
+              hx-swap="innerHTML">
+          <div class="card-body space-y-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Create from URL</h2>
+              <p class="text-xs text-base-content/60">Fetch and parse a link into a news item.</p>
+            </div>
+            <input type="url" name="fetch_url" placeholder="https://example.com/story" class="input input-bordered w-full" required>
+            <button type="submit" class="btn btn-outline">Create from URL</button>
+          </div>
+        </form>
+      </div>
+
       <form id="news-item-form"
             class="card bg-base-100 shadow-xl border border-base-200"
-            hx-post="{{ url_for('assess.create_news_item', news_item_id=item_id) }}"
-            hx-target="#notification-bar"
-            hx-swap="innerHTML">
+            hx-post="{{ form_submit_url }}"
+            hx-target="main"
+            hx-swap="outerHTML">
         <div class="card-body space-y-6">
           <label class="input w-full">
             <span class="label-text font-semibold">Title <span class="text-error">*</span></span>
@@ -94,7 +128,7 @@
             <textarea name="content"
                       class="textarea textarea-bordered w-full"
                       placeholder="Paste the relevant excerpt or your own summary"
-                      {% if read_only %}readonly{% endif %}>{{ news_itemcontent }}</textarea>
+                      {% if read_only %}readonly{% endif %}>{{ content }}</textarea>
           </label>
 
           <label class="floating-label w-full">

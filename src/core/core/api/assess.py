@@ -1,18 +1,20 @@
-from flask import Blueprint, request, Flask
-from flask.views import MethodView
 from urllib.parse import unquote
+
+from flask import Blueprint, Flask, request
+from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers.sse_manager import sse_manager
-from core.log import logger
-from core.managers.auth_manager import auth_required
-from core.model import news_item, osint_source, news_item_tag, story
-from core.managers.decorators import validate_json
-from core.managers import queue_manager
-from core.service.news_item import NewsItemService
 from core.audit import audit_logger
 from core.config import Config
+from core.log import logger
+from core.managers import queue_manager
+from core.managers.auth_manager import auth_required
+from core.managers.decorators import validate_json
+from core.managers.sse_manager import sse_manager
+from core.model import news_item, news_item_tag, osint_source, story
 from core.model.story_conflict import StoryConflict
+from core.service.news_item import NewsItemService
+from core.service.story import StoryService
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -51,27 +53,38 @@ class NewsItems(MethodView):
         return result, status
 
 
+class NewsItemFetch(MethodView):
+    @auth_required("ASSESS_CREATE")
+    def post(self):
+        if url := request.get_json().get("url"):
+            if story := StoryService.fetch_and_create_story(url):
+                sse_manager.news_items_updated()
+                return {"message": "Story created", "story_id": story.id}, 201
+
+        return {"error": "Couldn't create News Item"}, 400
+
+
 class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
-    def get(self, item_id):
+    def get(self, item_id: str):
         return news_item.NewsItem.get_for_api(item_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
-    def put(self, item_id):
+    def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
-    def patch(self, item_id):
+    def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_DELETE")
-    def delete(self, item_id):
+    def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
         return response, code
@@ -79,7 +92,7 @@ class NewsItem(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
-    def put(self, news_item_id):
+    def put(self, news_item_id: str):
         return news_item.NewsItem.update_attributes(news_item_id, request.json)
 
 
@@ -301,6 +314,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
+    assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")

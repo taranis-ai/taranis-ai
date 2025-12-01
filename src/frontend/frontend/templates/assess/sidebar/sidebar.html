@@ -33,7 +33,7 @@
   {'name': 'read', 'label': 'Read', 'value': read_filter},
   {'name': 'important', 'label': 'Important', 'value': important_filter},
   {'name': 'in_report', 'label': 'In Reports', 'value': in_report_filter},
-  {'name': 'impact', 'label': 'Impact', 'value': relevant_filter}
+  {'name': 'relevant', 'label': 'Impact', 'value': relevant_filter}
 ] %}
 
 <script type="text/javascript">
@@ -260,7 +260,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
       <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
     </span>
   </a>
-  <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.create_news_item', news_item_id='0') }}">
+  <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item
   </a>
