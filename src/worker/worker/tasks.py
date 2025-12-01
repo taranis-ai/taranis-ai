@@ -4,7 +4,7 @@ Import all task modules so their functions are available to RQ workers.
 Task functions are decorated with @job and will be discovered by RQ.
 """
 from worker.config import Config
-import worker.misc.misc_tasks  # noqa: F401
+import worker.misc.misc_tasks  # noqa: F401 -- ensures cleanup task is registered
 from worker.log import logger
 
 

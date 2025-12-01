@@ -591,6 +591,22 @@ class QueueManager:
                                 })
                             except Exception as e:
                                 logger.error(f"Failed to calculate next run for bot {bot.id}: {e}")
+
+                    # Register housekeeping tasks that are scheduled via cron
+                    try:
+                        now = datetime.now()
+                        housekeeping_cron = "0 2 * * *"
+                        next_run = croniter(housekeeping_cron, now).get_next(datetime)
+                        all_jobs.append({
+                            "id": "cron_misc_cleanup_token_blacklist",
+                            "name": "Maintenance: Cleanup Token Blacklist",
+                            "queue": "misc",
+                            "next_run_time": next_run.isoformat(),
+                            "schedule": housekeeping_cron,
+                            "type": "cron",
+                        })
+                    except Exception as e:
+                        logger.error(f"Failed to calculate next run for housekeeping task cleanup_token_blacklist: {e}")
                 else:
                     logger.info("No active cron schedulers found")
                         

@@ -4,26 +4,56 @@ Miscellaneous worker tasks including cleanup and wordlist updates.
 """
 from datetime import datetime, timezone
 from croniter import croniter
+from rq import get_current_job
 
+from worker.core_api import CoreApi
 from worker.misc.wordlist_update import update_wordlist
 from worker.log import logger
 
 
-def cleanup_token_blacklist(*args, **kwargs):
+def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
     """Clean up expired tokens from the blacklist.
 
-    This is a self-scheduling task that runs daily at 2 AM.
-    After execution, it re-schedules itself for the next day.
+    When executed by the RQ cron scheduler this task reports completion to
+    the Core API, which triggers removal of stale JWTs. Optional self-
+    rescheduling is kept for backwards compatibility but disabled by default
+    because the cron scheduler handles recurrence.
+
+    Args:
+        reschedule: Whether to enqueue the task manually for the next run.
 
     Returns:
-        str: Status message
+        str: Status message describing the action.
     """
     logger.info("Running token blacklist cleanup")
 
-    # Re-schedule for next run (daily at 2 AM)
-    _reschedule_cleanup()
+    if reschedule:
+        _reschedule_cleanup()
 
-    return "Token blacklist cleanup triggered"
+    message = "Token blacklist cleanup triggered"
+
+    job = get_current_job()
+    if job:
+        core_api = CoreApi()
+        _save_task_result(job.id, "cleanup_token_blacklist", message, "SUCCESS", core_api)
+
+    return message
+
+
+def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api: CoreApi):
+    """Persist task result to Core via the worker API."""
+    try:
+        payload = {
+            "id": job_id,
+            "task": task_name,
+            "result": result,
+            "status": status,
+        }
+        response = core_api.api_put("/worker/task-results", payload)
+        if not response:
+            logger.warning(f"Failed to save task result for {job_id}")
+    except Exception as exc:  # pragma: no cover - log and continue
+        logger.error(f"Error saving task result for {job_id}: {exc}")
 
 
 def _reschedule_cleanup():
@@ -55,7 +85,7 @@ def _reschedule_cleanup():
         queue.enqueue_at(next_run, cleanup_token_blacklist)
         logger.info(f"Re-scheduled token cleanup for {next_run.isoformat()}")
 
-    except Exception as e:
+    except Exception as e:  # pragma: no cover - logging only
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
