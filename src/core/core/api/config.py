@@ -548,8 +548,11 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        if source := osint_source.OSINTSource.add(request.json):
-            return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        try:
+            if source := osint_source.OSINTSource.add(request.json):
+                return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
@@ -560,7 +563,7 @@ class OSINTSources(MethodView):
             if source := osint_source.OSINTSource.update(source_id, update_data):
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
