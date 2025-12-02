@@ -1026,7 +1026,7 @@ class Story(BaseModel):
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
             db.session.commit()
-            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500

@@ -1,55 +1,26 @@
-from flask import Flask, render_template, Blueprint, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
-from models.admin import Job
 
-from frontend.config import Config
-from frontend.cache_models import PagingData
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
-from frontend.utils.router_helpers import convert_query_params
 from frontend.views import (
+    ACLView,
     AdminDashboardView,
-    UserView,
-    OrganizationView,
-    RoleView,
-    WorkerView,
+    AttributeView,
     BotView,
+    ConnectorView,
+    OrganizationView,
     ProductTypeView,
-    WordListView,
+    PublisherView,
+    ReportItemTypeView,
+    RoleView,
+    SchedulerView,
     SourceGroupView,
     SourceView,
-    ReportItemTypeView,
-    AttributeView,
     TemplateView,
-    PublisherView,
-    ACLView,
-    ConnectorView,
-    SchedulerView,
+    UserView,
+    WordListView,
+    WorkerView,
 )
-
-
-class ScheduleAPI(MethodView):
-    @auth_required()
-    def get(self):
-        query_params = convert_query_params(request.args, PagingData)
-        error = None
-        result = None
-        try:
-            q = PagingData(**query_params)
-            result = DataPersistenceLayer().get_objects(Job, q)
-        except Exception as ve:
-            error = str(ve)
-
-        return render_template("schedule/index.html", jobs=result, error=error)
-
-
-class ScheduleJobDetailsAPI(MethodView):
-    @auth_required()
-    def get(self, job_id: str):
-        job = DataPersistenceLayer().get_object(Job, job_id)
-        if job is None:
-            return f"Failed to fetch job from: {Config.TARANIS_CORE_URL}", 500
-        return render_template("schedule/job_details.html", job=job)
 
 
 class ImportUsers(MethodView):

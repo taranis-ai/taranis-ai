@@ -1,13 +1,15 @@
 from typing import Any
-from flask import render_template, request, Response, abort
+from flask import Response, abort, render_template, request
 
 from models.product import Product
 from models.admin import ProductType, PublisherPreset
-from frontend.views.base_view import BaseView
-from frontend.filters import render_datetime, render_count, render_item_type
+
+from frontend.auth import auth_required
 from frontend.core_api import CoreApi
-from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_count, render_datetime, render_item_type
+from frontend.log import logger
+from frontend.views.base_view import BaseView
 
 
 class ProductView(BaseView):
@@ -68,6 +70,7 @@ class ProductView(BaseView):
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
     @classmethod
+    @auth_required()
     def product_render(cls, product_id: str):
         error = "Failed to render product"
         try:
@@ -76,6 +79,7 @@ class ProductView(BaseView):
                 error = core_resp.json().get("error", "Unknown error")
 
             message = core_resp.json().get("message", "Unknown error")
+            DataPersistenceLayer().invalidate_cache_by_object_id(Product, product_id)
             return render_template("notification/index.html", notification={"message": message, "error": False}), 200
         except Exception as e:
             logger.error(f"Render product failed: {str(e)}")

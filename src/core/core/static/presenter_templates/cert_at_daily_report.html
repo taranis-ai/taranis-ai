@@ -17,33 +17,38 @@ This Template needs exactly one Report
       <div class="container stage-push-top stage-domain-statiskten stage-body content-section" role="main">
       <div class="row">
       <div class="col-sm-12">
-        <h1>Tageszusammenfassung - {{ report.date }}</h1>
+        <h1>Tageszusammenfassung - {{ report.date | default('') }}</h1>
         <h2>End-of-Day report</h2>
-          Timeframe:   {{ report.timeframe }}
-          Handler:     {{ report.handler }}
-          Co-Handler:  {{ report.co_handler }}
+          Timeframe:   {{ report.timeframe | default('') }}
+          Handler:     {{ report.handler | default('') }}
+          Co-Handler:  {{ report.co_handler | default('') }}
 
         {% for group in ['News' , 'Vulnerabilities'] -%}
         <h2> {{ group }} </h2>
-        {% for group_id in report[group.lower()].split(',') -%}
-        {% for story in stories -%}
-        {% if story.id|string == group_id -%}
-        <h3>{{ story.title }}</h3>
-        <p>
-        {% if story.summary|length -%}
-        {{ story.summary }}
-        {% else -%}
-        {{ story.news_items[0].content }}
-        {%- endif %}
-        </p>
-        {% for item in story.news_items -%}
-        <p><a href="{{ item.link }}">{{ item.link }}</a></p>
-        {% endfor %}
-        <hr>
-        {%- endif %}
-        {%- endfor %}
-        {%- endfor %}
-        {%- endfor %}
+        {% set story_ids_in_group = report.get(group.lower()) %}
+        STORIES IN GROUP: {{ story_ids_in_group }}
+        {% if story_ids_in_group %}
+          {% set story_ids = story_ids_in_group.split(',') %}
+          {% for story_id in story_ids -%}
+            {% set story = stories | selectattr('id', 'equalto', story_id) | first %}
+            {% if story %}
+              <h3>{{ story.title }}</h3>
+              <p>
+                {% if story.summary|length -%}
+                  {{ story.summary }}
+                {% else -%}
+                  {{ story.news_items[0].content }}
+                {%- endif %}
+              </p>
+
+              {% for item in story.news_items -%}
+                <p><a href="{{ item.link }}">{{ item.link }}</a></p>
+              {% endfor %}
+              <hr>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
       </div>
       </div>
       </div>

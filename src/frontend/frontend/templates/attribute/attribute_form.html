@@ -2,23 +2,13 @@
 {% set form_error = form_error | default({}) %}
 
 <script type="text/javascript">
-const choiceConfig = {
-    removeItemButton: true,
-    addItems: true,
-    addChoices: true,
-    duplicateItemsAllowed: false,
-    placeholderValue: 'Select attributes enum values',
-    noResultsText: 'No attributes found',
-    noChoicesText: 'No attributes to choose from',
-    classNames: classNames,
-  };
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('attribute_enum-input', 'attributes', choiceConfig);
+    initChoices('attribute_enum-input', 'attributes');
   });
 } else {
-    initChoices('attribute_enum-input', 'attributes', choiceConfig);
+    initChoices('attribute_enum-input', 'attributes');
 }
 </script>
 

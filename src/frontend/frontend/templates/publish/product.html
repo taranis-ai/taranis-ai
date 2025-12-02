@@ -48,9 +48,11 @@
              data-testid="download-product"
              download>Download</a>
         {% endif %}
-        <button id="render_button" type="button" class="btn btn-outline" hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
-          Render
-        </button>
+        <button id="render_button"
+                type="button"
+                class="btn btn-outline"
+                hx-target="#notification-bar"
+                hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
       {% endif %}
       <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()" data-testid="save-product">
         <span x-show="dirty" class="mr-1">!</span>

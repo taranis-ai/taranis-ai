@@ -1,6 +1,8 @@
-from worker.log import logger
-import jinja2
 import datetime
+
+import jinja2
+
+from worker.log import logger
 
 
 class BasePresenter:
