@@ -140,12 +140,12 @@ class TestStoryConflictStoreUpdates:
         response = client.get(f"{self.base_uri_connectors}/conflicts/stories", headers=auth_header)
         assert response.status_code == 200
         assert len(response.get_json().get("conflicts")) == 2, "There should be 2 conflicts in the store"
-        assert response.get_json().get("conflicts")[0].get("storyId") == misp_story_id
-        assert response.get_json().get("conflicts")[1].get("storyId") == full_story_id
-        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("original"))
-        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("updated"))
-        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("original"))
-        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("updated"))
+        assert response.get_json().get("conflicts")[0].get("story_id") == misp_story_id
+        assert response.get_json().get("conflicts")[1].get("story_id") == full_story_id
+        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("existing_story"))
+        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("incoming_story"))
+        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("existing_story"))
+        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("incoming_story"))
 
         assert misp_story_1_original_data.get("title") == "Test title"
         assert misp_story_1_updated_data.get("title") == "Updated MISP Story Title"
@@ -161,16 +161,18 @@ class TestStoryConflictStoreUpdates:
             json=[misp_story_data, full_story_data],
             headers=api_header,
         )
-        assert response.status_code == 409, "Conflict should be created when trying to update stories again"
+        assert response.status_code == 409, (
+            "Conflict should be created wtest_news_item_conflict_store_updatehen trying to update stories again"
+        )
         response = client.get(f"{self.base_uri_connectors}/conflicts/stories", headers=auth_header)
         assert response.status_code == 200
         assert len(response.get_json().get("conflicts")) == 2, "There should be 2 conflicts in the store"
-        assert response.get_json().get("conflicts")[0].get("storyId") == misp_story_id
-        assert response.get_json().get("conflicts")[1].get("storyId") == full_story_id
-        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("original"))
-        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("updated"))
-        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("original"))
-        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("updated"))
+        assert response.get_json().get("conflicts")[0].get("story_id") == misp_story_id
+        assert response.get_json().get("conflicts")[1].get("story_id") == full_story_id
+        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("existing_story"))
+        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("incoming_story"))
+        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("existing_story"))
+        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("incoming_story"))
 
         assert misp_story_1_original_data.get("title") == "Test title"
         assert misp_story_1_updated_data.get("title") == "Second update to MISP Story Title"
@@ -329,7 +331,7 @@ class TestNewsItemConflictStoreUpdates:
     def _fetch_news_item_conflicts(self, client, auth_header) -> list[dict]:
         response = client.get(f"{self.base_uri_connectors}/conflicts/news-items", headers=auth_header)
         assert response.status_code == 200
-        return response.get_json().get("conflicts", [])
+        return response.get_json().get("items", [])
 
     def _group_conflicts_by_story(self, conflicts: list[dict]) -> dict[str, list[dict]]:
         conflicts_by_story = defaultdict(list)
