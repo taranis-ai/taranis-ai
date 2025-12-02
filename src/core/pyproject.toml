@@ -26,6 +26,8 @@ dependencies = [
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
+    "Pillow",
+    "python-magic",
     "granian",
     "psycopg",
     "requests",
