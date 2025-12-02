@@ -63,3 +63,4 @@ class NewsItemConflict(TaranisBaseModel):
     existing_story_id: str
     incoming_story: dict
     misp_address: str | None = None
+    unique_news_items: list[dict] = Field(default_factory=list)

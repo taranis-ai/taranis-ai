@@ -179,16 +179,20 @@ class DashboardView(BaseView):
                 internal_ids_for_group = {c.existing_story_id for c in group_data["conflict_entries"]}
                 enriched_internal_stories = []
 
+                unique_source_items = group_data["conflict_entries"][0].unique_news_items if group_data["conflict_entries"] else []
+
                 for story_id in internal_ids_for_group:
                     summary = internal_story_summaries.get(story_id) or {}
                     existing_news_item_ids = [item.get("id") for item in summary.get("news_item_data", []) if item.get("id")]
                     unique_ids = sorted(incoming_ids_set - conflicts_by_story.get(story_id, set()))
+                    unique_news_items = [item for item in unique_source_items if item.get("id") in unique_ids]
                     enriched_internal_stories.append(
                         {
                             "story_id": story_id,
                             "summary": summary or None,
                             "existing_news_item_ids": existing_news_item_ids,
                             "unique_news_item_ids": unique_ids,
+                            "unique_news_items": unique_news_items,
                         }
                     )
 
@@ -318,34 +322,39 @@ class DashboardView(BaseView):
 
                 payload = {k: (v[0] if len(v) == 1 else v) for k, v in form.items()}
 
-            logger.warning(f"DEBUG BEFORE NORMALIZATION: {payload}")
-
             # Normalize fields that must be lists
-            def ensure_list(v):
-                if v is None:
+            def ensure_list(value):
+                if value is None:
                     return []
-                if isinstance(v, list):
-                    return v
-                if isinstance(v, str):
-                    if "," in v:
-                        return [x.strip() for x in v.split(",") if x.strip()]
-                    return [v]
-                return [v]
+                if isinstance(value, list):
+                    return value
+                if isinstance(value, str):
+                    if "," in value:
+                        return [item.strip() for item in value.split(",") if item.strip()]
+                    return [value]
+                return [value]
 
             payload["incoming_story_id"] = payload.get("incoming_story_id") or payload.get("resolving_story_id")
-            payload["unique_incoming_news_item_ids"] = ensure_list(payload.get("unique_incoming_news_item_ids"))
-            payload["resolved_conflict_item_ids"] = ensure_list(payload.get("resolved_conflict_item_ids"))
-            payload["existing_story_news_item_ids"] = ensure_list(payload.get("existing_story_news_item_ids"))
             payload["remaining_stories"] = ensure_list(payload.get("remaining_stories"))
 
-            logger.warning(f"DEBUG AFTER NORMALIZATION: {payload}")
+            supplied_news_items = payload.get("news_items")
+            if isinstance(supplied_news_items, str):
+                try:
+                    supplied_news_items = json.loads(supplied_news_items)
+                except json.JSONDecodeError:
+                    supplied_news_items = None
+            if supplied_news_items is not None and not isinstance(supplied_news_items, list):
+                supplied_news_items = ensure_list(supplied_news_items)
+
+            if supplied_news_items is None:
+                payload["unique_incoming_news_item_ids"] = ensure_list(payload.get("unique_incoming_news_item_ids"))
+                payload["resolved_conflict_item_ids"] = ensure_list(payload.get("resolved_conflict_item_ids"))
+                payload["existing_story_news_item_ids"] = ensure_list(payload.get("existing_story_news_item_ids"))
 
             # Required fields
             required_fields = [
                 "story_id",
                 "incoming_story_id",
-                "unique_incoming_news_item_ids",
-                "resolved_conflict_item_ids",
                 "remaining_stories",
             ]
 
@@ -368,8 +377,13 @@ class DashboardView(BaseView):
             existing_ids = payload.get("existing_story_news_item_ids") or cls._load_internal_story_news_item_ids(payload.get("story_id"))
             existing_ids = [str(item_id) for item_id in existing_ids if item_id]
 
-            allowed_items = cls._select_news_items(incoming_story, payload.get("unique_incoming_news_item_ids"))
-            unique_news_items = [item for item in allowed_items if item.get("id") not in existing_ids]
+            if supplied_news_items is not None:
+                unique_news_items = [item for item in supplied_news_items if isinstance(item, dict)]
+            else:
+                allowed_items = cls._select_news_items(incoming_story, payload.get("unique_incoming_news_item_ids"))
+                unique_news_items = allowed_items
+
+            unique_news_items = [item for item in unique_news_items if item.get("id") not in existing_ids]
             unique_ids = [item.get("id") for item in unique_news_items if item.get("id")]
 
             if not unique_ids:
@@ -383,8 +397,6 @@ class DashboardView(BaseView):
             payload.pop("incoming_story", None)
             payload.pop("incoming_story_id", None)
 
-            # Forward to core API
-            logger.warning(f"DEBUG: Sending payload to Core API: {payload}")
             api = CoreApi()
             response = api.api_post("/connectors/conflicts/news-items", json_data=payload)
 
@@ -392,7 +404,6 @@ class DashboardView(BaseView):
                 logger.error(f"Core API error: {response.status_code} {response.text}")
                 return Response(response.text, response.status_code)
 
-            logger.warning("DEBUG: Core API returned OK, reloading conflict view")
             return cls.news_item_conflict_view()
 
         except Exception as exc:

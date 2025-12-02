@@ -68,6 +68,7 @@ class NewsItemConflicts(MethodView):
                 "existing_story_id": conflict.existing_story_id,
                 "incoming_story": conflict.incoming_story_data,
                 "misp_address": conflict.misp_address,
+                "unique_news_items": conflict.unique_news_items,
             }
             for conflict in NewsItemConflict.conflict_store.values()
         ]
