@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -106,7 +106,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         infinite_scroll_all_items()
 
     def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_stories):
-        # self.ci_run = True
         page = logged_in_page
         report_story_one, report_story_two = pre_seed_report_stories
         story_search_term = " ".join(report_story_one["title"].split()[:2])
@@ -170,7 +169,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_test_id("report-table").get_by_role("button").nth(3).click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("link", name="Test report").click()
-            expect(page.get_by_test_id("report-stories").locator("label")).to_contain_text(report_story_two["title"])
+            expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
             expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
 
         go_to_analyze()

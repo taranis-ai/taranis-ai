@@ -1,13 +1,13 @@
-from flask import Blueprint, request, abort, Flask
+from flask import Blueprint, Flask, abort, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers import asset_manager
-from core.managers.sse_manager import sse_manager
-from core.log import logger
-from core.managers.auth_manager import auth_required
-from core.model import report_item, report_item_type
 from core.config import Config
+from core.log import logger
+from core.managers import asset_manager
+from core.managers.auth_manager import auth_required
+from core.managers.sse_manager import sse_manager
+from core.model import report_item, report_item_type
 
 
 class ReportTypes(MethodView):
@@ -43,11 +43,9 @@ class ReportItem(MethodView):
     def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id)
-        filter_keys = ["search", "completed", "range", "sort", "group"]
+        filter_keys = ["search", "completed", "range", "sort", "group", "page", "limit"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-        filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
-        filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
         return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ANALYZE_CREATE")
