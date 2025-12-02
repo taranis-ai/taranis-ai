@@ -166,8 +166,8 @@ class NewsItemConflict:
             return {"error": "Missing story_ids or news_item_ids"}, 400
 
         incoming_story = data.get("incoming_story")
-        story_ids = data.get("existing_story_ids")
-        news_item_ids = data.get("incoming_news_item_ids")
+        story_ids: list[str] = data.get("existing_story_ids", [])
+        news_item_ids: list[str] = data.get("incoming_news_item_ids", [])
 
         if not story_ids or not news_item_ids or not incoming_story:
             return {"error": "Missing story_ids or news_item_ids or incoming story"}, 400
