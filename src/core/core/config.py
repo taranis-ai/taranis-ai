@@ -1,8 +1,9 @@
-from pydantic import model_validator, field_validator, ValidationInfo, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Any, Literal
 from datetime import datetime, timedelta
+from typing import Any, Literal
 from urllib.parse import urlparse, urlunparse
+
+from pydantic import SecretStr, ValidationInfo, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def mask_db_uri(uri: str) -> str:
@@ -128,6 +129,12 @@ class Settings(BaseSettings):
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{info.field_name} must be a non-empty string")
         return v
+
+    @field_validator("EXTERNAL_AUTH_USER", "EXTERNAL_AUTH_ROLES", "EXTERNAL_AUTH_NAME", "EXTERNAL_AUTH_ORGANIZATION", mode="before")
+    def check_non_empty_string(cls, v, info: ValidationInfo) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"{info.field_name} must be a non-empty string")
+        return v.upper()
 
     @field_validator("APPLICATION_ROOT", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
