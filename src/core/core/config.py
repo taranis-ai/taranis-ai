@@ -131,7 +131,7 @@ class Settings(BaseSettings):
         return v
 
     @field_validator("EXTERNAL_AUTH_USER", "EXTERNAL_AUTH_ROLES", "EXTERNAL_AUTH_NAME", "EXTERNAL_AUTH_ORGANIZATION", mode="before")
-    def check_non_empty_string(cls, v, info: ValidationInfo) -> str:
+    def check_and_upper_auth_headers(cls, v, info: ValidationInfo) -> str:
         if not isinstance(v, str) or not v.strip():
             raise ValueError(f"{info.field_name} must be a non-empty string")
         return v.upper()
