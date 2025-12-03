@@ -64,8 +64,6 @@ class NewsItem(BaseModel):
         title: str,
         source: str,
         content: str,
-        published: datetime | str,
-        collected: datetime | str,
         osint_source_id: str = "manual",
         review: str = "",
         author: str = "",
@@ -75,6 +73,8 @@ class NewsItem(BaseModel):
         attributes=None,
         id=None,
         last_change="external",
+        published: datetime | str | None = None,
+        collected: datetime | str | None = None,
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())
