@@ -40,27 +40,28 @@ class RSSCollector(BaseWebCollector):
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
+    def _determine_use_feed_content(self, params: dict) -> bool:
+        use_feed_param = params.get("USE_FEED_CONTENT")
+        legacy_param = params.get("CONTENT_LOCATION")
+
+        if isinstance(use_feed_param, str):
+            return use_feed_param.strip().lower() == "true"
+        if isinstance(use_feed_param, bool):
+            return use_feed_param
+        if isinstance(legacy_param, str):
+            return legacy_param.strip().lower() == "feed"
+        return False
+
     def parse_source(self, source: dict):
         super().parse_source(source)
+        params = source.get("parameters", {})
+
         self.feed_url = source["parameters"].get("FEED_URL", "")
         if not self.feed_url:
             raise ValueError("No FEED_URL set in source")
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
-
-        params = source.get("parameters", {})
-
-        use_feed_param = params.get("USE_FEED_CONTENT")
-        legacy_param = params.get("CONTENT_LOCATION")
-
-        if isinstance(use_feed_param, str):
-            self.use_feed_content = use_feed_param.strip().lower() == "true"
-        elif isinstance(use_feed_param, bool):
-            self.use_feed_content = use_feed_param
-        elif isinstance(legacy_param, str):
-            self.use_feed_content = legacy_param.strip().lower() == "feed"
-        else:
-            self.use_feed_content = False
+        self.use_feed_content = self._determine_use_feed_content(params)
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
