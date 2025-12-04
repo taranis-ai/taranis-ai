@@ -24,7 +24,6 @@ from core.model.worker import Worker
 from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
-from core.service.news_item import NewsItem
 from core.model.user import User
 
 
