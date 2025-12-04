@@ -106,7 +106,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         infinite_scroll_all_items()
 
     def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_stories):
-        # self.ci_run = True
         page = logged_in_page
         report_story_one, report_story_two = pre_seed_report_stories
         story_search_term = " ".join(report_story_one["title"].split()[:2])
