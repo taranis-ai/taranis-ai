@@ -5,7 +5,6 @@ import requests
 import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
-from lxml import html
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
@@ -107,31 +106,19 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
+
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
 
         published = self.get_published_date(feed_entry)
-
         content = ""
 
         if self.use_feed_content:
             content = self.extract_content_from_feed(feed_entry)
 
-            if self.xpath and content and "<" in content:
-                try:
-                    tree = html.fromstring(content)
-                    xpath_result = tree.xpath(self.xpath)
-                    if xpath_result:
-                        parts: list[str] = []
-                        for node in xpath_result:
-                            if isinstance(node, str):
-                                parts.append(node)
-                            else:
-                                parts.append(" ".join(node.itertext()))
-                        content = " ".join(part.strip() for part in parts if part.strip())
-                    logger.info(f"Applied XPATH {self.xpath} to feed content")
-                except Exception as e:
-                    logger.warning(f"Failed to apply XPATH to feed content: {e}")
+            if self.xpath and content:
+                if extracted := self.xpath_extraction(content, self.xpath):
+                    content = extracted
         else:
             if link:
                 web_content = self.extract_web_content(link, self.xpath)
