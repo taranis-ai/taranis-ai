@@ -20,9 +20,9 @@ def test_psycopg_multi_host_uri(monkeypatch, raw_uri):
     settings = Settings(SQLALCHEMY_DATABASE_URI=raw_uri, DB_PASSWORD=SecretStr("pass"))
 
     assert settings.SQLALCHEMY_DATABASE_URI == raw_uri
-    # Masked value should exist but we avoid pinning to the placeholder string.
     assert settings.SQLALCHEMY_DATABASE_URI_MASK
     assert settings.SQLALCHEMY_DATABASE_URI_MASK != settings.SQLALCHEMY_DATABASE_URI
+    assert settings.DB_PASSWORD.get_secret_value() not in settings.SQLALCHEMY_DATABASE_URI_MASK
     assert settings.SQLALCHEMY_ENGINE_OPTIONS["connect_args"] == {
         "connect_timeout": settings.SQLALCHEMY_CONNECT_TIMEOUT
     }
