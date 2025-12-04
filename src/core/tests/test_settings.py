@@ -23,6 +23,9 @@ def test_psycopg_multi_host_uri(monkeypatch, raw_uri):
     assert settings.SQLALCHEMY_DATABASE_URI_MASK
     assert settings.SQLALCHEMY_DATABASE_URI_MASK != settings.SQLALCHEMY_DATABASE_URI
     assert settings.DB_PASSWORD.get_secret_value() not in settings.SQLALCHEMY_DATABASE_URI_MASK
+    assert "db-1" in settings.SQLALCHEMY_DATABASE_URI
+    assert "db-2" in settings.SQLALCHEMY_DATABASE_URI
+    assert "db-3" in settings.SQLALCHEMY_DATABASE_URI
     assert settings.SQLALCHEMY_ENGINE_OPTIONS["connect_args"] == {
         "connect_timeout": settings.SQLALCHEMY_CONNECT_TIMEOUT
     }

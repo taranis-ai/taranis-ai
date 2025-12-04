@@ -69,7 +69,7 @@ class Settings(BaseSettings):
             )
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
-        elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
+        elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql:") or self.SQLALCHEMY_DATABASE_URI.startswith("postgresql+"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         self.SQLALCHEMY_ENGINE_OPTIONS.update(
             {
