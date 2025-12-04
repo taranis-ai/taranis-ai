@@ -1,7 +1,6 @@
 from pydantic import SecretStr
-from core.config import Settings
-
 import pytest
+from core.config import Settings
 
 @pytest.mark.parametrize(
     "raw_uri",
