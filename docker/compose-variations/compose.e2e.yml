@@ -16,6 +16,12 @@ services:
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/bin/curl --fail http://localhost:8080"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -44,9 +50,10 @@ services:
 
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+      GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
@@ -57,7 +64,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive'"]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:$${GRANIAN_PORT}$${APPLICATION_ROOT}api/isalive', timeout=5).raise_for_status()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -70,7 +77,7 @@ services:
 
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
-    shm_size: 256mb
+    shm_size: 512mb
     # ports:
     # - 6543:5432
     deploy:
@@ -82,7 +89,7 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -100,13 +107,19 @@ services:
       restart_policy:
         condition: always
     # ports:
-    #   - "8000:8000"
+    #   - "8080:8080"
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-frontend:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8080$${APPLICATION_ROOT}/health', timeout=5).raise_for_status()\""]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -126,7 +139,7 @@ services:
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
       WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -140,7 +153,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
   workers:
     depends_on:
@@ -156,7 +168,7 @@ services:
       BOT_API_KEY: "${BOT_API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-supersecret}"
       WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -184,7 +196,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq/
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-supersecret}"
     healthcheck:
       test: "rabbitmqctl await_startup"
       interval: 10s

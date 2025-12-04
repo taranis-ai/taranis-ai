@@ -56,7 +56,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive'"]
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:$${GRANIAN_PORT}$${APPLICATION_ROOT}api/isalive'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,7 +80,7 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -92,7 +92,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
   scheduler:
     deploy:
@@ -140,7 +139,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-
   workers:
     depends_on:
       rabbitmq:
@@ -169,7 +167,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-
   summary_bot:
     depends_on:
       workers:
@@ -186,7 +183,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
   nlp_bot:
     depends_on:
@@ -205,7 +201,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-
   clustering_bot:
     depends_on:
       workers:
@@ -222,7 +217,6 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-
 
   rabbitmq:
     image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
