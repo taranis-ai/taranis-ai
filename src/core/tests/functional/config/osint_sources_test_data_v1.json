@@ -26,9 +26,9 @@
           }
         },
         {
-          "value": "description",
+          "value": "true",
           "parameter": {
-            "key": "CONTENT_LOCATION"
+            "key": "USE_FEED_CONTENT"
           }
         }
       ],
@@ -47,9 +47,9 @@
           }
         },
         {
-          "value": "description",
+          "value": "true",
           "parameter": {
-            "key": "CONTENT_LOCATION"
+            "key": "USE_FEED_CONTENT"
           }
         }
       ],
@@ -68,9 +68,9 @@
           }
         },
         {
-          "value": "description",
+          "value": "true",
           "parameter": {
-            "key": "CONTENT_LOCATION"
+            "key": "USE_FEED_CONTENT"
           }
         }
       ],
@@ -89,9 +89,9 @@
           }
         },
         {
-          "value": "description",
+          "value": "true",
           "parameter": {
-            "key": "CONTENT_LOCATION"
+            "key": "USE_FEED_CONTENT"
           }
         },
         {
@@ -116,9 +116,9 @@
           }
         },
         {
-          "value": "content:encoded",
+          "value": "true",
           "parameter": {
-            "key": "CONTENT_LOCATION"
+            "key": "USE_FEED_CONTENT"
           }
         }
       ],
