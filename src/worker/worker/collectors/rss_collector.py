@@ -5,6 +5,7 @@ import requests
 import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
+from lxml import html
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
@@ -34,6 +35,7 @@ class RSSCollector(BaseWebCollector):
         self.last_modified: datetime.datetime | None = None
         self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
+        self.use_feed_content: bool = False
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -46,16 +48,37 @@ class RSSCollector(BaseWebCollector):
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
+        params = source.get("parameters", {})
+
+        use_feed_param = params.get("USE_FEED_CONTENT")
+        legacy_param = params.get("CONTENT_LOCATION")
+
+        if isinstance(use_feed_param, str):
+            self.use_feed_content = use_feed_param.strip().lower() == "true"
+
+        elif isinstance(legacy_param, str):
+            self.use_feed_content = legacy_param.strip().lower() == "feed"
+
+        else:
+            self.use_feed_content = False
+
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
         return self.rss_collector(source, manual)
 
-    def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
-        content_locations = [content_location, "content", "content:encoded"]
+    def extract_content_from_feed(self, feed_entry: feedparser.FeedParserDict) -> str:
+        content_locations = ["content", "content:encoded", "summary", "description"]
         for location in content_locations:
-            if location in feed_entry and isinstance(feed_entry[location], str):
-                return True, location
-        return False, content_location
+            if location not in feed_entry:
+                continue
+            value = feed_entry[location]
+            if isinstance(value, list) and value:
+                first = value[0]
+                if isinstance(first, dict) and "value" in first:
+                    return str(first["value"])
+            if isinstance(value, str):
+                return value
+        return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
@@ -88,15 +111,33 @@ class RSSCollector(BaseWebCollector):
 
         published = self.get_published_date(feed_entry)
 
-        content_location = source["parameters"].get("CONTENT_LOCATION", None)
-        content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
-        content = str(feed_entry[content_location]) if content_from_feed else ""
-        if link:
-            web_content = self.extract_web_content(link, self.xpath)
-            content = content if content_from_feed else str(web_content.get("content"))
-            author = author or str(web_content.get("author"))
-            title = title or str(web_content.get("title"))
-            published = published or web_content.get("published_date") or self.last_modified
+        content = ""
+
+        if self.use_feed_content:
+            content = self.extract_content_from_feed(feed_entry)
+
+            if self.xpath and content and "<" in content:
+                try:
+                    tree = html.fromstring(content)
+                    xpath_result = tree.xpath(self.xpath)
+                    if xpath_result:
+                        parts: list[str] = []
+                        for node in xpath_result:
+                            if isinstance(node, str):
+                                parts.append(node)
+                            else:
+                                parts.append(" ".join(node.itertext()))
+                        content = " ".join(part.strip() for part in parts if part.strip())
+                    logger.info(f"Applied XPATH {self.xpath} to feed content")
+                except Exception as e:
+                    logger.warning(f"Failed to apply XPATH to feed content: {e}")
+        else:
+            if link:
+                web_content = self.extract_web_content(link, self.xpath)
+                content = str(web_content.get("content"))
+                author = author or str(web_content.get("author"))
+                title = title or str(web_content.get("title"))
+                published = published or web_content.get("published_date") or self.last_modified
 
         if content == description:
             description = ""
