@@ -55,10 +55,10 @@ class RSSCollector(BaseWebCollector):
 
         if isinstance(use_feed_param, str):
             self.use_feed_content = use_feed_param.strip().lower() == "true"
-
+        elif isinstance(use_feed_param, bool):
+            self.use_feed_content = use_feed_param
         elif isinstance(legacy_param, str):
             self.use_feed_content = legacy_param.strip().lower() == "feed"
-
         else:
             self.use_feed_content = False
 
