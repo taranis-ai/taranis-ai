@@ -397,3 +397,31 @@ def story_conflict_resolution_1(news_items, cleanup_news_item):
             "news_items": news_items[:2] + [cleanup_news_item],
         }
     }
+
+
+@pytest.fixture(scope="class")
+def cleanup_publisher(app):
+    with app.app_context():
+        from core.model.publisher_preset import PublisherPreset
+
+        publisher_data = {
+            "id": "99",
+            "name": "Test Publisher",
+            "description": "This is a test email publisher",
+            "type": "email_publisher",
+            "parameters": {
+                "SMTP_SERVER_ADDRESS": "smtp.example.com",
+                "SMTP_SERVER_PORT": "587",
+                "SERVER_TLS": "true",
+                "EMAIL_USERNAME": "publisher@example.com",
+                "EMAIL_PASSWORD": "password",
+                "EMAIL_SENDER": "publisher@example.com",
+                "EMAIL_RECIPIENT": "recipient@example.com",
+                "EMAIL_SUBJECT": "Functional Test Publication",
+            },
+        }
+
+        yield publisher_data
+
+        if PublisherPreset.get(publisher_data["id"]):
+            PublisherPreset.delete(publisher_data["id"])
