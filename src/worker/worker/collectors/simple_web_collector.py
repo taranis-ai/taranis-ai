@@ -1,11 +1,12 @@
-import requests
-import logging
 import datetime
+import logging
 
-from worker.log import logger
-from worker.types import NewsItem
+import requests
+
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.log import logger
+from worker.types import NewsItem
 
 
 class SimpleWebCollector(BaseWebCollector):
@@ -82,28 +83,9 @@ class SimpleWebCollector(BaseWebCollector):
         self.news_items = self.gather_news_items()
         return self.publish(self.news_items, source)
 
-
-def browser_mode_test():
-    collector = SimpleWebCollector()
-    collector.collect(
-        {
-            "description": "",
-            "id": "1",
-            "last_attempted": "2000-01-01T00:00:00.000000",
-            "last_collected": "2000-01-01T00:00:00.000000",
-            "last_error_message": None,
-            "name": "TestName",
-            "parameters": {
-                "ADDITIONAL_HEADERS": '{"User-Agent": "Chromium/1.0", "Authorization": "Bearer Token1234", "X-API-KEY": "12345", "Cookie": "firstcookie=1234; second-cookie=4321"}',
-                "FEED_URL": "www.hello.hello.com",
-                "USER_AGENT": "Mozilla/5.0",
-            },
-            "state": 0,
-            "type": "rss_collector",
-            "word_lists": [],
-        }
-    )
-
-
-if __name__ == "__main__":
-    browser_mode_test()
+    def manual_collect(self, source_parameters: dict | None = None):
+        source_parameters = source_parameters or {}
+        source_parameters["id"] = "manual"
+        self.parse_source(source_parameters)
+        self.news_items = self.gather_news_items()
+        return self.publish(self.news_items, source_parameters)

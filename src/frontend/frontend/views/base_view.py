@@ -192,7 +192,6 @@ class BaseView(MethodView):
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
         key = cls._get_object_key()
         form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
@@ -206,7 +205,7 @@ class BaseView(MethodView):
             }
         )
 
-        context[cls.model_name()] = dpl.get_object(cls.model, object_id)
+        context[cls.model_name()] = DataPersistenceLayer().get_object(cls.model, object_id)
         return cls.get_extra_context(context)
 
     @classmethod

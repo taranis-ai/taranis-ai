@@ -34,7 +34,7 @@
       <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
         <tr>
           <td colspan="{{ (columns|length) }}">
-            <div class="flex justify-center">{{ table_controls(base_url=routes.base_route, data=data) }}</div>
+            <div class="flex justify-center">{{ table_controls(base_url=base_route, data=data) }}</div>
           </td>
         </tr>
       </tfoot>

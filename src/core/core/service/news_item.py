@@ -1,8 +1,8 @@
-from core.model.story import Story
-from core.model.news_item import NewsItem
-from core.managers.db_manager import db
-from core.model.user import User
 from core.log import logger
+from core.managers.db_manager import db
+from core.model.news_item import NewsItem
+from core.model.story import Story
+from core.model.user import User
 
 
 class NewsItemService:
@@ -17,9 +17,11 @@ class NewsItemService:
 
         if story := Story.get(news_item.story_id):
             story.update_status()
-        db.session.commit()
+            db.session.commit()
+            return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item_id}, 200
 
-        return {"message": "success"}, 200
+        db.session.rollback()
+        return {"error": "Unable to update News Itemm"}, 500
 
     @classmethod
     def delete(cls, news_item_id: str, user: User):
@@ -44,8 +46,9 @@ class NewsItemService:
         story.news_items.remove(news_item)
         news_item.delete_item()
         story.update_status()
+        db.session.commit()
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
-        return {"message": "News Item deleted", "id": news_item_id}, 200
+        return {"message": "News Item deleted", "id": news_item_id, "story_id": story_id}, 200
 
     @classmethod
     def has_related_news_items(cls, osint_source_id: str) -> bool:

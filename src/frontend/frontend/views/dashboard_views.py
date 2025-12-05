@@ -96,6 +96,7 @@ class DashboardView(BaseView):
             cluster_name=cluster_name,
             country_chart=country_chart,
             dashboard_config=current_user.profile.dashboard,
+            base_route=cls.get_base_route(),
         ), 200
 
     @classmethod
