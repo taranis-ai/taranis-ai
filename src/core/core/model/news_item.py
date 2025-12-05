@@ -35,11 +35,20 @@ class NewsItem(BaseModel):
     link: Mapped[str] = db.Column(db.String())
     language: Mapped[str] = db.Column(db.String())
     content: Mapped[str] = db.Column(db.String())
-    collected: Mapped[datetime] = db.Column(db.DateTime)
+    collected: Mapped[datetime] = db.Column(
+        db.DateTime,
+        default=datetime.now,
+    )
     last_change: Mapped[str] = db.Column(db.String())
-    published: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
-    updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now())
-
+    published: Mapped[datetime] = db.Column(
+        db.DateTime,
+        default=datetime.now,
+    )
+    updated: Mapped[datetime] = db.Column(
+        db.DateTime,
+        default=datetime.now,
+        onupdate=datetime.now,
+    )
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
@@ -59,13 +68,13 @@ class NewsItem(BaseModel):
         review: str = "",
         author: str = "",
         link: str = "",
-        published: datetime | str = datetime.now(),
-        collected: datetime | str = datetime.now(),
         language: str = "",
         hash: str | None = None,
         attributes=None,
         id=None,
         last_change="external",
+        published: datetime | str | None = None,
+        collected: datetime | str | None = None,
         story_id: str = "",
     ):
         self.id = id or str(uuid.uuid4())

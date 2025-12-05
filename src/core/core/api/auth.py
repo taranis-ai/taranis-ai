@@ -1,12 +1,11 @@
-from flask import Blueprint, request, Flask
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
-from flask_jwt_extended import jwt_required, get_jwt, current_user
-
+from flask_jwt_extended import current_user, get_jwt, jwt_required
 
 from core.auth.external_authenticator import ExternalAuthenticator
-from core.managers import auth_manager
 from core.config import Config
 from core.log import logger
+from core.managers import auth_manager
 
 
 class Login(MethodView):
