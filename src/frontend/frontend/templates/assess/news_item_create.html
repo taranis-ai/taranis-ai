@@ -50,24 +50,10 @@
           <div class="card-body space-y-3">
             <div class="space-y-1">
               <h2 class="text-lg font-semibold">Create from file</h2>
-              <p class="text-xs text-base-content/60">Upload a document to ingest it as a new news item.</p>
+              <p class="text-xs text-base-content/60">Upload a JSON document to ingest it as a new news item.</p>
             </div>
             <input type="file" name="file" class="file-input file-input-bordered w-full" required>
             <button type="submit" class="btn btn-outline">Create from file</button>
-          </div>
-        </form>
-
-        <form class="card border border-base-200 bg-base-100 shadow-sm"
-              hx-post="{{ url_for('assess.create_news_item') }}"
-              hx-target="#notification-bar"
-              hx-swap="innerHTML">
-          <div class="card-body space-y-3">
-            <div class="space-y-1">
-              <h2 class="text-lg font-semibold">Create from URL</h2>
-              <p class="text-xs text-base-content/60">Fetch and parse a link into a news item.</p>
-            </div>
-            <input type="url" name="fetch_url" placeholder="https://example.com/story" class="input input-bordered w-full" required>
-            <button type="submit" class="btn btn-outline">Create from URL</button>
           </div>
         </form>
       </div>

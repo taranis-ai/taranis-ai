@@ -1,11 +1,13 @@
 import pytest
 import requests
-from worker.tests.testdata import news_items
+
 from worker.config import Config
+from worker.tests.testdata import news_items
 
 
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
     import datetime
+
     from worker.collectors.base_web_collector import NoChangeError
 
     response = base_web_collector.send_get_request("https://test.org/200")
@@ -38,10 +40,12 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
 
 def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
-    from worker.tests.testdata import rss_collector_source_data_not_modified
-    from worker.tests.testdata import rss_collector_source_data_no_content
-    from worker.tests.testdata import rss_collector_url_not_modified
     from worker.collectors.base_web_collector import NoChangeError
+    from worker.tests.testdata import (
+        rss_collector_source_data_no_content,
+        rss_collector_source_data_not_modified,
+        rss_collector_url_not_modified,
+    )
 
     with pytest.raises(NoChangeError) as exception:
         result = rss_collector.collect(rss_collector_source_data_not_modified)
@@ -133,6 +137,15 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
     assert result is None
 
 
+def test_web_collector_browser_mode(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_source_data
+
+    web_collector_source_data["parameters"]["BROWSER_MODE"] = "true"
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+
+
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):
     from worker.tests.testdata import web_collector_source_data, web_collector_source_xpath
 
@@ -154,7 +167,7 @@ def test_simple_web_collector_with_additional_headers(simple_web_collector_mock,
 
 
 def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
-    from worker.tests.testdata import web_collector_url, web_collector_result_title, web_collector_result_content
+    from worker.tests.testdata import web_collector_result_content, web_collector_result_title, web_collector_url
 
     result_item = simple_web_collector.news_item_from_article(web_collector_url)
 
@@ -194,6 +207,7 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
 
 def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     import json
+
     import worker.tests.collectors.rt_testdata as rt_testdata
 
     # query response contains malformed json
