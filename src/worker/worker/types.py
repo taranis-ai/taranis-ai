@@ -69,9 +69,19 @@ class NewsItem:
             result["attributes"] = self.attributes
         return result
 
-    def normalize_language_code(self, input_code: str) -> str | None:
+    def normalize_language_code(self, input_code: str) -> str:
+        if not input_code:
+            return ""
+
+        # Handle "de-AT,de;q=0.9" -> "de-AT"
+        code = input_code.split(",", 1)[0].strip()
+
+        # Handle "en_US" -> "en-US"
+        code = code.replace("_", "-")
+
         try:
-            lang = langcodes.find(input_code)
-            return lang.language
-        except LookupError:
-            return None
+            lang = langcodes.Language.get(code)
+        except Exception:
+            return ""
+
+        return "" if not lang.language or lang.language == "und" else lang.language
