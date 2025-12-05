@@ -8,6 +8,7 @@ from core.managers import asset_manager
 from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
+from core.service.product import ProductService
 
 
 class ReportTypes(MethodView):
@@ -75,6 +76,8 @@ class ReportItem(MethodView):
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
+            ProductService.autopublish_product(report_item_id)
+
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")

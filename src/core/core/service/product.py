@@ -1,8 +1,13 @@
 from flask import Response
 
 from core.model.product import Product
+from core.model.report_item import ReportItem
 from core.model.task import Task
 from core.log import logger
+
+from sqlalchemy import select
+from core.managers.db_manager import db
+from core.managers import queue_manager
 
 
 class ProductService:
@@ -14,3 +19,17 @@ class ProductService:
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
         return {"error": f"Product {product_id} not found"}, 404
+
+    @classmethod
+    def autopublish_product(cls, report_item_id: str):
+        products = ProductService.get_products_for_auto_render(report_item_id)
+        for product in products:
+            if not product.default_publisher:
+                logger.warning(f"Product {product.id} is set to auto publish but has no default publisher")
+                continue
+            queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher)
+
+    @classmethod
+    def get_products_for_auto_render(cls, report_item_id: str) -> list[Product]:
+        stmt = select(Product).join(Product.report_items).where(Product.auto_publish.is_(True), ReportItem.id == report_item_id).distinct()
+        return list(db.session.scalars(stmt).all())
