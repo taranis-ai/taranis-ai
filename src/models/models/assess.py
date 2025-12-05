@@ -2,8 +2,6 @@ from datetime import datetime
 from functools import cached_property
 from typing import Literal
 
-import langcodes
-from pydantic import field_validator
 
 from models.base import TaranisBaseModel
 
@@ -24,16 +22,6 @@ class NewsItem(TaranisBaseModel):
     attributes: list[str | dict] | None = None
     story_id: str | None = None
     language: str | None = None
-
-    @field_validator("language", mode="before")
-    def normalize_language_code(cls, v):
-        if not v:
-            return None
-        try:
-            lang = langcodes.find(v)
-            return lang.language
-        except LookupError:
-            return None
 
 
 class StoryTag(TaranisBaseModel):
