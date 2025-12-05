@@ -187,12 +187,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_and_search_default_sources():
             page.get_by_role("button", name="Load default OSINT Source").click()
+            osint_table = page.get_by_test_id("osint_source-table")
+            all_rows = osint_table.locator("tbody tr")
+            expect(all_rows).to_have_count(10)
 
             # search
             page.get_by_placeholder("Search...").fill("news")
-            results = page.get_by_role("row").filter(has=page.get_by_role("link", name="news.ORF.at"))
-            expect(results).to_have_count(1)
+            expect(all_rows).to_have_count(1)
             page.get_by_placeholder("Search...").fill("")
+            expect(all_rows).to_have_count(10)
 
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-osint_source-button")
