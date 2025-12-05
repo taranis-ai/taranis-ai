@@ -1,7 +1,7 @@
 {% from 'dashboard/cards.html' import dashboard_card %}
 
 <div class="grid grid-flow-row-dense grid-cols-4 gap-4 pb-4">
-  {% call dashboard_card('Assess', '/assess') %}
+  {% call dashboard_card('Assess', 'assess.assess') %}
     <div class="join">
       {{ heroicon_outline('newspaper', class="mr-1") }} There are <pre> {{ data.total_news_items }} </pre> total news items.
     </div>
@@ -11,7 +11,7 @@
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Analyze', '/analyze') %}
+  {% call dashboard_card('Analyze', 'analyze.analyze') %}
     <div class="join">
       {{ heroicon_outline('chart-bar', class="mr-1") }} There are <pre> {{ data.report_items_completed }} </pre> completed analyses.
     </div>
@@ -21,13 +21,13 @@
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Publish', '/publish') %}
+  {% call dashboard_card('Publish', 'publish.publish') %}
     <div class="join">
       {{ heroicon_outline('paper-airplane', class="mr-1") }} There are <pre> {{ data.total_products }} </pre> products ready for publications.
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Connectors', '/connectors') %}
+  {% call dashboard_card('Connectors', 'base.conflict_menu') %}
     There are <b>{{ data.conflict_count }}</b> conflicts detected.
   {% endcall %}
 </div>

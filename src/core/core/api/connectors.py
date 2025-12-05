@@ -20,17 +20,17 @@ class StoryConflicts(MethodView):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
                 return {
-                    "storyId": conflict.story_id,
-                    "original": conflict.original,
-                    "updated": conflict.updated,
-                    "hasProposals": conflict.has_proposals,
+                    "story_id": conflict.story_id,
+                    "existing_story": conflict.existing_story,
+                    "incoming_story": conflict.incoming_story,
+                    "has_proposals": conflict.has_proposals,
                 }, 200
         conflicts = [
             {
-                "storyId": conflict.story_id,
-                "original": conflict.original,
-                "updated": conflict.updated,
-                "hasProposals": conflict.has_proposals,
+                "story_id": conflict.story_id,
+                "existing_story": conflict.existing_story,
+                "incoming_story": conflict.incoming_story,
+                "has_proposals": conflict.has_proposals,
             }
             for conflict in StoryConflict.conflict_store.values()
         ]
@@ -68,10 +68,11 @@ class NewsItemConflicts(MethodView):
                 "existing_story_id": conflict.existing_story_id,
                 "incoming_story": conflict.incoming_story_data,
                 "misp_address": conflict.misp_address,
+                "unique_news_items": conflict.unique_news_items,
             }
             for conflict in NewsItemConflict.conflict_store.values()
         ]
-        return {"conflicts": conflicts}, 200
+        return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
     @validate_json

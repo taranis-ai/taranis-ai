@@ -1,5 +1,6 @@
 import htmx from "npm:htmx.org";
 import htmxResponseTargets from "npm:htmx-ext-response-targets";
+import "npm:htmx.org/dist/ext/json-enc.js";
 import Alpine from "npm:alpinejs";
 
 import Sortable from "npm:sortablejs";
