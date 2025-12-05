@@ -24,20 +24,32 @@ class Product(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
-    auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)  # to be implemented
+    auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     product_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
+    default_publisher: Mapped[str | None] = db.Column(db.String(64), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
-    def __init__(self, title: str, product_type_id: int, description: str = "", report_items: list[str] | None = None, id: str | None = None):
+    def __init__(
+        self,
+        title: str,
+        product_type_id: int,
+        description: str = "",
+        auto_publish: bool = False,
+        report_items: list[str] | None = None,
+        default_publisher: str | None = None,
+        id: str | None = None,
+    ):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
+        self.auto_publish = auto_publish
+        self.default_publisher = default_publisher
         if report_items is not None:
             self.report_items = ReportItem.get_bulk(report_items)
             queue_manager.queue_manager.generate_product(self.id, countdown=5)
@@ -180,6 +192,11 @@ class Product(BaseModel):
         report_items = data.get("report_items")
         if report_items is not None:
             product.report_items = ReportItem.get_bulk(report_items)
+
+        if "auto_publish" in data:
+            product.auto_publish = data.get("auto_publish")
+        if "default_publisher" in data:
+            product.default_publisher = data.get("default_publisher") or None
 
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id)
