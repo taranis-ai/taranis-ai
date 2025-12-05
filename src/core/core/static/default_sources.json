@@ -10,7 +10,7 @@
                     "FEED_URL": "https://cert.at/cert-at.en.blog.rss_2.0.xml"
                 },
                 {
-                    "USE_FEED_CONTENT": "true"
+                    "USE_FEED_CONTENT": "false"
                 }
             ],
             "group_idx": 1
@@ -46,7 +46,7 @@
                     "FEED_URL": "https://en.blog.nic.cz/feed/"
                 },
                 {
-                    "USE_FEED_CONTENT": "true"
+                    "USE_FEED_CONTENT": "false"
                 }
             ],
             "group_idx": 4
@@ -60,7 +60,7 @@
                     "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml"
                 },
                 {
-                    "USE_FEED_CONTENT": "true"
+                    "USE_FEED_CONTENT": "false"
                 }
             ],
             "group_idx": 5

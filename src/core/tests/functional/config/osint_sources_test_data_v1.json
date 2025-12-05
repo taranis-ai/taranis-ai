@@ -26,7 +26,7 @@
           }
         },
         {
-          "value": "true",
+          "value": "false",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }
@@ -47,7 +47,7 @@
           }
         },
         {
-          "value": "true",
+          "value": "false",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }
@@ -68,7 +68,7 @@
           }
         },
         {
-          "value": "true",
+          "value": "false",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }
@@ -89,7 +89,7 @@
           }
         },
         {
-          "value": "true",
+          "value": "false",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }
@@ -116,7 +116,7 @@
           }
         },
         {
-          "value": "true",
+          "value": "false",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }

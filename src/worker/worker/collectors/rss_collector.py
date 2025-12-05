@@ -119,13 +119,15 @@ class RSSCollector(BaseWebCollector):
             if self.xpath and content:
                 if extracted := self.xpath_extraction(content, self.xpath):
                     content = extracted
+        elif link:
+            web_content = self.extract_web_content(link, self.xpath)
+            content = str(web_content.get("content"))
+            author = author or str(web_content.get("author"))
+            title = title or str(web_content.get("title"))
+            published = published or web_content.get("published_date") or self.last_modified
+
         else:
-            if link:
-                web_content = self.extract_web_content(link, self.xpath)
-                content = str(web_content.get("content"))
-                author = author or str(web_content.get("author"))
-                title = title or str(web_content.get("title"))
-                published = published or web_content.get("published_date") or self.last_modified
+            logger.warning("No content could be extracted for RSS entry %r", feed_entry.get("id", link or title))
 
         if content == description:
             description = ""
