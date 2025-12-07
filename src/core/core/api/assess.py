@@ -57,9 +57,7 @@ class NewsItemFetch(MethodView):
     @auth_required("ASSESS_CREATE")
     def post(self):
         if parameters := request.get_json():
-            if story := StoryService.fetch_and_create_story(parameters):
-                sse_manager.news_items_updated()
-                return {"message": "Story created", "story_id": story.id}, 201
+            return StoryService.fetch_and_create_story(parameters)
 
         return {"error": "Couldn't create News Item"}, 400
 
