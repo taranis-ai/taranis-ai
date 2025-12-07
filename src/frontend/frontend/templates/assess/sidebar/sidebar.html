@@ -150,7 +150,8 @@ document.addEventListener('htmx:afterSwap', function (event) {
             class="btn btn-outline btn-sm mb-2 w-full"
             title="Clear time filters"
             hx-get="{{ base_url }}"
-            hx-params="remove:timefrom,timeto,range"
+            hx-params="not timefrom,timeto,range"
+            hx-include="#assess-sidebar"
             hx-target="#assess"
             hx-swap="outerHTML"
             @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
