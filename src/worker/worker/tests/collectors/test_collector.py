@@ -137,13 +137,23 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
     assert result is None
 
 
-def test_web_collector_browser_mode(simple_web_collector_mock, simple_web_collector):
-    from worker.tests.testdata import web_collector_source_data
+def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_web_collector_instance):
+    from worker.tests.testdata import web_collector_result_content, web_collector_result_title
+    from worker.types import NewsItem
 
-    web_collector_source_data["parameters"]["BROWSER_MODE"] = "true"
-    result = simple_web_collector.collect(web_collector_source_data)
+    browser_web_collector_instance.web_url = "https://raw.example.com/testweb.html"
+    browser_web_collector_instance.xpath = ""
+    items = browser_web_collector_instance.gather_news_items()
+    browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(browser_web_collector_instance.web_url, "")
+    browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
 
-    assert result is None
+    assert isinstance(items, list)
+    assert len(items) == 1
+    assert isinstance(items[0], NewsItem)
+    assert items[0].title == web_collector_result_title
+    assert items[0].content.startswith(web_collector_result_content)
+    assert items[0].web_url == browser_web_collector_instance.web_url
+    assert items[0].source == browser_web_collector_instance.web_url
 
 
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):

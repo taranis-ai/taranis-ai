@@ -1,12 +1,13 @@
+import contextlib
+
+import requests
 from celery import Celery, chain
 from flask import Flask
-import requests
-import contextlib
+from kombu import Queue
+from kombu.exceptions import OperationalError
 from requests.auth import HTTPBasicAuth
 
 from core.log import logger
-from kombu.exceptions import OperationalError
-from kombu import Queue
 
 
 queue_manager: "QueueManager"
@@ -126,6 +127,19 @@ class QueueManager:
         if task := self.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}"):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled", "id": task.id, "status": "STARTED"}, 201
+        return {"error": "Could not reach rabbitmq"}, 500
+
+    def fetch_single_news_item(self, parameters: dict[str, str]):
+        if task := self.send_task(
+            "fetch_single_news_item", args=[parameters], queue="collectors", task_id=f"fetch_single_news_item_{parameters.get('url')}"
+        ):
+            logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+            try:
+                return task.get(timeout=60)
+            except Exception:
+                logger.exception("Failed to fetch single news item")
+                return {"error": "Failed to fetch single news item"}, 500
+
         return {"error": "Could not reach rabbitmq"}, 500
 
     def collect_all_osint_sources(self):

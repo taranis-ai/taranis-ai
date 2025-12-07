@@ -11,7 +11,7 @@
   {% set item_id = news_item.id %}
 
   {% set read_only = source and source != 'manual' %}
-  {% set is_edit = item_id not in ['0', '', none] %}
+  {% set is_edit = item_id not in ['0', '', none, 0] if item_id else False %}
   {% set submit_label = 'Add to story' if story_id_val else ('Update news item' if is_edit else 'Create news item') %}
   {% set source_badge = 'badge-success' if source == 'manual' else 'badge-warning' %}
   {% set current_url = request.full_path.rstrip('?') if request.full_path else request.path %}

@@ -56,8 +56,8 @@ class NewsItems(MethodView):
 class NewsItemFetch(MethodView):
     @auth_required("ASSESS_CREATE")
     def post(self):
-        if url := request.get_json().get("url"):
-            if story := StoryService.fetch_and_create_story(url):
+        if parameters := request.get_json():
+            if story := StoryService.fetch_and_create_story(parameters):
                 sse_manager.news_items_updated()
                 return {"message": "Story created", "story_id": story.id}, 201
 
