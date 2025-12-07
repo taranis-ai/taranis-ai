@@ -106,8 +106,6 @@ class DashboardView(BaseView):
         except Exception:
             trending_clusters = []
 
-        logger.debug(f"{trending_clusters=}")
-
         return render_template("dashboard/edit.html", dashboard=current_user.profile.dashboard, clusters=trending_clusters)
 
     @classmethod
