@@ -260,7 +260,7 @@ class Story(BaseModel):
             if ts_query is None:
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
-            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
+            logger.debug(f"FTS with: {search=} {sort=}")
             q = query.where(cls.search_vector.op("@@")(ts_query))
             if sort:
                 q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))

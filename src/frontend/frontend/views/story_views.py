@@ -1,3 +1,4 @@
+import datetime
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -262,6 +263,7 @@ class StoryView(BaseView):
             request_params = parse_qs(parsed_url.query)
 
         paging_data = parse_paging_data(request_params)
+        paging_data.server_side = True
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
             return make_response(notification + table, status)
@@ -271,6 +273,7 @@ class StoryView(BaseView):
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
         paging_data = parse_paging_data(request_params)
+        paging_data.server_side = True
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
@@ -447,6 +450,7 @@ class StoryView(BaseView):
             return cls._create_news_item_from_file(upload_file)
 
         item_data = parse_formdata(request.form)
+        item_data["collected"] = datetime.datetime.now().isoformat()
         news_item = NewsItem(**item_data)
         core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
         return cls.news_item_edit_view(core_response)
