@@ -266,7 +266,7 @@
 
       {% if story.news_items %}
         <div class="space-y-4">
-          {% for item in story.news_items %}{{ news_item_card(item) }}{% endfor %}
+          {% for item in story.news_items %}{{ news_item_card(item, story) }}{% endfor %}
         </div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>

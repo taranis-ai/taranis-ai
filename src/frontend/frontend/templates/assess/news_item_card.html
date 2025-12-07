@@ -1,4 +1,4 @@
-{% macro news_item_card(news_item) %}
+{% macro news_item_card(news_item, story) %}
   <article class="rounded-lg border border-base-200 bg-base-100 p-2 shadow-sm">
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
@@ -9,13 +9,15 @@
           {% if news_item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ news_item.language }}</span>{% endif %}
         </div>
         <div class="flex flex-wrap gap-2">
-          <button type="button"
-                  class="btn btn-sm btn-outline"
-                  data-testid="ungroup-newsitem-{{ news_item.id }}"
-                  hx-vals='{"news_item_ids[]": "{{ news_item.id }}"}'
-                  hx-post="{{ url_for('assess.ungroup', story_id=news_item.story_id) }}"
-                  hx-target="#story-{{ news_item.story_id }}"
-                  hx-select="#story-{{ news_item.story_id }}">Ungroup</button>
+          {% if story.news_items | length > 1 %}
+            <button type="button"
+                    class="btn btn-sm btn-outline"
+                    data-testid="ungroup-newsitem-{{ news_item.id }}"
+                    hx-vals='{"news_item_ids[]": "{{ news_item.id }}"}'
+                    hx-post="{{ url_for('assess.ungroup', story_id=news_item.story_id) }}"
+                    hx-target="#story-{{ news_item.story_id }}"
+                    hx-select="#story-{{ news_item.story_id }}">Ungroup</button>
+          {% endif %}
           {% if news_item.source == 'manual' %}
             <a class="btn btn-sm btn-outline"
                data-testid="edit-newsitem-{{ news_item.id }}"
@@ -25,6 +27,7 @@
                   class="btn btn-sm"
                   data-testid="delete-newsitem-{{ news_item.id }}"
                   hx-delete="{{ url_for('assess.delete_news_item', news_item_id=news_item.id) }}"
+                  hx-confirm="Are you sure you want to delete this news item?"
                   hx-target="#story-{{ news_item.story_id }}">{{ heroicon_mini("trash") }}</button>
         </div>
 

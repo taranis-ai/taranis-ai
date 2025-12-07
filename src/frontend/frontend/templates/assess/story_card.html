@@ -197,7 +197,7 @@
               <span class="badge badge-outline badge-sm">{{ news_count }}</span>
             </div>
             <div class="space-y-2">
-              {% for item in news_items %}{{ news_item_card(item) }}{% endfor %}
+              {% for item in news_items %}{{ news_item_card(item, story) }}{% endfor %}
             </div>
           </div>
         {% endif %}
