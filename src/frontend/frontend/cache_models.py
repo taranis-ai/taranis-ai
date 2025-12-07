@@ -151,7 +151,7 @@ class CacheObject(list[T], Generic[T]):
         Apply search, ordering, and pagination all at once
         """
 
-        if not paging or paging.query_params:
+        if not paging:
             return self
 
         result = self
@@ -161,6 +161,9 @@ class CacheObject(list[T], Generic[T]):
 
         if paging.order:
             result = result.order_by(paging.order)
+
+        if paging.query_params:
+            return result
 
         target_page = paging.page or result.page
         target_limit = paging.limit or result.limit
