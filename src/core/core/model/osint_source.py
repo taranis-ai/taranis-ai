@@ -5,7 +5,6 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
-import magic
 from PIL import Image, UnidentifiedImageError
 from models.types import COLLECTOR_TYPES
 from sqlalchemy import String, and_, cast, func, literal
@@ -265,16 +264,12 @@ class OSINTSource(BaseModel):
     @staticmethod
     def _is_valid_image(icon_bytes: bytes) -> bool:
         try:
-            mime_type = magic.from_buffer(icon_bytes, mime=True)
-        except Exception as exc:
-            logger.warning(f"Unable to determine icon MIME type: {exc}")
-            return False
-        if not mime_type or not mime_type.startswith("image/"):
-            logger.warning(f"Rejected icon with MIME type '{mime_type}'.")
-            return False
-        try:
             with Image.open(BytesIO(icon_bytes)) as image:
                 image.verify()
+                image_format = image.format
+            if not image_format:
+                logger.warning("Image verification succeeded but format is unknown.")
+                return False
             with Image.open(BytesIO(icon_bytes)) as image:
                 image.load()
         except (UnidentifiedImageError, OSError, ValueError) as exc:
