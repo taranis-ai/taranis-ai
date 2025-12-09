@@ -110,6 +110,7 @@ class RSSCollector(BaseWebCollector):
                 return value
         return ""
 
+
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
             feed_entry.get(
