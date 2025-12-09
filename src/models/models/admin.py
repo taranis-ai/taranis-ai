@@ -148,7 +148,9 @@ class User(TaranisBaseModel):
 
     @field_serializer("password", when_used="json")
     def dump_secret(self, v):
-        return v.get_secret_value()
+        if isinstance(v, SecretStr):
+            return v.get_secret_value()
+        return v
 
 
 class TaranisConfig(TaranisBaseModel):
