@@ -248,7 +248,7 @@ class RSSCollector(BaseWebCollector):
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
         feed = self.get_feed(manual)
-        self.language = self.extract_language(feed.feed)
+        self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
         if not self.last_attempted:
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
@@ -261,15 +261,3 @@ class RSSCollector(BaseWebCollector):
         self.news_items = self.gather_news_items(feed, source)
 
         return self.publish(self.news_items, source)
-
-    @staticmethod
-    def extract_language(feed_meta: feedparser.FeedParserDict) -> str:
-        raw = feed_meta.get("language") or feed_meta.get("lang")
-
-        if isinstance(raw, list):
-            raw = raw[0] if raw else None
-        if not isinstance(raw, str):
-            return ""
-
-        raw = raw.strip()
-        return raw or ""
