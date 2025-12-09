@@ -138,7 +138,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Search stories").fill(story_search_term)
             page.get_by_placeholder("Search stories").press("Enter")
 
-            page.pause()
             page.get_by_role("heading", name=report_story_one["title"]).click()
             page.get_by_role("heading", name=report_story_two["title"]).click()
             page.get_by_role("button", name="Add to Report").click()
