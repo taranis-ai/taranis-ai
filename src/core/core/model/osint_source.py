@@ -116,7 +116,9 @@ class OSINTSource(BaseModel):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.where(db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cls.type.ilike(f"%{search}%")))
+            query = query.where(
+                db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cast(cls.type, String).ilike(f"%{search}%"))
+            )
 
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)

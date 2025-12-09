@@ -2,6 +2,9 @@ from requests import Response
 from datetime import datetime
 import langcodes
 
+from worker.log import logger
+from langcodes.tag_parser import LanguageTagError
+
 
 class Product:
     def __init__(self, response: Response):
@@ -69,9 +72,12 @@ class NewsItem:
             result["attributes"] = self.attributes
         return result
 
-    def normalize_language_code(self, input_code: str) -> str | None:
-        try:
-            lang = langcodes.find(input_code)
-            return lang.language
-        except LookupError:
-            return None
+    def normalize_language_code(self, input_code: str) -> str:
+        if input_code:
+            try:
+                return langcodes.Language.get(input_code).language or ""
+            except (LanguageTagError, ValueError, TypeError):
+                logger.exception(f"Bad language code: {input_code}")
+                return ""
+
+        return ""
