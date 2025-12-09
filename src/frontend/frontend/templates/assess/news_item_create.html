@@ -40,23 +40,25 @@
         </div>
       {% endif %}
 
-      <div class="grid gap-4 md:grid-cols-2">
-        <form class="card border border-base-200 bg-base-100 shadow-sm"
-              hx-post="{{ url_for('assess.create_news_item') }}"
-              hx-target="#notification-bar"
-              hx-swap="outerHTML"
-              hx-encoding="multipart/form-data"
-              enctype="multipart/form-data">
-          <div class="card-body space-y-3">
-            <div class="space-y-1">
-              <h2 class="text-lg font-semibold">Create from file</h2>
-              <p class="text-xs text-base-content/60">Upload a JSON document to ingest it as a new news item.</p>
+      {% if not is_edit %}
+        <div class="grid gap-4 md:grid-cols-2">
+          <form class="card border border-base-200 bg-base-100 shadow-sm"
+                hx-post="{{ url_for('assess.create_news_item') }}"
+                hx-target="#notification-bar"
+                hx-swap="outerHTML"
+                hx-encoding="multipart/form-data"
+                enctype="multipart/form-data">
+            <div class="card-body space-y-3">
+              <div class="space-y-1">
+                <h2 class="text-lg font-semibold">Create from file</h2>
+                <p class="text-xs text-base-content/60">Upload a JSON document to ingest it as a new news item.</p>
+              </div>
+              <input type="file" accept="application/json,.json" name="file" class="file-input file-input-bordered w-full" required>
+              <button type="submit" class="btn btn-outline">Create from file</button>
             </div>
-            <input type="file" accept="application/json,.json" name="file" class="file-input file-input-bordered w-full" required>
-            <button type="submit" class="btn btn-outline">Create from file</button>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      {% endif %}
 
       <form id="news-item-form"
             class="card bg-base-100 shadow-xl border border-base-200"

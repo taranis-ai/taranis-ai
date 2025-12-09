@@ -51,17 +51,20 @@ class ReportItemView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        report_types = DataPersistenceLayer().get_objects(ReportItemType)
-        base_context["report_types"] = report_types
-        layout = request.args.get("layout", base_context.get("layout", "split"))
-        report = base_context.get("report")
-        if report and report.grouped_attributes:
-            base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
+        try:
+            report_types = DataPersistenceLayer().get_objects(ReportItemType)
+            base_context["report_types"] = report_types
+            layout = request.args.get("layout", base_context.get("layout", "split"))
+            report = base_context.get("report")
+            if report and report.grouped_attributes:
+                base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
-        base_context |= {
-            "layout": layout,
-            "actions": cls.get_report_actions(),
-        }
+            base_context |= {
+                "layout": layout,
+                "actions": cls.get_report_actions(),
+            }
+        except Exception:
+            logger.exception("Error getting extra context for ReportItemView")
 
         return base_context
 
