@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any
+
 from flask import render_template, request
 from flask.views import MethodView
 
@@ -193,7 +196,7 @@ class ScheduleHistoryAPI(MethodView):
             return SchedulerView().get(initial_tab="history")
         try:
             task_results = DataPersistenceLayer().get_objects(Task)
-            task_stats: dict[str, dict[str, int | str | None]] = {}
+            task_stats: dict[str, dict[str, Any]] = {}
             total_successes = 0
             total_failures = 0
 
@@ -207,6 +210,7 @@ class ScheduleHistoryAPI(MethodView):
                                 "total": 0,
                                 "last_run": None,
                                 "last_success": None,
+                                "success_pct": 0,
                             }
 
                         if task.last_run and (not task_stats[task.task]["last_run"] or task.last_run > task_stats[task.task]["last_run"]):
@@ -231,7 +235,7 @@ class ScheduleHistoryAPI(MethodView):
             overall_total = total_successes + total_failures
             overall_success_rate = int((total_successes * 100) / overall_total) if overall_total > 0 else 0
 
-            task_stats = dict(sorted(task_stats.items(), key=lambda item: item[1].get("last_run") or "", reverse=True))
+            task_stats = dict(sorted(task_stats.items(), key=lambda item: item[1].get("last_run") or datetime.min, reverse=True))
 
             return render_template(
                 "schedule/execution_history.html",
