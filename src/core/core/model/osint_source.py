@@ -1,9 +1,11 @@
 import base64
 import json
 import uuid
+from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
+from PIL import Image, UnidentifiedImageError
 from models.types import COLLECTOR_TYPES
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
@@ -51,8 +53,9 @@ class OSINTSource(BaseModel):
         self.name = name
         self.description = description
         self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
-        if icon is not None and (icon_data := self.is_valid_base64(icon)):
-            self.icon = icon_data
+        self.icon = None
+        if icon is not None:
+            self.icon = self._parse_icon(icon)
         self.enabled = enabled
         self.parameters = Worker.parse_parameters(self.type, parameters)
 
@@ -122,8 +125,9 @@ class OSINTSource(BaseModel):
 
         return query.order_by(db.asc(cls.name))
 
-    def update_icon(self, icon):
-        self.icon = icon
+    def update_icon(self, icon: bytes | str | None):
+        icon_bytes = self._parse_icon(icon)
+        self.icon = icon_bytes
         db.session.commit()
 
     @classmethod
@@ -232,14 +236,48 @@ class OSINTSource(BaseModel):
         if description := data.get("description"):
             osint_source.description = description
         icon_str = data.get("icon")
-        if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
-            osint_source.icon = icon
+        if icon_str is not None:
+            osint_source.icon = osint_source._parse_icon(icon_str)
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
+
+    def _parse_icon(self, icon: bytes | str | None) -> bytes | None:
+        if icon is None:
+            return None
+        icon_bytes: bytes | None
+        if isinstance(icon, bytes):
+            icon_bytes = icon or None
+        elif isinstance(icon, str):
+            if not icon.strip():
+                return None
+            icon_bytes = self.is_valid_base64(icon)
+        else:
+            raise ValueError("Invalid icon payload type; expected bytes or base64 string.")
+        if not icon_bytes:
+            raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
+        if not self._is_valid_image(icon_bytes):
+            raise ValueError("Icon payload is not a valid image file.")
+        return icon_bytes
+
+    @staticmethod
+    def _is_valid_image(icon_bytes: bytes) -> bool:
+        try:
+            with Image.open(BytesIO(icon_bytes)) as image:
+                image.verify()
+                image_format = image.format
+            if not image_format:
+                logger.warning("Image verification succeeded but format is unknown.")
+                return False
+            with Image.open(BytesIO(icon_bytes)) as image:
+                image.load()
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            logger.warning(f"Pillow verification failed for icon: {exc}")
+            return False
+        return True
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
