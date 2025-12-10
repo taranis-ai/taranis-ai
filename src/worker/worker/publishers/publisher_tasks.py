@@ -44,6 +44,8 @@ def publisher_task(product_id: int, publisher_id: str):
 
     # Get publisher implementation
     pub_type = publisher.get("type")
+    if pub_type is None:
+        raise ValueError(f"Publisher {publisher_id} has no type configured")
     publisher_impl = _get_publisher_impl(pub_type)
 
     return publisher_impl.publish(publisher, product, rendered_product)
@@ -62,7 +64,7 @@ def _get_product(core_api: CoreApi, product_id: int) -> dict[str, str]:
     Raises:
         RuntimeError: If product not found
     """
-    product = core_api.get_product(product_id)
+    product = core_api.get_product(str(product_id))
 
     if not product:
         logger.error(f"Product with id {product_id} not found")
@@ -104,7 +106,7 @@ def _get_rendered_product(core_api: CoreApi, product_id: int) -> Product | None:
         Rendered product or None if not found
     """
     logger.debug(f"Getting rendered product for product {product_id}")
-    return core_api.get_product_render(product_id)
+    return core_api.get_product_render(str(product_id))
 
 
 def _get_publisher_impl(pub_type: str) -> BasePublisher:
