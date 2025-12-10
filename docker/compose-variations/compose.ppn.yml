@@ -57,7 +57,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:$${GRANIAN_PORT}$${APPLICATION_ROOT}api/isalive'"]
+      test: ["CMD", "healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -109,7 +109,7 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000$${APPLICATION_ROOT}/health', timeout=5).raise_for_status()\""]
+      test: ["CMD", "healthcheck"]
       interval: 1m30s
       timeout: 30s
       retries: 5
