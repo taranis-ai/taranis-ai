@@ -7,7 +7,8 @@
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
     <h3 class="font-bold text-lg mt-1 mb-2">Share Stories</h3>
-    <form>
+    {% set sharing_ids = story_ids if story_ids is defined and story_ids else ([story.id] if story else []) %}
+    <form id="share-story-form">
       <label class="select w-full mb-5">
         <span class="label">Report</span>
         <select id="report" name="report" required class="validator select w-full">
@@ -17,12 +18,15 @@
           {% endfor -%}
         </select>
       </label>
-      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
-      <button type="button"
-              class="btn btn-outline btn-wide"
-              hx-post="{{ url_for('assess.submit_share_story') }}"
-              hx-target="#assess"
-              hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
+      {% for story_id in sharing_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+      <div class="flex flex-row gap-2">
+        <button type="button"
+                class="btn btn-outline w-1/2"
+                hx-post="{{ url_for('assess.submit_share_story') }}"
+                hx-target="#notification-bar"
+                hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
+        <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
+      </div>
     </form>
   </div>
 </dialog>

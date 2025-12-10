@@ -1,10 +1,13 @@
-from typing import Type
 from enum import StrEnum
+from typing import Type
+
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
+
 from core.log import logger
 
 
-def sync_enum_with_db(enum_type: Type[StrEnum], connection, table_column: str | None = None) -> None:
+def sync_enum_with_db(enum_type: Type[StrEnum], connection: Connection, table_column: str | None = None) -> None:
     enum_name = enum_type.__name__.lower()
     if table_column:
         table_name, column_name = table_column.split(".")
@@ -34,12 +37,12 @@ def _infer_table_and_column_from_enum_name(enum_name: str) -> tuple[str, str]:
     return table, "type" if column == "types" else column
 
 
-def _fetch_existing_enum_values(connection, enum_name: str) -> set[str]:
+def _fetch_existing_enum_values(connection: Connection, enum_name: str) -> set[str]:
     result = connection.execute(text(f"SELECT unnest(enum_range(NULL::{enum_name}))"))
     return {row[0] for row in result}
 
 
-def _handle_invalid_rows(connection, table: str, column: str, invalid_values: set[str]) -> None:
+def _handle_invalid_rows(connection: Connection, table: str, column: str, invalid_values: set[str]) -> None:
     if not invalid_values:
         return
 
@@ -48,7 +51,7 @@ def _handle_invalid_rows(connection, table: str, column: str, invalid_values: se
     connection.execute(text(f"DELETE FROM {table} WHERE {column} IN ({values_sql})"))
 
 
-def _replace_enum_type(connection, enum_name: str, new_values: set[str]) -> None:
+def _replace_enum_type(connection: Connection, enum_name: str, new_values: set[str]) -> None:
     logger.debug(f"Renaming old enum type {enum_name} to {enum_name}_old")
     connection.execute(text(f"ALTER TYPE {enum_name} RENAME TO {enum_name}_old"))
     values_sql = ", ".join(f"'{v}'" for v in sorted(new_values))
@@ -56,7 +59,7 @@ def _replace_enum_type(connection, enum_name: str, new_values: set[str]) -> None
     connection.execute(text(f"CREATE TYPE {enum_name} AS ENUM ({values_sql})"))
 
 
-def _alter_column_type(connection, table: str, column: str, enum_name: str) -> None:
+def _alter_column_type(connection: Connection, table: str, column: str, enum_name: str) -> None:
     logger.debug(f"Altering column {table}.{column} to use new enum type {enum_name}")
     connection.execute(
         text(f"""
@@ -68,6 +71,6 @@ def _alter_column_type(connection, table: str, column: str, enum_name: str) -> N
     )
 
 
-def _drop_old_enum_type(connection, enum_name: str) -> None:
+def _drop_old_enum_type(connection: Connection, enum_name: str) -> None:
     logger.debug(f"Dropping old enum type {enum_name}_old")
     connection.execute(text(f"DROP TYPE {enum_name}_old"))

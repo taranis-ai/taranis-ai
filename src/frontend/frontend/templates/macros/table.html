@@ -1,5 +1,5 @@
 {% macro table(table_id, data, columns, actions, routes, selected_items=[], selectable=true, input_name="selected_items", standalone=true) %}
-  {% from "macros/table.html" import table_header %}
+  {% from "macros/table.html" import table_header, table_controls %}
   {% from "macros/buttons.html" import action_button %}
   {% set item_ids = data | map(attribute='id') | list %}
   <table class="table shadow table-zebra table-sm"
@@ -33,7 +33,7 @@
             {% endif %}
             {% for col in columns %}
               <td class="relative max-w-[50ch] p-0">
-                <a href="{{ edit_route }}" class="flex w-full items-center px-3 py-1">
+                <a href="{{ edit_route }}" class="flex w-full items-center px-3 py-1 truncate">
                   {% if col.renderer %}
                     {% if 'render_args' in col %}
                       {{ col.renderer(item, **col.render_args) }}
@@ -66,7 +66,7 @@
     <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
       <tr>
         <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
-          <div class="flex justify-center">{% include "partials/table_controls.html" %}</div>
+          <div class="flex justify-center">{{ table_controls(base_url=routes.base_route, data=data) }}</div>
         </td>
       </tr>
     </tfoot>
@@ -164,11 +164,59 @@
           hx-target="#{{ table_id }}"
           hx-target-error="#notification-bar"
           hx-trigger="input delay:500ms"
-          hx-on:htmx:afterSwap="document.getElementById('{{ table_id }}-search').focus()">
+          hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
         <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" />
       </label>
     </form>
   </div>
+{% endmacro %}
+
+{% macro table_controls(base_url, data) %}
+  {% from "macros/query_params.html" import update_query_params %}
+  {% if data and base_url %}
+    <div class="flex items-center gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
+      <!-- Items per Page -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-medium">Items per page:</span>
+        <select name="limit"
+                class="select select-bordered select-sm h-8"
+                hx-get="{{ base_url }}{{ update_query_params({'page': 1}, exclude=['limit']) }}"
+                hx-include="this"
+                hx-push-url="true">
+          {% for option in [5, 20, 50, 100] %}
+            <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Pagination Buttons & Current Page -->
+      <div class="flex items-center gap-2">
+        <a {% if data.first_page %}hx-disable{% endif %}
+           class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
+           hx-get="{{ base_url }}{{ update_query_params({"page": 1}) }}"
+           hx-push-url="true">«</a>
+
+        <a {% if data.first_page %}hx-disable{% endif %}
+           class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
+           hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page - 1}) }}"
+           hx-push-url="true">‹</a>
+
+        <span class="px-3 py-1 h-8 flex items-center bg-base-200 rounded-md text-sm font-semibold">
+          Page {{ data.current_page }} of {{ data.total_pages }}
+        </span>
+
+        <a {% if data.last_page %}hx-disable{% endif %}
+           class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
+           hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page + 1}) }}"
+           hx-push-url="true">›</a>
+
+        <a {% if data.last_page %}hx-disable{% endif %}
+           class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
+           hx-get="{{ base_url }}{{ update_query_params({'page': data.total_pages}) }}"
+           hx-push-url="true">»</a>
+      </div>
+    </div>
+  {% endif %}
 {% endmacro %}

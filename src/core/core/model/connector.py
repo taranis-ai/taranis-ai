@@ -1,17 +1,18 @@
 import uuid
 from datetime import datetime
 from typing import Any, Type
-from sqlalchemy.orm import deferred, Mapped, relationship
+
+from models.types import COLLECTOR_TYPES, CONNECTOR_TYPES
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapped, deferred, relationship
 
-
-from core.managers.db_manager import db
 from core.log import logger
-from core.model.story import Story
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
 from core.model.parameter_value import ParameterValue
-from core.model.base_model import BaseModel
-from core.model.worker import COLLECTOR_TYPES, CONNECTOR_TYPES, Worker
+from core.model.story import Story
+from core.model.worker import Worker
 
 
 class Connector(BaseModel):

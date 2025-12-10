@@ -1,5 +1,6 @@
-from pydantic import Field
 from typing import Any
+
+from pydantic import Field
 
 from models.base import TaranisBaseModel
 

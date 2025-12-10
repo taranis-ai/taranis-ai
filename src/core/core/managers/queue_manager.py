@@ -101,10 +101,10 @@ class QueueManager:
             # Count enabled sources and bots for logging
             sources = OSINTSource.get_all_for_collector()
             enabled_sources = sum(1 for s in sources if s.enabled and s.get_schedule())
-            
+
             bots = Bot.get_all_for_collector()
             enabled_bots = sum(1 for b in bots if b.enabled and b.get_schedule())
-            
+
             logger.info(
                 f"Found {enabled_sources} enabled sources and {enabled_bots} enabled bots with schedules. "
                 f"Cron scheduler will automatically pick them up."
@@ -180,6 +180,7 @@ class QueueManager:
 
         try:
             from rq.worker import Worker
+
             workers = Worker.all(connection=self._redis)
             self.error = ""
             return [
@@ -210,12 +211,7 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            job = queue.enqueue(
-                task_func,
-                *args,
-                job_id=job_id,
-                **kwargs
-            )
+            job = queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
             return job
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
@@ -237,14 +233,10 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}")
-            job = queue.enqueue_at(
-                scheduled_time,
-                task_func,
-                *args,
-                job_id=job_id,
-                **kwargs
+            logger.info(
+                f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
             )
+            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
             return job
         except Exception as e:
@@ -253,14 +245,14 @@ class QueueManager:
 
     def cancel_job(self, job_id: str) -> bool:
         """Cancel a scheduled or queued job (including cron jobs)
-        
+
         This method handles both:
         1. Cancelling any currently queued/running job instance
         2. Removing the cron job definition so it won't reschedule
-        
+
         Args:
             job_id: The job ID to cancel
-            
+
         Returns:
             True if at least one (job or cron entry) was cancelled, False if neither existed
         """
@@ -278,7 +270,7 @@ class QueueManager:
             cancelled = True
         except Exception as e:
             logger.debug(f"No job instance found for {job_id}: {e}")
-            
+
         # Also remove from cron scheduler (if it's a recurring cron job)
         # This prevents the job from being rescheduled automatically
         try:
@@ -294,7 +286,7 @@ class QueueManager:
 
         if not cancelled:
             logger.warning(f"Job {job_id} not found (neither job instance nor cron registration)")
-            
+
         return cancelled
 
     def get_queue_status(self) -> tuple[dict, int]:
@@ -333,6 +325,19 @@ class QueueManager:
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
+
+    def fetch_single_news_item(self, parameters: dict[str, str]):
+        if task := self.send_task(
+            "fetch_single_news_item", args=[parameters], queue="collectors", task_id=f"fetch_single_news_item_{parameters.get('url')}"
+        ):
+            logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+            try:
+                return task.get(timeout=60)
+            except Exception:
+                logger.exception("Failed to fetch single news item")
+                return {"error": "Failed to fetch single news item"}, 500
+
+        return {"error": "Could not reach rabbitmq"}, 500
 
     def collect_all_osint_sources(self):
         """Trigger collection for all enabled sources"""
@@ -428,6 +433,7 @@ class QueueManager:
                 if source_id:
                     from core.model.osint_source import OSINTSource
                     from core.managers.db_manager import db
+
                     source = db.session.get(OSINTSource, source_id)
                     if source:
                         return f"Collector: {source.name}"
@@ -435,7 +441,7 @@ class QueueManager:
                         logger.debug(f"OSINT Source with ID {source_id} not found in database")
             except Exception as e:
                 logger.debug(f"Failed to get source name for job {job.id}: {e}")
-            
+
             # Fallback if source lookup failed
             return f"Collector Task (ID: {job.args[0] if job.args else 'unknown'})"
 
@@ -446,6 +452,7 @@ class QueueManager:
                 if bot_id:
                     from core.model.bot import Bot
                     from core.managers.db_manager import db
+
                     bot = db.session.get(Bot, bot_id)
                     if bot:
                         return f"Bot: {bot.name}"
@@ -453,7 +460,7 @@ class QueueManager:
                         logger.debug(f"Bot with ID {bot_id} not found in database")
             except Exception as e:
                 logger.debug(f"Failed to get bot name for job {job.id}: {e}")
-            
+
             # Fallback if bot lookup failed
             return f"Bot Task (ID: {job.args[0] if job.args else 'unknown'})"
 
@@ -470,7 +477,7 @@ class QueueManager:
             return f"Maintenance: {func_name.split('.')[-1].replace('_', ' ').title()}"
 
         # For other tasks, return the function name (last part only)
-        return func_name.split('.')[-1].replace('_', ' ').title()
+        return func_name.split(".")[-1].replace("_", " ").title()
 
     @staticmethod
     def get_next_fire_times_from_cron(cron_expr: str, n: int = 3) -> list[datetime]:
@@ -489,7 +496,7 @@ class QueueManager:
 
     def get_scheduled_jobs(self) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
-        
+
         Returns both:
         1. Jobs currently in the scheduled registry (enqueued but waiting to run)
         2. Cron jobs registered with the cron scheduler
@@ -502,7 +509,7 @@ class QueueManager:
             from datetime import datetime
 
             all_jobs = []
-            
+
             # 1. Get jobs from scheduled registries (already enqueued, waiting to run)
             for queue_name, queue in self._queues.items():
                 registry = ScheduledJobRegistry(queue=queue)
@@ -522,13 +529,9 @@ class QueueManager:
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
 
-                        all_jobs.append({
-                            "id": job.id,
-                            "name": job_name,
-                            "queue": queue_name,
-                            "next_run_time": scheduled_for,
-                            "type": "scheduled"
-                        })
+                        all_jobs.append(
+                            {"id": job.id, "name": job_name, "queue": queue_name, "next_run_time": scheduled_for, "type": "scheduled"}
+                        )
                     except Exception as e:
                         logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
                         continue
@@ -536,18 +539,18 @@ class QueueManager:
             # 2. Get cron schedules from database (since cron jobs are in scheduler's memory)
             try:
                 # Check if any cron schedulers are active
-                scheduler_names = self._redis.zrange('rq:cron_schedulers', 0, -1)  # type: ignore
+                scheduler_names = self._redis.zrange("rq:cron_schedulers", 0, -1)  # type: ignore
                 scheduler_count = len(scheduler_names) if scheduler_names else 0  # type: ignore
-                
+
                 if scheduler_count > 0:
                     logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
-                    
+
                     # Import here to avoid circular dependencies
                     from core.model.osint_source import OSINTSource
                     from core.model.bot import Bot
                     from datetime import datetime
                     from croniter import croniter
-                    
+
                     # Get all enabled sources with schedules
                     sources = OSINTSource.get_all_for_collector()
                     for source in sources:
@@ -557,19 +560,21 @@ class QueueManager:
                                 now = datetime.now()
                                 cron = croniter(cron_schedule, now)
                                 next_run = cron.get_next(datetime)
-                                
-                                all_jobs.append({
-                                    "id": f"cron_collector_{source.id}",
-                                    "name": f"Collector: {source.name}",
-                                    "queue": "collectors",
-                                    "next_run_time": next_run.isoformat(),
-                                    "schedule": cron_schedule,
-                                    "type": "cron",
-                                    "source_id": source.id
-                                })
+
+                                all_jobs.append(
+                                    {
+                                        "id": f"cron_collector_{source.id}",
+                                        "name": f"Collector: {source.name}",
+                                        "queue": "collectors",
+                                        "next_run_time": next_run.isoformat(),
+                                        "schedule": cron_schedule,
+                                        "type": "cron",
+                                        "source_id": source.id,
+                                    }
+                                )
                             except Exception as e:
                                 logger.error(f"Failed to calculate next run for source {source.id}: {e}")
-                    
+
                     # Get all enabled bots with schedules
                     bots = Bot.get_all_for_collector()
                     for bot in bots:
@@ -579,16 +584,18 @@ class QueueManager:
                                 now = datetime.now()
                                 cron = croniter(cron_schedule, now)
                                 next_run = cron.get_next(datetime)
-                                
-                                all_jobs.append({
-                                    "id": f"cron_bot_{bot.id}",
-                                    "name": f"Bot: {bot.name}",
-                                    "queue": "bots",
-                                    "next_run_time": next_run.isoformat(),
-                                    "schedule": cron_schedule,
-                                    "type": "cron",
-                                    "bot_id": bot.id
-                                })
+
+                                all_jobs.append(
+                                    {
+                                        "id": f"cron_bot_{bot.id}",
+                                        "name": f"Bot: {bot.name}",
+                                        "queue": "bots",
+                                        "next_run_time": next_run.isoformat(),
+                                        "schedule": cron_schedule,
+                                        "type": "cron",
+                                        "bot_id": bot.id,
+                                    }
+                                )
                             except Exception as e:
                                 logger.error(f"Failed to calculate next run for bot {bot.id}: {e}")
 
@@ -597,19 +604,21 @@ class QueueManager:
                         now = datetime.now()
                         housekeeping_cron = "0 2 * * *"
                         next_run = croniter(housekeeping_cron, now).get_next(datetime)
-                        all_jobs.append({
-                            "id": "cron_misc_cleanup_token_blacklist",
-                            "name": "Maintenance: Cleanup Token Blacklist",
-                            "queue": "misc",
-                            "next_run_time": next_run.isoformat(),
-                            "schedule": housekeeping_cron,
-                            "type": "cron",
-                        })
+                        all_jobs.append(
+                            {
+                                "id": "cron_misc_cleanup_token_blacklist",
+                                "name": "Maintenance: Cleanup Token Blacklist",
+                                "queue": "misc",
+                                "next_run_time": next_run.isoformat(),
+                                "schedule": housekeeping_cron,
+                                "type": "cron",
+                            }
+                        )
                     except Exception as e:
                         logger.error(f"Failed to calculate next run for housekeeping task cleanup_token_blacklist: {e}")
                 else:
                     logger.info("No active cron schedulers found")
-                        
+
             except Exception as e:
                 logger.warning(f"Failed to fetch cron schedules: {e}")
                 # Don't fail the whole request if cron scheduler is not available
@@ -638,13 +647,15 @@ class QueueManager:
                         job = Job.fetch(job_id, connection=self._redis)
                         job_name = self._get_job_display_name(job)
 
-                        active_jobs.append({
-                            "id": job.id,
-                            "name": job_name,
-                            "queue": queue_name,
-                            "started_at": job.started_at.isoformat() if job.started_at else None,
-                            "status": "running"
-                        })
+                        active_jobs.append(
+                            {
+                                "id": job.id,
+                                "name": job_name,
+                                "queue": queue_name,
+                                "started_at": job.started_at.isoformat() if job.started_at else None,
+                                "status": "running",
+                            }
+                        )
                     except Exception as e:
                         logger.error(f"Failed to fetch active job {job_id}: {e}")
                         continue
@@ -672,14 +683,16 @@ class QueueManager:
                         job = Job.fetch(job_id, connection=self._redis)
                         job_name = self._get_job_display_name(job)
 
-                        failed_jobs.append({
-                            "id": job.id,
-                            "name": job_name,
-                            "queue": queue_name,
-                            "failed_at": job.ended_at.isoformat() if job.ended_at else None,
-                            "error": str(job.exc_info) if job.exc_info else "Unknown error",
-                            "status": "failed"
-                        })
+                        failed_jobs.append(
+                            {
+                                "id": job.id,
+                                "name": job_name,
+                                "queue": queue_name,
+                                "failed_at": job.ended_at.isoformat() if job.ended_at else None,
+                                "error": str(job.exc_info) if job.exc_info else "Unknown error",
+                                "status": "failed",
+                            }
+                        )
                     except Exception as e:
                         # Skip jobs that can't be fetched (might have been cleaned up)
                         logger.debug(f"Skipping failed job {job_id}: {e}")
@@ -697,7 +710,7 @@ class QueueManager:
 
         try:
             job = Job.fetch(job_id, connection=self._redis)
-            
+
             if job.is_failed:
                 # Requeue the job
                 job.retry()
@@ -731,16 +744,27 @@ class QueueManager:
                         "name": w.name,
                         "state": w.state,
                         "queues": [q.name for q in w.queues],
-                        "current_job": w.get_current_job().id if w.get_current_job() else None
+                        "current_job": w.get_current_job().id if w.get_current_job() else None,
                     }
                     for w in workers
-                ]
+                ],
             }
 
             return worker_stats, 200
         except Exception as e:
             logger.exception(f"Failed to get worker stats: {e}")
             return {"error": f"Failed to get worker stats: {str(e)}"}, 500
+
+    def autopublish_product(self, product_id: str, auto_publisher_id: str):
+        render_sig = queue_manager.celery.signature(
+            "presenter_task", args=[product_id], queue="presenters", task_id=f"presenter_task_{product_id}"
+        )
+
+        publish_sig = queue_manager.celery.signature(
+            "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
+        )
+
+        chain(render_sig, publish_sig).apply_async()
 
 
 def initialize(app: Flask, initial_setup: bool = True):

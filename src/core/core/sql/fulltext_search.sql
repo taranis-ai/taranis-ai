@@ -2,7 +2,8 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Ensure Story has a tsvector column for full-text search
-ALTER TABLE story ADD COLUMN IF NOT EXISTS search_vector tsvector NOT NULL DEFAULT ''::tsvector;
+ALTER TABLE story ADD COLUMN IF NOT EXISTS search_vector tsvector DEFAULT ''::tsvector;
+ALTER TABLE story ALTER COLUMN search_vector DROP NOT NULL;
 
 -- Build a weighted tsvector for a Story (IDs are TEXT)
 CREATE OR REPLACE FUNCTION fts_build_story_search_vector(story_row_id text)

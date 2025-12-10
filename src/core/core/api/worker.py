@@ -90,7 +90,10 @@ class SourceIcon(MethodView):
         try:
             if source := OSINTSource.get(source_id):
                 file: FileStorage = request.files["file"]
-                source.update_icon(file.read())
+                try:
+                    source.update_icon(file.read())
+                except ValueError as exc:
+                    return {"error": str(exc)}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:

@@ -5,9 +5,9 @@ Functions for publishing products to external systems.
 from rq import get_current_job
 
 import worker.publishers
-from worker.publishers.base_publisher import BasePublisher
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
+from worker.publishers.base_publisher import BasePublisher
 from worker.types import Product
 
 
@@ -124,6 +124,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
         "ftp_publisher": worker.publishers.FTPPublisher(),
         "sftp_publisher": worker.publishers.SFTPPublisher(),
         "misp_publisher": worker.publishers.MISPPublisher(),
+        "s3_publisher": worker.publishers.S3Publisher(),
     }
 
     if pub_type not in publishers:

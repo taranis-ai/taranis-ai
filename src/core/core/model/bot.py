@@ -1,6 +1,7 @@
 import uuid
 from typing import Any, Sequence
 
+from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
@@ -9,8 +10,8 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
-from core.model.worker import BOT_TYPES, Worker
 from core.model.task import Task as TaskModel
+from core.model.worker import Worker
 
 
 class Bot(BaseModel):
@@ -24,12 +25,14 @@ class Bot(BaseModel):
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
+    def __init__(
+        self, name: str, type: str | BOT_TYPES, description: str = "", index: int | None = None, parameters=None, id: str | None = None
+    ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
-        self.index = Bot.get_highest_index() + 1
+        self.index = index or Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property
@@ -58,10 +61,10 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
-        
+
         # Notify cron scheduler of config change
         bot._publish_cron_reload(f"bot_{bot_id}")
-        
+
         return bot
 
     @classmethod
@@ -134,7 +137,7 @@ class Bot(BaseModel):
     @classmethod
     def schedule_all_bots(cls):
         """Schedule all enabled bots using RQ cron scheduler
-        
+
         Note: Just logs - the cron scheduler automatically picks up bots from database.
         """
         bots = cls.get_all_for_collector()
@@ -145,19 +148,19 @@ class Bot(BaseModel):
         """Publish a signal to reload cron scheduler configuration"""
         try:
             from core.managers import queue_manager
-            
+
             qm = queue_manager.queue_manager
             if qm.error or not qm._redis:
                 return
-            
+
             # Publish reload signal to cron scheduler
             qm._redis.publish("taranis:cron:reload", reason)
             logger.debug(f"Published cron reload signal: {reason}")
-            
+
             # Publish cache invalidation signal to frontend
             qm._redis.publish("taranis:cache:invalidate", "schedule")
             logger.debug("Published cache invalidation signal for schedules")
-            
+
         except Exception as e:
             logger.warning(f"Failed to publish cron reload signal: {e}")
 

@@ -1,42 +1,42 @@
-import io
 import base64
-from flask import Blueprint, request, send_file, jsonify, Flask
+import io
+
+from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
 from sqlalchemy.exc import IntegrityError  # noqa: F401
-from psycopg.errors import UniqueViolation, NotNullViolation  # noqa: F401
 
-from core.managers import queue_manager
+from core.config import Config
 from core.log import logger
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
 )
-from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
-from core.service.template_validation import validate_template_content
+from core.managers.decorators import extract_args
 from core.model import (
     attribute,
     bot,
-    product_type,
-    publisher_preset,
+    connector,
     organization,
     osint_source,
-    connector,
+    product_type,
+    publisher_preset,
     report_item_type,
     role,
     role_based_access,
+    task,
     user,
     word_list,
-    task,
     worker,
 )
-from core.service.news_item import NewsItemService
 from core.model.permission import Permission
-from core.managers.decorators import extract_args
-from core.config import Config
 
 # Project import for shared template logic
 from core.service.template_crud import create_or_update_template
+from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
+from core.service.template_validation import validate_template_content
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -73,7 +73,7 @@ class DictionariesReload(MethodView):
 
 class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, acl_id=None, filter_args=None):
         if acl_id:
             return role_based_access.RoleBasedAccess.get_for_api(acl_id)
@@ -95,7 +95,7 @@ class ACLEntries(MethodView):
 
 class Attributes(MethodView):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, attribute_id=None, filter_args=None):
         if attribute_id:
             return attribute.Attribute.get_for_api(attribute_id)
@@ -144,7 +144,7 @@ class ReportItemTypesExport(MethodView):
 
 class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, type_id=None, filter_args=None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
@@ -172,7 +172,7 @@ class ReportItemTypes(MethodView):
 
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, type_id=None, filter_args=None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
@@ -224,14 +224,14 @@ class WorkerParameters(MethodView):
 
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, filter_args=None):
         return Permission.get_all_for_api(filter_args, True)
 
 
 class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, role_id=None, filter_args=None):
         if role_id:
             return role.Role.get_for_api(role_id)
@@ -326,7 +326,7 @@ class TemplateValidation(MethodView):
 
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, organization_id=None, filter_args=None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
@@ -374,7 +374,7 @@ class UsersExport(MethodView):
 
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, user_id=None, filter_args=None):
         if user_id:
             return user.User.get_for_api(user_id)
@@ -412,7 +412,7 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, bot_id=None, filter_args=None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
@@ -527,7 +527,7 @@ class RefreshInterval(MethodView):
 
 class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, connector_id=None, filter_args=None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
@@ -575,7 +575,7 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, source_id=None, filter_args=None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
@@ -583,8 +583,11 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        if source := osint_source.OSINTSource.add(request.json):
-            return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        try:
+            if source := osint_source.OSINTSource.add(request.json):
+                return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
@@ -595,7 +598,7 @@ class OSINTSources(MethodView):
             if source := osint_source.OSINTSource.update(source_id, update_data):
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
@@ -677,7 +680,7 @@ class OSINTSourcesImport(MethodView):
 
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, group_id=None, filter_args=None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
@@ -701,7 +704,7 @@ class OSINTSourceGroups(MethodView):
 
 class TaskResults(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, task_id=None, filter_args=None):
         if task_id:
             return task.Task.get_for_api(task_id)
@@ -714,7 +717,7 @@ class TaskResults(MethodView):
 
 class Presenters(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, filter_args=None):
         filter_args = filter_args or {}
         filter_args["category"] = "publisher"
@@ -723,7 +726,7 @@ class Presenters(MethodView):
 
 class Publishers(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, filter_args=None):
         filter_args = filter_args or {}
         filter_args["category"] = "publisher"
@@ -732,7 +735,7 @@ class Publishers(MethodView):
 
 class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit")
     def get(self, preset_id=None, filter_args=None):
         if preset_id:
             return publisher_preset.PublisherPreset.get_for_api(preset_id)
@@ -754,7 +757,7 @@ class PublisherPresets(MethodView):
 
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    @extract_args("search", "usage", "with_entries")
+    @extract_args("search", "usage", "with_entries", "page", "limit")
     def get(self, word_list_id=None, filter_args: dict | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
@@ -831,7 +834,7 @@ class WorkerInstances(MethodView):
 
 class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    @extract_args("search", "category", "type", "exclude")
+    @extract_args("search", "category", "type", "exclude", "page", "limit")
     def get(self, filter_args=None):
         if Config.DISABLE_PPN_COLLECTOR:
             if filter_args:

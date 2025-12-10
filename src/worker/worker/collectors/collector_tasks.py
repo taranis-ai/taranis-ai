@@ -8,9 +8,8 @@ from typing import Any
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
-from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
-
+from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
 
 @contextmanager
@@ -174,4 +173,33 @@ def collector_preview(osint_source_id: str):
             logger.error(f"Collector preview task failed: {task_description}")
             raise RuntimeError(e) from e
 
+    return preview_result
+
+def fetch_single_news_item(parameters: dict[str, Any]):
+    job = get_current_job()
+    collector = worker.collectors.SimpleWebCollector()
+    formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
+    task_description = f"Fetching news item wtih {parameters=} and {job.id if job else 'preview'}"
+    logger.info(f"Starting collector task: {task_description}")
+    core_api = CoreApi()
+    result_message = None
+    task_status = "SUCCESS"
+    with collector_log_fmt(logger, formatter):
+        try:
+            preview_result = collector.preview_collector(parameters)
+        except NoChangeError as e:
+            logger.info(f"No changes detected: {e}")
+            result_message = f"No changes: {e}"
+            if job:
+                job.meta["status"] = "NOT_MODIFIED"
+                job.meta["message"] = str(e)
+                job.save_meta()
+
+            # Save task result to database
+            if job:
+                _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
+
+            return result_message
+        except Exception as e:
+            raise RuntimeError(e) from e
     return preview_result

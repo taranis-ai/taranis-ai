@@ -1,34 +1,30 @@
-from flask import Flask, render_template, Blueprint, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
-from models.admin import Job
 
-from frontend.config import Config
-from frontend.cache_models import PagingData
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
 from frontend.utils.router_helpers import convert_query_params, is_htmx_request
 from frontend.core_api import CoreApi
 from frontend.views import (
+    ACLView,
     AdminDashboardView,
-    UserView,
-    OrganizationView,
-    RoleView,
-    WorkerView,
+    AttributeView,
     BotView,
+    ConnectorView,
+    OrganizationView,
     ProductTypeView,
-    WordListView,
+    PublisherView,
+    ReportItemTypeView,
+    RoleView,
+    SchedulerView,
     SourceGroupView,
     SourceView,
-    ReportItemTypeView,
-    AttributeView,
     TemplateView,
-    PublisherView,
-    ACLView,
-    ConnectorView,
-    SchedulerView,
+    UserView,
+    WordListView,
+    WorkerView,
 )
 
-
+# TODO: move to scheduler view
 class ScheduleAPI(MethodView):
     @auth_required()
     def get(self):

@@ -1,7 +1,7 @@
 import requests
 
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 def update_wordlist(word_list_id: int):

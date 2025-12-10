@@ -4,34 +4,32 @@
     "npm:@codemirror/commands@*": "6.10.0",
     "npm:@codemirror/commands@^6.10.0": "6.10.0",
     "npm:@codemirror/language@*": "6.11.3",
-    "npm:@codemirror/language@6.11.3": "6.11.3",
     "npm:@codemirror/language@^6.11.3": "6.11.3",
     "npm:@codemirror/legacy-modes@*": "6.5.2",
-    "npm:@codemirror/legacy-modes@6.5.2": "6.5.2",
     "npm:@codemirror/legacy-modes@^6.5.2": "6.5.2",
     "npm:@codemirror/state@*": "6.5.2",
-    "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
-    "npm:@codemirror/view@*": "6.38.6",
-    "npm:@codemirror/view@6.38.6": "6.38.6",
-    "npm:@codemirror/view@^6.38.6": "6.38.6",
+    "npm:@codemirror/view@*": "6.39.2",
+    "npm:@codemirror/view@^6.39.2": "6.39.2",
     "npm:@tailwindcss/cli@*": "4.1.17",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.17",
-    "npm:alpinejs@*": "3.15.1",
-    "npm:alpinejs@^3.15.1": "3.15.1",
+    "npm:alpinejs@*": "3.15.2",
+    "npm:alpinejs@^3.15.2": "3.15.2",
     "npm:choices.js@*": "11.1.0",
     "npm:choices.js@^11.1.0": "11.1.0",
-    "npm:daisyui@^5.4.7": "5.4.7",
+    "npm:daisyui@^5.5.8": "5.5.11",
     "npm:fuse.js@*": "7.1.0",
     "npm:fuse.js@^7.1.0": "7.1.0",
+    "npm:highlight-search-term@*": "1.0.3",
+    "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
     "npm:htmx.org@*": "2.0.8",
     "npm:htmx.org@^2.0.8": "2.0.8",
     "npm:sortablejs@*": "1.15.6",
     "npm:sortablejs@^1.15.6": "1.15.6",
-    "npm:sweetalert2@*": "11.26.3",
-    "npm:sweetalert2@^11.26.3": "11.26.3",
+    "npm:sweetalert2@*": "11.26.4",
+    "npm:sweetalert2@^11.26.4": "11.26.4",
     "npm:tailwindcss@^4.1.17": "4.1.17"
   },
   "npm": {
@@ -67,8 +65,8 @@
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.38.6": {
-      "integrity": "sha512-qiS0z1bKs5WOvHIAC0Cybmv4AJSkAXgX5aD6Mqd2epSLlVJsQl8NG23jCVouIgkh4All/mrbdsf2UOLFnJw0tw==",
+    "@codemirror/view@6.39.2": {
+      "integrity": "sha512-YCbOfs4cq49ulN/MVhrUV22rKDJv/fHUs4cR98McAI59/coVwUa2N3RAoNVDgeJNchrQzBxTT3vzto4ZbTYVtw==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -103,17 +101,17 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
-    "@lezer/common@1.3.0": {
-      "integrity": "sha512-L9X8uHCYU310o99L3/MpJKYxPzXPOS7S0NmBaM7UO/x2Kb2WbmMLSkfvdr1KxRIFYOpbY0Jhn7CfLSUDzL8arQ=="
+    "@lezer/common@1.4.0": {
+      "integrity": "sha512-DVeMRoGrgn/k45oQNu189BoW4SZwgZFzJ1+1TV5j2NJ/KFC83oa/enRqZSGshyeMk5cPWMhsKs9nx+8o0unwGg=="
     },
-    "@lezer/highlight@1.2.2": {
-      "integrity": "sha512-z8TQwaBXXQIvG6i2g3e9cgMwUUXu9Ib7jo2qRRggdhwKpM56Dw3PM3wmexn+EGaaOZ7az0K7sjc3/gcGW7sz7A==",
+    "@lezer/highlight@1.2.3": {
+      "integrity": "sha512-qXdH7UqTvGfdVBINrgKhDsVTJTxactNNxLk7+UMwZhU13lMHaOBlJe9Vqp907ya56Y3+ed2tlqzys7jDkTmW0g==",
       "dependencies": [
         "@lezer/common"
       ]
     },
-    "@lezer/lr@1.4.2": {
-      "integrity": "sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==",
+    "@lezer/lr@1.4.5": {
+      "integrity": "sha512-/YTRKP5yPPSo1xImYQk7AZZMAgap0kegzqCSYHjAL9x1AZ0ZQW+IpcEzMKagCsbTsLnVeWkxYrCNeXG8xEPrjg==",
       "dependencies": [
         "@lezer/common"
       ]
@@ -321,8 +319,8 @@
     "@vue/shared@3.1.5": {
       "integrity": "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="
     },
-    "alpinejs@3.15.1": {
-      "integrity": "sha512-HLO1TtiE92VajFHtLLPK8BWaK1YepV/uj31UrfoGnQ00lyFOJZ+oVY3F0DghPAwvg8sLU79pmjGQSytERa2gEg==",
+    "alpinejs@3.15.2": {
+      "integrity": "sha512-2kYF2aG+DTFkE6p0rHG5XmN4VEb6sO9b02aOdU4+i8QN6rL0DbRZQiypDE1gBcGO65yDcqMz5KKYUYgMUxgNkw==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -342,8 +340,8 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.4.7": {
-      "integrity": "sha512-2wYO61vTPCXk7xEBgnzLZAYoE0xS5IRLu/GSq0vORpB+cTrtubdx69NnA0loc0exvCY1s2fYL4lGZtFHe2ohNQ=="
+    "daisyui@5.5.11": {
+      "integrity": "sha512-xQ1JIgYbhKe9DKhFtOWAKf91F1mK3HECa5xoINmSHMqW9KjEP+yOWttTN1K7zOwuDmk68CbovCDbMKLVtDmPBQ=="
     },
     "detect-libc@1.0.3": {
       "integrity": "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==",
@@ -371,14 +369,14 @@
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
     },
+    "highlight-search-term@1.0.3": {
+      "integrity": "sha512-cCZNdQp6Dpq54QvixkrUltZ6rPHnLHapQUOQiZqTojntJRyBuX/jeWY0LvBS76JcDEd7QKbZL780vz3TtbJDJQ=="
+    },
     "htmx-ext-response-targets@2.0.4": {
       "integrity": "sha512-Q/yfH0N2A40j903mr6ldGV3qLWMQeufROylYIbYQLBGrCpmydflxXmQwDOEhEWdPnBTgiHofkAo0gQ3S1BmyxQ==",
       "dependencies": [
-        "htmx.org@2.0.7"
+        "htmx.org"
       ]
-    },
-    "htmx.org@2.0.7": {
-      "integrity": "sha512-YiJqF3U5KyO28VC5mPfehKJPF+n1Gni+cupK+D69TF0nm7wY6AXn3a4mPWIikfAXtl1u1F1+ZhSCS7KT8pVmqA=="
     },
     "htmx.org@2.0.8": {
       "integrity": "sha512-fm297iru0iWsNJlBrjvtN7V9zjaxd+69Oqjh4F/Vq9Wwi2kFisLcrLCiv5oBX0KLfOX/zG8AUo9ROMU5XUB44Q=="
@@ -507,8 +505,8 @@
     "style-mod@4.1.3": {
       "integrity": "sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ=="
     },
-    "sweetalert2@11.26.3": {
-      "integrity": "sha512-VU0hGw/WfI9h7Mh+SCsDlWgtxDwWZ6ccqS7QcO8zEeWnwplN1GptcLstq76OluUBSLUza6ldvKd3558OhjpJ9A=="
+    "sweetalert2@11.26.4": {
+      "integrity": "sha512-qIgIQOVoz85Xj2Rij+htVFNH+HiIgfSR8ZJsHQvX4p9uLtJveXVqU7vPxJ4Eo6SALnLeo0Sw6COY164Zg3oBiw=="
     },
     "tailwindcss@4.1.17": {
       "integrity": "sha512-j9Ee2YjuQqYT9bbRTfTZht9W/ytp5H+jJpZKiYdP/bpnXARAuELt9ofP0lPnmHjbga7SNQIxdTAXCmtKVYjN+Q=="
@@ -532,16 +530,17 @@
       "npm:@codemirror/language@^6.11.3",
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/state@^6.5.2",
-      "npm:@codemirror/view@^6.38.6",
+      "npm:@codemirror/view@^6.39.2",
       "npm:@tailwindcss/cli@^4.1.17",
-      "npm:alpinejs@^3.15.1",
+      "npm:alpinejs@^3.15.2",
       "npm:choices.js@^11.1.0",
-      "npm:daisyui@^5.4.7",
+      "npm:daisyui@^5.5.8",
       "npm:fuse.js@^7.1.0",
+      "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.8",
       "npm:sortablejs@^1.15.6",
-      "npm:sweetalert2@^11.26.3",
+      "npm:sweetalert2@^11.26.4",
       "npm:tailwindcss@^4.1.17"
     ]
   }

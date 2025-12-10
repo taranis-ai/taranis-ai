@@ -1,19 +1,20 @@
-from flask import render_template, request, url_for, current_app, abort, make_response
-from jinja2 import TemplateNotFound
-from typing import ClassVar, Any, Callable
-from pydantic import ValidationError
+from typing import Any, Callable, ClassVar
+
+from flask import abort, current_app, make_response, render_template, request, url_for
 from flask.views import MethodView
+from jinja2 import TemplateNotFound
+from models.admin import WorkerParameter, WorkerParameterValue
+from models.base import TaranisBaseModel
+from pydantic import ValidationError
 from requests import Response as RequestsResponse
 from werkzeug.wrappers import Response
 
-from models.admin import WorkerParameter, WorkerParameterValue
-from models.base import TaranisBaseModel
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import is_htmx_request, convert_query_params
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.cache_models import PagingData, CacheObject
-from frontend.log import logger
 from frontend.auth import auth_required
+from frontend.cache_models import CacheObject
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 
 
@@ -191,7 +192,6 @@ class BaseView(MethodView):
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        dpl = DataPersistenceLayer()
         key = cls._get_object_key()
         form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
@@ -205,7 +205,7 @@ class BaseView(MethodView):
             }
         )
 
-        context[cls.model_name()] = dpl.get_object(cls.model, object_id)
+        context[cls.model_name()] = DataPersistenceLayer().get_object(cls.model, object_id)
         return cls.get_extra_context(context)
 
     @classmethod
@@ -325,9 +325,10 @@ class BaseView(MethodView):
     @classmethod
     def list_view(cls):
         try:
-            params = convert_query_params(request.args, PagingData)
-            page = PagingData(**params)
-            items = DataPersistenceLayer().get_objects(cls.model, page)
+            request_params = request.args.to_dict(flat=False)
+            params = parse_paging_data(request_params)
+            logger.debug(f"Listing {cls.model_name()} items with params: {params}")
+            items = DataPersistenceLayer().get_objects(cls.model, params)
             error = None if items else f"No {cls.model_name()} items found"
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))

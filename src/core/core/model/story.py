@@ -260,7 +260,7 @@ class Story(BaseModel):
             if ts_query is None:
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
-            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
+            logger.debug(f"FTS with: {search=} {sort=}")
             q = query.where(cls.search_vector.op("@@")(ts_query))
             if sort:
                 q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
@@ -1026,7 +1026,7 @@ class Story(BaseModel):
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
             db.session.commit()
-            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500

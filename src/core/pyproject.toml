@@ -26,12 +26,13 @@ dependencies = [
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
+    "Pillow",
     "granian",
     "psycopg",
     "requests",
     "authlib",
     "setuptools",
-    "taranis-models",
+    "taranis-models>=1.3.1.dev2",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]
@@ -121,3 +122,11 @@ reportUnusedImport = "warning"
 
 reportIncompatibleVariableOverride = "none"
 reportIncompatibleMethodOverride = "none"
+
+[tool.uv]
+required-environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
