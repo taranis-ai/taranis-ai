@@ -8,10 +8,7 @@
     </div>
 
     <!-- Queue Status Cards -->
-    <div id="queue-cards" 
-         hx-get="{{ url_for('admin.scheduler_queue_cards') }}" 
-         hx-trigger="load, every 10s"
-         hx-swap="innerHTML">
+    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
       {% include "schedule/queue_cards.html" %}
     </div>
 
@@ -35,10 +32,7 @@
               </svg>
               Scheduled Jobs
             </h2>
-            <div id="scheduled-jobs-table"
-                 hx-get="{{ url_for('admin.scheduler_jobs_table') }}"
-                 hx-trigger="load, every 10s"
-                 hx-swap="innerHTML">
+            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
               {% include "schedule/jobs_table.html" %}
             </div>
           </div>
@@ -55,10 +49,7 @@
               </svg>
               Currently Running
             </h2>
-            <div id="active-jobs-table"
-                 hx-get="{{ url_for('admin.scheduler_active_jobs') }}"
-                 hx-trigger="load, every 5s"
-                 hx-swap="innerHTML">
+            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="load, every 5s" hx-swap="innerHTML">
               <p class="text-center py-4">Loading active jobs...</p>
             </div>
           </div>
@@ -75,10 +66,7 @@
               </svg>
               Failed Jobs
             </h2>
-            <div id="failed-jobs-table"
-                 hx-get="{{ url_for('admin.scheduler_failed_jobs') }}"
-                 hx-trigger="load, every 10s"
-                 hx-swap="innerHTML">
+            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
               <p class="text-center py-4">Loading failed jobs...</p>
             </div>
           </div>
@@ -95,10 +83,7 @@
               </svg>
               Execution History
             </h2>
-            <div id="execution-history"
-                 hx-get="{{ url_for('admin.scheduler_history') }}"
-                 hx-trigger="load"
-                 hx-swap="innerHTML">
+            <div id="execution-history" hx-get="{{ url_for('admin.scheduler_history') }}" hx-trigger="load" hx-swap="innerHTML">
               {% include "schedule/execution_history.html" %}
             </div>
           </div>
