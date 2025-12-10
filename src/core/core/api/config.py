@@ -34,7 +34,6 @@ from core.model import (
 from core.model.permission import Permission
 
 # Project import for shared template logic
-from core.service.news_item import NewsItemService
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
@@ -606,11 +605,14 @@ class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
-            return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+        if not force:
+            from core.service.news_item import NewsItemService as _NewsItemService
+
+            if _NewsItemService.has_related_news_items(source_id):
+                return {
+                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
                 To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
+                }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
 
