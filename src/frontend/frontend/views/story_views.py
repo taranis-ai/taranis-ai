@@ -1,6 +1,6 @@
 import datetime
 from typing import Any, Callable
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import current_user
@@ -96,18 +96,46 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def get_sharing_dialog(cls) -> str:
-        story_id = request.args.get("story_id", "")
-        if story := cls._get_story(story_id):
-            connectors = DataPersistenceLayer().get_objects(Connector)
-            return render_template("assess/story_sharing_dialog.html", story=story, connectors=connectors)
-        return render_template("assess/story_sharing_dialog.html", story=None, connectors=[])
+        story_ids = request.args.getlist("story_ids")
+        if not story_ids and (story_id := request.args.get("story_id", "")):
+            story_ids = [story_id]
+
+        mail_sharing_link = cls.share_story_link(story_ids)
+        connectors = DataPersistenceLayer().get_objects(Connector)
+        return render_template(
+            "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
+        )
 
     @classmethod
     @auth_required()
-    def submit_sharing_dialog(cls) -> str:
-        story_id = request.form.get("story_id", "")
-        logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
-        return cls.render_response_notification({"message": "Story shared successfully"})
+    def submit_sharing_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
+        if not story_ids:
+            return make_response(cls.render_response_notification({"error": "No stories selected for sharing."}), 400)
+
+        logger.debug(f"Submitting sharing dialog for story {story_ids} - {request.form}")
+        return make_response(cls.render_response_notification({"message": "Story sharing not implemented yet"}), 200)
+
+    @classmethod
+    def share_story_link(cls, story_ids: list[str]) -> str:
+        stories: list[Story] = [cls._get_story(story_id) for story_id in story_ids]
+
+        subject = "sharing stories from taranis ai"
+        if len(stories) == 1:
+            subject = stories[0].title or subject
+
+        body_lines: list[str] = []
+        for story in stories:
+            title = story.title or f"Story {story.id}"
+            links = [f" - {link}\n" for link in story.links]
+            body_lines.append(f"{title}:\n{''.join(links)}")
+        body = "\n\n".join(body_lines).strip()
+
+        params: dict[str, str] = {"subject": subject}
+        if body:
+            params["body"] = body
+
+        return f"mailto:?{urlencode(params, quote_via=quote)}"
 
     @classmethod
     @auth_required()

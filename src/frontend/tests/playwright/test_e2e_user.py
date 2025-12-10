@@ -46,7 +46,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             story_articles = page.locator("#story-list article")
             story = story_articles.nth(0)
             title = story.locator("h2[data-testid='story-title']").inner_text()
-            page.pause()
 
             story.get_by_test_id("toggle-summary").click()
             story.get_by_test_id("story-actions-menu").click()

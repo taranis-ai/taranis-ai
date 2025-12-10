@@ -1,9 +1,9 @@
-{% macro story_actions(story) %}
+{% macro story_actions(story, size='xs') %}
   {% set story_id = story.id %}
   {% set toggled_read = (not (story.read | default(false))) | tojson %}
   {% set toggled_important = (not (story.important | default(false))) | tojson %}
   <button type="button"
-          class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-put="{{ url_for('assess.story', story_id=story_id) }}"
           hx-vals='{"read": {{ toggled_read }} }'
           hx-target="#story-{{ story_id }}"
@@ -20,7 +20,7 @@
     {% endif %}
   </button>
   <button type="button"
-          class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-put="{{ url_for('assess.story', story_id=story_id) }}"
           hx-vals='{"important": {{ toggled_important }} }'
           hx-target="#story-{{ story_id }}"
@@ -38,7 +38,7 @@
     </span>
   </button>
   <button type="button"
-          class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-get='{{ url_for("assess.share_story") }}?story_id={{ story_id }}'
           hx-target="body"
           hx-swap="beforeend"
@@ -70,7 +70,7 @@
      href="{{ url_for('assess.story', story_id=story_id) }}"
      data-testid="open-detail-view">
     {{ heroicon_mini("document-magnifying-glass") }}
-    <span>Open</span>
+    {% if not compact_view %}<span>Open</span>{% endif %}
   </a>
 
   <a type="button"
@@ -100,8 +100,7 @@
 {% endmacro %}
 
 {% macro story_edit_actions(story) %}
-  {% set actions = story_actions(story) %}
-
+  {% set actions = story_actions(story, size='sm') %}
   <div class="dropdown dropdown-end">
     <button type="button"
             class="btn btn-outline btn-sm join-item justify-start gap-2"
@@ -117,5 +116,4 @@
       <div class="join join-vertical w-full">{{ actions | trim | safe }}</div>
     </div>
   </div>
-
 {% endmacro %}
