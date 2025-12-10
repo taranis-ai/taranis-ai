@@ -1647,7 +1647,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
-    { name = "taranis-models", specifier = ">=1.2.6.dev5" },
+    { name = "taranis-models", specifier = ">=1.3.1.dev2" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
 ]
@@ -1655,16 +1655,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.1.dev1"
+version = "1.3.1.dev3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/c9/6a1c29705359a0e50cde429f41c14251941e089bfaa5553347140ee93c1c/taranis_models-1.3.1.dev1.tar.gz", hash = "sha256:0fafcc3477ee288e7a915d4ca3938922b62e4ae737a334da11349eb17aaf1ebf", size = 30336, upload-time = "2025-12-09T14:59:28.817Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/89/771ea9ad48367a60f81d90307c6e16805383fb2da4f74d5bfabbfde7e6dc/taranis_models-1.3.1.dev3.tar.gz", hash = "sha256:ce99dc9c621ef017e62b3a3597206797314a454e67fe37447fedfa61fda3710f", size = 27484, upload-time = "2025-12-09T17:36:08.202Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/21/24a655c3a1ca6635ada81a747cd1803c41b2713e777b5589ade028771cc0/taranis_models-1.3.1.dev1-py3-none-any.whl", hash = "sha256:ed1d6bcae072486698a0679062543fcca27cd606ced8a33430359541be9bf80b", size = 15066, upload-time = "2025-12-09T14:59:25.723Z" },
+    { url = "https://files.pythonhosted.org/packages/68/a2/ee268f5948b26efe8916c6f4a0e7fa8cca9e0f58cd8e8cd953008f68003d/taranis_models-1.3.1.dev3-py3-none-any.whl", hash = "sha256:b3dc2d2b0fe9570d933a7f6207cda48f3a238fe6e806dabf2637b8427bbb2f22", size = 15147, upload-time = "2025-12-09T17:36:07.164Z" },
 ]
 
 [[package]]

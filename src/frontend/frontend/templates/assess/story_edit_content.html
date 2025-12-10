@@ -10,6 +10,8 @@
 {% set toggled_read = (not (story.read | default(false))) | tojson %}
 {% set toggled_important = (not (story.important | default(false))) | tojson %}
 {% from "assess/news_item_card.html" import news_item_card %}
+{% from "assess/story_actions.html" import story_edit_actions %}
+
 
 <section id="{{ card_id }}"
          class="space-y-6 p-6"
@@ -62,51 +64,11 @@
               <kbd class="kbd kbd-xs">Shift+R</kbd>
             </span>
           </button>
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  hx-trigger="click, keyup[shiftKey && code == 'E'] from:body"
-                  hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-                  hx-vals='{"read": {{ toggled_read }} }'
-                  hx-target="#{{ card_id }}"
-                  hx-push-url="false"
-                  hx-swap="outerHTML"
-                  data-testid="toggle-read">
-            {% if story.read | default(false) %}
-              {{ heroicon_mini("eye-slash") }}
-              <span>Mark unread</span>
-            {% else %}
-              {{ heroicon_mini("eye") }}
-              <span>Mark read</span>
-            {% endif %}
-            <span class="text-xs opacity-80" x-show="showHints">
-              <kbd class="kbd kbd-xs">Shift+E</kbd>
-            </span>
-          </button>
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  hx-trigger="click, keyup[shiftKey && code == 'I'] from:body"
-                  hx-put="{{ url_for('assess.story', story_id=story_id) }}"
-                  hx-vals='{"important": {{ toggled_important }} }'
-                  hx-target="#{{ card_id }}"
-                  hx-push-url="false"
-                  hx-swap="outerHTML"
-                  data-testid="toggle-important">
-            {{ heroicon_mini("star") }}
-            <span>
-              {% if story.important | default(false) %}
-                Remove important
-              {% else %}
-                Mark important
-              {% endif %}
-            </span>
-            <span class="text-xs opacity-80" x-show="showHints">
-              <kbd class="kbd kbd-xs">Shift+I</kbd>
-            </span>
-          </button>
           <div class="join">
             <a href="?layout=advanced" class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced view</a>
             <a href="?layout=simple" class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple view</a>
           </div>
+          {{ story_edit_actions(story) }}
         </div>
         <div class="grid gap-3 grid-cols-3">
           <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
@@ -266,7 +228,7 @@
 
       {% if story.news_items %}
         <div class="space-y-4">
-          {% for item in story.news_items %}{{ news_item_card(item) }}{% endfor %}
+          {% for item in story.news_items %}{{ news_item_card(item, story) }}{% endfor %}
         </div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>

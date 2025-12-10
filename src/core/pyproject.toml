@@ -31,7 +31,7 @@ dependencies = [
     "requests",
     "authlib",
     "setuptools",
-    "taranis-models>=1.2.6.dev5",
+    "taranis-models>=1.3.1.dev2",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]
