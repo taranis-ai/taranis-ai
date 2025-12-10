@@ -5,11 +5,11 @@
         <tr>
           <th>Task</th>
           <th>Status</th>
-          <th>
+          <th class="text-right">
             Last Run <span class="text-xs opacity-50">↓ Most recent first</span>
           </th>
-          <th>Last Success</th>
-          <th>Stats</th>
+          <th class="text-right">Last Success</th>
+          <th class="text-right">Stats</th>
         </tr>
       </thead>
       <tbody>
@@ -27,25 +27,25 @@
                 <span class="badge badge-error badge-sm">Many Failures</span>
               {% endif %}
             </td>
-            <td>
+            <td class="text-right">
               {% if stats.last_run %}
                 <span class="text-xs">{{ stats.last_run.strftime("%Y-%m-%d %H:%M:%S") }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}
             </td>
-            <td>
+            <td class="text-right">
               {% if stats.last_success %}
                 <span class="text-xs">{{ stats.last_success.strftime("%Y-%m-%d %H:%M:%S") }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}
             </td>
-            <td>
-              <div class="flex gap-2">
+            <td class="text-right">
+              <div class="flex gap-2 justify-end">
                 <div class="badge badge-success">✓ {{ stats.successes }}</div>
                 <div class="badge badge-error">✗ {{ stats.failures }}</div>
-                <div class="badge badge-ghost">{{ stats.success_pct }}%</div>
+                <div class="badge badge-ghost min-w-16 justify-end text-right">{{ stats.success_pct }}%</div>
               </div>
             </td>
           </tr>
