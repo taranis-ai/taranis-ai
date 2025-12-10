@@ -1,20 +1,19 @@
 import base64
+from typing import Any, Sequence, TYPE_CHECKING
+from sqlalchemy.orm import deferred, Mapped, relationship
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import Select
+from sqlalchemy import and_, cast, String, literal, func
+
+from core.managers.db_manager import db
 import json
 import uuid
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Sequence
 
-from apscheduler.triggers.cron import CronTrigger
 from PIL import Image, UnidentifiedImageError
 from models.types import COLLECTOR_TYPES
-from sqlalchemy import String, and_, cast, func, literal
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, deferred, relationship
-from sqlalchemy.sql import Select
 
 from core.log import logger
-from core.managers import schedule_manager
-from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel
@@ -154,6 +153,9 @@ class OSINTSource(BaseModel):
         if self.status:
             data["status"] = self.status
 
+        # Include refresh schedule for worker self-rescheduling
+        data["refresh"] = self.get_schedule()
+
         return data
 
     @staticmethod
@@ -180,22 +182,6 @@ class OSINTSource(BaseModel):
             return refresh_interval
 
         return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
-
-    def to_task_dict(self, crontab_str: str):
-        return {
-            "id": self.task_id,
-            "name": f"{self.type}_{self.name}",
-            "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab_str),
-                "max_instances": 1,
-            },
-            "celery": {
-                "name": "collector_task",
-                "args": [self.id],
-                "queue": "collectors",
-                "task_id": self.task_id,
-            },
-        }
 
     @classmethod
     def add(cls, data):
@@ -305,14 +291,18 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def schedule_all_osint_sources(cls):
+        """Schedule all enabled OSINT sources using RQ"""
         sources = cls.get_all_for_collector()
         for source in sources:
-            interval = source.get_schedule()
-            entry = source.to_task_dict(interval)
-            schedule_manager.schedule.add_celery_task(entry)
-        logger.info(f"Gathering for {len(sources)} OSINT Sources scheduled")
+            source.schedule_osint_source()
+        logger.info(f"Scheduling for {len(sources)} OSINT Sources completed")
 
     def schedule_osint_source(self):
+        """Schedule this OSINT source collection using RQ
+
+        Note: The actual scheduling is done by the RQ cron scheduler process.
+        This method validates the source and publishes a reload signal.
+        """
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
@@ -321,17 +311,43 @@ class OSINTSource(BaseModel):
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
-        interval = self.get_schedule()
-        entry = self.to_task_dict(interval)
-        schedule_manager.schedule.add_celery_task(entry)
-        logger.info(f"Schedule for source {self.id} updated")
-        return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
+        cron_schedule = self.get_schedule()
+        logger.info(f"Source {self.name} has schedule: {cron_schedule}. Notifying cron scheduler...")
+
+        # Publish reload signal
+        self._publish_cron_reload(f"osint_source_{self.id}")
+
+        return {"message": f"Source {self.name} will be scheduled by cron scheduler", "id": f"{self.id}"}, 200
 
     def unschedule_osint_source(self):
-        entry_id = self.task_id
-        schedule_manager.schedule.remove_periodic_task(entry_id)
-        logger.info(f"Schedule for source {self.id} removed")
-        return {"message": f"Schedule for source {self.name} removed", "id": f"{self.id}"}, 200
+        """Cancel scheduled collection for this OSINT source
+
+        Note: The cron scheduler automatically picks up enabled/disabled state from the database.
+        """
+        logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
+        self._publish_cron_reload(f"osint_source_{self.id}_disabled")
+
+    def _publish_cron_reload(self, reason: str):
+        """Publish a signal to reload cron scheduler configuration"""
+        try:
+            from core.managers import queue_manager
+
+            qm = queue_manager.queue_manager
+            if qm.error or not qm._redis:
+                return
+
+            # Publish reload signal to cron scheduler
+            qm._redis.publish("taranis:cron:reload", reason)
+            logger.debug(f"Published cron reload signal: {reason}")
+
+            # Publish cache invalidation signal to frontend
+            qm._redis.publish("taranis:cache:invalidate", "schedule")
+            logger.debug("Published cache invalidation signal for schedules")
+
+        except Exception as e:
+            logger.warning(f"Failed to publish cron reload signal: {e}")
+        logger.info(f"Source {self.name} unscheduling - cron scheduler will stop scheduling it if disabled")
+        return {"message": f"Source {self.name} will not be scheduled if disabled", "id": f"{self.id}"}, 200
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {

@@ -65,8 +65,14 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
-    def get(self, source_id: str):
+    def get(self, source_id: str | None = None):
         try:
+            # Get all sources (for cron scheduler)
+            if source_id is None:
+                sources = OSINTSource.get_all_for_collector()
+                return {"sources": [source.to_worker_dict() for source in sources]}, 200
+            
+            # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
@@ -240,9 +246,32 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
+class TaskResults(MethodView):
+    @api_key_required
+    def put(self):
+        """Save or update task result from worker."""
+        from core.model.task import Task
+        from core.api.task import handle_task_specific_result
+
+        data = request.json
+        if not data:
+            return {"error": "No data provided"}, 400
+
+        task_id = data.get("id")
+        result = data.get("result")
+        status = data.get("status")
+
+        # Handle task-specific result processing (e.g., presenter results)
+        if status == "SUCCESS" and result and task_id:
+            handle_task_specific_result(task_id, result, status)
+
+        return Task.add_or_update(data)
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
@@ -260,5 +289,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
+    worker_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results_worker"))
 
     app.register_blueprint(worker_bp)

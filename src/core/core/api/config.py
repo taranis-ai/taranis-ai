@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
 from core.log import logger
-from core.managers import queue_manager, schedule_manager
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
@@ -32,7 +32,8 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.service.news_item import NewsItemService
+
+# Project import for shared template logic
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
@@ -457,19 +458,56 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
+class ActiveJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_active_jobs()
+
+
+class FailedJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_failed_jobs()
+
+
+class RetryFailedJob(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def post(self, job_id: str):
+        return queue_manager.queue_manager.retry_failed_job(job_id)
+
+
+class WorkerStats(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_worker_stats()
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := schedule_manager.schedule.get_periodic_task(task_id):
-                    return result, 200
-                return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.schedule.get_periodic_tasks():
-                return schedules, 200
-            return {"error": "No schedules found"}, 404
+                # Get specific scheduled job
+                try:
+                    from rq.job import Job
+
+                    job = Job.fetch(task_id, connection=queue_manager.queue_manager.redis)
+                    if job:
+                        return {
+                            "id": job.id,
+                            "name": job.func_name,
+                            "scheduled_for": job.enqueued_at.isoformat() if job.enqueued_at else None,
+                            "status": job.get_status(),
+                        }, 200
+                except Exception:
+                    return {"error": "Task not found"}, 404
+
+            # Get all scheduled jobs
+            schedules, status = queue_manager.queue_manager.get_scheduled_jobs()
+            return schedules, status
         except Exception:
             logger.exception()
+            return {"error": "Failed to get schedules"}, 500
 
 
 class RefreshInterval(MethodView):
@@ -480,7 +518,7 @@ class RefreshInterval(MethodView):
         if not cron_expr:
             return jsonify({"error": "Missing cron expression"}), 400
         try:
-            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
+            fire_times = queue_manager.QueueManager.get_next_fire_times_from_cron(cron_expr, n=3)
             formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
             return jsonify(formatted_times), 200
         except Exception as e:
@@ -567,11 +605,14 @@ class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
-            return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+        if not force:
+            from core.service.news_item import NewsItemService as _NewsItemService
+
+            if _NewsItemService.has_related_news_items(source_id):
+                return {
+                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
                 To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
+                }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
 
@@ -874,6 +915,10 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view("active_jobs"))
+    config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view("failed_jobs"))
+    config_bp.add_url_rule("/workers/failed/<string:job_id>/retry", view_func=RetryFailedJob.as_view("retry_failed_job"))
+    config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view("worker_stats"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))

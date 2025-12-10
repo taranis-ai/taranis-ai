@@ -27,7 +27,8 @@ class ProductService:
             if not product.default_publisher:
                 logger.warning(f"Product {product.id} is set to auto publish but has no default publisher")
                 continue
-            queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher)
+            if not queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher):
+                logger.error(f"Failed to schedule autopublish jobs for product {product.id}")
 
     @classmethod
     def get_products_for_auto_render(cls, report_item_id: str) -> list[Product]:

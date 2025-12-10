@@ -39,8 +39,9 @@ class Task(BaseModel):
                 entry.last_success = datetime.now(timezone.utc)
             entry.last_run = datetime.now(timezone.utc)
             db.session.commit()
-            return entry, 200
-        return cls.add(entry_data)
+            return entry.to_dict(), 200
+        new_entry = cls.add(entry_data)
+        return new_entry.to_dict(), 201
 
     def to_dict(self):
         result = json.loads(self.result) if self.result else None
