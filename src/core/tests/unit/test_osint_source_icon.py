@@ -10,6 +10,7 @@ from core.model.osint_source import OSINTSource
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
 _VALID_PNG_BYTES = base64.b64decode(_VALID_PNG_BASE64)
 _INVALID_BASE64_IMAGE = base64.b64encode(b"not-an-image").decode("utf-8")
+_INVALID_IMAGE_BYTES = b"not-an-image"
 
 
 @pytest.mark.usefixtures("app")
@@ -66,3 +67,29 @@ def test_update_icon_can_clear_icon(session):
 
     source.update_icon(None)
     assert source.icon is None
+
+
+@pytest.mark.usefixtures("app")
+def test_pre_seed_update_removes_invalid_icons(session):
+    from core.managers.db_manager import db
+    from core.managers.db_seed_manager import pre_seed_update
+
+    source = OSINTSource(
+        name="PreSeed",
+        description="Desc",
+        type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        icon=_VALID_PNG_BASE64,
+    )
+    session.add(source)
+    session.commit()
+
+    # Simulate legacy data with invalid bytes bypassing validation.
+    source.icon = _INVALID_IMAGE_BYTES
+    db.session.commit()
+
+    pre_seed_update(db.engine)
+
+    db.session.expire_all()
+    updated = OSINTSource.get(source.id)
+    assert updated is not None
+    assert updated.icon is None
