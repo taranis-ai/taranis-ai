@@ -1,10 +1,16 @@
+from flask import render_template, request
+from flask.views import MethodView
+
+from frontend.auth import auth_required
+from frontend.cache_models import PagingData
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.utils.router_helpers import convert_query_params, is_htmx_request
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 from models.admin import Job
 from models.task import Task
-from frontend.views.base_view import BaseView
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.core_api import CoreApi
-from flask import render_template, request
 
 
 class SchedulerView(AdminMixin, BaseView):
