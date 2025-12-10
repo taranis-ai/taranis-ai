@@ -2,11 +2,11 @@ exclude: ^src/frontend/frontend/static/.*$
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+    rev: v0.14.8
     hooks:
       - id: ruff-check
         files: ^(src/core|src/worker|src/frontend|src/models)
-        args: [--fix]
+        args: [--fix, --select, I]
       - id: ruff-format
         files: ^(src/core|src/worker|src/frontend|src/models)
 

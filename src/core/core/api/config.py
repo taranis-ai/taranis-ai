@@ -33,8 +33,6 @@ from core.model import (
 )
 from core.model.permission import Permission
 from core.service.news_item import NewsItemService
-
-# Project import for shared template logic
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content

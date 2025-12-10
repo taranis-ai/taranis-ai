@@ -24,15 +24,13 @@
           </fieldset>
 
           {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]", value=dashboard.show_trending_clusters, yes_val=true, no_val=false, required=False, width='w-1/8') }}
-
           {{ form_switch(label="Show Charts in Dashboard", name="dashboard[show_charts]", value=dashboard.show_charts, yes_val=true, no_val=false, required=False, width='w-1/8') }}
-
         </div>
 
         <div class="flex-none w-2/8">
           <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select">
             {% for cluster in clusters %}
-              <option value="{{ cluster.name }}" {% if cluster.name in dashboard.trending_cluster_filter %}selected{% endif %}>{{ cluster.name }}</option>
+              <option value="{{ cluster }}" {% if cluster in dashboard.trending_cluster_filter %}selected{% endif %}>{{ cluster }}</option>
             {% endfor %}
           </select>
         </div>
