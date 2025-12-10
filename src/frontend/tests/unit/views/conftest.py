@@ -11,16 +11,16 @@ if root_str in sys.path:
     sys.path.remove(root_str)
 sys.path.insert(0, root_str)
 
-from frontend.log import logger
-from frontend.config import Config
-from frontend.views.base_view import BaseView
-from polyfactory.factories.pydantic_factory import ModelFactory
-from polyfactory.exceptions import ParameterException
-from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-from uuid_extensions import uuid7str
-from faker import Faker
+from frontend.log import logger  # noqa: E402
+from frontend.config import Config  # noqa: E402
+from frontend.views.base_view import BaseView  # noqa: E402
+from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
+from polyfactory.exceptions import ParameterException  # noqa: E402
+from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+from pydantic.fields import FieldInfo  # noqa: E402
+from uuid_extensions import uuid7str  # noqa: E402
+from faker import Faker  # noqa: E402
 
 
 @pytest.fixture
