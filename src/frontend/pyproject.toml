@@ -60,6 +60,9 @@ dev = ["ruff", "pytest", "pytest-flask", "lxml", "build", "wheel", "setuptools_s
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
 
+[project.scripts]
+taranis-frontend-healthcheck = "frontend.healthcheck:main"
+
 [tool.ruff]
 line-length = 142
 target-version = "py313"
