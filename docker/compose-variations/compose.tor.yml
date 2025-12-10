@@ -56,7 +56,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD", "healthcheck"]
+      test: ["CMD", "taranis-core-healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -51,7 +51,7 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 taranis-ai = "core.granian:main"
-healthcheck = "core.healthcheck:main"
+taranis-core-healthcheck = "core.healthcheck:main"
 
 [tool.setuptools_scm]
 root = "../.."

@@ -57,7 +57,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD", "healthcheck"]
+      test: ["CMD", "taranis-core-healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -109,7 +109,7 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD", "healthcheck"]
+      test: ["CMD", "taranis-frontend-healthcheck"]
       interval: 1m30s
       timeout: 30s
       retries: 5
