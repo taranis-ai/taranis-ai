@@ -251,7 +251,19 @@ class ScheduleRetryJobAPI(MethodView):
     @auth_required()
     def post(self, job_id: str):
         try:
-            CoreApi().api_post(f"/config/workers/failed/{job_id}/retry")
+            response = CoreApi().api_post(f"/config/workers/failed/{job_id}/retry")
+            if not response or not response.ok:
+                error_message = "Unknown error"
+                if response is not None:
+                    try:
+                        payload = response.json()
+                        error_message = payload.get("error") or payload.get("message") or response.text
+                    except Exception:
+                        error_message = response.text
+
+                status_code = response.status_code if response is not None else 500
+                return f"<p class='text-error'>Failed to retry job: {error_message}</p>", status_code
+
             failed_jobs_data = CoreApi().api_get("/config/workers/failed")
             failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)

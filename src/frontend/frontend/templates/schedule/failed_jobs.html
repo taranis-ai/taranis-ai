@@ -30,9 +30,30 @@
               {% endif %}
             </td>
             <td>
-              <div class="tooltip tooltip-left" data-tip="{{ job.error }}">
-                <div class="badge badge-error badge-sm cursor-help">Error</div>
-              </div>
+              {% set modal_id = "job-error-" + job.id|replace(":", "-")|replace(".", "-") %}
+              <button type="button" class="btn btn-ghost btn-xs text-error underline" onclick="document.getElementById('{{ modal_id }}').showModal()">
+                View Error
+              </button>
+              <dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle">
+                <div class="modal-box max-w-4xl">
+                  <h3 class="font-bold text-lg">
+                    Job Error
+                    <span class="block text-sm font-normal text-base-content/60 truncate">
+                      {{ job.name }}
+                      <span class="opacity-60">({{ job.id }})</span>
+                    </span>
+                  </h3>
+                  <pre class="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap bg-base-200 p-4 rounded text-xs">{{ job.error }}</pre>
+                  <div class="modal-action">
+                    <form method="dialog">
+                      <button class="btn">Close</button>
+                    </form>
+                  </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                  <button>Close</button>
+                </form>
+              </dialog>
             </td>
             <td>
               <button class="btn btn-xs btn-primary"
