@@ -11,7 +11,7 @@ def cleanup_sources(app):
         source_data = {
             "id": "42",
             "description": "This is a test source",
-            "name": "Test Source",
+            "name": "Config Test Source",
             "parameters": [
                 {"FEED_URL": "https://url/feed.xml"},
             ],
