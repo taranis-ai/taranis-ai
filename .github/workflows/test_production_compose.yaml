@@ -19,11 +19,11 @@ jobs:
           ./docker/build_container.sh
 
       - name: Run docker compose for last commit
-        working-directory: docker/compose-variations
+        working-directory: docker
         run: |
           cp ../env.sample .env
           docker compose pull rabbitmq sse database
-          docker compose -f compose.e2e.yml up --pull=never --wait-timeout=60 --wait
+          docker compose up ingress core frontend database collector workers sse rabbitmq --pull=never --wait-timeout=60 --wait
           echo "Echo docker ps -a:"
           docker ps -a
           echo "Echo core logs:"
