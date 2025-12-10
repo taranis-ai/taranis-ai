@@ -2,6 +2,7 @@
 
 Functions for collecting news from OSINT sources.
 """
+
 from contextlib import contextmanager
 from rq import get_current_job
 from typing import Any
@@ -174,6 +175,7 @@ def collector_preview(osint_source_id: str):
             raise RuntimeError(e) from e
 
     return preview_result
+
 
 def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()

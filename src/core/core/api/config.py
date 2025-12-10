@@ -34,6 +34,7 @@ from core.model import (
 from core.model.permission import Permission
 
 # Project import for shared template logic
+from core.service.news_item import NewsItemService
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
@@ -490,6 +491,7 @@ class Schedule(MethodView):
                 # Get specific scheduled job
                 try:
                     from rq.job import Job
+
                     job = Job.fetch(task_id, connection=queue_manager.queue_manager.redis)
                     if job:
                         return {

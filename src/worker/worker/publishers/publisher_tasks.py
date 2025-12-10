@@ -2,6 +2,7 @@
 
 Functions for publishing products to external systems.
 """
+
 from rq import get_current_job
 
 import worker.publishers
