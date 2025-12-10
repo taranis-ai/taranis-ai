@@ -15,8 +15,8 @@
     "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
 
-    "npm:@codemirror/view@*": "6.38.8",
-    "npm:@codemirror/view@^6.38.8": "6.38.8",
+    "npm:@codemirror/view@*": "6.39.2",
+    "npm:@codemirror/view@^6.39.2": "6.39.2",
     "npm:@tailwindcss/cli@*": "4.1.17",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.17",
     "npm:alpinejs@*": "3.15.2",
@@ -24,7 +24,7 @@
     "npm:choices.js@*": "11.1.0",
     "npm:choices.js@^11.1.0": "11.1.0",
     "npm:codemirror@6": "6.0.2",
-    "npm:daisyui@^5.5.5": "5.5.5",
+    "npm:daisyui@^5.5.8": "5.5.8",
     "npm:fuse.js@*": "7.1.0",
     "npm:fuse.js@^7.1.0": "7.1.0",
     "npm:highlight-search-term@*": "1.0.3",
@@ -35,8 +35,7 @@
     "npm:htmx.org@^2.0.8": "2.0.8",
     "npm:sortablejs@*": "1.15.6",
     "npm:sortablejs@^1.15.6": "1.15.6",
-    "npm:sweetalert2@*": "11.26.3",
-    "npm:sweetalert2@^11.26.3": "11.26.3",
+    "npm:sweetalert2@^11.26.4": "11.26.4",
     "npm:tailwindcss@^4.1.17": "4.1.17"
   },
   "npm": {
@@ -116,8 +115,8 @@
         "w3c-keyname"
       ]
     },
-    "@codemirror/view@6.38.8": {
-      "integrity": "sha512-XcE9fcnkHCbWkjeKyi0lllwXmBLtyYb5dt89dJyx23I9+LSh5vZDIuk7OLG4VM1lgrXZQcY6cxyZyk5WVPRv/A==",
+    "@codemirror/view@6.39.2": {
+      "integrity": "sha512-YCbOfs4cq49ulN/MVhrUV22rKDJv/fHUs4cR98McAI59/coVwUa2N3RAoNVDgeJNchrQzBxTT3vzto4ZbTYVtw==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -403,8 +402,8 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.5.5": {
-      "integrity": "sha512-ekvI93ZkWIJoCOtDl0D2QMxnWvTejk9V5nWBqRv+7t0xjiBXqAK5U6o6JE2RPvlIC3EqwNyUoIZSdHX9MZK3nw=="
+    "daisyui@5.5.8": {
+      "integrity": "sha512-6psL9jIEOFOw68V10j/BKCWcRgx8dh81mmNxShr+g7HDM6UHNoPharlp9zq/PQkHNuGU1ZQsajR3HgpvavbRKQ=="
     },
     "detect-libc@1.0.3": {
       "integrity": "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==",
@@ -571,8 +570,8 @@
     "style-mod@4.1.3": {
       "integrity": "sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ=="
     },
-    "sweetalert2@11.26.3": {
-      "integrity": "sha512-VU0hGw/WfI9h7Mh+SCsDlWgtxDwWZ6ccqS7QcO8zEeWnwplN1GptcLstq76OluUBSLUza6ldvKd3558OhjpJ9A=="
+    "sweetalert2@11.26.4": {
+      "integrity": "sha512-qIgIQOVoz85Xj2Rij+htVFNH+HiIgfSR8ZJsHQvX4p9uLtJveXVqU7vPxJ4Eo6SALnLeo0Sw6COY164Zg3oBiw=="
     },
     "tailwindcss@4.1.17": {
       "integrity": "sha512-j9Ee2YjuQqYT9bbRTfTZht9W/ytp5H+jJpZKiYdP/bpnXARAuELt9ofP0lPnmHjbga7SNQIxdTAXCmtKVYjN+Q=="
@@ -597,18 +596,18 @@
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/merge@^6.3.0",
       "npm:@codemirror/state@^6.5.2",
-      "npm:@codemirror/view@^6.38.8",
+      "npm:@codemirror/view@^6.39.2",
       "npm:@tailwindcss/cli@^4.1.17",
       "npm:alpinejs@^3.15.2",
       "npm:choices.js@^11.1.0",
       "npm:codemirror@6",
-      "npm:daisyui@^5.5.5",
+      "npm:daisyui@^5.5.8",
       "npm:fuse.js@^7.1.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.8",
       "npm:sortablejs@^1.15.6",
-      "npm:sweetalert2@^11.26.3",
+      "npm:sweetalert2@^11.26.4",
       "npm:tailwindcss@^4.1.17"
     ]
   }

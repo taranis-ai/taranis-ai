@@ -1,9 +1,10 @@
 import json
+
 import pandas as pd
 import plotly.express as px
 from flask import abort, render_template, request
 from flask_jwt_extended import current_user
-from models.dashboard import Cluster, Dashboard, TrendingCluster, NewsItemConflict, StoryConflict
+from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
 from werkzeug.wrappers import Response
 
@@ -14,7 +15,7 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import parse_paging_data, is_htmx_request
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.base_view import BaseView
 
 
@@ -48,9 +49,6 @@ class DashboardView(BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-
-        if cluster_filter := user_dashboard.trending_cluster_filter:
-            trending_clusters = [cluster for cluster in trending_clusters if cluster.name in cluster_filter]
 
         context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": user_dashboard}
         return render_template(template, **context), 200
@@ -96,13 +94,16 @@ class DashboardView(BaseView):
             cluster_name=cluster_name,
             country_chart=country_chart,
             dashboard_config=current_user.profile.dashboard,
+            base_route=cls.get_base_route(),
         ), 200
 
     @classmethod
     @auth_required()
     def edit_dashboard(cls):
         try:
-            trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
+            trending_clusters = CoreApi().api_get("/dashboard/cluster-names")
+            if trending_clusters:
+                trending_clusters = trending_clusters.get("items", [])
         except Exception:
             trending_clusters = []
 
@@ -572,7 +573,6 @@ class DashboardView(BaseView):
     def post(self, *args, **kwargs) -> tuple[str, int] | Response:
         form_data = parse_formdata(request.form)
         form_data = {"dashboard": form_data.get("dashboard", {})}
-        logger.debug(f"Updating dashboard with data: {form_data}")
 
         if core_response := CoreApi().update_user_profile(form_data):
             response = self.get_notification_from_response(core_response)
@@ -582,6 +582,7 @@ class DashboardView(BaseView):
             )
 
         update_current_user_cache()
+        DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
         dashboard, table_response = self.static_view()
         if table_response == 200:
             response += dashboard

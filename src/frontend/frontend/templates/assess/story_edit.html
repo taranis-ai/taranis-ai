@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% include "assess/story_edit_content.html" %}
+  {% if story %}
+    {% include "assess/story_edit_content.html" %}
+  {% else %}
+    {% include "partials/404.html" %}
+  {% endif %}
 {% endblock content %}

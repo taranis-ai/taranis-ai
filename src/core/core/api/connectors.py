@@ -2,16 +2,16 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.log import logger
+from core.audit import audit_logger
 from core.config import Config
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
+from core.model.connector import Connector
+from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
-from core.model.news_item_conflict import NewsItemConflict
-from core.model.connector import Connector
-from core.audit import audit_logger
 
 
 class StoryConflicts(MethodView):
@@ -131,6 +131,7 @@ class LastChange(MethodView):
         data = request.json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
+        result, code = {"error": "Couldn't get last changed"}, 500
         if story_ids := data.get("stories"):
             result, code = Connector.update_story_last_change(story_ids)
         if news_item_ids := data.get("news_items"):

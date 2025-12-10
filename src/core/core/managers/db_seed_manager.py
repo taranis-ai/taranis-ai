@@ -66,6 +66,7 @@ def pre_seed_update(db_engine: Engine):
 
     pre_seed_source_groups()
     pre_seed_manual_source()
+    cleanup_invalid_source_icons()
     migrate_refresh_intervals()
     migrate_user_profiles()
     cleanup_empty_stories()
@@ -84,6 +85,25 @@ def pre_seed_update(db_engine: Engine):
             Bot.add(b)
 
     Settings.initialize()
+
+
+def cleanup_invalid_source_icons():
+    from core.managers.db_manager import db
+    from core.model.osint_source import OSINTSource
+
+    sources = OSINTSource.get_all_for_collector() or []
+    removed_icons = 0
+
+    for source in sources:
+        icon_bytes = getattr(source, "icon", None)
+        if icon_bytes and not OSINTSource._is_valid_image(icon_bytes):
+            logger.warning(f"Removing invalid icon from OSINT source {source.id}")
+            source.icon = None
+            removed_icons += 1
+
+    if removed_icons:
+        db.session.commit()
+        logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
 
 
 def migrate_search_indexes():
