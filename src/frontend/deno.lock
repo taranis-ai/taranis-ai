@@ -12,6 +12,7 @@
     "npm:@codemirror/state@*": "6.5.2",
     "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
+    "npm:@codemirror/view@*": "6.39.3",
     "npm:@codemirror/view@^6.39.3": "6.39.3",
     "npm:@tailwindcss/cli@*": "4.1.17",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.17",
@@ -30,6 +31,7 @@
     "npm:htmx.org@^2.0.8": "2.0.8",
     "npm:sortablejs@*": "1.15.6",
     "npm:sortablejs@^1.15.6": "1.15.6",
+    "npm:sweetalert2@*": "11.26.4",
     "npm:sweetalert2@^11.26.4": "11.26.4",
     "npm:tailwindcss@^4.1.17": "4.1.17"
   },
