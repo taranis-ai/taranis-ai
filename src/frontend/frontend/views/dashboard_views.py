@@ -135,7 +135,17 @@ class DashboardView(BaseView):
     @auth_required()
     def news_item_conflict_view(cls):
         try:
-            grouped_conflicts, incoming_ids, duplicate_incoming_ids, remaining_stories = cls._build_news_item_conflict_view()
+            persistence_layer = DataPersistenceLayer()
+            conflict_cache_object = persistence_layer.get_objects(NewsItemConflict)
+            conflicts = conflict_cache_object.items
+            internal_story_ids = {conflict.existing_story_id for conflict in conflicts}
+
+            story_summaries = cls._load_internal_story_summaries(persistence_layer, internal_story_ids)
+            grouped_conflicts = cls._group_conflicts_by_incoming_story(conflicts)
+            incoming_ids = cls._collect_incoming_news_item_ids(grouped_conflicts)
+            cls._annotate_conflict_groups(grouped_conflicts, incoming_ids, story_summaries)
+            duplicate_incoming_ids = cls._find_duplicate_incoming_ids(grouped_conflicts)
+            remaining_stories = [group_data["incoming_story"] for group_data in grouped_conflicts.values()]
             template = "conflicts/_news_item_conflicts_list.html" if is_htmx_request() else "conflicts/news_item_conflicts.html"
             return render_template(
                 template,
@@ -143,28 +153,11 @@ class DashboardView(BaseView):
                 incoming_ids=incoming_ids,
                 duplicate_incoming_ids=duplicate_incoming_ids,
                 remaining_stories=remaining_stories,
+                story_summaries=story_summaries,
             )
         except Exception as error:
             logger.exception(f"Failed to render News Item Conflict View: {error}")
             return render_template("errors/404.html", error="No news item conflicts found"), 404
-
-    @classmethod
-    def _build_news_item_conflict_view(cls):
-        persistence_layer = DataPersistenceLayer()
-        conflict_cache_object = persistence_layer.get_objects(NewsItemConflict)
-        conflicts = conflict_cache_object.items
-        internal_story_ids = {conflict.existing_story_id for conflict in conflicts}
-
-        internal_story_summaries = cls._load_internal_story_summaries(persistence_layer, internal_story_ids)
-
-        grouped_conflicts = cls._group_conflicts_by_incoming_story(conflicts)
-        incoming_ids = cls._collect_incoming_news_item_ids(grouped_conflicts)
-        cls._enrich_conflict_groups(grouped_conflicts, incoming_ids, internal_story_summaries)
-
-        duplicate_incoming_ids = cls._find_duplicate_incoming_ids(grouped_conflicts)
-        remaining_stories = [group_data["incoming_story"] for group_data in grouped_conflicts.values()]
-
-        return grouped_conflicts, incoming_ids, duplicate_incoming_ids, remaining_stories
 
     @staticmethod
     def _load_internal_story_summaries(persistence_layer: DataPersistenceLayer, story_ids: set[str]) -> dict[str, dict]:
@@ -186,74 +179,61 @@ class DashboardView(BaseView):
     def _group_conflicts_by_incoming_story(conflicts: list[NewsItemConflict]) -> dict[str, dict]:
         grouped_conflicts: dict[str, dict] = {}
         for conflict in conflicts:
-            incoming_id = conflict.incoming_story_id
+            incoming_story_id = conflict.incoming_story_id
 
-            if incoming_id not in grouped_conflicts:
-                grouped_conflicts[incoming_id] = {
+            if incoming_story_id not in grouped_conflicts:
+                grouped_conflicts[incoming_story_id] = {
                     "incoming_story": conflict.incoming_story,
-                    "conflict_entries": [],
-                    "internal_stories": [],
-                    "unique_news_item_ids": [],
+                    "conflicts": [],
                 }
 
-            grouped_conflicts[incoming_id]["conflict_entries"].append(conflict)
+            grouped_conflicts[incoming_story_id]["conflicts"].append(conflict)
         return grouped_conflicts
 
     @staticmethod
-    def _collect_incoming_news_item_ids(grouped_conflicts: dict[str, dict]) -> dict[str, set[str]]:
-        incoming_ids: dict[str, set[str]] = {}
-        for incoming_id, group_data in grouped_conflicts.items():
+    def _collect_incoming_news_item_ids(grouped_conflicts: dict[str, dict]) -> dict[str, list[str]]:
+        incoming_story_ids: dict[str, list[str]] = {}
+        for incoming_story_id, group_data in grouped_conflicts.items():
             incoming_story_items = group_data["incoming_story"].get("news_items", [])
-            incoming_ids_set = {item["id"] for item in incoming_story_items if item.get("id")}
-            incoming_ids[incoming_id] = incoming_ids_set
-        return incoming_ids
+            incoming_story_ids_list = sorted({item["id"] for item in incoming_story_items if item.get("id")})
+            incoming_story_ids[incoming_story_id] = incoming_story_ids_list
+        return incoming_story_ids
 
     @classmethod
-    def _enrich_conflict_groups(
+    def _annotate_conflict_groups(
         cls,
         grouped_conflicts: dict[str, dict],
-        incoming_ids: dict[str, set[str]],
-        internal_story_summaries: dict[str, dict],
+        incoming_ids: dict[str, list[str]],
+        story_summaries: dict[str, dict],
     ) -> None:
-        for incoming_id, group_data in grouped_conflicts.items():
-            conflicts_by_story: dict[str, set[str]] = {}
-            for entry in group_data["conflict_entries"]:
-                conflicts_by_story.setdefault(entry.existing_story_id, set()).add(entry.news_item_id)
+        for incoming_story_id, group_data in grouped_conflicts.items():
+            conflicts = group_data["conflicts"]
+            incoming_story = group_data["incoming_story"]
 
-            incoming_story_items = group_data["incoming_story"].get("news_items", [])
-            incoming_ids_set = incoming_ids[incoming_id]
+            internal_story_ids = list({conflict.existing_story_id for conflict in conflicts})
+            group_data["internal_story_ids"] = internal_story_ids
+            group_data["has_internal"] = bool(internal_story_ids)
 
-            internal_ids_for_group = {c.existing_story_id for c in group_data["conflict_entries"]}
-            enriched_internal_stories = []
-            aggregated_existing_ids: set[str] = set()
+            aggregated_existing_ids: list[str] = []
+            seen_ids = set()
+            for story_id in internal_story_ids:
+                summary = story_summaries.get(story_id) or {}
+                for item in summary.get("news_item_data", []) or []:
+                    item_id = item.get("id")
+                    if item_id and item_id not in seen_ids:
+                        aggregated_existing_ids.append(item_id)
+                        seen_ids.add(item_id)
 
-            unique_source_items = group_data["conflict_entries"][0].unique_news_items if group_data["conflict_entries"] else []
+            group_data["aggregated_existing_news_item_ids"] = aggregated_existing_ids
 
-            for story_id in internal_ids_for_group:
-                summary = internal_story_summaries.get(story_id) or {}
-                existing_news_item_ids = [item.get("id") for item in summary.get("news_item_data", []) if item.get("id")]
-                aggregated_existing_ids.update(existing_news_item_ids)
-                unique_ids = sorted(incoming_ids_set - conflicts_by_story.get(story_id, set()))
-                unique_news_items = [item for item in unique_source_items if item.get("id") in unique_ids]
-                enriched_internal_stories.append(
-                    {
-                        "story_id": story_id,
-                        "summary": summary or None,
-                        "existing_news_item_ids": existing_news_item_ids,
-                        "unique_news_item_ids": unique_ids,
-                        "unique_news_items": unique_news_items,
-                    }
-                )
+            incoming_story_ids = incoming_ids.get(incoming_story_id, [])
+            unique_news_item_ids = [item_id for item_id in incoming_story_ids if item_id not in seen_ids]
+            group_data["unique_news_item_ids"] = unique_news_item_ids
 
-            group_data["internal_stories"] = enriched_internal_stories
-            conflict_unique_ids = sorted(incoming_ids_set - aggregated_existing_ids)
-            incoming_story_map = {item.get("id"): item for item in incoming_story_items if item.get("id")}
-            conflict_unique_items = [item for item in unique_source_items if item.get("id") in conflict_unique_ids]
-            if len(conflict_unique_items) < len(conflict_unique_ids):
-                conflict_unique_items = [incoming_story_map[item_id] for item_id in conflict_unique_ids if item_id in incoming_story_map]
-            group_data["unique_news_item_ids"] = conflict_unique_ids
-            group_data["unique_news_items"] = conflict_unique_items
-            group_data["aggregated_existing_news_item_ids"] = sorted(aggregated_existing_ids)
+            incoming_items = incoming_story.get("news_items", []) or []
+            unique_id_set = set(unique_news_item_ids)
+            unique_items = [item for item in incoming_items if item.get("id") in unique_id_set]
+            group_data["unique_news_items"] = unique_items
 
     @staticmethod
     def _find_duplicate_incoming_ids(grouped_conflicts: dict[str, dict]) -> set[str]:
@@ -279,14 +259,6 @@ class DashboardView(BaseView):
         except Exception as exc:
             logger.exception(f"Failed loading incoming story snapshot for {incoming_story_id}: {exc}")
         return None
-
-    @staticmethod
-    def _select_news_items(incoming_story: dict, allowed_ids: list[str] | None) -> list[dict]:
-        news_items = incoming_story.get("news_items", [])
-        if not allowed_ids:
-            return news_items
-        allowed_set = set(allowed_ids)
-        return [item for item in news_items if item.get("id") in allowed_set]
 
     @staticmethod
     def _deserialize_story_blob(data: str | dict | None) -> dict:
@@ -334,6 +306,16 @@ class DashboardView(BaseView):
         return normalized
 
     @staticmethod
+    def _safe_json_load(value: str | None) -> object | None:
+        if not value:
+            return None
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON payload fragment for news conflict request")
+        return None
+
+    @staticmethod
     def _normalize_incoming_story(raw_value: object) -> dict | None:
         if isinstance(raw_value, str):
             raw_value = raw_value.strip()
@@ -346,20 +328,6 @@ class DashboardView(BaseView):
                 return None
 
         return raw_value if isinstance(raw_value, dict) else None
-
-    @staticmethod
-    def _load_internal_story_news_item_ids(story_id: str | None) -> list[str]:
-        if not story_id:
-            return []
-
-        try:
-            api = CoreApi()
-            summary = api.api_get(f"/connectors/story-summary/{story_id}")
-            if summary:
-                return [item.get("id") for item in summary.get("news_item_data", []) if item.get("id")]
-        except Exception as exc:
-            logger.exception(f"Failed loading news items for internal story {story_id}: {exc}")
-        return []
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
@@ -406,117 +374,58 @@ class DashboardView(BaseView):
     def resolve_news_item_conflict_post(cls):
         """
         Keep local story but ingest unique items.
-        Accepts both JSON and form-encoded HTMX data.
-        Includes full debugging output.
+        Accepts JSON or standard form submissions.
         """
         try:
-            logger.warning("========== DEBUG: NEWS CONFLICT POST ==========")
-            logger.warning(f"Content-Type: {request.content_type}")
-            logger.warning(f"RAW request.data: {request.data}")
-            logger.warning(f"RAW request.get_data(): {request.get_data()}")
-            logger.warning(f"request.json: {request.json}")
-            logger.warning(f"request.form: {request.form}")
-            logger.warning("================================================")
-
-            # Try JSON first
             payload = request.get_json(silent=True)
-            logger.warning(f"DEBUG: payload from get_json(): {payload} ({type(payload)})")
+            if not isinstance(payload, dict):
+                payload = parse_formdata(request.form)
+            if not isinstance(payload, dict):
+                return Response("Invalid payload", 400)
 
-            # Fall back to form
-            if not payload:
-                logger.warning("DEBUG: Falling back to form data")
-                form = request.form.to_dict(flat=False)
-                logger.warning(f"DEBUG: Raw form dict: {form}")
+            incoming_story_id = payload.get("incoming_story_id")
+            if not incoming_story_id:
+                return Response("Missing incoming_story_id", 400)
 
-                payload = {k: (v[0] if len(v) == 1 else v) for k, v in form.items()}
+            raw_news_items = payload.get("news_items")
+            if isinstance(raw_news_items, str):
+                raw_news_items = cls._safe_json_load(raw_news_items)
+            if not isinstance(raw_news_items, list):
+                return Response("Missing news_items", 400)
 
-            # Normalize fields that must be lists
-            def ensure_list(value):
-                if value is None:
-                    return []
-                if isinstance(value, list):
-                    return value
-                if isinstance(value, str):
-                    if "," in value:
-                        return [item.strip() for item in value.split(",") if item.strip()]
-                    return [value]
-                return [value]
+            existing_ids_raw = payload.get("existing_story_news_item_ids") or []
+            if not isinstance(existing_ids_raw, list):
+                existing_ids_raw = [existing_ids_raw] if existing_ids_raw else []
+            existing_set = {str(item_id) for item_id in existing_ids_raw if item_id}
 
-            payload["incoming_story_id"] = payload.get("incoming_story_id") or payload.get("resolving_story_id")
-            payload["remaining_stories"] = ensure_list(payload.get("remaining_stories"))
+            deduped_items: list[dict] = []
+            seen_lookup: set[str] = set()
+            unique_ids: list[str] = []
+            for item in raw_news_items:
+                if not isinstance(item, dict):
+                    continue
+                item_id = item.get("id")
+                if not item_id or item_id in existing_set or item_id in seen_lookup:
+                    continue
+                seen_lookup.add(item_id)
+                deduped_items.append(item)
+                unique_ids.append(item_id)
 
-            supplied_news_items = payload.get("news_items")
-            if isinstance(supplied_news_items, str):
-                try:
-                    supplied_news_items = json.loads(supplied_news_items)
-                except json.JSONDecodeError:
-                    supplied_news_items = None
-            if supplied_news_items is not None and not isinstance(supplied_news_items, list):
-                supplied_news_items = ensure_list(supplied_news_items)
-
-            if supplied_news_items is None:
-                payload["unique_incoming_news_item_ids"] = ensure_list(payload.get("unique_incoming_news_item_ids"))
-                payload["resolved_conflict_item_ids"] = ensure_list(payload.get("resolved_conflict_item_ids"))
-                payload["existing_story_news_item_ids"] = ensure_list(payload.get("existing_story_news_item_ids"))
-
-            required_fields = [
-                "incoming_story_id",
-                "remaining_stories",
-            ]
-
-            missing = [f for f in required_fields if f not in payload]
-            if missing:
-                logger.error(f"Missing required fields: {missing}")
-                return Response(f"Missing fields: {', '.join(missing)}", 400)
-
-            incoming_story = cls._normalize_incoming_story(payload.get("incoming_story"))
-            if not incoming_story:
-                incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
-            if not incoming_story:
-                logger.error("Unable to load incoming story snapshot for POST payload")
-                return Response("Unable to load incoming story data", 400)
-
-            existing_ids_payload = payload.get("existing_story_news_item_ids")
-            if isinstance(existing_ids_payload, str):
-                try:
-                    existing_ids_payload = json.loads(existing_ids_payload)
-                except json.JSONDecodeError:
-                    existing_ids_payload = ensure_list(existing_ids_payload)
-            else:
-                existing_ids_payload = ensure_list(existing_ids_payload)
-
-            target_story_id = payload.get("story_id")
-            if not existing_ids_payload and target_story_id:
-                existing_ids_payload = cls._load_internal_story_news_item_ids(target_story_id)
-
-            existing_ids = [str(item_id) for item_id in existing_ids_payload if item_id]
-
-            if supplied_news_items is not None:
-                unique_news_items = [item for item in supplied_news_items if isinstance(item, dict)]
-            else:
-                if not target_story_id:
-                    logger.error("Missing story_id for legacy unique news ingestion flow")
-                    return Response("Missing story_id for unique news ingestion", 400)
-                allowed_items = cls._select_news_items(incoming_story, payload.get("unique_incoming_news_item_ids"))
-                unique_news_items = allowed_items
-
-            unique_news_items = [item for item in unique_news_items if item.get("id") not in existing_ids]
-            unique_ids = [item.get("id") for item in unique_news_items if item.get("id")]
-
-            if not unique_ids:
+            if not deduped_items:
                 logger.warning("No unique news items identified for ingestion")
                 return Response("No unique news items to ingest", 400)
 
-            payload["news_items"] = unique_news_items
-            payload["resolved_conflict_item_ids"] = unique_ids
-            payload.pop("existing_story_news_item_ids", None)
-            payload.pop("unique_incoming_news_item_ids", None)
-            payload.pop("story_id", None)
-            payload.pop("incoming_story", None)
-            payload.pop("incoming_story_id", None)
+            remaining_raw = payload.get("remaining_stories") or []
+            remaining_stories = remaining_raw if isinstance(remaining_raw, list) else ([remaining_raw] if remaining_raw else [])
 
-            api = CoreApi()
-            response = api.api_post("/connectors/conflicts/news-items", json_data=payload)
+            api_payload = {
+                "incoming_story_id": incoming_story_id,
+                "remaining_stories": remaining_stories,
+                "news_items": deduped_items,
+                "resolved_conflict_item_ids": unique_ids,
+            }
+
+            response = CoreApi().api_post("/connectors/conflicts/news-items", json_data=api_payload)
 
             if not response.ok:
                 logger.error(f"Core API error: {response.status_code} {response.text}")
