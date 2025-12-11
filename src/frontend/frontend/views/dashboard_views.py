@@ -290,20 +290,7 @@ class DashboardView(BaseView):
         payload = request.get_json(silent=True)
         if isinstance(payload, dict):
             return payload
-
-        form_data = request.form.to_dict(flat=False)
-        normalized: dict[str, object] = {}
-        for key, values in form_data.items():
-            if key in cls._list_payload_fields:
-                normalized[key] = values
-                continue
-            if not isinstance(values, list):
-                normalized[key] = values
-            elif len(values) == 1:
-                normalized[key] = values[0]
-            else:
-                normalized[key] = values
-        return normalized
+        return parse_formdata(request.form)
 
     @staticmethod
     def _safe_json_load(value: str | None) -> object | None:
