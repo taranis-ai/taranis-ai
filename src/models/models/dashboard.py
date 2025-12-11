@@ -1,8 +1,9 @@
-from pydantic import Field
 from datetime import datetime
 
-from models.base import TaranisBaseModel
+from pydantic import Field
+
 from models.assess import StoryTag
+from models.base import TaranisBaseModel
 
 
 class Dashboard(TaranisBaseModel):
@@ -63,4 +64,3 @@ class NewsItemConflict(TaranisBaseModel):
     existing_story_id: str
     incoming_story: dict
     misp_address: str | None = None
-    unique_news_items: list[dict] = Field(default_factory=list)

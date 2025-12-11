@@ -143,7 +143,6 @@ class DashboardView(BaseView):
                 incoming_ids=incoming_ids,
                 duplicate_incoming_ids=duplicate_incoming_ids,
                 remaining_stories=remaining_stories,
-                template_marker="USING CORRECT FILE",
             )
         except Exception as error:
             logger.exception(f"Failed to render News Item Conflict View: {error}")
@@ -152,14 +151,13 @@ class DashboardView(BaseView):
     @classmethod
     def _build_news_item_conflict_view(cls):
         persistence_layer = DataPersistenceLayer()
-
         conflict_cache_object = persistence_layer.get_objects(NewsItemConflict)
-        conflict_records = conflict_cache_object.items
-        internal_story_ids = {conflict.existing_story_id for conflict in conflict_records}
+        conflicts = conflict_cache_object.items
+        internal_story_ids = {conflict.existing_story_id for conflict in conflicts}
 
         internal_story_summaries = cls._load_internal_story_summaries(persistence_layer, internal_story_ids)
 
-        grouped_conflicts = cls._group_conflicts_by_incoming_story(conflict_records)
+        grouped_conflicts = cls._group_conflicts_by_incoming_story(conflicts)
         incoming_ids = cls._collect_incoming_news_item_ids(grouped_conflicts)
         cls._enrich_conflict_groups(grouped_conflicts, incoming_ids, internal_story_summaries)
 
@@ -185,9 +183,9 @@ class DashboardView(BaseView):
         return internal_story_summaries
 
     @staticmethod
-    def _group_conflicts_by_incoming_story(conflict_records: list[NewsItemConflict]) -> dict[str, dict]:
+    def _group_conflicts_by_incoming_story(conflicts: list[NewsItemConflict]) -> dict[str, dict]:
         grouped_conflicts: dict[str, dict] = {}
-        for conflict in conflict_records:
+        for conflict in conflicts:
             incoming_id = conflict.incoming_story_id
 
             if incoming_id not in grouped_conflicts:
@@ -195,6 +193,7 @@ class DashboardView(BaseView):
                     "incoming_story": conflict.incoming_story,
                     "conflict_entries": [],
                     "internal_stories": [],
+                    "unique_news_item_ids": [],
                 }
 
             grouped_conflicts[incoming_id]["conflict_entries"].append(conflict)

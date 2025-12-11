@@ -1,10 +1,10 @@
-from dataclasses import dataclass, field
-from typing import ClassVar, Dict, Any, Iterable, Optional
 import copy
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Dict, Iterable, Optional
 
-from core.model.settings import Settings
 from core.log import logger
 from core.model.news_item import NewsItem
+from core.model.settings import Settings
 from core.model.user import User
 
 
@@ -15,14 +15,9 @@ class NewsItemConflict:
     existing_story_id: str
     incoming_story_data: dict[str, Any]
     misp_address: str = ""
-    unique_news_items: list[dict[str, Any]] = field(default_factory=list)
 
     conflict_store: ClassVar[Dict[str, "NewsItemConflict"]] = {}
     story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
-
-    @classmethod
-    def _key(cls, incoming_story_id: str, news_item_id: str) -> str:
-        return f"{incoming_story_id}:{news_item_id}"
 
     @classmethod
     def register(
@@ -33,17 +28,15 @@ class NewsItemConflict:
         incoming_story_data: dict[str, Any],
         misp_address: str = "",
     ) -> "NewsItemConflict":
-        key = cls._key(incoming_story_id, news_item_id)
+        key = f"{incoming_story_id}:{news_item_id}"
         story_data_copy = copy.deepcopy(incoming_story_data)
 
         cls.story_index[incoming_story_id] = story_data_copy
-        unique_news_items = cls._build_unique_news_items(story_data_copy)
 
         if key in cls.conflict_store:
             existing_conflict = cls.conflict_store[key]
             existing_conflict.existing_story_id = existing_story_id
             existing_conflict.incoming_story_data = story_data_copy
-            existing_conflict.unique_news_items = unique_news_items
             logger.debug(f"Updated conflict {key} -> existing_story_id={existing_story_id}")
             return existing_conflict
 
@@ -53,7 +46,6 @@ class NewsItemConflict:
             existing_story_id=existing_story_id,
             incoming_story_data=story_data_copy,
             misp_address=misp_address,
-            unique_news_items=unique_news_items,
         )
         cls.conflict_store[key] = conflict
         logger.debug(f"Registered conflict {key}")
@@ -142,20 +134,13 @@ class NewsItemConflict:
 
         logger.info("Reevaluation of News Item conflicts ended")
 
-    def to_dict(self) -> dict:
-        title = None
-        if news_item := NewsItem.get(self.news_item_id):
-            title = news_item.title
-        else:
-            logger.warning(f"News item {self.news_item_id} not found while resolving conflict display")
-
+    def to_dict(self) -> dict[str, Any]:
         return {
             "incoming_story_id": self.incoming_story_id,
             "news_item_id": self.news_item_id,
             "existing_story_id": self.existing_story_id,
             "incoming_story": self.incoming_story_data,
-            "title": title or "Unknown",
-            "unique_news_items": self.unique_news_items,
+            "misp_address": self.misp_address,
         }
 
     @classmethod
@@ -235,22 +220,3 @@ class NewsItemConflict:
             for k in oldest_keys:
                 cls.conflict_store.pop(k, None)
             logger.info(f"Trimmed {excess} oldest conflicts from News Item conflicts store")
-
-    @staticmethod
-    def _build_unique_news_items(story_data: dict[str, Any]) -> list[dict[str, Any]]:
-        news_items = story_data.get("news_items") if isinstance(story_data, dict) else None
-        if not isinstance(news_items, list):
-            return []
-
-        unique_items: list[dict[str, Any]] = []
-        seen_hashes: set[str] = set()
-        for news_item in news_items:
-            if not isinstance(news_item, dict):
-                continue
-            item_hash = news_item.get("hash")
-            if item_hash and item_hash in seen_hashes:
-                continue
-            unique_items.append(news_item)
-            if item_hash:
-                seen_hashes.add(item_hash)
-        return unique_items

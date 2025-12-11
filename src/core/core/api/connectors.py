@@ -61,17 +61,7 @@ class StoryConflicts(MethodView):
 class NewsItemConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        conflicts = [
-            {
-                "incoming_story_id": conflict.incoming_story_id,
-                "news_item_id": conflict.news_item_id,
-                "existing_story_id": conflict.existing_story_id,
-                "incoming_story": conflict.incoming_story_data,
-                "misp_address": conflict.misp_address,
-                "unique_news_items": conflict.unique_news_items,
-            }
-            for conflict in NewsItemConflict.conflict_store.values()
-        ]
+        conflicts = [conflict.to_dict() for conflict in NewsItemConflict.conflict_store.values()]
         return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
