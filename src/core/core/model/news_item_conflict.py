@@ -1,9 +1,8 @@
 import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Iterable, Optional
 
 from core.log import logger
-from core.model.news_item import NewsItem
 from core.model.settings import Settings
 from core.model.user import User
 
