@@ -19,7 +19,10 @@
               <div class="font-medium">{{ task_id }}</div>
             </td>
             <td>
-              {% if stats.failures == 0 %}
+              {% set badge = stats.status_badge %}
+              {% if badge %}
+                <span class="badge badge-{{ badge.variant }} badge-sm">{{ badge.label }}</span>
+              {% elif stats.failures == 0 %}
                 <span class="badge badge-success badge-sm">All Success</span>
               {% elif stats.success_pct >= 80 %}
                 <span class="badge badge-warning badge-sm">Mostly Success</span>

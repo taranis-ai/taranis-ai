@@ -10,11 +10,13 @@
           <th>
             Next Run <span class="text-xs opacity-50">↓ Soonest first</span>
           </th>
+          <th>Last Run</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
         {% for job in jobs %}
-          <tr>
+          <tr class="{% if job.is_overdue %}bg-error/5{% endif %}">
             <td>
               <div class="font-medium">{{ job.name }}</div>
               <div class="text-xs opacity-50">{{ job.id }}</div>
@@ -41,6 +43,23 @@
                 <span class="text-sm">{{ job.next_run_time }}</span>
               {% else %}
                 <span class="text-xs opacity-50">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if job.last_run_display %}
+                <div class="text-sm">{{ job.last_run_display }}</div>
+                {% if job.last_run_relative %}
+                  <div class="text-xs opacity-60">{{ job.last_run_relative }}</div>
+                {% endif %}
+              {% else %}
+                <span class="text-xs opacity-50">Never</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if job.status_badge %}
+                <span class="badge badge-{{ job.status_badge.variant }} badge-sm">{{ job.status_badge.label }}</span>
+              {% else %}
+                <span class="badge badge-ghost badge-sm">Unknown</span>
               {% endif %}
             </td>
           </tr>
