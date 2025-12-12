@@ -1,7 +1,9 @@
 import json
-from sqlalchemy.orm import Mapped
-from sqlalchemy import func, case
 from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import case, func
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -69,30 +71,60 @@ class Task(BaseModel):
         return db.session.execute(stmt).scalar_one()
 
     @classmethod
-    def get_status_counts_by_task(cls) -> dict[str, dict[str, int]]:
-        """
-        Returns a mapping of task_type -> { 'failures': int, 'successes': int }
-        """
-        stmt = (
-            db.select(
-                cls.task.label("task_type"),
-                func.count(case((cls.status == "FAILURE", 1))).label("failures"),
-                func.count(case((cls.status == "SUCCESS", 1))).label("successes"),
-            )
-            .where(cls.task.is_not(None))
-            .group_by(cls.task)
-        )
+    def get_status_counts_by_task(cls, include_timestamps: bool = False) -> dict[str, dict[str, Any]]:
+        """Return per-task execution stats grouped by task identifier."""
+
+        columns = [
+            cls.task.label("task_type"),
+            func.count(case((cls.status == "FAILURE", 1))).label("failures"),
+            func.count(case((cls.status == "SUCCESS", 1))).label("successes"),
+        ]
+
+        if include_timestamps:
+            columns.append(func.max(cls.last_run).label("last_run"))
+            columns.append(func.max(cls.last_success).label("last_success"))
+
+        stmt = db.select(*columns).where(cls.task.is_not(None)).group_by(cls.task)
 
         results = db.session.execute(stmt).all()
 
-        data = {}
+        data: dict[str, dict[str, Any]] = {}
         for row in results:
-            total = (row.failures or 0) + (row.successes or 0)
-            success_pct = int((row.successes * 100) / total) if total else 0
-            data[row.task_type] = {
-                "failures": row.failures,
-                "successes": row.successes,
+            failures = row.failures or 0
+            successes = row.successes or 0
+            total = failures + successes
+            success_pct = int((successes * 100) / total) if total else 0
+            entry: dict[str, Any] = {
+                "failures": failures,
+                "successes": successes,
                 "success_pct": success_pct,
                 "total": total,
             }
+
+            if include_timestamps:
+                entry["last_run"] = row.last_run.isoformat() if getattr(row, "last_run", None) else None
+                entry["last_success"] = (
+                    row.last_success.isoformat() if getattr(row, "last_success", None) else None
+                )
+
+            data[row.task_type] = entry
         return data
+
+    @classmethod
+    def get_task_statistics(cls) -> dict[str, Any]:
+        """Return per-task stats along with overall totals."""
+
+        task_stats = cls.get_status_counts_by_task(include_timestamps=True)
+        total_successes = sum(stat.get("successes", 0) for stat in task_stats.values())
+        total_failures = sum(stat.get("failures", 0) for stat in task_stats.values())
+        overall_total = total_successes + total_failures
+        overall_success_rate = int((total_successes * 100) / overall_total) if overall_total else 0
+
+        return {
+            "task_stats": task_stats,
+            "totals": {
+                "successes": total_successes,
+                "failures": total_failures,
+                "overall_success_rate": overall_success_rate,
+            },
+        }

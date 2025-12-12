@@ -712,7 +712,13 @@ class TaskResults(MethodView):
     def get(self, task_id=None, filter_args=None):
         if task_id:
             return task.Task.get_for_api(task_id)
-        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        result, status = task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        if status != 200:
+            return result, status
+
+        stats = task.Task.get_task_statistics()
+        result.update(stats)
+        return result, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def delete(self, task_id):
