@@ -1,10 +1,9 @@
-from dataclasses import dataclass
-from typing import ClassVar, Dict, Any, Iterable, Optional
 import copy
+from dataclasses import dataclass
+from typing import Any, ClassVar, Dict, Iterable, Optional
 
-from core.model.settings import Settings
 from core.log import logger
-from core.model.news_item import NewsItem
+from core.model.settings import Settings
 from core.model.user import User
 
 
@@ -20,10 +19,6 @@ class NewsItemConflict:
     story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
 
     @classmethod
-    def _key(cls, incoming_story_id: str, news_item_id: str) -> str:
-        return f"{incoming_story_id}:{news_item_id}"
-
-    @classmethod
     def register(
         cls,
         incoming_story_id: str,
@@ -32,7 +27,7 @@ class NewsItemConflict:
         incoming_story_data: dict[str, Any],
         misp_address: str = "",
     ) -> "NewsItemConflict":
-        key = cls._key(incoming_story_id, news_item_id)
+        key = f"{incoming_story_id}:{news_item_id}"
         story_data_copy = copy.deepcopy(incoming_story_data)
 
         cls.story_index[incoming_story_id] = story_data_copy
@@ -138,19 +133,13 @@ class NewsItemConflict:
 
         logger.info("Reevaluation of News Item conflicts ended")
 
-    def to_dict(self) -> dict:
-        title = None
-        if news_item := NewsItem.get(self.news_item_id):
-            title = news_item.title
-        else:
-            logger.warning(f"News item {self.news_item_id} not found while resolving conflict display")
-
+    def to_dict(self) -> dict[str, Any]:
         return {
             "incoming_story_id": self.incoming_story_id,
             "news_item_id": self.news_item_id,
             "existing_story_id": self.existing_story_id,
             "incoming_story": self.incoming_story_data,
-            "title": title or "Unknown",
+            "misp_address": self.misp_address,
         }
 
     @classmethod
@@ -161,8 +150,8 @@ class NewsItemConflict:
             return {"error": "Missing story_ids or news_item_ids"}, 400
 
         incoming_story = data.get("incoming_story")
-        story_ids = data.get("existing_story_ids")
-        news_item_ids = data.get("incoming_news_item_ids")
+        story_ids: list[str] = data.get("existing_story_ids", [])
+        news_item_ids: list[str] = data.get("incoming_news_item_ids", [])
 
         if not story_ids or not news_item_ids or not incoming_story:
             return {"error": "Missing story_ids or news_item_ids or incoming story"}, 400
