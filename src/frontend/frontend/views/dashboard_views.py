@@ -120,13 +120,7 @@ class DashboardView(BaseView):
         result = CoreApi().get_story_conflicts()
         if result is None:
             return render_template("errors/404.html", error="No story conflicts found"), 404
-        conflict_list = []
-        for conflict in result.get("conflicts", []):
-            conflict_model = StoryConflict(**conflict)
-            conflict_data = conflict_model.model_dump()
-            conflict_data["existing_story"] = cls._deserialize_story_blob(conflict_model.existing_story)
-            conflict_data["incoming_story"] = cls._deserialize_story_blob(conflict_model.incoming_story)
-            conflict_list.append(conflict_data)
+        conflict_list = [cls._build_story_conflict_payload(conflict) for conflict in result.get("conflicts", [])]
         logger.debug(f"Story conflict result: {result=}")
         template = "conflicts/_story_conflicts_list.html" if is_htmx_request() else "conflicts/story_conflicts.html"
         return render_template(template, story_conflicts=conflict_list)
@@ -276,14 +270,13 @@ class DashboardView(BaseView):
                 logger.error("Unable to decode story blob for conflict payload")
         return {}
 
-    _list_payload_fields = {
-        "existing_story_ids",
-        "incoming_news_item_ids",
-        "remaining_stories",
-        "unique_incoming_news_item_ids",
-        "resolved_conflict_item_ids",
-        "existing_story_news_item_ids",
-    }
+    @classmethod
+    def _build_story_conflict_payload(cls, conflict: dict) -> dict:
+        conflict_model = StoryConflict(**conflict)
+        conflict_data = conflict_model.model_dump()
+        conflict_data["existing_story"] = cls._deserialize_story_blob(conflict_model.existing_story)
+        conflict_data["incoming_story"] = cls._deserialize_story_blob(conflict_model.incoming_story)
+        return conflict_data
 
     @classmethod
     def _extract_request_payload(cls) -> dict[str, object]:

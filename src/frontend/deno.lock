@@ -14,7 +14,6 @@
     "npm:@codemirror/state@*": "6.5.2",
     "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
-
     "npm:@codemirror/view@*": "6.39.2",
     "npm:@codemirror/view@^6.39.2": "6.39.2",
     "npm:@tailwindcss/cli@*": "4.1.17",
@@ -35,6 +34,7 @@
     "npm:htmx.org@^2.0.8": "2.0.8",
     "npm:sortablejs@*": "1.15.6",
     "npm:sortablejs@^1.15.6": "1.15.6",
+    "npm:sweetalert2@*": "11.26.4",
     "npm:sweetalert2@^11.26.4": "11.26.4",
     "npm:tailwindcss@^4.1.17": "4.1.17"
   },
@@ -44,7 +44,7 @@
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.39.2",
         "@lezer/common"
       ]
     },
@@ -78,7 +78,7 @@
       "integrity": "sha512-sv3DylBiIyi+xKwRCJAAsBZZZWo82shJ/RTMymLabAdtbkV5cSKwWDeCgtUq3v8flTaXS2y1kKkICuRYtUswyQ==",
       "dependencies": [
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.39.2",
         "crelt"
       ]
     },
@@ -87,7 +87,7 @@
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.39.2",
         "@lezer/highlight",
         "style-mod"
       ]
@@ -96,7 +96,7 @@
       "integrity": "sha512-KmWepDE6jUdL6n8cAAqIpRmLPBZ5ZKnicE8oGU/s3QrAVID+0VhLFrzUucVKHG5035/BSykhExDL/Xm7dHthiA==",
       "dependencies": [
         "@codemirror/state",
-        "@codemirror/view",
+        "@codemirror/view@6.39.2",
         "crelt"
       ]
     },
@@ -396,7 +396,7 @@
         "@codemirror/lint",
         "@codemirror/search",
         "@codemirror/state",
-        "@codemirror/view"
+        "@codemirror/view@6.39.2"
       ]
     },
     "crelt@1.0.6": {

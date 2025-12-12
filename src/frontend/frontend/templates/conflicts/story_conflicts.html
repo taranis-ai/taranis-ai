@@ -2,7 +2,6 @@
 
 {% block head %}
   <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 {% endblock head %}
 
 {% block content %}
@@ -46,21 +45,7 @@
           const incomingRaw = element.dataset.incoming;
 
           if (!existingRaw || !incomingRaw) {
-            const storyId = element.closest("[data-story-id]")?.dataset.storyId;
-            if (storyId) {
-              fetch(`${window.origin}${window.APP_ROOT ?? ""}/conflicts/stories/${storyId}`, {
-                headers: { "HX-Request": "true" },
-              })
-                .then((response) => response.json())
-                .then((payload) => {
-                  if (payload?.incoming_story && payload?.existing_story) {
-                    element.dataset.existing = JSON.stringify(payload.existing_story);
-                    element.dataset.incoming = JSON.stringify(payload.incoming_story);
-                    mountStoryConflictEditors(element.closest("div[data-story-id]") || element);
-                  }
-                })
-                .catch((error) => console.error("Failed to hydrate story conflict:", error));
-            }
+            console.warn("Missing conflict payload for editor", element);
             return;
           }
 

@@ -61,7 +61,7 @@
               {% endif %}
             </div>
 
-            <form class="space-y-4" hx-post="{{ url_for('base.news_conflicts_post') }}" hx-target="#newsitem-conflicts-wrapper" hx-swap="outerHTML">
+            <form class="space-y-4" hx-post="{{ url_for('base.news_item_conflicts_post') }}" hx-target="#newsitem-conflicts-wrapper" hx-swap="outerHTML">
               <input type="hidden" name="incoming_story_id" value="{{ incoming_story_id }}">
               {% for story in remaining_stories %}<input type="hidden" name="remaining_stories[]" value="{{ story.id }}">{% endfor %}
               {% for existing_id in aggregated_existing_ids %}
@@ -79,7 +79,10 @@
               {% if not unique_news_items %}<p class="text-sm text-warning">No unique news items available for this conflict.</p>{% endif %}
             </form>
 
-            <form class="flex flex-wrap gap-4" hx-put="{{ url_for('base.news_conflicts_put') }}" hx-target="#newsitem-conflicts-wrapper" hx-swap="outerHTML">
+            <form class="flex flex-wrap gap-4"
+                  hx-put="{{ url_for('base.news_item_conflicts_put') }}"
+                  hx-target="#newsitem-conflicts-wrapper"
+                  hx-swap="outerHTML">
               <input type="hidden" name="incoming_story_id" value="{{ incoming_story_id }}">
               <input type="hidden" name="resolving_story_id" value="{{ incoming_story_id }}">
               <input type="hidden" name="incoming_story" value='{{ conflict_group.incoming_story | tojson | forceescape }}'>

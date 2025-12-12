@@ -1,6 +1,7 @@
-from flask import json
-from collections import defaultdict
 import copy
+from collections import defaultdict
+
+from flask import json
 
 
 class TestStoryAssessWorkerUpdates:
@@ -330,8 +331,12 @@ class TestNewsItemConflictStoreUpdates:
 
     def _fetch_news_item_conflicts(self, client, auth_header) -> list[dict]:
         response = client.get(f"{self.base_uri_connectors}/conflicts/news-items", headers=auth_header)
+
         assert response.status_code == 200
-        return response.get_json().get("items", [])
+        body = response.get_json()
+        assert "items" in body
+        assert "conflicts" not in body
+        return body.get("items", [])
 
     def _group_conflicts_by_story(self, conflicts: list[dict]) -> dict[str, list[dict]]:
         conflicts_by_story = defaultdict(list)
