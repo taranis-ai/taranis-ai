@@ -36,6 +36,14 @@ class Job(TaranisBaseModel):
     started_at: str | None = None
     failed_at: str | None = None
     error: str | None = None
+    previous_run_time: str | None = None
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_run_relative: str | None = None
+    status_badge: dict[str, str] | None = None
+    is_overdue: bool | None = None
+    interval_seconds: int | None = None
 
 
 class TaskResult(TaranisBaseModel):
