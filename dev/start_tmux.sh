@@ -2,7 +2,7 @@
 
 set -eu
 
-cd $(git rev-parse --show-toplevel)
+cd "$(git rev-parse --show-toplevel)"
 
 # Start a new tmux session
 tmux new-session -s taranis -n core -c src/core -d
