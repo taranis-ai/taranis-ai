@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from flask import render_template, request
@@ -14,6 +14,27 @@ from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 from models.admin import Job
 from models.task import Task
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if dt.tzinfo:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except ValueError:
+        return None
+
+
+def _format_task_stats(raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    formatted: dict[str, dict[str, Any]] = {}
+    for task_name, stats in raw_stats.items():
+        formatted[task_name] = stats.copy()
+        formatted[task_name]["last_run"] = _parse_iso_datetime(stats.get("last_run"))
+        formatted[task_name]["last_success"] = _parse_iso_datetime(stats.get("last_success"))
+    return formatted
 
 
 class SchedulerView(AdminMixin, BaseView):
@@ -55,30 +76,12 @@ class SchedulerView(AdminMixin, BaseView):
 
             # Get task execution stats
             task_results = DataPersistenceLayer().get_objects(Task)
-            task_stats = {}
-            total_successes = 0
-            total_failures = 0
-
-            if task_results:
-                for task in task_results:
-                    if task.task and task.status:
-                        if task.task not in task_stats:
-                            task_stats[task.task] = {"successes": 0, "failures": 0, "total": 0}
-
-                        if task.status == "SUCCESS":
-                            task_stats[task.task]["successes"] += 1
-                            total_successes += 1
-                        elif task.status == "FAILURE":
-                            task_stats[task.task]["failures"] += 1
-                            total_failures += 1
-
-                        task_stats[task.task]["total"] = task_stats[task.task]["successes"] + task_stats[task.task]["failures"]
-
-                        total = task_stats[task.task]["total"]
-                        task_stats[task.task]["success_pct"] = int((task_stats[task.task]["successes"] * 100) / total) if total > 0 else 0
-
-            overall_total = total_successes + total_failures
-            overall_success_rate = int((total_successes * 100) / overall_total) if overall_total > 0 else 0
+            stats_meta = getattr(task_results, "extra", {}) if task_results is not None else {}
+            task_stats = _format_task_stats(stats_meta.get("task_stats", {}))
+            totals = stats_meta.get("totals", {})
+            total_successes = totals.get("successes", 0)
+            total_failures = totals.get("failures", 0)
+            overall_success_rate = totals.get("overall_success_rate", 0)
 
             # Get base context with sidebar and admin layout
             context = self._common_context()
@@ -196,46 +199,22 @@ class ScheduleHistoryAPI(MethodView):
             return SchedulerView().get(initial_tab="history")
         try:
             task_results = DataPersistenceLayer().get_objects(Task)
-            task_stats: dict[str, dict[str, Any]] = {}
-            total_successes = 0
-            total_failures = 0
+            stats_meta = getattr(task_results, "extra", {}) if task_results is not None else {}
+            raw_task_stats: dict[str, dict[str, Any]] = stats_meta.get("task_stats", {})
+            totals = stats_meta.get("totals", {})
+            total_successes = totals.get("successes", 0)
+            total_failures = totals.get("failures", 0)
+            overall_success_rate = totals.get("overall_success_rate", 0)
 
-            if task_results:
-                for task in task_results:
-                    if task.task and task.status:
-                        if task.task not in task_stats:
-                            task_stats[task.task] = {
-                                "successes": 0,
-                                "failures": 0,
-                                "total": 0,
-                                "last_run": None,
-                                "last_success": None,
-                                "success_pct": 0,
-                            }
+            formatted_task_stats = _format_task_stats(raw_task_stats)
 
-                        if task.last_run and (not task_stats[task.task]["last_run"] or task.last_run > task_stats[task.task]["last_run"]):
-                            task_stats[task.task]["last_run"] = task.last_run
-
-                        if task.status == "SUCCESS":
-                            task_stats[task.task]["successes"] += 1
-                            total_successes += 1
-                            if task.last_success and (
-                                not task_stats[task.task]["last_success"] or task.last_success > task_stats[task.task]["last_success"]
-                            ):
-                                task_stats[task.task]["last_success"] = task.last_success
-                        elif task.status == "FAILURE":
-                            task_stats[task.task]["failures"] += 1
-                            total_failures += 1
-
-                        task_stats[task.task]["total"] = task_stats[task.task]["successes"] + task_stats[task.task]["failures"]
-
-                        total = task_stats[task.task]["total"]
-                        task_stats[task.task]["success_pct"] = int((task_stats[task.task]["successes"] * 100) / total) if total > 0 else 0
-
-            overall_total = total_successes + total_failures
-            overall_success_rate = int((total_successes * 100) / overall_total) if overall_total > 0 else 0
-
-            task_stats = dict(sorted(task_stats.items(), key=lambda item: item[1].get("last_run") or datetime.min, reverse=True))
+            task_stats = dict(
+                sorted(
+                    formatted_task_stats.items(),
+                    key=lambda item: item[1].get("last_run") or datetime.min,
+                    reverse=True,
+                )
+            )
 
             return render_template(
                 "schedule/execution_history.html",
