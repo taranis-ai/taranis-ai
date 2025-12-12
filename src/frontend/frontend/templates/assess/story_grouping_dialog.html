@@ -61,7 +61,12 @@
         </div>
       {% endfor %}
     </div>
-    <button type="submit" class="btn btn-outline btn-wide" data-testid="dialog-story-cluster-submit">Cluster</button>
+    <div class="flex flex-row gap-2">
+      <button type="submit" class="btn btn-outline w-1/2" data-testid="dialog-story-cluster-submit">Cluster</button>
+      <button type="submit" name="open_primary" value="true" class="btn btn-primary w-1/2" data-testid="dialog-story-cluster-open">
+        Cluster and Open
+      </button>
+    </div>
   </form>
 </div>
 </dialog>
