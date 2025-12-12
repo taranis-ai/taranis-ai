@@ -16,6 +16,14 @@ class StoryConflict:
     has_proposals: str | None = None
     conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "story_id": self.story_id,
+            "existing_story": self.existing_story,
+            "incoming_story": self.incoming_story,
+            "has_proposals": self.has_proposals,
+        }
+
     @classmethod
     def get_conflict_count(cls) -> int:
         return len(set(StoryConflict.conflict_store.keys()))

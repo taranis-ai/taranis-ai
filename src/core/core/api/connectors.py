@@ -19,21 +19,8 @@ class StoryConflicts(MethodView):
     def get(self, story_id=None):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
-                return {
-                    "story_id": conflict.story_id,
-                    "existing_story": conflict.existing_story,
-                    "incoming_story": conflict.incoming_story,
-                    "has_proposals": conflict.has_proposals,
-                }, 200
-        conflicts = [
-            {
-                "story_id": conflict.story_id,
-                "existing_story": conflict.existing_story,
-                "incoming_story": conflict.incoming_story,
-                "has_proposals": conflict.has_proposals,
-            }
-            for conflict in StoryConflict.conflict_store.values()
-        ]
+                return conflict.to_dict(), 200
+        conflicts = [conflict.to_dict() for conflict in StoryConflict.conflict_store.values()]
         return {"conflicts": conflicts}, 200
 
     @auth_required("ASSESS_UPDATE")
