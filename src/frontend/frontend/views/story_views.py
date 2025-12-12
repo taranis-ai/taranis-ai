@@ -550,7 +550,7 @@ class StoryView(BaseView):
         try:
             core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
         except Exception:
-            return cls.render_response_notification({"error": "Failed to delete news item"})
+            return cls.render_response_notification({"error": "Failed to delete story"})
 
         cls.add_flash_notification(core_response)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
