@@ -21,9 +21,9 @@
   {% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      {% set class = 'alert-error' if category=='error' else 'alert-' + category %}
       <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
         {% for category, message in messages %}
+          {% set class = 'alert-error' if category=='error' else 'alert-' + category %}
           <div class="alert flex flex-col w-full gap-2 cursor-pointer {{ class }}" role="alert" @click="show = false">
             <div class="flex items-center gap-2">
               <span id="notification-message">{{ message }}</span>
