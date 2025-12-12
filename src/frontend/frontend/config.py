@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
-    SECRET_KEY: str = "supersecret"
+    FLASK_SECRET_KEY: SecretStr = SecretStr("supersecret")
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
