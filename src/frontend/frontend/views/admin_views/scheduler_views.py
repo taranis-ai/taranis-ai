@@ -28,12 +28,35 @@ def _parse_iso_datetime(value: str | None) -> datetime | None:
         return None
 
 
+def _build_task_status_badge(stats: dict[str, Any]) -> dict[str, str]:
+    """Derive a human-friendly badge for execution history rows."""
+
+    successes = int(stats.get("successes") or 0)
+    failures = int(stats.get("failures") or 0)
+    total_runs = int(stats.get("total") or successes + failures)
+    success_pct = int(stats.get("success_pct") or 0)
+
+    if total_runs == 0:
+        return {"variant": "ghost", "label": "No Runs"}
+    if failures == 0:
+        return {"variant": "success", "label": "All Success"}
+    if failures == 1 and total_runs == 1:
+        return {"variant": "warning", "label": "First Failure"}
+    if success_pct >= 80:
+        return {"variant": "warning", "label": "Mostly Success"}
+    if failures <= 2:
+        return {"variant": "warning", "label": "Some Failures"}
+    return {"variant": "error", "label": "Many Failures"}
+
+
 def _format_task_stats(raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     formatted: dict[str, dict[str, Any]] = {}
     for task_name, stats in raw_stats.items():
-        formatted[task_name] = stats.copy()
-        formatted[task_name]["last_run"] = _parse_iso_datetime(stats.get("last_run"))
-        formatted[task_name]["last_success"] = _parse_iso_datetime(stats.get("last_success"))
+        formatted_stats = stats.copy()
+        formatted_stats["last_run"] = _parse_iso_datetime(stats.get("last_run"))
+        formatted_stats["last_success"] = _parse_iso_datetime(stats.get("last_success"))
+        formatted_stats["status_badge"] = _build_task_status_badge(formatted_stats)
+        formatted[task_name] = formatted_stats
     return formatted
 
 
