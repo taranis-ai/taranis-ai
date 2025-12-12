@@ -31,7 +31,7 @@ When a source/bot schedule is updated:
 See: src/worker/worker/cron_config.py for cron job registration logic
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from flask import Flask
@@ -43,6 +43,95 @@ from rq.job import Job
 from croniter import croniter
 
 from core.log import logger
+
+
+OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if dt.tzinfo:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except ValueError:
+        return None
+
+
+def _format_duration(delta: timedelta) -> str:
+    total_seconds = int(delta.total_seconds())
+    if total_seconds < 60:
+        return f"{total_seconds}s"
+    minutes, seconds = divmod(total_seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m" if seconds == 0 else f"{minutes}m {seconds}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h" if minutes == 0 else f"{hours}h {minutes}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d" if hours == 0 else f"{days}d {hours}h"
+
+
+def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for job in jobs:
+        last_run_dt = _parse_iso_datetime(job.get("last_run"))
+        next_run_dt = _parse_iso_datetime(job.get("next_run_time"))
+        prev_run_dt = _parse_iso_datetime(job.get("previous_run_time"))
+
+        job["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
+        job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None
+
+        variant = "ghost"
+        label = "Queued" if job.get("type") == "scheduled" else "Pending"
+        is_overdue = False
+
+        if job.get("type") == "cron":
+            interval_seconds = job.get("interval_seconds")
+            if interval_seconds is None and next_run_dt and prev_run_dt:
+                interval_seconds = int((next_run_dt - prev_run_dt).total_seconds())
+                job["interval_seconds"] = interval_seconds
+
+            if not last_run_dt:
+                label = "Pending first run"
+                job["status_badge"] = {"variant": variant, "label": label}
+                job["is_overdue"] = False
+                continue
+            elif prev_run_dt and last_run_dt >= prev_run_dt:
+                label = "On schedule"
+                variant = "success"
+            elif not prev_run_dt:
+                label = "On schedule"
+                variant = "success"
+            elif interval_seconds:
+                # Manual/adhoc runs older than scheduled window - leave as pending until overdue logic below
+                label = "Pending"
+
+            if prev_run_dt:
+                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
+                overdue_threshold = prev_run_dt + OVERDUE_GRACE_PERIOD
+                if now > overdue_threshold and not ran_current_window:
+                    overdue_delta = now - prev_run_dt
+                    label = f"Missed {_format_duration(overdue_delta)}"
+                    variant = "error"
+                    is_overdue = True
+                elif ran_current_window:
+                    label = "On schedule"
+                    variant = "success"
+
+        else:
+            if next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
+                overdue_delta = now - next_run_dt
+                label = f"Overdue {_format_duration(overdue_delta)}"
+                variant = "warning"
+                is_overdue = True
+
+        job["status_badge"] = {"variant": variant, "label": label}
+        job["is_overdue"] = is_overdue
+
+    return jobs
 
 
 queue_manager: "QueueManager"
@@ -570,6 +659,9 @@ class QueueManager:
                                 now = datetime.now()
                                 cron = croniter(cron_schedule, now)
                                 next_run = cron.get_next(datetime)
+                                prev_run = croniter(cron_schedule, now).get_prev(datetime)
+                                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
+                                status = source.status or {}
 
                                 all_jobs.append(
                                     {
@@ -580,6 +672,12 @@ class QueueManager:
                                         "schedule": cron_schedule,
                                         "type": "cron",
                                         "source_id": source.id,
+                                        "task_id": source.task_id,
+                                        "previous_run_time": prev_run.isoformat() if prev_run else None,
+                                        "interval_seconds": interval_seconds,
+                                        "last_run": status.get("last_run"),
+                                        "last_success": status.get("last_success"),
+                                        "last_status": status.get("status"),
                                     }
                                 )
                             except Exception as e:
@@ -594,6 +692,9 @@ class QueueManager:
                                 now = datetime.now()
                                 cron = croniter(cron_schedule, now)
                                 next_run = cron.get_next(datetime)
+                                prev_run = croniter(cron_schedule, now).get_prev(datetime)
+                                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
+                                status = bot.status or {}
 
                                 all_jobs.append(
                                     {
@@ -604,6 +705,12 @@ class QueueManager:
                                         "schedule": cron_schedule,
                                         "type": "cron",
                                         "bot_id": bot.id,
+                                        "task_id": bot.task_id,
+                                        "previous_run_time": prev_run.isoformat() if prev_run else None,
+                                        "interval_seconds": interval_seconds,
+                                        "last_run": status.get("last_run"),
+                                        "last_success": status.get("last_success"),
+                                        "last_status": status.get("status"),
                                     }
                                 )
                             except Exception as e:
@@ -613,15 +720,24 @@ class QueueManager:
                     try:
                         now = datetime.now()
                         housekeeping_cron = "0 2 * * *"
-                        next_run = croniter(housekeeping_cron, now).get_next(datetime)
+                        cron = croniter(housekeeping_cron, now)
+                        next_run = cron.get_next(datetime)
+                        prev_run = croniter(housekeeping_cron, now).get_prev(datetime)
+                        interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
                         all_jobs.append(
                             {
                                 "id": "cron_misc_cleanup_token_blacklist",
                                 "name": "Maintenance: Cleanup Token Blacklist",
                                 "queue": "misc",
                                 "next_run_time": next_run.isoformat(),
+                                "previous_run_time": prev_run.isoformat() if prev_run else None,
                                 "schedule": housekeeping_cron,
                                 "type": "cron",
+                                "task_id": "cleanup_token_blacklist",
+                                "interval_seconds": interval_seconds,
+                                "last_run": None,
+                                "last_success": None,
+                                "last_status": None,
                             }
                         )
                     except Exception as e:
@@ -633,8 +749,10 @@ class QueueManager:
                 logger.warning(f"Failed to fetch cron schedules: {e}")
                 # Don't fail the whole request if cron scheduler is not available
 
-            logger.info(f"get_scheduled_jobs: returning {len(all_jobs)} total jobs")
-            return {"items": all_jobs, "total_count": len(all_jobs)}, 200
+            annotated_jobs = _annotate_jobs(all_jobs)
+
+            logger.info(f"get_scheduled_jobs: returning {len(annotated_jobs)} total jobs")
+            return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": f"Failed to get scheduled jobs: {str(e)}"}, 500
