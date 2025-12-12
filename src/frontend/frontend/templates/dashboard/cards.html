@@ -1,7 +1,7 @@
 {% macro dashboard_card(title, endpoint_name, icon=None) %}
   <div class="bg-base-100 border p-4">
     {% if endpoint_name %}
-      <a href="{{ url_for(endpoint_name) }}" class="underline text-xl" target="_top">{{ title }}</a>
+      <a href="{{ endpoint_name }}" class="underline text-xl" target="_top">{{ title }}</a>
     {% else %}
       <span class="text-xl">{{ title }}</span>
     {% endif %}
