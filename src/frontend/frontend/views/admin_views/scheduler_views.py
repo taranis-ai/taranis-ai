@@ -253,7 +253,9 @@ class ScheduleRetryJobAPI(MethodView):
 
             failed_jobs_data = CoreApi().api_get("/config/workers/failed")
             failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
-            return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
+            notification_html = BaseView.get_notification_from_response(response)
+            table_html = render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
+            return notification_html + table_html
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return _notification_error(f"Failed to retry job: {exc}")
 
