@@ -77,7 +77,7 @@ class SchedulerView(AdminMixin, BaseView):
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
-        tab = (initial_tab or request.args.get("tab") or "scheduled").lower()
+        tab = (request.args.get("tab") or initial_tab or "scheduled").lower()
         match tab:
             case "scheduled" | "active" | "failed" | "history":
                 return tab
@@ -92,6 +92,7 @@ class SchedulerView(AdminMixin, BaseView):
             # Get scheduled jobs
             jobs_data = CoreApi().api_get("/config/schedule")
             jobs = jobs_data.get("items", []) if jobs_data else []
+            jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
 
             # Get queue status
             queues_data = CoreApi().api_get("/config/workers/tasks")
