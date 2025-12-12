@@ -31,12 +31,15 @@ When a source/bot schedule is updated:
 See: src/worker/worker/cron_config.py for cron job registration logic
 """
 
+from datetime import datetime
+from typing import Any
+
 from flask import Flask
+from pydantic import SecretStr
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Job
-from datetime import datetime
 from croniter import croniter
 
 from core.log import logger
@@ -63,6 +66,7 @@ class QueueManager:
         self._queues: dict[str, Queue] = {}
         self.error: str = ""
         self.redis_url = app.config["REDIS_URL"]
+        self.redis_password = self._extract_password(app.config.get("REDIS_PASSWORD"))
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
 
         try:
@@ -71,9 +75,20 @@ class QueueManager:
             logger.error(f"Failed to initialize QueueManager: {e}")
             self.error = f"Could not connect to Redis: {e}"
 
+    def _extract_password(self, password_value: Any) -> str | None:
+        if isinstance(password_value, SecretStr):
+            return password_value.get_secret_value() or None
+        if isinstance(password_value, str) and password_value.strip():
+            return password_value
+        return None
+
     def init_app(self, app: Flask):
         """Initialize Redis connection and create queues"""
-        self._redis = Redis.from_url(self.redis_url, decode_responses=False)
+        self._redis = Redis.from_url(
+            self.redis_url,
+            password=self.redis_password,
+            decode_responses=False,
+        )
 
         # Test connection
         self._redis.ping()
@@ -101,10 +116,10 @@ class QueueManager:
 
             # Count enabled sources and bots for logging
             sources = OSINTSource.get_all_for_collector()
-            enabled_sources = sum(1 for s in sources if s.enabled and s.get_schedule())
+            enabled_sources = sum(bool(s.enabled and s.get_schedule()) for s in sources)
 
             bots = Bot.get_all_for_collector()
-            enabled_bots = sum(1 for b in bots if b.enabled and b.get_schedule())
+            enabled_bots = sum(bool(b.enabled and b.get_schedule()) for b in bots)
 
             logger.info(
                 f"Found {enabled_sources} enabled sources and {enabled_bots} enabled bots with schedules. "
@@ -163,10 +178,7 @@ class QueueManager:
             return {"error": "QueueManager not initialized"}, 500
 
         try:
-            tasks = []
-            for queue_name, queue in self._queues.items():
-                job_count = len(queue)
-                tasks.append({"name": queue_name, "messages": job_count})
+            tasks = [{"name": queue_name, "messages": len(queue)} for queue_name, queue in self._queues.items()]
             logger.debug(f"Queued tasks: {tasks}")
             return tasks, 200
         except Exception as e:
@@ -212,8 +224,7 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            job = queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
-            return job
+            return queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -435,8 +446,7 @@ class QueueManager:
                     from core.model.osint_source import OSINTSource
                     from core.managers.db_manager import db
 
-                    source = db.session.get(OSINTSource, source_id)
-                    if source:
+                    if source := db.session.get(OSINTSource, source_id):
                         return f"Collector: {source.name}"
                     else:
                         logger.debug(f"OSINT Source with ID {source_id} not found in database")
@@ -454,8 +464,7 @@ class QueueManager:
                     from core.model.bot import Bot
                     from core.managers.db_manager import db
 
-                    bot = db.session.get(Bot, bot_id)
-                    if bot:
+                    if bot := db.session.get(Bot, bot_id):
                         return f"Bot: {bot.name}"
                     else:
                         logger.debug(f"Bot with ID {bot_id} not found in database")
@@ -713,8 +722,12 @@ class QueueManager:
             job = Job.fetch(job_id, connection=self._redis)
 
             if job.is_failed:
-                # Requeue the job
-                job.retry()
+                # Requeue the job by creating a new job with the same function and args
+                queue = self.get_queue(job.origin)
+                if not queue:
+                    return {"error": f"Queue {job.origin} not found"}, 500
+
+                queue.enqueue_job(job)
                 logger.info(f"Retrying failed job {job_id}")
                 return {"message": f"Job {job_id} queued for retry"}, 200
             else:
@@ -738,14 +751,14 @@ class QueueManager:
             workers = Worker.all(connection=self._redis)
             worker_stats = {
                 "total_workers": len(workers),
-                "busy_workers": sum(1 for w in workers if w.state == "busy"),
-                "idle_workers": sum(1 for w in workers if w.state == "idle"),
+                "busy_workers": sum(w.state == "busy" for w in workers),
+                "idle_workers": sum(w.state == "idle" for w in workers),
                 "workers": [
                     {
                         "name": w.name,
                         "state": w.state,
                         "queues": [q.name for q in w.queues],
-                        "current_job": w.get_current_job().id if w.get_current_job() else None,
+                        "current_job": (w.get_current_job().id if w.get_current_job() else None),
                     }
                     for w in workers
                 ],
