@@ -4,8 +4,8 @@
     {% set message = notification.get('message', "") %}
     {% set icon = "exclamation-triangle" if notification.get("error") else notification.get('icon', "information-circle") %}
     {% set class = "alert-error" if notification.get("error") else notification.get('class', "alert-info") %}
-    {% set animation_class = 'animate-shrink-30' if duration >= 30 else ('animate-shrink-20' if duration >= 20 else 'animate-shrink-10') %}
     {% set duration = notification.get('duration', 10) %}
+    {% set animation_class = 'animate-shrink-30' if duration >= 30 else ('animate-shrink-20' if duration >= 20 else 'animate-shrink-10') %}
 
     <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
       <div class="alert flex flex-col w-full gap-2 cursor-pointer {{ class }}" role="alert" @click="show = false">
