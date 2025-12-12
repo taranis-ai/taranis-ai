@@ -24,7 +24,7 @@ tmux send-keys -t taranis:cron "uv sync --all-extras --dev --frozen && uv run py
 
 # Create RQ Dashboard tab
 tmux new-window -t taranis:5 -n rq-dashboard -c src/worker
-tmux send-keys -t taranis:rq-dashboard "uv sync --all-extras --dev --frozen && uv run rq-dashboard --redis-url redis://localhost:6379" C-m
+tmux send-keys -t taranis:rq-dashboard "uv sync --all-extras --dev --frozen && uv run rq-dashboard --redis-url redis://:${REDIS_PASSWORD}@localhost:${TARANIS_REDIS_PORT:-6379}" C-m
 
 
 # Attach to the session
