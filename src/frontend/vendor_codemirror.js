@@ -161,24 +161,39 @@ function mountUnifiedMerge({ parent, originalDoc, newDoc, options = {} }) {
   parent.innerHTML = "";
   parent.classList.remove("hidden");
 
-  const view = new window.EditorView({
-    doc: newDoc,
-    extensions: [
-      window.basicSetup,
-      unifiedMergeView({
-        original: originalDoc,
-        highlightChanges: true,
-        gutter: true,
-        allowInlineDiffs: true,
-        mergeControls: true,
-        collapseUnchanged: { margin: 3, minSize: 4 },
-        ...options
-      })
-    ],
-    parent: parent,
-  });
+  const {
+    lineWrapping = true,
+    editorExtensions = [],
+    ...mergeOptions
+  } = options;
 
-  return view;
+  const editorExtensionsList = [window.basicSetup];
+
+  if (lineWrapping) {
+    editorExtensionsList.push(EditorView.lineWrapping);
+  }
+
+  if (Array.isArray(editorExtensions) && editorExtensions.length) {
+    editorExtensionsList.push(...editorExtensions);
+  }
+
+  editorExtensionsList.push(
+    unifiedMergeView({
+      original: originalDoc,
+      highlightChanges: true,
+      gutter: true,
+      allowInlineDiffs: true,
+      mergeControls: true,
+      collapseUnchanged: { margin: 3, minSize: 4 },
+      ...mergeOptions,
+    }),
+  );
+
+  return new window.EditorView({
+      doc: newDoc,
+      extensions: editorExtensionsList,
+      parent: parent,
+    });
 }
 
 window.TemplateEditor = { mount, mountUnifiedMerge };
