@@ -1,10 +1,10 @@
-from dataclasses import dataclass
 import json
-from typing import ClassVar, Dict, Any
+from dataclasses import dataclass
+from typing import Any, ClassVar, Dict
 
+from core.log import logger
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.settings import Settings
-from core.log import logger
 from core.model.user import User
 
 
@@ -15,6 +15,10 @@ class StoryConflict:
     incoming_story: str
     has_proposals: str | None = None
     conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
+
+    @classmethod
+    def get_conflict_count(cls) -> int:
+        return len(set(StoryConflict.conflict_store.keys()))
 
     def resolve(self, resolution: dict[str, Any], user: User) -> tuple[dict[str, Any], int]:
         from core.model.story import Story
