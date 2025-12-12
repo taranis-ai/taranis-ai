@@ -70,6 +70,3 @@ function initChoices(elementID, placeholder = "items", config = {}) {
   const finalConfig = Object.assign({}, defaultConfig, config);
   return new Choices(select, finalConfig);
 }
-
-window.initChoices = initChoices;
-globalThis.initChoices = initChoices;
