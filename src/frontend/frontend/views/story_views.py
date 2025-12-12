@@ -534,11 +534,9 @@ class StoryView(BaseView):
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
-        return cls._handle_news_item_response(
-            core_response,
-            content_builder=cls._get_action_response_content,
-            status_override=200,
-        )
+        cls.add_flash_notification(core_response)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        return cls.redirect_htmx(url_for("assess.assess"))
 
     @staticmethod
     def _get_current_url_path() -> str:
@@ -582,21 +580,22 @@ class StoryView(BaseView):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
             try:
                 response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
                 notification_html = cls.get_notification_from_response(response)
+                content = cls._get_action_response_content(story_id)
+                return make_response(notification_html + content, 200)
             except Exception:
                 logger.exception("Failed to ungroup news item.")
                 return cls.render_response_notification({"error": "Failed to ungroup news item."})
         else:
             try:
-                response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
-                notification_html = cls.get_notification_from_response(response)
+                core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
-
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        content = cls._get_action_response_content(story_id)
-        return make_response(notification_html + content, 200)
 
     @classmethod
     @auth_required()

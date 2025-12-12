@@ -18,4 +18,15 @@
         </div>
       </div>
     {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'error' if category=='error' else category }}" role="alert" @click="show = false">
+              <span id="notification-message">{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
   </section>

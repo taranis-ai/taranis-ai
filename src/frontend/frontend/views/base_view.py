@@ -1,6 +1,6 @@
 from typing import Any, Callable, ClassVar
 
-from flask import abort, current_app, make_response, render_template, request, url_for
+from flask import abort, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask.views import MethodView
 from jinja2 import TemplateNotFound
 from models.admin import WorkerParameter, WorkerParameterValue
@@ -387,6 +387,23 @@ class BaseView(MethodView):
     @classmethod
     def render_response_notification(cls, response: dict) -> str:
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
+
+    @classmethod
+    def add_flash_notification(cls, response: RequestsResponse):
+        if not response or not response.json():
+            flash("No response from core API", "error")
+        if message := response.json().get("message"):
+            flash(message, "success")
+        elif error := response.json().get("error"):
+            flash(error, "error")
+
+    @classmethod
+    def redirect_htmx(cls, target: str) -> Response:
+        if is_htmx_request():
+            response = make_response("", 204)
+            response.headers["HX-Redirect"] = target
+            return response
+        return redirect(target)
 
     @staticmethod
     def get_notification_from_dict(response: dict[str, Any]) -> dict[str, Any]:
