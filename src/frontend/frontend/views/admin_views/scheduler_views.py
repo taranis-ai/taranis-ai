@@ -37,6 +37,10 @@ def _format_task_stats(raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[s
     return formatted
 
 
+def _notification_error(message: str, status_code: int = 500) -> tuple[str, int]:
+    return BaseView.render_response_notification({"message": message, "error": True}), status_code
+
+
 class SchedulerView(AdminMixin, BaseView):
     model = Job
     icon = "calendar-days"
@@ -136,7 +140,7 @@ class ScheduleJobsAPI(MethodView):
             jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
             return render_template("schedule/jobs_table.html", jobs=jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to load jobs: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to load jobs: {exc}")
 
 
 class ScheduleQueuesAPI(MethodView):
@@ -155,7 +159,7 @@ class ScheduleQueuesAPI(MethodView):
 
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to load queues: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to load queues: {exc}")
 
 
 class ScheduleActiveJobsAPI(MethodView):
@@ -171,7 +175,7 @@ class ScheduleActiveJobsAPI(MethodView):
             active_jobs.sort(key=lambda job: job.get("started_at") or "")
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to load active jobs: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to load active jobs: {exc}")
 
 
 class ScheduleFailedJobsAPI(MethodView):
@@ -187,7 +191,7 @@ class ScheduleFailedJobsAPI(MethodView):
             failed_jobs.sort(key=lambda job: job.get("failed_at") or "", reverse=True)
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to load failed jobs: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to load failed jobs: {exc}")
 
 
 class ScheduleHistoryAPI(MethodView):
@@ -225,7 +229,7 @@ class ScheduleHistoryAPI(MethodView):
                 overall_success_rate=overall_success_rate,
             )
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to load history: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to load history: {exc}")
 
 
 class ScheduleRetryJobAPI(MethodView):
@@ -245,13 +249,13 @@ class ScheduleRetryJobAPI(MethodView):
                         error_message = response.text
 
                 status_code = response.status_code if response is not None else 500
-                return f"<p class='text-error'>Failed to retry job: {error_message}</p>", status_code
+                return _notification_error(f"Failed to retry job: {error_message}", status_code)
 
             failed_jobs_data = CoreApi().api_get("/config/workers/failed")
             failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return f"<p class='text-error'>Failed to retry job: {str(exc)}</p>", 500
+            return _notification_error(f"Failed to retry job: {exc}")
 
 
 class ScheduleJobDetailsAPI(MethodView):
