@@ -92,20 +92,68 @@
     </div>
   </div>
 
+  <dialog id="job-error-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-4xl">
+      <h3 class="font-bold text-lg">
+        Job Error
+        <span class="block text-sm font-normal text-base-content/60 truncate">
+          <span data-role="job-name"></span>
+          <span class="opacity-60">(<span data-role="job-id"></span>)</span>
+        </span>
+      </h3>
+      <pre class="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap bg-base-200 p-4 rounded text-xs" data-role="job-error">No error selected.</pre>
+      <div class="modal-action">
+        <form method="dialog">
+          <button class="btn">Close</button>
+        </form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>Close</button>
+    </form>
+  </dialog>
+
   <script>
     // Tab switching logic
+    const updateTabInUrl = (tabName) => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
+      } catch (err) {
+        console.debug('Failed to update tab query param', err);
+      }
+    };
+
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const tabName = tab.dataset.tab;
-        
-        // Update tab active state
+
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
         tab.classList.add('tab-active');
-        
-        // Show/hide tab panels
+
         document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
         document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+
+        updateTabInUrl(tabName);
       });
     });
+
+    window.showJobErrorModal = function(job) {
+      const dialog = document.getElementById('job-error-modal');
+      if (!dialog) {
+        return;
+      }
+
+      const jobNameEl = dialog.querySelector('[data-role="job-name"]');
+      const jobIdEl = dialog.querySelector('[data-role="job-id"]');
+      const jobErrorEl = dialog.querySelector('[data-role="job-error"]');
+
+      jobNameEl.textContent = job?.name || 'Unknown job';
+      jobIdEl.textContent = job?.id || 'N/A';
+      jobErrorEl.textContent = job?.error || 'No error details available.';
+
+      dialog.showModal();
+    };
   </script>
 {% endblock content %}
