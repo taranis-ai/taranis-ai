@@ -12,7 +12,6 @@ import "npm:htmx-ext-response-targets";
 import "npm:sweetalert2/dist/sweetalert2.min.css";
 
 window.htmx = htmx;
-globalThis.htmx = htmx;
 window.Alpine = Alpine;
 
 window.Sortable = Sortable;
@@ -20,7 +19,6 @@ window.Choices = Choices;
 window.Fuse = Fuse;
 window.Swal = Swal;
 window.highlightSearchTerm = highlightSearchTerm;
-
 
 if (typeof Alpine.start === "function") {
   if (document.readyState === "loading") {
