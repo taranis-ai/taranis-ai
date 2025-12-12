@@ -167,10 +167,28 @@ class StoryView(BaseView):
     @auth_required()
     def submit_cluster_dialog(cls) -> Response:
         story_ids = request.form.getlist("story_ids")
-        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        open_primary_story = request.form.get("open_primary") == "true"
+        if len(story_ids) < 2:
+            return cls.rerender_list(
+                notification=cls.render_response_notification({"error": "At least two stories must be selected for clustering."})
+            )
+        logger.debug(f"Clustering {story_ids[1:]} into {story_ids[0]}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+        notification_html = cls.get_notification_from_response(response)
+
+        if open_primary_story and getattr(response, "ok", False):
+            primary_story_id = story_ids[0]
+            content = render_template(
+                "assess/story.html",
+                detail_view=True,
+                **cls.get_item_context(primary_story_id),
+            )
+            flask_response = make_response(notification_html + content, response.status_code or 200)
+            flask_response.headers["HX-Push-Url"] = url_for("assess.story", story_id=primary_story_id)
+            return flask_response
+
+        return cls.rerender_list(notification=notification_html)
 
     @classmethod
     @auth_required()

@@ -1,6 +1,7 @@
 from datetime import datetime
+from secrets import token_urlsafe
 
-from pydantic import SecretStr, ValidationInfo, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
-    FLASK_SECRET_KEY: SecretStr = SecretStr("supersecret")
+    FLASK_SECRET_KEY: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
