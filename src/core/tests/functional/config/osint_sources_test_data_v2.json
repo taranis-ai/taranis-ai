@@ -39,7 +39,7 @@
                     "FEED_URL": "https://cert.at/cert-at.de.blog.rss_2.0.xml"
                 },
                 {
-                    "CONTENT_LOCATION": "content:encoded"
+                    "CONTENT_LOCATION": "description"
                 },
                 {
                     "USE_FEED_CONTENT": "false"

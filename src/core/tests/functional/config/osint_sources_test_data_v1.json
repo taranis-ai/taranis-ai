@@ -47,7 +47,7 @@
           }
         },
         {
-          "value": "content:encoded",
+          "value": "description",
           "parameter": {
             "key": "CONTENT_LOCATION"
           }
