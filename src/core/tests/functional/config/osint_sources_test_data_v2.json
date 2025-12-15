@@ -23,7 +23,10 @@
                     "FEED_URL": "https://cert.at/cert-at.de.current.rss_2.0.xml"
                 },
                 {
-                    "USE_FEED_CONTENT": "true"
+                    "CONTENT_LOCATION": "description"
+                },
+                {
+                    "USE_FEED_CONTENT": "false"
                 }
             ]
         },
@@ -36,10 +39,10 @@
                     "FEED_URL": "https://cert.at/cert-at.de.blog.rss_2.0.xml"
                 },
                 {
-                    "USE_FEED_CONTENT": "true"
+                    "CONTENT_LOCATION": "content:encoded"
                 },
                 {
-                    "CONTENT_LOCATION": "content:encoded"
+                    "USE_FEED_CONTENT": "false"
                 }
             ]
         },
