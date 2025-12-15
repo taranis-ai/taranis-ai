@@ -647,74 +647,9 @@ class QueueManager:
                     # Import here to avoid circular dependencies
                     from core.model.osint_source import OSINTSource
                     from core.model.bot import Bot
-                    from datetime import datetime
-                    from croniter import croniter
 
-                    # Get all enabled sources with schedules
-                    sources = OSINTSource.get_all_for_collector()
-                    for source in sources:
-                        if source.enabled and (cron_schedule := source.get_schedule()):
-                            try:
-                                # Calculate next run time
-                                now = datetime.now()
-                                cron = croniter(cron_schedule, now)
-                                next_run = cron.get_next(datetime)
-                                prev_run = croniter(cron_schedule, now).get_prev(datetime)
-                                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
-                                status = source.status or {}
-
-                                all_jobs.append(
-                                    {
-                                        "id": f"cron_collector_{source.id}",
-                                        "name": f"Collector: {source.name}",
-                                        "queue": "collectors",
-                                        "next_run_time": next_run.isoformat(),
-                                        "schedule": cron_schedule,
-                                        "type": "cron",
-                                        "source_id": source.id,
-                                        "task_id": source.task_id,
-                                        "previous_run_time": prev_run.isoformat() if prev_run else None,
-                                        "interval_seconds": interval_seconds,
-                                        "last_run": status.get("last_run"),
-                                        "last_success": status.get("last_success"),
-                                        "last_status": status.get("status"),
-                                    }
-                                )
-                            except Exception as e:
-                                logger.error(f"Failed to calculate next run for source {source.id}: {e}")
-
-                    # Get all enabled bots with schedules
-                    bots = Bot.get_all_for_collector()
-                    for bot in bots:
-                        if bot.enabled and (cron_schedule := bot.get_schedule()):
-                            try:
-                                # Calculate next run time
-                                now = datetime.now()
-                                cron = croniter(cron_schedule, now)
-                                next_run = cron.get_next(datetime)
-                                prev_run = croniter(cron_schedule, now).get_prev(datetime)
-                                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
-                                status = bot.status or {}
-
-                                all_jobs.append(
-                                    {
-                                        "id": f"cron_bot_{bot.id}",
-                                        "name": f"Bot: {bot.name}",
-                                        "queue": "bots",
-                                        "next_run_time": next_run.isoformat(),
-                                        "schedule": cron_schedule,
-                                        "type": "cron",
-                                        "bot_id": bot.id,
-                                        "task_id": bot.task_id,
-                                        "previous_run_time": prev_run.isoformat() if prev_run else None,
-                                        "interval_seconds": interval_seconds,
-                                        "last_run": status.get("last_run"),
-                                        "last_success": status.get("last_success"),
-                                        "last_status": status.get("status"),
-                                    }
-                                )
-                            except Exception as e:
-                                logger.error(f"Failed to calculate next run for bot {bot.id}: {e}")
+                    all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
+                    all_jobs.extend(Bot.get_enabled_schedule_entries())
 
                     # Register housekeeping tasks that are scheduled via cron
                     try:

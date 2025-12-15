@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from typing import Any, Sequence, TYPE_CHECKING
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +13,8 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 from models.types import COLLECTOR_TYPES
+
+from croniter import croniter
 
 from core.log import logger
 from core.model.base_model import BaseModel
@@ -182,6 +185,45 @@ class OSINTSource(BaseModel):
             return refresh_interval
 
         return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
+
+    @classmethod
+    def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
+        now = now or datetime.now()
+        schedule_entries: list[dict[str, Any]] = []
+
+        sources = cls.get_all_for_collector()
+        for source in sources:
+            if not (cron_schedule := source.get_schedule()):
+                continue
+
+            try:
+                cron = croniter(cron_schedule, now)
+                next_run = cron.get_next(datetime)
+                prev_run = croniter(cron_schedule, now).get_prev(datetime)
+                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
+                status = source.status or {}
+
+                schedule_entries.append(
+                    {
+                        "id": f"cron_collector_{source.id}",
+                        "name": f"Collector: {source.name}",
+                        "queue": "collectors",
+                        "next_run_time": next_run.isoformat(),
+                        "schedule": cron_schedule,
+                        "type": "cron",
+                        "source_id": source.id,
+                        "task_id": source.task_id,
+                        "previous_run_time": prev_run.isoformat() if prev_run else None,
+                        "interval_seconds": interval_seconds,
+                        "last_run": status.get("last_run"),
+                        "last_success": status.get("last_success"),
+                        "last_status": status.get("status"),
+                    }
+                )
+            except Exception as exc:
+                logger.error(f"Failed to calculate next run for source {source.id}: {exc}")
+
+        return schedule_entries
 
     @classmethod
     def add(cls, data):

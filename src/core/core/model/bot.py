@@ -1,10 +1,13 @@
 import uuid
+from datetime import datetime
 from typing import Any, Sequence
 
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
+
+from croniter import croniter
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -119,6 +122,45 @@ class Bot(BaseModel):
 
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+
+    @classmethod
+    def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
+        now = now or datetime.now()
+        entries: list[dict[str, Any]] = []
+
+        bots = cls.get_all_for_collector()
+        for bot in bots:
+            if not (cron_schedule := bot.get_schedule()):
+                continue
+
+            try:
+                cron = croniter(cron_schedule, now)
+                next_run = cron.get_next(datetime)
+                prev_run = croniter(cron_schedule, now).get_prev(datetime)
+                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
+                status = bot.status or {}
+
+                entries.append(
+                    {
+                        "id": f"cron_bot_{bot.id}",
+                        "name": f"Bot: {bot.name}",
+                        "queue": "bots",
+                        "next_run_time": next_run.isoformat(),
+                        "schedule": cron_schedule,
+                        "type": "cron",
+                        "bot_id": bot.id,
+                        "task_id": bot.task_id,
+                        "previous_run_time": prev_run.isoformat() if prev_run else None,
+                        "interval_seconds": interval_seconds,
+                        "last_run": status.get("last_run"),
+                        "last_success": status.get("last_success"),
+                        "last_status": status.get("status"),
+                    }
+                )
+            except Exception as exc:
+                logger.error(f"Failed to calculate next run for bot {bot.id}: {exc}")
+
+        return entries
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
