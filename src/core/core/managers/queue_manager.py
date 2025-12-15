@@ -155,21 +155,23 @@ class QueueManager:
         self._queues: dict[str, Queue] = {}
         self.error: str = ""
         self.redis_url = app.config["REDIS_URL"]
-        self.redis_password = self._extract_password(app.config.get("REDIS_PASSWORD"))
+        self.redis_password: str | None = None
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
 
         try:
+            redis_password_value = app.config.get("REDIS_PASSWORD")
+            if not redis_password_value:
+                raise ValueError("REDIS_PASSWORD must be configured")
+
+            secret = redis_password_value.get_secret_value()
+            if not secret or not secret.strip():
+                raise ValueError("REDIS_PASSWORD cannot be blank")
+
+            self.redis_password = secret.strip()
             self.init_app(app)
         except Exception as e:
             logger.error(f"Failed to initialize QueueManager: {e}")
             self.error = f"Could not connect to Redis: {e}"
-
-    def _extract_password(self, password_value: Any) -> str | None:
-        if isinstance(password_value, SecretStr):
-            return password_value.get_secret_value() or None
-        if isinstance(password_value, str) and password_value.strip():
-            return password_value
-        return None
 
     def init_app(self, app: Flask):
         """Initialize Redis connection and create queues"""
