@@ -169,56 +169,6 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     assert qm.cancel_job("job-123") is True  # cron entry deletion still returns True
 
 
-def test_retry_failed_job_requeues(monkeypatch):
-    class FakeQueue:
-        def __init__(self):
-            self.enqueued = False
-
-        def enqueue_job(self, job):
-            self.enqueued = True
-
-    class FakeJob:
-        def __init__(self):
-            self.is_failed = True
-            self.origin = "bots"
-
-    monkeypatch.setattr(
-        qm_module,
-        "Job",
-        type("Job", (), {"fetch": staticmethod(lambda job_id, connection=None: FakeJob())}),
-    )
-
-    qm = _make_queue_manager()
-    qm._queues = {"bots": FakeQueue()}
-
-    payload, status = qm.retry_failed_job("job-1")
-
-    assert status == 200
-    assert payload["message"].startswith("Job job-1")
-    assert qm._queues["bots"].enqueued is True
-
-
-def test_retry_failed_job_rejects_non_failed(monkeypatch):
-    class FakeJob:
-        def __init__(self):
-            self.is_failed = False
-            self.origin = "bots"
-
-    monkeypatch.setattr(
-        qm_module,
-        "Job",
-        type("Job", (), {"fetch": staticmethod(lambda job_id, connection=None: FakeJob())}),
-    )
-
-    qm = _make_queue_manager()
-    qm._queues = {"bots": object()}
-
-    payload, status = qm.retry_failed_job("job-1")
-
-    assert status == 400
-    assert "not in failed state" in payload["error"]
-
-
 def test_get_active_jobs_uses_registry(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):

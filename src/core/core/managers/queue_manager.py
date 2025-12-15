@@ -801,33 +801,6 @@ class QueueManager:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": f"Failed to get failed jobs: {str(e)}"}, 500
 
-    def retry_failed_job(self, job_id: str) -> tuple[dict, int]:
-        """Retry a failed job"""
-        if self.error or not self._redis:
-            return {"error": "QueueManager not initialized"}, 500
-
-        try:
-            job = Job.fetch(job_id, connection=self._redis)
-
-            if job.is_failed:
-                # Requeue the job by creating a new job with the same function and args
-                queue = self.get_queue(job.origin)
-                if not queue:
-                    return {"error": f"Queue {job.origin} not found"}, 500
-
-                queue.enqueue_job(job)
-                logger.info(f"Retrying failed job {job_id}")
-                return {"message": f"Job {job_id} queued for retry"}, 200
-            else:
-                return {"error": f"Job {job_id} is not in failed state"}, 400
-
-        except Exception as e:
-            logger.error(f"Failed to retry job {job_id}: {e}")
-            # Job might have been cleaned up already
-            if "No such job" in str(e):
-                return {"error": f"Job {job_id} not found (may have been already cleaned up)"}, 404
-            return {"error": f"Failed to retry job: {str(e)}"}, 500
-
     def get_worker_stats(self) -> tuple[dict, int]:
         """Get worker statistics"""
         if self.error or not self._redis:

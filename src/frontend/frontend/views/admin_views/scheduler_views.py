@@ -256,34 +256,6 @@ class ScheduleHistoryAPI(MethodView):
             return _notification_error(f"Failed to load history: {exc}")
 
 
-class ScheduleRetryJobAPI(MethodView):
-    """HTMX endpoint to retry a failed job"""
-
-    @auth_required()
-    def post(self, job_id: str):
-        try:
-            response = CoreApi().api_post(f"/config/workers/failed/{job_id}/retry")
-            if not response or not response.ok:
-                error_message = "Unknown error"
-                if response is not None:
-                    try:
-                        payload = response.json()
-                        error_message = payload.get("error") or payload.get("message") or response.text
-                    except Exception:
-                        error_message = response.text
-
-                status_code = response.status_code if response is not None else 500
-                return _notification_error(f"Failed to retry job: {error_message}", status_code)
-
-            failed_jobs_data = CoreApi().api_get("/config/workers/failed")
-            failed_jobs = failed_jobs_data.get("items", []) if failed_jobs_data else []
-            notification_html = BaseView.get_notification_from_response(response)
-            table_html = render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
-            return notification_html + table_html
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to retry job: {exc}")
-
-
 class ScheduleJobDetailsAPI(MethodView):
     @auth_required()
     def get(self, job_id: str):

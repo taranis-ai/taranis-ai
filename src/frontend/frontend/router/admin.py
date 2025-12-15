@@ -27,7 +27,6 @@ from frontend.views.admin_views.scheduler_views import (
     ScheduleHistoryAPI,
     ScheduleJobsAPI,
     ScheduleQueuesAPI,
-    ScheduleRetryJobAPI,
     SchedulerView,
 )
 
@@ -152,7 +151,6 @@ def init(app: Flask):
     admin_bp.add_url_rule("/scheduler/active", view_func=ScheduleActiveJobsAPI.as_view("scheduler_active_jobs"))
     admin_bp.add_url_rule("/scheduler/failed", view_func=ScheduleFailedJobsAPI.as_view("scheduler_failed_jobs"))
     admin_bp.add_url_rule("/scheduler/history", view_func=ScheduleHistoryAPI.as_view("scheduler_history"))
-    admin_bp.add_url_rule("/scheduler/retry/<string:job_id>", view_func=ScheduleRetryJobAPI.as_view("scheduler_retry_job"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationView.as_view("edit_organization"))
