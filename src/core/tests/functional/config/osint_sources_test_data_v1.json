@@ -26,9 +26,9 @@
           }
         },
         {
-          "value": "false",
+          "value": "description",
           "parameter": {
-            "key": "USE_FEED_CONTENT"
+            "key": "CONTENT_LOCATION"
           }
         }
       ],
@@ -47,9 +47,9 @@
           }
         },
         {
-          "value": "false",
+          "value": "content:encoded",
           "parameter": {
-            "key": "USE_FEED_CONTENT"
+            "key": "CONTENT_LOCATION"
           }
         }
       ],
@@ -89,7 +89,7 @@
           }
         },
         {
-          "value": "false",
+          "value": "true",
           "parameter": {
             "key": "USE_FEED_CONTENT"
           }

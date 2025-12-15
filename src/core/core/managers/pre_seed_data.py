@@ -8,6 +8,7 @@ workers = [
             {"parameter": "PROXY_SERVER"},
             {"parameter": "USE_GLOBAL_PROXY", "type": "switch"},
             {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
+            {"parameter": "CONTENT_LOCATION"},
             {"parameter": "USE_FEED_CONTENT", "type": "switch", "default": "false"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},

@@ -41,14 +41,17 @@ class RSSCollector(BaseWebCollector):
 
     def _determine_use_feed_content(self, params: dict) -> bool:
         use_feed_param = params.get("USE_FEED_CONTENT")
-        legacy_param = params.get("CONTENT_LOCATION")
 
-        if isinstance(use_feed_param, str):
-            return use_feed_param.strip().lower() == "true"
-        if isinstance(use_feed_param, bool):
-            return use_feed_param
-        if isinstance(legacy_param, str):
-            return legacy_param.strip().lower() == "feed"
+        if use_feed_param is not None:
+            if isinstance(use_feed_param, bool):
+                return use_feed_param
+            if isinstance(use_feed_param, str):
+                return use_feed_param.strip().lower() == "true"
+
+        content_location = params.get("CONTENT_LOCATION")
+        if isinstance(content_location, str) and content_location.strip():
+            return True
+
         return False
 
     def parse_source(self, source: dict):
@@ -96,20 +99,40 @@ class RSSCollector(BaseWebCollector):
 
         return None
 
-    def extract_content_from_feed(self, feed_entry: feedparser.FeedParserDict) -> str:
-        content_locations = ["content", "content:encoded", "summary", "description"]
-        for location in content_locations:
+    def extract_content_from_feed(
+        self,
+        feed_entry: feedparser.FeedParserDict,
+        source: dict,
+    ) -> str:
+        params = source.get("parameters", {})
+        custom_location = params.get("CONTENT_LOCATION")
+
+        locations: list[str] = []
+
+        if isinstance(custom_location, str) and custom_location.strip():
+            locations.append(custom_location.strip())
+
+        locations += ["content", "content:encoded", "summary", "description"]
+
+        for location in locations:
             if location not in feed_entry:
                 continue
+
             value = feed_entry[location]
+
             if isinstance(value, list) and value:
                 first = value[0]
                 if isinstance(first, dict) and "value" in first:
-                    return str(first["value"])
-            if isinstance(value, str):
-                return value
-        return ""
+                    content = str(first["value"]).strip()
+                    if content:
+                        return content
 
+            if isinstance(value, str):
+                content = value.strip()
+                if content:
+                    return content
+
+        return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
@@ -145,7 +168,7 @@ class RSSCollector(BaseWebCollector):
         content = ""
 
         if self.use_feed_content:
-            content = self.extract_content_from_feed(feed_entry)
+            content = self.extract_content_from_feed(feed_entry, source)
 
             if self.xpath and content:
                 if extracted := self.xpath_extraction(content, self.xpath):
