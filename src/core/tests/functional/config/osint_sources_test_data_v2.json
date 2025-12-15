@@ -8,6 +8,9 @@
             "parameters": [
                 {
                     "FEED_URL": "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml"
+                },
+                {
+                    "USE_FEED_CONTENT": "false"
                 }
             ]
         },
