@@ -25,17 +25,19 @@ Schedule Updates:
 ----------------
 When a source/bot schedule is updated:
 1. Changes are saved to the database
-2. The cron scheduler process will pick up changes on its next reload cycle
-3. For immediate updates, restart the cron scheduler process
+2. This manager publishes a `taranis:cron:reload` signal via Redis
+3. The cron scheduler process (see `CronReloader`) listens to that channel and reloads jobs immediately
+
+Manual restarts are only required if the scheduler process itself is offline.
 
 See: src/worker/worker/cron_config.py for cron job registration logic
 """
 
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from flask import Flask
-from pydantic import SecretStr
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -146,6 +148,7 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 
 
@@ -320,6 +323,18 @@ class QueueManager:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
 
+    def _await_job_result(self, job: Job, timeout: float = 60.0, poll_interval: float = 0.2):
+        deadline = time.time() + timeout if timeout is not None else None
+        while True:
+            job.refresh()
+            if job.is_finished:
+                return job.result
+            if job.is_failed:
+                raise RuntimeError(job.exc_info or "Job failed")
+            if deadline is not None and time.time() > deadline:
+                raise TimeoutError("Job result timed out")
+            time.sleep(poll_interval)
+
     def enqueue_at(self, queue_name: str, task_name: str, scheduled_time: datetime, *args, job_id: str | None = None, **kwargs):
         """Enqueue a task to run at a specific time"""
         if self.error:
@@ -430,17 +445,24 @@ class QueueManager:
         return {"error": "Could not reach Redis"}, 500
 
     def fetch_single_news_item(self, parameters: dict[str, str]):
-        if task := self.send_task(
-            "fetch_single_news_item", args=[parameters], queue="collectors", task_id=f"fetch_single_news_item_{parameters.get('url')}"
-        ):
-            logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
-            try:
-                return task.get(timeout=60)
-            except Exception:
-                logger.exception("Failed to fetch single news item")
-                return {"error": "Failed to fetch single news item"}, 500
+        job = self.enqueue_task(
+            "collectors",
+            "fetch_single_news_item",
+            parameters,
+            job_id=f"fetch_single_news_item_{parameters.get('url')}",
+        )
+        if not job:
+            logger.error("Could not schedule fetch_single_news_item task")
+            return {"error": "Could not reach Redis"}, 500
 
-        return {"error": "Could not reach rabbitmq"}, 500
+        logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+        try:
+            return self._await_job_result(job)
+        except TimeoutError:
+            logger.error("Timed out waiting for fetch_single_news_item result for %s", parameters.get("url"))
+        except Exception:
+            logger.exception("Failed to fetch single news item")
+        return {"error": "Failed to fetch single news item"}, 500
 
     def collect_all_osint_sources(self):
         """Trigger collection for all enabled sources"""
@@ -804,19 +826,23 @@ class QueueManager:
             from rq.worker import Worker
 
             workers = Worker.all(connection=self._redis)
-            worker_stats = {
-                "total_workers": len(workers),
-                "busy_workers": sum(w.state == "busy" for w in workers),
-                "idle_workers": sum(w.state == "idle" for w in workers),
-                "workers": [
+            worker_entries = []
+            for w in workers:
+                current_job = w.get_current_job()
+                worker_entries.append(
                     {
                         "name": w.name,
                         "state": w.state,
                         "queues": [q.name for q in w.queues],
-                        "current_job": (w.get_current_job().id if w.get_current_job() else None),
+                        "current_job": current_job.id if current_job else None,
                     }
-                    for w in workers
-                ],
+                )
+
+            worker_stats = {
+                "total_workers": len(workers),
+                "busy_workers": sum(w.state == "busy" for w in workers),
+                "idle_workers": sum(w.state == "idle" for w in workers),
+                "workers": worker_entries,
             }
 
             return worker_stats, 200
