@@ -46,7 +46,10 @@
                     "FEED_URL": "https://en.blog.nic.cz/feed/"
                 },
                 {
-                    "USE_FEED_CONTENT": "false"
+                    "USE_FEED_CONTENT": "true"
+                },
+                {
+                    "CONTENT_LOCATION": "content:encoded"
                 }
             ],
             "group_idx": 4
