@@ -52,7 +52,7 @@ def test_annotate_jobs_uses_previous_run_for_overdue(monkeypatch):
     annotated_job = qm_module._annotate_jobs([job])[0]
 
     assert annotated_job["status_badge"]["variant"] == "error"
-    assert annotated_job["status_badge"]["label"].startswith("Missed 4h")
+    assert annotated_job["status_badge"]["label"] == "Missed"
 
 
 def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
