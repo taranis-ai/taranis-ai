@@ -170,7 +170,7 @@ When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in
 **Manual start:**
 ```bash
 cd src/worker
-uv sync --dev
+uv sync --all-extras
 uv run python start_cron_scheduler.py
 ```
 
@@ -195,7 +195,7 @@ Access it at: http://localhost:9181
 **Manual start:**
 ```bash
 cd src/worker
-uv sync --dev
+uv sync --all-extras
 uv run rq-dashboard --redis-url redis://localhost:6379
 ```
 
