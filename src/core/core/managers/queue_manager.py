@@ -76,6 +76,17 @@ def _format_duration(delta: timedelta) -> str:
     return f"{days}d" if hours == 0 else f"{days}d {hours}h"
 
 
+def _format_relative_time(target: datetime | None, reference: datetime) -> str | None:
+    if not target:
+        return None
+    delta = target - reference
+    seconds = int(delta.total_seconds())
+    if seconds == 0:
+        return "now"
+    label = _format_duration(abs(delta))
+    return f"in {label}" if seconds > 0 else f"{label} ago"
+
+
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
@@ -85,6 +96,8 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         job["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
         job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None
+        job["next_run_display"] = next_run_dt.strftime("%Y-%m-%d %H:%M:%S") if next_run_dt else None
+        job["next_run_relative"] = _format_relative_time(next_run_dt, now)
 
         variant = "ghost"
         label = "Queued" if job.get("type") == "scheduled" else "Pending"
@@ -115,8 +128,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
                 overdue_threshold = prev_run_dt + OVERDUE_GRACE_PERIOD
                 if now > overdue_threshold and not ran_current_window:
-                    overdue_delta = now - prev_run_dt
-                    label = f"Missed {_format_duration(overdue_delta)}"
+                    label = "Missed"
                     variant = "error"
                     is_overdue = True
                 elif ran_current_window:
@@ -125,8 +137,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         else:
             if next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
-                overdue_delta = now - next_run_dt
-                label = f"Overdue {_format_duration(overdue_delta)}"
+                label = "Missed"
                 variant = "warning"
                 is_overdue = True
 
