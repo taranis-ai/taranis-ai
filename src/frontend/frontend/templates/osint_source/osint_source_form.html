@@ -19,7 +19,9 @@
       <p>This OSINT source is read-only and cannot be modified.</p>
     </div>
   {% else %}
-    <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(osint_source.status) }}</div>
+    {% if osint_source.status is not none %}
+      <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(osint_source.status) }}</div>
+    {% endif %}
   {% endif %}
 
   <form id="{{ model_name }}-form"
