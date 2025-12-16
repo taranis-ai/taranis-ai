@@ -174,7 +174,7 @@ class BaseModel(db.Model):
         return query
 
     @classmethod
-    def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
         if user:

@@ -123,13 +123,19 @@ class OSINTSource(BaseModel):
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)
 
+        if enabled := filter_args.get("enabled"):
+            query = query.where(cls.enabled.is_(enabled))
+
+        if filter_args.get("filter_manual"):
+            query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+
         return query
 
     @classmethod
     def default_sort_column(cls) -> str:
         return "name_asc"
 
-    def update_icon(self, icon: bytes | str | None):
+    def update_icon(self, icon: bytes | str):
         icon_bytes = self._parse_icon(icon)
         self.icon = icon_bytes
         db.session.commit()
@@ -231,7 +237,7 @@ class OSINTSource(BaseModel):
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
+    def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
@@ -249,18 +255,14 @@ class OSINTSource(BaseModel):
         osint_source.schedule_osint_source()
         return osint_source
 
-    def _parse_icon(self, icon: bytes | str | None) -> bytes | None:
-        if icon is None:
-            return None
+    def _parse_icon(self, icon: bytes | str) -> bytes:
         icon_bytes: bytes | None
         if isinstance(icon, bytes):
             icon_bytes = icon or None
         elif isinstance(icon, str):
             if not icon.strip():
-                return None
+                raise ValueError("Empty icon payload provided.")
             icon_bytes = self.is_valid_base64(icon)
-        else:
-            raise ValueError("Invalid icon payload type; expected bytes or base64 string.")
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
         if not self._is_valid_image(icon_bytes):
@@ -559,9 +561,9 @@ class OSINTSourceGroup(BaseModel):
     def delete(cls, osint_source_group_id: str, user: "User | None" = None) -> tuple[dict, int]:
         osint_source_group = cls.get(osint_source_group_id)
         if not osint_source_group:
-            return {"message": "No Sourcegroup found"}, 404
+            return {"error": "No Sourcegroup found"}, 404
         if osint_source_group.default is True:
-            return {"message": "could_not_delete_default_group"}, 400
+            return {"error": "could_not_delete_default_group"}, 400
 
         if not osint_source_group.allowed_with_acl(user=user, require_write_access=True):
             return {"error": "User not allowed to update this group"}, 403
@@ -571,7 +573,7 @@ class OSINTSourceGroup(BaseModel):
         return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_group_id: str, data: dict, user: "User | None" = None) -> tuple[dict, int]:
+    def update(cls, osint_source_group_id: str, data: dict[str, Any], user: "User | None" = None) -> tuple[dict[str, str], int]:
         osint_source_group = cls.get(osint_source_group_id)
         if osint_source_group is None:
             return {"error": "OSINT Source Group not found"}, 404
