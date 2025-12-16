@@ -105,6 +105,28 @@ class OSINTSource(BaseModel):
         return db.session.execute(query).scalars().all()
 
     @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "status_asc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""))
+        elif filter_args.get("order") == "status_desc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
+    @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
@@ -136,8 +158,10 @@ class OSINTSource(BaseModel):
         return "name_asc"
 
     def update_icon(self, icon: bytes | str):
-        icon_bytes = self._parse_icon(icon)
-        self.icon = icon_bytes
+        if icon_bytes := self._parse_icon(icon):
+            self.icon = icon_bytes
+        else:
+            self.icon = None
         db.session.commit()
 
     @classmethod
@@ -256,12 +280,12 @@ class OSINTSource(BaseModel):
         return osint_source
 
     def _parse_icon(self, icon: bytes | str) -> bytes:
-        icon_bytes: bytes | None
+        icon_bytes: bytes | None = None
         if isinstance(icon, bytes):
             icon_bytes = icon or None
         elif isinstance(icon, str):
             if not icon.strip():
-                raise ValueError("Empty icon payload provided.")
+                return b""
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")

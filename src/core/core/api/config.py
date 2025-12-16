@@ -543,14 +543,7 @@ class OSINTSources(MethodView):
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
-        filter_args = filter_args or {}
-        filter_args["filter_manual"] = True
-        result, code = osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
-        if filter_args.get("order") == "status_asc":
-            result["items"].sort(key=lambda x: x.get("status", {}).get("status", ""))
-        elif filter_args.get("order") == "status_desc":
-            result["items"].sort(key=lambda x: x.get("status", {}).get("status", ""), reverse=True)
-        return result, code
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
