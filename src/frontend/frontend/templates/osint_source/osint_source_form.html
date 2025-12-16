@@ -2,15 +2,23 @@
 {% from "macros/worker.html" import worker_status %}
 {% set osint_id = osint_source.id | default("0", true) %}
 {% set form_error = form_error | default({}) %}
+{% set read_only = true if osint_id == "manual" else false %}
 
 <div class="bg-base-100 p-4">
   <div class="join gap-4 mb-5 w-3/4 ml-[10%]">
     <h1 class="text-3xl font-bold">{{ submit_text }}</h1>
-    {% include "osint_source/state_button.html" %}
+    {% if not read_only %}
+      {% include "osint_source/state_button.html" %}
+    {% endif %}
   </div>
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>
-  {% if osint_source.status %}
+  {% if read_only %}
+    <div role="alert" class="alert alert-warning alert-horizontal w-3/4 mb-4 ml-[10%]">
+      {{ heroicon_outline("exclamation-triangle") }}
+      <p>This OSINT source is read-only and cannot be modified.</p>
+    </div>
+  {% else %}
     <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(osint_source.status) }}</div>
   {% endif %}
 
@@ -46,6 +54,6 @@
     </label>
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 
-    <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
+    {% if not read_only %}<input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />{% endif %}
   </form>
 </div>

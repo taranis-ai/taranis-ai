@@ -282,14 +282,11 @@ class ReportItem(BaseModel):
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
-        if sort := filter_args.get("sort"):
-            if sort == "DATE_DESC":
-                query = query.order_by(db.desc(ReportItem.created))
-
-            elif sort == "DATE_ASC":
-                query = query.order_by(db.asc(ReportItem.created))
-
         return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "created_desc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:

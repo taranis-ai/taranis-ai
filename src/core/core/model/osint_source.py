@@ -123,7 +123,11 @@ class OSINTSource(BaseModel):
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     def update_icon(self, icon: bytes | str | None):
         icon_bytes = self._parse_icon(icon)

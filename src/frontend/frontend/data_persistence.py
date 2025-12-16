@@ -94,6 +94,9 @@ class DataPersistenceLayer:
         cache_object = CacheObject(
             result_object,
             total_count=total_count,
+            limit=paging_data.limit if paging_data and paging_data.limit else 20,
+            page=paging_data.page if paging_data and paging_data.page else 1,
+            order=paging_data.order if paging_data and paging_data.order else "",
             query_params=paging_data.query_params if paging_data else {},
             links=links,
         )

@@ -1,10 +1,11 @@
-from sqlalchemy.sql import Select
 from typing import Any
-from sqlalchemy.orm import Mapped
 
+from sqlalchemy.orm import Mapped
+from sqlalchemy.sql import Select
+
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
 
 
 class Organization(BaseModel):
@@ -46,7 +47,11 @@ class Organization(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Organization":

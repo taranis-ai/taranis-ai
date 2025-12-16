@@ -142,11 +142,15 @@ class BaseModel(db.Model):
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
+    def default_sort_column(cls) -> str:
+        return ""
+
+    @classmethod
     def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
         page = int(filter_args.get("page", 1)) - 1
         limit = int(filter_args.get("limit", 20))
         offset = filter_args.get("offset", page * limit if limit else None)
-        sort = filter_args.get("sort", filter_args.get("order"))
+        sort = filter_args.get("sort", filter_args.get("order", cls.default_sort_column()))
         logger.debug(f"Applying paging to query: {page=}, {limit=}, {offset=}, {sort=}")
         if offset is not None:
             query = query.offset(offset)
@@ -158,14 +162,17 @@ class BaseModel(db.Model):
                 sort_column, sort_direction = sort.rsplit("_", 1)
             else:
                 sort_column, sort_direction = sort, "asc"
-            sort_attr = getattr(cls, sort_column, None)
-            if sort_attr is not None:
+            table = getattr(cls, "__table__", None)
+            if table is not None and sort_column in table.columns:
+                sort_attr = getattr(cls, sort_column)
                 logger.debug(f"Applying sort to query: {sort_column=}, {sort_direction=}")
                 direction = sort_direction.lower()
                 if direction == "desc":
                     query = query.order_by(sort_attr.desc())
                 else:
                     query = query.order_by(sort_attr.asc())
+            else:
+                logger.warning(f"Sort column {sort_column} not found on {cls.__name__}; ignoring sort")
         return query
 
     @classmethod
