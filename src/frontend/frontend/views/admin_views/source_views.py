@@ -1,19 +1,19 @@
 import json
 from typing import Any, Literal
-from flask import render_template, request, Response, url_for
 
-from models.admin import OSINTSource, TaskResult, Job
+from flask import Response, render_template, request, url_for
+from models.admin import Job, OSINTSource, TaskResult
 from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
-from frontend.cache_models import CacheObject
-from frontend.views.base_view import BaseView
-from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
-from frontend.log import logger
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.core_api import CoreApi
-from frontend.config import Config
+
 from frontend.auth import auth_required
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class SourceView(AdminMixin, BaseView):
@@ -34,17 +34,6 @@ class SourceView(AdminMixin, BaseView):
                 return worker_status.get("collector_task", {}).get("failures", 0)
 
         return 0
-
-    @classmethod
-    def filter_manual_source(cls, cache: CacheObject[OSINTSource]) -> CacheObject[OSINTSource]:
-        return CacheObject(
-            [obj for obj in (cache or []) if isinstance(obj, OSINTSource) and obj.id != "manual"],
-            page=cache.page,
-            limit=cache.limit,
-            order=cache.order,
-            links=cache._links,
-            total_count=cache._total_count,
-        )
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
@@ -93,8 +82,6 @@ class SourceView(AdminMixin, BaseView):
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
         base_context["actions"] = osint_source_actions
-        if cls.model_plural_name() in base_context:
-            base_context[cls.model_plural_name()] = cls.filter_manual_source(base_context[cls.model_plural_name()])
         return base_context
 
     @classmethod

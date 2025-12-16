@@ -5,8 +5,8 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
-from PIL import Image, UnidentifiedImageError
 from models.types import COLLECTOR_TYPES
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
