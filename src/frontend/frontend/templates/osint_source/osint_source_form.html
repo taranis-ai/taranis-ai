@@ -19,7 +19,7 @@
       <p>This OSINT source is read-only and cannot be modified.</p>
     </div>
   {% else %}
-    {% if osint_source.status is not none %}
+    {% if osint_source.status %}
       <div class="mb-5 w-1/2 ml-[10%]">{{ worker_status(osint_source.status) }}</div>
     {% endif %}
   {% endif %}

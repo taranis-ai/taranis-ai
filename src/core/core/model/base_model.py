@@ -151,7 +151,6 @@ class BaseModel(db.Model):
         limit = int(filter_args.get("limit", 20))
         offset = filter_args.get("offset", page * limit if limit else None)
         sort = filter_args.get("sort", filter_args.get("order", cls.default_sort_column()))
-        logger.debug(f"Applying paging to query: {page=}, {limit=}, {offset=}, {sort=}")
         if offset is not None:
             query = query.offset(offset)
         if limit:
@@ -165,7 +164,6 @@ class BaseModel(db.Model):
             table = getattr(cls, "__table__", None)
             if table is not None and sort_column in table.columns:
                 sort_attr = getattr(cls, sort_column)
-                logger.debug(f"Applying sort to query: {sort_column=}, {sort_direction=}")
                 direction = sort_direction.lower()
                 if direction == "desc":
                     query = query.order_by(sort_attr.desc())
