@@ -57,7 +57,7 @@ class ClusterByType(MethodView):
     def get(self, tag_type: str):
         per_page = min(int(request.args.get("per_page", 50)), 100)
         page = int(request.args.get("page", 1))
-        sort = request.args.get("sort_by", "size_desc")
+        sort = request.args.get("order", "size_desc")
         offset = min(((page - 1) * per_page), (2**31) - 1)
         search = request.args.get("search", None)
         filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort, "search": search}

@@ -74,7 +74,11 @@ class RoleBasedAccess(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def update(cls, acl_id: int, data) -> tuple[dict, int]:
