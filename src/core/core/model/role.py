@@ -1,14 +1,15 @@
-from sqlalchemy import or_
-from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped, relationship
 import contextlib
-from typing import Optional
 from enum import StrEnum, nonmember
+from typing import Optional
 
+from sqlalchemy import or_
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql.expression import Select
+
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.permission import Permission
-from core.log import logger
 
 
 class TLPLevel(StrEnum):
@@ -95,7 +96,11 @@ class Role(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     def to_dict(self):
         data = super().to_dict()

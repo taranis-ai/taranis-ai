@@ -69,7 +69,11 @@ class AttributeEnum(BaseModel):
                     AttributeEnum.description.ilike(f"%{search}%"),
                 )
             )
-        return query.order_by(db.asc(AttributeEnum.index))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "index_asc"
 
     @classmethod
     def find_by_value(cls, attribute_id, value):

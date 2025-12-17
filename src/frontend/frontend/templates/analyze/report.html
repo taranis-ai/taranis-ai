@@ -40,7 +40,7 @@
         {% if is_edit and report.title %}- {{ report.title }}{% endif %}
       </h2>
       <div class="col-span-12 md:col-span-6 flex items-end text-sm text-base-content/60">
-        <span>ID: {{ report.id }}</span>
+        <span data-testid="report-id">ID: {{ report.id }}</span>
       </div>
       <div class="flex-1"></div>
       {% if is_edit %}

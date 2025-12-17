@@ -78,7 +78,7 @@ class DataPersistenceLayer:
         cache_key = self.make_user_key(endpoint, paging_data)
         if cache_object := cache.get(key=cache_key):
             logger.debug(f"Cache hit for {cache_key}")
-            return cache_object.search_and_paginate(paging_data)
+            return cache_object
         if result := self.api.api_get(endpoint, paging_data.query_params if paging_data else None):
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
@@ -102,7 +102,7 @@ class DataPersistenceLayer:
         )
         logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
         cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
-        return cache_object.search_and_paginate(paging_data)
+        return cache_object
 
     def store_object(self, object) -> Response:
         store_object = object.model_dump(mode="json")

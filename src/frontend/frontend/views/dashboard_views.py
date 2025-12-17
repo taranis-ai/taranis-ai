@@ -7,8 +7,6 @@ from models.user import ProfileSettingsDashboard
 from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
-from frontend.cache import cache
-from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -61,13 +59,8 @@ class DashboardView(BaseView):
 
             logger.debug(f"Fetching Cluster {cluster_name} with: {page=}")
 
-            dpl = DataPersistenceLayer()
-            endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
-            cache_object: CacheObject | None
-            if cache_object := cache.get(key=dpl.make_user_key(endpoint)):
-                cluster = cache_object.search_and_paginate(page)
-            elif result := dpl.api.api_get(endpoint):
-                cluster = dpl._cache_and_paginate_objects(result, Cluster, endpoint, page)
+            cluster_endpoint = Cluster._core_endpoint + f"/{cluster_name}?page={page.page}&limit={page.limit}&order={page.order}"
+            cluster = DataPersistenceLayer().get_raw_objects(Cluster, cluster_endpoint)
         except Exception:
             cluster = None
 
