@@ -1,13 +1,14 @@
 import json
 from typing import Any
-from sqlalchemy.sql.expression import Select
+
 from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql.expression import Select
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
-from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.attribute import Attribute
-from core.service.role_based_access import RoleBasedAccessService, RBACQuery
+from core.model.base_model import BaseModel
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class AttributeGroupItem(BaseModel):
@@ -171,7 +172,7 @@ class ReportItemType(BaseModel):
             self.id = id
 
     @classmethod
-    def get_by_title(cls, title):
+    def get_by_title(cls, title: str) -> "ReportItemType | None":
         return cls.get_first(db.select(cls).filter_by(title=title))
 
     @classmethod
@@ -266,8 +267,8 @@ class ReportItemType(BaseModel):
 
     @classmethod
     def delete(cls, item_id: int) -> tuple[dict[str, Any], int]:
-        from core.model.report_item import ReportItem
         from core.model.product_type import ProductType
+        from core.model.report_item import ReportItem
 
         report_type = cls.get(item_id)
         if not report_type:

@@ -8,6 +8,7 @@ from core.managers import asset_manager
 from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
+from core.service.cti import CTIService
 from core.service.product import ProductService
 
 
@@ -132,6 +133,16 @@ class ReportItemLock(MethodView):
             return str(ex), 500
 
 
+class CTI(MethodView):
+    @auth_required("ANALYZE_UPDATE")
+    def post(self):
+        data = request.get_json()
+        if not data:
+            return abort(400, "Invalid request")
+
+        return CTIService.cti_endpoint(data)
+
+
 def initialize(app: Flask):
     analyze_bp = Blueprint("analyze", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/analyze")
 
@@ -144,5 +155,6 @@ def initialize(app: Flask):
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    analyze_bp.add_url_rule("/cti", view_func=CTI.as_view("cti"))
 
     app.register_blueprint(analyze_bp)

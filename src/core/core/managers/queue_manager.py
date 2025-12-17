@@ -224,7 +224,12 @@ class QueueManager:
             "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
         )
 
-        chain(render_sig, publish_sig).apply_async()
+        return chain(render_sig, publish_sig).apply_async()
+
+    def autopublish_product_sync(self, product_id: str, auto_publisher_id: str):
+        if async_result := self.autopublish_product(product_id, auto_publisher_id):
+            return async_result.get(timeout=10)
+        return None
 
 
 def initialize(app: Flask, initial_setup: bool = True):
