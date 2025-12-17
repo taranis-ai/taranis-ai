@@ -154,7 +154,11 @@ class User(BaseModel):
         if search := filter_args.get("search"):
             query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
 
-        return query.order_by(db.asc(User.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def parse_json(cls, content) -> list | None:

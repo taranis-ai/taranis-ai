@@ -204,7 +204,11 @@ class ReportItemType(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.title))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "title_asc"
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

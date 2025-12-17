@@ -48,14 +48,14 @@ class Bot(BaseModel):
         return f"bot_{self.id}"
 
     @classmethod
-    def update(cls, bot_id, data) -> "Bot | None":
+    def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
         bot = cls.get(bot_id)
         if not bot:
             return None
         if name := data.get("name"):
             bot.name = name
 
-        bot.description = data.get("description")
+        bot.description = data.get("description", "")
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
@@ -152,7 +152,7 @@ class Bot(BaseModel):
         }
 
     @classmethod
-    def get_filter_query(cls, filter_args: dict) -> Select:
+    def get_filter_query(cls, filter_args: dict[str, Any]) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):
