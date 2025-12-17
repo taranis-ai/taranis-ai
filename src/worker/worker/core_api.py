@@ -1,8 +1,9 @@
-import requests
 from urllib.parse import urlencode
 
-from worker.log import logger
+import requests
+
 from worker.config import Config
+from worker.log import logger
 from worker.types import Product
 
 
@@ -152,8 +153,7 @@ class CoreApi:
 
     def update_tags(self, tags, bot_type) -> dict | None:
         try:
-            if tags:
-                return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
+            return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
         except Exception:
             logger.exception("update_tags failed")
             return None
