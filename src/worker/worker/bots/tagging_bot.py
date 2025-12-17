@@ -1,5 +1,7 @@
 import re
 
+from worker.log import logger
+
 from .base_bot import BaseBot
 
 
@@ -37,8 +39,6 @@ class TaggingBot(BaseBot):
                             findings.add(finding[1])
             found_tags[story["id"]] = findings
 
-        if not found_tags:
-            return {"message": "No tags found"}
-
+        logger.info({"message": "No tags found, saving bot type to story attributes..."})
         self.core_api.update_tags(found_tags, self.type)
         return {"message": f"Extracted {len(found_tags)} tags"}

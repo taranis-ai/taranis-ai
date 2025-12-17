@@ -1,6 +1,8 @@
 import re
-from .base_bot import BaseBot
+
 from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class WordlistBot(BaseBot):
@@ -25,9 +27,7 @@ class WordlistBot(BaseBot):
             return {"message": "No new stories found"}
 
         found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
-        if not found_tags:
-            return {"message": "No tags found"}
-
+        logger.info({"message": "No tags found, saving bot type to story attributes..."})
         self.core_api.update_tags(found_tags, self.type)
         return {"message": f"Extracted {len(found_tags)} tags"}
 

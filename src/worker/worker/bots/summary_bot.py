@@ -1,7 +1,8 @@
-from .base_bot import BaseBot
-from worker.log import logger
 from worker.bot_api import BotApi
 from worker.config import Config
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class SummaryBot(BaseBot):
@@ -30,6 +31,7 @@ class SummaryBot(BaseBot):
             try:
                 if summary := self.predict_summary(content_to_summarize):
                     self.core_api.update_story_summary(story["id"], summary)
+                self.core_api.update_story_attributes(story["id"], [{"key": self.type, "value": 1 if summary else 0}])
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 continue
