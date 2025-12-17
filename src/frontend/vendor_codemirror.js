@@ -19,12 +19,10 @@ import {
   syntaxHighlighting,
 } from "npm:@codemirror/language";
 import { jinja2 } from "npm:@codemirror/legacy-modes/mode/jinja2";
-import { basicSetup } from "codemirror";
 import { unifiedMergeView } from "@codemirror/merge";
 
 window.EditorView = EditorView;
 window.EditorState = EditorState;
-window.basicSetup = basicSetup;
 
 
 const DEFAULT_OPTIONS = {
@@ -167,8 +165,11 @@ function mountUnifiedMerge({ parent, originalDoc, newDoc, options = {} }) {
     ...mergeOptions
   } = options;
 
-  const editorExtensionsList = [window.basicSetup];
-
+  const editorExtensionsList = buildExtensions({
+    ...DEFAULT_OPTIONS,
+    ...options,
+    extensions: options.editorExtensions ?? [],
+  });
   if (lineWrapping) {
     editorExtensionsList.push(EditorView.lineWrapping);
   }
