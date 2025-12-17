@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict
 
+from models.dashboard import StoryConflict as StoryConflictModel
+
 from core.log import logger
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.settings import Settings
@@ -17,12 +19,12 @@ class StoryConflict:
     conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "story_id": self.story_id,
-            "existing_story": self.existing_story,
-            "incoming_story": self.incoming_story,
-            "has_proposals": self.has_proposals,
-        }
+        return StoryConflictModel(
+            story_id=self.story_id,
+            existing_story=self.existing_story,
+            incoming_story=self.incoming_story,
+            has_proposals=self.has_proposals,
+        ).model_dump()
 
     @classmethod
     def get_conflict_count(cls) -> int:

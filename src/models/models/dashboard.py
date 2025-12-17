@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field
 
@@ -62,5 +63,5 @@ class NewsItemConflict(TaranisBaseModel):
     incoming_story_id: str
     news_item_id: str
     existing_story_id: str
-    incoming_story: dict
+    incoming_story: dict[str, Any]
     misp_address: str | None = None
