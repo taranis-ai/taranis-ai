@@ -1,4 +1,5 @@
 import contextlib
+import time
 
 import requests
 from celery import Celery, chain
@@ -7,6 +8,7 @@ from kombu import Queue
 from kombu.exceptions import OperationalError
 from requests.auth import HTTPBasicAuth
 
+from core.api.core_api_client import CoreApiClient
 from core.log import logger
 
 
@@ -21,6 +23,7 @@ class QueueManager:
         self.queue_user = app.config["QUEUE_BROKER_USER"]
         self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers", "connectors"]
+        self.core_api = CoreApiClient()
 
     def init_app(self, app: Flask):
         celery_app = Celery("taranis-ai")
@@ -108,13 +111,20 @@ class QueueManager:
 
     def get_task(self, task_id) -> tuple[dict, int]:
         if self.error:
-            return {"error": "Could not reach rabbitmq"}, 500
-        task = self._celery.AsyncResult(task_id)
-        if task.state == "SUCCESS":
-            return {"result": task.result}, 200
-        if task.state == "FAILURE":
-            return {"error": task.info}, 500
-        return {"status": task.state}, 202
+            return {"error": "QueueManager not initialized"}, 500
+
+        try:
+            response = self.core_api.get_task(task_id)
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+        if response.status_code == 200:
+            return response.json(), 200
+
+        if response.status_code == 404:
+            return {"status": "PENDING"}, 202
+
+        return {"error": "Task failed"}, 500
 
     def collect_osint_source(self, source_id: str, task_id: str):
         if self.send_task("collector_task", args=[source_id, True], queue="collectors", task_id=task_id):
@@ -227,9 +237,27 @@ class QueueManager:
         return chain(render_sig, publish_sig).apply_async()
 
     def autopublish_product_sync(self, product_id: str, auto_publisher_id: str):
-        if async_result := self.autopublish_product(product_id, auto_publisher_id):
-            return async_result.get(timeout=10)
-        return None
+        async_result = self.autopublish_product(product_id, auto_publisher_id)
+        if not async_result:
+            return None
+
+        task_id = async_result.id
+        start = time.time()
+
+        while time.time() - start < 10:
+            response, status = self.get_task(task_id)
+            print("##########")
+            print(response)
+            print("##########")
+            if status == 200 and "result" in response:
+                return response["result"]
+
+            if status == 500:
+                raise RuntimeError(response.get("error"))
+
+            time.sleep(1)
+
+        raise TimeoutError("Autopublish task timed out")
 
 
 def initialize(app: Flask, initial_setup: bool = True):
