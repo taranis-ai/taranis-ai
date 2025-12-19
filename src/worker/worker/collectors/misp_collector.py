@@ -1,11 +1,12 @@
 import ast
 import json
 from typing import Any, cast
+
+from models.assess import NewsItem
 from pymisp import PyMISP
 
-from worker.config import Config
 from worker.collectors.base_collector import BaseCollector
-from worker.types import NewsItem
+from worker.config import Config
 from worker.log import logger
 
 
@@ -127,7 +128,7 @@ class MispCollector(BaseCollector):
             author=author,
             title=title,
             content=content,
-            web_url=link,
+            link=link,
             story_id=story_id,
             language=language,
             review=review,

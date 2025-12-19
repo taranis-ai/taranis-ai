@@ -1,13 +1,15 @@
 import json
 from datetime import datetime, timedelta
-from typing import Sequence
+from typing import Any, Sequence
 
+from flask import Response, abort, jsonify
 from sqlalchemy import Row, func
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.story import Story
+from core.model.user import User
 
 
 class StoryService:
@@ -100,3 +102,46 @@ class StoryService:
     @staticmethod
     def fetch_and_create_story(parameters: dict[str, str]):
         return queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)
+
+    @staticmethod
+    def import_story_list(json_data: list[dict[str, Any]], user: User) -> Response:
+        """
+        Import a list of stories from JSON data.
+        """
+        imported_stories = []
+        for story_data in json_data:
+            story = Story.from_dict(story_data)
+            db.session.add(story)
+            imported_stories.append(story)
+        db.session.commit()
+        return jsonify({"imported_stories": [story.to_dict() for story in imported_stories]})
+
+    @staticmethod
+    def import_news_item_list(json_data: list[dict[str, Any]], user: User) -> Response:
+        """
+        Import a list of news items from JSON data.
+        """
+        imported_news_items = []
+        for news_item_data in json_data:
+            news_item = NewsItem.from_dict(news_item_data)
+            db.session.add(news_item)
+            imported_news_items.append(news_item)
+        db.session.commit()
+        return jsonify({"imported_news_items": [news_item.to_dict() for news_item in imported_news_items]})
+
+    @staticmethod
+    def import_stories(json_data: dict[str, Any] | list[dict[str, Any]], user: User) -> Response:
+        """
+        Import stories or news items from JSON data. Could be either a single story or a list of stories as well as a single news item or a list of news items.
+        """
+        if isinstance(json_data, list):
+            if "news_items" in json_data[0]:
+                return StoryService.import_story_list(json_data=json_data, user=user)
+            elif "source" in json_data[0]:
+                return StoryService.import_news_item_list(json_data=json_data, user=user)
+        else:
+            if "news_items" in json_data:
+                return StoryService.import_story_list(json_data=[json_data], user=user)
+            elif "source" in json_data:
+                return StoryService.import_news_item_list(json_data=[json_data], user=user)
+        abort(400, description="Invalid JSON data for import.")

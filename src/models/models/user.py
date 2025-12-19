@@ -32,7 +32,6 @@ class ProfileSettings(TaranisBaseModel):
 class UserProfile(TaranisBaseModel):
     _core_endpoint = "/users"
     _model_name = "user_profile"
-    _search_fields = ["name", "username"]
 
     id: int | None = None
     username: str = ""

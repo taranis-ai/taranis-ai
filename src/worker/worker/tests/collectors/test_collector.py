@@ -138,8 +138,9 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
 
 
 def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_web_collector_instance):
+    from models.assess import NewsItem
+
     from worker.tests.testdata import web_collector_result_content, web_collector_result_title
-    from worker.types import NewsItem
 
     browser_web_collector_instance.web_url = "https://raw.example.com/testweb.html"
     browser_web_collector_instance.xpath = ""
@@ -147,13 +148,14 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(browser_web_collector_instance.web_url, "")
     browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
 
+    story = items[0]
     assert isinstance(items, list)
     assert len(items) == 1
     assert isinstance(items[0], NewsItem)
-    assert items[0].title == web_collector_result_title
-    assert items[0].content.startswith(web_collector_result_content)
-    assert items[0].web_url == browser_web_collector_instance.web_url
-    assert items[0].source == browser_web_collector_instance.web_url
+    assert story.title == web_collector_result_title
+    assert story.content.startswith(web_collector_result_content)
+    assert story.link == browser_web_collector_instance.link
+    assert story.source == browser_web_collector_instance.web_url
 
 
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):

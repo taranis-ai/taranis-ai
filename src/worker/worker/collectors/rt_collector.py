@@ -1,13 +1,13 @@
 import base64
-import hashlib
-from urllib.parse import urlparse, urljoin
-import requests
 import datetime
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
-from worker.log import logger
+import requests
+from models.assess import NewsItem
+
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
-from worker.types import NewsItem
+from worker.log import logger
 
 
 class RTCollector(BaseWebCollector):
@@ -133,18 +133,16 @@ class RTCollector(BaseWebCollector):
         created = attachment.get("Created", "")
         author = attachment.get("Creator", {}).get("id", "")
 
-        for_hash: str = str(ticket_id) + created + author + (content or "")
         decoded_content: str = self.decode64(content) if content else ""
         return NewsItem(
             osint_source_id=source.get("id", ""),
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             title="attachment",
             content=decoded_content or "attachment without content",
-            published_date=datetime.datetime.fromisoformat(created),
+            published=datetime.datetime.fromisoformat(created),
             author=author,
             review=source.get("review", ""),
             source=self.base_url,
-            web_url=self.base_url + self.ticket_path + str(ticket_id),
+            link=self.base_url + self.ticket_path + str(ticket_id),
         )
 
     def get_attachment_values(self, attachment_url: str) -> dict:

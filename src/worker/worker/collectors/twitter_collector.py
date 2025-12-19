@@ -1,8 +1,8 @@
 import datetime
-import hashlib
+
+from models.assess import NewsItem
 
 from .base_web_collector import BaseWebCollector
-from worker.types import NewsItem
 
 
 class TwitterCollector(BaseWebCollector):
@@ -41,16 +41,12 @@ class TwitterCollector(BaseWebCollector):
             title = f"Twitter post from @{author}"
             content = tweet.text
 
-            for_hash = author + tweet_id + str(content)
-
             news_item = NewsItem(
                 osint_source_id=source["id"],
-                hash=hashlib.sha256(for_hash.encode()).hexdigest(),
                 title=title,
-                web_url=link,
-                published_date=published,
+                link=link,
+                published=published,
                 author=author,
-                collected_date=datetime.datetime.now(),
                 content=content,
                 language=source.get("language", ""),
                 attributes=[],

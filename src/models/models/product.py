@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import Field, ValidationInfo, field_validator
 
 from models.base import TaranisBaseModel
@@ -12,7 +13,6 @@ class WorkerProduct(TaranisBaseModel):
 class Product(TaranisBaseModel):
     _core_endpoint = "/publish/products"
     _model_name = "product"
-    _search_fields = ["title", "description"]
     _pretty_name = "Product"
 
     id: str | None = None

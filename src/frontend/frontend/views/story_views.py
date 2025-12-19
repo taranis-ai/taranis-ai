@@ -2,7 +2,7 @@ import datetime
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
@@ -502,19 +502,23 @@ class StoryView(BaseView):
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
-            return cls.render_response_notification({"error": "No selected file."}), 400
+            flash("No file selected for upload", "error")
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
         elif file.mimetype not in ["text/plain", "application/json"]:
-            return cls.render_response_notification({"error": "Unsupported file type. Please upload a .txt or .json file."}), 400
+            flash("Unsupported file type. Please upload a .txt or .json file.", "error")
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
 
         try:
             data = file.read()
             json_data = json.loads(data)
-            news_item = NewsItem(**json_data)
-            core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
-            return cls.news_item_edit_view(core_response)
+            core_response = CoreApi().api_post("/assess/import", json_data=json_data)
+            cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
         except Exception:
             logger.exception("Failed to create news item from file.")
-            return cls.render_response_notification({"error": "Failed to create news item from file."}), 400
+            flash("Failed to create news item from file", "error")
+
+        return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
 
     @classmethod
     def _create_news_item_from_url(cls, url: str):
@@ -609,6 +613,29 @@ class StoryView(BaseView):
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
+
+    @classmethod
+    @auth_required()
+    def export_stories(cls):
+        story_ids = request.args.getlist("story_ids")
+        if not story_ids:
+            logger.warning("No story IDs provided for export.")
+            return cls.render_response_notification({"error": "Failed to export stories."}), 400
+
+        try:
+            paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
+            stories = DataPersistenceLayer().get_objects(Story, paging_data)
+            export_data = [story.model_dump(mode="json") for story in stories.items]
+
+            flask_response = make_response(export_data, 200)
+            flask_response.headers["Content-Type"] = "application/json"
+            flask_response.headers["Content-Disposition"] = (
+                f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+            )
+            return flask_response
+        except Exception:
+            logger.exception("Failed to export stories.")
+            return cls.render_response_notification({"error": "Failed to export stories."}), 500
 
     @classmethod
     @auth_required()
