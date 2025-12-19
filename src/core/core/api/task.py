@@ -1,15 +1,20 @@
 # type: ignore
-from flask import request, Flask, Blueprint
-from flask.views import MethodView
 from datetime import datetime
+from tkinter import WORD
 
-from core.managers.auth_manager import api_key_required
-from core.model.task import Task as TaskModel
-from core.log import logger
-from core.model.word_list import WordList
-from core.model.token_blacklist import TokenBlacklist
-from core.model.product import Product
+from flask import Blueprint, Flask, request
+from flask.views import MethodView
+
 from core.config import Config
+from core.log import logger
+from core.managers.auth_manager import api_key_required
+from core.model.news_item_tag import NewsItemTag
+from core.model.product import Product
+from core.model.story import Story
+from core.model.task import Task as TaskModel
+from core.model.token_blacklist import TokenBlacklist
+from core.model.word_list import WordList
+from core.service.news_item_tag import NewsItemTagService
 
 
 class Task(MethodView):
@@ -74,3 +79,7 @@ def handle_task_specific_result(task_id: str, result: dict | str, status: str):
             Product.update_render_for_id(product_id, rendered_product)
     elif task_id.startswith("collect_"):
         logger.info(f"Collector task {task_id} completed with result: {result}")
+    # TODO: check, when falsy values make sense as results. e.g. IOC bot may make sense, but summary bot may want to be executed again and again and not save the bot_type attribute
+    elif task_id.startswith("bot"):
+        if result.get("bot_id", "").startswith("wordlist_bot"):
+            NewsItemTagService.set_found_bot_tags(result, "WORDLIST_BOT")
