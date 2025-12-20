@@ -1,9 +1,10 @@
-import requests
 from urllib.parse import urlencode
 
-from worker.log import logger
+import requests
+from models.product import WorkerProduct as Product
+
 from worker.config import Config
-from worker.types import Product
+from worker.log import logger
 
 
 class CoreApi:

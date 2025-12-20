@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Self
 
 from pydantic import Field, ValidationInfo, field_validator
+from requests import Response
 
 from models.base import TaranisBaseModel
 
@@ -8,6 +10,13 @@ from models.base import TaranisBaseModel
 class WorkerProduct(TaranisBaseModel):
     data: bytes | None = None
     mime_type: str | None = None
+
+    @classmethod
+    def from_response(cls, response: Response) -> Self:
+        return cls(
+            data=response.content,
+            mime_type=response.headers.get("Content-Type", ""),
+        )
 
 
 class Product(TaranisBaseModel):
@@ -27,27 +36,9 @@ class Product(TaranisBaseModel):
     render_result: str | None = None
     mime_type: str | None = None
 
-    @field_validator("auto_publish", mode="before")
-    @classmethod
-    def normalize_auto_publish(cls, value):
-        if isinstance(value, str):
-            lowered = value.strip().lower()
-            if lowered in {"yes", "true", "1", "on"}:
-                return True
-            if lowered in {"no", "false", "0", "off", ""}:
-                return False
-        return value
-
-    @field_validator("default_publisher", mode="before")
-    @classmethod
-    def empty_default_to_none(cls, value):
-        if isinstance(value, str) and not value.strip():
-            return None
-        return value
-
     @field_validator("default_publisher", mode="after")
     @classmethod
-    def require_default_when_autopublish(cls, value, info: ValidationInfo):
+    def require_default_when_autopublish(cls, value: str, info: ValidationInfo):
         auto_publish = info.data.get("auto_publish")
         if auto_publish and not value:
             raise ValueError("default_publisher is required when auto_publish is enabled")
