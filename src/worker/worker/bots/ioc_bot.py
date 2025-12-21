@@ -1,7 +1,11 @@
-from .base_bot import BaseBot
-from worker.log import logger
-from ioc_finder import find_iocs
+from typing import Mapping, Tuple
+
 import ioc_fanger
+from ioc_finder import find_iocs
+
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class IOCBot(BaseBot):
@@ -22,11 +26,11 @@ class IOCBot(BaseBot):
             "ipv4_cidrs",
         ]
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}
+            return {"message": "No new stories found"}, self.type
 
         extracted_keywords = {}
 
@@ -34,11 +38,10 @@ class IOCBot(BaseBot):
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting IOCs from {story['id']}: {i}/{len(data)}")
             story_content = " ".join(news_item["content"] for news_item in story["news_items"])
-            if iocs := self.extract_ioc(story_content):
-                extracted_keywords[story["id"]] = iocs
-
-        self.core_api.update_tags(extracted_keywords, self.type)
-        return {"message": f"Extracted {len(extracted_keywords)} IOCs"}
+            iocs = self.extract_ioc(story_content)
+            extracted_keywords[story["id"]] = iocs
+        logger.info({"message": f"Extracted {len(extracted_keywords)} IOCs"})
+        return extracted_keywords, self.type
 
     def extract_ioc(self, text: str):
         ioc_data = find_iocs(text=text, included_ioc_types=self.included_ioc_types)

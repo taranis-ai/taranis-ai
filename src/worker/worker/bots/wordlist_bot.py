@@ -1,5 +1,5 @@
 import re
-from typing import Any, Mapping
+from typing import Mapping, Tuple
 
 from worker.log import logger
 
@@ -14,7 +14,7 @@ class WordlistBot(BaseBot):
         self.name = "Wordlist Bot"
         self.description = "Bot for tagging news items by wordlist"
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         if not parameters:
             parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)
@@ -22,14 +22,14 @@ class WordlistBot(BaseBot):
 
         word_list_entries = self._get_word_list_entries()
         if not word_list_entries:
-            return {"message": "No word list entries found"}
+            return {"message": "No word list entries found"}, self.type
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}
+            return {"message": "No new stories found"}, self.type
 
         found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
         logger.info({"message": f"{len(found_tags)} tags found, saving bot type to story attributes..."})
-        return found_tags
+        return found_tags, self.type
 
     @staticmethod
     def _set_ignore_case_flag(parameters):
@@ -46,8 +46,7 @@ class WordlistBot(BaseBot):
         for i, story in enumerate(data):
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
-            if findings := self._find_tags(story, word_list_entries, override_existing_tags, ignore_case):
-                found_tags[story["id"]] = findings
+            found_tags[story["id"]] = self._find_tags(story, word_list_entries, override_existing_tags, ignore_case)
         return found_tags
 
     def _find_tags(self, stord, word_list_entries, override_existing_tags, ignore_case) -> dict[str, str]:

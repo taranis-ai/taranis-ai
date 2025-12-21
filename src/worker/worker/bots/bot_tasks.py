@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Mapping, Tuple
 
 from celery import Task
 from regex import B
@@ -31,15 +31,15 @@ class BotTask(Task):
             "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
         }
 
-    def run(self, bot_id: str, filter: dict | None = None) -> dict[str, Any]:
+    def run(self, bot_id: str, filter: dict | None = None) -> dict[str, Mapping[str, dict[str, str] | str] | str]:
         logger.info(f"Starting bot task {self.name}")
         if bot_config := self.core_api.get_bot_config(bot_id):
-            result = self.execute_by_config(bot_config, filter)
-            return {"bot_id": bot_id, "result": result}
+            result, bot_type = self.execute_by_config(bot_config, filter)
+            return {"bot_id": bot_id, "bot_type": bot_type, "result": result}
 
         raise ValueError(f"Bot with id {bot_id} not found")
 
-    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> dict[str, Any]:
+    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         bot_type = bot_config.get("type")
         if not bot_type:
             raise ValueError("Bot has no type")

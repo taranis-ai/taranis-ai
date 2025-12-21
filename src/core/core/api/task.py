@@ -81,5 +81,10 @@ def handle_task_specific_result(task_id: str, result: dict | str, status: str):
         logger.info(f"Collector task {task_id} completed with result: {result}")
     # TODO: check, when falsy values make sense as results. e.g. IOC bot may make sense, but summary bot may want to be executed again and again and not save the bot_type attribute
     elif task_id.startswith("bot"):
-        if result.get("bot_id", "").startswith("wordlist_bot"):
-            NewsItemTagService.set_found_bot_tags(result, "WORDLIST_BOT")
+        if result.get("result").get("error") or result.get("result").get("message"):
+            logger.error((result.get("result").get("error") or result.get("result").get("message")))
+            return
+        bot_type = result.get("bot_type", "")
+        tagging_bots = ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT"]
+        if any(tagging_bot in bot_type for tagging_bot in tagging_bots):
+            NewsItemTagService.set_found_bot_tags(result, bot_type)
