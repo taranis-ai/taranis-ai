@@ -1,6 +1,5 @@
 # type: ignore
 from datetime import datetime
-from tkinter import WORD
 
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
@@ -8,9 +7,7 @@ from flask.views import MethodView
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_required
-from core.model.news_item_tag import NewsItemTag
 from core.model.product import Product
-from core.model.story import Story
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
