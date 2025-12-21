@@ -40,6 +40,5 @@ class TaggingBot(BaseBot):
                             findings.add(finding[1])
             found_tags[story["id"]] = findings
 
-        logger.info({"message": "No tags found, saving bot type to story attributes..."})
-        self.core_api.update_tags(found_tags, self.type)
-        return {"message": f"Extracted {len(found_tags)} tags"}, self.type
+        logger.info({"message": f"Extracted {len(found_tags)} tags"})
+        return found_tags, self.type
