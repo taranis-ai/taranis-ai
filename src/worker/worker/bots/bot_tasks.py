@@ -1,7 +1,6 @@
 from typing import Mapping, Tuple
 
 from celery import Task
-from regex import B
 
 import worker.bots
 from worker.bots.base_bot import BaseBot
