@@ -1,8 +1,11 @@
+from typing import Mapping, Tuple
+
 from celery import Task
 
 import worker.bots
-from worker.log import logger
+from worker.bots.base_bot import BaseBot
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 class BotTask(Task):
@@ -14,7 +17,7 @@ class BotTask(Task):
 
     def __init__(self):
         self.core_api = CoreApi()
-        self.bots = {
+        self.bots: dict[str, BaseBot] = {
             "analyst_bot": worker.bots.AnalystBot(),
             "grouping_bot": worker.bots.GroupingBot(),
             "tagging_bot": worker.bots.TaggingBot(),
@@ -27,14 +30,15 @@ class BotTask(Task):
             "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
         }
 
-    def run(self, bot_id: str, filter: dict | None = None):
+    def run(self, bot_id: str, filter: dict | None = None) -> dict[str, Mapping[str, dict[str, str] | str] | str]:
         logger.info(f"Starting bot task {self.name}")
         if bot_config := self.core_api.get_bot_config(bot_id):
-            return self.execute_by_config(bot_config, filter)
+            result, bot_type = self.execute_by_config(bot_config, filter)
+            return {"bot_id": bot_id, "bot_type": bot_type, "result": result}
 
         raise ValueError(f"Bot with id {bot_id} not found")
 
-    def execute_by_config(self, bot_config: dict, filter: dict | None = None):
+    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         bot_type = bot_config.get("type")
         if not bot_type:
             raise ValueError("Bot has no type")

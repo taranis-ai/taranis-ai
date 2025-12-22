@@ -1,11 +1,13 @@
-from typing import TYPE_CHECKING
-from sqlalchemy import func
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from core.model.story import Story
-from core.model.news_item_tag import NewsItemTag
-from core.managers.db_manager import db
+from sqlalchemy import func
+
 from core.log import logger
+from core.managers.db_manager import db
+from core.model.news_item_tag import NewsItemTag
+from core.model.story import Story
+
 
 if TYPE_CHECKING:
     from core.model.report_item import ReportItem
@@ -99,6 +101,17 @@ class NewsItemTagService:
         story_tags.append(new_tag)
         story.tags = story_tags
         db.session.commit()
+
+    @staticmethod
+    def set_found_bot_tags(result: dict[str, Any], bot_type: str):
+        errors = {}
+        found_tags = result.get("result", {})
+        for story_id, tags in found_tags.items():
+            story = Story.get(story_id)
+            if not story:
+                errors[story_id] = "Story not found"
+                continue
+            story.set_tags(tags, bot_type=bot_type)
 
     @classmethod
     def remove_report_tag(cls, story: "Story", report_id: str):

@@ -1,7 +1,10 @@
-from .base_bot import BaseBot
-from worker.log import logger
-from worker.config import Config
+from typing import Mapping, Tuple
+
 from worker.bot_api import BotApi
+from worker.config import Config
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class StoryBot(BaseBot):
@@ -13,11 +16,11 @@ class StoryBot(BaseBot):
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
         self.language = language
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}
+            return {"message": "No new stories found"}, self.type
 
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT),
@@ -30,9 +33,9 @@ class StoryBot(BaseBot):
             cluster_data = response.get("cluster_ids", {})
             message = response.get("message", "")
             if not cluster_data or not cluster_data.get("event_clusters"):
-                return {"message": f"{message}. No clusters found."}
+                return {"message": f"{message}. No clusters found."}, self.type
 
             self.core_api.news_items_grouping_multiple(cluster_data.get("event_clusters", []))
-            return {"message": message}
+            return {"message": message}, self.type
 
         raise RuntimeError(f"Did not receive clustering information from Story Bot at {self.bot_api.api_url}")

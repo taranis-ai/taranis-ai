@@ -1,6 +1,9 @@
 import re
-from .base_bot import BaseBot
+from typing import Mapping, Tuple
+
 from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class WordlistBot(BaseBot):
@@ -11,7 +14,7 @@ class WordlistBot(BaseBot):
         self.name = "Wordlist Bot"
         self.description = "Bot for tagging news items by wordlist"
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         if not parameters:
             parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)
@@ -19,17 +22,14 @@ class WordlistBot(BaseBot):
 
         word_list_entries = self._get_word_list_entries()
         if not word_list_entries:
-            return {"message": "No word list entries found"}
+            return {"message": "No word list entries found"}, self.type
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}
+            return {"message": "No new stories found"}, self.type
 
         found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
-        if not found_tags:
-            return {"message": "No tags found"}
-
-        self.core_api.update_tags(found_tags, self.type)
-        return {"message": f"Extracted {len(found_tags)} tags"}
+        logger.info({"message": f"{len(found_tags)} tags found, saving bot type to story attributes..."})
+        return found_tags, self.type
 
     @staticmethod
     def _set_ignore_case_flag(parameters):
@@ -40,17 +40,16 @@ class WordlistBot(BaseBot):
             return [entry for word_list in word_lists["items"] for entry in word_list["entries"]]
         return
 
-    def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case):
+    def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case) -> dict[str, dict[str, str]]:
         found_tags = {}
         logger.info(f"Extracting tags from news items: {len(data)}")
         for i, story in enumerate(data):
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
-            if findings := self._find_tags(story, word_list_entries, override_existing_tags, ignore_case):
-                found_tags[story["id"]] = findings
+            found_tags[story["id"]] = self._find_tags(story, word_list_entries, override_existing_tags, ignore_case)
         return found_tags
 
-    def _find_tags(self, stord, word_list_entries, override_existing_tags, ignore_case):
+    def _find_tags(self, stord, word_list_entries, override_existing_tags, ignore_case) -> dict[str, str]:
         findings = {}
         entry_set = {item["value"]: item["category"] for item in word_list_entries}
         existing_tags = stord["tags"] or {}

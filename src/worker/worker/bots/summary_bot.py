@@ -1,7 +1,10 @@
-from .base_bot import BaseBot
-from worker.log import logger
+from typing import Mapping, Tuple
+
 from worker.bot_api import BotApi
 from worker.config import Config
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class SummaryBot(BaseBot):
@@ -10,12 +13,12 @@ class SummaryBot(BaseBot):
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         if not parameters:
             parameters = {}
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}
+            return {"message": "No new stories found"}, self.type
 
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT),
@@ -30,12 +33,13 @@ class SummaryBot(BaseBot):
             try:
                 if summary := self.predict_summary(content_to_summarize):
                     self.core_api.update_story_summary(story["id"], summary)
+                self.core_api.update_story_attributes(story["id"], [{"key": self.type, "value": 1 if summary else 0}])
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 continue
 
             logger.debug(f"Created summary for : {story['id']}")
-        return {"message": f"Summarized {len(data)} stories"}
+        return {"message": f"Summarized {len(data)} stories"}, self.type
 
     def predict_summary(self, text_to_summarize: str) -> str:
         if summary := self.bot_api.api_post("/", {"text": text_to_summarize}):

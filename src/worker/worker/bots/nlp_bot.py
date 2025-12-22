@@ -1,7 +1,9 @@
-from .base_bot import BaseBot
-from worker.config import Config
+from typing import Mapping, Tuple
+
 from worker.bot_api import BotApi
-from worker.log import logger
+from worker.config import Config
+
+from .base_bot import BaseBot
 
 
 def batched(stories: list, batch_size=10):
@@ -15,7 +17,7 @@ class NLPBot(BaseBot):
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
         update_result = {}
 
         if not parameters:
@@ -28,8 +30,8 @@ class NLPBot(BaseBot):
 
             for story_batch in batched(stories):
                 update_result |= self._process_stories(story_batch)
-            return update_result
-        return {"message": "No new stories found"}
+            return update_result, self.type
+        return {"message": "No new stories found"}, self.type
 
     def _process_stories(self, stories: list) -> dict:
         update_result = {}
@@ -43,11 +45,6 @@ class NLPBot(BaseBot):
             current_keywords = self._extract_ner(story_content, is_cybersecurity)
             update_result[story["id"]] = current_keywords
 
-        return self._update_tags(update_result)
-
-    def _update_tags(self, update_result: dict) -> dict:
-        logger.debug(f"Extracted {len(update_result)} tags")
-        self.core_api.update_tags(update_result, self.type)
         return update_result
 
     def _extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:
