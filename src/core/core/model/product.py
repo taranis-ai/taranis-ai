@@ -1,19 +1,21 @@
-from datetime import datetime, timedelta
-from typing import Any
+import mimetypes
 import uuid
 from base64 import b64decode
-from sqlalchemy.orm import deferred, Mapped, relationship
+from datetime import date, datetime, timedelta
+from typing import Any
+
+from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
-from core.managers.db_manager import db
 from core.log import logger
-from core.model.role_based_access import ItemType
-from core.model.report_item import ReportItem
-from core.model.base_model import BaseModel
-from core.model.user import User
-from core.model.product_type import ProductType
-from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 from core.managers import queue_manager
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
+from core.model.product_type import ProductType
+from core.model.report_item import ReportItem
+from core.model.role_based_access import ItemType
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class Product(BaseModel):
@@ -159,20 +161,18 @@ class Product(BaseModel):
             return {"message": f"Product {product_id} updated"}, 200
         return {"error": f"Product {product_id} not updated"}, 500
 
+    def get_file_name(self) -> str:
+        product_title = self.title
+        mime_type = self.product_type.get_mimetype()
+
+        file_extension = mimetypes.guess_extension(mime_type, strict=False)
+        return f"{product_title.replace(' ', '_')}_{date.today().isoformat()}{file_extension}"
+
     @classmethod
     def get_render(cls, product_id: str):
         if product := cls.get(product_id):
             if product.render_result:
-                mime_type = product.product_type.get_mimetype()
-                if mime_type in [
-                    "application/pdf",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "application/vnd.oasis.opendocument.text",
-                ]:
-                    blob = product.render_result
-                else:
-                    blob = b64decode(product.render_result).decode("utf-8")
-                return {"mime_type": mime_type, "blob": blob}
+                return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
         return None
 
     @classmethod
