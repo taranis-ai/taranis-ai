@@ -78,7 +78,7 @@ class CTIService:
             product_data = {
                 "title": data.get("title"),
                 "description": "",
-                "product_type_id": 7,
+                "product_type_id": 8,
                 "auto_publish": True,
                 "default_publisher": publisher.id,
             }
