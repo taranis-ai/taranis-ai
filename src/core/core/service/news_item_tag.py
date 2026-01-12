@@ -119,24 +119,19 @@ class NewsItemTagService:
         bot_type = result.get("bot_type", "UNKNOWN_BOT")
         bot_id = result.get("bot_id", "UNKNOWN_ID")
         found_tags = result.get("result", {}) or {}
-
         now = datetime.now().isoformat()
 
         for story_id, tags in found_tags.items():
-            story = Story.get(story_id)
-            if not story:
-                continue
-
-            tag_count = len(tags)
-
-            attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
-
-            story.attributes.append(
-                NewsItemAttribute(
-                    key=f"{bot_type}",
-                    value=attribute_value,
+            if story := Story.get(story_id):
+                tag_count = len(tags)
+                attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
+                story.attributes.append(
+                    NewsItemAttribute(
+                        key=f"{bot_type}",
+                        value=attribute_value,
+                    )
                 )
-            )
+
         db.session.commit()
 
     @classmethod
