@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from celery import Task
 
@@ -33,12 +33,13 @@ class BotTask(Task):
     def run(self, bot_id: str, filter: dict | None = None) -> dict[str, Mapping[str, dict[str, str] | str] | str]:
         logger.info(f"Starting bot task {self.name}")
         if bot_config := self.core_api.get_bot_config(bot_id):
-            result, bot_type = self.execute_by_config(bot_config, filter)
+            result = self.execute_by_config(bot_config, filter)
+            bot_type = bot_config.get("type", "UNKNOWN_BOT_TYPE").upper()
             return {"bot_id": bot_id, "bot_type": bot_type, "result": result}
 
         raise ValueError(f"Bot with id {bot_id} not found")
 
-    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         bot_type = bot_config.get("type")
         if not bot_type:
             raise ValueError("Bot has no type")

@@ -1,5 +1,5 @@
 import re
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.log import logger
 
@@ -13,7 +13,7 @@ class TaggingBot(BaseBot):
         self.name = "Tagging Bot"
         self.description = "Bot for tagging news items based on regular expressions"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         regexp = parameters.get("REGULAR_EXPRESSION")
@@ -21,7 +21,7 @@ class TaggingBot(BaseBot):
             raise ValueError("TaggingBot requires REGULAR_EXPRESSION parameter")
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         found_tags = {}
         for story in data:
@@ -41,4 +41,4 @@ class TaggingBot(BaseBot):
             found_tags[story["id"]] = findings
 
         logger.info({"message": f"Extracted {len(found_tags)} tags"})
-        return found_tags, self.type
+        return found_tags

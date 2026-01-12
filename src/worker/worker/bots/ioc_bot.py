@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping
 
 import ioc_fanger
 from ioc_finder import find_iocs
@@ -26,11 +26,11 @@ class IOCBot(BaseBot):
             "ipv4_cidrs",
         ]
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         extracted_keywords = {}
 
@@ -41,7 +41,7 @@ class IOCBot(BaseBot):
             iocs = self.extract_ioc(story_content)
             extracted_keywords[story["id"]] = iocs
         logger.info({"message": f"Extracted {len(extracted_keywords)} IOCs"})
-        return extracted_keywords, self.type
+        return extracted_keywords
 
     def extract_ioc(self, text: str):
         ioc_data = find_iocs(text=text, included_ioc_types=self.included_ioc_types)

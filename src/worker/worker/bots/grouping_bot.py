@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.log import logger
 
@@ -15,7 +15,7 @@ class GroupingBot(BaseBot):
         self.description = "Bot for grouping news items into stories"
         self.default_regex = r"CVE-\d{4}-\d{4,7}"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         regexp = parameters.get("REGULAR_EXPRESSION")
@@ -23,7 +23,7 @@ class GroupingBot(BaseBot):
             raise ValueError("GroupingBot requires REGULAR_EXPRESSION parameter")
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         findings = defaultdict(list)
         for story in data:
@@ -38,11 +38,11 @@ class GroupingBot(BaseBot):
                         break
 
         if not findings:
-            return {"message": "No Groups found"}, self.type
+            return {"message": "No Groups found"}
 
         for group, ids in findings.items():
             if len(ids) > 1:
                 logger.debug(f"Grouping: {group} with: {ids}")
                 self.core_api.news_items_grouping(ids)
 
-        return {"message": f"Grouped {len(findings)} groups"}, self.type
+        return {"message": f"Grouped {len(findings)} groups"}

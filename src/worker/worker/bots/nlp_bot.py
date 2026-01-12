@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.bot_api import BotApi
 from worker.config import Config
@@ -17,7 +17,7 @@ class NLPBot(BaseBot):
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         update_result = {}
 
         if not parameters:
@@ -30,8 +30,8 @@ class NLPBot(BaseBot):
 
             for story_batch in batched(stories):
                 update_result |= self._process_stories(story_batch)
-            return update_result, self.type
-        return {"message": "No new stories found"}, self.type
+            return update_result
+        return {"message": "No new stories found"}
 
     def _process_stories(self, stories: list) -> dict:
         update_result = {}

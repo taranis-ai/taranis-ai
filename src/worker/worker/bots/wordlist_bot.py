@@ -1,5 +1,5 @@
 import re
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.log import logger
 
@@ -14,7 +14,7 @@ class WordlistBot(BaseBot):
         self.name = "Wordlist Bot"
         self.description = "Bot for tagging news items by wordlist"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)
@@ -22,14 +22,14 @@ class WordlistBot(BaseBot):
 
         word_list_entries = self._get_word_list_entries()
         if not word_list_entries:
-            return {"message": "No word list entries found"}, self.type
+            return {"message": "No word list entries found"}
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
         logger.info({"message": f"{len(found_tags)} tags found, saving bot type to story attributes..."})
-        return found_tags, self.type
+        return found_tags
 
     @staticmethod
     def _set_ignore_case_flag(parameters):

@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.bot_api import BotApi
 from worker.config import Config
@@ -13,12 +13,12 @@ class SummaryBot(BaseBot):
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT),
@@ -39,7 +39,7 @@ class SummaryBot(BaseBot):
                 continue
 
             logger.debug(f"Created summary for : {story['id']}")
-        return {"message": f"Summarized {len(data)} stories"}, self.type
+        return {"message": f"Summarized {len(data)} stories"}
 
     def predict_summary(self, text_to_summarize: str) -> str:
         if summary := self.bot_api.api_post("/", {"text": text_to_summarize}):

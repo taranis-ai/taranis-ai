@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping
 
 from worker.bot_api import BotApi
 from worker.config import Config
@@ -13,12 +13,12 @@ class CyberSecClassifierBot(BaseBot):
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
 
         if not (data := self.get_stories(parameters)):
-            return {"message": "No new stories found"}, self.type
+            return {"message": "No new stories found"}
 
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.CYBERSEC_CLASSIFIER_API_ENDPOINT),

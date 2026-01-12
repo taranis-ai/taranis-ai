@@ -1,5 +1,5 @@
 import datetime
-from typing import Mapping, Tuple
+from typing import Mapping
 from urllib.parse import parse_qs
 
 from worker.core_api import CoreApi
@@ -16,10 +16,10 @@ class BaseBot:
         self.model = None
         self.bot_api = None
 
-    def execute(self, parameters: dict | None = None) -> Tuple[Mapping[str, dict[str, str] | str], str]:
+    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
-        return {"message": "No action defined for this bot"}, "BASE_BOT"
+        return {"message": "No action defined for this bot"}
 
     def get_filter_dict(self, parameters: dict) -> dict:
         filter_dict = {}
