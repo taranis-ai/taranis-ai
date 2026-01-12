@@ -246,9 +246,6 @@ class QueueManager:
 
         while time.time() - start < 10:
             response, status = self.get_task(task_id)
-            print("##########")
-            print(response)
-            print("##########")
             if status == 200 and "result" in response:
                 return response["result"]
 
