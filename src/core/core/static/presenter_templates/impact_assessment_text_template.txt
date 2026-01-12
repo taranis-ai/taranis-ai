@@ -1,0 +1,88 @@
+{# ============================
+  Impact Assessment - Plain Text Template
+  Renders each report_item like your JSON template fields.
+  Works even if some fields are missing.
+============================ #}
+
+{%- macro nl(val) -%}
+{# ensure nice spacing & avoid printing "None" #}
+{%- if val is not none and val|string|trim != "" -%}
+{{ val }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- for report_item in data.report_items %}
+{%- set props = report_item.attributes.get('Properties', {}) %}
+
+============================================================
+IMPACT ASSESSMENT
+============================================================
+Assessment ID : {{ props.get('Assessment ID', '') }}
+Title         : {{ props.get('Title', report_item.title) }}
+Author        : {{ props.get('Author', '') }}
+Created       : {{ props.get('Created', '') }}
+
+------------------------------------------------------------
+SUMMARY
+------------------------------------------------------------
+{{ nl(props.get('Summary', '')) }}
+
+------------------------------------------------------------
+SCOPE
+------------------------------------------------------------
+{{ nl(props.get('Scope', '')) }}
+
+------------------------------------------------------------
+METHODOLOGY
+------------------------------------------------------------
+{{ nl(props.get('Methodology', '')) }}
+
+------------------------------------------------------------
+FINDINGS
+------------------------------------------------------------
+{{ nl(props.get('Findings', '')) }}
+
+------------------------------------------------------------
+RECOMMENDATIONS
+------------------------------------------------------------
+{{ nl(props.get('Recommendations', '')) }}
+
+{%- if props.get('Appendices', '')|string|trim %}
+------------------------------------------------------------
+APPENDICES
+------------------------------------------------------------
+{{ nl(props.get('Appendices', '')) }}
+{%- endif %}
+
+{%- if props.get('References', '')|string|trim %}
+------------------------------------------------------------
+REFERENCES
+------------------------------------------------------------
+{{ nl(props.get('References', '')) }}
+{%- endif %}
+
+{%- if report_item.stories %}
+------------------------------------------------------------
+STORIES
+------------------------------------------------------------
+{%- for story in report_item.stories %}
+
+* {{ story.title }}
+{%- if story is mapping %}
+{{ story }}
+{%- else %}
+{{ story }}
+{%- endif %}
+
+{%- endfor %}
+{%- endif %}
+
+{%- if not loop.last %}
+
+{# spacer between report items #}
+{%- endif %}
+{%- endfor %}
+
+{%- if data.report_items|length == 0 -%}
+No Report Items specified
+{%- endif -%}

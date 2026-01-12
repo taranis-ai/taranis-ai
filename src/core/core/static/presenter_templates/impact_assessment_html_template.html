@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Impact Assessment - {{ data.current_date }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        margin: 24px;
+        color: #111;
+        line-height: 1.5;
+      }
+      h1 { font-size: 22px; margin: 0 0 14px 0; }
+      h2 { font-size: 18px; margin: 18px 0 10px 0; }
+      h3 { font-size: 15px; margin: 16px 0 8px 0; }
+      h4 { font-size: 13px; margin: 14px 0 6px 0; }
+      .muted { color: #555; }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 12px 0;
+      }
+      .meta {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+      }
+      .meta td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+        vertical-align: top;
+      }
+      .meta td.key {
+        width: 180px;
+        font-weight: 600;
+        color: #222;
+      }
+      .section-title {
+        font-weight: 700;
+        margin: 0 0 8px 0;
+      }
+      .pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      hr { border: none; border-top: 1px solid #ddd; margin: 18px 0; }
+      a { color: #0b57d0; text-decoration: none; }
+    </style>
+  </head>
+
+  <body>
+    <h1>Impact Assessment Report — {{ data.current_date }}</h1>
+    <div class="muted">Items: {{ data.report_items|length }}</div>
+
+    {% for report_item in data.report_items %}
+    {% set props = report_item.attributes.get('Properties', {}) %}
+
+    <hr />
+    <h2>{{ props.get('Title', report_item.title) }}</h2>
+
+    <div class="card">
+      <div class="section-title">Metadata</div>
+      <table class="meta">
+        <tr>
+          <td class="key">Assessment ID</td>
+          <td>{{ props.get('Assessment ID', '') }}</td>
+        </tr>
+        <tr>
+          <td class="key">Author</td>
+          <td>{{ props.get('Author', '') }}</td>
+        </tr>
+        <tr>
+          <td class="key">Created</td>
+          <td>{{ props.get('Created', '') }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Summary</div>
+      <div class="pre">{{ props.get('Summary', '') }}</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Scope</div>
+      <div class="pre">{{ props.get('Scope', '') }}</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Methodology</div>
+      <div class="pre">{{ props.get('Methodology', '') }}</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Findings</div>
+      <div class="pre">{{ props.get('Findings', '') }}</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Recommendations</div>
+      <div class="pre">{{ props.get('Recommendations', '') }}</div>
+    </div>
+
+    {% if props.get('Appendices', '')|string|trim %}
+    <div class="card">
+      <div class="section-title">Appendices</div>
+      <div class="pre">{{ props.get('Appendices', '') }}</div>
+    </div>
+    {% endif %}
+
+    {% if props.get('References', '')|string|trim %}
+    <div class="card">
+      <div class="section-title">References</div>
+      <div class="pre">{{ props.get('References', '') }}</div>
+    </div>
+    {% endif %}
+
+    {% if report_item.stories %}
+    <h3>Stories</h3>
+    {% for story in report_item.stories %}
+    <div class="card">
+      <h4>{{ story.title }}</h4>
+      <div class="pre">
+        {% if story is mapping %}
+          {{ story }}
+        {% else %}
+          {{ story }}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% endfor %}
+
+    {% if data.report_items|length == 0 %}
+    <p>No Report Items specified</p>
+    {% endif %}
+  </body>
+</html>

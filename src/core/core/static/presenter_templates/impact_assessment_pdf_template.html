@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Impact Assessment - {{ data.current_date }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <style>
+      /* PDF-friendly styling (works well with wkhtmltopdf / weasyprint / headless chrome) */
+      @page { margin: 18mm 16mm; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #111;
+      }
+      h1 { font-size: 20px; margin: 0 0 10px 0; }
+      h2 { font-size: 16px; margin: 18px 0 8px 0; }
+      h3 { font-size: 14px; margin: 16px 0 8px 0; }
+      h4 { font-size: 12px; margin: 14px 0 6px 0; }
+
+      .muted { color: #555; }
+      .page-meta { margin-bottom: 16px; }
+      .report-item { margin: 14px 0 18px 0; }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin: 10px 0 12px 0;
+      }
+      .grid {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .grid td {
+        vertical-align: top;
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+      }
+      .grid td.key {
+        width: 26%;
+        font-weight: 600;
+        color: #222;
+      }
+      .block-title {
+        font-weight: 700;
+        margin: 0 0 8px 0;
+      }
+      .section {
+        margin-top: 10px;
+      }
+      .pre {
+        white-space: pre-wrap; /* preserve newlines from your fields */
+        word-wrap: break-word;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #ddd;
+        margin: 14px 0;
+      }
+      .avoid-break { page-break-inside: avoid; }
+      .small { font-size: 11px; }
+      a { color: #0b57d0; text-decoration: none; }
+    </style>
+  </head>
+
+  <body>
+    <div id="content-section">
+      <div class="page-meta">
+        <h1>Impact Assessment Report — {{ data.current_date }}</h1>
+        <div class="muted small">
+          Generated from {{ data.report_items|length }} report item{% if data.report_items|length != 1 %}s{% endif %}.
+        </div>
+      </div>
+
+      {% for report_item in data.report_items %}
+      {% set props = report_item.attributes.get('Properties', {}) %}
+      <div class="report-item avoid-break">
+        <h2>{{ props.get('Title', report_item.title) }}</h2>
+
+        <div class="card">
+          <div class="block-title">Metadata</div>
+          <table class="grid">
+            <tr>
+              <td class="key">Assessment ID</td>
+              <td>{{ props.get('Assessment ID', '') }}</td>
+            </tr>
+            <tr>
+              <td class="key">Author</td>
+              <td>{{ props.get('Author', '') }}</td>
+            </tr>
+            <tr>
+              <td class="key">Created</td>
+              <td>{{ props.get('Created', '') }}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="block-title">Summary</div>
+          <div class="pre">{{ props.get('Summary', '') }}</div>
+        </div>
+
+        <div class="card">
+          <div class="block-title">Scope</div>
+          <div class="pre">{{ props.get('Scope', '') }}</div>
+        </div>
+
+        <div class="card">
+          <div class="block-title">Methodology</div>
+          <div class="pre">{{ props.get('Methodology', '') }}</div>
+        </div>
+
+        <div class="card">
+          <div class="block-title">Findings</div>
+          <div class="pre">{{ props.get('Findings', '') }}</div>
+        </div>
+
+        <div class="card">
+          <div class="block-title">Recommendations</div>
+          <div class="pre">{{ props.get('Recommendations', '') }}</div>
+        </div>
+
+        {% if props.get('Appendices', '') %}
+        <div class="card">
+          <div class="block-title">Appendices</div>
+          <div class="pre">{{ props.get('Appendices', '') }}</div>
+        </div>
+        {% endif %}
+
+        {% if props.get('References', '') %}
+        <div class="card">
+          <div class="block-title">References</div>
+          <div class="pre">{{ props.get('References', '') }}</div>
+        </div>
+        {% endif %}
+
+        {% if report_item.stories %}
+        <h3>Stories</h3>
+        {% for story in report_item.stories %}
+        <div class="card avoid-break">
+          <h4>{{ story.title }}</h4>
+          {# If story is a dict-like object, render it safely; otherwise print its string representation #}
+          <div class="pre">
+            {% if story is mapping %}
+              {{ story }}
+            {% else %}
+              {{ story }}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <hr />
+      </div>
+      {% endfor %}
+    </div>
+  </body>
+</html>

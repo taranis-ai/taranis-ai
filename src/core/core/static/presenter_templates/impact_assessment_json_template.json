@@ -1,0 +1,17 @@
+{
+{% for report_item in data.report_items %}
+  {
+    "assessment_id": "{{ report_item.attributes['Properties'].get('Assessment ID', '') }}",
+    "title": "{{ report_item.attributes['Properties'].get('Title', '') }}",
+    "author": "{{ report_item.attributes['Properties'].get('Author', '') }}",
+    "date_created": "{{ report_item.attributes['Properties'].get('Created', '') }}",
+    "summary": "{{ report_item.attributes['Properties'].get('Summary', '') }}",
+    "scope": "{{ report_item.attributes['Properties'].get('Scope', '') }}",
+    "methodology": "{{ report_item.attributes['Properties'].get('Methodology', '') }}",
+    "findings": "{{ report_item.attributes['Properties'].get('Findings', '') }}",
+    "recommendations": "{{ report_item.attributes['Properties'].get('Recommendations', '') }}",
+    "appendices": "{{ report_item.attributes['Properties'].get('Appendices', '') }}",
+    "references": "{{ report_item.attributes['Properties'].get('References', '') }}"
+  }{% if not loop.last %},{% endif %}
+{% endfor %}
+}
