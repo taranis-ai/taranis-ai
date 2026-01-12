@@ -225,3 +225,15 @@ class CoreApi:
 
     def clone_report(self, report_id: str) -> requests.Response:
         return self.api_post(f"/analyze/report-items/{report_id}/clone")
+
+    def get_story_conflicts(self, story_id: str | None = None):
+        if story_id:
+            return self.api_get(f"/connectors/conflicts/stories/{story_id}")
+        return self.api_get("/connectors/conflicts/stories")
+
+    def resolve_story_conflict(self, story_id: str, resolution: dict, incoming_story_original: dict):
+        payload = {
+            "resolution": resolution,
+            "incoming_story_original": incoming_story_original,
+        }
+        return self.api_put(f"/connectors/conflicts/stories/{story_id}", json_data=payload)

@@ -691,15 +691,15 @@ class Story(BaseModel):
         original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
 
         if existing_conflict := StoryConflict.conflict_store.get(story_id):
-            existing_conflict.original = original_str
-            existing_conflict.updated = updated_str
+            existing_conflict.existing_story = original_str
+            existing_conflict.incoming_story = updated_str
             existing_conflict.has_proposals = has_proposals_value
             logger.debug(f"Updated existing conflict for story {story_id}")
         else:
             StoryConflict.conflict_store[story_id] = StoryConflict(
                 story_id=story_id,
-                original=original_str,
-                updated=updated_str,
+                existing_story=original_str,
+                incoming_story=updated_str,
                 has_proposals=has_proposals_value,
             )
             logger.warning(f"Story Conflict detected for story {story_id}")

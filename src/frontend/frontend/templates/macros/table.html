@@ -175,7 +175,13 @@
 
 {% macro table_controls(base_url, data) %}
   {% from "macros/query_params.html" import update_query_params %}
-  {% if data and base_url %}
+  {% if data
+    and base_url
+    and data.current_page is defined
+    and data.total_pages is defined
+    and data.limit is defined
+    and data.first_page is defined
+    and data.last_page is defined %}
     <div class="flex items-center gap-8 p-4 bg-base-100 shadow rounded-lg w-fit">
       <!-- Items per Page -->
       <div class="flex items-center gap-2">
