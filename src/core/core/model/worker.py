@@ -72,7 +72,11 @@ class Worker(BaseModel):
                     ~Worker.description.ilike(f"%{exclude}%"),
                 )
             )
-        return query.order_by(db.asc(Worker.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def filter_by_type(cls, worker_type) -> "Worker | None":

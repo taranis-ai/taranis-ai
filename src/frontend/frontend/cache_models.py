@@ -15,7 +15,6 @@ class PagingData(BaseModel):
     order: str | None = None
     search: str | None = None
     query_params: dict[str, str | list[str]] | None = None
-    server_side: bool = False
 
 
 class CacheObject(list[T], Generic[T]):
@@ -81,90 +80,3 @@ class CacheObject(list[T], Generic[T]):
     @property
     def items(self) -> list[T]:
         return list(self)
-
-    def search(self, query: str) -> "CacheObject[T]":
-        if not query:
-            return self
-        q = query
-        hits = []
-        for item in self:
-            if hasattr(item, "search_field") and q in getattr(item, "search_field", ""):
-                hits.append(item)
-                continue
-            for fld in getattr(item, "_search_fields", []):
-                val = getattr(item, fld, None)
-                if val is not None and q in str(val):
-                    hits.append(item)
-                    break
-        return CacheObject(
-            hits,
-            page=1,
-            limit=self.limit,
-            order=self.order,
-            links=self._links,
-            total_count=len(hits),
-        )
-
-    def order_by(self, paging_order: str) -> "CacheObject[T]":
-        key, direction = paging_order.split("_", 1)
-        if direction not in ("asc", "desc"):
-            raise ValueError(f"Direction must be 'asc' or 'desc', got {direction!r}")
-
-        reverse = direction == "desc"
-
-        nones: list[T] = []
-        non_nones: list[T] = []
-        try:
-            for item in self:
-                (nones if getattr(item, key) is None else non_nones).append(item)
-        except AttributeError as e:
-            raise ValueError(f"Cannot sort by '{key}': {e}") from e
-
-        non_nones.sort(key=lambda x: getattr(x, key), reverse=reverse)
-
-        sorted_items = (non_nones + nones) if reverse else (nones + non_nones)
-
-        return CacheObject(
-            sorted_items,
-            page=1,
-            limit=self.limit,
-            order=paging_order,
-            links=self._links,
-            total_count=self._total_count,
-        )
-
-    def paginate(self, page: int, limit: int | None = None) -> "CacheObject[T]":
-        new_limit = limit if limit is not None else self.limit
-        new_page = max(1, page)
-        result = self[(new_page - 1) * new_limit : (new_page - 1) * new_limit + new_limit]
-        result.page = new_page
-        result.limit = new_limit
-        return result
-
-    def next_page(self) -> "CacheObject[T]":
-        return self.paginate(min(self.page + 1, self.total_pages))
-
-    def prev_page(self) -> "CacheObject[T]":
-        return self.paginate(max(self.page - 1, 1))
-
-    def search_and_paginate(self, paging: PagingData | None) -> "CacheObject[T]":
-        """
-        Apply search, ordering, and pagination all at once
-        """
-
-        if not paging or paging.server_side is True:
-            return self
-
-        result = self
-
-        if paging.search:
-            result = result.search(paging.search)
-
-        if paging.order:
-            result = result.order_by(paging.order)
-
-        target_page = paging.page or result.page
-        target_limit = paging.limit or result.limit
-        result = result.paginate(target_page, target_limit)
-
-        return result

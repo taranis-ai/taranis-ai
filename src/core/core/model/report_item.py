@@ -104,6 +104,27 @@ class ReportItem(BaseModel):
         data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
 
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "stories_asc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])))
+        elif filter_args.get("order") == "stories_desc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
@@ -282,14 +303,11 @@ class ReportItem(BaseModel):
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
-        if sort := filter_args.get("sort"):
-            if sort == "DATE_DESC":
-                query = query.order_by(db.desc(ReportItem.created))
-
-            elif sort == "DATE_ASC":
-                query = query.order_by(db.asc(ReportItem.created))
-
         return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "created_desc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:

@@ -14,8 +14,8 @@
     "npm:@codemirror/state@*": "6.5.2",
     "npm:@codemirror/state@6.5.2": "6.5.2",
     "npm:@codemirror/state@^6.5.2": "6.5.2",
-    "npm:@codemirror/view@*": "6.39.2",
-    "npm:@codemirror/view@^6.39.2": "6.39.2",
+    "npm:@codemirror/view@*": "6.39.3",
+    "npm:@codemirror/view@^6.39.3": "6.39.3",
     "npm:@tailwindcss/cli@*": "4.1.17",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.17",
     "npm:alpinejs@*": "3.15.2",
@@ -23,7 +23,7 @@
     "npm:choices.js@*": "11.1.0",
     "npm:choices.js@^11.1.0": "11.1.0",
     "npm:codemirror@6": "6.0.2",
-    "npm:daisyui@^5.5.8": "5.5.8",
+    "npm:daisyui@^5.5.11": "5.5.11",
     "npm:fuse.js@*": "7.1.0",
     "npm:fuse.js@^7.1.0": "7.1.0",
     "npm:highlight-search-term@*": "1.0.3",
@@ -115,8 +115,8 @@
         "w3c-keyname"
       ]
     },
-    "@codemirror/view@6.39.2": {
-      "integrity": "sha512-YCbOfs4cq49ulN/MVhrUV22rKDJv/fHUs4cR98McAI59/coVwUa2N3RAoNVDgeJNchrQzBxTT3vzto4ZbTYVtw==",
+    "@codemirror/view@6.39.3": {
+      "integrity": "sha512-ZR32LYnPMpf7XZcrYJpSrHJUHNZPTj73/amTtZLhAwzYhSKiDI2OZmCiXbTRvxL1T8X7QTHnCG+KfnRJvH/QsA==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -402,8 +402,8 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.5.8": {
-      "integrity": "sha512-6psL9jIEOFOw68V10j/BKCWcRgx8dh81mmNxShr+g7HDM6UHNoPharlp9zq/PQkHNuGU1ZQsajR3HgpvavbRKQ=="
+    "daisyui@5.5.11": {
+      "integrity": "sha512-xQ1JIgYbhKe9DKhFtOWAKf91F1mK3HECa5xoINmSHMqW9KjEP+yOWttTN1K7zOwuDmk68CbovCDbMKLVtDmPBQ=="
     },
     "detect-libc@1.0.3": {
       "integrity": "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==",
@@ -596,12 +596,12 @@
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/merge@^6.3.0",
       "npm:@codemirror/state@^6.5.2",
-      "npm:@codemirror/view@^6.39.2",
+      "npm:@codemirror/view@^6.39.3",
       "npm:@tailwindcss/cli@^4.1.17",
       "npm:alpinejs@^3.15.2",
       "npm:choices.js@^11.1.0",
       "npm:codemirror@6",
-      "npm:daisyui@^5.5.8",
+      "npm:daisyui@^5.5.11",
       "npm:fuse.js@^7.1.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",

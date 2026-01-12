@@ -119,6 +119,13 @@ class Story(BaseModel):
         if user:
             query = cls._add_ACL_check(query, user)
             query = cls._add_TLP_check(query, user)
+            query = cls.enhance_with_user_votes(query, user.id)
+
+            if result := db.session.execute(query).first():
+                story, user_vote = result
+                story_data = story.to_detail_dict()
+                story_data["user_vote"] = user_vote
+                return story_data, 200
 
         if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
@@ -984,7 +991,7 @@ class Story(BaseModel):
             error_message = "; ".join(filter(None, errors))
             logger.error(f"Errors ungrouping stories: {error_message}")
             return {"error": error_message}, 400
-        return {"message": "success"}, 200
+        return {"message": "Ungrouping Stories successful"}, 200
 
     @classmethod
     def ungroup_story(cls, story_id: str, user: User | None = None):
@@ -1169,16 +1176,15 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         data["links"] = self.links
+        del data["search_vector"]
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
+        data = self.to_dict()
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
-        data["links"] = self.links
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:

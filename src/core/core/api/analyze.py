@@ -44,7 +44,7 @@ class ReportItem(MethodView):
     def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id)
-        filter_keys = ["search", "completed", "range", "sort", "group", "page", "limit"]
+        filter_keys = ["search", "completed", "range", "order", "group", "page", "limit"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)

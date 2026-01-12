@@ -49,7 +49,11 @@ class PublisherPreset(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def update(cls, preset_id, data):
