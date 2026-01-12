@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from core.log import logger
 from core.managers.db_manager import db
+from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_tag import NewsItemTag
 from core.model.story import Story
 
@@ -103,15 +104,40 @@ class NewsItemTagService:
         db.session.commit()
 
     @staticmethod
-    def set_found_bot_tags(result: dict[str, Any], bot_type: str):
+    def set_found_bot_tags(result: dict[str, Any], bot_type: str | None = None):
         errors = {}
-        found_tags = result.get("result", {})
+        found_tags = result.get("result", {}) or {}
         for story_id, tags in found_tags.items():
             story = Story.get(story_id)
             if not story:
                 errors[story_id] = "Story not found"
                 continue
             story.set_tags(tags, bot_type=bot_type)
+
+    @staticmethod
+    def set_bot_execution_attribute(result: dict[str, Any]):
+        bot_type = result.get("bot_type", "UNKNOWN_BOT")
+        bot_id = result.get("bot_id", "UNKNOWN_ID")
+        found_tags = result.get("result", {}) or {}
+
+        now = datetime.now().isoformat()
+
+        for story_id, tags in found_tags.items():
+            story = Story.get(story_id)
+            if not story:
+                continue
+
+            tag_count = len(tags)
+
+            attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
+
+            story.attributes.append(
+                NewsItemAttribute(
+                    key=f"{bot_type}",
+                    value=attribute_value,
+                )
+            )
+        db.session.commit()
 
     @classmethod
     def remove_report_tag(cls, story: "Story", report_id: str):
