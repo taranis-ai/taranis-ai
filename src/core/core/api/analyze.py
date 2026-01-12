@@ -136,11 +136,9 @@ class ReportItemLock(MethodView):
 class CTI(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def post(self):
-        data = request.get_json()
-        if not data:
-            return abort(400, "Invalid request")
-
-        return CTIService.cti_endpoint(data)
+        if data := request.get_json():
+            return CTIService.cti_endpoint(data, request.headers)
+        return abort(400, "Invalid request")
 
 
 def initialize(app: Flask):
