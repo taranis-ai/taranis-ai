@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, ClassVar
 
 from models.dashboard import StoryConflict as StoryConflictModel
 
@@ -10,13 +10,33 @@ from core.model.settings import Settings
 from core.model.user import User
 
 
+STORY_CONFLICT_ALLOWED_KEYS: frozenset[str] = frozenset(
+    {
+        "attributes",
+        "comments",
+        "description",
+        "id",
+        "news_items",
+        "summary",
+        "tags",
+        "title",
+        "author",
+        "content",
+        "hash",
+        "link",
+        "review",
+        "source",
+    }
+)
+
+
 @dataclass
 class StoryConflict:
     story_id: str
     existing_story: str
     incoming_story: str
     has_proposals: str | None = None
-    conflict_store: ClassVar[Dict[str, "StoryConflict"]] = {}
+    conflict_store: ClassVar[dict[str, "StoryConflict"]] = {}
 
     def to_dict(self) -> dict[str, Any]:
         return StoryConflictModel(
@@ -41,10 +61,12 @@ class StoryConflict:
 
         # @param: resolution - comes without certain Story keys (e.g. story ID), it needs to be merged back
         updated_data |= resolution
+
         story = Story.get(self.story_id)
         if not story:
             logger.error(f"Story with id {self.story_id} not found for resolution.")
             return {"error": "Story not found", "id": self.story_id}, 404
+
         response, code = story.add_or_update_for_misp([updated_data], force=True)
 
         if code == 200:
@@ -58,7 +80,7 @@ class StoryConflict:
         return response, code
 
     @classmethod
-    def flush_store(cls):
+    def flush_store(cls) -> None:
         cls.conflict_store.clear()
         logger.debug("Conflict store flushed")
 
@@ -68,31 +90,13 @@ class StoryConflict:
         return sum(bool(conflict.has_proposals) for conflict in cls.conflict_store.values())
 
     @classmethod
-    def remove_keys_deep(cls, obj: Any, keys_to_remove: set[str] | None = None) -> Any:
-        if keys_to_remove is None:
-            keys_to_remove = {
-                "updated",
-                "last_change",
-                "has_proposals",
-                "detail_view",
-                "news_items_to_delete",
-                "collected",
-                "published",
-                "created",
-                "relevance",
-                "osint_source_id",
-                "language",
-                "read",
-                "important",
-                "story_id",
-                "likes",
-                "dislikes",
-                "search_vector",
-            }
+    def keep_keys_deep(cls, obj: Any, allowed_keys: frozenset[str]) -> Any:
         if isinstance(obj, list):
-            return [cls.remove_keys_deep(item, keys_to_remove) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: cls.remove_keys_deep(value, keys_to_remove) for key, value in obj.items() if key not in keys_to_remove}
+            return [cls.keep_keys_deep(item, allowed_keys) for item in obj]
+
+        if isinstance(obj, dict):
+            return {key: cls.keep_keys_deep(value, allowed_keys) for key, value in obj.items() if key in allowed_keys}
+
         return obj
 
     @classmethod
@@ -101,18 +105,22 @@ class StoryConflict:
 
     @classmethod
     def normalize_data(cls, current_data: dict[str, Any], new_data: dict[str, Any]) -> tuple[str, str]:
-        normalized_current = cls.remove_keys_deep(current_data)
-        normalized_new = cls.remove_keys_deep(new_data)
+        normalized_current = cls.keep_keys_deep(current_data, STORY_CONFLICT_ALLOWED_KEYS)
+        normalized_new = cls.keep_keys_deep(new_data, STORY_CONFLICT_ALLOWED_KEYS)
         return cls.stable_stringify(normalized_current), cls.stable_stringify(normalized_new)
 
     @classmethod
-    def enforce_quota(cls):
+    def enforce_quota(cls) -> None:
         """Keep only the most recent N conflicts."""
         settings = Settings.get_settings()
         max_items = int(settings.get("default_story_conflict_retention", "200"))
+
         if len(cls.conflict_store) > max_items:
             excess = len(cls.conflict_store) - max_items
+
+            # NOTE: dict insertion order == insertion order (Python 3.7+)
             oldest_keys = list(cls.conflict_store.keys())[:excess]
             for k in oldest_keys:
                 cls.conflict_store.pop(k, None)
+
             logger.info(f"Trimmed {excess} oldest conflicts from Story conflicts store")
