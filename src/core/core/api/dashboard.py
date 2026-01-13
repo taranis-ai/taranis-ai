@@ -55,11 +55,11 @@ class StoryClusters(MethodView):
 class ClusterByType(MethodView):
     @auth_required()
     def get(self, tag_type: str):
-        per_page = min(int(request.args.get("per_page", 50)), 100)
-        page = int(request.args.get("page", 1))
-        sort = request.args.get("order", "size_desc")
-        offset = min(((page - 1) * per_page), (2**31) - 1)
-        search = request.args.get("search", None)
+        per_page = min(request.args.get("per_page", default=50, type=int), 100)
+        page = request.args.get("page", default=1, type=int)
+        sort = request.args.get("order", default="size_desc")
+        offset = min((page - 1) * per_page, (2**31) - 1)
+        search = request.args.get("search")
         filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort, "search": search}
         return NewsItemTag.get_cluster_by_filter(filter_args)
 
