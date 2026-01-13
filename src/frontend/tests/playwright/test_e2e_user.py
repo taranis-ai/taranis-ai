@@ -174,7 +174,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             def test_clone_and_delete_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
-                page.pause()
                 cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
                 assert cloned_report is not None
                 clone_report_href = cloned_report.get_attribute("href")

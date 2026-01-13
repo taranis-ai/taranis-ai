@@ -521,6 +521,18 @@ def test_osint_source():
     yield os.path.join(dir_path, "testdata", "test_osint_source.json")
 
 
+@pytest.fixture(scope="session")
+def test_user():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    yield os.path.join(dir_path, "testdata", "test_users_to_import.json")
+
+
+@pytest.fixture(scope="session")
+def test_user_list():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    yield os.path.join(dir_path, "testdata", "test_users_list.json")
+
+
 def report_item_dict(story_item_list):
     yield {
         "title": "Weekly APT Activity Report",

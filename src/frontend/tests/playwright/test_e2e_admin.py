@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
+
+from tests.playwright.conftest import test_osint_source
 
 
 @pytest.mark.e2e_admin
@@ -76,7 +78,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_organization()
         remove_organization()
 
-    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
         username = f"test_user_{uuid.uuid4().hex[:6]}"
 
@@ -113,10 +115,32 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name=username)).not_to_be_visible()
 
+        def import_export_users():
+            page.get_by_role("button", name="Import").click()
+            page.get_by_role("button", name="Choose File").set_input_files(test_user)
+            page.get_by_role("button", name="Submit").click()
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export").click()
+            assert download_info.value is not None
+            download_path = download_info.value.path()
+            with open(test_user_list, "r") as f:
+                imported_user_list_correct = json.load(f)
+            with open(download_path, "r") as f:
+                downloaded_content = json.load(f)
+            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            page.get_by_role("row", name="Jane Smith").get_by_test_id("action-delete-3").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="Jane Smith")).not_to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.get_by_role("row", name="John Doe").get_by_test_id("action-delete-4").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible()
+            page.get_by_role("alert").click()
+
         load_user_list()
         add_user()
         update_user()
         remove_user()
+        import_export_users()
 
     def test_admin_template_management(self, logged_in_page: Page):
         page = logged_in_page
@@ -151,7 +175,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_template():
             page.get_by_test_id("new-template-button").click()
             page.get_by_role("textbox", name="Filename", exact=True).fill(template_name)
-            page.get_by_role("code").first.fill(valid_template_content)
+            page.get_by_role("textbox").last.fill(valid_template_content)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             with page.expect_response(url_for("admin.template_data", _external=True)) as response_info:
@@ -161,9 +185,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_template():
             page.get_by_role("link", name=template_name).click()
-            page.get_by_role("code").first.fill(invalid_template_content)
+            page.get_by_role("textbox").last.fill(invalid_template_content)
             page.locator('input[type="submit"]').click()
-            expect(page.get_by_text("invalid")).to_be_visible()
+            table = page.get_by_test_id("template-table")
+            invalid_badges = table.locator("tbody tr td:nth-child(3) .badge", has_text="Invalid")
+            expect(invalid_badges).to_have_count(2)
 
         def remove_template():
             page.get_by_role("row", name=template_name).get_by_role("button").click()
@@ -171,10 +197,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("template-table").get_by_role("link", name=template_name)).not_to_be_visible()
 
         load_template_list()
-        # Disabled until https://github.com/microsoft/monaco-editor/issues/5015 is resolved
-        # add_template()
-        # update_template()
-        # remove_template()
+        add_template()
+        update_template()
+        remove_template()
 
     def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source):
         page = logged_in_page
