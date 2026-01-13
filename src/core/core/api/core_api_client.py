@@ -4,7 +4,7 @@ from flask import current_app
 
 class CoreApiClient:
     def __init__(self):
-        self.base_url = "http://local.taranis.ai"
+        self.base_url = current_app.config["CORE_API_BASE_URL"]
         self.api_key = current_app.config["API_KEY"]
 
     def get_task(self, task_id: str):
