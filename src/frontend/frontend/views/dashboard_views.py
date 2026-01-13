@@ -1,12 +1,15 @@
+from typing import Any
+
 import pandas as pd
 import plotly.express as px
-from flask import abort, render_template, request
+from flask import abort, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, TrendingCluster
 from models.user import ProfileSettingsDashboard
 from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
+from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -53,19 +56,50 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def get_cluster(cls, cluster_name: str):
-        cluster = None
+        cluster: CacheObject[Any] | None = None
+
         try:
-            page = parse_paging_data(request.args.to_dict(flat=False))
+            paging = parse_paging_data(request.args.to_dict(flat=False))
+            logger.debug(f"Fetching Cluster {cluster_name} with: {paging=}")
 
-            logger.debug(f"Fetching Cluster {cluster_name} with: {page=}")
+            core_params: dict[str, Any] = dict(paging.query_params or {})
+            page_number = paging.page or 1
+            raw_limit = core_params.pop("limit", None)
+            try:
+                per_page = int(raw_limit) if raw_limit is not None else (paging.limit or 50)
+            except (TypeError, ValueError):
+                per_page = paging.limit or 50
 
-            cluster_endpoint = Cluster._core_endpoint + f"/{cluster_name}?page={page.page}&limit={page.limit}&order={page.order}"
-            cluster = DataPersistenceLayer().get_raw_objects(Cluster, cluster_endpoint)
-        except Exception:
+            order = paging.order or "size_desc"
+
+            core_params["page"] = page_number
+            core_params["per_page"] = per_page
+            core_params["order"] = order
+
+            cluster_endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
+            result = DataPersistenceLayer().api.api_get(cluster_endpoint, core_params)
+
+            if not result:
+                raise ValueError("Empty cluster response")
+
+            items = [Cluster(**item) for item in result.get("items", [])]
+            total_count = result.get("total_count", len(items))
+
+            cluster = CacheObject(
+                items,
+                total_count=total_count,
+                limit=per_page,
+                page=page_number,
+                order=order,
+                query_params=core_params,
+                links=result.get("_links", {}),
+            )
+
+        except Exception as exc:
+            logger.exception(f"Error retrieving cluster {cluster_name}: {exc}")
             cluster = None
 
         if not cluster:
-            logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404
 
         if cluster_name in {"Country", "Location"}:
@@ -79,15 +113,18 @@ class DashboardView(BaseView):
             {"title": "Size", "field": "size", "sortable": True, "renderer": None},
         ]
 
-        return render_template(
-            "dashboard/cluster.html",
-            data=cluster,
-            columns=columns,
-            cluster_name=cluster_name,
-            country_chart=country_chart,
-            dashboard_config=current_user.profile.dashboard,
-            base_route=cls.get_base_route(),
-        ), 200
+        return (
+            render_template(
+                "dashboard/cluster.html",
+                data=cluster,
+                columns=columns,
+                cluster_name=cluster_name,
+                country_chart=country_chart,
+                dashboard_config=current_user.profile.dashboard,
+                base_route=url_for("base.cluster", cluster_name=cluster_name),
+            ),
+            200,
+        )
 
     @classmethod
     @auth_required()
