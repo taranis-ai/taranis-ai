@@ -7,8 +7,6 @@ from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
-from tests.playwright.conftest import test_osint_source
-
 
 @pytest.mark.e2e_admin
 @pytest.mark.e2e_ci
