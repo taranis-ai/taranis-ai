@@ -25,11 +25,12 @@ class S3Publisher(BasePublisher):
 
         bucket_name = parameters["S3_BUCKET_NAME"]
         bucket_name, path = bucket_name.split("/")[0], "/".join(bucket_name.split("/")[1:])
+        file_name = BasePublisher.get_file_name(product)
         self._ensure_bucket(client, bucket_name)
-        object_name = f"{path}/{BasePublisher.get_file_name(product)}"
+        object_name = f"{path}/{file_name}"
         self._upload_object(client, bucket_name, object_name, rendered_product)
 
-        return {"status": "success", "object_name": object_name, "message": f"File {object_name} uploaded to bucket {bucket_name}."}
+        return {"status": "success", "object_name": object_name, "message": f"File {file_name} uploaded to bucket {bucket_name}/{path}."}
 
     @staticmethod
     def _create_client(parameters: dict[str, Any]) -> Minio:
