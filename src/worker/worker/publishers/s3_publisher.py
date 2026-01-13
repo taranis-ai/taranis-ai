@@ -1,3 +1,4 @@
+import base64
 from io import BytesIO
 from typing import Any
 
@@ -51,8 +52,8 @@ class S3Publisher(BasePublisher):
     def _upload_object(client: Minio, bucket_name: str, object_name: str, rendered_product: Product) -> None:
         client.put_object(
             bucket_name=bucket_name,
-            data=BytesIO(rendered_product.data),
+            data=BytesIO(base64.b64decode(rendered_product.data)),
             object_name=object_name,
-            length=len(rendered_product.data),
+            length=len(base64.b64decode(rendered_product.data)),
             content_type=rendered_product.mime_type,
         )
