@@ -137,7 +137,7 @@ class CTI(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def post(self):
         if data := request.get_json():
-            return CTIService.cti_endpoint(data, request.headers)
+            return CTIService.cti_endpoint(data, request.headers, request.args)
         return abort(400, "Invalid request")
 
 

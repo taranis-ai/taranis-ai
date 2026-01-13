@@ -65,11 +65,12 @@ class CTIService:
         return Product.add(data)
 
     @staticmethod
-    def get_publisher() -> PublisherPreset:
-        publisher = PublisherPreset.get_first(select(PublisherPreset).where(PublisherPreset.type == PUBLISHER_TYPES.S3_PUBLISHER))
-        if not publisher:
-            raise ValueError("No publisher preset found for Impact Assessment")
-        return publisher
+    def get_publisher(publisher_name: str) -> PublisherPreset:
+        filter_query = PublisherPreset.get_filter_query(filter_args={"search": publisher_name})
+        if publisher := PublisherPreset.get_first(filter_query):
+            return publisher
+        else:
+            raise ValueError(f"No publisher preset found with name like '{publisher_name}")
 
     @staticmethod
     def create_product_type(
@@ -106,14 +107,27 @@ class CTIService:
             raise ValueError("Impact Assessment type not found")
 
     @staticmethod
-    def cti_endpoint(data: dict[str, Any], headers: dict[str, Any]) -> Response:
+    def cti_endpoint(data: dict[str, Any], headers: dict[str, Any], query_params: dict[str, Any]) -> Response:
         report = None
         product_type = None
         product = None
 
+        publisher_name = query_params.get("publisher")
+        if not publisher_name:
+            return make_response(
+                {"status": "error", "message": "No publisher selcted. Use ?publisher=<publisher_name>"},
+                400,
+            )
+
+        try:
+            publisher = CTIService.get_publisher(publisher_name)
+        except ValueError as e:
+            return make_response(
+                {"status": "error", "message": str(e)},
+                400,
+            )
         try:
             report = CTIService.create_cti_report(data)
-            publisher = CTIService.get_publisher()
 
             mimetype = headers.get("Accept", "text/plain")
             product_type = CTIService.create_product_type(mimetype)
