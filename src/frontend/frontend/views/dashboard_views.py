@@ -1,6 +1,6 @@
 import pandas as pd
 import plotly.express as px
-from flask import abort, render_template, request
+from flask import abort, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, TrendingCluster
 from models.user import ProfileSettingsDashboard
@@ -53,19 +53,21 @@ class DashboardView(BaseView):
     @classmethod
     @auth_required()
     def get_cluster(cls, cluster_name: str):
-        cluster = None
         try:
-            page = parse_paging_data(request.args.to_dict(flat=False))
+            paging = parse_paging_data(request.args.to_dict(flat=False))
+            logger.debug(f"Fetching Cluster {cluster_name} with: {paging=}")
 
-            logger.debug(f"Fetching Cluster {cluster_name} with: {page=}")
+            cluster_endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
+            cluster = DataPersistenceLayer().get_objects_by_endpoint(Cluster, cluster_endpoint, paging)
 
-            cluster_endpoint = Cluster._core_endpoint + f"/{cluster_name}?page={page.page}&limit={page.limit}&order={page.order}"
-            cluster = DataPersistenceLayer().get_raw_objects(Cluster, cluster_endpoint)
+        except ValueError:
+            logger.exception(f"No cluster found for type: {cluster_name}")
+            cluster = None
         except Exception:
+            logger.exception(f"Error fetching cluster for type: {cluster_name}")
             cluster = None
 
         if not cluster:
-            logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404
 
         if cluster_name in {"Country", "Location"}:
@@ -86,7 +88,7 @@ class DashboardView(BaseView):
             cluster_name=cluster_name,
             country_chart=country_chart,
             dashboard_config=current_user.profile.dashboard,
-            base_route=cls.get_base_route(),
+            base_route=url_for("base.cluster", cluster_name=cluster_name),
         ), 200
 
     @classmethod
