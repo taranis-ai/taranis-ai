@@ -1,5 +1,3 @@
-from typing import Mapping
-
 import ioc_fanger
 from ioc_finder import find_iocs
 
@@ -26,7 +24,7 @@ class IOCBot(BaseBot):
             "ipv4_cidrs",
         ]
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):

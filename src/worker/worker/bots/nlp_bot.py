@@ -1,5 +1,3 @@
-from typing import Mapping
-
 from worker.bot_api import BotApi
 from worker.config import Config
 
@@ -17,7 +15,7 @@ class NLPBot(BaseBot):
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         update_result = {}
 
         if not parameters:

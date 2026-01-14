@@ -104,7 +104,7 @@ class NewsItemTagService:
         db.session.commit()
 
     @staticmethod
-    def set_found_bot_tags(result: dict[str, Any], bot_type: str | None = None):
+    def set_found_bot_tags(result: dict[str, Any], bot_type: bool = False):
         errors = {}
         found_tags = result.get("result", {}) or {}
         for story_id, tags in found_tags.items():

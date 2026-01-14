@@ -1,5 +1,3 @@
-from typing import Mapping
-
 from worker.bot_api import BotApi
 from worker.config import Config
 from worker.log import logger
@@ -13,7 +11,7 @@ class CyberSecClassifierBot(BaseBot):
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
 

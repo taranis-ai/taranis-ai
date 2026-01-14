@@ -1,5 +1,3 @@
-from typing import Mapping
-
 from celery import Task
 
 import worker.bots
@@ -30,7 +28,7 @@ class BotTask(Task):
             "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
         }
 
-    def run(self, bot_id: str, filter: dict | None = None) -> dict[str, Mapping[str, dict[str, str] | str] | str]:
+    def run(self, bot_id: str, filter: dict | None = None) -> dict[str, dict[str, dict[str, str] | str] | str]:
         logger.info(f"Starting bot task {self.name}")
         if bot_config := self.core_api.get_bot_config(bot_id):
             result = self.execute_by_config(bot_config, filter)
@@ -39,7 +37,7 @@ class BotTask(Task):
 
         raise ValueError(f"Bot with id {bot_id} not found")
 
-    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute_by_config(self, bot_config: dict, filter: dict | None = None) -> dict[str, dict[str, str] | str]:
         bot_type = bot_config.get("type")
         if not bot_type:
             raise ValueError("Bot has no type")

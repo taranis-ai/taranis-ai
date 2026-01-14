@@ -884,7 +884,7 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict, bot_type: str | None = None) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, bot_type: bool = False) -> tuple[dict, int]:
         try:
             return self._update_tags(incoming_tags, bot_type=bot_type)
         except Exception as e:
@@ -892,7 +892,7 @@ class Story(BaseModel):
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict, bot_type: str | None = None) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, bot_type: bool = False) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400

@@ -82,8 +82,8 @@ def handle_task_specific_result(task_id: str, result: dict | str, status: str):
             logger.error((result.get("result").get("error") or result.get("result").get("message")))
             return
         bot_type = result.get("bot_type", "")
-        tagging_bots = ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT"]
+        tagging_bots = ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"]
         if bot_type in tagging_bots:
-            NewsItemTagService.set_found_bot_tags(result, bot_type=bot_type)
+            NewsItemTagService.set_found_bot_tags(result, bot_type=True)
 
         NewsItemTagService.set_bot_execution_attribute(result)

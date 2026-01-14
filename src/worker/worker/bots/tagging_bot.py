@@ -1,5 +1,4 @@
 import re
-from typing import Mapping
 
 from worker.log import logger
 
@@ -13,7 +12,7 @@ class TaggingBot(BaseBot):
         self.name = "Tagging Bot"
         self.description = "Bot for tagging news items based on regular expressions"
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         regexp = parameters.get("REGULAR_EXPRESSION")

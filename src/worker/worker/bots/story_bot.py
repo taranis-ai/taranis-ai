@@ -1,5 +1,3 @@
-from typing import Mapping
-
 from worker.bot_api import BotApi
 from worker.config import Config
 from worker.log import logger
@@ -16,7 +14,7 @@ class StoryBot(BaseBot):
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
         self.language = language
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):

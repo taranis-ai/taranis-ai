@@ -148,9 +148,7 @@ class Tags(MethodView):
     def put(self):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        bot_type = request.args.get("bot_type")
-        if not bot_type:
-            logger.debug("No bot_type provided")
+
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
@@ -159,7 +157,7 @@ class Tags(MethodView):
             if not story:
                 errors[story_id] = "Story not found"
                 continue
-            _, status = story.set_tags(tags, bot_type=bot_type)
+            _, status = story.set_tags(tags)
             if status != 200:
                 errors[story_id] = status
         if errors:

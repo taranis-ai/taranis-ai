@@ -1,6 +1,5 @@
 import re
 from collections import defaultdict
-from typing import Mapping
 
 from worker.log import logger
 
@@ -15,7 +14,7 @@ class GroupingBot(BaseBot):
         self.description = "Bot for grouping news items into stories"
         self.default_regex = r"CVE-\d{4}-\d{4,7}"
 
-    def execute(self, parameters: dict | None = None) -> Mapping[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         regexp = parameters.get("REGULAR_EXPRESSION")
