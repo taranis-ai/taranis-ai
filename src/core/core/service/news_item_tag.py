@@ -104,7 +104,7 @@ class NewsItemTagService:
         db.session.commit()
 
     @staticmethod
-    def set_found_bot_tags(result: dict[str, Any], bot_type: bool = False):
+    def set_found_bot_tags(result: dict[str, Any], change_by_bot: bool = False):
         errors = {}
         found_tags = result.get("result", {}) or {}
         for story_id, tags in found_tags.items():
@@ -112,7 +112,7 @@ class NewsItemTagService:
             if not story:
                 errors[story_id] = "Story not found"
                 continue
-            story.set_tags(tags, bot_type=bot_type)
+            story.set_tags(tags, change_by_bot=change_by_bot)
 
     @staticmethod
     def set_bot_execution_attribute(result: dict[str, Any]):

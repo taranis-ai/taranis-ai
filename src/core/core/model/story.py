@@ -884,20 +884,20 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict, bot_type: bool = False) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags, bot_type=bot_type)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict, bot_type: bool = False) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        if bot_type:
+        if change_by_bot:
             self.patch_tags(parsed_tags)
         else:
             tags_to_remove = self.get_tags_to_remove(parsed_tags)
