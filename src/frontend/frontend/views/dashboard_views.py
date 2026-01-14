@@ -60,8 +60,11 @@ class DashboardView(BaseView):
             cluster_endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
             cluster = DataPersistenceLayer().get_objects_by_endpoint(Cluster, cluster_endpoint, paging)
 
-        except Exception as exc:
-            logger.exception(f"Error retrieving cluster {cluster_name}: {exc}")
+        except ValueError:
+            logger.exception(f"No cluster found for type: {cluster_name}")
+            cluster = None
+        except Exception:
+            logger.exception(f"Error fetching cluster for type: {cluster_name}")
             cluster = None
 
         if not cluster:
