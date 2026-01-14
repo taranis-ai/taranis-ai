@@ -55,7 +55,7 @@ class StoryClusters(MethodView):
 class ClusterByType(MethodView):
     @auth_required()
     def get(self, tag_type: str):
-        limit = min(request.args.get("limit", default=50, type=int), 100)
+        limit = min(request.args.get("limit", default=20, type=int), 100)
         page = request.args.get("page", default=1, type=int)
         sort = request.args.get("order", default="size_desc")
         offset = min((page - 1) * limit, (2**31) - 1)
