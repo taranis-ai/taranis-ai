@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import plotly.express as px
 from flask import abort, render_template, request, url_for
@@ -28,27 +30,41 @@ class DashboardView(BaseView):
 
     @classmethod
     def static_view(cls):
-        error = None
         try:
-            dashboard = DataPersistenceLayer().get_objects(cls.model)
+            if dashboard_items := DataPersistenceLayer().get_objects(cls.model):
+                dashboard = dashboard_items[0]
+            else:
+                return render_template("errors/404.html", error="No Dashboard items found"), 404
         except Exception as exc:
-            dashboard = None
-            error = str(exc)
+            logger.error(f"Error retrieving {cls.model_name()} items: {exc}")
+            return render_template("errors/404.html", error="No Dashboard items found"), 404
 
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
-            user_dashboard = current_user.profile.dashboard
+            dashboard_config = current_user.profile.dashboard
         except Exception:
             trending_clusters = []
-            user_dashboard = ProfileSettingsDashboard()
+            dashboard_config = ProfileSettingsDashboard()
 
-        if error or not dashboard:
-            logger.error(f"Error retrieving {cls.model_name()} items: {error}")
-            return render_template("errors/404.html", error="No Dashboard items found"), 404
-        template = cls.get_list_template()
+        if request.headers.get("HX-Request") == "true" and request.args.get("fragment") == "trending":
+            return (
+                render_template(
+                    "partials/trending_clusters.html",
+                    clusters=trending_clusters,
+                    dashboard_config=dashboard_config,
+                ),
+                200,
+            )
 
-        context = {"data": dashboard[0], "clusters": trending_clusters, "error": error, "dashboard_config": user_dashboard}
-        return render_template(template, **context), 200
+        return (
+            render_template(
+                "dashboard/index.html",
+                data=dashboard,
+                clusters=trending_clusters,
+                dashboard_config=dashboard_config,
+            ),
+            200,
+        )
 
     @classmethod
     @auth_required()
@@ -124,23 +140,30 @@ class DashboardView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> Response:
         form_data = parse_formdata(request.form)
         form_data = {"dashboard": form_data.get("dashboard", {})}
-
-        if core_response := CoreApi().update_user_profile(form_data):
-            response = self.get_notification_from_response(core_response)
-        else:
-            response = render_template(
-                "notification/index.html", notification={"message": "Failed to update dashboard settings", "error": True}
-            )
-
+        core_response = CoreApi().update_user_profile(form_data)
         update_current_user_cache()
         DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
-        dashboard, table_response = self.static_view()
-        if table_response == 200:
-            response += dashboard
-        return response, table_response
+
+        if not core_response:
+            html = render_template(
+                "notification/index.html",
+                notification={"message": "Failed to update dashboard settings", "error": True},
+            )
+            return Response(html, status=400)
+
+        notification_html = self.get_notification_from_response(core_response)
+
+        if core_response.ok:
+            self.add_flash_notification(core_response)
+            return Response(
+                status=204,
+                headers={"HX-Redirect": url_for("base.dashboard"), "HX-Trigger": json.dumps({"trendingClustersUpdated": True})},
+            )
+
+        return Response(notification_html, status=core_response.status_code or 400)
 
     def put(self, **kwargs):
         return abort(405)
