@@ -32,7 +32,7 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
         page = logged_in_page
 
-        def test_dashboard_operations(page: Page) -> None:
+        def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
@@ -72,6 +72,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("#dashboard")).to_contain_text("Organization")
             expect(page.locator("#dashboard")).to_contain_text("Product")
             expect(page.locator("#dashboard")).to_contain_text("Person")
+
+        def test_dashboard_entity_location_pagination(page: Page) -> None:
             page.get_by_role("link", name="Location").click()
             expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
             expect(page.locator("tbody")).to_contain_text("USA")
@@ -105,12 +107,13 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
-        test_dashboard_operations(page)
+        test_dashboard_edit_settings(page)
+        test_dashboard_entity_location_pagination(page)
         test_clear_cache(page)  # TODO Fix cache (necessary because cache is not correctly invalidated)
 
     def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
-        page.set_default_timeout(0)
+        # page.set_default_timeout(0)
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
