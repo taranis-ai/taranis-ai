@@ -173,7 +173,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_template():
             page.get_by_test_id("new-template-button").click()
             page.get_by_role("textbox", name="Filename", exact=True).fill(template_name)
-            page.get_by_role("textbox").last.fill(valid_template_content)
+            page.locator("#editor").get_by_role("textbox").fill(valid_template_content)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             with page.expect_response(url_for("admin.template_data", _external=True)) as response_info:
@@ -183,7 +183,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_template():
             page.get_by_role("link", name=template_name).click()
-            page.get_by_role("textbox").last.fill(invalid_template_content)
+            page.locator("#editor").get_by_role("textbox").fill(invalid_template_content)
             page.locator('input[type="submit"]').click()
             table = page.get_by_test_id("template-table")
             invalid_badges = table.locator("tbody tr td:nth-child(3) .badge", has_text="Invalid")
@@ -205,6 +205,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
+            page.get_by_text("No osint_source items found").click()
             expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
@@ -226,6 +227,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("alert").click()
+            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
             page.get_by_role("button", name="Import").click()

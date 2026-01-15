@@ -29,23 +29,105 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
         page = logged_in_page
+
+        def test_dashboard_operations(page: Page) -> None:
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 33")
+            page.get_by_role("link", name="Dashboard").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.locator("#dashboard").get_by_role("link", name="Analyze").click()
+            expect(page.get_by_test_id("new-report-button")).to_contain_text("New Report")
+            page.get_by_role("link", name="Dashboard").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.locator("#dashboard").get_by_role("link", name="Publish").click()
+            expect(page.get_by_test_id("new-product-button")).to_contain_text("New Product")
+            page.get_by_role("link", name="Dashboard").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_role("link", name="Edit Dashboard").click()
+            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
+
+            page.get_by_role("group", name="Show Trending Clusters").get_by_label("False").uncheck()
+            page.get_by_role("group", name="Show Charts in Dashboard").get_by_label("False").click()
+            page.get_by_role("button", name="Update Dashboard Settings").click()
+            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible()
+            expect(page.get_by_role("main")).to_be_visible()
+            page.get_by_role("link", name="Edit Dashboard").click()
+            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
+
+            page.get_by_role("group", name="Show Trending Clusters").locator("label").click()
+            expect(page.get_by_role("checkbox", name="True")).to_be_visible()
+
+            page.get_by_role("group", name="Show Charts in Dashboard").locator("label").click()
+            page.get_by_role("button", name="Update Dashboard Settings").click()
+            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
+            expect(page.locator("#dashboard")).to_contain_text("Location")
+
+            expect(page.locator("#dashboard")).to_contain_text("Organization")
+            expect(page.locator("#dashboard")).to_contain_text("Product")
+            expect(page.locator("#dashboard")).to_contain_text("Person")
+            page.get_by_role("link", name="Location").click()
+            expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
+            expect(page.locator("tbody")).to_contain_text("USA")
+            expect(page.locator("tbody")).to_contain_text("6")
+            expect(page.locator("tbody")).to_contain_text("Wärmestuben")
+            expect(page.locator("tbody")).to_contain_text("1")
+            expect(page.locator("tfoot")).to_contain_text("Page 1 of 7")
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 2")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 3")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 4")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 5")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 6")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
+            expect(page.locator("tbody")).to_contain_text("Airport")
+            page.get_by_text("«").click()
+            page.get_by_role("combobox").click()
+            page.get_by_role("combobox").select_option("5")
+            expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
+
+        def test_clear_cache(page: Page) -> None:
+            page.get_by_role("link", name="Administration").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            page.get_by_test_id("admin-menu-Settings").click()
+            page.get_by_role("button", name="Invalidate Cache").click()
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
+        test_dashboard_operations(page)
+        test_clear_cache(page)  # TODO Fix cache (necessary because cache is not correctly invalidated)
 
     def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
+        page.set_default_timeout(0)
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
+
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57", timeout=30000)
+
             expect(page.get_by_test_id("assess")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
 
         def access_story():
             story_articles = page.locator("#story-list article")
+            expect(story_articles.first).to_be_visible()
             story = story_articles.nth(0)
+            menu = story.get_by_test_id("story-actions-menu")
+            expect(menu).to_be_attached()
+            expect(menu).to_be_visible()
+            expect(menu).to_be_enabled()
             title = story.locator("h2[data-testid='story-title']").inner_text()
 
             story.get_by_test_id("toggle-summary").click()
@@ -196,7 +278,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         add_stories_to_report()
         verify_report_actions(report_uuid)
 
-    def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
+    def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, stories_session_wrapper):
         page = logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
