@@ -17,8 +17,8 @@ from flask import json
 from playwright.sync_api import Browser, Page
 
 # Import fixtures to register them
-from tests.playwright.fixtures.test_news_item_list import news_items_list  # pyright: ignore[reportUnusedImport]
-from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # pyright: ignore[reportUnusedImport]
+from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
+from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
