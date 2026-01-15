@@ -511,7 +511,7 @@ def stories(run_core, api_header, fake_source, access_token):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_stories(news_items_list, run_core, access_token):
+def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
     headers = {
@@ -527,7 +527,7 @@ def pre_seed_stories(news_items_list, run_core, access_token):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):
+def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
