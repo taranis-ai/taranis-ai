@@ -4,7 +4,7 @@
   {% from "macros/table.html" import table_header, table_controls %}
   {% set table_id = 'cluster-' ~ cluster_name %}
 
-  <div class="p-8" id="{{ table_id }}-container">
+  <div class="p-8" id="{{ table_id }}-container" hx-history-elt>
     <table class="table shadow table-zebra table-sm" id="{{ table_id }}">
       <thead>
         <tr>
