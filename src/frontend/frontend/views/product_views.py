@@ -1,8 +1,8 @@
 from typing import Any
-from flask import Response, abort, render_template, request
 
-from models.product import Product
+from flask import Response, abort, render_template, request
 from models.admin import ProductType, PublisherPreset
+from models.product import Product
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -59,10 +59,18 @@ class ProductView(BaseView):
         error = "Failed to download product"
         try:
             core_resp = CoreApi().download_product(product_id)
-            if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
-
-            return CoreApi.stream_proxy(core_resp, "products_export.json")
+            if core_resp.ok:
+                return Response(
+                    core_resp.content,
+                    status=core_resp.status_code,
+                    headers={
+                        "Content-Type": core_resp.headers.get("Content-Type", "application/json"),
+                        "Content-Disposition": core_resp.headers.get(
+                            "Content-Disposition",
+                            'attachment; filename="product_export.json"',
+                        ),
+                    },
+                )
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"
