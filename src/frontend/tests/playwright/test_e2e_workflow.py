@@ -14,6 +14,7 @@ from playwright_helpers import PlaywrightHelpers
 class TestUserWorkflow(PlaywrightHelpers):
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        # page.set_default_timeout(0)
         page.goto(url_for("base.login", _external=True))
 
         self.add_keystroke_overlay(page)
@@ -70,6 +71,9 @@ class TestUserWorkflow(PlaywrightHelpers):
             )
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
             self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-actions-menu")
+            ).click()
+            self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("toggle-read"), scroll=False
             ).click()
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
@@ -79,6 +83,9 @@ class TestUserWorkflow(PlaywrightHelpers):
                 page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary"), scroll=False
             )
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary")).to_be_visible()
+            self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-actions-menu")
+            ).click()
 
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("toggle-read"), scroll=False
@@ -87,17 +94,26 @@ class TestUserWorkflow(PlaywrightHelpers):
 
             for i in range(2, 7):
                 self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
+                ).click()
+                self.highlight_element(
                     page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("toggle-read"), scroll=False
                 ).click()
                 expect(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-summary")).to_be_visible()
 
             # select multiple, press mark as read once
             for i in range(7, 10):
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
+                ).click()
                 self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}"), scroll=False).click()
             self.highlight_element(page.get_by_role("button", name="Mark as read")).click()
 
             # remaining stories
             for i in range(10, 20):
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
+                ).click()
                 self.highlight_element(
                     page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("toggle-read"), scroll=False
                 ).click()
@@ -105,11 +121,17 @@ class TestUserWorkflow(PlaywrightHelpers):
 
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
             self.highlight_element(
+                page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("story-actions-menu")
+            ).click()
+            self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[19]}").get_by_test_id("toggle-read"), scroll=False
             ).click()
 
             for i in range(20, 28):
                 print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
+                ).click()
                 self.highlight_element(
                     page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("toggle-read"), scroll=False
                 ).click()
@@ -135,8 +157,10 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.short_sleep(0.5)
 
             # Mark as read
+            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-read")).click()
             # Remove mark as important
+            self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
 
             go_to_assess()
@@ -336,7 +360,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="! Create Product")).click()
 
         # Assert the existing Product
-        expect(page.get_by_label("Product Type CERT Daily")).to_be_visible()
+        expect(page.locator("#product_type_id option:checked")).to_have_text("CERT Daily Report")
         expect(page.get_by_role("textbox", name="Title")).to_be_visible()
         expect(page.get_by_role("textbox", name="Description")).to_be_visible()
         expect(page.get_by_role("cell", name="Test Report")).to_be_visible()

@@ -1,11 +1,13 @@
 from typing import Any
-from flask import render_template, request
 
-from frontend.views.base_view import BaseView
-from models.admin import ReportItemType, Attribute, ReportItemAttributeGroup, ReportItemAttribute
+from flask import render_template, request
+from models.admin import Attribute, ReportItemAttribute, ReportItemAttributeGroup, ReportItemType
+
+from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class ReportItemTypeView(AdminMixin, BaseView):
@@ -23,7 +25,8 @@ class ReportItemTypeView(AdminMixin, BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        base_context["attribute_types"] = dpl.get_objects(Attribute)
+        paging_data = PagingData().with_no_limit()
+        base_context["attribute_types"] = dpl.get_objects(Attribute, paging_data=paging_data)
         return base_context
 
     @classmethod

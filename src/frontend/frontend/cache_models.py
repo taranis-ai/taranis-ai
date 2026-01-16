@@ -16,6 +16,11 @@ class PagingData(BaseModel):
     search: str | None = None
     query_params: dict[str, str | list[str]] | None = None
 
+    def with_no_limit(self) -> "PagingData":
+        params = dict(self.query_params or {})
+        params["limit"] = "-1"
+        return self.model_copy(update={"limit": -1, "query_params": params})
+
 
 class CacheObject(list[T], Generic[T]):
     def __init__(

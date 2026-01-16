@@ -1,17 +1,18 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Response, make_response, request, Flask, jsonify
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
-from core.log import logger
-from core.auth.openid_authenticator import OpenIDAuthenticator
-from core.auth.dev_authenticator import DevAuthenticator
+from flask import Flask, Response, jsonify, make_response, request
+from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
+
 from core.auth.database_authenticator import DatabaseAuthenticator
+from core.auth.dev_authenticator import DevAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
+from core.auth.openid_authenticator import OpenIDAuthenticator
+from core.config import Config
+from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 
-from core.config import Config
 
 current_authenticator = DatabaseAuthenticator()
 jwt = JWTManager()
@@ -45,10 +46,12 @@ def authenticate(credentials: dict[str, str]) -> Response:
     return current_authenticator.authenticate(credentials)
 
 
-def change_password(old_password: str, new_password: str) -> Response:
+def change_password(old_password: str, new_password: str, confirm_password: str) -> Response:
     try:
         if Config.TARANIS_AUTHENTICATOR != "database":
             return make_response({"error": "Password change is only supported with 'database' authenticator"}, 400)
+        if new_password != confirm_password:
+            return make_response({"error": "New password and confirm password do not match"}, 400)
         return DatabaseAuthenticator().change_password(current_user, old_password, new_password)
     except Exception:
         logger.exception("Error changing password")
