@@ -5,6 +5,8 @@
   {% set base_name = 'attributes[' ~ attr.id ~ ']' %}
   {% set field_id = 'attribute-' ~ attr.id %}
   {% set value = attr.value | default('') %}
+  {% set default_value = (attr.render_data or {}).get('default_value', '') %}
+  {% set value = value if value not in [None, ''] else default_value %}
   {% set label = attr.title or ('Attribute #' ~ attr.id) %}
   {% set description = attr.description %}
   {% set required = attr.required %}
