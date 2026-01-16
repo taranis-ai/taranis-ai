@@ -412,6 +412,20 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_word_list()
         remove_word_list()
 
+    def test_attributes(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def load_attributes():
+            page.goto(url_for("admin.attributes", _external=True))
+            expect(page.get_by_test_id("attribute-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_attributes.png")
+
+        def test_crud():
+            pass
+
+        load_attributes()
+        test_crud()
+
     def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
