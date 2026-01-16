@@ -95,8 +95,12 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
             expect(page.locator("tbody")).to_contain_text("Airport")
             page.get_by_text("«").click()
+            expect(page.locator("tbody")).to_contain_text("USA")  # Wait for first page to load again
             page.get_by_role("combobox").click()
             page.get_by_role("combobox").select_option("5")
+            cluster_table = page.get_by_test_id("cluster-table")
+            all_rows = cluster_table.locator("tbody tr")
+            expect(all_rows).to_have_count(5)
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
         def test_clear_cache(page: Page) -> None:
@@ -301,3 +305,83 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         load_product_list()
         add_product()
+
+    def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def go_to_user_profile():
+            page.goto(url_for("user.settings", _external=True))
+            expect(page.get_by_text("User", exact=True)).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/user_profile.png")
+
+        def check_profile():
+            expect(page.locator("#user-settings-form")).to_contain_text("Split view")
+            expect(page.locator("#user-settings-form")).to_contain_text("Show charts")
+            expect(page.locator("#user-settings-form")).to_contain_text("Infinite scroll")
+            expect(page.locator("#user-settings-form")).to_contain_text("Compact view")
+            expect(page.locator("#user-settings-form")).to_contain_text("Dark theme")
+            expect(page.locator("#user-settings-form")).to_contain_text("Advanced story edit options")
+            expect(page.locator("#user-settings-form")).to_contain_text("Language")
+            expect(page.locator("#user-settings-form")).to_contain_text("End of shift")
+            page.locator(".collapse > input").check()
+            expect(page.locator("#user-password-form")).to_contain_text("Current password")
+            expect(page.locator("#user-password-form")).to_contain_text("New password")
+            expect(page.locator("#user-password-form")).to_contain_text("Confirm new password")
+            expect(page.get_by_role("button", name="Update password")).to_be_visible()
+
+        def change_password_fail():
+            # Wrong current password
+            page.get_by_role("textbox", name="Current password").fill("admin1")
+            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
+            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("button", name="Update password").click()
+            expect(page.get_by_text("Old password is incorrect")).to_be_visible()
+
+            # Mismatching new passwords
+            page.get_by_role("textbox", name="Current password").fill("admin")
+            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
+            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("button", name="Update password").click()
+            expect(page.get_by_text("New password and confirm password do not match")).to_be_visible()
+
+        def change_password():
+            page.get_by_role("textbox", name="Current password").fill("admin")
+            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
+            page.get_by_role("textbox", name="Confirm new password").fill("admin1")
+            page.get_by_role("button", name="Update password").click()
+            expect(page.get_by_text("Password changed successfully")).to_be_visible()
+
+        def relog_in():
+            page.get_by_role("list").get_by_role("button").click()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+
+            page.get_by_role("link", name="Logout").click()
+            expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
+
+            page.get_by_role("textbox", name="Username").fill("admin")
+            page.get_by_role("textbox", name="Username").press("Tab")
+            page.get_by_role("textbox", name="Password").fill("admin1")
+            page.get_by_test_id("login-button").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+        def change_password_back():
+            page.get_by_role("list").get_by_role("button").click()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+
+            page.get_by_role("link", name="User Settings").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.locator(".collapse > input").check()
+            page.get_by_role("textbox", name="Current password").fill("admin1")
+            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
+            page.get_by_role("textbox", name="New password", exact=True).press("Tab")
+            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("button", name="Update password").click()
+            expect(page.get_by_text("Password changed successfully")).to_be_visible()
+
+        go_to_user_profile()
+        check_profile()
+        change_password_fail()
+        change_password()
+        relog_in()
+        change_password_back()
