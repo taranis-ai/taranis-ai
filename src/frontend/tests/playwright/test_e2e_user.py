@@ -351,6 +351,25 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Update password").click()
             expect(page.get_by_text("Password changed successfully")).to_be_visible()
 
+        def test_user_profile_settings_adjustments():
+            page.pause()
+            page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
+            page.get_by_role("checkbox", name="Compact view Use condensed").check()
+            page.get_by_role("button", name="Save changes").click()
+            page.get_by_role("link", name="Assess").click()
+
+            page.get_by_role("link", name="Next").click()
+
+            page.get_by_role("checkbox", name="Compact view").uncheck()
+
+            page.get_by_role("list").get_by_role("button").click()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+
+            page.get_by_role("link", name="User Settings").click()
+            page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
+            page.get_by_role("checkbox", name="Compact view Use condensed").uncheck()
+            page.get_by_role("button", name="Save changes").click()
+
         def relog_in():
             page.get_by_role("list").get_by_role("button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
@@ -383,5 +402,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         check_profile()
         change_password_fail()
         change_password()
+        test_user_profile_settings_adjustments()
         relog_in()
         change_password_back()
