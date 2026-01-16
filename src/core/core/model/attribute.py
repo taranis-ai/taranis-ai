@@ -187,9 +187,10 @@ class Attribute(BaseModel):
                 enum["attribute_id"] = attribute_id
                 AttributeEnum.add_or_update(enum)
 
-        for key, value in data.items():
-            if hasattr(attribute, key) and key != "id":
-                setattr(attribute, key, value)
+        tmp = cls.from_dict(data)
+        for key in data.keys():
+            if key != "id" and hasattr(attribute, key):
+                setattr(attribute, key, getattr(tmp, key))
 
         db.session.commit()
         return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
