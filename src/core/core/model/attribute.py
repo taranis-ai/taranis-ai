@@ -122,7 +122,7 @@ class Attribute(BaseModel):
     type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
     default_value: Mapped[str] = db.Column(db.String(), default="")
 
-    def __init__(self, name: str, description: str, attribute_type, default_value: str = "", id=None):
+    def __init__(self, name: str, description: str, attribute_type: AttributeType, default_value: str = "", id=None):
         if id:
             self.id = id
         self.name = name
@@ -187,13 +187,23 @@ class Attribute(BaseModel):
                 enum["attribute_id"] = attribute_id
                 AttributeEnum.add_or_update(enum)
 
-        tmp = cls.from_dict(data)
-        for key in data.keys():
+        data = cls.convert_enum(data)
+
+        for key, value in data.items():
             if key != "id" and hasattr(attribute, key):
-                setattr(attribute, key, getattr(tmp, key))
+                setattr(attribute, key, value)
 
         db.session.commit()
         return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
+
+    @classmethod
+    def convert_enum(cls, data: dict[str, Any]) -> dict[str, Any]:
+        data = dict(data)
+
+        if "type" in data and data["type"] is not None:
+            data["type"] = AttributeType[data["type"].upper()]
+
+        return data
 
     @classmethod
     def load_cve_from_file(cls, file_path):
