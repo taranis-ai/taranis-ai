@@ -51,9 +51,21 @@ def _redirect_to_login():
 
 
 def logout() -> tuple[str, int] | Response:
-    core_response: ReqResponse = CoreApi().logout()
+    try:
+        core_response: ReqResponse = CoreApi().logout()
+    except Exception as exc:
+        # If the core isn't reachable, fall back to the login page without crashing.
+        logger.error(f"Core logout failed: {exc}")
+        return render_template("login/index.html", login_error="Logout failed"), 500
+
     if not core_response.ok:
-        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        error_msg = "Logout failed"
+        try:
+            error_msg = core_response.json().get("error", error_msg)
+        except Exception:
+            # Non-JSON or empty response bodies would raise; ignore and use default.
+            pass
+        return render_template("login/index.html", login_error=error_msg), core_response.status_code
 
     response = Response(status=302, headers={"Location": url_for("base.login")})
     if is_htmx_request():
