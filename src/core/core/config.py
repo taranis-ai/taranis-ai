@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import SecretStr, ValidationInfo, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     SQLALCHEMY_CONNECT_TIMEOUT: int = 10
     SQLALCHEMY_MAX_OVERFLOW: int = 10
     SQLALCHEMY_POOL_SIZE: int = 20
-    SQLALCHEMY_POOL_TIMEOUT: int | None = None
-    SQLALCHEMY_POOL_RECYCLE: int | None = None
+    SQLALCHEMY_POOL_TIMEOUT: Annotated[int | None, Field(gt=0)] = None
+    SQLALCHEMY_POOL_RECYCLE: Annotated[int | None, Field(ge=-1)] = None
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
