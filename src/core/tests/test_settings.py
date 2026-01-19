@@ -147,3 +147,44 @@ def test_pool_options_with_custom_values_applied_to_engine(monkeypatch):
     assert engine.pool.size() == settings.SQLALCHEMY_POOL_SIZE
 
     engine.dispose()
+
+
+def test_sqlalchemy_pool_timeout_validation_rejects_zero(monkeypatch):
+    """Test that SQLALCHEMY_POOL_TIMEOUT rejects zero values."""
+    from pydantic import ValidationError
+
+    monkeypatch.delenv("SQLALCHEMY_DATABASE_URI", raising=False)
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        Settings(SQLALCHEMY_POOL_TIMEOUT=0)
+
+
+def test_sqlalchemy_pool_timeout_validation_rejects_negative(monkeypatch):
+    """Test that SQLALCHEMY_POOL_TIMEOUT rejects negative values."""
+    from pydantic import ValidationError
+
+    monkeypatch.delenv("SQLALCHEMY_DATABASE_URI", raising=False)
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        Settings(SQLALCHEMY_POOL_TIMEOUT=-10)
+
+
+def test_sqlalchemy_pool_recycle_validation_rejects_invalid_negative(monkeypatch):
+    """Test that SQLALCHEMY_POOL_RECYCLE rejects invalid negative values (below -1)."""
+    from pydantic import ValidationError
+
+    monkeypatch.delenv("SQLALCHEMY_DATABASE_URI", raising=False)
+
+    with pytest.raises(ValidationError, match="greater than or equal to -1"):
+        Settings(SQLALCHEMY_POOL_RECYCLE=-2)
+
+
+def test_sqlalchemy_pool_recycle_accepts_minus_one(monkeypatch):
+    """Test that SQLALCHEMY_POOL_RECYCLE accepts -1 (disabled)."""
+    monkeypatch.delenv("SQLALCHEMY_DATABASE_URI", raising=False)
+
+    settings = Settings(SQLALCHEMY_POOL_RECYCLE=-1)
+
+    assert settings.SQLALCHEMY_POOL_RECYCLE == -1
+    # When -1, it should still be added to engine options
+    assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == -1
