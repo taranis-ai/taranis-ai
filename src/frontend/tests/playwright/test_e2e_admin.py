@@ -421,7 +421,94 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_attributes.png")
 
         def test_crud():
-            pass
+            page.get_by_role("link", name="Administration").click()
+
+        expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+        page.get_by_test_id("admin-menu-Attribute").click()
+        expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+        page.get_by_test_id("new-attribute-button").click()
+        expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
+
+        page.get_by_role("textbox", name="Name").click()
+        page.get_by_role("textbox", name="Name").fill("attribute number 5")
+        page.get_by_role("textbox", name="Description").click()
+        page.get_by_role("textbox", name="Description").fill("attr 5")
+        page.get_by_role("textbox", name="Default Value").click()
+        page.get_by_role("textbox", name="Default Value").fill("5")
+        page.get_by_label("Attribute Type Select an item").select_option("number")
+        page.get_by_role("button", name="Create Attribute").click()
+        expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+        page.get_by_test_id("new-attribute-button").click()
+        expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
+
+        page.locator("#attribute-list").get_by_role("link", name="Attribute").click()
+        expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+        page.get_by_test_id("admin-menu-Report Item Type").click()
+        expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+        page.get_by_test_id("new-report_item_type-button").click()
+        expect(page.get_by_role("heading", name="Create Report Item Type")).to_be_visible()
+
+        page.get_by_role("textbox", name="Title").click()
+        page.get_by_role("textbox", name="Title").fill("report item type test 5")
+        page.get_by_role("textbox", name="Description").click()
+        page.get_by_role("textbox", name="Description").fill("atrr5")
+        page.get_by_role("button", name="+ Add New Group").click()
+        expect(page.get_by_role("spinbutton", name="Group Index")).to_be_visible()
+
+        page.get_by_role("textbox", name="Group Title").click()
+        page.get_by_role("textbox", name="Group Title").fill("group1")
+        page.get_by_role("textbox", name="Group Description").click()
+        page.get_by_role("button", name="+ Add New Attribute").click()
+        expect(page.get_by_role("group", name="Required")).to_be_visible()
+
+        page.get_by_role("textbox", name="Attribute Title").click()
+        page.get_by_role("textbox", name="Attribute Title").fill("attr title text")
+        page.get_by_label("Attribute Type Select an item").select_option("29")
+        page.get_by_role("textbox", name="Attribute Description").click()
+        page.get_by_role("textbox", name="Attribute Description").fill("test 5")
+        page.get_by_role("textbox", name="Attribute Description").dblclick()
+        page.get_by_role("textbox", name="Attribute Description").fill("number 5")
+        page.get_by_role("button", name="Create Report Item Type").click()
+        expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+        page.get_by_role("link", name="Analyze").click()
+        expect(page.get_by_role("row", name="attr 6 16. January 2026 16:34")).to_be_visible()
+
+        page.get_by_test_id("action-delete-7ca9fe06-893b-4bc7-a0a4-01330d70d2b5").click()
+        expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+
+        page.get_by_role("button", name="OK").click()
+        expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
+
+        page.get_by_role("link", name="Administration").click()
+        expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+        page.get_by_test_id("admin-menu-Report Item Type").click()
+        expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+        page.get_by_test_id("action-delete-6").click()
+        expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+
+        page.get_by_role("button", name="OK").click()
+        expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+        page.get_by_role("link", name="Analyze").click()
+        expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
+
+        page.get_by_test_id("new-report-button").click()
+        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
+        page.locator(".col-span-12 > .grid > div").first.click()
+        page.get_by_role("textbox", name="Title").click()
+        page.get_by_role("textbox", name="Title").fill("number 5 in report")
+        page.get_by_label("Report Type Select a report").select_option("7")
+        page.get_by_test_id("save-report").click()
+        expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
 
         load_attributes()
         test_crud()

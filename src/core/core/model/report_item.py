@@ -253,6 +253,7 @@ class ReportItem(BaseModel):
                     "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
+                    "value": attribute_group_item.attribute.default_value or None,
                     "render_data": {},
                 }
                 if attribute_enum_data:
