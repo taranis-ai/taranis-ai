@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     SQLALCHEMY_CONNECT_TIMEOUT: int = 10
     SQLALCHEMY_MAX_OVERFLOW: int = 10
     SQLALCHEMY_POOL_SIZE: int = 20
+    SQLALCHEMY_POOL_TIMEOUT: int | None = None
+    SQLALCHEMY_POOL_RECYCLE: int | None = None
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -72,12 +74,16 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
-        self.SQLALCHEMY_ENGINE_OPTIONS.update(
-            {
-                "pool_size": self.SQLALCHEMY_POOL_SIZE,
-                "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
-            }
-        )
+
+        update_payload = {
+            "pool_size": self.SQLALCHEMY_POOL_SIZE,
+            "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
+        }
+        if self.SQLALCHEMY_POOL_TIMEOUT is not None:
+            update_payload["pool_timeout"] = self.SQLALCHEMY_POOL_TIMEOUT
+        if self.SQLALCHEMY_POOL_RECYCLE is not None:
+            update_payload["pool_recycle"] = self.SQLALCHEMY_POOL_RECYCLE
+        self.SQLALCHEMY_ENGINE_OPTIONS.update(update_payload)
         self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
         return self
 
