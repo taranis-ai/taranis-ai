@@ -127,40 +127,36 @@ def test_pool_options_applied_to_actual_engine(app):
     from core.managers.db_manager import db
 
     with app.app_context():
-        # Verify the engine was created successfully with the configured options
         assert db.engine is not None
         assert db.engine.pool is not None
 
-        # Verify pool size matches configuration via public API
         assert db.engine.pool.size() == 20
 
 
-def test_pool_options_with_custom_values_creates_engine_successfully(clear_pool_env_vars):
-    """Integration test: verify custom pool options are passed correctly to SQLAlchemy engine creation."""
-    from sqlalchemy import create_engine
-    from sqlalchemy.pool import QueuePool
+def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars):
+    """Integration test: verify custom pool timeout and recycle values are applied to the engine via app context."""
+    monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "25")
+    monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
-    settings = Settings(SQLALCHEMY_POOL_TIMEOUT=25, SQLALCHEMY_POOL_RECYCLE=7200)
+    from importlib import reload
+    import core.config
 
-    # Verify options are correctly populated in engine options
-    assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 25
-    assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 7200
-    assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_size"] == 20
+    reload(core.config)
 
-    # Create engine with just the pool options (excluding connect_args for SQLite compatibility)
-    engine_options = {
-        "pool_size": settings.SQLALCHEMY_POOL_SIZE,
-        "max_overflow": settings.SQLALCHEMY_MAX_OVERFLOW,
-        "pool_timeout": 25,
-        "pool_recycle": 7200,
-    }
-    engine = create_engine("sqlite:///:memory:", poolclass=QueuePool, **engine_options)
+    from core import create_app
+    from core.managers.db_manager import db
+    from core.config import Config
 
-    # Verify engine was created successfully and pool exists
-    assert engine.pool is not None
-    assert engine.pool.size() == 20
+    app = create_app()
 
-    engine.dispose()
+    with app.app_context():
+        assert Config.SQLALCHEMY_POOL_TIMEOUT == 25
+        assert Config.SQLALCHEMY_POOL_RECYCLE == 7200
+        assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 25
+        assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 7200
+
+        assert db.engine is not None
+        assert db.engine.pool is not None
 
 
 def test_sqlalchemy_pool_timeout_validation_rejects_zero(clear_pool_env_vars):
@@ -192,5 +188,4 @@ def test_sqlalchemy_pool_recycle_accepts_minus_one(clear_pool_env_vars):
     settings = Settings(SQLALCHEMY_POOL_RECYCLE=-1)
 
     assert settings.SQLALCHEMY_POOL_RECYCLE == -1
-    # When -1, it should still be added to engine options
     assert settings.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == -1
