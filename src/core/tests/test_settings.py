@@ -135,6 +135,9 @@ def test_pool_options_applied_to_actual_engine(app):
 
 def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars):
     """Integration test: verify custom pool timeout and recycle values are applied to the engine via app context."""
+    import os
+
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:////tmp/taranis_ai_test.db"))
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "25")
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
