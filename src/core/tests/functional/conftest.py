@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 
 
@@ -425,3 +427,58 @@ def cleanup_publisher(app):
 
         if PublisherPreset.get(publisher_data["id"]):
             PublisherPreset.delete(publisher_data["id"])
+
+
+def remap_result_keys(payload: dict, stories) -> dict:
+    payload = deepcopy(payload)
+
+    old = payload["result"]["result"]
+    story_ids = [str(getattr(s, "id", s)) for s in stories]
+
+    payload["result"]["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    return payload
+
+
+@pytest.fixture
+def wordlist_bot_result(stories):
+    from tests.test_data.bot_test_data import wordlist_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def ioc_bot_result(stories):
+    from tests.test_data.bot_test_data import ioc_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def nlp_bot_result(stories):
+    from tests.test_data.bot_test_data import nlp_bot as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def applied_wordlist(client, api_header, wordlist_bot_result):
+    resp = client.post("/api/tasks", json=wordlist_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_ioc(client, api_header, ioc_bot_result):
+    resp = client.post("/api/tasks", json=ioc_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_nlp(client, api_header, nlp_bot_result):
+    resp = client.post("/api/tasks", json=nlp_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp

@@ -1,3 +1,5 @@
+from tests.conftest import api_header
+from tests.functional.conftest import wordlist_bot_result
 from tests.functional.helpers import BaseTest
 
 
@@ -88,3 +90,74 @@ class TestBotsApi(BaseTest):
         )
 
         assert attributes == expected_attributes
+
+
+class TestTaggingBotsResults(BaseTest):
+    base_uri = "/api/tasks"
+
+    def test_check_story_tags_after_wordlist_bot(self, client, stories, auth_header, wordlist_bot_result, applied_wordlist):
+        for story_id in stories:
+            response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+            assert response.status_code == 200
+
+            structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
+
+            expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+            assert structured_tags == expected_tags
+
+            attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
+            assert attr_by_key["TLP"] == "clear"
+            assert str(attr_by_key["WORDLIST_BOT"]).startswith("bot_id=")
+
+    def test_check_story_tags_after_ioc_bot(
+        self,
+        client,
+        stories,
+        auth_header,
+        wordlist_bot_result,
+        ioc_bot_result,
+        applied_wordlist,
+        applied_ioc,
+    ):
+        for story_id in stories:
+            response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+            assert response.status_code == 200
+
+            structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
+
+            expected = {}
+            expected |= wordlist_bot_result["result"]["result"].get(story_id, {})
+            expected |= ioc_bot_result["result"]["result"].get(story_id, {})
+
+            assert structured_tags == expected
+
+    def test_check_story_tags_after_nlp_bot(
+        self,
+        client,
+        stories,
+        auth_header,
+        wordlist_bot_result,
+        ioc_bot_result,
+        nlp_bot_result,
+        applied_wordlist,
+        applied_ioc,
+        applied_nlp,
+    ):
+        for story_id in stories:
+            response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+            assert response.status_code == 200
+
+            structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
+
+            expected = {}
+            expected |= wordlist_bot_result["result"]["result"].get(story_id, {})
+            expected |= ioc_bot_result["result"]["result"].get(story_id, {})
+            expected |= nlp_bot_result["result"]["result"].get(story_id, {})
+
+            assert structured_tags == expected
+
+            attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
+            assert attr_by_key["TLP"] == "clear"
+            assert attr_by_key["WORDLIST_BOT"].startswith("bot_id=")
+            assert attr_by_key["IOC_BOT"].startswith("bot_id=")
+            assert attr_by_key["NLP_BOT"].startswith("bot_id=")
