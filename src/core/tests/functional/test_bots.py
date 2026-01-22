@@ -1,5 +1,3 @@
-from tests.conftest import api_header
-from tests.functional.conftest import wordlist_bot_result
 from tests.functional.helpers import BaseTest
 
 
