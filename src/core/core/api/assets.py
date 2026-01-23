@@ -10,7 +10,7 @@ from core.model import asset
 
 class AssetGroups(MethodView):
     @auth_required("ASSETS_ACCESS")
-    @extract_args("search", "sort", "page", "limit")
+    @extract_args("search", "page", "limit", "order")
     def get(self, group_id=None, filter_args=None):
         if group_id:
             return asset.AssetGroup.get_for_api(group_id, current_user.organization)
@@ -39,7 +39,7 @@ class AssetGroups(MethodView):
 
 class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
-    @extract_args("search", "vulnerable", "group", "sort", "page", "limit")
+    @extract_args("search", "vulnerable", "group", "page", "limit", "order")
     def get(self, asset_id=None, filter_args=None):
         if asset_id:
             return asset.Asset.get_for_api(asset_id, current_user.organization)

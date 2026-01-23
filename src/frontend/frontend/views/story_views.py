@@ -57,9 +57,6 @@ class StoryView(BaseView):
         return CacheObject(
             [StoryView._enhance_story_with_details(story, source_dict) for story in stories.items],
             total_count=stories.total_count,
-            page=stories.page,
-            limit=stories.limit,
-            order=stories.order,
         )
 
     @staticmethod
@@ -82,16 +79,6 @@ class StoryView(BaseView):
             add_model_to_cache(filter_lists, "", current_user.id)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
-
-    @staticmethod
-    def _get_story(story_id: str) -> Story | None:
-        if story := get_model_from_cache(Story._model_name, story_id, current_user.id):
-            return story
-        if story_content := CoreApi().get_story(story_id):
-            story = Story(**story_content)
-            add_model_to_cache(story, story_id, current_user.id)
-            return story
-        return None
 
     @classmethod
     @auth_required()
@@ -118,7 +105,7 @@ class StoryView(BaseView):
 
     @classmethod
     def share_story_link(cls, story_ids: list[str]) -> str:
-        stories: list[Story] = [cls._get_story(story_id) for story_id in story_ids]
+        stories: list[Story] = [story for story_id in story_ids if (story := DataPersistenceLayer().get_object(Story, story_id)) is not None]
 
         subject = "sharing stories from taranis ai"
         if len(stories) == 1:
@@ -127,8 +114,9 @@ class StoryView(BaseView):
         body_lines: list[str] = []
         for story in stories:
             title = story.title or f"Story {story.id}"
-            links = [f" - {link}\n" for link in story.links]
-            body_lines.append(f"{title}:\n{''.join(links)}")
+            if story.links is not None:
+                links = [f" - {link}\n" for link in story.links]
+                body_lines.append(f"{title}:\n{''.join(links)}")
         body = "\n\n".join(body_lines).strip()
 
         params: dict[str, str] = {"subject": subject}
@@ -176,10 +164,28 @@ class StoryView(BaseView):
     @auth_required()
     def submit_cluster_dialog(cls) -> Response:
         story_ids = request.form.getlist("story_ids")
-        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        open_primary_story = request.form.get("open_primary") == "true"
+        if len(story_ids) < 2:
+            return cls.rerender_list(
+                notification=cls.render_response_notification({"error": "At least two stories must be selected for clustering."})
+            )
+        logger.debug(f"Clustering {story_ids[1:]} into {story_ids[0]}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+        notification_html = cls.get_notification_from_response(response)
+
+        if open_primary_story and getattr(response, "ok", False):
+            primary_story_id = story_ids[0]
+            content = render_template(
+                "assess/story.html",
+                detail_view=True,
+                **cls.get_item_context(primary_story_id),
+            )
+            flask_response = make_response(notification_html + content, response.status_code or 200)
+            flask_response.headers["HX-Push-Url"] = url_for("assess.story", story_id=primary_story_id)
+            return flask_response
+
+        return cls.rerender_list(notification=notification_html)
 
     @classmethod
     @auth_required()
@@ -291,7 +297,6 @@ class StoryView(BaseView):
             request_params = parse_qs(parsed_url.query)
 
         paging_data = parse_paging_data(request_params)
-        paging_data.server_side = True
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
             return make_response(notification + table, status)
@@ -301,7 +306,6 @@ class StoryView(BaseView):
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
         paging_data = parse_paging_data(request_params)
-        paging_data.server_side = True
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
@@ -535,6 +539,18 @@ class StoryView(BaseView):
             status_override=200,
         )
 
+    @classmethod
+    @auth_required()
+    def delete_story(cls, story_id: str):
+        try:
+            core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
+        except Exception:
+            return cls.render_response_notification({"error": "Failed to delete story"})
+
+        cls.add_flash_notification(core_response)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        return cls.redirect_htmx(url_for("assess.assess"))
+
     @staticmethod
     def _get_current_url_path() -> str:
         if current_url := request.headers.get("HX-Current-URL", ""):
@@ -574,21 +590,25 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def ungroup(cls, story_id: str):
-        news_item_ids = request.form.getlist("news_item_ids[]")
-        if not news_item_ids:
-            notification = {"message": "No news items selected for ungrouping.", "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
-        try:
-            response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
-            notification_html = cls.get_notification_from_response(response)
-        except Exception:
-            logger.exception("Failed to ungroup news item.")
-            return cls.render_response_notification({"error": "Failed to ungroup news item."})
-
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        content = cls._get_action_response_content(story_id)
-        return make_response(notification_html + content, 200)
+        if news_item_ids := request.form.getlist("news_item_ids[]"):
+            try:
+                response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                notification_html = cls.get_notification_from_response(response)
+                content = cls._get_action_response_content(story_id)
+                return make_response(notification_html + content, 200)
+            except Exception:
+                logger.exception("Failed to ungroup news item.")
+                return cls.render_response_notification({"error": "Failed to ungroup news item."})
+        else:
+            try:
+                core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
+            except Exception:
+                logger.exception("Failed to ungroup story.")
+                return cls.render_response_notification({"error": "Failed to ungroup story."})
 
     @classmethod
     @auth_required()

@@ -1,23 +1,23 @@
-from flask import Blueprint, request, send_file, Response, Flask
+from flask import Blueprint, Flask, Response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
-from core.managers.auth_manager import api_key_required
+from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
+from core.managers.auth_manager import api_key_required
+from core.managers.decorators import extract_args
+from core.managers.sse_manager import sse_manager
+from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
-from core.model.word_list import WordList
-from core.model.story import Story
-from core.model.news_item_tag import NewsItemTag
 from core.model.report_item import ReportItem
-from core.managers.sse_manager import sse_manager
-from core.model.bot import Bot
-from core.managers.decorators import extract_args
-from core.config import Config
+from core.model.story import Story
+from core.model.word_list import WordList
 
 
 class AddNewsItems(MethodView):
@@ -154,6 +154,7 @@ class Tags(MethodView):
     def put(self):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
+
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
@@ -161,9 +162,6 @@ class Tags(MethodView):
             story = Story.get(story_id)
             if not story:
                 errors[story_id] = "Story not found"
-                continue
-            if not tags:
-                errors[story_id] = "No tags provided"
                 continue
             _, status = story.set_tags(tags)
             if status != 200:

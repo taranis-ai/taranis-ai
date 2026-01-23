@@ -510,8 +510,7 @@ class QueueManager:
         return {"error": "Could not reach Redis"}, 500
 
     def execute_bot_task(self, bot_id: str, filter: dict | None = None):
-        """Execute bot task"""
-        bot_args: dict = {"bot_id": bot_id}
+        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
 

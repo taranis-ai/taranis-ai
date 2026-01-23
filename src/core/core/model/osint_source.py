@@ -107,6 +107,28 @@ class OSINTSource(BaseModel):
         return db.session.execute(query).scalars().all()
 
     @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "status_asc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""))
+        elif filter_args.get("order") == "status_desc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
+    @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
@@ -125,11 +147,23 @@ class OSINTSource(BaseModel):
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)
 
-        return query.order_by(db.asc(cls.name))
+        if enabled := filter_args.get("enabled"):
+            query = query.where(cls.enabled.is_(enabled))
 
-    def update_icon(self, icon: bytes | str | None):
-        icon_bytes = self._parse_icon(icon)
-        self.icon = icon_bytes
+        if filter_args.get("filter_manual"):
+            query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
+
+    def update_icon(self, icon: bytes | str):
+        if icon_bytes := self._parse_icon(icon):
+            self.icon = icon_bytes
+        else:
+            self.icon = None
         db.session.commit()
 
     @classmethod
@@ -255,7 +289,7 @@ class OSINTSource(BaseModel):
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
+    def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
@@ -273,18 +307,14 @@ class OSINTSource(BaseModel):
         osint_source.schedule_osint_source()
         return osint_source
 
-    def _parse_icon(self, icon: bytes | str | None) -> bytes | None:
-        if icon is None:
-            return None
-        icon_bytes: bytes | None
+    def _parse_icon(self, icon: bytes | str) -> bytes:
+        icon_bytes: bytes | None = None
         if isinstance(icon, bytes):
             icon_bytes = icon or None
         elif isinstance(icon, str):
             if not icon.strip():
-                return None
+                return b""
             icon_bytes = self.is_valid_base64(icon)
-        else:
-            raise ValueError("Invalid icon payload type; expected bytes or base64 string.")
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
         if not self._is_valid_image(icon_bytes):
@@ -613,9 +643,9 @@ class OSINTSourceGroup(BaseModel):
     def delete(cls, osint_source_group_id: str, user: "User | None" = None) -> tuple[dict, int]:
         osint_source_group = cls.get(osint_source_group_id)
         if not osint_source_group:
-            return {"message": "No Sourcegroup found"}, 404
+            return {"error": "No Sourcegroup found"}, 404
         if osint_source_group.default is True:
-            return {"message": "could_not_delete_default_group"}, 400
+            return {"error": "could_not_delete_default_group"}, 400
 
         if not osint_source_group.allowed_with_acl(user=user, require_write_access=True):
             return {"error": "User not allowed to update this group"}, 403
@@ -625,7 +655,7 @@ class OSINTSourceGroup(BaseModel):
         return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_group_id: str, data: dict, user: "User | None" = None) -> tuple[dict, int]:
+    def update(cls, osint_source_group_id: str, data: dict[str, Any], user: "User | None" = None) -> tuple[dict[str, str], int]:
         osint_source_group = cls.get(osint_source_group_id)
         if osint_source_group is None:
             return {"error": "OSINT Source Group not found"}, 404

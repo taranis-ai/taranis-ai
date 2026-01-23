@@ -15,7 +15,6 @@ class PagingData(BaseModel):
     order: str | None = None
     search: str | None = None
     query_params: dict[str, str | list[str]] | None = None
-    server_side: bool = False
 
 
 class CacheObject(list[T], Generic[T]):

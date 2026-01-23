@@ -1,7 +1,8 @@
-from .base_bot import BaseBot
-from worker.log import logger
-from worker.config import Config
 from worker.bot_api import BotApi
+from worker.config import Config
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class StoryBot(BaseBot):
@@ -13,12 +14,11 @@ class StoryBot(BaseBot):
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
         self.language = language
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
-
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.STORY_API_ENDPOINT),
             bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),

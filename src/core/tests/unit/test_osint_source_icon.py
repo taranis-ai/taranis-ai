@@ -1,7 +1,6 @@
 import base64
 
 import pytest
-
 from models.types import COLLECTOR_TYPES
 
 from core.model.osint_source import OSINTSource
@@ -65,7 +64,7 @@ def test_update_icon_can_clear_icon(session):
     source.update_icon(_VALID_PNG_BYTES)
     assert source.icon == _VALID_PNG_BYTES
 
-    source.update_icon(None)
+    source.update_icon("")
     assert source.icon is None
 
 

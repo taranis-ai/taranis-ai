@@ -63,7 +63,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive', timeout=5).raise_for_status()\""]
+      test: ["CMD", "taranis-core-healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,7 +88,7 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
+      test: ["CMD", "pg_isready"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -115,7 +115,7 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8080${APPLICATION_ROOT}/health', timeout=5).raise_for_status()\""]
+      test: ["CMD", "taranis-frontend-healthcheck"]
       interval: 1m30s
       timeout: 30s
       retries: 5

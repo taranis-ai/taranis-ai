@@ -1,15 +1,16 @@
-import json
 import csv
-from typing import Any
+import json
 from enum import IntEnum
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
+from typing import Any
 
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
+
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.user import User
-from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.log import logger
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -127,7 +128,11 @@ class WordList(BaseModel):
             except ValueError:
                 logger.error(f"Invalid usage filter: {usage}")
 
-        return query.order_by(db.asc(cls.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     def to_small_dict(self) -> dict[str, Any]:
         data = super().to_dict()
