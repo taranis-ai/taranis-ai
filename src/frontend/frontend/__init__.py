@@ -1,6 +1,6 @@
 from flask import Flask
 
-from frontend import auth, cache, router, setup
+from frontend import auth, cache, cache_invalidation, router, setup
 from frontend.config import Config
 
 

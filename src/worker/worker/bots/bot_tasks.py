@@ -5,7 +5,6 @@ Functions for executing bots to process news items.
 from rq import get_current_job
 
 import worker.bots
-from worker.bots.base_bot import BaseBot
 from worker.core_api import CoreApi
 from worker.log import logger
 
