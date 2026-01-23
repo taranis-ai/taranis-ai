@@ -401,12 +401,28 @@ class OSINTSource(BaseModel):
 
     def get_export_parameters(self, with_secrets: bool = False) -> list[dict[str, str]]:
         parameters = []
+        has_content_location = False
+        has_use_feed_content = False
+
+        for parameter in self.parameters:
+            if parameter.parameter == "CONTENT_LOCATION" and parameter.value:
+                has_content_location = True
+            if parameter.parameter == "USE_FEED_CONTENT":
+                has_use_feed_content = True
+
         for parameter in self.parameters:
             if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
                 parameters.append({parameter.parameter: "<REDACTED>"})
                 continue
             if parameter.value:
                 parameters.append(parameter.to_dict())
+
+        if not has_use_feed_content:
+            if has_content_location:
+                parameters.append({"USE_FEED_CONTENT": "true"})
+            else:
+                parameters.append({"USE_FEED_CONTENT": "false"})
+
         return parameters
 
     @classmethod
