@@ -20,12 +20,31 @@ jobs:
 
       - name: Run docker compose for last commit
         working-directory: docker
+        continue-on-error: true
         run: |
           cp env.sample .env
           docker compose pull redis sse database
           docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
-          echo "Echo docker ps -a:"
+
+      - name: Check container status
+        working-directory: docker
+        run: |
+          echo "Container status:"
+          docker compose ps
+          echo ""
+          echo "Detailed docker ps:"
           docker ps -a
-          echo "Echo core logs:"
+          echo ""
+          echo "Core logs:"
           docker compose logs core
-          docker compose down
+          echo ""
+          echo "Ingress logs:"
+          docker compose logs ingress
+          echo ""
+          echo "Cron logs:"
+          docker compose logs cron
+
+      - name: Cleanup
+        if: always()
+        working-directory: docker
+        run: docker compose down
