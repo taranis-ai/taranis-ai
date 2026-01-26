@@ -22,8 +22,8 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
-          docker compose pull redis sse database
-          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=60 --wait
+          docker compose pull redis database
+          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
           echo "Echo docker ps -a:"
           docker ps -a
           echo "Echo core logs:"
