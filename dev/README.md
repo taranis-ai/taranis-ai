@@ -213,7 +213,7 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 ### Support Services
 
 * PostgreSQL: As the primary database.
-* RabbitMQ: For message brokering and queue management.
+* Redis: For message brokering and job queue management (via RQ).
 
 ### DevOps and Deployment
 

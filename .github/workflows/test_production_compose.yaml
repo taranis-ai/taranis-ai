@@ -22,7 +22,7 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
-          docker compose pull redis rabbitmq sse database
+          docker compose pull redis sse database
           docker compose up ingress core frontend database redis collector workers presenters bots sse --pull=never --wait-timeout=60 --wait
           echo "Echo docker ps -a:"
           docker ps -a

@@ -1822,7 +1822,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
   /config/worker-types:
     get:
       tags: [config]
@@ -1939,7 +1939,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
           content:
             application/json:
               schema:
@@ -1970,7 +1970,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
           content:
             application/json:
               schema:
