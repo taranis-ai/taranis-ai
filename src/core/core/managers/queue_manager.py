@@ -524,7 +524,7 @@ class QueueManager:
         from datetime import timedelta
 
         if countdown > 0:
-            scheduled_time = datetime.now() + timedelta(seconds=countdown)
+            scheduled_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=countdown)
             job = self.enqueue_at("presenters", "presenter_task", scheduled_time, product_id, job_id=f"presenter_task_{product_id}")
         else:
             job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=f"presenter_task_{product_id}")
@@ -614,8 +614,11 @@ class QueueManager:
 
     @staticmethod
     def get_next_fire_times_from_cron(cron_expr: str, n: int = 3) -> list[datetime]:
-        """Calculate next n fire times from a cron expression"""
-        cron = croniter(cron_expr, datetime.now())
+        """Calculate next n fire times from a cron expression.
+
+        Note: All times are calculated in UTC to ensure consistency across the system.
+        """
+        cron = croniter(cron_expr, datetime.now(timezone.utc).replace(tzinfo=None))
         fire_times: list[datetime] = []
 
         for _ in range(n):
@@ -687,7 +690,7 @@ class QueueManager:
 
                     # Register housekeeping tasks that are scheduled via cron
                     try:
-                        now = datetime.now()
+                        now = datetime.now(timezone.utc).replace(tzinfo=None)
                         housekeeping_cron = "0 2 * * *"
                         cron = croniter(housekeeping_cron, now)
                         next_run = cron.get_next(datetime)

@@ -222,7 +222,13 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
-        now = now or datetime.now()
+        """Get schedule entries for all enabled OSINT sources.
+
+        Note: All times are calculated in UTC for consistency across the system.
+        """
+        from datetime import timezone
+
+        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         schedule_entries: list[dict[str, Any]] = []
 
         sources = cls.get_all_for_collector()
