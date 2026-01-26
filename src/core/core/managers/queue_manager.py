@@ -557,6 +557,11 @@ class QueueManager:
 
         return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
 
+    @staticmethod
+    def _format_task_name(func_name: str) -> str:
+        """Format a function name into a human-readable task name"""
+        return func_name.split(".")[-1].replace("_", " ").title()
+
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
         func_name = job.func_name or "unknown"
@@ -599,18 +604,18 @@ class QueueManager:
 
         # For presenter tasks
         if "presenter" in func_name.lower():
-            return f"Presenter: {func_name.split('.')[-1].replace('_', ' ').title()}"
+            return f"Presenter: {self._format_task_name(func_name)}"
 
         # For publisher tasks
         if "publisher" in func_name.lower():
-            return f"Publisher: {func_name.split('.')[-1].replace('_', ' ').title()}"
+            return f"Publisher: {self._format_task_name(func_name)}"
 
         # For maintenance tasks
         if "cleanup" in func_name.lower() or "update" in func_name.lower():
-            return f"Maintenance: {func_name.split('.')[-1].replace('_', ' ').title()}"
+            return f"Maintenance: {self._format_task_name(func_name)}"
 
         # For other tasks, return the function name (last part only)
-        return func_name.split(".")[-1].replace("_", " ").title()
+        return self._format_task_name(func_name)
 
     @staticmethod
     def get_next_fire_times_from_cron(cron_expr: str, n: int = 3) -> list[datetime]:
