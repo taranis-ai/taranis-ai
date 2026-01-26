@@ -1,6 +1,7 @@
-import pytest
 import json
 import os
+
+import pytest
 
 from worker.config import Config
 

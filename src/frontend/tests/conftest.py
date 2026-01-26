@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()

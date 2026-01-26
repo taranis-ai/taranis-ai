@@ -5,11 +5,13 @@ It's used by `rq cron` to schedule recurring tasks.
 
 The scheduler monitors the database for changes and reloads jobs when needed.
 """
+
 from rq.cron import register as global_register
+
+from worker.bots.bot_tasks import bot_task
+from worker.collectors.collector_tasks import collector_task
 from worker.core_api import CoreApi
 from worker.log import logger
-from worker.collectors.collector_tasks import collector_task
-from worker.bots.bot_tasks import bot_task
 from worker.misc.misc_tasks import cleanup_token_blacklist
 
 
@@ -40,16 +42,16 @@ def load_cron_jobs(scheduler=None):
         sources = core_api.get_all_osint_sources()
         if sources:
             for source in sources:
-                if not source.get('enabled'):
+                if not source.get("enabled"):
                     continue
 
-                cron_schedule = source.get('refresh')
+                cron_schedule = source.get("refresh")
                 if not cron_schedule:
                     continue
 
-                source_id = source.get('id')
-                source_type = source.get('type')
-                source_name = source.get('name', 'Unknown')
+                source_id = source.get("id")
+                source_type = source.get("type")
+                source_name = source.get("name", "Unknown")
 
                 # Generate task_id matching the format used by core
                 task_id = f"collect_{source_type}_{source_id}"
@@ -58,7 +60,7 @@ def load_cron_jobs(scheduler=None):
 
                 register_func(
                     collector_task,
-                    queue_name='collectors',
+                    queue_name="collectors",
                     args=(source_id, False),  # manual=False for scheduled jobs
                     cron=cron_schedule,
                 )
@@ -68,24 +70,24 @@ def load_cron_jobs(scheduler=None):
         bots = core_api.get_all_bots()
         if bots:
             for bot in bots:
-                if not bot.get('enabled'):
+                if not bot.get("enabled"):
                     continue
 
                 # Bot refresh schedule is in parameters.REFRESH_INTERVAL
-                parameters = bot.get('parameters', {})
-                cron_schedule = parameters.get('REFRESH_INTERVAL')
+                parameters = bot.get("parameters", {})
+                cron_schedule = parameters.get("REFRESH_INTERVAL")
                 if not cron_schedule:
                     continue
 
-                bot_id = bot.get('id')
-                bot_name = bot.get('name', 'Unknown')
+                bot_id = bot.get("id")
+                bot_name = bot.get("name", "Unknown")
                 task_id = f"bot_{bot_id}"
 
                 logger.info(f"Registering bot cron job: {bot_name} ({task_id}) with schedule: {cron_schedule}")
 
                 register_func(
                     bot_task,
-                    queue_name='bots',
+                    queue_name="bots",
                     args=(bot_id,),
                     cron=cron_schedule,
                 )
@@ -95,8 +97,8 @@ def load_cron_jobs(scheduler=None):
         logger.info("Registering housekeeping cron job: cleanup_token_blacklist (0 2 * * *)")
         register_func(
             cleanup_token_blacklist,
-            queue_name='misc',
-            cron='0 2 * * *',
+            queue_name="misc",
+            cron="0 2 * * *",
         )
         registered_count += 1
 

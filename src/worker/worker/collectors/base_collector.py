@@ -1,13 +1,14 @@
 import contextlib
 import datetime
 import hashlib
-import uuid
 import re
-from bs4 import BeautifulSoup
+import uuid
 from urllib.parse import quote
 
-from worker.log import logger
+from bs4 import BeautifulSoup
+
 from worker.core_api import CoreApi
+from worker.log import logger
 from worker.types import NewsItem
 
 

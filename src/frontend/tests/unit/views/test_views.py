@@ -1,11 +1,11 @@
-import pytest
 import json
-from unittest.mock import patch, MagicMock
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
+import pytest
 
-from frontend.views.base_view import BaseView
 from frontend.views.admin_views.source_views import SourceView
+from frontend.views.base_view import BaseView
 
 
 VIEW_ITEMS = BaseView._registry.items()

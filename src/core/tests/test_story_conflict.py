@@ -1,4 +1,5 @@
 import pytest
+
 from core.model.story_conflict import StoryConflict
 
 
@@ -84,6 +85,6 @@ class TestStoryConflictSorting:
     def test_normalize_data_handles_different_ordering(self, original_story, updated_story):
         normalized_original, normalized_updated = StoryConflict.normalize_data(original_story, updated_story)
 
-        assert (
-            normalized_original == normalized_updated
-        ), "Stories with same content but different order should normalize to identical strings"
+        assert normalized_original == normalized_updated, (
+            "Stories with same content but different order should normalize to identical strings"
+        )

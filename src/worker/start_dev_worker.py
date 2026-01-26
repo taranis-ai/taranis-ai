@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-import time
 import subprocess
-from watchdog.observers import Observer
+import time
+
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 
 class RQRestartHandler(FileSystemEventHandler):

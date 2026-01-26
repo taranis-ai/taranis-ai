@@ -1,23 +1,23 @@
 import re
-from flask import Flask, redirect, url_for
-from flask_htmx import HTMX
-from flask.json.provider import DefaultJSONProvider
-from flask_jwt_extended import current_user, verify_jwt_in_request
-from pydantic import BaseModel
 from typing import Any
 
-import frontend.filters as filters_module
-from frontend.views.base_view import BaseView
-from frontend.config import Config
-from frontend.log import logger
-from models.user import UserProfile
-
+from flask import Flask, redirect, url_for
+from flask.json.provider import DefaultJSONProvider
+from flask_htmx import HTMX
+from flask_jwt_extended import current_user, verify_jwt_in_request
 from heroicons.jinja import (
     heroicon_micro,
     heroicon_mini,
     heroicon_outline,
     heroicon_solid,
 )
+from models.user import UserProfile
+from pydantic import BaseModel
+
+import frontend.filters as filters_module
+from frontend.config import Config
+from frontend.log import logger
+from frontend.views.base_view import BaseView
 
 
 def handle_unauthorized(e):

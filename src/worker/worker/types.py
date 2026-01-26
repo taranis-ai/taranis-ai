@@ -1,9 +1,10 @@
-from requests import Response
 from datetime import datetime
+
 import langcodes
+from langcodes.tag_parser import LanguageTagError
+from requests import Response
 
 from worker.log import logger
-from langcodes.tag_parser import LanguageTagError
 
 
 class Product:

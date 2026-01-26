@@ -1,12 +1,13 @@
 import base64
-import hashlib
-from urllib.parse import urlparse, urljoin
-import requests
 import datetime
+import hashlib
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
-from worker.log import logger
+import requests
+
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
+from worker.log import logger
 from worker.types import NewsItem
 
 

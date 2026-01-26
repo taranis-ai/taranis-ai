@@ -1,6 +1,7 @@
 from typing import Any
 
 from models.asset import Asset
+
 from frontend.views.base_view import BaseView
 
 

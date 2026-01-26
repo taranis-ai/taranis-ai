@@ -4,6 +4,7 @@ story news item FK
 
 from yoyo import step
 
+
 __depends__ = {"20250423_01_fpBWs-migrate-tlp"}
 
 steps = [

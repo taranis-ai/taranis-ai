@@ -2,15 +2,17 @@
 
 Functions for generating products/reports in various formats.
 """
+
 from base64 import b64encode
-from requests.exceptions import ConnectionError
 from typing import Any
+
+from requests.exceptions import ConnectionError
 from rq import get_current_job
 
 import worker.presenters
-from worker.presenters.base_presenter import BasePresenter
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
+from worker.presenters.base_presenter import BasePresenter
 
 
 def presenter_task(product_id: str):
@@ -54,11 +56,7 @@ def presenter_task(product_id: str):
         else:
             rendered_product = b64encode(rendered_product).decode("ascii")
 
-        result_data = {
-            "product_id": product_id,
-            "message": f"Product: {product_id} rendered successfully",
-            "render_result": rendered_product
-        }
+        result_data = {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": rendered_product}
 
         # Save task result to database
         if job:

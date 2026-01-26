@@ -1,10 +1,11 @@
+import hashlib
 import json
 import os
 from pathlib import Path
+
+from worker.collectors.base_web_collector import BaseCollector
 from worker.log import logger
 from worker.types import NewsItem
-from worker.collectors.base_web_collector import BaseCollector
-import hashlib
 
 
 class PPNCollector(BaseCollector):

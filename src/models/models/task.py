@@ -6,6 +6,7 @@ from models.base import TaranisBaseModel
 
 class Task(TaranisBaseModel):
     """Task execution result model"""
+
     _core_endpoint = "/config/task-results"
     _model_name = "task"
     _pretty_name = "Task"

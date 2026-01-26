@@ -2,12 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Sequence
 
+from croniter import croniter
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
-
-from croniter import croniter
 
 from core.log import logger
 from core.managers.db_manager import db

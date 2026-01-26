@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
+from typing import get_origin
 
 import pytest
-from typing import get_origin
 import responses
+
 
 root_path = Path(__file__).resolve().parents[5] / "src" / "models"
 root_str = str(root_path)
@@ -11,16 +12,18 @@ if root_str in sys.path:
     sys.path.remove(root_str)
 sys.path.insert(0, root_str)
 
-from frontend.log import logger  # noqa: E402
-from frontend.config import Config  # noqa: E402
-from frontend.views.base_view import BaseView  # noqa: E402
-from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
+from faker import Faker  # noqa: E402
 from polyfactory.exceptions import ParameterException  # noqa: E402
-from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation  # noqa: E402
+from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from pydantic.fields import FieldInfo  # noqa: E402
 from uuid_extensions import uuid7str  # noqa: E402
-from faker import Faker  # noqa: E402
+
+from frontend.config import Config  # noqa: E402
+from frontend.log import logger  # noqa: E402
+from frontend.views.base_view import BaseView  # noqa: E402
+
+from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
 
 
 @pytest.fixture

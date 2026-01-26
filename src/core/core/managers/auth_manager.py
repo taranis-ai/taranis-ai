@@ -1,17 +1,18 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Response, make_response, request, Flask, jsonify
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
-from core.log import logger
-from core.auth.openid_authenticator import OpenIDAuthenticator
-from core.auth.dev_authenticator import DevAuthenticator
+from flask import Flask, Response, jsonify, make_response, request
+from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
+
 from core.auth.database_authenticator import DatabaseAuthenticator
+from core.auth.dev_authenticator import DevAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
+from core.auth.openid_authenticator import OpenIDAuthenticator
+from core.config import Config
+from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 
-from core.config import Config
 
 current_authenticator = DatabaseAuthenticator()
 jwt = JWTManager()

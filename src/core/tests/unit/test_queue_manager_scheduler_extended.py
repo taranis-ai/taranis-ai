@@ -1,6 +1,6 @@
 from __future__ import annotations
-# pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
 
+# pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
@@ -9,7 +9,8 @@ import pytest
 import rq.job as rq_job
 import rq.registry as rq_registry
 
-from core.managers import auth_manager, queue_manager as qm_module
+from core.managers import auth_manager
+from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource

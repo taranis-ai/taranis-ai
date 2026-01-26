@@ -37,12 +37,12 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from croniter import croniter
 from flask import Flask
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Job
-from croniter import croniter
 
 from core.log import logger
 
@@ -216,8 +216,8 @@ class QueueManager:
         if self.error:
             return
         try:
-            from core.model.osint_source import OSINTSource
             from core.model.bot import Bot
+            from core.model.osint_source import OSINTSource
 
             # Count enabled sources and bots for logging
             sources = OSINTSource.get_all_for_collector()
@@ -571,8 +571,8 @@ class QueueManager:
             try:
                 source_id = job.args[0] if len(job.args) > 0 else None
                 if source_id:
-                    from core.model.osint_source import OSINTSource
                     from core.managers.db_manager import db
+                    from core.model.osint_source import OSINTSource
 
                     if source := db.session.get(OSINTSource, source_id):
                         return f"Collector: {source.name}"
@@ -589,8 +589,8 @@ class QueueManager:
             try:
                 bot_id = job.args[0] if len(job.args) > 0 else None
                 if bot_id:
-                    from core.model.bot import Bot
                     from core.managers.db_manager import db
+                    from core.model.bot import Bot
 
                     if bot := db.session.get(Bot, bot_id):
                         return f"Bot: {bot.name}"
@@ -646,8 +646,9 @@ class QueueManager:
             return {"error": "QueueManager not initialized"}, 500
 
         try:
-            from rq.registry import ScheduledJobRegistry
             from datetime import datetime
+
+            from rq.registry import ScheduledJobRegistry
 
             all_jobs = []
 
@@ -687,8 +688,8 @@ class QueueManager:
                     logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
 
                     # Import here to avoid circular dependencies
-                    from core.model.osint_source import OSINTSource
                     from core.model.bot import Bot
+                    from core.model.osint_source import OSINTSource
 
                     all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
                     all_jobs.extend(Bot.get_enabled_schedule_entries())

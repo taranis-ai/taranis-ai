@@ -1,15 +1,16 @@
 import io
-from flask import Blueprint, Flask, request, send_file, url_for
-from flask.views import MethodView
 from datetime import datetime
 
+from flask import Blueprint, Flask, request, send_file, url_for
+from flask.views import MethodView
+
+from core.config import Config
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
+from core.model.settings import Settings
 from core.model.story import Story
 from core.service.story import StoryService
-from core.model.settings import Settings
-from core.managers import queue_manager
-from core.config import Config
 
 
 class DeleteTags(MethodView):

@@ -20,7 +20,6 @@ from frontend.views import (
     WordListView,
     WorkerView,
 )
-
 from frontend.views.admin_views.scheduler_views import (
     ScheduleActiveJobsAPI,
     ScheduleFailedJobsAPI,

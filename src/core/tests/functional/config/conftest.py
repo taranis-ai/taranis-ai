@@ -1,5 +1,6 @@
-import pytest
 from contextlib import suppress
+
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 

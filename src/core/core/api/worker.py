@@ -71,7 +71,7 @@ class Sources(MethodView):
             if source_id is None:
                 sources = OSINTSource.get_all_for_collector()
                 return {"sources": [source.to_worker_dict() for source in sources]}, 200
-            
+
             # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
@@ -248,8 +248,8 @@ class TaskResults(MethodView):
     @api_key_required
     def put(self):
         """Save or update task result from worker."""
-        from core.model.task import Task
         from core.api.task import handle_task_specific_result
+        from core.model.task import Task
 
         data = request.json
         if not data:

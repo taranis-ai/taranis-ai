@@ -1,8 +1,8 @@
 from typing import Any
-from flask import Response, abort, render_template, request
 
-from models.product import Product
+from flask import Response, abort, render_template, request
 from models.admin import ProductType, PublisherPreset
+from models.product import Product
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi

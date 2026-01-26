@@ -1,7 +1,7 @@
 from flask import Flask
 
-from core.managers import db_manager, auth_manager, api_manager, queue_manager, data_manager, sentry_manager
 from core.config import Config
+from core.managers import api_manager, auth_manager, data_manager, db_manager, queue_manager, sentry_manager
 
 
 def granian_app() -> Flask:

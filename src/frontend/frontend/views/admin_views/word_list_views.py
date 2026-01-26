@@ -1,16 +1,17 @@
 import json
-from flask import request, render_template, Response
 from typing import Any
 
+from flask import Response, render_template, request
 from models.admin import WordList
-from frontend.views.base_view import BaseView
-from frontend.core_api import CoreApi
-from frontend.log import logger
-from frontend.config import Config
-from frontend.data_persistence import DataPersistenceLayer
+
 from frontend.auth import auth_required
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class WordListView(AdminMixin, BaseView):

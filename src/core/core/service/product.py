@@ -1,13 +1,12 @@
 from flask import Response
+from sqlalchemy import select
 
+from core.log import logger
+from core.managers import queue_manager
+from core.managers.db_manager import db
 from core.model.product import Product
 from core.model.report_item import ReportItem
 from core.model.task import Task
-from core.log import logger
-
-from sqlalchemy import select
-from core.managers.db_manager import db
-from core.managers import queue_manager
 
 
 class ProductService:

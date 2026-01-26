@@ -1,11 +1,12 @@
 import copy
+
 from sqlalchemy.orm import Mapped
 from sqlalchemy.schema import CheckConstraint
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
-from core.log import logger
 
 
 class Settings(BaseModel):

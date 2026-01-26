@@ -10,9 +10,11 @@ This module sets up RQ workers for different job types:
 Usage:
     rq worker collectors bots presenters publishers connectors
 """
+
 import sys
+
 import redis
-from rq import Worker, Queue
+from rq import Queue, Worker
 
 from worker.config import Config
 from worker.core_api import CoreApi
@@ -56,6 +58,7 @@ def start_worker():
 
     # Import task modules to register functions
     from worker.tasks import register_tasks
+
     register_tasks()
 
     # Get Redis connection

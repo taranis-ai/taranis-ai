@@ -16,13 +16,15 @@ Usage:
 Or using uv:
     uv run python start_cron_scheduler.py
 """
+
 import sys
+
 from redis import Redis
 from rq.cron import CronScheduler
 
 from worker.config import Config
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 def wait_for_core_api(max_retries: int = 30, retry_delay: int = 2) -> bool:
@@ -51,6 +53,7 @@ def wait_for_core_api(max_retries: int = 30, retry_delay: int = 2) -> bool:
         if attempt < max_retries:
             logger.info(f"Waiting {retry_delay}s before next attempt...")
             import time
+
             time.sleep(retry_delay)
 
     logger.error(f"Core API did not become available after {max_retries} attempts")
@@ -66,11 +69,7 @@ def start_cron_scheduler():
             sys.exit(1)
 
         # Connect to Redis
-        redis_conn = Redis.from_url(
-            Config.REDIS_URL,
-            password=Config.REDIS_PASSWORD,
-            decode_responses=False
-        )
+        redis_conn = Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
 
         logger.info(f"Connecting to Redis: {Config.REDIS_URL}")
         redis_conn.ping()
@@ -78,22 +77,21 @@ def start_cron_scheduler():
         # Create the cron scheduler
         # Don't specify a custom name - let RQ auto-generate it in the format "hostname:pid:uuid"
         # This is required for proper registration and monitoring via CronScheduler.all()
-        scheduler = CronScheduler(
-            connection=redis_conn,
-            logging_level="INFO"
-        )
+        scheduler = CronScheduler(connection=redis_conn, logging_level="INFO")
 
         logger.info("RQ Cron Scheduler starting...")
         logger.info("Loading cron jobs from database...")
 
         # Load and register cron jobs with this scheduler instance
         from worker.cron_config import load_cron_jobs
+
         load_cron_jobs(scheduler)
 
         logger.info("Cron jobs registered. Starting scheduler loop...")
 
         # Start the reload listener (pub/sub)
         from worker.cron_reloader import CronReloader
+
         reloader = CronReloader(scheduler, redis_conn)
         reloader.start()
         logger.info("Cron reloader active - listening for config changes")
@@ -117,4 +115,3 @@ def start_cron_scheduler():
 
 if __name__ == "__main__":
     start_cron_scheduler()
-

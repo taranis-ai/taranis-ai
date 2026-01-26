@@ -1,10 +1,10 @@
-import pytest
 import json
 
-from worker.connectors.misp_connector import MispConnector
-from worker.connectors import connector_tasks
-from worker.connectors import base_misp_builder
+import pytest
+
 from worker.config import Config
+from worker.connectors import base_misp_builder, connector_tasks
+from worker.connectors.misp_connector import MispConnector
 from worker.core_api import CoreApi
 
 
@@ -122,7 +122,9 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     # Set the logging level to ERROR to capture only error logs and fail properly
     caplog.set_level(logging.ERROR, logger="root")
 
-    result = connector_tasks.connector_task(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
+    result = connector_tasks.connector_task(
+        connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"]
+    )
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
 

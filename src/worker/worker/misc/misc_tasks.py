@@ -2,13 +2,15 @@
 
 Miscellaneous worker tasks including cleanup and wordlist updates.
 """
+
 from datetime import datetime, timezone
+
 from croniter import croniter
 from rq import get_current_job
 
 from worker.core_api import CoreApi
-from worker.misc.wordlist_update import update_wordlist
 from worker.log import logger
+from worker.misc.wordlist_update import update_wordlist
 
 
 def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
@@ -65,6 +67,7 @@ def _reschedule_cleanup():
         # Import here to avoid circular dependency
         import redis
         from rq import Queue
+
         from worker.config import Config
 
         # Get Redis connection and queue

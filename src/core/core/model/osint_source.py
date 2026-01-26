@@ -1,22 +1,20 @@
 import base64
-from datetime import datetime
-from typing import Any, Sequence, TYPE_CHECKING
-from sqlalchemy.orm import deferred, Mapped, relationship
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.sql import Select
-from sqlalchemy import and_, cast, String, literal, func
-
-from core.managers.db_manager import db
 import json
 import uuid
+from datetime import datetime
 from io import BytesIO
-
-from PIL import Image, UnidentifiedImageError
-from models.types import COLLECTOR_TYPES
+from typing import TYPE_CHECKING, Any, Sequence
 
 from croniter import croniter
+from models.types import COLLECTOR_TYPES
+from PIL import Image, UnidentifiedImageError
+from sqlalchemy import String, and_, cast, func, literal
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapped, deferred, relationship
+from sqlalchemy.sql import Select
 
 from core.log import logger
+from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel

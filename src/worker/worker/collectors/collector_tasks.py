@@ -4,8 +4,9 @@ Functions for collecting news from OSINT sources.
 """
 
 from contextlib import contextmanager
-from rq import get_current_job
 from typing import Any
+
+from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError

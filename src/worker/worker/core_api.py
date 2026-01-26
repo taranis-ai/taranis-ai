@@ -62,7 +62,7 @@ class CoreApi:
 
     def get_all_osint_sources(self) -> list[dict] | None:
         """Get all OSINT sources from the Core API.
-        
+
         Returns:
             List of source dictionaries, or None if the request fails
         """
@@ -77,7 +77,7 @@ class CoreApi:
 
     def get_all_bots(self) -> list[dict] | None:
         """Get all bots from the Core API.
-        
+
         Returns:
             List of bot dictionaries, or None if the request fails
         """
@@ -137,39 +137,33 @@ class CoreApi:
 
     def update_word_list(self, word_list_id: int, content: str | dict | list, content_type: str) -> dict | None:
         """Update a word list with new content.
-        
+
         Args:
             word_list_id: ID of the word list to update
             content: The content to upload (text/csv string or json list/dict)
             content_type: MIME type of the content ('text/csv' or 'application/json')
-            
+
         Returns:
             Response from the API or None on failure
         """
         try:
             url = f"{self.api_url}/worker/word-list/{word_list_id}"
             headers = {**self.headers, "Content-Type": content_type}
-            
+
             if content_type == "application/json":
-                response = requests.put(
-                    url=url,
-                    headers=headers,
-                    json=content,
-                    verify=self.verify,
-                    timeout=self.timeout
-                )
+                response = requests.put(url=url, headers=headers, json=content, verify=self.verify, timeout=self.timeout)
             elif content_type == "text/csv":
                 response = requests.put(
                     url=url,
                     headers=headers,
-                    data=content.encode('utf-8') if isinstance(content, str) else content,
+                    data=content.encode("utf-8") if isinstance(content, str) else content,
                     verify=self.verify,
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
             else:
                 logger.error(f"Unsupported content type: {content_type}")
                 return None
-            
+
             return self.check_response(response, url)
         except Exception as e:
             logger.exception(f"Failed to update word list {word_list_id}: {e}")
@@ -298,5 +292,3 @@ class CoreApi:
         except Exception:
             logger.exception("Cannot add or update story.")
             return None
-
-

@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import Field, ValidationInfo, field_validator
 
 from models.base import TaranisBaseModel

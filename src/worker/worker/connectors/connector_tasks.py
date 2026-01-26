@@ -2,14 +2,16 @@
 
 Functions for pushing stories to external systems (MISP, etc.).
 """
-import re
+
 import json
+import re
 from typing import Any
+
 from rq import get_current_job
 
 from worker.connectors import MispConnector
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 def connector_task(connector_id: str, story_ids: list[str]) -> None:
@@ -117,12 +119,7 @@ def _get_connector(connector_type: str) -> MispConnector | None:
     return connectors.get(connector_type)
 
 
-def _get_connector_data(
-    core_api: CoreApi,
-    connector_id: str,
-    connector_config: dict[str, Any],
-    story_ids: list[str]
-) -> dict[str, Any]:
+def _get_connector_data(core_api: CoreApi, connector_id: str, connector_config: dict[str, Any], story_ids: list[str]) -> dict[str, Any]:
     """Fetch and prepare data for connector execution.
 
     Args:

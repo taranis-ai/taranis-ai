@@ -3,6 +3,8 @@ from typing import Any
 
 from flask import render_template, request
 from flask.views import MethodView
+from models.admin import Job
+from models.task import Task
 
 from frontend.auth import auth_required
 from frontend.cache_models import PagingData
@@ -12,8 +14,6 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import convert_query_params, is_htmx_request
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
-from models.admin import Job
-from models.task import Task
 
 
 def _parse_iso_datetime(value: str | None) -> datetime | None:

@@ -1,19 +1,20 @@
-from datetime import datetime, timedelta
-from typing import Any
 import uuid
 from base64 import b64decode
-from sqlalchemy.orm import deferred, Mapped, relationship
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
-from core.managers.db_manager import db
 from core.log import logger
-from core.model.role_based_access import ItemType
-from core.model.report_item import ReportItem
-from core.model.base_model import BaseModel
-from core.model.user import User
-from core.model.product_type import ProductType
-from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 from core.managers import queue_manager
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
+from core.model.product_type import ProductType
+from core.model.report_item import ReportItem
+from core.model.role_based_access import ItemType
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class Product(BaseModel):

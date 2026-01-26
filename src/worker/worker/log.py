@@ -1,7 +1,7 @@
-import logging.handlers
-import sys
-import socket
 import logging
+import logging.handlers
+import socket
+import sys
 import traceback
 
 from worker.config import Config

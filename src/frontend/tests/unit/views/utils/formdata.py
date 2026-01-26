@@ -1,8 +1,8 @@
 import types
-from typing import Union, get_args
+from typing import Union, get_args, get_origin
+
 import lxml.html
-from lxml.html import CheckboxValues, MultipleSelectOptions, InputElement
-from typing import get_origin
+from lxml.html import CheckboxValues, InputElement, MultipleSelectOptions
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 

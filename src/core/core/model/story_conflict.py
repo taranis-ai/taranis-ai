@@ -1,10 +1,10 @@
-from dataclasses import dataclass
 import json
-from typing import ClassVar, Dict, Any
+from dataclasses import dataclass
+from typing import Any, ClassVar, Dict
 
+from core.log import logger
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.settings import Settings
-from core.log import logger
 from core.model.user import User
 
 

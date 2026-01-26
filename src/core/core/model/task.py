@@ -103,9 +103,7 @@ class Task(BaseModel):
 
             if include_timestamps:
                 entry["last_run"] = row.last_run.isoformat() if getattr(row, "last_run", None) else None
-                entry["last_success"] = (
-                    row.last_success.isoformat() if getattr(row, "last_success", None) else None
-                )
+                entry["last_success"] = row.last_success.isoformat() if getattr(row, "last_success", None) else None
 
             data[row.task_type] = entry
         return data

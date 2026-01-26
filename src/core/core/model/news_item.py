@@ -1,22 +1,23 @@
-import uuid
 import hashlib
+import uuid
 from datetime import datetime, timedelta
-from typing import Any, Sequence
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
+from typing import TYPE_CHECKING, Any, Sequence
+
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from typing import TYPE_CHECKING
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
-from core.model.user import User
-from core.model.role_based_access import ItemType, RoleBasedAccess
-from core.model.osint_source import OSINTSource
 from core.model.news_item_attribute import NewsItemAttribute
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+
 
 if TYPE_CHECKING:
     from core.model.story import Story

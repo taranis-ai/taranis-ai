@@ -1,7 +1,9 @@
+import json
 import os
 import sys
+
 import pytest
-import json
+
 
 current_path = os.getcwd()
 
