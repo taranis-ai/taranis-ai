@@ -572,6 +572,12 @@ def test_user_list():
     yield os.path.join(dir_path, "testdata", "test_users_list.json")
 
 
+@pytest.fixture(scope="session")
+def test_wordlist():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    yield os.path.join(dir_path, "testdata", "test_word_list.json")
+
+
 def report_item_dict(story_item_list):
     yield {
         "title": "Weekly APT Activity Report",

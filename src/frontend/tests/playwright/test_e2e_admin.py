@@ -358,7 +358,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_role()
         remove_role()
 
-    def test_admin_wordlist_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_wordlist_management(self, logged_in_page: Page, forward_console_and_page_errors, test_wordlist):
         page = logged_in_page
 
         word_list_name = f"test_word_list_{uuid.uuid4().hex[:6]}"
@@ -406,11 +406,30 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
+        def import_export_word_lists():
+            page.get_by_role("button", name="Import").click()
+            page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
+            page.get_by_role("button", name="Submit").click()
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export").click()
+            assert download_info.value is not None
+            download_path = download_info.value.path()
+            with open(test_wordlist, "r") as f:
+                imported_user_list_correct = json.load(f)
+            with open(download_path, "r") as f:
+                downloaded_content = json.load(f)
+            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            page.get_by_role("row", name="Test wordlist").get_by_test_id("action-delete-1").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.get_by_role("alert").click()
+
         load_word_list()
         load_default_word_list()
         add_word_list()
         update_word_list()
         remove_word_list()
+        import_export_word_lists()
 
     def test_attributes(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page

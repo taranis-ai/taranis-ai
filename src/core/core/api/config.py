@@ -752,19 +752,26 @@ class WordLists(MethodView):
 class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
-        wls = None
-        if file := request.files.get("file"):
-            wls = word_list.WordList.import_word_lists(file)
-        if json_data := request.get_json(silent=True):
-            wls = word_list.WordList.import_word_lists_from_json(json_data)
-        if wls is None:
-            logger.error("Failed to import Word Lists")
-            return {"error": "Unable to import Word Lists"}, 400
+        try:
+            wls = None
+            if file := request.files.get("file"):
+                wls = word_list.WordList.import_word_lists(file)
+            if json_data := request.get_json(silent=True):
+                wls = word_list.WordList.import_word_lists_from_json(json_data)
+            if wls is None:
+                logger.error("Failed to import Word Lists")
+                return {"error": "Unable to import Word Lists"}, 400
 
-        for wl in wls:
-            queue_manager.queue_manager.gather_word_list(wl.id)
+            for wl in wls:
+                queue_manager.queue_manager.gather_word_list(wl.id)
 
-        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+            return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+        except ValueError as exc:
+            logger.warning(f"Invalid word list import payload: {exc}")
+            return {"error": str(exc)}, 400
+        except Exception:
+            logger.exception("Exception occurred during Word List import")
+            return {"error": "Unable to import Word Lists"}, 500
 
 
 class WordListExport(MethodView):
