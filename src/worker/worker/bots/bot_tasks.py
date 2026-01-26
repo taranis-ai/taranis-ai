@@ -2,6 +2,7 @@
 
 Functions for executing bots to process news items.
 """
+
 from rq import get_current_job
 
 import worker.bots
@@ -105,14 +106,8 @@ def _save_task_result(job_id: str, task_name: str, result: str, status: str, cor
         core_api: CoreApi instance for making API calls
     """
     try:
-        task_data = {
-            "id": job_id,
-            "task": task_name,
-            "result": result,
-            "status": status
-        }
-        response = core_api.api_put("/worker/task-results", task_data)
-        if response:
+        task_data = {"id": job_id, "task": task_name, "result": result, "status": status}
+        if core_api.api_put("/worker/task-results", task_data):
             logger.debug(f"Saved task result for {task_name}: {status}")
     except Exception as e:
         logger.error(f"Failed to save task result for {task_name}: {e}")
