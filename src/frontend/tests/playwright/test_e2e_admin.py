@@ -276,7 +276,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_osint_sources()
         remove_osint_sources()
 
-    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors, test_batch_osint_sources):
         page = logged_in_page
         osint_group_name = f"test_osint_group_{uuid.uuid4().hex[:6]}"
 
@@ -307,10 +307,25 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
 
+        def test_page_osint_sources():
+            page.pause()
+            page.goto(url_for("admin.osint_sources", _external=True))
+            page.goto(url_for("admin.osint_source_groups", _external=True))
+            page.get_by_test_id("new-osint_source_group-button").click()
+            page.locator("#osint_sources").get_by_text("»").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 5 of 5")
+            page.get_by_role("textbox", name="Search...").first.fill("source 21")
+            page.get_by_text("Source 21").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 1 of 3")
+            page.get_by_role("row", name="Source 21").get_by_role("checkbox").check()
+            page.locator("#osint_sources").get_by_text("»").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 3 of 3")
+
         load_osint_source_groups()
         add_osint_source_group()
         update_osint_source_group()
         remove_osint_source_group()
+        test_page_osint_sources()
 
     def test_admin_role_management(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -375,6 +390,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
+            page.locator("#notification-bar [role='alert']").click()
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()

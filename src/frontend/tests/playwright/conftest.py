@@ -17,6 +17,7 @@ from flask import json
 from playwright.sync_api import Browser, Page
 
 # Import fixtures to register them
+from tests.conftest import access_token
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 
@@ -558,6 +559,35 @@ def test_osint_source():
     # get absoulute path to testdata/test_osint_source.json
     dir_path = os.path.dirname(os.path.realpath(__file__))
     yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+
+
+@pytest.fixture
+def test_batch_osint_sources(app, run_core, access_token):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(os.path.join(dir_path, "testdata", "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
+        source_data = json.load(f)
+
+        r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
+        r.raise_for_status()
+
+    yield
+
+    list_response = requests.get(f"{run_core}/config/osint-sources", headers=headers)
+    list_response.raise_for_status()
+    for source in list_response.json().get("items", []):
+        if source_id := source.get("id"):
+            delete_response = requests.delete(
+                f"{run_core}/config/osint-sources/{source_id}",
+                headers=headers,
+                params={"force": "true"},
+            )
+            delete_response.raise_for_status()
 
 
 @pytest.fixture(scope="session")
