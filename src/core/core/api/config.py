@@ -644,7 +644,7 @@ class OSINTSourcesImport(MethodView):
 
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order")
+    @extract_args("search")
     def get(self, group_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)

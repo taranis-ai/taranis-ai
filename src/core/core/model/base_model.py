@@ -183,8 +183,7 @@ class BaseModel(db.Model):
             base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             base_query = cls.get_filter_query(filter_args)
-        query = cls._add_paging_to_query(filter_args, base_query)
-        items = cls.get_filtered(query) or []
+        items = cls.get_filtered(base_query) or []
         if with_count:
             count = cls.get_filtered_count(base_query)
             return {"total_count": count, "items": cls.to_list(items)}, 200
