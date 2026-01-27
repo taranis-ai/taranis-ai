@@ -16,8 +16,6 @@ from dotenv import dotenv_values
 from flask import json
 from playwright.sync_api import Browser, Page
 
-# Import fixtures to register them
-from tests.conftest import access_token
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 
