@@ -20,7 +20,6 @@ jobs:
 
       - name: Run docker compose for last commit
         working-directory: docker
-        continue-on-error: true
         run: |
           cp env.sample .env
           docker compose pull redis sse database
@@ -43,6 +42,42 @@ jobs:
           echo ""
           echo "Cron logs:"
           docker compose logs cron
+
+      - name: Verify all containers are healthy
+        working-directory: docker
+        run: |
+          # Check if any containers with healthchecks are unhealthy
+          UNHEALTHY=$(docker compose ps --format json | jq -r 'select(.Health == "unhealthy") | .Service')
+          if [ -n "$UNHEALTHY" ]; then
+            echo "❌ Unhealthy containers found:"
+            echo "$UNHEALTHY"
+            docker compose ps
+            exit 1
+          fi
+
+          # Verify core services are running (not exited)
+          for service in core frontend collector workers cron database redis; do
+            STATE=$(docker compose ps $service --format json | jq -r '.State')
+            if [ "$STATE" != "running" ]; then
+              echo "❌ Service $service is not running (state: $STATE)"
+              docker compose ps
+              docker compose logs $service
+              exit 1
+            fi
+          done
+
+          # Check that services with healthchecks are healthy
+          for service in core frontend collector workers cron database redis; do
+            HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
+            if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
+              echo "❌ Service $service health check failed (health: $HEALTH)"
+              docker compose ps
+              docker compose logs $service
+              exit 1
+            fi
+          done
+
+          echo "✅ All containers are healthy and running"
 
       - name: Cleanup
         if: always()
