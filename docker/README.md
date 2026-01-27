@@ -32,9 +32,17 @@ Open file `.env` and defaults if needed
 
 Start-up application
 
-```
+```bash
 docker compose up -d
 ```
+
+**Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), use the wrapper script instead to avoid configuration conflicts:
+
+```bash
+./compose.sh up -d
+```
+
+The wrapper script automatically unsets development environment variables that shouldn't affect Docker deployments.
 
 Use the application
 
