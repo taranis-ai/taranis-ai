@@ -3,7 +3,6 @@ from typing import Any
 from flask import render_template, request
 from models.admin import Attribute, ReportItemAttribute, ReportItemAttributeGroup, ReportItemType
 
-from frontend.cache_models import PagingData
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
