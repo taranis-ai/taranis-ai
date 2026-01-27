@@ -149,8 +149,6 @@ class BaseModel(db.Model):
     def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
         page = int(filter_args.get("page", 1)) - 1
         limit = int(filter_args.get("limit", 20))
-        if limit == -1:  # Some attributes require fetching all items without limit (Attribute Type list, etc.)
-            limit = None
         offset = filter_args.get("offset", page * limit if limit else None)
         sort = filter_args.get("sort", filter_args.get("order", cls.default_sort_column()))
         if offset is not None:

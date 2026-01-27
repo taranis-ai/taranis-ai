@@ -113,8 +113,7 @@ class OSINTSource(BaseModel):
             base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             base_query = cls.get_filter_query(filter_args)
-        query = cls._add_paging_to_query(filter_args, base_query)
-        items = cls.get_filtered(query) or []
+        items = cls.get_filtered(base_query) or []
         item_list = cls.to_list(items)
         if filter_args.get("order") == "status_asc":
             item_list.sort(key=lambda x: x.get("status", {}).get("status", ""))

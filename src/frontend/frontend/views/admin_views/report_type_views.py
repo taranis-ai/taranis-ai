@@ -25,8 +25,7 @@ class ReportItemTypeView(AdminMixin, BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
-        paging_data = PagingData().with_no_limit()
-        base_context["attribute_types"] = dpl.get_objects(Attribute, paging_data=paging_data)
+        base_context["attribute_types"] = dpl.get_objects(Attribute)
         return base_context
 
     @classmethod
