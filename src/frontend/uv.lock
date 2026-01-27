@@ -1150,16 +1150,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.2.dev1"
+version = "1.3.3.dev1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/b9/f686ec9eebf0daa9f3855eef0b2c447bd5ae8dc31ef27de15fbe9ba2bf1f/taranis_models-1.3.2.dev1.tar.gz", hash = "sha256:a8fa7fb2e141a456cb0696ddd2b8bb43a63e2cdd6a60a4c3d9d9263630d1cd6c", size = 27975, upload-time = "2025-12-11T10:22:30.729Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/5e/3ab3ab529eb359200f0070c8ff8b97b192200a0f69475bc2ea0d7ee071f2/taranis_models-1.3.3.dev1.tar.gz", hash = "sha256:a7990229c223b8b4a698e2b330a561493e8f1e5670d91b7c70286bbd6877a128", size = 28014, upload-time = "2026-01-26T15:23:11.364Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/64/7851d8d17c90c784e3b0bf0bfaa37465d8e289fea0d8316f2b35798c927c/taranis_models-1.3.2.dev1-py3-none-any.whl", hash = "sha256:42edc31f530d7b5237e459ca3c93aafc588a24b1fec62c323c469ebfafa88423", size = 15237, upload-time = "2025-12-11T10:22:29.192Z" },
+    { url = "https://files.pythonhosted.org/packages/59/8c/ffecd2416c29b3a24d2cbcd3babc42d3dbdd1dd0c79cdf25e464574c201b/taranis_models-1.3.3.dev1-py3-none-any.whl", hash = "sha256:759b04a2b841d9dc68710630fec18c346d78a46dd4bda01ff959663c945ddc06", size = 15571, upload-time = "2026-01-26T15:23:09.687Z" },
 ]
 
 [[package]]
