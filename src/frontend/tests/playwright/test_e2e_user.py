@@ -144,21 +144,21 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("textbox", name="New password", exact=True).fill("admin")
             page.get_by_role("textbox", name="Confirm new password").fill("admin")
             page.get_by_role("button", name="Update password").click()
-            expect(page.get_by_text("Old password is incorrect")).to_be_visible()
+            expect(page.locator("#notification-bar")).to_contain_text("Old password is incorrect")
 
             # Mismatching new passwords
             page.get_by_role("textbox", name="Current password").fill("admin")
             page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
             page.get_by_role("textbox", name="Confirm new password").fill("admin")
             page.get_by_role("button", name="Update password").click()
-            expect(page.get_by_text("New password and confirm password do not match")).to_be_visible()
+            expect(page.locator("#notification-bar")).to_contain_text("New password and confirm password do not match")
 
         def change_password():
             page.get_by_role("textbox", name="Current password").fill("admin")
             page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
             page.get_by_role("textbox", name="Confirm new password").fill("admin1")
             page.get_by_role("button", name="Update password").click()
-            expect(page.get_by_text("Password changed successfully")).to_be_visible()
+            expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         def test_user_profile_settings_adjustments():
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
@@ -204,7 +204,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
             page.get_by_role("textbox", name="Confirm new password").fill("admin")
             page.get_by_role("button", name="Update password").click()
-            expect(page.get_by_text("Password changed successfully")).to_be_visible()
+            expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         go_to_user_profile()
         check_profile()
@@ -307,12 +307,18 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
         def create_report():
-            page.get_by_test_id("new-report-button").click()
+            new_report_button = page.get_by_role("button", name="New Report")
+            expect(new_report_button).to_be_visible()
+            new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
             page.get_by_label("Report Type Select a report").select_option("4")
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
+            notification = page.locator("#notification-bar [role='alert']")
+            if notification.is_visible():
+                notification.click()
+                expect(notification).to_be_hidden()
             page.get_by_placeholder("Date").fill("1.1.2000")
             page.get_by_placeholder("Timeframe").fill("January")
             page.get_by_placeholder("Handler", exact=True).fill("Kluger")

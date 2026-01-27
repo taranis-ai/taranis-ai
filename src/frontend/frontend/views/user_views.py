@@ -35,12 +35,24 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def change_password(cls):
-        if result := CoreApi().api_post("/auth/change_password", json_data=request.form):
-            return cls.get_notification_from_response(result)
+        result = CoreApi().api_post("/auth/change_password", json_data=request.form)
+        if result is not None and result.ok:
+            return cls.get_notification_from_response(result, oob=False)
 
-        error_message = result.json().get("error") or "Failed to change password."
+        error_message = None
+        if result is not None:
+            try:
+                payload = result.json() or {}
+                error_message = payload.get("error") or payload.get("message")
+            except Exception:
+                error_message = result.text
+        if not error_message:
+            error_message = "Failed to change password."
         logger.error(error_message)
-        return render_template("user_profile/settings.html", user=current_user, notification={"message": error_message, "error": True}), 200
+        return (
+            render_template("notification/index.html", notification={"message": error_message, "error": True}, oob=False),
+            200,
+        )
 
     @classmethod
     @auth_required()

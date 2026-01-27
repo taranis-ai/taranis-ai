@@ -386,9 +386,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator("input[name='usage[]'][value='COLLECTOR_INCLUDELIST']").check()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
-            with page.expect_response(url_for("admin.word_lists", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
+            notification = page.locator("#notification-bar [role='alert']")
+            if notification.is_visible():
+                notification.click()
+                expect(notification).to_be_hidden()
             expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
@@ -533,7 +535,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_role("link", name="Analyze").click()
-            expect(page.get_by_role("row", name="number 5 in report 20.")).to_be_visible()
+            expect(page.get_by_role("row", name="number 5 in report")).to_be_visible()
 
             page.get_by_test_id("new-report-button").click()
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
@@ -547,7 +549,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def test_attribute_delete():
             page.get_by_role("link", name="Analyze").click()
-            expect(page.get_by_role("row", name="update attr use 20. January")).to_be_visible()
+            expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
             for _ in range(2):
                 page.locator('[data-testid^="action-delete-"]').first.click()

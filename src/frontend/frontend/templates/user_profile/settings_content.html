@@ -170,6 +170,7 @@
       method="post"
       hx-post="{{ url_for('user.change_password') }}"
       hx-target="#notification-bar"
+      hx-target-error="#notification-bar"
       hx-swap="outerHTML">
   <div class="card bg-base-100 shadow">
     <div class="card-body gap-4">
