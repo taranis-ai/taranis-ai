@@ -19,7 +19,7 @@ services:
   redis:
     image: "redis:8-alpine"
     ports:
-      - "${TARANIS_REDIS_PORT:-}:6379"
+      - "${TARANIS_REDIS_PORT:-6379}:6379"
     volumes:
       - "redis_data:/data"
     environment:
