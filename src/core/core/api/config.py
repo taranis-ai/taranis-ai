@@ -326,9 +326,7 @@ class TemplateValidation(MethodView):
 
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    @extract_args(
-        "search",
-    )
+    @extract_args("search")
     def get(self, organization_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
