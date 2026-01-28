@@ -38,19 +38,19 @@ def bot_task(bot_id: str, filter: dict | None = None):
             result = _execute_by_config(bot_config, filter)
 
             # Save successful result to database
-            _save_task_result(task_id, f"bot_{bot_id}", result_message, task_status, core_api)
+            _save_task_result(task_id, f"bot_{bot_id}", result, task_status, core_api)
             return result
 
         # Bot not found
         result_message = f"Bot with id {bot_id} not found"
         task_status = "FAILURE"
-        _save_task_result(task_id, f"bot_{bot_id}", result_message, task_status, core_api)
+        _save_task_result(task_id, f"bot_{bot_id}", {"error": result_message}, task_status, core_api)
         raise ValueError(result_message)
 
     except Exception as e:
         result_message = f"Bot execution failed: {str(e)}"
         task_status = "FAILURE"
-        _save_task_result(task_id, f"bot_{bot_id}", result_message, task_status, core_api)
+        _save_task_result(task_id, f"bot_{bot_id}", {"error": result_message}, task_status, core_api)
         raise
 
 
@@ -95,13 +95,13 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None):
     return bot.execute(bot_params)
 
 
-def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api):
+def _save_task_result(job_id: str, task_name: str, result: dict, status: str, core_api):
     """Save task result to database via Core API.
 
     Args:
         job_id: RQ job ID
         task_name: Task identifier (e.g., 'bot_123')
-        result: Result message
+        result: Result data dictionary from bot execution
         status: Task status ('SUCCESS' or 'FAILURE')
         core_api: CoreApi instance for making API calls
     """
