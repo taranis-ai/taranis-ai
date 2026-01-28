@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import uuid
+from datetime import date
 
 import pytest
 from flask import url_for
@@ -110,6 +111,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         story_search_term = " ".join(report_story_one["title"].split()[:2])
         story_search_term_lower = story_search_term.lower()
         report_story_two_primary_link = report_story_two["news_items"][0]["link"]
+        report_uuid = ""
 
         def go_to_analyze():
             page.goto(url_for("analyze.analyze", _external=True))
@@ -128,6 +130,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Handler", exact=True).fill("Kluger")
             page.get_by_placeholder("CO-Handler").fill("Mensch")
             page.get_by_test_id("save-report").click()
+            report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+            assert self.is_uuid4(report_uuid), f"Expected a valid UUID4, got {report_uuid}"
+            return report_uuid
 
         def add_stories_to_report():
             page.goto(url_for("assess.assess", _external=True))
@@ -147,33 +152,50 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_text("In Reports").nth(1)).to_be_visible()
             expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
-            page.get_by_role("link", name="Analyze").click()
+        def verify_report_actions(report_uuid: str):
+            def test_remove_story_from_report():
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_role("link", name="Test report").click()
+                page.get_by_test_id(f"remove-story-{report_story_one['id']}").click()
 
-            page.get_by_role("link", name="Analyze").click()
-            page.get_by_role("link", name="Test report").click()
-            page.get_by_test_id(f"remove-story-{report_story_one['id']}").click()
+            def test_story_in_report_assess_view():
+                page.get_by_role("link", name="Assess").click()
+                page.get_by_placeholder("Search stories").fill(story_search_term_lower)
+                page.get_by_placeholder("Search stories").press("Enter")
+                expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible()  # only one should be in a report now
 
-            page.get_by_role("link", name="Assess").click()
-            page.get_by_placeholder("Search stories").fill(story_search_term_lower)
-            page.get_by_placeholder("Search stories").press("Enter")
-            expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible()  # only one should be in a report now
+            def test_create_product_from_report():
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_test_id(f"action-edit-{report_uuid}").click()
+                page.get_by_test_id("report-new-product").click()
+                expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
+                expect(page.get_by_text("Create Product").first).to_be_visible()
 
-            page.get_by_role("link", name="Analyze").click()
-            page.get_by_test_id("report-table").get_by_role("button").first.click()
-            page.get_by_role("row", name="Test report").get_by_role("link").nth(4).click()
-            page.get_by_test_id("report-new-product").click()
-            expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
-            expect(page.get_by_text("Create Product").first).to_be_visible()
-            page.get_by_role("link", name="Analyze").click()
-            page.get_by_test_id("report-table").get_by_role("button").nth(3).click()
-            page.get_by_role("button", name="OK").click()
-            page.get_by_role("link", name="Test report").click()
-            expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
-            expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
+            def test_clone_and_delete_report():
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
+                page.pause()
+                cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
+                assert cloned_report is not None
+                clone_report_href = cloned_report.get_attribute("href")
+                assert clone_report_href is not None
+                cloned_report_uuid = clone_report_href.split("/")[-1]
+                assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
+                page.get_by_test_id(f"action-delete-{cloned_report_uuid}").click()
+                page.get_by_role("button", name="OK").click()
+                page.get_by_role("link", name="Test report").click()
+                expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
+                expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
+
+            test_remove_story_from_report()
+            test_story_in_report_assess_view()
+            test_create_product_from_report()
+            test_clone_and_delete_report()
 
         go_to_analyze()
-        create_report()
+        report_uuid = create_report()
         add_stories_to_report()
+        verify_report_actions(report_uuid)
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page

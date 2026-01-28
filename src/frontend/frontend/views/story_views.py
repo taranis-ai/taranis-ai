@@ -57,9 +57,6 @@ class StoryView(BaseView):
         return CacheObject(
             [StoryView._enhance_story_with_details(story, source_dict) for story in stories.items],
             total_count=stories.total_count,
-            page=stories.page,
-            limit=stories.limit,
-            order=stories.order,
         )
 
     @staticmethod
@@ -300,7 +297,6 @@ class StoryView(BaseView):
             request_params = parse_qs(parsed_url.query)
 
         paging_data = parse_paging_data(request_params)
-        paging_data.server_side = True
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
             return make_response(notification + table, status)
@@ -310,7 +306,6 @@ class StoryView(BaseView):
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
         paging_data = parse_paging_data(request_params)
-        paging_data.server_side = True
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod

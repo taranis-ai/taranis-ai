@@ -1,5 +1,7 @@
 import time
-from playwright.sync_api import expect, Page
+from uuid import UUID
+
+from playwright.sync_api import Page, expect
 
 
 class PlaywrightHelpers:
@@ -114,3 +116,10 @@ class PlaywrightHelpers:
                 expect(page.get_by_test_id(test_id)).to_be_visible(timeout=3000)
             except Exception as e:
                 raise AssertionError(f"❌ Expected test ID '{test_id}' to be visible, but it was not.") from e
+
+    def is_uuid4(self, value: str) -> bool:
+        try:
+            u = UUID(value)
+        except ValueError:
+            return False
+        return u.version == 4

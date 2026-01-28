@@ -171,8 +171,8 @@ class QueueManager:
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def execute_bot_task(self, bot_id: int, filter: dict | None = None):
-        bot_args: dict[str, int | dict] = {"bot_id": bot_id}
+    def execute_bot_task(self, bot_id: str, filter: dict | None = None):
+        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
         if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_{bot_id}"):
