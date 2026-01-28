@@ -1,10 +1,10 @@
 """Tests for bot task execution and result handling."""
 
-from unittest.mock import Mock, patch, MagicMock
-import pytest
-from rq import get_current_job
+from unittest.mock import Mock, patch
 
-from worker.bots.bot_tasks import bot_task, _save_task_result
+import pytest
+
+from worker.bots.bot_tasks import _save_task_result, bot_task
 
 
 @pytest.fixture
@@ -234,8 +234,7 @@ class TestResultStructureCompatibility:
         # Test error result structure
         error_result = {"error": "Bot execution failed: Connection timeout"}
 
-        result_data = error_result.get("result")
-        # For error cases, result_data will be None, but error_result itself has "error"
+        # For error cases, result.get("result") would be None, but error_result itself has "error"
         # OR the structure could be nested
         assert error_result.get("error") or error_result.get("message")
 

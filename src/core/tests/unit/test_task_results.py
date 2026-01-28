@@ -4,12 +4,9 @@ These tests verify that the core API can correctly process task results
 sent by workers, ensuring data contract compatibility.
 """
 
-from unittest.mock import Mock, patch, MagicMock
-import pytest
-from flask import Flask
+from unittest.mock import patch
 
 from core.api.task import handle_task_specific_result
-from core.log import logger
 
 
 class TestBotTaskResultProcessing:

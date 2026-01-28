@@ -1,6 +1,7 @@
 """Tests for presenter task result handling."""
 
 from unittest.mock import Mock, patch
+
 import pytest
 
 from worker.presenters.presenter_tasks import _save_task_result
