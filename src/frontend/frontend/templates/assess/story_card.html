@@ -140,16 +140,37 @@
       <!-- tags section -->
       {% if story.tags %}
         <div class="space-y-1">
-          <div class="flex flex-wrap gap-1">
-            {% for tag in story.tags[:8] %}
-              {% if tag.name %}
-                <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                   class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
-                   data-tip="{{ tag.tag_type }}"><span class="truncate max-w-[12ch]">{{ tag.name | truncate(16, true) }}</span></a>
-              {% endif %}
-            {% endfor %}
-            {% if story.tags | length > 8 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 8 }}</span>{% endif %}
-          </div>
+          <template x-if="!isOpen">
+            <div class="flex flex-wrap gap-1">
+              {% for tag in story.tags[:5] %}
+                {% if tag.name %}
+                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                     class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap truncate"
+                     data-tip="{{ tag.tag_type }}">
+                    <span class="truncate">{{ tag.name }}</span>
+                  </a>
+                {% endif %}
+              {% endfor %}
+              {% if story.tags | length > 5 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 5 }}</span>{% endif %}
+            </div>
+          </template>
+
+          <template x-if="isOpen">
+            <div class="flex flex-wrap gap-1 justify-start">
+              {% for tag in story.tags %}
+                {% if tag.name %}
+                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                     class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
+                     data-tip="{{ tag.tag_type }}">
+                    <span>{{ tag.name }}</span>
+                  </a>
+
+                  {% if loop.index % 5 == 0 %}<span class="basis-full h-0"></span>{% endif %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </template>
+
         </div>
       {% endif %}
 
