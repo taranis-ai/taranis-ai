@@ -1,4 +1,5 @@
 import mimetypes
+import re
 import uuid
 from base64 import b64decode
 from datetime import date, datetime, timedelta
@@ -165,8 +166,12 @@ class Product(BaseModel):
         product_title = self.title
         mime_type = self.product_type.get_mimetype()
 
-        file_extension = mimetypes.guess_extension(mime_type, strict=False)
-        return f"{product_title.replace(' ', '_')}_{date.today().isoformat()}{file_extension}"
+        forbidden_re = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+        stem = forbidden_re.sub("_", product_title)
+        stem = stem.rstrip(" .")
+
+        file_extension = mimetypes.guess_extension(mime_type, strict=False) or ""
+        return f"{stem}_{date.today().isoformat()}{file_extension}"
 
     @classmethod
     def get_render(cls, product_id: str):
