@@ -48,13 +48,12 @@ class TestBotTask:
         mock_api_class.return_value = mock_core_api
         mock_core_api.get_bot_config.return_value = bot_config
 
-        # Mock bot execution result with full structure
-        bot_result = {
-            "bot_type": "WORDLIST_BOT",
+        # Mock bot execution result - bot returns result WITHOUT bot_type
+        bot_execution_result = {
             "result": {"tagged_items": 5, "tags_applied": ["malware", "apt"]},
             "news_items": [{"id": "item1"}, {"id": "item2"}],
         }
-        mock_execute.return_value = bot_result
+        mock_execute.return_value = bot_execution_result
 
         # Execute
         result = bot_task("bot-456", filter={"story_id": "123"})
@@ -70,12 +69,17 @@ class TestBotTask:
         assert task_data["status"] == "SUCCESS"
         # Verify the full result dict is passed, not just a message string
         assert isinstance(task_data["result"], dict)
-        assert task_data["result"] == bot_result
+        # Verify bot_type was added by bot_task
         assert "bot_type" in task_data["result"]
+        assert task_data["result"]["bot_type"] == "WORDLIST_BOT"
+        # Verify bot execution result is included
         assert "result" in task_data["result"]
+        assert task_data["result"]["result"] == bot_execution_result["result"]
+        assert "news_items" in task_data["result"]
 
-        # Verify return value
-        assert result == bot_result
+        # Verify return value includes bot_type
+        assert result["bot_type"] == "WORDLIST_BOT"
+        assert result["result"] == bot_execution_result["result"]
 
     @patch("worker.bots.bot_tasks.get_current_job")
     @patch("worker.bots.bot_tasks.CoreApi")
@@ -266,12 +270,11 @@ class TestResultStructureCompatibility:
         mock_get_job.return_value = job
         mock_api_class.return_value = mock_core_api
 
-        bot_config = {"id": "bot-e2e", "type": "NLP_BOT", "parameters": {}}
+        bot_config = {"id": "bot-e2e", "type": "nlp_bot", "parameters": {}}
         mock_core_api.get_bot_config.return_value = bot_config
 
-        # Realistic bot result structure
-        bot_result = {
-            "bot_type": "NLP_BOT",
+        # Bot execution result structure (WITHOUT bot_type - that's added by bot_task)
+        bot_execution_result = {
             "result": {
                 "entities_extracted": 15,
                 "entity_types": ["PERSON", "ORG", "LOC"],
@@ -281,13 +284,14 @@ class TestResultStructureCompatibility:
                 {"id": "news2", "attributes": [{"key": "entity", "value": "John Doe"}]},
             ],
         }
-        mock_execute.return_value = bot_result
+        mock_execute.return_value = bot_execution_result
 
         # Execute
         result = bot_task("bot-e2e")
 
-        # Verify the entire flow
-        assert result == bot_result
+        # Verify the entire flow - bot_type should be added by bot_task
+        assert result["bot_type"] == "NLP_BOT"
+        assert result["result"] == bot_execution_result["result"]
 
         # Verify core API received properly structured data
         api_call_args = mock_core_api.api_put.call_args[0]

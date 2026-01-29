@@ -35,7 +35,13 @@ def bot_task(bot_id: str, filter: dict | None = None):
 
     try:
         if bot_config := core_api.get_bot_config(bot_id):
-            result = _execute_by_config(bot_config, filter)
+            bot_result = _execute_by_config(bot_config, filter)
+            
+            # Wrap result with bot_type for core API processing
+            result = {
+                "bot_type": bot_config.get("type", "UNKNOWN_BOT_TYPE").upper(),
+                **bot_result
+            }
 
             # Save successful result to database
             _save_task_result(task_id, f"bot_{bot_id}", result, task_status, core_api)
