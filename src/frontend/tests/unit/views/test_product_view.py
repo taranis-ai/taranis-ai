@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from flask import Response as FlaskResponse
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 
@@ -16,12 +17,21 @@ def test_product_download_streams_core_response(authenticated_client):
 
     core_response = Response()
     core_response.status_code = 200
-    core_response._content = expected_content
     core_response.headers = headers
+
+    proxied = FlaskResponse(
+        expected_content,
+        status=200,
+        headers={
+            "Content-Type": headers["Content-Type"],
+            "Content-Disposition": headers["Content-Disposition"],
+        },
+    )
 
     with patch("frontend.views.product_views.CoreApi") as core_api_cls:
         core_api_instance = core_api_cls.return_value
         core_api_instance.download_product.return_value = core_response
+        core_api_cls.stream_proxy.return_value = proxied
 
         response = authenticated_client.get(f"/product/{product_id}/download")
 
