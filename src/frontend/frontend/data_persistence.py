@@ -78,6 +78,8 @@ class DataPersistenceLayer:
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[Any]:
+        if paging_data is None:
+            paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint, paging_data)
         if cache_object := cache.get(key=cache_key):
