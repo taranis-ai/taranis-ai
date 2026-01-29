@@ -1,16 +1,18 @@
 import os
 from typing import Any
-from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped, relationship
 
-from core.managers.db_manager import db
+from models.types import PRESENTER_TYPES
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql.expression import Select
+
 from core.log import logger
+from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64
+from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
-from core.model.worker import PRESENTER_TYPES, Worker
-from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.worker import Worker
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -58,7 +60,11 @@ class ProductType(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.title))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "title_asc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:

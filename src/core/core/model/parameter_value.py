@@ -1,6 +1,7 @@
 import json
-from typing import Any
 from enum import StrEnum, auto
+from typing import Any
+
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -185,8 +185,18 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
-        def load_default_sources():
+        def load_and_search_default_sources():
             page.get_by_role("button", name="Load default OSINT Source").click()
+            osint_table = page.get_by_test_id("osint_source-table")
+            all_rows = osint_table.locator("tbody tr")
+            expect(all_rows).to_have_count(10)
+
+            # search
+            page.get_by_placeholder("Search...").fill("news")
+            expect(all_rows).to_have_count(1)
+            page.get_by_placeholder("Search...").fill("")
+            expect(all_rows).to_have_count(10)
+
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
@@ -235,7 +245,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible()
 
         load_osint_sources()
-        load_default_sources()
+        load_and_search_default_sources()
         import_export_osint_sources()
         add_osint_sources()
         update_osint_sources()
@@ -470,6 +480,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("option", name="CERT Report").click()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_add.png")
+            page.get_by_role("searchbox", name="Select report types").press("Escape")
             with page.expect_response(url_for("admin.product_types", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"

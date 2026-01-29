@@ -14,10 +14,12 @@ example_product = {
             "completed": True,
             "user_id": 1,
             "attributes": {
-                "date": "1.1.1970",
-                "timeframe": "1.1.1970 - 19.1.2038",
-                "news": "1",
-                "vulnerabilities": "2,3",
+                "Data": {
+                    "date": "1.1.1970",
+                    "timeframe": "1.1.1970 - 19.1.2038",
+                    "news": "1",
+                    "vulnerabilities": "2,3",
+                }
             },
             "stories": [
                 {
@@ -127,7 +129,6 @@ def render(template_path):
 
 
 def generate(product, template, parameters: dict[str, str] | None = None) -> dict[str, bytes | str]:
-
     if parameters is None:
         parameters = {}
 

@@ -1,4 +1,5 @@
 import sentry_sdk
+
 from core.config import Config
 
 

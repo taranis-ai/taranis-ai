@@ -1,6 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, model_validator, ValidationInfo, SecretStr
 from datetime import datetime
+from secrets import token_urlsafe
+
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -10,6 +12,7 @@ class Settings(BaseSettings):
     MODULE_ID: str = "Frontend"
     DEBUG: bool = False
 
+    FLASK_SECRET_KEY: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
@@ -35,6 +38,8 @@ class Settings(BaseSettings):
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     CACHE_KEY_PREFIX: str = "taranis_frontend"
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_PASSWORD: str | None = None
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

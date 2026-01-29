@@ -1,7 +1,7 @@
 import requests
 
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 def update_wordlist(word_list_id: int):
@@ -39,4 +39,13 @@ def update_wordlist(word_list_id: int):
         logger.error("Could not determine content type.")
         raise ValueError("Could not determine content type.")
 
-    return {"word_list_id": word_list["id"], "content": content, "content_type": content_type}
+    # Save the downloaded content to the database via Core API
+    try:
+        result = core_api.update_word_list(word_list_id, content, content_type)
+        logger.info(
+            f"Successfully updated word list {word_list['name']} with {len(content) if isinstance(content, (list, str)) else 'unknown'} entries"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Failed to save word list {word_list['name']}: {e}")
+        raise RuntimeError(f"Failed to save word list {word_list['name']}: {e}") from e

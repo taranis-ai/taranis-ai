@@ -1,5 +1,6 @@
-import requests
 from datetime import datetime
+
+import requests
 
 from core.config import Config
 from core.log import logger

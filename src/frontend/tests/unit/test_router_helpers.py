@@ -1,5 +1,6 @@
-from frontend.utils.form_data_parser import parse_formdata
 from werkzeug.datastructures import ImmutableMultiDict
+
+from frontend.utils.form_data_parser import parse_formdata
 
 
 def test_parse_formdata():

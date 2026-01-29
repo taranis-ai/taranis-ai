@@ -119,6 +119,13 @@ class Story(BaseModel):
         if user:
             query = cls._add_ACL_check(query, user)
             query = cls._add_TLP_check(query, user)
+            query = cls.enhance_with_user_votes(query, user.id)
+
+            if result := db.session.execute(query).first():
+                story, user_vote = result
+                story_data = story.to_detail_dict()
+                story_data["user_vote"] = user_vote
+                return story_data, 200
 
         if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
@@ -260,7 +267,7 @@ class Story(BaseModel):
             if ts_query is None:
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
-            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
+            logger.debug(f"FTS with: {search=} {sort=}")
             q = query.where(cls.search_vector.op("@@")(ts_query))
             if sort:
                 q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
@@ -877,22 +884,25 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        tags_to_remove = self.get_tags_to_remove(parsed_tags)
-        self.patch_tags(parsed_tags)
-        self.remove_tags(tags_to_remove)
+        if change_by_bot:
+            self.patch_tags(parsed_tags)
+        else:
+            tags_to_remove = self.get_tags_to_remove(parsed_tags)
+            self.patch_tags(parsed_tags)
+            self.remove_tags(tags_to_remove)
 
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
@@ -984,7 +994,7 @@ class Story(BaseModel):
             error_message = "; ".join(filter(None, errors))
             logger.error(f"Errors ungrouping stories: {error_message}")
             return {"error": error_message}, 400
-        return {"message": "success"}, 200
+        return {"message": "Ungrouping Stories successful"}, 200
 
     @classmethod
     def ungroup_story(cls, story_id: str, user: User | None = None):
@@ -1026,7 +1036,7 @@ class Story(BaseModel):
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
             db.session.commit()
-            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
@@ -1169,16 +1179,15 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         data["links"] = self.links
+        del data["search_vector"]
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
+        data = self.to_dict()
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
-        data["links"] = self.links
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:

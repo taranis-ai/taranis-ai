@@ -10,7 +10,10 @@ from frontend.log import logger
 
 class AuthView(MethodView):
     def login_flow(self, core_response: requests.Response) -> Response:
-        if not core_response and not core_response.json():
+        try:
+            if not core_response and not core_response.json():
+                return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
+        except Exception:
             return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
 
         if not core_response.ok:

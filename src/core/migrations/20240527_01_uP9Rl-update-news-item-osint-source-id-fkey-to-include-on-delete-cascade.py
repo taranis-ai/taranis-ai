@@ -4,6 +4,7 @@ update news_item_osint_source_id_fkey to include ON DELETE CASCADE
 
 from yoyo import step
 
+
 __depends__ = {"20240427_01_e4nGV-initial-migration-noop"}
 
 steps = [

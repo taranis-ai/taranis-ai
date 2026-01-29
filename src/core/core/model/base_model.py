@@ -142,16 +142,49 @@ class BaseModel(db.Model):
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
-    def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+    def default_sort_column(cls) -> str:
+        return ""
+
+    @classmethod
+    def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+        page = int(filter_args.get("page", 1)) - 1
+        limit = int(filter_args.get("limit", 20))
+        offset = filter_args.get("offset", page * limit if limit else None)
+        sort = filter_args.get("sort", filter_args.get("order", cls.default_sort_column()))
+        if offset is not None:
+            query = query.offset(offset)
+        if limit:
+            query = query.limit(limit)
+        if sort:
+            query = query.order_by(None)  # Remove any default ordering on the base query so caller-provided sort takes precedence.
+            if "_" in sort:
+                sort_column, sort_direction = sort.rsplit("_", 1)
+            else:
+                sort_column, sort_direction = sort, "asc"
+            table = getattr(cls, "__table__", None)
+            if table is not None and sort_column in table.columns:
+                sort_attr = getattr(cls, sort_column)
+                direction = sort_direction.lower()
+                if direction == "desc":
+                    query = query.order_by(sort_attr.desc())
+                else:
+                    query = query.order_by(sort_attr.asc())
+            else:
+                logger.warning(f"Sort column {sort_column} not found on {cls.__name__}; ignoring sort")
+        return query
+
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
         if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
-            query = cls.get_filter_query(filter_args)
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
         items = cls.get_filtered(query) or []
         if with_count:
-            count = cls.get_filtered_count(query)
+            count = cls.get_filtered_count(base_query)
             return {"total_count": count, "items": cls.to_list(items)}, 200
         return {"items": cls.to_list(items)}, 200
 

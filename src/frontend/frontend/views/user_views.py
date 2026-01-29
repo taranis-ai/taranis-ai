@@ -1,16 +1,17 @@
 from typing import Any
+
 from flask import render_template, request
 from flask_jwt_extended import current_user
+from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
 from werkzeug.wrappers import Response
 
-from models.user import UserProfile, ProfileSettings
-from frontend.views.base_view import BaseView
-from frontend.log import logger
 from frontend.auth import auth_required, update_current_user_cache
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
+from frontend.utils.validation_helpers import format_pydantic_errors
+from frontend.views.base_view import BaseView
 
 
 class UserProfileView(BaseView):

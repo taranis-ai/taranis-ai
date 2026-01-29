@@ -1,10 +1,10 @@
-from flask_jwt_extended import jwt_required, current_user
-from flask import Blueprint, request, Flask
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
+from flask_jwt_extended import current_user, jwt_required
 
-from core.model.user import User
-from core.managers.sse_manager import sse_manager
 from core.config import Config
+from core.managers.sse_manager import sse_manager
+from core.model.user import User
 
 
 class UserInfo(MethodView):

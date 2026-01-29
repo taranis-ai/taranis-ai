@@ -1,16 +1,17 @@
-from requests.models import Response as ReqResponse
 from functools import wraps
-from flask import Flask, request
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
-from flask import redirect, url_for, render_template, Response
 from typing import Any
 
-from frontend.config import Config
-from frontend.log import logger
-from frontend.cache import add_user_to_cache, get_user_from_cache
-from frontend.utils.router_helpers import is_htmx_request
-from frontend.core_api import CoreApi
+from flask import Flask, Response, redirect, render_template, request, url_for
+from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
+from requests.models import Response as ReqResponse
+
+from frontend.cache import add_user_to_cache, get_user_from_cache
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.log import logger
+from frontend.utils.router_helpers import is_htmx_request
+
 
 jwt = JWTManager()
 
@@ -39,7 +40,15 @@ def _login_url_with_next() -> str:
 
 
 def _redirect_to_login():
-    return redirect(_login_url_with_next(), code=302)
+    login_url = _login_url_with_next()
+
+    if is_htmx_request():
+        response = Response(status=401, headers={"HX-Redirect": login_url})
+        response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
+        unset_jwt_cookies(response)
+        return response
+
+    return redirect(login_url, code=302)
 
 
 # def authenticate(credentials: dict[str, str]) -> Response:

@@ -1,20 +1,21 @@
-from pydantic import Field, AnyUrl
-from functools import cached_property
-from typing import Literal, Any
 from datetime import datetime
+from functools import cached_property
+from typing import Any, Literal
+
+from pydantic import AnyUrl, Field, SecretStr, field_serializer
 
 from models.base import TaranisBaseModel
 from models.types import (
-    TLPLevel,
-    ItemType,
+    BOT_TYPES,
     COLLECTOR_TYPES,
     CONNECTOR_TYPES,
-    WORKER_TYPES,
-    WORKER_CATEGORY,
     PRESENTER_TYPES,
-    AttributeType,
-    BOT_TYPES,
     PUBLISHER_TYPES,
+    WORKER_CATEGORY,
+    WORKER_TYPES,
+    AttributeType,
+    ItemType,
+    TLPLevel,
 )
 
 
@@ -28,6 +29,21 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
+    queue: str | None = None
+    type: Literal["scheduled", "cron"] | None = None
+    schedule: str | None = None
+    status: str | None = None
+    started_at: str | None = None
+    failed_at: str | None = None
+    error: str | None = None
+    previous_run_time: str | None = None
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_run_relative: str | None = None
+    status_badge: dict[str, str] | None = None
+    is_overdue: bool | None = None
+    interval_seconds: int | None = None
 
 
 class TaskResult(TaranisBaseModel):
@@ -143,7 +159,13 @@ class User(TaranisBaseModel):
     profile: dict | None = None
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
-    password: str | None = Field(default=None, exclude=True)
+    password: SecretStr | None = None
+
+    @field_serializer("password", when_used="json")
+    def dump_secret(self, v):
+        if isinstance(v, SecretStr):
+            return v.get_secret_value()
+        return v
 
 
 class TaranisConfig(TaranisBaseModel):

@@ -1,13 +1,14 @@
-from flask import Blueprint, request, Flask
-from flask.views import MethodView
 from datetime import datetime, timedelta
 
-from core.managers.sse_manager import sse_manager
+from flask import Blueprint, Flask, request
+from flask.views import MethodView
+
+from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_required
-from core.model import news_item, bot, story
 from core.managers.decorators import extract_args
-from core.config import Config
+from core.managers.sse_manager import sse_manager
+from core.model import bot, news_item, story
 
 
 class BotGroupAction(MethodView):
@@ -86,6 +87,7 @@ class StoryAttributes(MethodView):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
                 current_story.patch_attributes(input_data)
+                sse_manager.news_items_updated()
             else:
                 return {"error": "No data provided"}, 400
             return {"message": f"Story {story_id} updated successfully"}, 200
@@ -99,7 +101,9 @@ class UpdateStory(MethodView):
 
     @api_key_required
     def put(self, story_id: str):
-        return story.Story.update(story_id, request.json)
+        result = story.Story.update(story_id, request.json)
+        sse_manager.news_items_updated()
+        return result
 
 
 class BotsInfo(MethodView):

@@ -1,4 +1,5 @@
 from pydantic import Field
+
 from models.base import TaranisBaseModel
 
 

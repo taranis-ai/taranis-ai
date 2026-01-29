@@ -1,18 +1,19 @@
 import uuid
+from datetime import datetime
 from typing import Any, Sequence
 
+from croniter import croniter
+from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
-from apscheduler.triggers.cron import CronTrigger
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
-from core.model.worker import BOT_TYPES, Worker
-from core.managers import schedule_manager
 from core.model.task import Task as TaskModel
+from core.model.worker import Worker
 
 
 class Bot(BaseModel):
@@ -26,12 +27,14 @@ class Bot(BaseModel):
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
+    def __init__(
+        self, name: str, type: str | BOT_TYPES, description: str = "", index: int | None = None, parameters=None, id: str | None = None
+    ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
-        self.index = Bot.get_highest_index() + 1
+        self.index = index or Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property
@@ -45,14 +48,14 @@ class Bot(BaseModel):
         return f"bot_{self.id}"
 
     @classmethod
-    def update(cls, bot_id, data) -> "Bot | None":
+    def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
         bot = cls.get(bot_id)
         if not bot:
             return None
         if name := data.get("name"):
             bot.name = name
 
-        bot.description = data.get("description")
+        bot.description = data.get("description", "")
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
@@ -60,8 +63,10 @@ class Bot(BaseModel):
             if not Bot.index_exists(index):
                 bot.index = index
         db.session.commit()
-        bot.unschedule_bot()
-        bot.schedule_bot()
+
+        # Notify cron scheduler of config change
+        bot._publish_cron_reload(f"bot_{bot_id}")
+
         return bot
 
     @classmethod
@@ -110,46 +115,60 @@ class Bot(BaseModel):
             return {"error": "Bot not found"}, 404
 
         TaskModel.delete(bot.task_id)
-        bot.unschedule_bot()
         db.session.delete(bot)
         db.session.commit()
         return {"message": f"Bot {bot.name} deleted"}, 200
 
-    def schedule_bot(self):
-        if crontab_str := self.get_schedule():
-            entry = self.to_task_dict(crontab_str)
-            schedule_manager.schedule.add_celery_task(entry)
-            logger.info(f"Schedule for bot {self.id} updated with - {entry}")
-            return {"message": f"Schedule for bot {self.id} updated"}, 200
-        return {"message": "Bot has no refresh interval"}, 200
-
-    def unschedule_bot(self):
-        entry_id = self.task_id
-        schedule_manager.schedule.remove_periodic_task(entry_id)
-        logger.info(f"Schedule for bot {self.id} removed")
-        return {"message": f"Schedule for bot {self.id} removed"}, 200
-
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
-    def to_task_dict(self, crontab_str: str) -> dict[str, Any]:
-        return {
-            "id": self.task_id,
-            "name": f"{self.type}_{self.name}",
-            "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab_str),
-                "max_instances": 1,
-            },
-            "celery": {
-                "name": "bot_task",
-                "args": [self.id],
-                "queue": "bots",
-                "task_id": self.task_id,
-            },
-        }
+    @classmethod
+    def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
+        """Get schedule entries for all enabled bots.
+
+        Note: All times are calculated in UTC for consistency across the system.
+        """
+        from datetime import timezone
+
+        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        entries: list[dict[str, Any]] = []
+
+        bots = cls.get_all_for_collector()
+        for bot in bots:
+            if not (cron_schedule := bot.get_schedule()):
+                continue
+
+            try:
+                cron = croniter(cron_schedule, now)
+                next_run = cron.get_next(datetime)
+                prev_run = croniter(cron_schedule, now).get_prev(datetime)
+                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
+                status = bot.status or {}
+
+                entries.append(
+                    {
+                        "id": f"cron_bot_{bot.id}",
+                        "name": f"Bot: {bot.name}",
+                        "queue": "bots",
+                        "next_run_time": next_run.isoformat(),
+                        "schedule": cron_schedule,
+                        "type": "cron",
+                        "bot_id": bot.id,
+                        "task_id": bot.task_id,
+                        "previous_run_time": prev_run.isoformat() if prev_run else None,
+                        "interval_seconds": interval_seconds,
+                        "last_run": status.get("last_run"),
+                        "last_success": status.get("last_success"),
+                        "last_status": status.get("status"),
+                    }
+                )
+            except Exception as exc:
+                logger.error(f"Failed to calculate next run for bot {bot.id}: {exc}")
+
+        return entries
 
     @classmethod
-    def get_filter_query(cls, filter_args: dict) -> Select:
+    def get_filter_query(cls, filter_args: dict[str, Any]) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):
@@ -164,12 +183,33 @@ class Bot(BaseModel):
 
     @classmethod
     def schedule_all_bots(cls):
+        """Schedule all enabled bots using RQ cron scheduler
+
+        Note: Just logs - the cron scheduler automatically picks up bots from database.
+        """
         bots = cls.get_all_for_collector()
-        for bot in bots:
-            if interval := bot.get_schedule():
-                entry = bot.to_task_dict(interval)
-                schedule_manager.schedule.add_celery_task(entry)
-        logger.info(f"Gathering for {len(bots)} Bots scheduled")
+        enabled_with_schedule = [bot for bot in bots if bot.get_schedule()]
+        logger.info(f"Found {len(enabled_with_schedule)} enabled bots with schedules. Cron scheduler will pick them up automatically.")
+
+    def _publish_cron_reload(self, reason: str):
+        """Publish a signal to reload cron scheduler configuration"""
+        try:
+            from core.managers import queue_manager
+
+            qm = queue_manager.queue_manager
+            if qm.error or not qm._redis:
+                return
+
+            # Publish reload signal to cron scheduler
+            qm._redis.publish("taranis:cron:reload", reason)
+            logger.debug(f"Published cron reload signal: {reason}")
+
+            # Publish cache invalidation signal to frontend
+            qm._redis.publish("taranis:cache:invalidate", "schedule")
+            logger.debug("Published cache invalidation signal for schedules")
+
+        except Exception as e:
+            logger.warning(f"Failed to publish cron reload signal: {e}")
 
 
 class BotParameterValue(BaseModel):

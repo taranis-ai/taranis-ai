@@ -1,6 +1,7 @@
 from unittest.mock import Mock
-from core.model.role import TLPLevel
+
 from core.managers.db_manager import db
+from core.model.role import TLPLevel
 
 
 class TestRBAC:

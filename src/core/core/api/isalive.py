@@ -1,5 +1,6 @@
 from flask import Flask
 from flask.views import MethodView
+
 from core.config import Config
 
 

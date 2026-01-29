@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 
 
@@ -125,8 +127,8 @@ def cleanup_news_item_2(fake_source):
 @pytest.fixture(scope="class")
 def stories(app, news_items):
     with app.app_context():
-        from core.model.story import Story, StoryNewsItemAttribute
         from core.model.news_item import NewsItem
+        from core.model.story import Story, StoryNewsItemAttribute
 
         result = Story.add_news_items(news_items)
 
@@ -164,9 +166,10 @@ def cleanup_report_item(app):
 @pytest.fixture(scope="class")
 def cleanup_product(app):
     with app.app_context():
+        from models.types import PRESENTER_TYPES
+
         from core.model.product import Product
         from core.model.product_type import ProductType
-        from core.model.worker import PRESENTER_TYPES
 
         text_presenter = ProductType.get_by_type(PRESENTER_TYPES.TEXT_PRESENTER)
         if not text_presenter:
@@ -267,10 +270,10 @@ def report_items(app):
 @pytest.fixture(scope="function")
 def stories_with_tlp(app, fake_source):
     with app.app_context():
-        from core.model.story import Story, StoryNewsItemAttribute
         from core.model.news_item import NewsItem
         from core.model.news_item_attribute import NewsItemAttribute
         from core.model.role import TLPLevel
+        from core.model.story import Story, StoryNewsItemAttribute
 
         news_items = [
             {
@@ -321,8 +324,8 @@ def stories_with_tlp(app, fake_source):
 
 @pytest.fixture(scope="class")
 def full_story(fake_source):
-    import os
     import json
+    import os
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
@@ -335,9 +338,10 @@ def full_story(fake_source):
 
 @pytest.fixture(scope="class")
 def full_story_with_multiple_items_id(fake_source):
-    import os
     import json
-    from core.model.story import Story, NewsItem, StoryNewsItemAttribute
+    import os
+
+    from core.model.story import NewsItem, Story, StoryNewsItemAttribute
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
@@ -358,7 +362,7 @@ def full_story_with_multiple_items_id(fake_source):
 
 @pytest.fixture(scope="class")
 def misp_story_from_news_items_id(app, news_items):
-    from core.model.story import Story, NewsItem, StoryNewsItemAttribute
+    from core.model.story import NewsItem, Story, StoryNewsItemAttribute
 
     story_data = [
         {
@@ -395,3 +399,86 @@ def story_conflict_resolution_1(news_items, cleanup_news_item):
             "news_items": news_items[:2] + [cleanup_news_item],
         }
     }
+
+
+@pytest.fixture(scope="class")
+def cleanup_publisher(app):
+    with app.app_context():
+        from core.model.publisher_preset import PublisherPreset
+
+        publisher_data = {
+            "id": "99",
+            "name": "Test Publisher",
+            "description": "This is a test email publisher",
+            "type": "email_publisher",
+            "parameters": {
+                "SMTP_SERVER_ADDRESS": "smtp.example.com",
+                "SMTP_SERVER_PORT": "587",
+                "SERVER_TLS": "true",
+                "EMAIL_USERNAME": "publisher@example.com",
+                "EMAIL_PASSWORD": "password",
+                "EMAIL_SENDER": "publisher@example.com",
+                "EMAIL_RECIPIENT": "recipient@example.com",
+                "EMAIL_SUBJECT": "Functional Test Publication",
+            },
+        }
+
+        yield publisher_data
+
+        if PublisherPreset.get(publisher_data["id"]):
+            PublisherPreset.delete(publisher_data["id"])
+
+
+def remap_result_keys(payload: dict, stories) -> dict:
+    payload = deepcopy(payload)
+
+    old = payload["result"]["result"]
+    story_ids = [str(getattr(s, "id", s)) for s in stories]
+
+    payload["result"]["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    return payload
+
+
+@pytest.fixture
+def wordlist_bot_result(stories):
+    from tests.test_data.bot_test_data import wordlist_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def ioc_bot_result(stories):
+    from tests.test_data.bot_test_data import ioc_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def nlp_bot_result(stories):
+    from tests.test_data.bot_test_data import nlp_bot as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def applied_wordlist(client, api_header, wordlist_bot_result):
+    resp = client.post("/api/tasks", json=wordlist_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_ioc(client, api_header, ioc_bot_result):
+    resp = client.post("/api/tasks", json=ioc_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_nlp(client, api_header, nlp_bot_result):
+    resp = client.post("/api/tasks", json=nlp_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp

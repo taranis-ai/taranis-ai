@@ -1,23 +1,23 @@
-from flask import Blueprint, request, send_file, Response, Flask
+from flask import Blueprint, Flask, Response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
-from core.managers.auth_manager import api_key_required
+from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
+from core.managers.auth_manager import api_key_required
+from core.managers.decorators import extract_args
+from core.managers.sse_manager import sse_manager
+from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
-from core.model.word_list import WordList
-from core.model.story import Story
-from core.model.news_item_tag import NewsItemTag
 from core.model.report_item import ReportItem
-from core.managers.sse_manager import sse_manager
-from core.model.bot import Bot
-from core.managers.decorators import extract_args
-from core.config import Config
+from core.model.story import Story
+from core.model.word_list import WordList
 
 
 class AddNewsItems(MethodView):
@@ -65,8 +65,14 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
-    def get(self, source_id: str):
+    def get(self, source_id: str | None = None):
         try:
+            # Get all sources (for cron scheduler)
+            if source_id is None:
+                sources = OSINTSource.get_all_for_collector()
+                return {"sources": [source.to_worker_dict() for source in sources]}, 200
+
+            # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
@@ -84,7 +90,10 @@ class SourceIcon(MethodView):
         try:
             if source := OSINTSource.get(source_id):
                 file: FileStorage = request.files["file"]
-                source.update_icon(file.read())
+                try:
+                    source.update_icon(file.read())
+                except ValueError as exc:
+                    return {"error": str(exc)}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
@@ -145,6 +154,7 @@ class Tags(MethodView):
     def put(self):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
+
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
@@ -152,9 +162,6 @@ class Tags(MethodView):
             story = Story.get(story_id)
             if not story:
                 errors[story_id] = "Story not found"
-                continue
-            if not tags:
-                errors[story_id] = "No tags provided"
                 continue
             _, status = story.set_tags(tags)
             if status != 200:
@@ -237,9 +244,32 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
+class TaskResults(MethodView):
+    @api_key_required
+    def put(self):
+        """Save or update task result from worker."""
+        from core.api.task import handle_task_specific_result
+        from core.model.task import Task
+
+        data = request.json
+        if not data:
+            return {"error": "No data provided"}, 400
+
+        task_id = data.get("id")
+        result = data.get("result")
+        status = data.get("status")
+
+        # Handle task-specific result processing (e.g., presenter results)
+        if status == "SUCCESS" and result and task_id:
+            handle_task_specific_result(task_id, result, status)
+
+        return Task.add_or_update(data)
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
@@ -257,5 +287,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
+    worker_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results_worker"))
 
     app.register_blueprint(worker_bp)

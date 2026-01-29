@@ -1,6 +1,7 @@
-from flask import json
-from collections import defaultdict
 import copy
+from collections import defaultdict
+
+from flask import json
 
 
 class TestStoryAssessWorkerUpdates:

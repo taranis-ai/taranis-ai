@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-from typing import ClassVar, Dict, Any, Iterable, Optional
 import copy
+from dataclasses import dataclass
+from typing import Any, ClassVar, Dict, Iterable, Optional
 
-from core.model.settings import Settings
 from core.log import logger
 from core.model.news_item import NewsItem
+from core.model.settings import Settings
 from core.model.user import User
 
 

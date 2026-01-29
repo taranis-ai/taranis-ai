@@ -1,23 +1,23 @@
+import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import uuid
 from typing import Any, Optional
 
 from sqlalchemy import or_
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
-from sqlalchemy.orm import Mapped, relationship
 
-from core.managers.db_manager import db
-from core.model.base_model import BaseModel
-from core.model.story import Story
-from core.model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
-from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.user import User
 from core.log import logger
-from core.model.attribute import AttributeType, AttributeEnum
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.managers.db_manager import db
+from core.model.attribute import AttributeEnum, AttributeType
+from core.model.base_model import BaseModel
+from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.story import Story
+from core.model.user import User
 from core.service.news_item_tag import NewsItemTagService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItem(BaseModel):
@@ -104,6 +104,27 @@ class ReportItem(BaseModel):
         data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
 
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = cls._add_paging_to_query(filter_args, base_query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "stories_asc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])))
+        elif filter_args.get("order") == "stories_desc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
@@ -156,7 +177,7 @@ class ReportItem(BaseModel):
         data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
-    def clone_report(self):
+    def clone_report(self, user: User | None = None) -> "ReportItem":
         attributes = [a.clone_attribute() for a in self.attributes]
 
         report = ReportItem(
@@ -166,6 +187,8 @@ class ReportItem(BaseModel):
             completed=self.completed,
             stories=[],
         )
+        if user:
+            report.user_id = user.id
         db.session.add(report)
         db.session.commit()
         return report
@@ -179,7 +202,7 @@ class ReportItem(BaseModel):
         if not report.allowed_with_acl(user, True):
             return {"error": "Permission Denied"}, 403
 
-        new_report = report.clone_report()
+        new_report = report.clone_report(user)
         return {
             "message": f"Successfully cloned Report '{new_report.title}'",
             "report": new_report.to_detail_dict(),
@@ -280,17 +303,11 @@ class ReportItem(BaseModel):
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
-        if sort := filter_args.get("sort"):
-            if sort == "DATE_DESC":
-                query = query.order_by(db.desc(ReportItem.created))
+        return query
 
-            elif sort == "DATE_ASC":
-                query = query.order_by(db.asc(ReportItem.created))
-
-        offset = filter_args.get("offset", 0)
-        limit = filter_args.get("limit", 20)
-
-        return query.offset(offset).limit(limit)
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "created_desc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:

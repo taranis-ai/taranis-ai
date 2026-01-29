@@ -1,7 +1,10 @@
-from typing import TypeVar, Generic
-from pydantic import BaseModel
+from typing import Generic, TypeVar
+
 from models.base import TaranisBaseModel
+from pydantic import BaseModel
+
 from frontend.config import Config
+
 
 T = TypeVar("T", bound="TaranisBaseModel")
 
@@ -22,20 +25,31 @@ class CacheObject(list[T], Generic[T]):
         limit: int = 20,
         order: str = "",
         links: dict | None = None,
+        query_params: dict | None = None,
         total_count: int | None = None,
+        extra: dict | None = None,
     ):
         iterable = iterable or []
         super().__init__(iterable)
         self.page = page
         self.limit = limit
         self.order = order
-        self._total_count = total_count or len(iterable)
         self._links: dict = links or {}
+        self._query_params: dict = query_params or {}
+        self._total_count = total_count or len(iterable)
+        self._extra: dict = extra or {}
 
     def __getitem__(self, item):  # type: ignore[override]
         result = super().__getitem__(item)
         if isinstance(item, slice):
-            return CacheObject(result, page=self.page, limit=self.limit, order=self.order, total_count=self._total_count)
+            return CacheObject(
+                result,
+                page=self.page,
+                limit=self.limit,
+                order=self.order,
+                total_count=self._total_count,
+                extra=self._extra,
+            )
         return result
 
     @property
@@ -43,6 +57,10 @@ class CacheObject(list[T], Generic[T]):
         if self and hasattr(self[0], "_cache_timeout"):
             return getattr(self[0], "_cache_timeout")
         return Config.CACHE_DEFAULT_TIMEOUT
+
+    @property
+    def extra(self) -> dict:
+        return self._extra
 
     @property
     def current_page(self) -> int:
@@ -97,6 +115,7 @@ class CacheObject(list[T], Generic[T]):
             order=self.order,
             links=self._links,
             total_count=len(hits),
+            extra=self._extra,
         )
 
     def order_by(self, paging_order: str) -> "CacheObject[T]":
@@ -125,6 +144,7 @@ class CacheObject(list[T], Generic[T]):
             order=paging_order,
             links=self._links,
             total_count=self._total_count,
+            extra=self._extra,
         )
 
     def paginate(self, page: int, limit: int | None = None) -> "CacheObject[T]":
@@ -145,7 +165,8 @@ class CacheObject(list[T], Generic[T]):
         """
         Apply search, ordering, and pagination all at once
         """
-        if not paging or paging.query_params:
+
+        if not paging or paging.server_side is True:
             return self
 
         result = self

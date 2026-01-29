@@ -1,11 +1,13 @@
 import json
+
 import pytest
-import worker.presenters.pdf_presenter as pdfp
+
 import worker.presenters.pandoc_presenter as pandocp
+import worker.presenters.pdf_presenter as pdfp
 
 
 def test_base_presenter_generate(base_presenter, fixed_datetime):
-    from presenters_test_data import test_template, test_product, rendered_report
+    from presenters_test_data import rendered_report, test_product, test_template
 
     # test correct rendering of Jinja2 template
     rendered_product = base_presenter.generate(test_product, test_template)

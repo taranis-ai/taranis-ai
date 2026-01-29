@@ -1,17 +1,29 @@
-import pytest
+import sys
+from pathlib import Path
 from typing import get_origin
+
+import pytest
 import responses
 
-from frontend.log import logger
-from frontend.config import Config
-from frontend.views.base_view import BaseView
-from polyfactory.factories.pydantic_factory import ModelFactory
-from polyfactory.exceptions import ParameterException
-from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-from uuid_extensions import uuid7str
-from faker import Faker
+
+root_path = Path(__file__).resolve().parents[5] / "src" / "models"
+root_str = str(root_path)
+if root_str in sys.path:
+    sys.path.remove(root_str)
+sys.path.insert(0, root_str)
+
+from faker import Faker  # noqa: E402
+from polyfactory.exceptions import ParameterException  # noqa: E402
+from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+from pydantic.fields import FieldInfo  # noqa: E402
+from uuid_extensions import uuid7str  # noqa: E402
+
+from frontend.config import Config  # noqa: E402
+from frontend.log import logger  # noqa: E402
+from frontend.views.base_view import BaseView  # noqa: E402
+
+from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
 
 
 @pytest.fixture
@@ -156,6 +168,53 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             status=200,
             content_type="application/json",
         )
+
+    # Provide scheduler-specific endpoints so the dashboard renders during tests
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
+        json=[
+            {"name": "collectors", "messages": 0},
+            {"name": "bots", "messages": 2},
+        ],
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        json={
+            "total_workers": 3,
+            "busy_workers": 1,
+            "idle_workers": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        json={
+            "items": [
+                {
+                    "id": "task-1",
+                    "task": "collectors.fetch",
+                    "status": "SUCCESS",
+                    "result": None,
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                },
+                {
+                    "id": "task-2",
+                    "task": "bots.process",
+                    "status": "FAILURE",
+                    "result": {"error": "timeout"},
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                },
+            ],
+            "total_count": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
     yield core_payloads
 
 

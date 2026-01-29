@@ -1,10 +1,11 @@
 import datetime
 import hashlib
+import logging
+from urllib.parse import urljoin, urlparse
+
+import dateutil.parser as dateparser
 import feedparser
 import requests
-import logging
-from urllib.parse import urlparse
-import dateutil.parser as dateparser
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
@@ -49,6 +50,36 @@ class RSSCollector(BaseWebCollector):
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
         return self.rss_collector(source, manual)
+
+    @staticmethod
+    def extract_icon_url(icon) -> str | None:
+        def from_mapping(m) -> str | None:
+            href = m.get("href") or m.get("url")
+            if isinstance(href, str) and href.strip():
+                return href.strip()
+            if isinstance(href, list):
+                for item in href:
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+            return None
+
+        if isinstance(icon, (feedparser.FeedParserDict, dict)):
+            return from_mapping(icon)
+
+        if isinstance(icon, str):
+            return icon.strip() or None
+
+        if isinstance(icon, list):
+            for item in icon:
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+                if isinstance(item, (feedparser.FeedParserDict, dict)):
+                    url = from_mapping(item)
+                    if url:
+                        return url
+            return None
+
+        return None
 
     def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -130,23 +161,35 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
-        icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
-        icon = feed.get("icon", feed.get("image"))
-        if isinstance(icon, feedparser.FeedParserDict):
-            icon_url = str(icon.get("href"))
-        elif isinstance(icon, str):
-            icon_url = str(icon)
-        elif isinstance(icon, list):
-            icon_url = str(icon[0].get("href"))
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
-        if not r.ok:
-            return None
 
-        if "image" not in r.headers.get("content-type", ""):
-            return None
+        default_icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(source_id, icon_content)
+        icon = feed.get("icon") or feed.get("image")
+
+        icon_url = default_icon_url
+        if possible_icon_url := RSSCollector.extract_icon_url(icon):
+            icon_url = urljoin(self.feed_url, possible_icon_url)
+
+        try:
+            r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+            if not r.ok:
+                logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
+                return None
+
+            content_type = (r.headers.get("content-type") or "").lower()
+            if not content_type.startswith("image/"):
+                logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
+                return None
+
+            parsed = urlparse(icon_url)
+            filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
+            icon_content = {"file": (filename, r.content)}
+
+            self.core_api.update_osint_source_icon(source_id, icon_content)
+
+        except Exception as e:
+            logger.error(f"Exception while fetching icon from {icon_url}: {e}")
+
         return None
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source: dict) -> list[NewsItem]:
@@ -206,6 +249,7 @@ class RSSCollector(BaseWebCollector):
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
         feed = self.get_feed(manual)
+        self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
         if not self.last_attempted:
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
@@ -218,7 +262,3 @@ class RSSCollector(BaseWebCollector):
         self.news_items = self.gather_news_items(feed, source)
 
         return self.publish(self.news_items, source)
-
-    def detect_language_from_feed(self, feed: dict):
-        if language := feed.get("feed", {}).get("language"):
-            self.language = language

@@ -1,8 +1,9 @@
 import datetime
 import hashlib
 
-from .base_web_collector import BaseWebCollector
 from worker.types import NewsItem
+
+from .base_web_collector import BaseWebCollector
 
 
 class TwitterCollector(BaseWebCollector):

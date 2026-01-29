@@ -1,8 +1,9 @@
-import requests
 from urllib.parse import urlencode
 
-from worker.log import logger
+import requests
+
 from worker.config import Config
+from worker.log import logger
 
 
 class BotApi:

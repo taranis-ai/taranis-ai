@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
+{% block content %}
+  <div class="p-4" id="scheduler-dashboard">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
+      <div class="badge badge-lg badge-primary">Auto-refresh: 10s</div>
+    </div>
+
+    <!-- Queue Status Cards -->
+    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+      {% include "schedule/queue_cards.html" %}
+    </div>
+
+    <!-- Tabs for different views -->
+    <div class="tabs tabs-boxed mt-6 mb-4">
+      <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
+      <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
+      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Failed Jobs</a>
+      <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Execution History</a>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="tab-content">
+      <!-- Scheduled Jobs Tab -->
+      <div id="scheduled-tab" class="tab-panel {% if current_tab != 'scheduled' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+              </svg>
+              Scheduled Jobs
+            </h2>
+            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+              {% include "schedule/jobs_table.html" %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Jobs Tab -->
+      <div id="active-tab" class="tab-panel {% if current_tab != 'active' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+              </svg>
+              Currently Running
+            </h2>
+            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="load, every 5s" hx-swap="innerHTML">
+              <p class="text-center py-4">Loading active jobs...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Failed Jobs Tab -->
+      <div id="failed-tab" class="tab-panel {% if current_tab != 'failed' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              Failed Jobs
+            </h2>
+            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+              <p class="text-center py-4">Loading failed jobs...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution History Tab -->
+      <div id="history-tab" class="tab-panel {% if current_tab != 'history' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Execution History
+            </h2>
+            <div id="execution-history" hx-get="{{ url_for('admin.scheduler_history') }}" hx-trigger="load" hx-swap="innerHTML">
+              {% include "schedule/execution_history.html" %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="job-error-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-4xl">
+      <h3 class="font-bold text-lg">
+        Job Error
+        <span class="block text-sm font-normal text-base-content/60 truncate">
+          <span data-role="job-name"></span>
+          <span class="opacity-60">(<span data-role="job-id"></span>)</span>
+        </span>
+      </h3>
+      <pre class="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap bg-base-200 p-4 rounded text-xs" data-role="job-error">No error selected.</pre>
+      <div class="modal-action">
+        <form method="dialog">
+          <button class="btn">Close</button>
+        </form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>Close</button>
+    </form>
+  </dialog>
+
+  <script>
+    // Tab switching logic
+    const updateTabInUrl = (tabName) => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
+      } catch (err) {
+        console.debug('Failed to update tab query param', err);
+      }
+    };
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
+        tab.classList.add('tab-active');
+
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+        document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+
+        updateTabInUrl(tabName);
+      });
+    });
+
+    window.showJobErrorModal = function(job) {
+      const dialog = document.getElementById('job-error-modal');
+      if (!dialog) {
+        return;
+      }
+
+      const jobNameEl = dialog.querySelector('[data-role="job-name"]');
+      const jobIdEl = dialog.querySelector('[data-role="job-id"]');
+      const jobErrorEl = dialog.querySelector('[data-role="job-error"]');
+
+      jobNameEl.textContent = job?.name || 'Unknown job';
+      jobIdEl.textContent = job?.id || 'N/A';
+      jobErrorEl.textContent = job?.error || 'No error details available.';
+
+      dialog.showModal();
+    };
+  </script>
+{% endblock content %}

@@ -9,17 +9,17 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Framework :: Celery",
     "Topic :: Security",
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core
-    "celery",
+    "rq>=2.5",
+    "croniter>=6.0.0",
     "click",
     "python-dotenv",
     "pydantic-settings",
-    "taranis-models",
+    "taranis-models>=1.3.1.dev2",
     "requests",
     "requests[socks]",
     # Collector
@@ -33,6 +33,7 @@ dependencies = [
     # Publisher
     "paramiko",
     "python-gnupg",
+    "minio",
     # Presenters
     "weasyprint",
     "jinja2",
@@ -51,9 +52,10 @@ dynamic = ["version"]
 dev = [
     "ruff",
     "pytest",
-    "pytest-celery",
+    "fakeredis",
     "requests-mock",
     "watchdog",
+    "rq-dashboard",
     "build",
     "wheel",
     "setuptools",
@@ -115,3 +117,11 @@ reportUnusedImport = "warning"
 
 reportIncompatibleVariableOverride = "none"
 reportIncompatibleMethodOverride = "none"
+
+[tool.uv]
+required-environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]

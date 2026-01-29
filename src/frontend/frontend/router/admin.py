@@ -1,55 +1,33 @@
-from flask import Flask, render_template, Blueprint, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
-from models.admin import Job
 
-from frontend.config import Config
-from frontend.cache_models import PagingData
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.auth import auth_required
-from frontend.utils.router_helpers import convert_query_params
 from frontend.views import (
+    ACLView,
     AdminDashboardView,
-    UserView,
-    OrganizationView,
-    RoleView,
-    WorkerView,
+    AttributeView,
     BotView,
+    ConnectorView,
+    OrganizationView,
     ProductTypeView,
-    WordListView,
+    PublisherView,
+    ReportItemTypeView,
+    RoleView,
     SourceGroupView,
     SourceView,
-    ReportItemTypeView,
-    AttributeView,
     TemplateView,
-    PublisherView,
-    ACLView,
-    ConnectorView,
+    UserView,
+    WordListView,
+    WorkerView,
+)
+from frontend.views.admin_views.scheduler_views import (
+    ScheduleActiveJobsAPI,
+    ScheduleFailedJobsAPI,
+    ScheduleHistoryAPI,
+    ScheduleJobsAPI,
+    ScheduleQueuesAPI,
     SchedulerView,
 )
-
-
-class ScheduleAPI(MethodView):
-    @auth_required()
-    def get(self):
-        query_params = convert_query_params(request.args, PagingData)
-        error = None
-        result = None
-        try:
-            q = PagingData(**query_params)
-            result = DataPersistenceLayer().get_objects(Job, q)
-        except Exception as ve:
-            error = str(ve)
-
-        return render_template("schedule/index.html", jobs=result, error=error)
-
-
-class ScheduleJobDetailsAPI(MethodView):
-    @auth_required()
-    def get(self, job_id: str):
-        job = DataPersistenceLayer().get_object(Job, job_id)
-        if job is None:
-            return f"Failed to fetch job from: {Config.TARANIS_CORE_URL}", 500
-        return render_template("schedule/job_details.html", job=job)
 
 
 class ImportUsers(MethodView):
@@ -167,6 +145,11 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/scheduler", view_func=SchedulerView.as_view("scheduler"))
     admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=SchedulerView.as_view("edit_job"))
+    admin_bp.add_url_rule("/scheduler/jobs", view_func=ScheduleJobsAPI.as_view("scheduler_jobs_table"))
+    admin_bp.add_url_rule("/scheduler/queues", view_func=ScheduleQueuesAPI.as_view("scheduler_queue_cards"))
+    admin_bp.add_url_rule("/scheduler/active", view_func=ScheduleActiveJobsAPI.as_view("scheduler_active_jobs"))
+    admin_bp.add_url_rule("/scheduler/failed", view_func=ScheduleFailedJobsAPI.as_view("scheduler_failed_jobs"))
+    admin_bp.add_url_rule("/scheduler/history", view_func=ScheduleHistoryAPI.as_view("scheduler_history"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationView.as_view("edit_organization"))

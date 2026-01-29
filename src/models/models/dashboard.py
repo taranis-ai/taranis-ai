@@ -1,8 +1,9 @@
-from pydantic import Field
 from datetime import datetime
 
-from models.base import TaranisBaseModel
+from pydantic import Field
+
 from models.assess import StoryTag
+from models.base import TaranisBaseModel
 
 
 class Dashboard(TaranisBaseModel):

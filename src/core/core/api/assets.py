@@ -1,16 +1,16 @@
-from flask import request, Flask
+from flask import Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers.auth_manager import auth_required
-from core.model import asset
-from core.managers.decorators import extract_args
 from core.config import Config
+from core.managers.auth_manager import auth_required
+from core.managers.decorators import extract_args
+from core.model import asset
 
 
 class AssetGroups(MethodView):
     @auth_required("ASSETS_ACCESS")
-    @extract_args("search")
+    @extract_args("search", "page", "limit", "order")
     def get(self, group_id=None, filter_args=None):
         if group_id:
             return asset.AssetGroup.get_for_api(group_id, current_user.organization)
@@ -39,7 +39,7 @@ class AssetGroups(MethodView):
 
 class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
-    @extract_args("search", "vulnerable", "group", "sort")
+    @extract_args("search", "vulnerable", "group", "page", "limit", "order")
     def get(self, asset_id=None, filter_args=None):
         if asset_id:
             return asset.Asset.get_for_api(asset_id, current_user.organization)

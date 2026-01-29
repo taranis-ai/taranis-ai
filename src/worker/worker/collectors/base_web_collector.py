@@ -1,18 +1,19 @@
 import datetime
 import hashlib
-import requests
-import lxml.html
-import dateutil.parser as dateparser
-from urllib.parse import urlparse, urljoin
-from trafilatura import extract, extract_metadata
-from bs4 import BeautifulSoup, Tag
-from typing import Any
 import json
+from typing import Any, Literal
+from urllib.parse import urljoin, urlparse
 
-from worker.log import logger
-from worker.types import NewsItem
+import dateutil.parser as dateparser
+import lxml.html
+import requests
+from bs4 import BeautifulSoup, Tag
+from trafilatura import extract, extract_metadata
+
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.log import logger
+from worker.types import NewsItem
 
 
 class BaseWebCollector(BaseCollector):
@@ -108,20 +109,17 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
         response = self.send_get_request(web_url, self.last_attempted)
 
-        if not response.content:
+        if not response.text:
             return "", None
 
         published_date = self.get_last_modified(response)
-        if text := response.text:
-            return text, published_date
-
-        return "", published_date
+        return response.text, published_date
 
     def xpath_extraction(self, html_content: str, xpath: str, get_content: bool = True) -> str | None:
         logger.info(f"Attempting extraction for xpath: {xpath}")

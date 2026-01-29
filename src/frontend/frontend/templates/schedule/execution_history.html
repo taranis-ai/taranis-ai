@@ -1,0 +1,106 @@
+{% if task_results and task_results|length > 0 %}
+  <div class="overflow-x-auto">
+    <table class="table table-zebra w-full">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Status</th>
+          <th class="text-right">
+            Last Run <span class="text-xs opacity-50">↓ Most recent first</span>
+          </th>
+          <th class="text-right">Last Success</th>
+          <th class="text-right">Stats</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task_id, stats in task_stats.items() %}
+          <tr>
+            <td>
+              <div class="font-medium">{{ task_id }}</div>
+            </td>
+            <td>
+              {% set badge = stats.status_badge %}
+              {% if badge %}
+                <span class="badge badge-{{ badge.variant }} badge-sm">{{ badge.label }}</span>
+              {% elif stats.failures == 0 %}
+                <span class="badge badge-success badge-sm">All Success</span>
+              {% elif stats.success_pct >= 80 %}
+                <span class="badge badge-warning badge-sm">Mostly Success</span>
+              {% else %}
+                <span class="badge badge-error badge-sm">Many Failures</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              {% if stats.last_run %}
+                <span class="text-xs">{{ stats.last_run.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+              {% else %}
+                <span class="text-xs opacity-50">Never</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              {% if stats.last_success %}
+                <span class="text-xs">{{ stats.last_success.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+              {% else %}
+                <span class="text-xs opacity-50">Never</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              <div class="flex gap-2 justify-end">
+                <div class="badge badge-success">✓ {{ stats.successes }}</div>
+                <div class="badge badge-error">✗ {{ stats.failures }}</div>
+                <div class="badge badge-ghost min-w-16 justify-end text-right">{{ stats.success_pct }}%</div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="stats shadow mt-6 w-full">
+    <div class="stat">
+      <div class="stat-figure text-success">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <div class="stat-title">Total Successes</div>
+      <div class="stat-value text-success">{{ total_successes }}</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-figure text-error">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z">
+          </path>
+        </svg>
+      </div>
+      <div class="stat-title">Total Failures</div>
+      <div class="stat-value text-error">{{ total_failures }}</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-figure text-info">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+          </path>
+        </svg>
+      </div>
+      <div class="stat-title">Success Rate</div>
+      <div class="stat-value text-info">{{ overall_success_rate }}%</div>
+    </div>
+  </div>
+{% else %}
+  <div class="text-center py-8">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         fill="none"
+         viewBox="0 0 24 24"
+         stroke-width="1.5"
+         stroke="currentColor"
+         class="w-16 h-16 mx-auto opacity-30">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+    <p class="mt-4 text-base-content/50">No execution history available</p>
+  </div>
+{% endif %}
