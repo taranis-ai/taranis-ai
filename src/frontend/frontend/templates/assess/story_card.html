@@ -144,10 +144,8 @@
             <div class="flex flex-wrap gap-1">
               {% for tag in story.tags[:5] %}
                 {% if tag.name %}
-                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                     class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap truncate"
-                     data-tip="{{ tag.tag_type }}">
-                    <span class="truncate">{{ tag.name }}</span>
+                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs whitespace-nowrap">
+                    <span>{{ tag.name }}</span>
                   </a>
                 {% endif %}
               {% endfor %}
