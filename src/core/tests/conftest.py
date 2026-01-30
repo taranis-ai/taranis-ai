@@ -341,3 +341,139 @@ def sample_product_type_multi_report_types(app):
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+
+@pytest.fixture
+def osint_sources(app):
+    """Create test OSINT sources with schedules"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+        from core.model.parameter_value import ParameterValue
+
+        source1 = OSINTSource(
+            name="Test RSS Source",
+            type="rss",
+            parameters={"feed": "https://example.com/feed", "REFRESH_INTERVAL": "0 * * * *"},
+        )
+        source1.enabled = True
+
+        source2 = OSINTSource(
+            name="Test Web Source",
+            type="web",
+            parameters={"url": "https://example.com", "REFRESH_INTERVAL": "*/30 * * * *"},
+        )
+        source2.enabled = True
+
+        sources = [source1, source2]
+        db.session.add_all(sources)
+        db.session.commit()
+        yield sources
+        try:
+            for source in sources:
+                db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def disabled_osint_source(app):
+    """Create a disabled OSINT source"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        source = OSINTSource(
+            name="Disabled Source",
+            type="rss",
+            parameters={"feed": "https://example.com/disabled", "REFRESH_INTERVAL": "0 * * * *"},
+        )
+        source.enabled = False
+        db.session.add(source)
+        db.session.commit()
+        yield source
+        try:
+            db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def osint_source_no_schedule(app):
+    """Create an OSINT source without a schedule"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        source = OSINTSource(
+            name="No Schedule Source",
+            type="rss",
+            parameters={"feed": "https://example.com/no-schedule"},  # No REFRESH_INTERVAL
+        )
+        source.enabled = True
+        db.session.add(source)
+        db.session.commit()
+        yield source
+        try:
+            db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def bots(app):
+    """Create test bots with schedules"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+
+        bot1 = Bot(
+            name="Test IOC Bot",
+            type="ioc_bot",
+            parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
+        )
+        bot1.enabled = True
+
+        bot2 = Bot(
+            name="Test NLP Bot",
+            type="nlp_bot",
+            parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
+        )
+        bot2.enabled = True
+
+        bots = [bot1, bot2]
+        db.session.add_all(bots)
+        db.session.commit()
+        yield bots
+        try:
+            for bot in bots:
+                db.session.delete(bot)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def disabled_bot(app):
+    """Create a disabled bot"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+
+        bot = Bot(
+            name="Disabled Bot",
+            type="ioc_bot",
+            parameters={"REFRESH_INTERVAL": "0 * * * *"},
+        )
+        bot.enabled = False
+        db.session.add(bot)
+        db.session.commit()
+        yield bot
+        try:
+            db.session.delete(bot)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
