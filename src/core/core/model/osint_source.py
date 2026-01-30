@@ -189,7 +189,7 @@ class OSINTSource(BaseModel):
             data["status"] = self.status
 
         # Include refresh schedule for worker self-rescheduling
-        data["refresh"] = self.get_schedule()
+        data["refresh"] = self.get_schedule_with_default()
 
         return data
 
@@ -213,10 +213,17 @@ class OSINTSource(BaseModel):
         }
 
     def get_schedule(self) -> str:
-        if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
-            return refresh_interval
+        """Return only the explicit REFRESH_INTERVAL; empty string if unset."""
+        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
+    @staticmethod
+    def get_default_schedule() -> str:
+        """Global default collector interval from settings."""
         return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
+
+    def get_schedule_with_default(self) -> str:
+        """Return schedule with fallback to the global default when missing."""
+        return self.get_schedule() or self.get_default_schedule()
 
     @classmethod
     def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
@@ -231,7 +238,7 @@ class OSINTSource(BaseModel):
 
         sources = cls.get_all_for_collector()
         for source in sources:
-            if not (cron_schedule := source.get_schedule()):
+            if not (cron_schedule := source.get_schedule_with_default()):
                 continue
 
             try:
@@ -387,7 +394,7 @@ class OSINTSource(BaseModel):
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
-        cron_schedule = self.get_schedule()
+        cron_schedule = self.get_schedule_with_default()
         logger.info(f"Source {self.name} has schedule: {cron_schedule}. Notifying cron scheduler...")
 
         # Publish reload signal

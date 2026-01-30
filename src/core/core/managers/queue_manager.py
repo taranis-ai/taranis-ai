@@ -221,7 +221,7 @@ class QueueManager:
 
             # Count enabled sources and bots for logging
             sources = OSINTSource.get_all_for_collector()
-            enabled_sources = sum(bool(s.enabled and s.get_schedule()) for s in sources)
+            enabled_sources = sum(bool(s.enabled and s.get_schedule_with_default()) for s in sources)
 
             bots = Bot.get_all_for_collector()
             enabled_bots = sum(bool(b.enabled and b.get_schedule()) for b in bots)

@@ -244,6 +244,9 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
         def get_schedule(self):
             return "0 * * * *"
 
+        def get_schedule_with_default(self):
+            return self.get_schedule()
+
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource()]))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
@@ -267,6 +270,9 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
 
             def get_schedule(self):
                 return f"*/{(idx % 5) + 1} * * * *"
+
+            def get_schedule_with_default(self):
+                return self.get_schedule()
 
         return FakeSource(idx)
 
