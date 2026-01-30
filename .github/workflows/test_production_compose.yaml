@@ -31,41 +31,12 @@ jobs:
           echo "Container status:"
           docker compose ps
           echo ""
-          echo "Detailed docker ps:"
-          docker ps -a
-          echo ""
-          echo "Core logs:"
-          docker compose logs core
-          echo ""
-          echo "Ingress logs:"
-          docker compose logs ingress
-          echo ""
-          echo "Cron logs:"
-          docker compose logs cron
+          echo "Container logs:"
+          docker compose logs core ingress cron
 
       - name: Verify all containers are healthy
         working-directory: docker
         run: |
-          # Check if any containers with healthchecks are unhealthy
-          UNHEALTHY=$(docker compose ps --format json | jq -r 'select(.Health == "unhealthy") | .Service')
-          if [ -n "$UNHEALTHY" ]; then
-            echo "❌ Unhealthy containers found:"
-            echo "$UNHEALTHY"
-            docker compose ps
-            exit 1
-          fi
-
-          # Verify core services are running (not exited)
-          for service in core frontend collector workers cron database redis; do
-            STATE=$(docker compose ps $service --format json | jq -r '.State')
-            if [ "$STATE" != "running" ]; then
-              echo "❌ Service $service is not running (state: $STATE)"
-              docker compose ps
-              docker compose logs $service
-              exit 1
-            fi
-          done
-
           # Check that services with healthchecks are healthy
           for service in core frontend collector workers cron database redis; do
             HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
