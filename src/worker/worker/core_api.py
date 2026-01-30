@@ -94,6 +94,21 @@ class CoreApi:
             logger.exception("Can't get all bots")
             return None
 
+    def get_cron_jobs(self) -> list[dict] | None:
+        """Get all cron job configurations from the Core API.
+
+        Returns:
+            List of cron job configurations, or None if the request fails
+        """
+        try:
+            response = self.api_get("/api/config/workers/cron-jobs")
+            if response and "cron_jobs" in response:
+                return response["cron_jobs"]
+            return None
+        except Exception:
+            logger.exception("Can't get cron job configurations")
+            return None
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
