@@ -349,7 +349,6 @@ def osint_sources(app):
     with app.app_context():
         from core.managers.db_manager import db
         from core.model.osint_source import OSINTSource
-        from core.model.parameter_value import ParameterValue
 
         source1 = OSINTSource(
             name="Test RSS Source",

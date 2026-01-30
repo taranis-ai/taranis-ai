@@ -513,7 +513,7 @@ class CronJobs(MethodView):
                 )
 
             # Get Bot tasks
-            stmt = db.select(bot.Bot).where(bot.Bot.enabled == True)
+            stmt = db.select(bot.Bot).where(bot.Bot.enabled)
             bots = db.session.execute(stmt).scalars().all()
             for bot_item in bots:
                 cron_schedule = bot_item.get_schedule()
