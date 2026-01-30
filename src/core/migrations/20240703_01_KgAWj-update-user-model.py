@@ -4,7 +4,6 @@ update user model
 
 from yoyo import step
 
-
 __depends__ = {"20240527_01_uP9Rl-update-news-item-osint-source-id-fkey-to-include-on-delete-cascade"}
 
 steps = [

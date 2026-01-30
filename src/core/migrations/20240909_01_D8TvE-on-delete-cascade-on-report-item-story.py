@@ -4,7 +4,6 @@ on delete cascade on report_item_story
 
 from yoyo import step
 
-
 __depends__ = {"20240821_01_txQiJ-add-links-to-stories"}
 
 steps = [

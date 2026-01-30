@@ -4,7 +4,6 @@ fix product_report_item constraints
 
 from yoyo import step
 
-
 __depends__ = {"20240703_01_KgAWj-update-user-model"}
 
 steps = [
