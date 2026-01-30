@@ -407,7 +407,7 @@ class OSINTSource(BaseModel):
         for parameter in self.parameters:
             if parameter.parameter == "CONTENT_LOCATION" and parameter.value:
                 has_content_location = True
-            if parameter.parameter == "USE_FEED_CONTENT":
+            if parameter.parameter == "USE_FEED_CONTENT" and parameter.value:
                 has_use_feed_content = True
 
             if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
