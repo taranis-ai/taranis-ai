@@ -26,6 +26,7 @@ jobs:
           docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
 
       - name: Check container status
+        if: always()
         working-directory: docker
         run: |
           echo "Container status:"
@@ -35,6 +36,8 @@ jobs:
           docker compose logs core ingress cron
 
       - name: Verify all containers are healthy
+        # we could drop this step and rely on `--wait` above, but this gives more detailed output
+        if: success()
         working-directory: docker
         run: |
           # Check that services with healthchecks are healthy
