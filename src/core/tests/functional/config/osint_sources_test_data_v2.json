@@ -26,7 +26,7 @@
                     "CONTENT_LOCATION": "description"
                 },
                 {
-                    "USE_FEED_CONTENT": "false"
+                    "USE_FEED_CONTENT": "true"
                 }
             ]
         },
@@ -42,7 +42,7 @@
                     "CONTENT_LOCATION": "description"
                 },
                 {
-                    "USE_FEED_CONTENT": "false"
+                    "USE_FEED_CONTENT": "true"
                 }
             ]
         },

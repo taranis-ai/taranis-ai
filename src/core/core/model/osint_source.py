@@ -410,7 +410,6 @@ class OSINTSource(BaseModel):
             if parameter.parameter == "USE_FEED_CONTENT":
                 has_use_feed_content = True
 
-        for parameter in self.parameters:
             if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
                 parameters.append({parameter.parameter: "<REDACTED>"})
                 continue
