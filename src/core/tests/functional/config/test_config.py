@@ -33,8 +33,18 @@ class TestSourcesConfigApi(BaseTest):
         with open(file_path, "rb") as f:
             test_data = json.load(f)
             test_result = response.json
-            for source in test_data["data"]:
-                assert source in test_result["sources"]
+
+            for expected_source in test_data["data"]:
+                actual_source = next((s for s in test_result["sources"] if s["name"] == expected_source["name"]), None)
+                assert actual_source is not None, f"Source {expected_source['name']} not found"
+
+                assert actual_source["name"] == expected_source["name"]
+                assert actual_source["type"] == expected_source["type"]
+                assert actual_source["description"] == expected_source["description"]
+
+                expected_params = {frozenset(p.items()) for p in expected_source["parameters"]}
+                actual_params = {frozenset(p.items()) for p in actual_source["parameters"]}
+                assert expected_params == actual_params, f"Parameters mismatch for {expected_source['name']}"
 
     def test_create_source(self, client, auth_header, cleanup_sources):
         response = self.assert_post_ok(client, uri="osint-sources", json_data=cleanup_sources, auth_header=auth_header)
