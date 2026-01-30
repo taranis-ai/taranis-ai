@@ -352,14 +352,16 @@ def osint_sources(app):
 
         source1 = OSINTSource(
             name="Test RSS Source",
-            type="rss",
+            description="RSS collector used in cron job tests",
+            type="rss_collector",
             parameters={"feed": "https://example.com/feed", "REFRESH_INTERVAL": "0 * * * *"},
         )
         source1.enabled = True
 
         source2 = OSINTSource(
             name="Test Web Source",
-            type="web",
+            description="Web collector used in cron job tests",
+            type="simple_web_collector",
             parameters={"url": "https://example.com", "REFRESH_INTERVAL": "*/30 * * * *"},
         )
         source2.enabled = True
@@ -385,7 +387,8 @@ def disabled_osint_source(app):
 
         source = OSINTSource(
             name="Disabled Source",
-            type="rss",
+            description="Disabled collector fixture",
+            type="rss_collector",
             parameters={"feed": "https://example.com/disabled", "REFRESH_INTERVAL": "0 * * * *"},
         )
         source.enabled = False
@@ -408,8 +411,9 @@ def osint_source_no_schedule(app):
 
         source = OSINTSource(
             name="No Schedule Source",
-            type="rss",
-            parameters={"feed": "https://example.com/no-schedule"},  # No REFRESH_INTERVAL
+            description="Collector without schedule for exclusion test",
+            type="rss_collector",
+            parameters={"feed": "https://example.com/no-schedule", "REFRESH_INTERVAL": ""},  # Empty REFRESH_INTERVAL to skip scheduling
         )
         source.enabled = True
         db.session.add(source)
@@ -429,16 +433,22 @@ def bots(app):
         from core.managers.db_manager import db
         from core.model.bot import Bot
 
+        highest_index = Bot.get_highest_index()
+
         bot1 = Bot(
             name="Test IOC Bot",
+            description="IOC bot fixture for cron job tests",
             type="ioc_bot",
+            index=highest_index + 1,
             parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
         )
         bot1.enabled = True
 
         bot2 = Bot(
             name="Test NLP Bot",
+            description="NLP bot fixture for cron job tests",
             type="nlp_bot",
+            index=highest_index + 2,
             parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
         )
         bot2.enabled = True
@@ -464,6 +474,7 @@ def disabled_bot(app):
 
         bot = Bot(
             name="Disabled Bot",
+            description="Disabled bot fixture",
             type="ioc_bot",
             parameters={"REFRESH_INTERVAL": "0 * * * *"},
         )
