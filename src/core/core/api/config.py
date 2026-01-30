@@ -15,6 +15,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
 )
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import (
     attribute,
@@ -477,6 +478,78 @@ class WorkerStats(MethodView):
         return queue_manager.queue_manager.get_worker_stats()
 
 
+class CronJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        """Get all cron job configurations for the RQ scheduler.
+
+        Returns a list of cron job configurations including:
+        - OSINT source collectors
+        - Bots
+        - Housekeeping tasks
+
+        Returns:
+            list: List of cron job configurations with task, queue, args, cron schedule, and task_id
+        """
+        try:
+            cron_jobs = []
+
+            # Get OSINT source collectors
+            sources = osint_source.OSINTSource.get_all_for_collector()
+            for source in sources:
+                cron_schedule = source.get_schedule()
+                if not cron_schedule:
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "collector_task",
+                        "queue": "collectors",
+                        "args": [source.id, False],  # manual=False for scheduled jobs
+                        "cron": cron_schedule,
+                        "task_id": source.task_id,
+                        "name": source.name,
+                    }
+                )
+
+            # Get Bot tasks
+            stmt = db.select(bot.Bot).where(bot.Bot.enabled == True)
+            bots = db.session.execute(stmt).scalars().all()
+            for bot_item in bots:
+                cron_schedule = bot_item.get_schedule()
+                if not cron_schedule:
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "bot_task",
+                        "queue": "bots",
+                        "args": [bot_item.id],
+                        "cron": cron_schedule,
+                        "task_id": bot_item.task_id,
+                        "name": bot_item.name,
+                    }
+                )
+
+            # Add housekeeping cron jobs
+            cron_jobs.append(
+                {
+                    "task": "cleanup_token_blacklist",
+                    "queue": "misc",
+                    "args": [],
+                    "cron": "0 2 * * *",
+                    "task_id": "cleanup_token_blacklist",
+                    "name": "Cleanup Token Blacklist",
+                }
+            )
+
+            return {"cron_jobs": cron_jobs}, 200
+
+        except Exception:
+            logger.exception("Failed to get cron job configurations")
+            return {"error": "Failed to get cron job configurations"}, 500
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
@@ -913,6 +986,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
+    config_bp.add_url_rule("/workers/cron-jobs", view_func=CronJobs.as_view("cron_jobs"))
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
