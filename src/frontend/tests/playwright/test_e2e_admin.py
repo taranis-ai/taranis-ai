@@ -911,6 +911,63 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
+    def test_admin_settings(self, logged_in_page):
+        page = logged_in_page
+        settings_form = page.locator("#settings-container form#admin-settings-form")
+        tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
+        collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
+        collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
+        story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
+        news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
+        settings_submit = settings_form.get_by_test_id("settings-submit").first
+
+        def go_to_admin_settings():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            expect(collector_interval_input).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_settings.png")
+
+        def check_default_values():
+            expect(tlp_select).to_have_value("clear")
+            expect(collector_proxy_input).to_be_empty()
+            expect(collector_interval_input).to_have_value("0 */8 * * *")
+            expect(story_conflict_input).to_have_value("200")
+            expect(news_conflict_input).to_have_value("200")
+            settings_submit.click()  # keep this - against form only every second time to be succesfully POSTed
+
+        def change_default_values():
+            expect(collector_interval_input).to_be_visible()
+            tlp_select.select_option("red")
+            collector_proxy_input.fill("https://test")
+            collector_interval_input.fill("0 */8 * * 1")
+            story_conflict_input.fill("20")
+            news_conflict_input.fill("21")
+            settings_submit.click()
+
+        def check_new_values():
+            page.get_by_role("button", name="Invalidate Cache").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            expect(tlp_select).to_have_value("red")
+            expect(collector_proxy_input).to_have_value("https://test/")
+            expect(collector_interval_input).to_have_value("0 */8 * * 1")
+            expect(story_conflict_input).to_have_value("20")
+            expect(news_conflict_input).to_have_value("21")
+
+        def revert_to_default_values():
+            tlp_select.select_option("clear")
+            collector_proxy_input.fill("")
+            expect(collector_interval_input).to_be_visible()
+            collector_interval_input.fill("0 */8 * * *")
+            story_conflict_input.fill("200")
+            news_conflict_input.fill("200")
+            settings_submit.click()
+
+        go_to_admin_settings()
+        check_default_values()
+        change_default_values()
+        check_new_values()
+        revert_to_default_values()
+
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
