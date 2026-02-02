@@ -166,8 +166,10 @@ class Product(BaseModel):
         product_title = self.title
         mime_type = self.product_type.get_mimetype()
 
-        forbidden_re = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
-        stem = forbidden_re.sub("_", product_title)
+        special_char_re = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+        whitespace_re = re.compile(r"\s+")
+        stem = special_char_re.sub("", product_title)
+        stem = whitespace_re.sub("_", stem)
         stem = stem.rstrip(" .")
 
         file_extension = mimetypes.guess_extension(mime_type, strict=False) or ""
