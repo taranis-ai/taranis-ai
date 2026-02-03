@@ -54,7 +54,7 @@ class ReportItemView(BaseView):
         try:
             report_types = DataPersistenceLayer().get_objects(ReportItemType)
             base_context["report_types"] = report_types
-            layout = request.args.get("layout", base_context.get("layout", "split"))
+            layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
             report = base_context.get("report")
             if report and report.grouped_attributes:
                 base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []

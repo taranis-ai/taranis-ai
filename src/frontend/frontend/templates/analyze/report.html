@@ -55,6 +55,7 @@
                   hx-target-error="#report"
                   hx-swap="outerHTML"
                   hx-select="#report"
+                  hx-include="#report_form [name=layout]"
                   class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
           </button>
           <button type="button"
@@ -64,6 +65,7 @@
                   hx-target-error="#report"
                   hx-swap="outerHTML"
                   hx-select="#report"
+                  hx-include="#report_form [name=layout]"
                   class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
           </button>
         </div>
@@ -81,6 +83,7 @@
           hx-target="#report_form"
           hx-target-error="#report_form"
           hx-select="#report_form">
+      {% if is_edit %}<input type="hidden" name="layout" value="{{ layout }}">{% endif %}
 
       {% include "partials/admin_form_error.html" %}
 
