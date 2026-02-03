@@ -60,7 +60,7 @@ class ProductView(BaseView):
         try:
             core_resp = CoreApi().download_product(product_id)
             if core_resp.ok:
-                return CoreApi.stream_proxy(core_resp, "products_export.json")
+                return CoreApi.stream_proxy(core_resp, "products_export")
 
             try:
                 error_payload = core_resp.json()
