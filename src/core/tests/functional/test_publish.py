@@ -31,7 +31,7 @@ class TestPublishApi(BaseTest):
     def test_rendered_product_download_returns_attachment(self, app, client, auth_header, pdf_product):
         file_bytes = b"This is a pdf"
         pdf_product.update_render(base64.b64encode(file_bytes).decode())
-        expected_filename = f"product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.pdf"
+        expected_filename = f"Test Product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.pdf"
 
         response = client.get(self.concat_url(f"products/{pdf_product.id}/render"), headers=auth_header)
         assert response.status_code == 200
