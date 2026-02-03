@@ -11,26 +11,7 @@
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
-
-<script type="text/javascript">
-  function initAttributeStoryChoices() {
-    const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
-    story_attribute_ids.forEach(attr => {
-      const field_id = `attribute_story_${attr.id}`;
-      const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
-    });
-  }
-
-  if (typeof htmx !== 'undefined' && htmx.onLoad) {
-    htmx.onLoad(function(elt) {
-      initAttributeStoryChoices();
-    });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      initAttributeStoryChoices();
-    });
-  }
-</script>
+{% set form_target = '#report_form' if is_edit else '#report' %}
 
 <div class="p-4 card bg-base-100 shadow" id="report">
   <div class="card-body gap-4">
@@ -80,9 +61,9 @@
           class="w-full"
           {{ form_action }}
           hx-swap="outerHTML"
-          hx-target="#report_form"
-          hx-target-error="#report_form"
-          hx-select="#report_form">
+          hx-target="{{ form_target }}"
+          hx-target-error="{{ form_target }}"
+          hx-select="{{ form_target }}">
       {% if is_edit %}<input type="hidden" name="layout" value="{{ layout }}">{% endif %}
 
       {% include "partials/admin_form_error.html" %}
@@ -161,6 +142,25 @@
 
       <div class="mt-8">
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+        <script type="text/javascript">
+          function initAttributeStoryChoices() {
+            const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
+            story_attribute_ids.forEach(attr => {
+              const field_id = `attribute_story_${attr.id}`;
+              const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
+            });
+          }
+
+          if (typeof htmx !== 'undefined' && htmx.onLoad) {
+            htmx.onLoad(function(elt) {
+              initAttributeStoryChoices();
+            });
+          } else {
+            document.addEventListener('DOMContentLoaded', function() {
+              initAttributeStoryChoices();
+            });
+          }
+        </script>
       </div>
     </form>
   </div>
