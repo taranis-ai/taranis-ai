@@ -53,6 +53,8 @@
                   hx-vals='{"completed": true}'
                   hx-target="#report"
                   hx-target-error="#report"
+                  hx-swap="outerHTML"
+                  hx-select="#report"
                   class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
           </button>
           <button type="button"
@@ -60,6 +62,8 @@
                   hx-vals='{"completed": false}'
                   hx-target="#report"
                   hx-target-error="#report"
+                  hx-swap="outerHTML"
+                  hx-select="#report"
                   class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
           </button>
         </div>
@@ -70,7 +74,13 @@
       </div>
     </div>
 
-    <form id="report_form" class="w-full" {{ form_action }} hx-swap="innerHTML" hx-target="#report" hx-target-error="#report">
+    <form id="report_form"
+          class="w-full"
+          {{ form_action }}
+          hx-swap="outerHTML"
+          hx-target="#report_form"
+          hx-target-error="#report_form"
+          hx-select="#report_form">
 
       {% include "partials/admin_form_error.html" %}
 
@@ -122,8 +132,10 @@
                         data-testid="remove-all-stories"
                         {{ form_action }}
                         hx-vals='{"stories[]": [""]}'
-                        hx-target="#report"
-                        hx-target-error="#report">
+                        hx-target="#report_form"
+                        hx-target-error="#report_form"
+                        hx-swap="outerHTML"
+                        hx-select="#report_form">
                   Remove all
                 </button>
               </div>
