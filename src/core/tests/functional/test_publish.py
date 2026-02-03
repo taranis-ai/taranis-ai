@@ -1,10 +1,6 @@
 import base64
 from datetime import datetime
 
-from models.types import PRESENTER_TYPES
-
-from core.model.product import Product
-from core.model.product_type import ProductType
 from tests.functional.helpers import BaseTest
 
 
