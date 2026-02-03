@@ -139,33 +139,60 @@
 
       <!-- tags section -->
       {% if story.tags %}
+        {% set MAX_CHARS_PER_LINE = 40 %}
         <div class="space-y-1">
+
+          {# ---------- Collapsed ---------- #}
           <template x-if="!isOpen">
             <div class="flex flex-wrap gap-1">
-              {% for tag in story.tags[:5] %}
-                {% if tag.name %}
-                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs whitespace-nowrap">
-                    <span>{{ tag.name }}</span>
-                  </a>
+              {% set ns = namespace(line_chars=0) %}
+
+              {% for tag in story.tags[:5] if tag.name %}
+                {% set tag_len = tag.name|length %}
+                {% set tag_chars = tag_len %}
+
+                {% if ns.line_chars > 0 and (ns.line_chars + tag_chars) > MAX_CHARS_PER_LINE %}
+                  <span class="basis-full h-0"></span>
+                  {% set ns.line_chars = 0 %}
+                  {% set tag_chars = tag_len %}
                 {% endif %}
+
+                <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs whitespace-nowrap">
+                  <span>{{ tag.name }}</span>
+                </a>
+
+                {% set ns.line_chars = ns.line_chars + tag_chars %}
               {% endfor %}
+
               {% if story.tags | length > 5 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 5 }}</span>{% endif %}
             </div>
           </template>
 
+          {# ---------- Expanded ---------- #}
           <template x-if="isOpen">
             <div class="flex flex-wrap gap-1 justify-start">
-              {% for tag in story.tags %}
-                {% if tag.name %}
-                  <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                     class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
-                     data-tip="{{ tag.tag_type }}">
-                    <span>{{ tag.name }}</span>
-                  </a>
+              {% set ns = namespace(line_chars=0) %}
 
-                  {% if loop.index % 5 == 0 %}<span class="basis-full h-0"></span>{% endif %}
+              {% for tag in story.tags[:30] if tag.name %}
+                {% set tag_len = tag.name|length %}
+                {% set tag_chars = tag_len %}
+
+                {% if ns.line_chars > 0 and (ns.line_chars + tag_chars) > MAX_CHARS_PER_LINE %}
+                  <span class="basis-full h-0"></span>
+                  {% set ns.line_chars = 0 %}
+                  {% set tag_chars = tag_len %}
                 {% endif %}
+
+                <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                   class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
+                   data-tip="{{ tag.tag_type }}">
+                  <span>{{ tag.name }}</span>
+                </a>
+
+                {% set ns.line_chars = ns.line_chars + tag_chars %}
               {% endfor %}
+
+              {% if story.tags | length > 30 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 30 }}</span>{% endif %}
             </div>
           </template>
 
