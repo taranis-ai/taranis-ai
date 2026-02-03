@@ -1,8 +1,7 @@
 import mimetypes
-import re
 import uuid
 from base64 import b64decode
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Mapped, deferred, relationship
