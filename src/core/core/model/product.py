@@ -163,17 +163,9 @@ class Product(BaseModel):
         return {"error": f"Product {product_id} not updated"}, 500
 
     def get_file_name(self) -> str:
-        product_title = self.title
         mime_type = self.product_type.get_mimetype()
-
-        special_char_re = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
-        whitespace_re = re.compile(r"\s+")
-        stem = special_char_re.sub("", product_title)
-        stem = whitespace_re.sub("_", stem)
-        stem = stem.rstrip(" .")
-
         file_extension = mimetypes.guess_extension(mime_type, strict=False) or ""
-        return f"{stem}_{date.today().isoformat()}{file_extension}"
+        return f"product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
 
     @classmethod
     def get_render(cls, product_id: str):

@@ -1,11 +1,12 @@
 import base64
 import mimetypes
 import uuid
-from datetime import date
+from datetime import datetime
+
+from models.types import PRESENTER_TYPES
 
 from core.model.product import Product
 from core.model.product_type import ProductType
-from models.types import PRESENTER_TYPES
 from tests.functional.helpers import BaseTest
 
 
@@ -48,7 +49,7 @@ class TestPublishApi(BaseTest):
             product.update_render(base64.b64encode(file_bytes).decode())
             expected_mime = presenter.get_mimetype()
             extension = mimetypes.guess_extension(expected_mime, strict=False) or ""
-            expected_filename = f"Download_Product_{date.today().isoformat()}{extension}"
+            expected_filename = f"product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{extension}"
 
         try:
             response = client.get(self.concat_url(f"products/{product_id}/render"), headers=auth_header)
