@@ -57,38 +57,20 @@ class DashboardView(BaseView):
     @auth_required()
     def get_cluster(cls, cluster_name: str):
         try:
-            paging_data = parse_paging_data(request.args.to_dict(flat=False))
-            query_params = dict(paging_data.query_params or {})
-            page = paging_data.page or 1
-            limit = paging_data.limit or 50
-            order = paging_data.order or ""
-            query_params["page"] = page
-            if "limit" in query_params and "per_page" not in query_params:
-                query_params["per_page"] = query_params.pop("limit")
-            else:
-                query_params.setdefault("per_page", limit)
-            logger.debug(f"Fetching Cluster {cluster_name} with: {paging_data=}")
+            paging = parse_paging_data(request.args.to_dict(flat=False))
+            logger.debug(f"Fetching Cluster {cluster_name} with: {paging=}")
 
             cluster_endpoint = f"{Cluster._core_endpoint}/{cluster_name}"
-            response = CoreApi().api_get(cluster_endpoint, params=query_params)
-            if not response:
-                raise ValueError("Empty cluster response")
+            cluster = DataPersistenceLayer().get_objects_by_endpoint(Cluster, cluster_endpoint, paging)
 
-            items = [Cluster(**item) for item in response.get("items", [])]
-            total_count = response.get("total_count", len(items))
-            cluster = CacheObject(
-                items,
-                page=page,
-                limit=limit,
-                order=order,
-                total_count=total_count,
-                query_params=query_params,
-            )
+        except ValueError:
+            logger.exception(f"No cluster found for type: {cluster_name}")
+            cluster = None
         except Exception:
+            logger.exception(f"Error fetching cluster for type: {cluster_name}")
             cluster = None
 
         if not cluster:
-            logger.error(f"Error retrieving {cluster_name}")
             return render_template("errors/404.html", error="No cluster found"), 404
 
         if cluster_name in {"Country", "Location"}:
