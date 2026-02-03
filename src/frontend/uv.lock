@@ -1123,7 +1123,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "swagger-ui-py-x" },
-    { name = "taranis-models", specifier = ">=1.3.2.dev3" },
+    { name = "taranis-models", specifier = ">=1.3.3.dev2" },
     { name = "uuid7" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]
@@ -1131,16 +1131,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.3.dev1"
+version = "1.3.3.dev2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/5e/3ab3ab529eb359200f0070c8ff8b97b192200a0f69475bc2ea0d7ee071f2/taranis_models-1.3.3.dev1.tar.gz", hash = "sha256:a7990229c223b8b4a698e2b330a561493e8f1e5670d91b7c70286bbd6877a128", size = 28014, upload-time = "2026-01-26T15:23:11.364Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/23/13/74594281e0dc071c3eef3210243e4f2e239559f10d4753d0f225b56a39c7/taranis_models-1.3.3.dev2.tar.gz", hash = "sha256:81359bc07cdb86c22ed155ba259935480b30b4f97bb8a193a4529f61022ddb15", size = 27949, upload-time = "2026-02-03T09:49:50.992Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/8c/ffecd2416c29b3a24d2cbcd3babc42d3dbdd1dd0c79cdf25e464574c201b/taranis_models-1.3.3.dev1-py3-none-any.whl", hash = "sha256:759b04a2b841d9dc68710630fec18c346d78a46dd4bda01ff959663c945ddc06", size = 15571, upload-time = "2026-01-26T15:23:09.687Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/79/00658535d4f012252dce08db64ae5826af5a1c561f73f0ab158eb0147cfa/taranis_models-1.3.3.dev2-py3-none-any.whl", hash = "sha256:fcd4cd5bee8e3be3a03639ce8b4683551554e8fef10a631a3ec6a30f8149cd43", size = 15234, upload-time = "2026-02-03T09:49:49.691Z" },
 ]
 
 [[package]]
