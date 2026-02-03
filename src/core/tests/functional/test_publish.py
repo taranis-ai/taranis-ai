@@ -1,6 +1,4 @@
 import base64
-import mimetypes
-import uuid
 from datetime import datetime
 
 from models.types import PRESENTER_TYPES
@@ -30,33 +28,13 @@ class TestPublishApi(BaseTest):
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["title"] == cleanup_product["title"]
 
-    def test_rendered_product_download_returns_attachment(self, app, client, auth_header):
-        product_id = str(uuid.uuid4())
-        file_bytes = b"example product content"
+    def test_rendered_product_download_returns_attachment(self, app, client, auth_header, pdf_product):
+        file_bytes = b"This is a pdf"
+        pdf_product.update_render(base64.b64encode(file_bytes).decode())
+        expected_filename = f"product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.pdf"
 
-        with app.app_context():
-            presenter = ProductType.get_by_type(PRESENTER_TYPES.TEXT_PRESENTER)
-            assert presenter, "Expected default text presenter to exist"
-
-            product = Product.add(
-                {
-                    "id": product_id,
-                    "title": "Download Product",
-                    "description": "Functional download test",
-                    "product_type_id": presenter.id,
-                }
-            )
-            product.update_render(base64.b64encode(file_bytes).decode())
-            expected_mime = presenter.get_mimetype()
-            extension = mimetypes.guess_extension(expected_mime, strict=False) or ""
-            expected_filename = f"product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{extension}"
-
-        try:
-            response = client.get(self.concat_url(f"products/{product_id}/render"), headers=auth_header)
-            assert response.status_code == 200
-            assert response.data == file_bytes
-            assert response.mimetype == expected_mime
-            assert response.headers.get("Content-Disposition") == f'attachment; filename="{expected_filename}"'
-        finally:
-            with app.app_context():
-                Product.delete(product_id)
+        response = client.get(self.concat_url(f"products/{pdf_product.id}/render"), headers=auth_header)
+        assert response.status_code == 200
+        assert response.data == file_bytes
+        assert response.mimetype == "application/pdf"
+        assert response.headers.get("Content-Disposition") == f'attachment; filename="{expected_filename}"'
