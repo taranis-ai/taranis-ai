@@ -115,11 +115,10 @@ class DashboardView(BaseView):
     @auth_required()
     def story_conflict_view(cls):
         result = CoreApi().get_story_conflicts()
-        if result is None:
-            return render_template("errors/404.html", error="No story conflicts found"), 404
-        conflict_list = [cls._build_story_conflict_payload(conflict) for conflict in result.get("conflicts", [])]
-        template = "conflicts/_story_conflicts_list.html" if is_htmx_request() else "conflicts/story_conflicts.html"
-        return render_template(template, story_conflicts=conflict_list)
+        if result is not None:
+            conflict_list = [cls._build_story_conflict_payload(conflict) for conflict in result.get("conflicts", [])]
+            template = "conflicts/_story_conflicts_list.html" if is_htmx_request() else "conflicts/story_conflicts.html"
+            return render_template(template, story_conflicts=conflict_list)
 
     @classmethod
     @auth_required()

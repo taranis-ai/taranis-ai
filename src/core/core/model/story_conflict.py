@@ -46,10 +46,6 @@ class StoryConflict:
             has_proposals=self.has_proposals,
         ).model_dump()
 
-    @classmethod
-    def get_conflict_count(cls) -> int:
-        return len(set(StoryConflict.conflict_store.keys()))
-
     def resolve(self, resolution: dict[str, Any], user: User) -> tuple[dict[str, Any], int]:
         from core.model.story import Story
 

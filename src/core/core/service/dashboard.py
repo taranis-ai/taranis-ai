@@ -18,7 +18,7 @@ class DashboardService:
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
         schedule_length = schedule_manager.schedule.get_periodic_tasks().get("total_count", 0)
-        conflict_count = StoryConflict.get_conflict_count() + len(NewsItemConflict.conflict_store)
+        conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         return {
             "items": [
                 {
