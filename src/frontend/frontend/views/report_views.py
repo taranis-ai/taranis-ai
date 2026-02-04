@@ -74,6 +74,10 @@ class ReportItemView(BaseView):
         report = context.get("report")
         if not report:
             return context
+        if title := request.values.get("title"):
+            report.title = title
+        if report_item_type_id := request.values.get("report_item_type_id"):
+            report.report_item_type_id = report_item_type_id
         if story_ids := request.args.getlist("story_ids"):
             report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
             context["report"] = report
@@ -132,6 +136,7 @@ class ReportItemView(BaseView):
         try:
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
+            form_data.pop("layout", None)
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:

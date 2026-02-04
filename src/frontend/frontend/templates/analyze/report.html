@@ -52,8 +52,22 @@
         </div>
       {% endif %}
       <div class="join">
-        <a href="?layout=split" class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
-        <a href="?layout=stacked" class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
+        <a href="?layout=split"
+           hx-get="?layout=split"
+           hx-include="#report_form"
+           hx-target="#report"
+           hx-target-error="#report"
+           hx-swap="outerHTML"
+           hx-select="#report"
+           class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
+        <a href="?layout=stacked"
+           hx-get="?layout=stacked"
+           hx-include="#report_form"
+           hx-target="#report"
+           hx-target-error="#report"
+           hx-swap="outerHTML"
+           hx-select="#report"
+           class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
       </div>
     </div>
 
@@ -64,7 +78,7 @@
           hx-target="{{ form_target }}"
           hx-target-error="{{ form_target }}"
           hx-select="{{ form_target }}">
-      {% if is_edit %}<input type="hidden" name="layout" value="{{ layout }}">{% endif %}
+      <input type="hidden" name="layout" value="{{ layout }}">
 
       {% include "partials/admin_form_error.html" %}
 
