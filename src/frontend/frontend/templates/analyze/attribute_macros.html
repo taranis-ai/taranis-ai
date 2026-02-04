@@ -81,6 +81,7 @@
     {% elif attr.type == 'STORY' %}
       {% set selected_values = value.split(',') if value else [] %}
       <div class="w-full">
+        <input type="hidden" name="{{ base_name }}[]" value="">
         <select id="attribute_story_{{ attr.id }}" name="{{ base_name }}[]" multiple>
           {% for story in stories %}
             <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title }}</option>
