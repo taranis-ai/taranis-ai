@@ -141,14 +141,14 @@
       {% if story.tags %}
         <div class="w-full max-w-full">
           <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
-            <div class="lg:flex-shrink-0 lg:w-1/3 min-w-0 max-w-full overflow-x-hidden">
+            <div class="lg:flex-shrink-0 lg:w-1/3 min-w-0 max-w-full">
 
               <template x-if="!isOpen">
                 <div class="flex flex-wrap gap-1">
                   {% set limit = 5 %}
                   {% for tag in story.tags[:limit] if tag.name %}
                     <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs max-w-full truncate">
-                      <span class="truncate">{{ tag.name }}</span>
+                      <span>{{ tag.name }}</span>
                     </a>
                   {% endfor %}
                   {% if story.tags|length > limit %}<span class="badge badge-outline badge-xs">+{{ story.tags|length - limit }}</span>{% endif %}
@@ -160,9 +160,9 @@
                   {% set limit = 30 %}
                   {% for tag in story.tags[:limit] if tag.name %}
                     <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                       class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full truncate"
+                       class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full"
                        data-tip="{{ tag.tag_type }}">
-                      <span class="truncate">{{ tag.name }}</span>
+                      <span>{{ tag.name }}</span>
                     </a>
                   {% endfor %}
                   {% if story.tags|length > limit %}<span class="badge badge-outline badge-xs">+{{ story.tags|length - limit }}</span>{% endif %}
