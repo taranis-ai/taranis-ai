@@ -10,7 +10,6 @@ from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import cache
-from frontend.cache_models import CacheObject
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
