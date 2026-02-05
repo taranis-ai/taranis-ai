@@ -155,9 +155,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
 
         def delete_test_report():
-            report_id = page.get_by_test_id("report-id").input_value()
+            report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
             page.get_by_role("link", name="Analyze").click()
-            page.get_by_test_id(f"action-delete-{report_id}").click()
+            page.get_by_test_id(f"action-delete-{report_uuid}").click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
 
@@ -235,7 +235,6 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
 
             test_report_item_view()
-            delete_test_report()
             test_remove_story_from_report()
             test_story_in_report_assess_view()
             test_create_product_from_report()
@@ -243,6 +242,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         go_to_analyze()
         check_report_view_layout_changes()
+        delete_test_report()
         go_to_analyze()
         report_uuid = create_report()
         add_stories_to_report()

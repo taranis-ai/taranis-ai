@@ -1,0 +1,25 @@
+{# templates/macros/news_item_conflict.html #}
+
+{% macro render_news_item(news_item, is_existing=False, is_duplicate_incoming=False, is_conflicting=False) %}
+
+  {# Start with an empty list of CSS classes #}
+  {% set css_classes = [] %}
+
+  {# Add grey class for existing items #}
+  {% if is_existing %}
+    {% set css_classes = css_classes + ["text-gray-500", "opacity-60"] %}
+  {% endif %}
+
+  {# Add red class for conflicting items #}
+  {% if is_conflicting %}
+    {% set css_classes = css_classes + ["text-red-600", "font-semibold"] %}
+  {% endif %}
+
+  {# Add blue class for duplicate incoming items #}
+  {% if is_duplicate_incoming %}
+    {% set css_classes = css_classes + ["text-blue-700", "font-semibold"] %}
+  {% endif %}
+
+  <li class="{{ css_classes | join(' ') }}">{{ news_item.title or "Untitled News Item" }}</li>
+
+{% endmacro %}
