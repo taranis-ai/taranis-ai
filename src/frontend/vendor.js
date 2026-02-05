@@ -1,5 +1,4 @@
 import htmx from "npm:htmx.org";
-import htmxResponseTargets from "npm:htmx-ext-response-targets";
 import Alpine from "npm:alpinejs";
 
 import Sortable from "npm:sortablejs";
@@ -9,6 +8,7 @@ import Swal from "npm:sweetalert2";
 import { highlightSearchTerm } from "npm:highlight-search-term";
 
 import "npm:choices.js/public/assets/styles/choices.min.css";
+import "npm:htmx-ext-response-targets";
 import "npm:sweetalert2/dist/sweetalert2.min.css";
 
 window.htmx = htmx;
