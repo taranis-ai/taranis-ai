@@ -609,16 +609,16 @@ def story_item_list(fake_source):
                     "published": "2023-08-01T17:01:04.801998",
                 }
             ],
-            # "tags": {
-            #     "this": {"name": "this", "tag_type": "misc"},
-            #     "is": {"name": "is", "tag_type": "misc"},
-            #     "tag": {"name": "tag", "tag_type": "misc"},
-            # },
-            # "attributes": {
-            #     "attribute": {"key": "attribute", "value": "custom"},
-            #     "hip": {"key": "hip", "value": "hop"},
-            #     "cloth": {"key": "cloth", "attribute_type": "short"},
-            # },
+            "tags": {
+                "this": {"name": "this", "tag_type": "misc"},
+                "is": {"name": "is", "tag_type": "misc"},
+                "tag": {"name": "tag", "tag_type": "misc"},
+            },
+            "attributes": {
+                "attribute": {"key": "attribute", "value": "custom"},
+                "hip": {"key": "hip", "value": "hop"},
+                "cloth": {"key": "cloth", "attribute_type": "short"},
+            },
         },
         {
             "id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
@@ -630,8 +630,8 @@ def story_item_list(fake_source):
             "likes": 0,
             "dislikes": 0,
             "relevance": 0,
-            "comments": "",
-            "summary": "",
+            "comments": "test comment",
+            "summary": "test summary",
             "news_items": [
                 {
                     "review": "",
@@ -664,12 +664,12 @@ def story_item_list(fake_source):
                     "published": "2024-07-12T20:00:00.000000",
                 },
             ],
-            # "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
-            # "attributes": [
-            #     {"key": "severity", "value": "high"},
-            #     {"key": "impact", "value": "critical"},
-            #     {"key": "status", "value": "investigating"},
-            # ],
+            "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
+            "attributes": [
+                {"key": "severity", "value": "high"},
+                {"key": "impact", "value": "critical"},
+                {"key": "status", "value": "investigating"},
+            ],
         },
     ]
 

@@ -118,6 +118,49 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("analyze")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
+        def check_report_view_layout_changes():
+            page.get_by_test_id("new-report-button").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title").fill("test title")
+            page.get_by_label("Report Type Select a report").select_option("4")
+            page.get_by_role("link", name="Stacked view").click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
+            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            page.get_by_role("link", name="Split view").click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
+            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            page.get_by_test_id("save-report").click()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_placeholder("Date")).to_be_visible()
+            expect(page.get_by_placeholder("Timeframe")).to_be_visible()
+            expect(page.get_by_placeholder("Handler", exact=True)).to_be_visible()
+            expect(page.get_by_placeholder("CO-Handler")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="news")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="vulnerabilities")).to_be_visible()
+            page.get_by_placeholder("Date").fill("today")
+            page.get_by_placeholder("Timeframe").fill("last week")
+            page.get_by_placeholder("Handler", exact=True).fill("me")
+            page.get_by_placeholder("CO-Handler").fill("you")
+            page.get_by_test_id("save-report").click()
+            page.get_by_placeholder("Date").fill("yesterday")
+            page.get_by_role("link", name="Stacked view").click()
+            expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
+            page.get_by_role("link", name="Split view").click()
+            expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+
+        def delete_test_report():
+            report_id = page.get_by_test_id("report-id").input_value()
+            page.get_by_role("link", name="Analyze").click()
+            page.get_by_test_id(f"action-delete-{report_id}").click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+
         def create_report():
             page.get_by_test_id("new-report-button").click()
             page.get_by_role("textbox", name="Title").fill("Test report")
@@ -153,6 +196,11 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
         def verify_report_actions(report_uuid: str):
+            def test_report_item_view():
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_role("link", name="Test report").click()
+                expect(page.get_by_role("paragraph")).to_contain_text("test summary")
+
             def test_remove_story_from_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_role("link", name="Test report").click()
@@ -174,7 +222,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             def test_clone_and_delete_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
-                page.pause()
                 cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
                 assert cloned_report is not None
                 clone_report_href = cloned_report.get_attribute("href")
@@ -187,11 +234,15 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
 
+            test_report_item_view()
+            delete_test_report()
             test_remove_story_from_report()
             test_story_in_report_assess_view()
             test_create_product_from_report()
             test_clone_and_delete_report()
 
+        go_to_analyze()
+        check_report_view_layout_changes()
         go_to_analyze()
         report_uuid = create_report()
         add_stories_to_report()
