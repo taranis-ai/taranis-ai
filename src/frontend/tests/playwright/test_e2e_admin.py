@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -387,7 +387,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_word_list()
         remove_word_list()
 
-    def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors):
+    # TODO: remove pre_seed_report_type_all_attribute_types once cache invalidation on backend changes is implemented (needed for check_various_report_type_fields())
+    def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_type_all_attribute_types):
         page = logged_in_page
 
         report_type_title = f"Test Report {uuid.uuid4().hex[:6]}"

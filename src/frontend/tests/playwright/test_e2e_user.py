@@ -283,6 +283,8 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             def add_stories_to_new_report():
                 page.get_by_role("link", name="Assess").click()
+                page.get_by_placeholder("Search stories").fill(story_search_term)
+                page.get_by_placeholder("Search stories").press("Enter")
                 page.get_by_role("heading", name=report_story_one["title"]).click()
                 page.get_by_role("heading", name=report_story_two["title"]).click()
                 expect(page.get_by_role("button", name="Cluster")).to_be_visible()
