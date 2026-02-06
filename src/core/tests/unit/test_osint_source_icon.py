@@ -103,6 +103,8 @@ def test_export_adds_use_feed_content_false_when_missing(session):
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
     )
 
+    source.parameters = []
+
     session.add(source)
     session.commit()
 
