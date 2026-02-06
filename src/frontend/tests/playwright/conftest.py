@@ -514,6 +514,60 @@ def pre_seed_report_stories(story_item_list, run_core, api_header, access_token)
     yield story_item_list
 
 
+ALL_ATTRIBUTE_TYPES = {
+    "STRING",
+    "NUMBER",
+    "BOOLEAN",
+    "RADIO",
+    "ENUM",
+    "TEXT",
+    "RICH_TEXT",
+    "DATE",
+    "TIME",
+    "DATE_TIME",
+    "LINK",
+    "ATTACHMENT",
+    "TLP",
+    "CPE",
+    "CVE",
+    "CVSS",
+    "STORY",
+}
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_type_all_attribute_types(run_core, access_token):
+    from testdata.report_item_type_all_attribute_types import report_definition
+
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
+    r.raise_for_status()
+    items = r.json()["items"]
+
+    # Build lookups
+    by_name = {a["name"]: a for a in items}
+    available_types = {a["type"] for a in items if "type" in a}
+
+    # Assert: the report covers all AttributeTypes present in the system
+    referenced_names = [item["attribute"] for g in report_definition["attribute_groups"] for item in g["attribute_group_items"]]
+    referenced_types = {by_name[name]["type"] for name in referenced_names}
+    missing_types = sorted(available_types - referenced_types)
+    assert not missing_types, (
+        f"Report does not cover all AttributeTypes present in the system. Missing: {missing_types}. Covered: {sorted(referenced_types)}"
+    )
+
+    # Assert: system has no unexpected AttributeTypes (i.e., new types were added)
+    unexpected_types = sorted(available_types - ALL_ATTRIBUTE_TYPES)
+    assert not unexpected_types, f"System has unexpected AttributeTypes: {unexpected_types}"
+
+    r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
+    r.raise_for_status()
+
+
 @pytest.fixture(scope="session")
 def test_osint_source():
     # get absoulute path to testdata/test_osint_source.json
