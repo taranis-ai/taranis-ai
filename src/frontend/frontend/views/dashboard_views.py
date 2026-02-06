@@ -1,5 +1,3 @@
-import json
-
 import pandas as pd
 import plotly.express as px
 from flask import abort, render_template, request, url_for
@@ -45,16 +43,6 @@ class DashboardView(BaseView):
         except Exception:
             trending_clusters = []
             dashboard_config = ProfileSettingsDashboard()
-
-        if request.headers.get("HX-Request") == "true" and request.args.get("fragment") == "trending":
-            return (
-                render_template(
-                    "partials/trending_clusters.html",
-                    clusters=trending_clusters,
-                    dashboard_config=dashboard_config,
-                ),
-                200,
-            )
 
         return (
             render_template(
@@ -160,7 +148,7 @@ class DashboardView(BaseView):
             self.add_flash_notification(core_response)
             return Response(
                 status=204,
-                headers={"HX-Redirect": url_for("base.dashboard"), "HX-Trigger": json.dumps({"trendingClustersUpdated": True})},
+                headers={"HX-Redirect": url_for("base.dashboard")},
             )
 
         return Response(notification_html, status=core_response.status_code or 400)
