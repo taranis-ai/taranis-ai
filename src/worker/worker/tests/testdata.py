@@ -1,5 +1,7 @@
 import datetime
+
 from worker.types import NewsItem
+
 
 story_1 = {
     "id": "1",

@@ -1,7 +1,8 @@
 import importlib.util
-import pytest
 import os
 import sys
+
+import pytest
 
 
 class TestWorkerApi:

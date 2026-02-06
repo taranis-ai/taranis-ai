@@ -2,7 +2,6 @@ from datetime import datetime
 from functools import cached_property
 from typing import Literal
 
-
 from models.base import TaranisBaseModel
 
 

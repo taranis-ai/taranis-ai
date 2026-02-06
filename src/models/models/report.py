@@ -1,5 +1,6 @@
-from typing import ClassVar, Final
 from datetime import datetime
+from typing import ClassVar, Final
+
 from pydantic import Field
 
 from models.admin import ReportItemAttribute

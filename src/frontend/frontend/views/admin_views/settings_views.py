@@ -1,11 +1,11 @@
-from flask import request, render_template, url_for
-
+from flask import render_template, request, url_for
 from models.admin import Settings
-from frontend.views.base_view import BaseView
-from frontend.log import logger
+
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class SettingsView(AdminMixin, BaseView):

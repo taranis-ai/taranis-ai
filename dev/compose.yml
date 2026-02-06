@@ -16,17 +16,28 @@ services:
     volumes:
       - "database_data:/var/lib/postgresql/data"
 
-  rabbitmq:
-    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/rabbitmq:latest"
+  redis:
+    image: "redis:8-alpine"
     ports:
-      - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
-      - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
+      - "${TARANIS_REDIS_PORT:-6379}:6379"
     volumes:
-      - "rabbitmq_data:/var/lib/rabbitmq/"
+      - "redis_data:/data"
     environment:
-      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-supersecret}"
+      - "REDIS_PASSWORD=${REDIS_PASSWORD:-supersecret}"
+    command:
+      [
+        "redis-server",
+        "--requirepass", "${REDIS_PASSWORD}",
+        "--appendonly", "yes",
+        "--dir", "/data"
+      ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      start_period: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   database_data:
-  rabbitmq_data:
+  redis_data:

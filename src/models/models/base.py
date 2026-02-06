@@ -1,5 +1,7 @@
-from pydantic import BaseModel, ConfigDict
 from typing import ClassVar, TypeVar
+
+from pydantic import BaseModel, ConfigDict
+
 
 T = TypeVar("T", bound="TaranisBaseModel")
 

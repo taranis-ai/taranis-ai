@@ -1,4 +1,5 @@
 from typing import cast
+
 from flask import current_app
 from jinja2 import TemplateNotFound
 

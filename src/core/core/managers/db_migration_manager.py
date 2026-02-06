@@ -1,8 +1,9 @@
-from yoyo import read_migrations
-from yoyo import get_backend
-from core.log import logger
-from core.config import Config
 from typing import Literal
+
+from yoyo import get_backend, read_migrations
+
+from core.config import Config
+from core.log import logger
 
 
 def is_postgresql(uri: str) -> bool:

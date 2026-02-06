@@ -1,12 +1,13 @@
 import ast
 import json
 from typing import Any, cast
+
 from pymisp import PyMISP
 
-from worker.config import Config
 from worker.collectors.base_collector import BaseCollector
-from worker.types import NewsItem
+from worker.config import Config
 from worker.log import logger
+from worker.types import NewsItem
 
 
 class MispCollector(BaseCollector):

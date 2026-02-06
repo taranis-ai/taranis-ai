@@ -1,5 +1,6 @@
 from worker.config import Config
 
+
 rt_collector_source_data = {
     "id": 1,
     "parameters": {

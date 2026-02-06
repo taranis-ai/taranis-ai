@@ -1,7 +1,9 @@
 import random
-from typing import Dict, List
 import string
+from typing import Dict, List
+
 from worker.bots.nlp_bot import NLPBot
+
 
 nlpbot: NLPBot
 

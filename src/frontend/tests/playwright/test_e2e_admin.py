@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     CACHE_KEY_PREFIX: str = "taranis_frontend"
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_PASSWORD: str | None = None
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

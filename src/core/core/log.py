@@ -2,7 +2,6 @@ import logging
 import logging.handlers
 import socket
 import sys
-import traceback
 from typing import Optional
 
 from flask import request
@@ -36,25 +35,23 @@ class TaranisLogger:
 
         self.logger.addHandler(stream_handler)
 
-    def debug(self, message):
-        self.logger.debug(message)
+    def debug(self, message, *args, **kwargs):
+        self.logger.debug(message, *args, **kwargs)
 
-    def exception(self, message=None):
-        if message:
-            self.logger.debug(message)
-        self.logger.debug(traceback.format_exc())
+    def exception(self, message=None, *args, **kwargs):
+        self.logger.exception(message, *args, **kwargs)
 
-    def info(self, message):
-        self.logger.info(message)
+    def info(self, message, *args, **kwargs):
+        self.logger.info(message, *args, **kwargs)
 
-    def critical(self, message):
-        self.logger.critical(message)
+    def critical(self, message, *args, **kwargs):
+        self.logger.critical(message, *args, **kwargs)
 
-    def warning(self, message):
-        self.logger.warning(message)
+    def warning(self, message, *args, **kwargs):
+        self.logger.warning(message, *args, **kwargs)
 
-    def error(self, message):
-        self.logger.error(message)
+    def error(self, message, *args, **kwargs):
+        self.logger.error(message, *args, **kwargs)
 
 
 class TaranisLogFormatter(logging.Formatter):

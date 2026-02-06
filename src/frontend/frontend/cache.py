@@ -1,10 +1,12 @@
-from flask_caching import Cache
 from typing import TypeVar
 
-from frontend.config import Config
-from models.user import UserProfile
-from frontend.log import logger
+from flask_caching import Cache
 from models.base import TaranisBaseModel
+from models.user import UserProfile
+
+from frontend.config import Config
+from frontend.log import logger
+
 
 cache = Cache()
 T = TypeVar("T", bound="TaranisBaseModel")

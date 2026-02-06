@@ -1,6 +1,7 @@
 from flask import Response
-from core.log import logger
+
 from core.auth.base_authenticator import BaseAuthenticator
+from core.log import logger
 
 
 users = {"user": "user", "admin": "admin"}

@@ -1,12 +1,11 @@
-from flask import render_template, abort
-
-
+from flask import abort, render_template
 from models.dashboard import Dashboard
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+
+from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.config import Config
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class AdminDashboardView(AdminMixin, BaseView):
