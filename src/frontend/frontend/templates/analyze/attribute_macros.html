@@ -10,11 +10,11 @@
   {% set required = attr.required %}
   <div class="mb-5">
     {% if attr.type in ['TEXT', 'RICH_TEXT'] %}
-      {{ form_textarea(name=base_name, value=value, placeholder=description, required=required) }}
+      {{ form_textarea(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id) }}
     {% elif attr.type == 'STRING' %}
-      {{ form_input_content(name=base_name, value=value, placeholder=description, required=required, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id) }}
     {% elif attr.type == 'NUMBER' %}
-      {{ form_input_content(name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id) }}
     {% elif attr.type == 'BOOLEAN' %}
       {{ form_switch(name=base_name, value=value, label=label, required=required, input_id=field_id) }}
     {% elif attr.type in ['ENUM', 'CPE'] %}
@@ -70,10 +70,10 @@
       </label>
 
     {% elif attr.type == 'CVE' %}
-      {{ form_input_content(name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', read_only=read_only, input_id=field_id) }}
 
     {% elif attr.type == 'CVSS' %}
-      {{ form_input_content(name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', read_only=read_only, input_id=field_id) }}
       <p class="text-xs text-base-content/60 mt-1">
         Use the <a href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator" target="_blank">NVD CVSS calculator</a> to determine the score.
       </p>

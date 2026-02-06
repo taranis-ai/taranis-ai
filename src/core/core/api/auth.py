@@ -60,7 +60,9 @@ class UserChangePassword(MethodView):
         logger.debug(f"Received request to change password. - {request.json}")
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
-        return auth_manager.change_password(json_data.get("current_password", ""), json_data.get("new_password", ""))
+        return auth_manager.change_password(
+            json_data.get("current_password", ""), json_data.get("new_password", ""), json_data.get("confirm_password", "")
+        )
 
 
 def initialize(app: Flask):

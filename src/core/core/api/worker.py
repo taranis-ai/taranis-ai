@@ -173,7 +173,7 @@ class DropTags(MethodView):
 
 class BotInfo(MethodView):
     @api_key_required
-    @extract_args("search")
+    @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
             return Bot.get_all_for_api(filter_args)
@@ -201,7 +201,7 @@ class PostCollectionBots(MethodView):
 
 class WordLists(MethodView):
     @api_key_required
-    @extract_args("search", "usage", "with_entries")
+    @extract_args("search", "usage", "with_entries", "fetch_all")
     def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
             return WordList.get_for_api(word_list_id)

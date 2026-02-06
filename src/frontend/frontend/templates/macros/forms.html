@@ -1,18 +1,20 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full') %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', data_testid=None) %}
   {% from "macros/forms.html" import form_input_content %}
   <div class="mb-5 {{ width }} flex flex-row">
-    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg) }}
+    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg, data_testid=data_testid) }}
     {% if error %}<div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>{% endif %}
   </div>
 {% endmacro %}
 
-{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full') %}
+{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full', data_testid=None) %}
+  {# djlint:off #}
   <label class="select mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
     <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
             name="{{ name }}"
             {% if required %}required{% endif %}
             {% if disabled %}disabled{% endif %}
+            {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
             class="validator select w-full">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options %}
@@ -20,9 +22,11 @@
       {% endfor %}
     </select>
   </label>
+  {# djlint:on #}
 {% endmacro %}
 
-{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False) %}
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False, data_testid=None) %}
+  {# djlint:off #}
   <label class="floating-label {{ width }}">
     <span class="label">{{ label }}
       {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
@@ -38,8 +42,10 @@
            {% if required %}required aria-required="true"{% endif %}
            {% if read_only %}readonly{% endif %}
            {% if type != 'password' %}autocomplete="off"{% endif %}
+           {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
            {% if preserve %}hx-preserve{% endif %} />
   </label>
+  {# djlint:on #}
 {% endmacro %}
 
 {% macro form_textarea(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full', input_class='') %}
