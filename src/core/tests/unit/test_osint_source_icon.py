@@ -94,24 +94,17 @@ def test_pre_seed_update_removes_invalid_icons(session):
     assert updated.icon is None
 
 
-@pytest.mark.usefixtures("app")
-def test_export_adds_use_feed_content_false_when_missing(session):
+def test_export_adds_use_feed_content_false_when_missing():
     source = OSINTSource(name="Test", description="Test", type=COLLECTOR_TYPES.RSS_COLLECTOR)
-    session.add(source)
-    session.commit()
 
     result = source.get_export_parameters()
 
     assert {"USE_FEED_CONTENT": "false"} in result
 
 
-@pytest.mark.usefixtures("app")
-def test_export_adds_use_feed_content_true_when_content_location_present(session):
+def test_export_adds_use_feed_content_true_when_content_location_present():
     source = OSINTSource(name="Test", description="Test", type=COLLECTOR_TYPES.RSS_COLLECTOR)
-    param = ParameterValue(parameter="CONTENT_LOCATION", value="description")
-    source.parameters = [param]
-    session.add(source)
-    session.commit()
+    source.parameters = [ParameterValue(parameter="CONTENT_LOCATION", value="description")]
 
     result = source.get_export_parameters()
 
