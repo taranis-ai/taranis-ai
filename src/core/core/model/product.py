@@ -1,3 +1,4 @@
+import mimetypes
 import uuid
 from base64 import b64decode
 from datetime import datetime, timedelta
@@ -160,20 +161,20 @@ class Product(BaseModel):
             return {"message": f"Product {product_id} updated"}, 200
         return {"error": f"Product {product_id} not updated"}, 500
 
+    def get_file_name(self) -> str:
+        product_title = self.title
+        mime_type = self.product_type.get_mimetype()
+
+        file_extension = mimetypes.guess_extension(mime_type, strict=False)
+        if file_extension == ".stix":
+            file_extension = ".json"
+        return f"{product_title}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
+
     @classmethod
     def get_render(cls, product_id: str):
         if product := cls.get(product_id):
             if product.render_result:
-                mime_type = product.product_type.get_mimetype()
-                if mime_type in [
-                    "application/pdf",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "application/vnd.oasis.opendocument.text",
-                ]:
-                    blob = product.render_result
-                else:
-                    blob = b64decode(product.render_result).decode("utf-8")
-                return {"mime_type": mime_type, "blob": blob}
+                return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
         return None
 
     @classmethod

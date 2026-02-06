@@ -59,10 +59,17 @@ class ProductView(BaseView):
         error = "Failed to download product"
         try:
             core_resp = CoreApi().download_product(product_id)
-            if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+            if core_resp.ok:
+                return CoreApi.stream_proxy(core_resp, "products_export")
 
-            return CoreApi.stream_proxy(core_resp, "products_export.json")
+            try:
+                error_payload = core_resp.json()
+            except ValueError:
+                error = core_resp.text or "Unknown error"
+            else:
+                error = error_payload.get("error", "Unknown error")
+
+            logger.error(f"Download product failed with status {core_resp.status_code}: {error}")
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"

@@ -1,3 +1,5 @@
+from base64 import b64decode
+
 from flask import Response
 from sqlalchemy import select
 
@@ -16,7 +18,13 @@ class ProductService:
             logger.debug(f"Failed to render product {product_id}: {render_error.to_dict()}")
             return {"error": render_error.result}, 200
         if product_data := Product.get_render(product_id):
-            return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
+            binary = b64decode(product_data["blob"])
+            return Response(
+                binary,
+                mimetype=product_data["mime_type"],
+                headers={"Content-Disposition": f'attachment; filename="{product_data["filename"]}"'},
+                status=200,
+            )
         return {"error": f"Product {product_id} not found"}, 404
 
     @classmethod

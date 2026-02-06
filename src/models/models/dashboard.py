@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field
 
@@ -39,3 +40,28 @@ class Cluster(TaranisBaseModel):
 
     name: str
     size: int | None = None
+
+
+class StoryConflict(TaranisBaseModel):
+    _core_endpoint = "connectors/conflicts/story-conflicts"
+    _cache_timeout = 5
+    _model_name = "story_conflicts"
+    _pretty_name = "Story Conflicts"
+
+    story_id: str
+    existing_story: str
+    incoming_story: str
+    has_proposals: str | None = None
+
+
+class NewsItemConflict(TaranisBaseModel):
+    _core_endpoint = "/connectors/conflicts/news-items"
+    _cache_timeout = 5
+    _model_name = "news_item_conflict"
+    _pretty_name = "News Item Conflicts"
+
+    incoming_story_id: str
+    news_item_id: str
+    existing_story_id: str
+    incoming_story: dict[str, Any]
+    misp_address: str | None = None

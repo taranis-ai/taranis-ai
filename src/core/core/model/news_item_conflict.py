@@ -2,8 +2,9 @@ import copy
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Iterable, Optional
 
+from models.dashboard import NewsItemConflict as NewsItemConflictModel
+
 from core.log import logger
-from core.model.news_item import NewsItem
 from core.model.settings import Settings
 from core.model.user import User
 
@@ -13,15 +14,11 @@ class NewsItemConflict:
     incoming_story_id: str
     news_item_id: str
     existing_story_id: str
-    incoming_story_data: dict[str, Any]
-    misp_address: str = ""
+    incoming_story: dict[str, Any]
+    misp_address: str | None = None
 
     conflict_store: ClassVar[Dict[str, "NewsItemConflict"]] = {}
     story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
-
-    @classmethod
-    def _key(cls, incoming_story_id: str, news_item_id: str) -> str:
-        return f"{incoming_story_id}:{news_item_id}"
 
     @classmethod
     def register(
@@ -29,18 +26,17 @@ class NewsItemConflict:
         incoming_story_id: str,
         news_item_id: str,
         existing_story_id: str,
-        incoming_story_data: dict[str, Any],
-        misp_address: str = "",
+        incoming_story: dict[str, Any],
+        misp_address: str | None = None,
     ) -> "NewsItemConflict":
-        key = cls._key(incoming_story_id, news_item_id)
-        story_data_copy = copy.deepcopy(incoming_story_data)
-
+        key = f"{incoming_story_id}:{news_item_id}"
+        story_data_copy = copy.deepcopy(incoming_story)
         cls.story_index[incoming_story_id] = story_data_copy
 
         if key in cls.conflict_store:
             existing_conflict = cls.conflict_store[key]
             existing_conflict.existing_story_id = existing_story_id
-            existing_conflict.incoming_story_data = story_data_copy
+            existing_conflict.incoming_story = story_data_copy
             logger.debug(f"Updated conflict {key} -> existing_story_id={existing_story_id}")
             return existing_conflict
 
@@ -48,12 +44,18 @@ class NewsItemConflict:
             incoming_story_id=incoming_story_id,
             news_item_id=news_item_id,
             existing_story_id=existing_story_id,
-            incoming_story_data=story_data_copy,
+            incoming_story=story_data_copy,
             misp_address=misp_address,
         )
         cls.conflict_store[key] = conflict
         logger.debug(f"Registered conflict {key}")
-        return conflict
+        return NewsItemConflictModel(
+            incoming_story_id=conflict.incoming_story_id,
+            news_item_id=conflict.news_item_id,
+            existing_story_id=conflict.existing_story_id,
+            incoming_story=conflict.incoming_story,
+            misp_address=conflict.misp_address or None,
+        ).model_dump()
 
     @classmethod
     def set_for_story(cls, incoming_story_id: str, entries: Iterable[dict[str, Any]]) -> int:
@@ -73,8 +75,8 @@ class NewsItemConflict:
                     incoming_story_id=incoming_story_id,
                     news_item_id=entry["news_item_id"],
                     existing_story_id=entry["existing_story_id"],
-                    incoming_story_data=payload,
-                    misp_address=entry.get("misp_address", ""),
+                    incoming_story=payload,
+                    misp_address=entry.get("misp_address"),
                 )
                 count += 1
             else:
@@ -138,19 +140,13 @@ class NewsItemConflict:
 
         logger.info("Reevaluation of News Item conflicts ended")
 
-    def to_dict(self) -> dict:
-        title = None
-        if news_item := NewsItem.get(self.news_item_id):
-            title = news_item.title
-        else:
-            logger.warning(f"News item {self.news_item_id} not found while resolving conflict display")
-
+    def to_dict(self) -> dict[str, Any]:
         return {
             "incoming_story_id": self.incoming_story_id,
             "news_item_id": self.news_item_id,
             "existing_story_id": self.existing_story_id,
-            "incoming_story": self.incoming_story_data,
-            "title": title or "Unknown",
+            "incoming_story": self.incoming_story,
+            "misp_address": self.misp_address,
         }
 
     @classmethod
@@ -161,8 +157,8 @@ class NewsItemConflict:
             return {"error": "Missing story_ids or news_item_ids"}, 400
 
         incoming_story = data.get("incoming_story")
-        story_ids = data.get("existing_story_ids")
-        news_item_ids = data.get("incoming_news_item_ids")
+        story_ids: list[str] = data.get("existing_story_ids", [])
+        news_item_ids: list[str] = data.get("incoming_news_item_ids", [])
 
         if not story_ids or not news_item_ids or not incoming_story:
             return {"error": "Missing story_ids or news_item_ids or incoming story"}, 400
