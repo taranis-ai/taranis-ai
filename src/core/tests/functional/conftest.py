@@ -1,3 +1,4 @@
+import uuid
 from copy import deepcopy
 
 import pytest
@@ -182,6 +183,29 @@ def cleanup_product(app):
             "product_type_id": text_presenter.id,
         }
 
+        Product.delete_all()
+
+
+@pytest.fixture(scope="class")
+def pdf_product(app):
+    with app.app_context():
+        from models.types import PRESENTER_TYPES
+
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+
+        pdf_presenter = ProductType.get_by_type(PRESENTER_TYPES.PDF_PRESENTER)
+        if not pdf_presenter:
+            raise ValueError("No pdf presenter found")
+
+        product_data = {
+            "id": str(uuid.uuid4()),
+            "title": "Test Product",
+            "description": "This is a test product",
+            "product_type_id": pdf_presenter.id,
+        }
+
+        yield Product.add(product_data)
         Product.delete_all()
 
 

@@ -215,7 +215,7 @@ class CoreApi:
         return Response(
             file_wrapper,
             status=response.status_code,
-            content_type=response.headers.get("Content-Type", "application/json"),
+            content_type=response.headers.get("Content-Type", "application/octet-stream"),
             headers={"Content-Disposition": disposition},
             direct_passthrough=True,
         )
