@@ -1,7 +1,7 @@
 from functools import wraps
 from typing import Any
 
-from flask import Flask, Response, redirect, render_template, request, url_for
+from flask import Flask, Response as FlaskResponse, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
@@ -39,16 +39,24 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _redirect_to_login():
+def _redirect_to_login_response() -> FlaskResponse:
     login_url = _login_url_with_next()
 
     if is_htmx_request():
-        response = Response(status=401, headers={"HX-Redirect": login_url})
-        response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
-        unset_jwt_cookies(response)
-        return response
+        return FlaskResponse(status=401, headers={"HX-Redirect": login_url})
 
-    return redirect(login_url, code=302)
+    return make_response(redirect(login_url, code=302))
+
+
+def _clear_jwt_cookies(response: FlaskResponse) -> FlaskResponse:
+    response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
+    unset_jwt_cookies(response)
+    return response
+
+
+def _unauthorized_response(clear_cookies: bool = False) -> FlaskResponse:
+    response = _redirect_to_login_response()
+    return _clear_jwt_cookies(response) if clear_cookies else response
 
 
 # def authenticate(credentials: dict[str, str]) -> Response:
@@ -59,14 +67,14 @@ def _redirect_to_login():
 #     return current_authenticator.refresh(user)
 
 
-def logout() -> tuple[str, int] | Response:
+def logout() -> tuple[str, int] | FlaskResponse:
     core_response: ReqResponse = CoreApi().logout()
     if not core_response.ok:
         return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
-    response = Response(status=302, headers={"Location": url_for("base.login")})
+    response = FlaskResponse(status=302, headers={"Location": url_for("base.login")})
     if is_htmx_request():
-        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
+        response = FlaskResponse(status=200, headers={"HX-Redirect": url_for("base.login")})
 
     response.delete_cookie("access_token")
     unset_jwt_cookies(response)
@@ -88,12 +96,12 @@ def auth_required(permissions: list[str] | str | None = None):
                 verify_jwt_in_request()
             except Exception:
                 logger.info("JWT verification failed")
-                return _redirect_to_login()
+                return _unauthorized_response()
 
             user_name = get_jwt_identity()
             if not user_name:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return _redirect_to_login()
+                return _unauthorized_response()
 
             permission_claims = current_user.permissions
 
@@ -161,9 +169,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _redirect_to_login()
+    return _unauthorized_response(clear_cookies=True)
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _redirect_to_login()
+    return _unauthorized_response(clear_cookies=True)
