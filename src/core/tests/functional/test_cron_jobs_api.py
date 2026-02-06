@@ -132,3 +132,27 @@ class TestCronJobsAPI:
         # Should at least have housekeeping tasks even if no sources/bots
         housekeeping_jobs = [job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist"]
         assert len(housekeeping_jobs) == 1
+
+
+class TestWorkerCronJobsAPI:
+    """Test the worker cron jobs endpoint (API key auth)"""
+
+    base_uri = "/api/worker/cron-jobs"
+
+    def test_get_cron_jobs_returns_expected_structure(self, client, api_header, osint_sources, bots):
+        response = client.get(self.base_uri, headers=api_header)
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert "cron_jobs" in data
+        assert isinstance(data["cron_jobs"], list)
+
+        if data["cron_jobs"]:
+            job = data["cron_jobs"][0]
+            required_fields = ["task", "queue", "args", "cron", "task_id", "name"]
+            for field in required_fields:
+                assert field in job, f"Missing required field: {field}"
+
+    def test_get_cron_jobs_requires_authentication(self, client):
+        response = client.get(self.base_uri)
+        assert response.status_code == 401

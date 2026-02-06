@@ -101,7 +101,7 @@ class CoreApi:
             List of cron job configurations, or None if the request fails
         """
         try:
-            response = self.api_get("/config/workers/cron-jobs")
+            response = self.api_get("/worker/cron-jobs")
             if response and "cron_jobs" in response:
                 return response["cron_jobs"]
             return None

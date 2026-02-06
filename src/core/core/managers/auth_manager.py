@@ -129,8 +129,6 @@ def api_key_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
-
-
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
