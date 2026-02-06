@@ -31,15 +31,15 @@
               {% endif %}
             </td>
             <td class="text-right">
-              {% if stats.last_run %}
-                <span class="text-xs">{{ stats.last_run.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+              {% if stats.last_run_display %}
+                <span class="text-xs">{{ stats.last_run_display }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}
             </td>
             <td class="text-right">
-              {% if stats.last_success %}
-                <span class="text-xs">{{ stats.last_success.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+              {% if stats.last_success_display %}
+                <span class="text-xs">{{ stats.last_success_display }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}

@@ -108,13 +108,59 @@ class Task(BaseModel):
             data[row.task_type] = entry
         return data
 
+    @staticmethod
+    def _parse_iso_datetime(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if dt.tzinfo:
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _build_task_status_badge(stats: dict[str, Any]) -> dict[str, str]:
+        successes = int(stats.get("successes") or 0)
+        failures = int(stats.get("failures") or 0)
+        total_runs = int(stats.get("total") or successes + failures)
+        success_pct = int(stats.get("success_pct") or 0)
+
+        if total_runs == 0:
+            return {"variant": "ghost", "label": "No Runs"}
+        if failures == 0:
+            return {"variant": "success", "label": "All Success"}
+        if failures == 1 and total_runs == 1:
+            return {"variant": "warning", "label": "First Failure"}
+        if success_pct >= 80:
+            return {"variant": "warning", "label": "Mostly Success"}
+        if failures <= 2:
+            return {"variant": "warning", "label": "Some Failures"}
+        return {"variant": "error", "label": "Many Failures"}
+
+    @classmethod
+    def _format_task_stats(cls, raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        formatted: dict[str, dict[str, Any]] = {}
+        for task_name, stats in raw_stats.items():
+            formatted_stats = stats.copy()
+            last_run_dt = cls._parse_iso_datetime(stats.get("last_run"))
+            last_success_dt = cls._parse_iso_datetime(stats.get("last_success"))
+
+            formatted_stats["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
+            formatted_stats["last_success_display"] = last_success_dt.strftime("%Y-%m-%d %H:%M:%S") if last_success_dt else None
+            formatted_stats["status_badge"] = cls._build_task_status_badge(formatted_stats)
+            formatted[task_name] = formatted_stats
+        return formatted
+
     @classmethod
     def get_task_statistics(cls) -> dict[str, Any]:
         """Return per-task stats along with overall totals."""
 
-        task_stats = cls.get_status_counts_by_task(include_timestamps=True)
-        total_successes = sum(stat.get("successes", 0) for stat in task_stats.values())
-        total_failures = sum(stat.get("failures", 0) for stat in task_stats.values())
+        raw_task_stats = cls.get_status_counts_by_task(include_timestamps=True)
+        task_stats = cls._format_task_stats(raw_task_stats)
+        total_successes = sum(stat.get("successes", 0) for stat in raw_task_stats.values())
+        total_failures = sum(stat.get("failures", 0) for stat in raw_task_stats.values())
         overall_total = total_successes + total_failures
         overall_success_rate = int((total_successes * 100) / overall_total) if overall_total else 0
 

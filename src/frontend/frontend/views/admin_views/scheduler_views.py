@@ -1,6 +1,3 @@
-from datetime import datetime, timezone
-from typing import Any
-
 from flask import render_template, request
 from flask.views import MethodView
 from models.admin import Job
@@ -16,52 +13,9 @@ from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
 
-def _parse_iso_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if dt.tzinfo:
-            return dt.astimezone(timezone.utc).replace(tzinfo=None)
-        return dt
-    except ValueError:
-        return None
-
-
-def _build_task_status_badge(stats: dict[str, Any]) -> dict[str, str]:
-    """Derive a human-friendly badge for execution history rows."""
-
-    successes = int(stats.get("successes") or 0)
-    failures = int(stats.get("failures") or 0)
-    total_runs = int(stats.get("total") or successes + failures)
-    success_pct = int(stats.get("success_pct") or 0)
-
-    if total_runs == 0:
-        return {"variant": "ghost", "label": "No Runs"}
-    if failures == 0:
-        return {"variant": "success", "label": "All Success"}
-    if failures == 1 and total_runs == 1:
-        return {"variant": "warning", "label": "First Failure"}
-    if success_pct >= 80:
-        return {"variant": "warning", "label": "Mostly Success"}
-    if failures <= 2:
-        return {"variant": "warning", "label": "Some Failures"}
-    return {"variant": "error", "label": "Many Failures"}
-
-
-def _format_task_stats(raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    formatted: dict[str, dict[str, Any]] = {}
-    for task_name, stats in raw_stats.items():
-        formatted_stats = stats.copy()
-        formatted_stats["last_run"] = _parse_iso_datetime(stats.get("last_run"))
-        formatted_stats["last_success"] = _parse_iso_datetime(stats.get("last_success"))
-        formatted_stats["status_badge"] = _build_task_status_badge(formatted_stats)
-        formatted[task_name] = formatted_stats
-    return formatted
-
-
 def _notification_error(message: str, status_code: int = 500) -> tuple[str, int]:
-    return BaseView.render_response_notification({"message": message, "error": True}), status_code
+    notification = BaseView.get_notification_from_dict({"message": message, "error": True})
+    return render_template("notification/index.html", notification=notification), status_code
 
 
 class SchedulerView(AdminMixin, BaseView):
@@ -105,7 +59,7 @@ class SchedulerView(AdminMixin, BaseView):
             # Get task execution stats
             task_results = DataPersistenceLayer().get_objects(Task)
             stats_meta = getattr(task_results, "extra", {}) if task_results is not None else {}
-            task_stats = _format_task_stats(stats_meta.get("task_stats", {}))
+            task_stats = stats_meta.get("task_stats", {})
             totals = stats_meta.get("totals", {})
             total_successes = totals.get("successes", 0)
             total_failures = totals.get("failures", 0)
@@ -234,12 +188,10 @@ class ScheduleHistoryAPI(MethodView):
             total_failures = totals.get("failures", 0)
             overall_success_rate = totals.get("overall_success_rate", 0)
 
-            formatted_task_stats = _format_task_stats(raw_task_stats)
-
             task_stats = dict(
                 sorted(
-                    formatted_task_stats.items(),
-                    key=lambda item: item[1].get("last_run") or datetime.min,
+                    raw_task_stats.items(),
+                    key=lambda item: item[1].get("last_run") or "",
                     reverse=True,
                 )
             )
