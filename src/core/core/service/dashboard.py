@@ -1,11 +1,11 @@
-from core.model.task import Task
-from core.model.story import Story
-from core.model.product import Product
-from core.model.news_item import NewsItem
-from core.model.report_item import ReportItem
-from core.model.story_conflict import StoryConflict
-from core.model.news_item_conflict import NewsItemConflict
 from core.managers import schedule_manager
+from core.model.news_item import NewsItem
+from core.model.news_item_conflict import NewsItemConflict
+from core.model.product import Product
+from core.model.report_item import ReportItem
+from core.model.story import Story
+from core.model.story_conflict import StoryConflict
+from core.model.task import Task
 
 
 class DashboardService:

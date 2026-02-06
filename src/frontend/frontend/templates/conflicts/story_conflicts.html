@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
+{% endblock head %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold p-6">Story Conflicts</h1>
+
+  {% include "conflicts/_story_conflicts_list.html" %}
+
+  <script>
+    (function () {
+      if (window.__storyConflictEditorsInitialized) {
+        return;
+      }
+      window.__storyConflictEditorsInitialized = true;
+
+      const normalizeDoc = (rawValue) => {
+        if (!rawValue) {
+          return "";
+        }
+        let parsed = rawValue;
+        try {
+          parsed = JSON.parse(rawValue);
+        } catch {
+          parsed = rawValue;
+        }
+        if (typeof parsed === "string") {
+          return parsed;
+        }
+        return JSON.stringify(parsed, null, 2);
+      };
+
+      function mountStoryConflictEditors(scope) {
+        if (!window.TemplateEditor) {
+          setTimeout(() => mountStoryConflictEditors(scope), 50);
+          return;
+        }
+
+        const root = scope || document;
+        const editors = root.querySelectorAll("[data-merge-editor]:not([data-merge-editor-initialized])");
+        editors.forEach((element) => {
+          const existingRaw = element.dataset.existing;
+          const incomingRaw = element.dataset.incoming;
+
+          if (!existingRaw || !incomingRaw) {
+            console.warn("Missing conflict payload for editor", element);
+            return;
+          }
+
+          const existingDoc = normalizeDoc(existingRaw);
+          const incomingDoc = normalizeDoc(incomingRaw);
+          element.dataset.incomingSerialized = incomingDoc;
+          element.dataset.mergeEditorInitialized = "1";
+          const randomId =
+            (window.crypto && typeof window.crypto.randomUUID === "function"
+              ? window.crypto.randomUUID()
+              : `mergeEditor${Date.now()}${Math.random().toString(16).slice(2)}`);
+          const editorId = element.dataset.editorId || randomId;
+          element.dataset.editorId = editorId;
+
+          const view = window.TemplateEditor.mountUnifiedMerge({
+            parent: element,
+            originalDoc: existingDoc,
+            newDoc: incomingDoc,
+          });
+
+          window[editorId] = view;
+        });
+      }
+
+      window.mountStoryConflictEditors = mountStoryConflictEditors;
+
+      window.prepareStoryConflictForm = function (formElement) {
+        const editorId = formElement.dataset.editorId;
+        const containerId = formElement.dataset.editorContainerId;
+        const resolvedField = formElement.querySelector('[name="resolved_story"]');
+        const incomingField = formElement.querySelector('[name="incoming_original"]');
+
+        const editor = editorId ? window[editorId] : null;
+        if (editor && resolvedField) {
+          resolvedField.value = editor.state.doc.toString();
+        }
+
+        const container = containerId ? document.getElementById(containerId) : null;
+        const serializedIncoming = container ? container.dataset.incomingSerialized : "";
+        if (incomingField) {
+          incomingField.value = serializedIncoming || "";
+        }
+      };
+
+      document.addEventListener("DOMContentLoaded", () => mountStoryConflictEditors(document));
+      document.body.addEventListener("htmx:afterSwap", (event) => {
+        if (event && event.target) {
+          mountStoryConflictEditors(event.target);
+        }
+      });
+    })();
+  </script>
+
+{% endblock content %}
