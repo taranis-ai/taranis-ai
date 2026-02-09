@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import render_template, request
 from flask.views import MethodView
 from models.admin import Job
