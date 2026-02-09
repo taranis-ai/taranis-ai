@@ -369,6 +369,30 @@ def _poll_collector_task_result(
     )
 
 
+def _poll_bot_task_result(
+    core_url: str,
+    headers: dict[str, str],
+    bot_task_name: str,
+    timeout_seconds: int = 90,
+) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    last_payload = {}
+    while time.monotonic() < deadline:
+        resp = requests.get(f"{core_url}/config/task-results", headers=headers, timeout=5)
+        if resp.status_code == 200:
+            last_payload = resp.json()
+            items = last_payload.get("items") if isinstance(last_payload, dict) else None
+            if isinstance(items, list):
+                for item in items:
+                    if item.get("task") == bot_task_name and item.get("status") == "SUCCESS":
+                        return item
+        time.sleep(1.0)
+    raise RuntimeError(
+        f"Bot task '{bot_task_name}' did not report SUCCESS within {timeout_seconds}s. "
+        f"Last payload: {last_payload}"
+    )
+
+
 @pytest.mark.e2e_ci
 def test_rq_wordlist_queue_flow(
     core_process: str,
@@ -405,10 +429,6 @@ def test_rq_cleanup_token_blacklist(
     worker_process: None,
     redis_backend: dict[str, str],
 ) -> None:
-    """
-    Enqueue the cleanup_token_blacklist job and assert that core reports it as SUCCESS.
-    We enqueue via the dotted path so it matches how the worker discovers the task.
-    """
     token = _login(core_process)
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
 
@@ -417,8 +437,6 @@ def test_rq_cleanup_token_blacklist(
     queue = Queue("misc", connection=redis_conn)
     job_id = f"e2e_cleanup_token_blacklist_{int(time.time())}"
 
-    # Enqueue by dotted path, which does not require importing the worker package
-    # into the test process and matches the worker's expectations.
     queue.enqueue("worker.misc.misc_tasks.cleanup_token_blacklist", job_id=job_id)
 
     payload = _poll_task_result(core_process, headers, job_id, timeout_seconds=30)
@@ -457,4 +475,83 @@ def test_rq_scheduled_collector_cron(
 
     # Use cron schedule (every minute) and wait for scheduler + worker to execute it.
     payload = _poll_collector_task_result(core_process, headers, source_payload["name"], timeout_seconds=90)
+    assert payload.get("status") == "SUCCESS"
+
+
+@pytest.mark.e2e_ci
+def test_rq_scheduled_wordlist_bot_cron(
+    core_process: str,
+    worker_process: None,
+    cron_process: None,
+    wordlist_server: str,
+) -> None:
+    token = _login(core_process)
+    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+
+    # Ensure a story exists with a matching word for the bot to tag.
+    story_resp = requests.post(
+        f"{core_process}/assess/news-items",
+        headers=headers,
+        json={
+            "title": "E2E Story with alpha",
+            "source": "e2e",
+            "content": "This story contains alpha to be tagged.",
+            "review": "",
+            "author": "e2e",
+            "link": "http://example.local/story",
+            "language": "en",
+            "published": "2026-02-09T12:00:00",
+            "collected": "2026-02-09T12:00:00",
+        },
+        timeout=5,
+    )
+    story_resp.raise_for_status()
+
+    # Create a word list used by the tagging bot and populate it.
+    wordlist_resp = requests.post(
+        f"{core_process}/config/word-lists",
+        headers=headers,
+        json={"name": "E2E Tagging Wordlist", "description": "E2E", "usage": 4, "link": wordlist_server},
+        timeout=5,
+    )
+    wordlist_resp.raise_for_status()
+    wordlist_id = wordlist_resp.json().get("id")
+    assert wordlist_id, "wordlist id missing"
+
+    gather_resp = requests.post(
+        f"{core_process}/config/word-lists/gather/{wordlist_id}",
+        headers=headers,
+        timeout=5,
+    )
+    gather_resp.raise_for_status()
+    _poll_wordlist_entries(core_process, headers, wordlist_id)
+
+    # Create a Wordlist Bot with a cron schedule and trigger cron reload via update.
+    bot_payload = {
+        "name": "E2E Wordlist Bot",
+        "description": "E2E wordlist bot",
+        "type": "WORDLIST_BOT",
+        "parameters": [
+            {"parameter": "REFRESH_INTERVAL", "value": "*/1 * * * *", "type": "cron_interval"},
+        ],
+    }
+    bot_create = requests.post(
+        f"{core_process}/config/bots",
+        headers=headers,
+        json=bot_payload,
+        timeout=5,
+    )
+    bot_create.raise_for_status()
+    bot_id = bot_create.json().get("id")
+    assert bot_id, "bot id missing"
+
+    bot_update = requests.put(
+        f"{core_process}/config/bots/{bot_id}",
+        headers=headers,
+        json=bot_payload,
+        timeout=5,
+    )
+    bot_update.raise_for_status()
+
+    payload = _poll_bot_task_result(core_process, headers, f"bot_{bot_id}", timeout_seconds=90)
     assert payload.get("status") == "SUCCESS"
