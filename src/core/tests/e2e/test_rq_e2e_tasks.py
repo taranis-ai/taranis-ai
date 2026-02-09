@@ -39,10 +39,6 @@ def _find_free_port() -> int:
 
 
 def _wait_for_redis(port: int, password: str, timeout_seconds: int = 15) -> None:
-    """
-    Wait until Redis on the given port responds to a PING using the provided password.
-    Uses redis-py instead of low-level socket protocol handshakes.
-    """
     deadline = time.monotonic() + timeout_seconds
     last_exc: Exception | None = None
     client = redis.Redis(host="127.0.0.1", port=port, password=password)
@@ -198,6 +194,34 @@ def worker_process(core_process: str, redis_backend: dict[str, str]) -> Generato
         proc.kill()
 
 
+@pytest.fixture(scope="session")
+def cron_process(core_process: str, redis_backend: dict[str, str]) -> Generator[None, None, None]:
+    env = os.environ | {
+        "API_KEY": "test_key",
+        "REDIS_URL": redis_backend["url"],
+        "REDIS_PASSWORD": redis_backend["password"],
+        "TARANIS_CORE_URL": core_process,
+    }
+    worker_path = str(REPO_ROOT / "src" / "worker")
+    proc = subprocess.Popen(
+        ["uv", "run", "--directory", worker_path, "python", "start_cron_scheduler.py"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if proc.poll() is not None:
+        output = proc.stdout.read() if proc.stdout else ""
+        raise RuntimeError(f"Cron scheduler exited immediately. Output:\n{output}")
+    yield
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
+        proc.kill()
+
+
 @pytest.fixture
 def wordlist_server(tmp_path: Path) -> Generator[str, None, None]:
     data = "value,category\nalpha,include\nbeta,include\n"
@@ -210,6 +234,38 @@ def wordlist_server(tmp_path: Path) -> Generator[str, None, None]:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield f"http://127.0.0.1:{server.server_port}/wordlist.csv"
+    server.shutdown()
+    thread.join(timeout=5)
+
+
+@pytest.fixture
+def rss_server(tmp_path: Path) -> Generator[str, None, None]:
+    item_html = "<html><body><h1>Test Item</h1><p>Hello from item.</p></body></html>"
+    (tmp_path / "item1.html").write_text(item_html, encoding="utf-8")
+
+    def handler(*args, **kwargs):
+        return SimpleHTTPRequestHandler(*args, directory=str(tmp_path), **kwargs)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    rss_feed = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>http://127.0.0.1:{server.server_port}/</link>
+    <description>Test feed for e2e</description>
+    <item>
+      <title>Test Item</title>
+      <link>http://127.0.0.1:{server.server_port}/item1.html</link>
+      <description>Test item description</description>
+      <pubDate>Mon, 09 Feb 2026 12:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
+"""
+    (tmp_path / "feed.xml").write_text(rss_feed, encoding="utf-8")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{server.server_port}/feed.xml"
     server.shutdown()
     thread.join(timeout=5)
 
@@ -288,6 +344,31 @@ def _poll_task_result(
     raise RuntimeError(f"Task {task_id} did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}")
 
 
+def _poll_collector_task_result(
+    core_url: str,
+    headers: dict[str, str],
+    source_name: str,
+    timeout_seconds: int = 90,
+) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    last_payload = {}
+    while time.monotonic() < deadline:
+        resp = requests.get(f"{core_url}/config/task-results", headers=headers, timeout=5)
+        if resp.status_code == 200:
+            last_payload = resp.json()
+            items = last_payload.get("items") if isinstance(last_payload, dict) else None
+            if isinstance(items, list):
+                for item in items:
+                    if item.get("task") == "collector_task" and source_name in (item.get("result") or ""):
+                        if item.get("status") == "SUCCESS":
+                            return item
+        time.sleep(1.0)
+    raise RuntimeError(
+        f"Collector task for source '{source_name}' did not report SUCCESS within {timeout_seconds}s. "
+        f"Last payload: {last_payload}"
+    )
+
+
 @pytest.mark.e2e_ci
 def test_rq_wordlist_queue_flow(
     core_process: str,
@@ -341,4 +422,39 @@ def test_rq_cleanup_token_blacklist(
     queue.enqueue("worker.misc.misc_tasks.cleanup_token_blacklist", job_id=job_id)
 
     payload = _poll_task_result(core_process, headers, job_id, timeout_seconds=30)
+    assert payload.get("status") == "SUCCESS"
+
+
+@pytest.mark.e2e_ci
+def test_rq_scheduled_collector_cron(
+    core_process: str,
+    worker_process: None,
+    cron_process: None,
+    rss_server: str,
+) -> None:
+    token = _login(core_process)
+    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+
+    # Create a minimal RSS collector source using the local feed server.
+    source_payload = {
+        "name": "E2E RSS Source",
+        "description": "E2E RSS source for scheduled collector test",
+        "type": "RSS_COLLECTOR",
+        "parameters": [
+            {"parameter": "FEED_URL", "value": rss_server, "type": "text", "rules": "required"},
+            {"parameter": "REFRESH_INTERVAL", "value": "*/1 * * * *", "type": "cron_interval"},
+        ],
+    }
+    create_resp = requests.post(
+        f"{core_process}/config/osint-sources",
+        headers=headers,
+        json=source_payload,
+        timeout=5,
+    )
+    create_resp.raise_for_status()
+    source_id = create_resp.json().get("id")
+    assert source_id, "osint source id missing"
+
+    # Use cron schedule (every minute) and wait for scheduler + worker to execute it.
+    payload = _poll_collector_task_result(core_process, headers, source_payload["name"], timeout_seconds=90)
     assert payload.get("status") == "SUCCESS"
