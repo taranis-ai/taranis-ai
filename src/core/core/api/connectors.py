@@ -8,7 +8,6 @@ from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
-from core.model.connector import Connector
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
