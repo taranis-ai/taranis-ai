@@ -12,6 +12,7 @@
     "npm:@codemirror/state@^6.5.2": "6.5.3",
     "npm:@codemirror/view@*": "6.39.9",
     "npm:@codemirror/view@^6.39.3": "6.39.9",
+    "npm:@tailwindcss/cli@*": "4.1.18",
     "npm:@tailwindcss/cli@^4.1.17": "4.1.18",
     "npm:alpinejs@*": "3.15.3",
     "npm:alpinejs@^3.15.2": "3.15.3",

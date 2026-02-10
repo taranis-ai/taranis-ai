@@ -3,7 +3,7 @@
 # Text Area, Rich Text, Date, Time, Date Time, TLP,
 # Link, Attachment, CPE, CVE, CVSS
 
-report_definition = {
+report_definition: dict = {
     "title": "Zzz_All Attribute Types Report",
     "description": "One field per AttributeType, referencing existing seeded Attributes by name.",
     "attribute_groups": [

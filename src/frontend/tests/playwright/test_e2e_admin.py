@@ -388,7 +388,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         remove_word_list()
 
     # TODO: remove pre_seed_report_type_all_attribute_types once cache invalidation on backend changes is implemented (needed for check_various_report_type_fields())
-    def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_type_all_attribute_types):
+    def test_report_types(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_report_type_all_attribute_types_optional,
+        pre_seed_report_type_all_attribute_types_required,
+    ):
         page = logged_in_page
 
         report_type_title = f"Test Report {uuid.uuid4().hex[:6]}"

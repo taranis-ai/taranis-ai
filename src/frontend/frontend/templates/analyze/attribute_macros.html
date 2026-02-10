@@ -55,12 +55,12 @@
       </fieldset>
 
     {% elif attr.type == 'TLP' %}
-      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name) }}</div>
+      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name, required=required) }}</div>
 
+      {# djlint:off #}
     {% elif attr.type in ['DATE', 'DATE_TIME', 'TIME'] %}
       <label class="input w-full">
-        <span class="label">{{ label }}
-          {% if required %}<span class="text-error text-sm">*</span>{% endif %}
+        <span class="label">{{ label }}{% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
         <input type="date"
                name="{{ base_name }}"

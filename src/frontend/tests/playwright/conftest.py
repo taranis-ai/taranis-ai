@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import os
 import random
 import re
@@ -535,14 +536,10 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-@pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types(run_core, access_token):
-    from testdata.report_item_type_all_attribute_types import report_definition
-
+def pre_seed_report_type(report_definition, access_token, run_core):
+    headers = {"Authorization": f"Bearer {access_token}"}
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
-
-    headers = {"Authorization": f"Bearer {access_token}"}
 
     r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
     r.raise_for_status()
@@ -566,6 +563,28 @@ def pre_seed_report_type_all_attribute_types(run_core, access_token):
 
     r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
     r.raise_for_status()
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+    from testdata.report_item_type_all_attribute_types import report_definition
+
+    report_definition_copy = copy.deepcopy(report_definition)
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+    from testdata.report_item_type_all_attribute_types import report_definition
+
+    report_definition_copy = copy.deepcopy(report_definition)
+    report_definition_copy["title"] = report_definition_copy.get("title", "") + " REQUIRED"
+
+    for attribute_group in report_definition_copy.get("attribute_groups", {}):
+        for attribute in attribute_group.get("attribute_group_items", {}):
+            attribute["required"] = True
+
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
 
 
 @pytest.fixture(scope="session")
