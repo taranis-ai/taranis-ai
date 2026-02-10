@@ -289,9 +289,32 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Clear selection Esc").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
+        def group_stories():
+            page.pause()
+            page.goto(url_for("assess.assess", _external=True))
+            expect(page.get_by_role("radiogroup", name="Time presets")).to_be_visible()
+
+            page.get_by_test_id("story-title").nth(0).click()
+            page.get_by_test_id("story-title").nth(0).click()
+            page.get_by_test_id("story-title").nth(0).click()
+            page.get_by_test_id("story-title").nth(0).click()
+
+            page.get_by_role("button", name="Cluster").click()
+            expect(page.get_by_role("button", name="✕")).to_be_visible()
+
+            page.get_by_text("Story ID: e1bfb32b-4d83-478e-").click()
+            page.get_by_text("Data Breaches in Banking by APT46 Story ID: e1bfb32b-4d83-478e-974f-").dblclick()
+            page.get_by_test_id("dialog-story-cluster-open").click()
+            expect(page.get_by_test_id("story-title")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76 edited title")
+            page.get_by_role("heading", name="Pharmaceutical Trade Secrets Theft by APT76", exact=True).click()
+            page.get_by_role("link", name="Assess").click()
+            expect(page.get_by_role("heading", name="Search & Scope")).to_be_visible()
+            expect(page.get_by_text("Filter", exact=True)).to_be_visible()
+
         go_to_assess()
         access_story()
         infinite_scroll_all_items()
+        group_stories()
 
     def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_stories):
         page = logged_in_page
