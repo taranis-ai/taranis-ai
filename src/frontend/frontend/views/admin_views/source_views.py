@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from typing import Any, Literal
 
 from flask import Response, render_template, request, url_for
@@ -139,6 +140,11 @@ class SourceView(AdminMixin, BaseView):
             form_data = parse_formdata(request.form)
             icon = request.files.get("icon")  # FileStorage
             if icon and icon.filename:
+                if icon.mimetype not in cls._ALLOWED_ICON_MIMETYPES:
+                    error_msg = f"Unsupported icon file type: {icon.mimetype}"
+                    logger.warning(error_msg)
+                    return None, error_msg
+
                 icon_data = icon.read()
                 icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
                 form_data["icon"] = icon_data_base64
@@ -147,8 +153,8 @@ class SourceView(AdminMixin, BaseView):
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
-            return None, str(exc)
+            logger.exception("Error storing form data")
+            return None, "Error storing form data"
 
     @classmethod
     def export_view(cls):
@@ -255,3 +261,4 @@ class SourceView(AdminMixin, BaseView):
         state_button = render_template("osint_source/state_button.html", osint_source=osint_source)
 
         return notification + state_button, 200
+    _ALLOWED_ICON_MIMETYPES = {"image/png", "image/jpeg", "image/svg+xml"}
