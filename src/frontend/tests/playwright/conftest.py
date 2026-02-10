@@ -1,5 +1,6 @@
 import contextlib
 import os
+import shutil
 import random
 import re
 import subprocess
@@ -519,6 +520,15 @@ def test_osint_source():
     # get absoulute path to testdata/test_osint_source.json
     dir_path = os.path.dirname(os.path.realpath(__file__))
     yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+
+
+@pytest.fixture
+def test_osint_icon_png(tmp_path):
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", ".."))
+    source_path = os.path.join(repo_root, "src", "frontend", "frontend", "static", "assets", "favicon-16x16.png")
+    icon_path = tmp_path / "icon.png"
+    shutil.copyfile(source_path, icon_path)
+    return str(icon_path)
 
 
 def report_item_dict(story_item_list):
