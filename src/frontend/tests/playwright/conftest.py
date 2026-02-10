@@ -56,9 +56,10 @@ def run_core(app):
             os.remove(f"{parsed_uri.path}")
 
         print(f"Starting Taranis Core on port {taranis_core_port}")
+        repo_root = os.path.abspath(os.path.join(core_path, "..", ".."))
         process = subprocess.Popen(
             ["uv", "run", "--directory", core_path, "flask", "run", "--no-reload", "--port", taranis_core_port],
-            cwd=os.path.abspath(".."),
+            cwd=repo_root,
             env=env,
             # stdout=subprocess.PIPE,
             # stderr=subprocess.PIPE,
@@ -524,11 +525,8 @@ def test_osint_source():
 
 @pytest.fixture
 def test_osint_icon_png(tmp_path):
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", ".."))
-    source_path = os.path.join(repo_root, "src", "frontend", "frontend", "static", "assets", "favicon-16x16.png")
-    icon_path = tmp_path / "icon.png"
-    shutil.copyfile(source_path, icon_path)
-    return str(icon_path)
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(dir_path, "testdata", "icon.png")
 
 
 def report_item_dict(story_item_list):
