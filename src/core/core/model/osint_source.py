@@ -262,6 +262,7 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
+        logger.debug(data)
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None

@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
 
-from models.models.assess import NewsItemCreatePayload
+from models.assess import NewsItem as NewsItemCreatePayload
 from pydantic import ValidationError
 from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR

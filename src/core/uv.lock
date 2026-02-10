@@ -98,6 +98,19 @@ wheels = [
 ]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.14.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "soupsieve" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c3/b0/1c6a16426d389813b48d95e26898aff79abbde42ad353958ad95cc8c9b21/beautifulsoup4-4.14.3.tar.gz", hash = "sha256:6292b1c5186d356bba669ef9f7f051757099565ad9ada5dd630bd9de5fa7fb86", size = 627737, upload-time = "2025-11-30T15:08:26.084Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl", hash = "sha256:0918bfe44902e6ad8d57732ba310582e98da931428d231a5ecb9e7c703a735bb", size = 107721, upload-time = "2025-11-30T15:08:24.087Z" },
+]
+
+[[package]]
 name = "billiard"
 version = "4.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -724,6 +737,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b6/a5/607e533ed6c83ae1a696969b8e1c137dfebd5759a2e9682e26ff1b97740b/kombu-5.6.2.tar.gz", hash = "sha256:8060497058066c6f5aed7c26d7cd0d3b574990b09de842a8c5aaed0b92cc5a55", size = 472594, upload-time = "2025-12-29T20:30:07.779Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/0f/834427d8c03ff1d7e867d3db3d176470c64871753252b21b4f4897d1fa45/kombu-5.6.2-py3-none-any.whl", hash = "sha256:efcfc559da324d41d61ca311b0c64965ea35b4c55cc04ee36e55386145dace93", size = 214219, upload-time = "2025-12-29T20:30:05.74Z" },
+]
+
+[[package]]
+name = "langcodes"
+version = "3.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/75/f9edc5d72945019312f359e69ded9f82392a81d49c5051ed3209b100c0d2/langcodes-3.5.1.tar.gz", hash = "sha256:40bff315e01b01d11c2ae3928dd4f5cbd74dd38f9bd912c12b9a3606c143f731", size = 191084, upload-time = "2025-12-02T16:22:01.627Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/c1/d10b371bcba7abce05e2b33910e39c33cfa496a53f13640b7b8e10bb4d2b/langcodes-3.5.1-py3-none-any.whl", hash = "sha256:b6a9c25c603804e2d169165091d0cdb23934610524a21d226e4f463e8e958a72", size = 183050, upload-time = "2025-12-02T16:21:59.954Z" },
 ]
 
 [[package]]
@@ -1541,6 +1563,15 @@ wheels = [
 ]
 
 [[package]]
+name = "soupsieve"
+version = "2.8.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/ae/2d9c981590ed9999a0d91755b47fc74f74de286b0f5cee14c9269041e6c4/soupsieve-2.8.3.tar.gz", hash = "sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349", size = 118627, upload-time = "2026-01-20T04:27:02.457Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/2c/1462b1d0a634697ae9e55b3cecdcb64788e8b7d63f54d923fcd0bb140aed/soupsieve-2.8.3-py3-none-any.whl", hash = "sha256:ed64f2ba4eebeab06cc4962affce381647455978ffc1e36bb79a545b91f45a95", size = 37016, upload-time = "2026-01-20T04:27:01.012Z" },
+]
+
+[[package]]
 name = "sqlalchemy"
 version = "2.0.46"
 source = { registry = "https://pypi.org/simple" }
@@ -1683,7 +1714,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
-    { name = "taranis-models", specifier = ">=1.3.3.dev2" },
+    { name = "taranis-models", specifier = ">=1.3.3.dev4" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
 ]
@@ -1691,16 +1722,19 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.3.dev3"
+version = "1.3.3.dev4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "langcodes" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/1a/9de3031d25260fa082800bbddcd89932eb6b58ed2173f77a5688a2e480b1/taranis_models-1.3.3.dev3.tar.gz", hash = "sha256:9a1ec4307c56e28a2fc6e83cfec10f9a7557c106d7b9d063a9741feb172be51a", size = 27978, upload-time = "2026-02-06T14:39:08.741Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/eb/4c6975e9ae438048a44065d6a1a1d561998e5b089fa22e6c0aff2c188271/taranis_models-1.3.3.dev4.tar.gz", hash = "sha256:79539c37f489c10d667743b7d28360328fff15520cd9da2a6728530645bf4521", size = 33149, upload-time = "2026-02-10T09:34:40.261Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/c4/c4c8d38a43be00f58752126215493f641aedb5c381c80b492ce40771ca1d/taranis_models-1.3.3.dev3-py3-none-any.whl", hash = "sha256:ccd25615a98185ac9954b78ade9ee34b9c949cf0bcb8fa4327aafeeb1b0d7f73", size = 15233, upload-time = "2026-02-06T14:39:07.655Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/b8/5057526af6f2d4e617869cdb8f833d8bebf99762b61cc866efe037e09806/taranis_models-1.3.3.dev4-py3-none-any.whl", hash = "sha256:3c9158a0142617c5bbfb712a1a5b0f351508fd8bf48d8d14313717ea75c00584", size = 15635, upload-time = "2026-02-10T09:34:41.4Z" },
 ]
 
 [[package]]
