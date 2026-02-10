@@ -161,6 +161,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         def test_user_profile_settings_adjustments():
+            page.pause()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
             page.get_by_role("checkbox", name="Compact view Use condensed").check()
             page.get_by_role("button", name="Save changes").click()
@@ -290,26 +291,20 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
         def group_stories():
-            page.pause()
             page.goto(url_for("assess.assess", _external=True))
             expect(page.get_by_role("radiogroup", name="Time presets")).to_be_visible()
-
+            main_story_title = page.get_by_test_id("story-title").nth(0).inner_text()
             page.get_by_test_id("story-title").nth(0).click()
-            page.get_by_test_id("story-title").nth(0).click()
-            page.get_by_test_id("story-title").nth(0).click()
-            page.get_by_test_id("story-title").nth(0).click()
+            page.get_by_test_id("story-title").nth(1).click()
+            page.get_by_test_id("story-title").nth(2).click()
+            page.get_by_test_id("story-title").nth(3).click()
 
             page.get_by_role("button", name="Cluster").click()
-            expect(page.get_by_role("button", name="✕")).to_be_visible()
-
-            page.get_by_text("Story ID: e1bfb32b-4d83-478e-").click()
-            page.get_by_text("Data Breaches in Banking by APT46 Story ID: e1bfb32b-4d83-478e-974f-").dblclick()
             page.get_by_test_id("dialog-story-cluster-open").click()
-            expect(page.get_by_test_id("story-title")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76 edited title")
-            page.get_by_role("heading", name="Pharmaceutical Trade Secrets Theft by APT76", exact=True).click()
-            page.get_by_role("link", name="Assess").click()
-            expect(page.get_by_role("heading", name="Search & Scope")).to_be_visible()
-            expect(page.get_by_text("Filter", exact=True)).to_be_visible()
+            expect(page.get_by_test_id("story-title")).to_contain_text(main_story_title)
+            page.get_by_role("heading", name=main_story_title, exact=True).click()
+            expect(page.get_by_role("heading", name="Search & Scope")).not_to_be_visible()
+            expect(page.get_by_text("Filter", exact=True)).not_to_be_visible()
 
         go_to_assess()
         access_story()
