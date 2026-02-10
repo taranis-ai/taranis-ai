@@ -1,3 +1,4 @@
+import base64
 import json
 from typing import Any, Literal
 
@@ -5,6 +6,7 @@ from flask import Response, render_template, request, url_for
 from models.admin import Job, OSINTSource, TaskResult
 from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
+from pydantic import ValidationError
 
 from frontend.auth import auth_required
 from frontend.config import Config
@@ -12,6 +14,8 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
@@ -128,6 +132,23 @@ class SourceView(AdminMixin, BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         return Response(status=200, headers={"HX-Refresh": "true"})
+
+    @classmethod
+    def process_form_data(cls, object_id: int | str):
+        try:
+            form_data = parse_formdata(request.form)
+            icon = request.files.get("icon")  # FileStorage
+            if icon and icon.filename:
+                icon_data = icon.read()
+                icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
+                form_data["icon"] = icon_data_base64
+            return cls.store_form_data(form_data, object_id)
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
+        except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
+            return None, str(exc)
 
     @classmethod
     def export_view(cls):

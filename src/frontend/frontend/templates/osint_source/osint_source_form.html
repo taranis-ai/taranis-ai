@@ -27,6 +27,8 @@
   <form id="{{ model_name }}-form"
         class="w-1/2 ml-[10%]"
         {{ form_action }}
+        enctype="multipart/form-data"
+        hx-encoding="multipart/form-data"
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
