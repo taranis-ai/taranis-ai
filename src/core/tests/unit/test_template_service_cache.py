@@ -1,5 +1,7 @@
 import pytest
+
 from core.service import template_service
+
 
 @pytest.fixture(autouse=True)
 def clear_cache():
@@ -23,9 +25,11 @@ def test_caching_and_invalidation(monkeypatch):
 
     # Second call: should use cache (simulate by changing validate_template_content to fail if called again)
     called = {}
+
     def fake_validate(content):
         called["called"] = True
         return {"is_valid": False, "error_message": "Should not be called!"}
+
     monkeypatch.setattr(template_service, "validate_template_content", fake_validate)
     resp2 = template_service.build_template_response(path)
     assert resp2["validation_status"]["is_valid"] is True  # Still cached
@@ -36,9 +40,11 @@ def test_caching_and_invalidation(monkeypatch):
     monkeypatch.setattr(template_service, "get_template_content", lambda p: content2 if p == path else None)
     # Now, validate_template_content should be called again
     called2 = {}
+
     def real_validate(content):
         called2["called"] = True
         return {"is_valid": True, "error_message": ""}
+
     monkeypatch.setattr(template_service, "validate_template_content", real_validate)
     resp3 = template_service.build_template_response(path)
     assert resp3["validation_status"]["is_valid"] is True

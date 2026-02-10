@@ -2,9 +2,11 @@
 
 set -eu
 
-cd $(git rev-parse --show-toplevel)
+cd "$(git rev-parse --show-toplevel)"
 
+set -a
 source dev/env.dev
+set +a
 
 # Check if this is executed on ubuntu
 if [ -f /etc/lsb-release ]; then

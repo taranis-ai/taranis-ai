@@ -15,14 +15,14 @@ classifiers = [
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "apscheduler",
     "Flask",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
     "click",
-    "celery",
+    "rq>=2.5",
+    "croniter>=6.0.0",
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
@@ -58,7 +58,7 @@ taranis-core-healthcheck = "core.healthcheck:main"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
+dev = ["ruff", "pytest", "pytest-flask", "fakeredis", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

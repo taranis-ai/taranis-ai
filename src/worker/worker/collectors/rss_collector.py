@@ -1,10 +1,11 @@
 import datetime
 import hashlib
-import feedparser
-import requests
 import logging
 from urllib.parse import urljoin, urlparse
+
 import dateutil.parser as dateparser
+import feedparser
+import requests
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager

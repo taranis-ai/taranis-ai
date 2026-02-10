@@ -35,7 +35,7 @@ class Task(MethodView):
         logger.debug(f"Received task result with id {task_id} and status {status}")
 
         if status == "SUCCESS" and result:
-            handle_task_specific_result(task_id, result, status)
+            handle_task_specific_result(task_id, result, status, task)
         TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status, "task": task})
         return {"status": status}, 200
 
@@ -62,24 +62,27 @@ def serialize_result(result: dict | str | None = None):
     return result["message"] if "message" in result else result
 
 
-def handle_task_specific_result(task_id: str, result: dict | str, status: str):
-    if task_id.startswith("gather_word_list"):
+def handle_task_specific_result(task_id: str, result: dict | str, status: str, task_name: str | None = None):
+    task_identifier = task_name or task_id
+
+    if task_identifier.startswith("gather_word_list"):
         WordList.update_word_list(**result)
-    elif task_id.startswith("cleanup_token_blacklist"):
+    elif task_identifier.startswith("cleanup_token_blacklist"):
         TokenBlacklist.delete_older(datetime.now() - Config.JWT_ACCESS_TOKEN_EXPIRES)
-    elif task_id.startswith("presenter_task"):
+    elif task_identifier.startswith("presenter_task"):
         rendered_product = result.get("render_result")
         product_id = result.get("product_id")
         if not product_id or not rendered_product:
             logger.error(f"Product {product_id} not found or no render result")
         else:
             Product.update_render_for_id(product_id, rendered_product)
-    elif task_id.startswith("collect_"):
+    elif task_identifier.startswith("collect_"):
         logger.info(f"Collector task {task_id} completed with result: {result}")
     # TODO: check, when falsy values make sense as results. e.g. IOC bot may make sense, but summary bot may want to be executed again and again and not save the bot_type attribute
     elif task_id.startswith("bot"):
-        if result.get("result").get("error") or result.get("result").get("message"):
-            logger.error((result.get("result").get("error") or result.get("result").get("message")))
+        result_data = result.get("result")
+        if isinstance(result_data, dict) and (result_data.get("error") or result_data.get("message")):
+            logger.error((result_data.get("error") or result_data.get("message")))
             return
         bot_type = result.get("bot_type", "")
         tagging_bots = ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"]

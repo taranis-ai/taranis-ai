@@ -1,7 +1,9 @@
+import json
 import os
 import sys
+
 import pytest
-import json
+
 
 current_path = os.getcwd()
 
@@ -10,8 +12,9 @@ if not current_path.endswith("src/worker"):
 
 
 @pytest.fixture(scope="session")
-def celery_config():
-    return {"broker_url": "memory://"}
+def redis_config():
+    """Redis configuration for testing with fakeredis."""
+    return {"host": "localhost", "port": 6379}
 
 
 @pytest.fixture(scope="session")

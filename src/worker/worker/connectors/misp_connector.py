@@ -1,9 +1,10 @@
 import contextlib
 from datetime import datetime, timezone
-from pymisp import MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, MISPEvent, MISPAttribute, exceptions
 
-from worker.connectors.definitions.misp_objects import BaseMispObject
+from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, exceptions
+
 from worker.connectors import base_misp_builder
+from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.core_api import CoreApi
 from worker.log import logger
 

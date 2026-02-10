@@ -1,16 +1,17 @@
 from typing import Any
-from flask import render_template, url_for, request
 
-from frontend.views.base_view import BaseView
-from frontend.log import logger
+from flask import render_template, request, url_for
 from models.admin import Bot
-from models.types import BOT_TYPES
-from frontend.core_api import CoreApi
-from frontend.auth import auth_required
-from frontend.filters import render_item_type, render_worker_status
-from frontend.data_persistence import DataPersistenceLayer
 from models.dashboard import Dashboard
+from models.types import BOT_TYPES
+
+from frontend.auth import auth_required
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_item_type, render_worker_status
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class BotView(AdminMixin, BaseView):

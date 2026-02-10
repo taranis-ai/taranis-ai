@@ -5,3 +5,5 @@ dist
 **/venv
 **/.venv
 **/node_modules
+.env
+**/.env

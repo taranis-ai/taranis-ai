@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint
+from flask import Blueprint, Flask
 
 from frontend.views.user_views import UserProfileView
 

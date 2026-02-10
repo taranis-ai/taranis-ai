@@ -2,7 +2,7 @@ from flask import Flask
 from swagger_ui import api_doc
 
 from frontend.config import Config
-from frontend.router import base, admin, admin_settings, user, assess, analyze, publish, asset
+from frontend.router import admin, admin_settings, analyze, assess, asset, base, publish, user
 
 
 def init(app: Flask):

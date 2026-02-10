@@ -1,5 +1,6 @@
-from pydantic import ValidationError
 from typing import Any, Type
+
+from pydantic import ValidationError
 
 
 def extract_pydantic_errors(exc: ValidationError, model: Type[Any]) -> list[dict[str, str]]:

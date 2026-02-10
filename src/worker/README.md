@@ -1,6 +1,6 @@
 # Taranis Worker
 
-This worker is a celery worker
+This worker uses RQ (Redis Queue) for background task processing.
 
 ## Install
 
@@ -12,10 +12,16 @@ uv pip install -Ue .[dev]
 
 ## Usage
 
-As a worker
+Start the RQ worker:
 
 ```bash
-celery -A worker worker
+python -m worker
+```
+
+Or use the development script with auto-reload:
+
+```bash
+./start_dev_worker.py
 ```
 
 ## Architecture

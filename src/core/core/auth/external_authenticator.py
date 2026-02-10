@@ -3,9 +3,9 @@ from werkzeug.datastructures import Headers
 
 from core.auth.base_authenticator import BaseAuthenticator
 from core.config import Config
-from core.model.user import User
-from core.model.role import Role
 from core.model.organization import Organization
+from core.model.role import Role
+from core.model.user import User
 
 
 class ExternalAuthenticator(BaseAuthenticator):

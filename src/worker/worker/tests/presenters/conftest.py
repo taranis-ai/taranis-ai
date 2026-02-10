@@ -1,7 +1,9 @@
-import pytest
 import datetime as _dt
-from worker import presenters
+
+import pytest
+
 import worker.presenters.base_presenter as bp
+from worker import presenters
 
 
 class FixedDateTime(_dt.datetime):

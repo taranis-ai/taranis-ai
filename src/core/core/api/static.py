@@ -1,5 +1,6 @@
-from flask import Flask, send_from_directory, Blueprint
+from flask import Blueprint, Flask, send_from_directory
 from flask.views import MethodView
+
 from core.config import Config
 from core.managers.data_manager import get_default_json
 
