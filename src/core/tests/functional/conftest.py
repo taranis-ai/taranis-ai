@@ -1,3 +1,6 @@
+import uuid
+from copy import deepcopy
+
 import pytest
 
 
@@ -180,6 +183,29 @@ def cleanup_product(app):
             "product_type_id": text_presenter.id,
         }
 
+        Product.delete_all()
+
+
+@pytest.fixture(scope="class")
+def pdf_product(app):
+    with app.app_context():
+        from models.types import PRESENTER_TYPES
+
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+
+        pdf_presenter = ProductType.get_by_type(PRESENTER_TYPES.PDF_PRESENTER)
+        if not pdf_presenter:
+            raise ValueError("No pdf presenter found")
+
+        product_data = {
+            "id": str(uuid.uuid4()),
+            "title": "Test Product",
+            "description": "This is a test product",
+            "product_type_id": pdf_presenter.id,
+        }
+
+        yield Product.add(product_data)
         Product.delete_all()
 
 
@@ -425,3 +451,58 @@ def cleanup_publisher(app):
 
         if PublisherPreset.get(publisher_data["id"]):
             PublisherPreset.delete(publisher_data["id"])
+
+
+def remap_result_keys(payload: dict, stories) -> dict:
+    payload = deepcopy(payload)
+
+    old = payload["result"]["result"]
+    story_ids = [str(getattr(s, "id", s)) for s in stories]
+
+    payload["result"]["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    return payload
+
+
+@pytest.fixture
+def wordlist_bot_result(stories):
+    from tests.test_data.bot_test_data import wordlist_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def ioc_bot_result(stories):
+    from tests.test_data.bot_test_data import ioc_bot_result as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def nlp_bot_result(stories):
+    from tests.test_data.bot_test_data import nlp_bot as base
+
+    yield remap_result_keys(base, stories)
+
+
+@pytest.fixture
+def applied_wordlist(client, api_header, wordlist_bot_result):
+    resp = client.post("/api/tasks", json=wordlist_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_ioc(client, api_header, ioc_bot_result):
+    resp = client.post("/api/tasks", json=ioc_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp
+
+
+@pytest.fixture
+def applied_nlp(client, api_header, nlp_bot_result):
+    resp = client.post("/api/tasks", json=nlp_bot_result, headers=api_header)
+    assert resp.status_code == 200
+    assert resp.get_json().get("status") == "SUCCESS"
+    return resp

@@ -696,15 +696,15 @@ class Story(BaseModel):
         original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
 
         if existing_conflict := StoryConflict.conflict_store.get(story_id):
-            existing_conflict.original = original_str
-            existing_conflict.updated = updated_str
+            existing_conflict.existing_story = original_str
+            existing_conflict.incoming_story = updated_str
             existing_conflict.has_proposals = has_proposals_value
             logger.debug(f"Updated existing conflict for story {story_id}")
         else:
             StoryConflict.conflict_store[story_id] = StoryConflict(
                 story_id=story_id,
-                original=original_str,
-                updated=updated_str,
+                existing_story=original_str,
+                incoming_story=updated_str,
                 has_proposals=has_proposals_value,
             )
             logger.warning(f"Story Conflict detected for story {story_id}")
@@ -889,22 +889,25 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        tags_to_remove = self.get_tags_to_remove(parsed_tags)
-        self.patch_tags(parsed_tags)
-        self.remove_tags(tags_to_remove)
+        if change_by_bot:
+            self.patch_tags(parsed_tags)
+        else:
+            tags_to_remove = self.get_tags_to_remove(parsed_tags)
+            self.patch_tags(parsed_tags)
+            self.remove_tags(tags_to_remove)
 
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200

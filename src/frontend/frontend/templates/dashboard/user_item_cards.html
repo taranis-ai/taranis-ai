@@ -27,8 +27,7 @@
     </div>
   {% endcall %}
 
-  {% call dashboard_card('Connectors', '/connectors') %}
-    {# TODO: will be added in PR #706 #}
+  {% call dashboard_card('Connectors', url_for('base.conflict_menu')) %}
     There are <b>{{ data.conflict_count }}</b> conflicts detected.
   {% endcall %}
 </div>
