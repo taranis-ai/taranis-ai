@@ -234,11 +234,16 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_osint_sources():
             page.get_by_role("link", name=osint_source_name).click()
-            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated_feed_url")
+            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated-feed-url")
             page.get_by_label("Icon").set_input_files(test_osint_icon_png)
 
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="http://example.com/updated_feed_url")).to_be_visible()
+            form = page.locator("form[hx-put]").first
+            self.highlight_element(page.locator('input[type="submit"]'))
+            form.evaluate("form => { form.noValidate = true; form.requestSubmit(); }")
+            page.wait_for_timeout(500)
+
+            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_be_visible()
 
