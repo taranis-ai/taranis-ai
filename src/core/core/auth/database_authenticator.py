@@ -24,7 +24,7 @@ class DatabaseAuthenticator(BaseAuthenticator):
         return BaseAuthenticator.generate_error()
 
     def change_password(self, user: "User", old_password: str, new_password: str) -> Response:
-        if not user.password or check_password_hash(user.password, old_password):
+        if not (user.password and check_password_hash(user.password, old_password)):
             return make_response({"error": "Old password is incorrect"}, 400)
 
         user.change_password(new_password)
