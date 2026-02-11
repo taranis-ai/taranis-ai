@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from unittest.mock import Mock
 
 import pytest
 
@@ -23,3 +24,11 @@ def stories():
     story_json = os.path.join(dir_path, "story_list.json")
     with open(story_json) as f:
         yield json.load(f)
+
+
+@pytest.fixture
+def mock_core_api():
+    api = Mock()
+    api.api_put = Mock(return_value=True)
+    api.get_bot_config = Mock()
+    return api

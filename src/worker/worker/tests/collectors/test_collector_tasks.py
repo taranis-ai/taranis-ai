@@ -1,18 +1,6 @@
 """Tests for collector task result handling."""
 
-from unittest.mock import Mock
-
-import pytest
-
 from worker.collectors.collector_tasks import _save_task_result
-
-
-@pytest.fixture
-def mock_core_api():
-    """Mock CoreApi instance."""
-    api = Mock()
-    api.api_put = Mock(return_value=True)
-    return api
 
 
 class TestCollectorSaveTaskResult:
@@ -50,19 +38,3 @@ class TestCollectorSaveTaskResult:
         task_data = call_args[0][1]
         assert task_data["result"] == result_message
         assert task_data["status"] == "FAILURE"
-
-    def test_core_api_logs_collector_results(self):
-        """Test that core API can handle collector string results.
-
-        Core API (task.py#L81) just logs collector results:
-        logger.info(f"Collector task {task_id} completed with result: {result}")
-
-        This test verifies the result structure is compatible.
-        """
-        # Simulate what core API receives from collector
-        collector_result = "'RSS Feed': Collected 5 new articles"
-
-        # Core API should be able to log this directly
-        assert isinstance(collector_result, str)
-        log_message = f"Collector task collect_123 completed with result: {collector_result}"
-        assert "Collected 5 new articles" in log_message
