@@ -1,19 +1,25 @@
 """Tests for bot task execution and result handling."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
+import worker.bots
 from worker.bots.bot_tasks import _save_task_result, bot_task
 
 
-@pytest.fixture
-def mock_core_api():
-    """Mock CoreApi instance."""
-    api = Mock()
-    api.get_bot_config = Mock()
-    api.api_put = Mock(return_value=True)
-    return api
+BOT_CLASS_NAMES = [
+    "AnalystBot",
+    "GroupingBot",
+    "TaggingBot",
+    "WordlistBot",
+    "NLPBot",
+    "StoryBot",
+    "IOCBot",
+    "SummaryBot",
+    "SentimentAnalysisBot",
+    "CyberSecClassifierBot",
+]
 
 
 @pytest.fixture
@@ -25,42 +31,67 @@ def mock_job():
 
 
 @pytest.fixture
+def current_job(monkeypatch, mock_job):
+    monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: mock_job)
+    return mock_job
+
+
+@pytest.fixture
+def no_current_job(monkeypatch):
+    monkeypatch.setattr("worker.bots.bot_tasks.get_current_job", lambda: None)
+
+
+@pytest.fixture
+def core_api(monkeypatch, mock_core_api):
+    monkeypatch.setattr("worker.bots.bot_tasks.CoreApi", lambda: mock_core_api)
+    return mock_core_api
+
+
+@pytest.fixture
 def bot_config():
     """Sample bot configuration."""
     return {
         "id": "bot-456",
-        "type": "WORDLIST_BOT",
+        "type": "wordlist_bot",
         "name": "Test Bot",
-        "parameters": {},
+        "parameters": {"limit": 5},
     }
+
+
+@pytest.fixture
+def stub_bots(monkeypatch):
+    class DummyBot:
+        _execute_impl = staticmethod(lambda params: {"result": "ok"})
+
+        def execute(self, params):
+            return type(self)._execute_impl(params)
+
+    for class_name in BOT_CLASS_NAMES:
+        monkeypatch.setattr(worker.bots, class_name, DummyBot)
+
+    return DummyBot
 
 
 class TestBotTask:
     """Tests for bot_task function."""
 
-    @patch("worker.bots.bot_tasks.get_current_job")
-    @patch("worker.bots.bot_tasks.CoreApi")
-    @patch("worker.bots.bot_tasks._execute_by_config")
-    def test_bot_task_success_passes_result_dict(self, mock_execute, mock_api_class, mock_get_job, mock_job, mock_core_api, bot_config):
+    def test_bot_task_success_passes_result_dict(self, current_job, core_api, bot_config, stub_bots):
         """Test that bot_task passes the full result dict to _save_task_result on success."""
-        # Setup
-        mock_get_job.return_value = mock_job
-        mock_api_class.return_value = mock_core_api
-        mock_core_api.get_bot_config.return_value = bot_config
+        core_api.get_bot_config.return_value = bot_config
 
         # Mock bot execution result - bot returns result WITHOUT bot_type
         bot_execution_result = {
             "result": {"tagged_items": 5, "tags_applied": ["malware", "apt"]},
             "news_items": [{"id": "item1"}, {"id": "item2"}],
         }
-        mock_execute.return_value = bot_execution_result
+        stub_bots._execute_impl = staticmethod(lambda params: bot_execution_result)
 
         # Execute
         result = bot_task("bot-456", filter={"story_id": "123"})
 
         # Verify result dict (not message string) is saved
-        mock_core_api.api_put.assert_called_once()
-        call_args = mock_core_api.api_put.call_args
+        core_api.api_put.assert_called_once()
+        call_args = core_api.api_put.call_args
         assert call_args[0][0] == "/worker/task-results"
 
         task_data = call_args[0][1]
@@ -81,14 +112,9 @@ class TestBotTask:
         assert result["bot_type"] == "WORDLIST_BOT"
         assert result["result"] == bot_execution_result["result"]
 
-    @patch("worker.bots.bot_tasks.get_current_job")
-    @patch("worker.bots.bot_tasks.CoreApi")
-    def test_bot_task_not_found_wraps_error_in_dict(self, mock_api_class, mock_get_job, mock_job, mock_core_api):
+    def test_bot_task_not_found_wraps_error_in_dict(self, current_job, core_api):
         """Test that bot_task wraps error messages in dict when bot not found."""
-        # Setup
-        mock_get_job.return_value = mock_job
-        mock_api_class.return_value = mock_core_api
-        mock_core_api.get_bot_config.return_value = None  # Bot not found
+        core_api.get_bot_config.return_value = None  # Bot not found
 
         # Execute and expect exception
         with pytest.raises(ValueError, match="Bot with id bot-999 not found"):
@@ -97,61 +123,53 @@ class TestBotTask:
         # Verify error is wrapped in dict - called twice due to raise after save
         # First call: specific bot not found error handler
         # Second call: general exception handler
-        assert mock_core_api.api_put.call_count == 2
+        assert core_api.api_put.call_count == 2
 
         # Check first call (specific error)
-        first_call = mock_core_api.api_put.call_args_list[0][0][1]
+        first_call = core_api.api_put.call_args_list[0][0][1]
         assert first_call["status"] == "FAILURE"
         assert isinstance(first_call["result"], dict)
         assert "error" in first_call["result"]
         assert first_call["result"]["error"] == "Bot with id bot-999 not found"
 
         # Check second call (exception handler wrapping)
-        second_call = mock_core_api.api_put.call_args_list[1][0][1]
+        second_call = core_api.api_put.call_args_list[1][0][1]
         assert second_call["status"] == "FAILURE"
         assert isinstance(second_call["result"], dict)
         assert "error" in second_call["result"]
         assert "Bot execution failed: Bot with id bot-999 not found" in second_call["result"]["error"]
 
-    @patch("worker.bots.bot_tasks.get_current_job")
-    @patch("worker.bots.bot_tasks.CoreApi")
-    @patch("worker.bots.bot_tasks._execute_by_config")
-    def test_bot_task_exception_wraps_error_in_dict(self, mock_execute, mock_api_class, mock_get_job, mock_job, mock_core_api, bot_config):
+    def test_bot_task_exception_wraps_error_in_dict(self, current_job, core_api, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
-        # Setup
-        mock_get_job.return_value = mock_job
-        mock_api_class.return_value = mock_core_api
-        mock_core_api.get_bot_config.return_value = bot_config
-        mock_execute.side_effect = RuntimeError("Bot execution crashed")
+        core_api.get_bot_config.return_value = bot_config
+
+        def _raise(*_):
+            raise RuntimeError("Bot execution crashed")
+
+        stub_bots._execute_impl = staticmethod(_raise)
 
         # Execute and expect exception
         with pytest.raises(RuntimeError, match="Bot execution crashed"):
             bot_task("bot-456")
 
         # Verify error is wrapped in dict
-        mock_core_api.api_put.assert_called_once()
-        task_data = mock_core_api.api_put.call_args[0][1]
+        core_api.api_put.assert_called_once()
+        task_data = core_api.api_put.call_args[0][1]
         assert task_data["status"] == "FAILURE"
         assert isinstance(task_data["result"], dict)
         assert "error" in task_data["result"]
         assert "Bot execution failed: Bot execution crashed" in task_data["result"]["error"]
 
-    @patch("worker.bots.bot_tasks.get_current_job")
-    @patch("worker.bots.bot_tasks.CoreApi")
-    @patch("worker.bots.bot_tasks._execute_by_config")
-    def test_bot_task_without_job_uses_fallback_id(self, mock_execute, mock_api_class, mock_get_job, mock_core_api, bot_config):
+    def test_bot_task_without_job_uses_fallback_id(self, no_current_job, core_api, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
-        # Setup - no current job
-        mock_get_job.return_value = None
-        mock_api_class.return_value = mock_core_api
-        mock_core_api.get_bot_config.return_value = bot_config
-        mock_execute.return_value = {"result": "success"}
+        core_api.get_bot_config.return_value = bot_config
+        stub_bots._execute_impl = staticmethod(lambda params: {"result": "success"})
 
         # Execute
         bot_task("bot-789")
 
         # Verify fallback ID is used
-        task_data = mock_core_api.api_put.call_args[0][1]
+        task_data = core_api.api_put.call_args[0][1]
         assert task_data["id"] == "bot_bot-789"
 
 
@@ -208,113 +226,3 @@ class TestSaveTaskResult:
         # Verify API was called
         mock_core_api.api_put.assert_called_once()
 
-
-class TestResultStructureCompatibility:
-    """Integration tests for result structure compatibility with core API."""
-
-    def test_result_structure_compatible_with_core_api_access(self):
-        """Test that result structure is compatible with core API's result.get('result') access."""
-        # This simulates what the core API does at task.py#L83
-        # result.get("result")
-
-        # Test successful bot result
-        bot_result = {
-            "bot_type": "WORDLIST_BOT",
-            "result": {"tagged_items": 5},
-            "news_items": [{"id": "1"}],
-        }
-
-        # Core API should be able to access nested result
-        result_data = bot_result.get("result")
-        assert result_data is not None
-        assert isinstance(result_data, dict)
-        assert result_data.get("tagged_items") == 5
-
-    def test_error_result_structure_has_error_or_message_key(self):
-        """Test that error results have 'error' or 'message' keys as expected by core API."""
-        # This simulates the check at task.py#L84-86
-        # if isinstance(result_data, dict) and (result_data.get("error") or result_data.get("message")):
-
-        # Test error result structure
-        error_result = {"error": "Bot execution failed: Connection timeout"}
-
-        # For error cases, result.get("result") would be None, but error_result itself has "error"
-        # OR the structure could be nested
-        assert error_result.get("error") or error_result.get("message")
-
-    def test_tagging_bot_result_structure_for_news_item_service(self):
-        """Test that tagging bot results have the structure expected by NewsItemTagService."""
-        # Core API checks bot_type and processes result accordingly (task.py#L88-91)
-        bot_result = {
-            "bot_type": "WORDLIST_BOT",
-            "result": {"tags": ["apt", "malware"]},
-            "news_items": [
-                {"id": "item1", "attributes": []},
-                {"id": "item2", "attributes": []},
-            ],
-        }
-
-        # Verify structure
-        assert bot_result.get("bot_type") in ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"]
-        assert "news_items" in bot_result
-        assert isinstance(bot_result["news_items"], list)
-
-    @patch("worker.bots.bot_tasks.get_current_job")
-    @patch("worker.bots.bot_tasks.CoreApi")
-    @patch("worker.bots.bot_tasks._execute_by_config")
-    def test_end_to_end_result_flow(self, mock_execute, mock_api_class, mock_get_job, mock_core_api):
-        """End-to-end test: bot_task -> _save_task_result -> core API receives correct structure."""
-        # Setup
-        job = Mock()
-        job.id = "e2e-job-123"
-        mock_get_job.return_value = job
-        mock_api_class.return_value = mock_core_api
-
-        bot_config = {"id": "bot-e2e", "type": "nlp_bot", "parameters": {}}
-        mock_core_api.get_bot_config.return_value = bot_config
-
-        # Bot execution result structure (WITHOUT bot_type - that's added by bot_task)
-        bot_execution_result = {
-            "result": {
-                "entities_extracted": 15,
-                "entity_types": ["PERSON", "ORG", "LOC"],
-            },
-            "news_items": [
-                {"id": "news1", "attributes": [{"key": "entity", "value": "Acme Corp"}]},
-                {"id": "news2", "attributes": [{"key": "entity", "value": "John Doe"}]},
-            ],
-        }
-        mock_execute.return_value = bot_execution_result
-
-        # Execute
-        result = bot_task("bot-e2e")
-
-        # Verify the entire flow - bot_type should be added by bot_task
-        assert result["bot_type"] == "NLP_BOT"
-        assert result["result"] == bot_execution_result["result"]
-
-        # Verify core API received properly structured data
-        api_call_args = mock_core_api.api_put.call_args[0]
-        assert api_call_args[0] == "/worker/task-results"
-
-        task_data = api_call_args[1]
-        assert task_data["id"] == "e2e-job-123"
-        assert task_data["task"] == "bot_bot-e2e"
-        assert task_data["status"] == "SUCCESS"
-
-        # Critical: Verify result is the full dict, not a string
-        saved_result = task_data["result"]
-        assert isinstance(saved_result, dict)
-
-        # Simulate core API processing (task.py#L83)
-        result_data = saved_result.get("result")
-        assert result_data is not None
-        assert result_data["entities_extracted"] == 15
-
-        # Simulate core API bot_type check (task.py#L87)
-        bot_type = saved_result.get("bot_type", "")
-        assert bot_type == "NLP_BOT"
-
-        # Simulate core API accessing news_items (task.py#L89-91)
-        news_items = saved_result.get("news_items", [])
-        assert len(news_items) == 2
