@@ -15,7 +15,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.geneticresearchsecurity.com/apt81-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-19T00:35:00+01:00",
+            "published": "2024-05-19T00:35:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk14",
@@ -28,7 +28,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.smartcityupdate.com/apt74-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-04-12T08:45:00+01:00",
+            "published": "2024-04-12T08:45:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk15",
@@ -41,7 +41,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.mediasecurityfocus.com/apt75-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-13T06:35:00+01:00",
+            "published": "2024-05-13T06:35:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk16",
@@ -54,7 +54,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.pharmasecuritytoday.com/apt76-2024.html",
             "osint_source_id": fake_source,
-            "published": "2026-05-14T06:20:00+01:00",
+            "published": "2026-05-14T06:20:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk17",
@@ -67,7 +67,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.powergridsecurityfocus.com/apt77-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-15T05:05:00+01:00",
+            "published": "2024-05-15T05:05:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk18",
@@ -80,7 +80,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.aerospacesecuritytoday.com/apt78-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-16T04:15:00+01:00",
+            "published": "2024-05-16T04:15:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk19",
@@ -93,7 +93,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.sportseventsecurity.com/apt79-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-17T03:00:00+01:00",
+            "published": "2024-05-17T03:00:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk20",
@@ -106,7 +106,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.telecomsecurityupdate.com/apt80-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-18T01:45:00+01:00",
+            "published": "2024-05-18T01:45:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk13",
@@ -132,7 +132,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.iotsecurityfocus.com/apt61-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-10T21:45:00+01:00",
+            "published": "2024-05-10T21:45:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk10",
@@ -145,7 +145,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.airportsecurityfocus.com/apt70-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-09T02:30:00+01:00",
+            "published": "2024-05-09T02:30:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk11",
@@ -184,7 +184,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.miningsecurityupdate.com/apt67-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-06T04:46:00+01:00",
+            "published": "2024-05-06T04:46:00+02:00",
         },
         {
             "id": "9i1i4415-8ba7-7ec2-deh0-hd33edf4hfgh",
@@ -197,7 +197,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.softwaresecurityfocus.com/apt55-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-04T15:25:00+01:00",
+            "published": "2024-05-04T15:25:00+02:00",
         },
         {
             "id": "0j2j5526-9c98-8fd3-efi1-ie44feg5igih",
@@ -210,7 +210,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.governmentcyberwatch.com/apt56-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-05T16:35:00+01:00",
+            "published": "2024-05-05T16:35:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl1",
@@ -223,7 +223,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.legalsecurityfocus.com/apt65-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-04T07:05:00+01:00",
+            "published": "2024-05-04T07:05:00+02:00",
         },
         {
             "id": "4n6n9960-dhc2-cjk7-ijm5-mi88kjk9mnno",
@@ -236,7 +236,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.healthcarecyberwatch.com/apt60-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-09T20:30:00+01:00",
+            "published": "2024-05-09T20:30:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lklm",
@@ -249,7 +249,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.logisticssecuritytoday.com/apt59-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-08T19:15:00+01:00",
+            "published": "2024-05-08T19:15:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl8",
@@ -262,7 +262,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.techsecuritywatch.com/apt68-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-07T04:00:00+01:00",
+            "published": "2024-05-07T04:00:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl9",
@@ -275,7 +275,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.warfaresecuritytoday.com/apt69-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-08T03:15:00+01:00",
+            "published": "2024-05-08T03:15:00+02:00",
         },
         {
             "id": "2l4l7748-bfa0-ahf5-ghk3-kg66igh7kjkl",
@@ -288,7 +288,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.phishingwatch.com/apt58-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-07T18:00:00+01:00",
+            "published": "2024-05-07T18:00:00+02:00",
         },
         {
             "id": "1k3k6637-ade9-9ge4-fgj2-jf55gfh6jijk",
@@ -301,7 +301,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.startupsecurityupdate.com/apt57-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-06T17:46:00+01:00",
+            "published": "2024-05-06T17:46:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl6",
@@ -314,7 +314,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.municipalsecuritytoday.com/apt66-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-05T06:15:00+01:00",
+            "published": "2024-05-05T06:15:00+02:00",
         },
         {
             "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
@@ -353,7 +353,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.transportsecuritytoday.com/apt62-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-04-01T10:00:00+01:00",
+            "published": "2024-04-01T10:00:00+02:00",
         },
         {
             "id": "22a13c88-8a0f-476c-b847-9e21b26311d4",
@@ -366,7 +366,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.techsecurityupdate.com/2024-APT28.html",
             "osint_source_id": fake_source,
-            "published": "2024-04-15T11:00:00+01:00",
+            "published": "2024-04-15T11:00:00+02:00",
         },
         {
             "id": "73fa83d7-04e0-49b7-a8a7-3f29d23fc7ea",
@@ -418,7 +418,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.socialmediasafety.com/misinfo-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-20T14:00:00+01:00",
+            "published": "2024-05-20T14:00:00+02:00",
         },
         {
             "id": "c2134c68-2a0d-45cb-a8e7-5e29c23dc7fa",
@@ -457,7 +457,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.telecomsecuritytoday.com/apt39-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-04-04T12:00:00+01:00",
+            "published": "2024-04-04T12:00:00+02:00",
         },
         {
             "id": "f2213c48-6b0f-476c-b347-7e11b26312d5",
@@ -470,7 +470,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.maritimeupdate.com/apt40-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-01T15:00:00+01:00",
+            "published": "2024-05-01T15:00:00+02:00",
         },
         {
             "id": "0c12d597-4b2d-45cb-a980-3e18108b29b1",
@@ -496,7 +496,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.educationcyberwatch.com/apt42-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-10T14:00:00+01:00",
+            "published": "2024-05-10T14:00:00+02:00",
         },
         {
             "id": "7e60c7d4-95d3-4db9-a1f3-d0d23c1f0b9e",
@@ -509,7 +509,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.cryptosecuritytoday.com/apt43-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-12T16:00:00+01:00",
+            "published": "2024-05-12T16:00:00+02:00",
         },
         {
             "id": "39f423d0-7e15-4bda-93c2-90f5b1e19b3d",
@@ -522,7 +522,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.retailcyberwatch.com/apt44-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-20T12:00:00+01:00",
+            "published": "2024-05-20T12:00:00+02:00",
         },
         {
             "id": "8d33a3c0-ae67-4f98-ac61-90e3b5e1988c",
@@ -535,7 +535,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.energysecurityupdate.com/apt45-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-15T13:30:00+01:00",
+            "published": "2024-05-15T13:30:00+02:00",
         },
         {
             "id": "fe12d397-5d2d-4cbc-9a80-3f18105b2970",
@@ -548,7 +548,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.bankingsecurityfocus.com/apt46-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-30T10:15:00+01:00",
+            "published": "2024-05-30T10:15:00+02:00",
         },
         {
             "id": "ad23b3d0-9f10-4bd8-bf62-81f5b1c19b4e",
@@ -561,7 +561,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.financialintegritywatch.com/apt47-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-11T15:00:00+01:00",
+            "published": "2024-05-11T15:00:00+02:00",
         },
         {
             "id": "be34c3e0-cf17-4f89-bd61-92e4b5f1989d",
@@ -574,7 +574,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.spacecomsecupdate.com/apt48-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-05T11:30:00+01:00",
+            "published": "2024-05-05T11:30:00+02:00",
         },
         {
             "id": "cf45d4f0-d018-4cda-c063-83g6c2e1ab5f",
@@ -587,7 +587,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.antiviruswatch.com/apt49-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-25T17:00:00+01:00",
+            "published": "2024-05-25T17:00:00+02:00",
         },
         {
             "id": "dg56e5g1-e119-5edb-d064-94h7d3f2bc6g",
@@ -639,7 +639,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.diplomaticsecurityfocus.com/apt53-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-04-02T11:00:00+01:00",
+            "published": "2024-04-02T11:00:00+02:00",
         },
         {
             "id": "8h9h3304-7a96-6db1-cdg9-gc229dc3gefg",
@@ -652,7 +652,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.industrialsecuritytoday.com/apt54-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-03T14:15:00+01:00",
+            "published": "2024-05-03T14:15:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl3",
@@ -665,7 +665,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.politicalsecurityfocus.com/apt63-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-02T09:15:00+01:00",
+            "published": "2024-05-02T09:15:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl2",
@@ -678,7 +678,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.financialsecuritytoday.com/apt64-2024.html",
             "osint_source_id": fake_source,
-            "published": "2024-05-03T08:30:00+01:00",
+            "published": "2024-05-03T08:30:00+02:00",
         },
         {
             "id": "5f730743-5eec-42b1-95b6-0ececbe1d2bb",
