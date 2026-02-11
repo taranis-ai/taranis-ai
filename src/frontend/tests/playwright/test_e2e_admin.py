@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import uuid
+from datetime import datetime
 
 import pytest
 from flask import url_for
@@ -911,7 +912,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page):
+    def test_admin_settings(self, logged_in_page, pre_seed_stories):
         page = logged_in_page
         settings_form = page.locator("#settings-container form#admin-settings-form")
         tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
@@ -962,11 +963,100 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             news_conflict_input.fill("200")
             settings_submit.click()
 
+        def test_export_all_stories(story_list):
+            export_btn = page.get_by_test_id("story-export-button")
+
+            # export all stories
+            with page.expect_download() as dl_info:
+                self.highlight_element(export_btn).click()
+            download = dl_info.value
+            assert download is not None
+            download_path = download.path()
+            assert download_path is not None
+
+            with open(download_path, "r", encoding="utf-8") as f:
+                exported = json.load(f)
+
+            # convert both exported stories and stories in story_list to a comparable format
+            expected_stories = {(item["story_id"], item["published"], item["id"], item["title"], item["content"]) for item in story_list}
+
+            received_stories = {
+                (item["id"], item["created"], item["news_items"][0]["id"], item["news_items"][0]["title"], item["news_items"][0]["content"])
+                for item in exported
+            }
+
+            assert expected_stories == received_stories, "Exported stories do not match stories in DB"
+
+        def test_export_stories_metadata_time_filter(story_list):
+            export_meta_btn = page.get_by_test_id("story-export-with-metadata-button")
+            time_from_input = page.get_by_test_id("story-export-time-from")
+            time_to_input = page.get_by_test_id("story-export-time-to")
+
+            time_from = "2024-05-01T00:00"
+            time_to = "2024-06-01T00:00"
+
+            time_from_input.fill(time_from)
+            time_to_input.fill(time_to)
+
+            # export stories with metdata between time_from and time_to
+            with page.expect_download() as dl_info:
+                self.highlight_element(export_meta_btn).click()
+
+            download = dl_info.value
+            assert download is not None
+            download_path = download.path()
+            assert download_path is not None
+
+            # check if query params in URL
+            assert "timefrom=" in download.url
+            assert "timeto=" in download.url
+            assert "metadata=true" in download.url
+
+            with open(download_path, "r", encoding="utf-8") as f:
+                exported = json.load(f)
+
+            tf = datetime.fromisoformat(time_from).astimezone()
+            tt = datetime.fromisoformat(time_to).astimezone()
+
+            expected = {
+                (
+                    item["story_id"],
+                    item["id"],
+                    item["title"],
+                    item["content"],
+                    item["source"],
+                    item["author"],
+                    item["link"],
+                    item["published"],
+                )
+                for item in story_list
+                if tf <= datetime.fromisoformat(item["published"]) <= tt
+            }
+
+            got = {
+                (
+                    story["id"],
+                    ni["id"],
+                    ni["title"],
+                    ni["content"],
+                    ni["source"],
+                    ni["author"],
+                    ni["link"],
+                    story["created"],
+                )
+                for story in exported
+                for ni in story.get("news_items", [])
+            }
+
+            assert expected == got, "Exported stories with metadata do not match fixture stories within time filter"
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
         check_new_values()
         revert_to_default_values()
+        test_export_all_stories(pre_seed_stories)
+        test_export_stories_metadata_time_filter(pre_seed_stories)
 
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page
