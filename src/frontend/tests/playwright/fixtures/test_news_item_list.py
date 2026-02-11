@@ -327,7 +327,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.some.other.link/2023.html",
             "osint_source_id": fake_source,
-            "published": "2022-02-21T15:01:14.086285",
+            "published": "2022-02-21T15:01:14+01:00",
         },
         {
             "id": "0a129597-592d-45cb-9a80-3218108b29a0",
@@ -691,7 +691,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.cybersecurityinsights.com/new-cloud-ransomware-2000.html",
             "osint_source_id": fake_source,
-            "published": "2000-07-09T17:23:53",
+            "published": "2000-07-09T17:23:53+02:00",
         },
         {
             "id": "48f1e64f-f69f-4057-809a-48f706746fac",
@@ -704,7 +704,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.infosecurityalerts.com/web-server-zero-day-2000.html",
             "osint_source_id": fake_source,
-            "published": "2000-10-30T23:40:15",
+            "published": "2000-10-30T23:40:15+01:00",
         },
         {
             "id": "78f04d84-2c69-4c79-9e9c-39bf0dabd652",
@@ -717,7 +717,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.criticalinfrastructuredefense.com/power-grid-attack-2000.html",
             "osint_source_id": fake_source,
-            "published": "2000-04-23T15:12:08",
+            "published": "2000-04-23T15:12:08+02:00",
         },
         {
             "id": "11e1f348-d53b-4542-ae1d-2674be32184c",
@@ -730,7 +730,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.financialcybernews.com/banking-data-breach-2000.html",
             "osint_source_id": fake_source,
-            "published": "2000-04-27T01:51:09",
+            "published": "2000-04-27T01:51:09+02:00",
         },
         {
             "id": "e300742f-124f-4e2f-ab3f-bb80b34b1d01",
@@ -743,6 +743,6 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.softwaresecuritywatch.com/open-source-malware-2000.html",
             "osint_source_id": fake_source,
-            "published": "2000-03-14T08:58:59",
+            "published": "2000-03-14T08:58:59+01:00",
         },
     ]
