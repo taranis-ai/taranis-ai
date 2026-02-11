@@ -161,7 +161,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         def test_user_profile_settings_adjustments():
-            page.pause()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
             page.get_by_role("checkbox", name="Compact view Use condensed").check()
             page.get_by_role("button", name="Save changes").click()
