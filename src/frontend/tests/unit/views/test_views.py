@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -120,7 +120,7 @@ class TestCRUDViews:
 
 
 class TestSourceView:
-    def test_import_post_view(self, authenticated_client):
+    def test_import_post_view(self, authenticated_client, source_api_mocks):
         """
         Test that the import_post_view method correctly extracts the "sources" key
         from the uploaded JSON file.
@@ -131,20 +131,16 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        # Mock the CoreApi().import_sources method
-        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
-            mock_api_instance = MagicMock()
-            mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = MagicMock(ok=True)
+        source_api_mocks.import_sources.return_value = MagicMock(ok=True)
 
-            # Simulate the POST request
-            resp = authenticated_client.post(
-                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
-            )
+        # Simulate the POST request
+        resp = authenticated_client.post(
+            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+        )
 
-            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
+        assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
 
-            mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
+        source_api_mocks.import_sources.assert_called_once_with(dummy_export_data)
 
     def test_import_post_view_no_file(self, authenticated_client):
         """
@@ -156,7 +152,7 @@ class TestSourceView:
         html = resp.get_data(as_text=True)
         assert "No file or organization provided" in html
 
-    def test_import_post_view_api_failure(self, authenticated_client):
+    def test_import_post_view_api_failure(self, authenticated_client, source_api_mocks):
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
@@ -165,15 +161,12 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
-            mock_api_instance = MagicMock()
-            mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = None
+        source_api_mocks.import_sources.return_value = None
 
-            resp = authenticated_client.post(
-                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
-            )
+        resp = authenticated_client.post(
+            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+        )
 
-            assert resp.status_code == 200
-            html = resp.get_data(as_text=True)
-            assert "Failed to import sources" in html
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Failed to import sources" in html

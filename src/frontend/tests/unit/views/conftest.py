@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from typing import get_origin
+from unittest.mock import MagicMock
 
 import pytest
 import responses
@@ -22,8 +23,10 @@ from uuid_extensions import uuid7str  # noqa: E402
 from frontend.config import Config  # noqa: E402
 from frontend.log import logger  # noqa: E402
 from frontend.views.base_view import BaseView  # noqa: E402
+from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
+
 
 
 @pytest.fixture
@@ -35,6 +38,61 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
+
+
+@pytest.fixture
+def source_api_mocks(monkeypatch):
+    mock_api = MagicMock()
+    monkeypatch.setattr(source_views, "CoreApi", lambda: mock_api)
+    return mock_api
+
+
+@pytest.fixture
+def scheduler_api_mocks(monkeypatch):
+    mock_api = MagicMock()
+
+    def _api_get(path):
+        if path == "/config/schedule":
+            return {"items": []}
+        if path == "/config/workers/tasks":
+            return []
+        if path == "/config/workers/stats":
+            return {}
+        if path == "/config/workers/active":
+            return {"items": []}
+        if path == "/config/workers/failed":
+            return {"items": []}
+        return None
+
+    mock_api.api_get.side_effect = _api_get
+    monkeypatch.setattr(scheduler_views, "CoreApi", lambda: mock_api)
+
+    class _TaskResults:
+        extra = {
+            "task_stats": {},
+            "totals": {"successes": 0, "failures": 0, "overall_success_rate": 0},
+        }
+
+        def __len__(self):
+            return 0
+
+    class _DataPersistenceLayer:
+        def get_objects(self, *_, **__):
+            return _TaskResults()
+
+    monkeypatch.setattr(scheduler_views, "DataPersistenceLayer", _DataPersistenceLayer)
+
+    class _Dashboard:
+        worker_status = {}
+
+    class _SourcePersistenceLayer:
+        def get_first(self, *_args, **_kwargs):
+            return _Dashboard()
+
+    monkeypatch.setattr(source_views, "DataPersistenceLayer", _SourcePersistenceLayer)
+    monkeypatch.setattr(bot_views, "DataPersistenceLayer", _SourcePersistenceLayer)
+
+    return mock_api
 
 
 def get_items_from_factory(view_name, model):

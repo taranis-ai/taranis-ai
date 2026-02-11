@@ -1,9 +1,6 @@
 import pytest
 from flask import url_for
 
-from frontend.cache_models import CacheObject
-from frontend.views.admin_views import scheduler_views
-
 
 @pytest.mark.parametrize(
     ("endpoint", "expected_tab"),
@@ -15,21 +12,7 @@ from frontend.views.admin_views import scheduler_views
         ("admin.scheduler_history", "history"),
     ],
 )
-def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, monkeypatch):
-    def fake_api_get(self, endpoint_name, params=None):
-        mapping = {
-            "/config/schedule": {"items": [{"id": "job-1", "name": "Test Job", "queue": "default"}]},
-            "/config/workers/tasks": [],
-            "/config/workers/stats": {"workers": []},
-        }
-        return mapping.get(endpoint_name, {"items": []})
-
-    def fake_get_objects(self, model, paging_data=None):
-        return CacheObject([])
-
-    monkeypatch.setattr(scheduler_views.CoreApi, "api_get", fake_api_get, raising=False)
-    monkeypatch.setattr(scheduler_views.DataPersistenceLayer, "get_objects", fake_get_objects, raising=False)
-
+def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, scheduler_api_mocks):
     with authenticated_client.application.app_context():
         url = url_for(endpoint)
 
@@ -43,21 +26,7 @@ def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authentic
     assert f'id="{expected_tab}-tab" class="tab-panel hidden"' not in html
 
 
-def test_scheduler_tab_query_param_overrides_initial(authenticated_client, monkeypatch):
-    def fake_api_get(self, endpoint_name, params=None):
-        mapping = {
-            "/config/schedule": {"items": [{"id": "job-1", "name": "Test Job", "queue": "default"}]},
-            "/config/workers/tasks": [],
-            "/config/workers/stats": {"workers": []},
-        }
-        return mapping.get(endpoint_name, {"items": []})
-
-    def fake_get_objects(self, model, paging_data=None):
-        return CacheObject([])
-
-    monkeypatch.setattr(scheduler_views.CoreApi, "api_get", fake_api_get, raising=False)
-    monkeypatch.setattr(scheduler_views.DataPersistenceLayer, "get_objects", fake_get_objects, raising=False)
-
+def test_scheduler_tab_query_param_overrides_initial(authenticated_client, scheduler_api_mocks):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_active_jobs", tab="scheduled")
 
