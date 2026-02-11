@@ -379,10 +379,10 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **context), 200
 
     @classmethod
-    def get_notification_from_response(cls, response: RequestsResponse) -> str:
+    def get_notification_from_response(cls, response: RequestsResponse, oob: bool = True) -> str:
         if not response or not response.json():
-            return render_template("notification/index.html", notification={"message": "No response from core API", "error": True})
-        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response.json()))
+            return render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response.json()), oob=oob)
 
     @classmethod
     def render_response_notification(cls, response: dict) -> str:
