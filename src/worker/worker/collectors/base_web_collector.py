@@ -70,7 +70,7 @@ class BaseWebCollector(BaseCollector):
             self.headers.update({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
-        self.osint_source_id = source["id"]
+        self.osint_source_id = str(source["id"])
 
     def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}

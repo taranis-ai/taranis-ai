@@ -135,7 +135,7 @@ class RTCollector(BaseWebCollector):
 
         decoded_content: str = self.decode64(content) if content else ""
         return NewsItem(
-            osint_source_id=source.get("id", ""),
+            osint_source_id=str(source.get("id", "")),
             title="attachment",
             content=decoded_content or "attachment without content",
             published=datetime.datetime.fromisoformat(created),

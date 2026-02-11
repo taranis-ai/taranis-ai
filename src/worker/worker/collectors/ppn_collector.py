@@ -22,7 +22,7 @@ class PPNCollector(BaseCollector):
 
     def parse_source(self, source):
         self.path = Path(source["parameters"].get("PATH", None))
-        self.osint_source_id = source["id"]
+        self.osint_source_id = str(source["id"])
         if not self.path:
             logger.error("No PATH set")
             raise ValueError("No PATH set")

@@ -154,7 +154,7 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     assert isinstance(items[0], NewsItem)
     assert story.title == web_collector_result_title
     assert story.content.startswith(web_collector_result_content)
-    assert story.link == browser_web_collector_instance.link
+    assert story.link == browser_web_collector_instance.web_url
     assert story.source == browser_web_collector_instance.web_url
 
 

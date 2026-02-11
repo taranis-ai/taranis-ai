@@ -83,7 +83,7 @@ class CoreApi:
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
-            return Product(response)
+            return Product.from_response(response)
         except Exception:
             logger.exception("Can't get Product Render")
             return None

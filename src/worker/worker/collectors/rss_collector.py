@@ -132,7 +132,7 @@ class RSSCollector(BaseWebCollector):
             description = ""
 
         return NewsItem(
-            osint_source_id=source["id"],
+            osint_source_id=str(source["id"]),
             author=author,
             title=title,
             source=self.feed_url,

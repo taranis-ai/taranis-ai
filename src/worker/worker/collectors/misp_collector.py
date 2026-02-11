@@ -132,7 +132,7 @@ class MispCollector(BaseCollector):
             story_id=story_id,
             language=language,
             review=review,
-            osint_source_id=source.get("id", ""),
+            osint_source_id=str(source.get("id", "")),
         )
 
     def get_internal_osint_source_id(self, osint_source_id: str) -> str:

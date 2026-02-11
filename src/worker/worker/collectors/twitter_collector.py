@@ -34,7 +34,6 @@ class TwitterCollector(BaseWebCollector):
         public_tweets = response.json()["data"]
 
         for tweet in public_tweets:
-            tweet_id = tweet.id
             link = f"https://twitter.com/{tweet.username}/status/{tweet.id}"
             author = tweet.username
             published = tweet.created_at
@@ -42,7 +41,7 @@ class TwitterCollector(BaseWebCollector):
             content = tweet.text
 
             news_item = NewsItem(
-                osint_source_id=source["id"],
+                osint_source_id=str(source["id"]),
                 title=title,
                 link=link,
                 published=published,
