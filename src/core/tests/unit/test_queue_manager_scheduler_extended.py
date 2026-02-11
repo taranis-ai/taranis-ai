@@ -4,7 +4,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
-import flask_jwt_extended.utils as jwt_utils
 import pytest
 import rq.job as rq_job
 import rq.registry as rq_registry
@@ -302,16 +301,12 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
     assert entries == []
 
 
-def test_schedule_endpoint_returns_items(client, auth_header, monkeypatch):
+def test_schedule_endpoint_returns_items(client, auth_header, monkeypatch, auth_bypass):
     class FakeQM:
         def get_scheduled_jobs(self):
             return {"items": [{"id": "job-1"}], "total_count": 1}, 200
 
     monkeypatch.setattr(qm_module, "queue_manager", FakeQM())
-    monkeypatch.setattr(auth_manager, "verify_jwt_in_request", lambda *a, **k: None)
-    monkeypatch.setattr(auth_manager, "get_jwt_identity", lambda: "tester")
-    monkeypatch.setattr(jwt_utils, "get_jwt", lambda: {"sub": "tester"})
-    monkeypatch.setattr(jwt_utils, "get_current_user", lambda: type("User", (), {"get_permissions": lambda self: {"CONFIG_WORKER_ACCESS"}})())
 
     response = client.get("/api/config/schedule", headers=auth_header)
 
@@ -319,7 +314,7 @@ def test_schedule_endpoint_returns_items(client, auth_header, monkeypatch):
     assert response.json["items"][0]["id"] == "job-1"
 
 
-def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypatch):
+def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypatch, auth_bypass):
     class FakeJob:
         def __init__(self):
             self.id = "job-42"
@@ -336,10 +331,6 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
     monkeypatch.setattr(qm_module, "queue_manager", fake_qm)
     monkeypatch.setattr(config_api.queue_manager, "queue_manager", fake_qm)
     monkeypatch.setattr(rq_job.Job, "fetch", staticmethod(lambda job_id, connection=None: FakeJob()))
-    monkeypatch.setattr(auth_manager, "verify_jwt_in_request", lambda *a, **k: None)
-    monkeypatch.setattr(auth_manager, "get_jwt_identity", lambda: "tester")
-    monkeypatch.setattr(jwt_utils, "get_jwt", lambda: {"sub": "tester"})
-    monkeypatch.setattr(jwt_utils, "get_current_user", lambda: type("User", (), {"get_permissions": lambda self: {"CONFIG_WORKER_ACCESS"}})())
 
     response = client.get("/api/config/schedule/job-42", headers=auth_header)
 
@@ -348,7 +339,7 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
     assert response.json["status"] == "queued"
 
 
-def test_refresh_interval_endpoint(client, auth_header, monkeypatch):
+def test_refresh_interval_endpoint(client, auth_header, monkeypatch, auth_bypass):
     times = [
         datetime(2025, 1, 1, 12, 0),
         datetime(2025, 1, 1, 12, 15),
@@ -356,10 +347,6 @@ def test_refresh_interval_endpoint(client, auth_header, monkeypatch):
     ]
 
     monkeypatch.setattr(QueueManager, "get_next_fire_times_from_cron", classmethod(lambda cls, cron, n=3: times))
-    monkeypatch.setattr(auth_manager, "verify_jwt_in_request", lambda *a, **k: None)
-    monkeypatch.setattr(auth_manager, "get_jwt_identity", lambda: "tester")
-    monkeypatch.setattr(jwt_utils, "get_jwt", lambda: {"sub": "tester"})
-    monkeypatch.setattr(jwt_utils, "get_current_user", lambda: type("User", (), {"get_permissions": lambda self: {"CONFIG_WORKER_ACCESS"}})())
 
     response = client.post("/api/config/refresh-interval", headers=auth_header, json={"cron": "*/15 * * * *"})
 

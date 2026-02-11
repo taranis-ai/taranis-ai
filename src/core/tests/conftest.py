@@ -183,6 +183,23 @@ def auth_header_user_permissions(access_token_user_permissions):
     }
 
 
+@pytest.fixture
+def auth_bypass(monkeypatch):
+    """Bypass auth/permission checks for unit-level API tests."""
+    import flask_jwt_extended.utils as jwt_utils
+
+    from core.managers import auth_manager
+
+    monkeypatch.setattr(auth_manager, "verify_jwt_in_request", lambda *a, **k: None)
+    monkeypatch.setattr(auth_manager, "get_jwt_identity", lambda: "tester")
+    monkeypatch.setattr(jwt_utils, "get_jwt", lambda: {"sub": "tester"})
+    monkeypatch.setattr(
+        jwt_utils,
+        "get_current_user",
+        lambda: type("User", (), {"get_permissions": lambda self: {"CONFIG_WORKER_ACCESS"}})(),
+    )
+
+
 def _is_vscode(config) -> bool:
     # Primary: pytest plugin loaded by the VS Code Python extension
     if config.pluginmanager.hasplugin("vscode_pytest"):
