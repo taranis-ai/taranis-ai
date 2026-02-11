@@ -518,11 +518,13 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     }
 
     print("Pre-seeding stories via assess API")
+    story_list = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
         r.raise_for_status()
+        story_list.append({"story_id": r.json().get("story_id"), **item})
 
-    yield []
+    yield story_list
 
 
 @pytest.fixture(scope="session")
