@@ -300,16 +300,41 @@ class TestConnector:
     base_uri = "/api/worker"
 
     def test_connector(self, client, stories, api_header):
-        from unittest.mock import MagicMock
+        import types
 
-        sys.modules["pymisp"] = MagicMock()
-        sys.modules["worker"] = MagicMock()
-        sys.modules["worker.log"] = MagicMock()
-        sys.modules["worker.core_api"] = MagicMock()
-        sys.modules["worker.connectors"] = MagicMock()
-        sys.modules["worker.connectors.definitions"] = MagicMock()
-        sys.modules["worker.connectors.base_misp_builder"] = MagicMock()
-        sys.modules["worker.connectors.definitions.misp_objects"] = MagicMock()
+        class _StubLogger:
+            def warning(self, *_, **__):
+                return None
+
+            def debug(self, *_, **__):
+                return None
+
+        class _StubBaseMispObject:
+            def __init__(self, *_, **__):
+                return None
+
+        class _StubMISPEvent:
+            def __init__(self, *_, **__):
+                return None
+
+        pymisp = types.ModuleType("pymisp")
+        pymisp.MISPEvent = _StubMISPEvent
+
+        worker_module = types.ModuleType("worker")
+        worker_connectors = types.ModuleType("worker.connectors")
+        worker_connectors_definitions = types.ModuleType("worker.connectors.definitions")
+        worker_connectors_misp_objects = types.ModuleType("worker.connectors.definitions.misp_objects")
+        worker_log = types.ModuleType("worker.log")
+
+        worker_log.logger = _StubLogger()
+        worker_connectors_misp_objects.BaseMispObject = _StubBaseMispObject
+
+        sys.modules["pymisp"] = pymisp
+        sys.modules["worker"] = worker_module
+        sys.modules["worker.connectors"] = worker_connectors
+        sys.modules["worker.connectors.definitions"] = worker_connectors_definitions
+        sys.modules["worker.connectors.definitions.misp_objects"] = worker_connectors_misp_objects
+        sys.modules["worker.log"] = worker_log
 
         file_path = os.path.abspath(os.path.join(__file__, "../../../../worker/worker/connectors/base_misp_builder.py"))
 
