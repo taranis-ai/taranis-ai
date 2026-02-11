@@ -16,16 +16,17 @@ class StoryService:
         stories: dict[str, dict] = {}
 
         for row in result:
-            if getattr(row, "news_item_id", None) is not None:
-                story = stories.setdefault(row.id, {"id": row.id, "created": row.created.isoformat(), "news_items": []})
+            if getattr(row, "news_item_id", None) is None:
+                continue
+            story = stories.setdefault(row.id, {"id": row.id, "created": row.created.astimezone().isoformat(), "news_items": []})
 
-                story["news_items"].append(
-                    {
-                        "id": row.news_item_id,
-                        "title": row.news_item_title,
-                        "content": row.news_item_content,
-                    }
-                )
+            story["news_items"].append(
+                {
+                    "id": row.news_item_id,
+                    "title": row.news_item_title,
+                    "content": row.news_item_content,
+                }
+            )
 
         return list(stories.values())
 
