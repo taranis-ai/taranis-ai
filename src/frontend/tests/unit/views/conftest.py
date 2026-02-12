@@ -52,16 +52,17 @@ def scheduler_api_mocks(monkeypatch):
     mock_api = MagicMock()
 
     def _api_get(path):
-        if path == "/config/schedule":
-            return {"items": []}
-        if path == "/config/workers/tasks":
-            return []
-        if path == "/config/workers/stats":
-            return {}
-        if path == "/config/workers/active":
-            return {"items": []}
-        if path == "/config/workers/failed":
-            return {"items": []}
+        if path == "/config/workers/dashboard":
+            return {
+                "scheduled_jobs": [],
+                "scheduled_total_count": 0,
+                "queues": [],
+                "worker_stats": {},
+                "active_jobs": [],
+                "active_total_count": 0,
+                "failed_jobs": [],
+                "failed_total_count": 0,
+            }
         return None
 
     mock_api.api_get.side_effect = _api_get
@@ -227,22 +228,36 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             content_type="application/json",
         )
 
+    scheduler_expect_object = str(core_payloads.get("Scheduler", {}).get("_expect_object") or "Scheduler Job")
+
     # Provide scheduler-specific endpoints so the dashboard renders during tests
     responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
-        json=[
-            {"name": "collectors", "messages": 0},
-            {"name": "bots", "messages": 2},
-        ],
-        status=200,
-        content_type="application/json",
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        f"{Config.TARANIS_CORE_URL}/config/workers/dashboard",
         json={
-            "total_workers": 3,
-            "busy_workers": 1,
-            "idle_workers": 2,
+            "scheduled_jobs": [
+                {
+                    "id": "test-scheduler-job",
+                    "name": scheduler_expect_object,
+                    "queue": "collectors",
+                    "type": "cron",
+                    "schedule": "*/15 * * * *",
+                    "next_run_time": "2025-01-01T12:00:00",
+                }
+            ],
+            "scheduled_total_count": 1,
+            "queues": [
+                {"name": "collectors", "messages": 0},
+                {"name": "bots", "messages": 2},
+            ],
+            "worker_stats": {
+                "total_workers": 3,
+                "busy_workers": 1,
+                "idle_workers": 2,
+            },
+            "active_jobs": [],
+            "active_total_count": 0,
+            "failed_jobs": [],
+            "failed_total_count": 0,
         },
         status=200,
         content_type="application/json",

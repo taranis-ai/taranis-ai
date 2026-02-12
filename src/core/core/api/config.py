@@ -478,6 +478,41 @@ class WorkerStats(MethodView):
         return queue_manager.queue_manager.get_worker_stats()
 
 
+class SchedulerDashboard(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
+        if scheduled_status != 200:
+            return scheduled_jobs, scheduled_status
+
+        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
+        if queue_status != 200:
+            return queues, queue_status
+
+        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
+        if worker_stats_status != 200:
+            return worker_stats, worker_stats_status
+
+        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
+        if active_status != 200:
+            return active_jobs, active_status
+
+        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
+        if failed_status != 200:
+            return failed_jobs, failed_status
+
+        return {
+            "scheduled_jobs": scheduled_jobs.get("items", []),
+            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
+            "queues": queues if isinstance(queues, list) else [],
+            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
+            "active_jobs": active_jobs.get("items", []),
+            "active_total_count": active_jobs.get("total_count", 0),
+            "failed_jobs": failed_jobs.get("items", []),
+            "failed_total_count": failed_jobs.get("total_count", 0),
+        }, 200
+
+
 class CronJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -993,6 +1028,7 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view("active_jobs"))
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view("failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view("worker_stats"))
+    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view("scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))

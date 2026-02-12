@@ -314,6 +314,35 @@ def test_schedule_endpoint_returns_items(client, auth_header, monkeypatch, auth_
     assert response.json["items"][0]["id"] == "job-1"
 
 
+def test_workers_dashboard_endpoint_returns_aggregated_payload(client, auth_header, monkeypatch, auth_bypass):
+    class FakeQM:
+        def get_scheduled_jobs(self):
+            return {"items": [{"id": "scheduled-1"}], "total_count": 1}, 200
+
+        def get_queued_tasks(self):
+            return [{"name": "collectors", "messages": 2}], 200
+
+        def get_worker_stats(self):
+            return {"total_workers": 3, "busy_workers": 1, "idle_workers": 2}, 200
+
+        def get_active_jobs(self):
+            return {"items": [{"id": "active-1"}], "total_count": 1}, 200
+
+        def get_failed_jobs(self):
+            return {"items": [{"id": "failed-1"}], "total_count": 1}, 200
+
+    monkeypatch.setattr(qm_module, "queue_manager", FakeQM())
+
+    response = client.get("/api/config/workers/dashboard", headers=auth_header)
+
+    assert response.status_code == 200
+    assert response.json["scheduled_jobs"][0]["id"] == "scheduled-1"
+    assert response.json["queues"][0]["name"] == "collectors"
+    assert response.json["worker_stats"]["total_workers"] == 3
+    assert response.json["active_jobs"][0]["id"] == "active-1"
+    assert response.json["failed_jobs"][0]["id"] == "failed-1"
+
+
 def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypatch, auth_bypass):
     class FakeJob:
         def __init__(self):
