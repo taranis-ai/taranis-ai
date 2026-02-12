@@ -887,6 +887,7 @@ class Story(BaseModel):
 
     @classmethod
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
+        logger.debug(f"Parsing incoming tags: {incoming_tags}")
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
     def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
@@ -898,6 +899,7 @@ class Story(BaseModel):
             return {"error": str(e)}, 500
 
     def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
+        logger.debug(f"Parsing incoming tags for story {self.id}: {incoming_tags}")
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400

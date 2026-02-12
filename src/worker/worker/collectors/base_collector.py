@@ -85,14 +85,14 @@ class BaseCollector:
             new_story = story.copy()
             if news_items := new_story.get("news_items"):
                 processed_news_items = self.process_news_items(news_items, source)
-                new_story["news_items"] = [item.model_dump() for item in processed_news_items]
+                new_story["news_items"] = [item.model_dump(mode="json") for item in processed_news_items]
             processed_stories.append(new_story)
         return processed_stories
 
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        news_items_dicts = [item.model_dump() for item in news_items]
+        news_items_dicts = [item.model_dump(mode="json") for item in news_items]
         if not news_items_dicts:
             return None
         if core_response := self.core_api.add_news_items(news_items_dicts):
