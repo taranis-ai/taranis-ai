@@ -136,6 +136,19 @@ class MISPStories(MethodView):
         sse_manager.news_items_updated()
         return result, status
 
+    @api_key_required
+    def put(self):
+        data = request.json
+        if not data:
+            return {"error": "Missing story_ids or news_item_ids"}, 400
+        result, code = {"error": "Couldn't get last changed"}, 500
+        if story_ids := data.get("stories"):
+            result, code = Connector.update_story_last_change(story_ids)
+        if news_item_ids := data.get("news_items"):
+            result, code = Connector.update_news_item_last_change(news_item_ids)
+        sse_manager.news_items_updated()
+        return result, code
+
 
 class Tags(MethodView):
     @api_key_required
@@ -173,7 +186,7 @@ class DropTags(MethodView):
 
 class BotInfo(MethodView):
     @api_key_required
-    @extract_args("search")
+    @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
             return Bot.get_all_for_api(filter_args)
@@ -201,7 +214,7 @@ class PostCollectionBots(MethodView):
 
 class WordLists(MethodView):
     @api_key_required
-    @extract_args("search", "usage", "with_entries")
+    @extract_args("search", "usage", "with_entries", "fetch_all")
     def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
             return WordList.get_for_api(word_list_id)
@@ -254,7 +267,8 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
-    worker_bp.add_url_rule("/stories/misp", view_func=MISPStories.as_view("misp_stories_worker"))
+    worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
+    worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
