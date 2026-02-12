@@ -983,10 +983,18 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 exported = json.load(f)
 
             # convert both exported stories and stories in story_list to a comparable format
-            expected_stories = {(item["story_id"], item["published"], item["id"], item["title"], item["content"]) for item in story_list}
+            expected_stories = {
+                (item["story_id"], remove_tz(item["published"]), item["id"], item["title"], item["content"]) for item in story_list
+            }
 
             received_stories = {
-                (item["id"], item["created"], item["news_items"][0]["id"], item["news_items"][0]["title"], item["news_items"][0]["content"])
+                (
+                    item["id"],
+                    remove_tz(item["created"]),
+                    item["news_items"][0]["id"],
+                    item["news_items"][0]["title"],
+                    item["news_items"][0]["content"],
+                )
                 for item in exported
             }
 
@@ -1058,7 +1066,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         go_to_admin_settings()
         check_default_values()
         change_default_values()
-        # check_new_values()
+        check_new_values()
         revert_to_default_values()
         test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
