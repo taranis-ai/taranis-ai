@@ -1,10 +1,9 @@
 from typing import Any
 
-from flask import render_template, request
+from flask import Response, render_template, request
 from flask_jwt_extended import current_user
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
-from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi

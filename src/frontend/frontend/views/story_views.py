@@ -3,6 +3,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
@@ -175,7 +176,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_cluster_dialog(cls) -> Response:
+    def submit_cluster_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         open_primary_story = request.form.get("open_primary") == "true"
         if len(story_ids) < 2:
@@ -190,9 +191,7 @@ class StoryView(BaseView):
         if open_primary_story and getattr(response, "ok", False):
             primary_story_id = story_ids[0]
             cls.add_flash_notification(response)
-            flask_response = make_response(notification_html, response.status_code or 200)
-            flask_response.headers["HX-Redirect"] = url_for("assess.story", story_id=primary_story_id)
-            return flask_response
+            return cls.redirect_htmx(url_for("assess.story", story_id=primary_story_id))
 
         return cls.rerender_list(notification=notification_html)
 

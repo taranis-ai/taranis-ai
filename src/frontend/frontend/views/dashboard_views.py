@@ -2,11 +2,10 @@ import json
 
 import pandas as pd
 import plotly.express as px
-from flask import abort, render_template, request, url_for
+from flask import Response, abort, render_template, request, url_for
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
-from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import cache
