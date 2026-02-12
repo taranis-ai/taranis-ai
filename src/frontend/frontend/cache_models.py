@@ -14,7 +14,13 @@ class PagingData(BaseModel):
     limit: int | None = None
     order: str | None = None
     search: str | None = None
+    fetch_all: bool | None = None
     query_params: dict[str, str | list[str]] | None = None
+
+    def set_fetch_all(self) -> "PagingData":
+        params = dict(self.query_params or {})
+        params["fetch_all"] = "true"
+        return self.model_copy(update={"fetch_all": True, "query_params": params})
 
 
 class CacheObject(list[T], Generic[T]):

@@ -218,7 +218,7 @@ class CoreApi:
         """
         try:
             return self.api_post(
-                url="/worker/stories/misp",
+                url="/worker/misp/stories",
                 json_data=stories,
             )
         except Exception:
