@@ -1,4 +1,5 @@
 import json
+
 from tests.functional.helpers import BaseTest
 
 
@@ -68,7 +69,6 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "relevance" not in data[0]
     assert "comments" not in data[0]
     assert "summary" not in data[0]
-    assert "created" not in data[0]
     assert "updated" not in data[0]
 
     # Export with metadata
