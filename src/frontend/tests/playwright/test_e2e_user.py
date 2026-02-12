@@ -662,12 +662,12 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_role("button", name="Add to Report").click()
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
-                popup.get_by_text("all attr report").click()
+                popup.get_by_text("all attr report REQUIRED").click()
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields_required():
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+                expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
                 page.locator(".choices__inner").click()
