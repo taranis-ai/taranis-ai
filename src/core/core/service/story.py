@@ -104,7 +104,7 @@ class StoryService:
         return queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)
 
     @staticmethod
-    def import_story_list(json_data: list[dict[str, Any]], user: User) -> Response:
+    def _import_story_list(json_data: list[dict[str, Any]], user: User) -> Response:
         """
         Import a list of stories from JSON data.
         """
@@ -117,7 +117,7 @@ class StoryService:
         return jsonify({"imported_stories": [story.to_dict() for story in imported_stories]})
 
     @staticmethod
-    def import_news_item_list(json_data: list[dict[str, Any]], user: User) -> Response:
+    def _import_news_item_list(json_data: list[dict[str, Any]], user: User) -> Response:
         """
         Import a list of news items from JSON data.
         """
@@ -136,12 +136,12 @@ class StoryService:
         """
         if isinstance(json_data, list):
             if "news_items" in json_data[0]:
-                return StoryService.import_story_list(json_data=json_data, user=user)
+                return StoryService._import_story_list(json_data=json_data, user=user)
             elif "source" in json_data[0]:
-                return StoryService.import_news_item_list(json_data=json_data, user=user)
+                return StoryService._import_news_item_list(json_data=json_data, user=user)
         else:
             if "news_items" in json_data:
-                return StoryService.import_story_list(json_data=[json_data], user=user)
+                return StoryService._import_story_list(json_data=[json_data], user=user)
             elif "source" in json_data:
-                return StoryService.import_news_item_list(json_data=[json_data], user=user)
+                return StoryService._import_news_item_list(json_data=[json_data], user=user)
         abort(400, description="Invalid JSON data for import.")

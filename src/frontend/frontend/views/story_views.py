@@ -2,7 +2,7 @@ import datetime
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import abort, flash, json, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.admin import Connector
@@ -96,7 +96,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_sharing_dialog(cls) -> Response:
+    def submit_sharing_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         if not story_ids:
             return make_response(cls.render_response_notification({"error": "No stories selected for sharing."}), 400)
@@ -153,7 +153,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_report_dialog(cls) -> Response:
+    def submit_report_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
@@ -203,7 +203,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_search_dialog(cls) -> Response:
+    def submit_search_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
@@ -454,7 +454,7 @@ class StoryView(BaseView):
         content_builder: Callable[[str], str] | None = None,
         redirect_on_story: bool = False,
         status_override: int | None = None,
-    ) -> Response:
+    ) -> ResponseReturnValue:
         try:
             story_id = core_response.json().get("story_id", "")
         except Exception:
@@ -477,7 +477,7 @@ class StoryView(BaseView):
         return make_response(notification + content, status)
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> Response:
+    def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
@@ -635,7 +635,8 @@ class StoryView(BaseView):
             stories = DataPersistenceLayer().get_objects(Story, paging_data)
             export_data = [story.model_dump(mode="json") for story in stories.items]
 
-            flask_response = make_response(export_data, 200)
+            response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
+            flask_response = make_response(response_data, 200)
             flask_response.headers["Content-Type"] = "application/json"
             flask_response.headers["Content-Disposition"] = (
                 f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
@@ -675,14 +676,14 @@ class StoryView(BaseView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
 
         return self.patch_story(story_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)

@@ -1,6 +1,7 @@
 from typing import Any
 
-from flask import Response, render_template, request
+from flask import render_template, request
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
@@ -91,5 +92,5 @@ class UserProfileView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return render_template("user_profile/profile.html", user=current_user), 200
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.post_settings_view()
