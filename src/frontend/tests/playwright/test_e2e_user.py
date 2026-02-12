@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 
 import pytest
-from flask import cli, url_for
+from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
 
