@@ -6,11 +6,10 @@ from models.admin import Job
 from models.task import Task
 
 from frontend.auth import auth_required
-from frontend.cache_models import PagingData
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import convert_query_params, is_htmx_request
+from frontend.utils.router_helpers import is_htmx_request
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
@@ -94,21 +93,6 @@ class SchedulerView(AdminMixin, BaseView):
 
             logger.exception(f"Failed to load scheduler dashboard: {e}")
             return render_template("errors/500.html", error=str(e)), 500
-
-
-class ScheduleAPI(MethodView):
-    @auth_required()
-    def get(self):
-        query_params = convert_query_params(request.args, PagingData)
-        error = None
-        result = None
-        try:
-            paging = PagingData(**query_params)
-            result = DataPersistenceLayer().get_objects(Job, paging)
-        except Exception as exc:  # pragma: no cover - defensive rendering path
-            error = str(exc)
-
-        return render_template("schedule/index.html", jobs=result, error=error)
 
 
 class ScheduleJobsAPI(MethodView):
