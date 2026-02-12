@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 

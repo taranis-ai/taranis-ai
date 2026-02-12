@@ -108,6 +108,8 @@ class NewsItemTagService:
         errors = {}
         found_tags = result.get("result", {}) or {}
         for story_id, tags in found_tags.items():
+            if not tags:
+                continue
             story = Story.get(story_id)
             if not story:
                 errors[story_id] = "Story not found"
