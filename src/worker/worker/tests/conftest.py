@@ -27,8 +27,7 @@ def stories():
 
 
 @pytest.fixture
-def mock_core_api():
-    api = Mock()
-    api.api_put = Mock(return_value=True)
-    api.get_bot_config = Mock()
-    return api
+def mock_job():
+    job = Mock()
+    job.id = "test-job-123"
+    return job

@@ -12,8 +12,8 @@ class _FakeRedis:
 
 
 def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
-    monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: []))
-    monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: []))
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
 
     queue_manager = QueueManager.__new__(QueueManager)
     queue_manager.error = ""

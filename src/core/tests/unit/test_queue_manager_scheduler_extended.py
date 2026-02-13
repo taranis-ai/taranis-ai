@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
