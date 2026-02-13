@@ -545,76 +545,83 @@ class QueueManager:
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
-        func_name = job.func_name or "unknown"
-
-        # For collector tasks, show the source name
-        if "collector" in func_name.lower() and job.args:
-            try:
-                source_id = job.args[0] if len(job.args) > 0 else None
-                if source_id:
-                    from core.managers.db_manager import db
-                    from core.model.osint_source import OSINTSource
-
-                    if source := db.session.get(OSINTSource, source_id):
-                        return f"Collector: {source.name}"
-                    else:
-                        logger.debug(f"OSINT Source with ID {source_id} not found in database")
-            except Exception as e:
-                logger.debug(f"Failed to get source name for job {job.id}: {e}")
-
-            # Fallback if source lookup failed
-            return f"Collector Task (ID: {job.args[0] if job.args else 'unknown'})"
-
-        # For bot tasks, show the bot name
-        if "bot" in func_name.lower() and job.args:
-            try:
-                bot_id = job.args[0] if len(job.args) > 0 else None
-                if bot_id:
-                    from core.managers.db_manager import db
-                    from core.model.bot import Bot
-
-                    if bot := db.session.get(Bot, bot_id):
-                        return f"Bot: {bot.name}"
-                    else:
-                        logger.debug(f"Bot with ID {bot_id} not found in database")
-            except Exception as e:
-                logger.debug(f"Failed to get bot name for job {job.id}: {e}")
-
-            # Fallback if bot lookup failed
-            return f"Bot Task (ID: {job.args[0] if job.args else 'unknown'})"
-
-        # For presenter tasks
-        if "presenter" in func_name.lower():
-            return f"Presenter: {self._format_task_name(func_name)}"
-
-        # For publisher tasks
-        if "publisher" in func_name.lower():
-            return f"Publisher: {self._format_task_name(func_name)}"
-
-        # For maintenance tasks
-        if "cleanup" in func_name.lower() or "update" in func_name.lower():
-            return f"Maintenance: {self._format_task_name(func_name)}"
-
-        # For other tasks, return the function name (last part only)
-        return self._format_task_name(func_name)
+        return job.meta.get("name", self._format_task_name(job.func_name))
 
     @staticmethod
-    def get_next_fire_times_from_cron(cron_expr: str, n: int = 3) -> list[datetime]:
-        """Calculate next n fire times from a cron expression.
+    def build_cron_schedule_entry(
+        *,
+        job_id: str,
+        name: str,
+        queue: str,
+        cron_schedule: str,
+        now: datetime | None = None,
+        stringify_times: bool = False,
+        **extra_fields: Any,
+    ) -> dict[str, Any]:
+        """Build a normalized cron schedule entry."""
+        if now is None:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        Note: All times are calculated in UTC to ensure consistency across the system.
-        """
-        cron = croniter(cron_expr, datetime.now(timezone.utc).replace(tzinfo=None))
-        fire_times: list[datetime] = []
+        cron = croniter(cron_schedule, now)
+        next_run = cron.get_next(datetime)
+        prev_run = croniter(cron_schedule, now).get_prev(datetime)
 
-        for _ in range(n):
+        entry: dict[str, Any] = {
+            "id": job_id,
+            "name": name,
+            "queue": queue,
+            "next_run_time": next_run.isoformat() if stringify_times else next_run,
+            "previous_run_time": (prev_run.isoformat() if stringify_times else prev_run) or None,
+            "schedule": cron_schedule,
+            "type": "cron",
+            "last_run": None,
+            "last_success": None,
+            "last_status": None,
+        }
+        entry.update(extra_fields)
+        return entry
+
+    def _get_cron_schedule_entries(self) -> list[dict[str, Any]]:
+        """Fetch cron-based schedule entries when at least one scheduler is active."""
+        if not self._redis:
+            return []
+
+        all_jobs: list[dict[str, Any]] = []
+        try:
+            scheduler_names = self._redis.zrange("rq:cron_schedulers", 0, -1)  # type: ignore
+            scheduler_count = len(scheduler_names) if scheduler_names else 0  # type: ignore
+
+            if scheduler_count <= 0:
+                logger.info("No active cron schedulers found")
+                return all_jobs
+
+            logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
+
+            # Import here to avoid circular dependencies
+            from core.model.bot import Bot
+            from core.model.osint_source import OSINTSource
+
+            all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
+            all_jobs.extend(Bot.get_enabled_schedule_entries())
+
+            # Register housekeeping tasks that are scheduled via cron
             try:
-                next_time = cron.get_next(datetime)
-                fire_times.append(next_time)
-            except Exception:
-                break
+                all_jobs.append(
+                    self.build_cron_schedule_entry(
+                        job_id="cron_misc_cleanup_token_blacklist",
+                        name="Maintenance: Cleanup Token Blacklist",
+                        queue="misc",
+                        cron_schedule="0 2 * * *",
+                        task_id="cleanup_token_blacklist",
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Failed to calculate next run for housekeeping task cleanup_token_blacklist: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch cron schedules: {e}")
+            # Don't fail the whole request if cron scheduler is not available
 
-        return fire_times
+        return all_jobs
 
     def get_scheduled_jobs(self) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
@@ -658,51 +665,7 @@ class QueueManager:
                         continue
 
             # 2. Get cron schedules from database (since cron jobs are in scheduler's memory)
-            try:
-                # Check if any cron schedulers are active
-                scheduler_names = self._redis.zrange("rq:cron_schedulers", 0, -1)  # type: ignore
-                scheduler_count = len(scheduler_names) if scheduler_names else 0  # type: ignore
-
-                if scheduler_count > 0:
-                    logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
-
-                    # Import here to avoid circular dependencies
-                    from core.model.bot import Bot
-                    from core.model.osint_source import OSINTSource
-
-                    all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
-                    all_jobs.extend(Bot.get_enabled_schedule_entries())
-
-                    # Register housekeeping tasks that are scheduled via cron
-                    try:
-                        now = datetime.now(timezone.utc).replace(tzinfo=None)
-                        housekeeping_cron = "0 2 * * *"
-                        cron = croniter(housekeeping_cron, now)
-                        next_run = cron.get_next(datetime)
-                        prev_run = croniter(housekeeping_cron, now).get_prev(datetime)
-                        all_jobs.append(
-                            {
-                                "id": "cron_misc_cleanup_token_blacklist",
-                                "name": "Maintenance: Cleanup Token Blacklist",
-                                "queue": "misc",
-                                "next_run_time": next_run,
-                                "previous_run_time": prev_run or None,
-                                "schedule": housekeeping_cron,
-                                "type": "cron",
-                                "task_id": "cleanup_token_blacklist",
-                                "last_run": None,
-                                "last_success": None,
-                                "last_status": None,
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to calculate next run for housekeeping task cleanup_token_blacklist: {e}")
-                else:
-                    logger.info("No active cron schedulers found")
-
-            except Exception as e:
-                logger.warning(f"Failed to fetch cron schedules: {e}")
-                # Don't fail the whole request if cron scheduler is not available
+            all_jobs.extend(self._get_cron_schedule_entries())
 
             annotated_jobs = _annotate_jobs(all_jobs)
 
@@ -724,6 +687,20 @@ class QueueManager:
         with self._redis.pipeline() as p:
             p.hset(DEFS, spec.job_id, payload)
             p.xadd(EVENTS, {"op": "upsert", "job_id": spec.job_id})
+            p.execute()
+            return True
+
+    def unregister_cron_job(self, job_id: str) -> bool:
+        DEFS = "rq:cron:def"
+        EVENTS = "rq:cron:events"
+
+        if not self._redis:
+            logger.error("QueueManager not initialized, cannot unregister cron job")
+            return False
+
+        with self._redis.pipeline() as p:
+            p.hdel(DEFS, job_id)
+            p.xadd(EVENTS, {"op": "delete", "job_id": job_id})
             p.execute()
             return True
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
-from croniter import croniter
+from models.admin import CronSpec
 from models.types import COLLECTOR_TYPES
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -233,6 +233,8 @@ class OSINTSource(BaseModel):
         """
         from datetime import timezone
 
+        from core.managers.queue_manager import QueueManager
+
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         schedule_entries: list[dict[str, Any]] = []
 
@@ -242,26 +244,22 @@ class OSINTSource(BaseModel):
                 continue
 
             try:
-                cron = croniter(cron_schedule, now)
-                next_run = cron.get_next(datetime)
-                prev_run = croniter(cron_schedule, now).get_prev(datetime)
                 status = source.status or {}
 
                 schedule_entries.append(
-                    {
-                        "id": f"cron_collector_{source.id}",
-                        "name": f"Collector: {source.name}",
-                        "queue": "collectors",
-                        "next_run_time": next_run.isoformat(),
-                        "schedule": cron_schedule,
-                        "type": "cron",
-                        "source_id": source.id,
-                        "task_id": source.task_id,
-                        "previous_run_time": prev_run.isoformat() if prev_run else None,
-                        "last_run": status.get("last_run"),
-                        "last_success": status.get("last_success"),
-                        "last_status": status.get("status"),
-                    }
+                    QueueManager.build_cron_schedule_entry(
+                        job_id=f"cron_collector_{source.id}",
+                        name=f"Collector: {source.name}",
+                        queue="collectors",
+                        cron_schedule=cron_schedule,
+                        now=now,
+                        stringify_times=True,
+                        source_id=source.id,
+                        task_id=source.task_id,
+                        last_run=status.get("last_run"),
+                        last_success=status.get("last_success"),
+                        last_status=status.get("status"),
+                    )
                 )
             except Exception as exc:
                 logger.error(f"Failed to calculate next run for source {source.id}: {exc}")
@@ -378,12 +376,25 @@ class OSINTSource(BaseModel):
             source.schedule_osint_source()
         logger.info(f"Scheduling for {len(sources)} OSINT Sources completed")
 
+    def get_cron_spec(self) -> CronSpec:
+        """Get the cron specification for this OSINT source"""
+        return CronSpec(
+            meta={"name": f"Collector: {self.name}"},
+            job_id=f"osint_source_{self.id}",
+            cron=self.get_schedule_with_default(),
+            func="collector_task",
+            args=[self.id, False],
+            queue="collectors",
+        )
+
     def schedule_osint_source(self):
         """Schedule this OSINT source collection using RQ
 
         Note: The actual scheduling is done by the RQ cron scheduler process.
         This method validates the source and publishes a reload signal.
         """
+        from core.managers import queue_manager
+
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
@@ -392,43 +403,17 @@ class OSINTSource(BaseModel):
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
-        cron_schedule = self.get_schedule_with_default()
-        logger.info(f"Source {self.name} has schedule: {cron_schedule}. Notifying cron scheduler...")
-
-        # Publish reload signal
-        self._publish_cron_reload(f"osint_source_{self.id}")
-
-        return {"message": f"Source {self.name} will be scheduled by cron scheduler", "id": f"{self.id}"}, 200
+        return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
 
     def unschedule_osint_source(self):
         """Cancel scheduled collection for this OSINT source
 
         Note: The cron scheduler automatically picks up enabled/disabled state from the database.
         """
+        from core.managers import queue_manager
+
         logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
-        self._publish_cron_reload(f"osint_source_{self.id}_disabled")
-
-    def _publish_cron_reload(self, reason: str):
-        """Publish a signal to reload cron scheduler configuration"""
-        try:
-            from core.managers import queue_manager
-
-            qm = queue_manager.queue_manager
-            if qm.error or not qm._redis:
-                return
-
-            # Publish reload signal to cron scheduler
-            qm._redis.publish("taranis:cron:reload", reason)
-            logger.debug(f"Published cron reload signal: {reason}")
-
-            # Publish cache invalidation signal to frontend
-            qm._redis.publish("taranis:cache:invalidate", "schedule")
-            logger.debug("Published cache invalidation signal for schedules")
-
-        except Exception as e:
-            logger.warning(f"Failed to publish cron reload signal: {e}")
-        logger.info(f"Source {self.name} unscheduling - cron scheduler will stop scheduling it if disabled")
-        return {"message": f"Source {self.name} will not be scheduled if disabled", "id": f"{self.id}"}, 200
+        return queue_manager.queue_manager.unregister_cron_job(f"osint_source_{self.id}")
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {

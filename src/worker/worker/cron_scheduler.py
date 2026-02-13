@@ -36,7 +36,7 @@ def renew_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
 def run_scheduler(
     redis_url: str = "redis://localhost:6379/0",
     node_id: str = "cron-b-1",
-    poll_interval_seconds: float = 1.0,
+    poll_interval_seconds: float = 15.0,
 ) -> None:
     redis = Redis.from_url(redis_url)
     queues: dict[str, Queue] = {}
@@ -87,5 +87,5 @@ if __name__ == "__main__":
     run_scheduler(
         redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         node_id=os.getenv("CRON_NODE_ID", "cron-b-1"),
-        poll_interval_seconds=float(os.getenv("CRON_POLL_INTERVAL_SECONDS", "1.0")),
+        poll_interval_seconds=float(os.getenv("CRON_POLL_INTERVAL_SECONDS", "15.0")),
     )

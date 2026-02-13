@@ -54,6 +54,7 @@ class CronSpec(TaranisBaseModel):
     args: list[Any] = Field(default_factory=list)
     kwargs: dict[str, Any] = Field(default_factory=dict)
     job_options: dict[str, Any] = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskResult(TaranisBaseModel):

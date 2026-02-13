@@ -122,12 +122,6 @@ def test_annotate_jobs_computes_missing_interval(monkeypatch):
     assert annotated["status_badge"]["label"] == "Pending first run"
 
 
-def test_get_next_fire_times_from_cron_returns_three():
-    times = QueueManager.get_next_fire_times_from_cron("*/15 * * * *")
-    assert len(times) == 3
-    assert times[0] < times[1] < times[2]
-
-
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):
@@ -364,21 +358,6 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
     assert response.status_code == 200
     assert response.json["id"] == "job-42"
     assert response.json["status"] == "queued"
-
-
-def test_refresh_interval_endpoint(client, auth_header, monkeypatch, auth_bypass):
-    times = [
-        datetime(2025, 1, 1, 12, 0),
-        datetime(2025, 1, 1, 12, 15),
-        datetime(2025, 1, 1, 12, 30),
-    ]
-
-    monkeypatch.setattr(QueueManager, "get_next_fire_times_from_cron", classmethod(lambda cls, cron, n=3: times))
-
-    response = client.post("/api/config/refresh-interval", headers=auth_header, json={"cron": "*/15 * * * *"})
-
-    assert response.status_code == 200
-    assert response.json == ["2025-01-01T12:00", "2025-01-01T12:15", "2025-01-01T12:30"]
 
 
 def test_get_scheduled_jobs_with_many_sources(monkeypatch):

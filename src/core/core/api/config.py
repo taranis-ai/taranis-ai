@@ -613,22 +613,6 @@ class Schedule(MethodView):
             return {"error": "Failed to get schedules"}, 500
 
 
-class RefreshInterval(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def post(self):
-        data = request.get_json()
-        cron_expr = data.get("cron")
-        if not cron_expr:
-            return jsonify({"error": "Missing cron expression"}), 400
-        try:
-            fire_times = queue_manager.QueueManager.get_next_fire_times_from_cron(cron_expr, n=3)
-            formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
-            return jsonify(formatted_times), 200
-        except Exception as e:
-            logger.exception(e)
-            return jsonify({"error": "Failed to compute schedule"}), 500
-
-
 class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order")
@@ -1033,7 +1017,6 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
-    config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
     config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
     config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
     config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))
