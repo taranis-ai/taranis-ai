@@ -2,6 +2,7 @@ from functools import wraps
 from typing import Any
 
 from flask import Flask, Response as FlaskResponse, make_response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
@@ -67,7 +68,7 @@ def _unauthorized_response(clear_cookies: bool = False) -> FlaskResponse:
 #     return current_authenticator.refresh(user)
 
 
-def logout() -> tuple[str, int] | FlaskResponse:
+def logout() -> ResponseReturnValue:
     core_response: ReqResponse = CoreApi().logout()
     if not core_response.ok:
         return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
