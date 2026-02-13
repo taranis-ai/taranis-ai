@@ -15,8 +15,7 @@ from frontend.views.base_view import BaseView
 
 
 def _notification_error(message: str, status_code: int = 500) -> tuple[str, int]:
-    notification = BaseView.get_notification_from_dict({"message": message, "error": True})
-    return render_template("notification/index.html", notification=notification), status_code
+    return BaseView.render_response_notification({"error": message}), status_code
 
 
 class SchedulerView(AdminMixin, BaseView):
