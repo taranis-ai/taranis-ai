@@ -43,7 +43,17 @@ class Job(TaranisBaseModel):
     last_run_relative: str | None = None
     status_badge: dict[str, str] | None = None
     is_overdue: bool | None = None
-    interval_seconds: int | None = None
+
+
+class CronSpec(TaranisBaseModel):
+    job_id: str
+    func_path: str
+    queue_name: str
+    cron: str | None = None
+    interval: int | None = None
+    args: list[Any] = Field(default_factory=list)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+    job_options: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskResult(TaranisBaseModel):

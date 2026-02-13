@@ -39,6 +39,7 @@ from typing import Any
 
 from croniter import croniter
 from flask import Flask
+from models.admin import CronSpec
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -48,18 +49,6 @@ from core.log import logger
 
 
 OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
-
-
-def _parse_iso_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if dt.tzinfo:
-            return dt.astimezone(timezone.utc).replace(tzinfo=None)
-        return dt
-    except ValueError:
-        return None
 
 
 def _format_duration(delta: timedelta) -> str:
@@ -90,9 +79,9 @@ def _format_relative_time(target: datetime | None, reference: datetime) -> str |
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
-        last_run_dt = _parse_iso_datetime(job.get("last_run"))
-        next_run_dt = _parse_iso_datetime(job.get("next_run_time"))
-        prev_run_dt = _parse_iso_datetime(job.get("previous_run_time"))
+        last_run_dt = job.get("last_run")
+        next_run_dt = job.get("next_run_time")
+        prev_run_dt = job.get("previous_run_time")
 
         job["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
         job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None
@@ -104,11 +93,6 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         is_overdue = False
 
         if job.get("type") == "cron":
-            interval_seconds = job.get("interval_seconds")
-            if interval_seconds is None and next_run_dt and prev_run_dt:
-                interval_seconds = int((next_run_dt - prev_run_dt).total_seconds())
-                job["interval_seconds"] = interval_seconds
-
             if not last_run_dt:
                 label = "Pending first run"
                 job["status_badge"] = {"variant": variant, "label": label}
@@ -120,9 +104,6 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             elif not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
-            elif interval_seconds:
-                # Manual/adhoc runs older than scheduled window - leave as pending until overdue logic below
-                label = "Pending"
 
             if prev_run_dt:
                 ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
@@ -646,8 +627,6 @@ class QueueManager:
             return {"error": "QueueManager not initialized"}, 500
 
         try:
-            from datetime import datetime
-
             from rq.registry import ScheduledJobRegistry
 
             all_jobs = []
@@ -701,18 +680,16 @@ class QueueManager:
                         cron = croniter(housekeeping_cron, now)
                         next_run = cron.get_next(datetime)
                         prev_run = croniter(housekeeping_cron, now).get_prev(datetime)
-                        interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
                         all_jobs.append(
                             {
                                 "id": "cron_misc_cleanup_token_blacklist",
                                 "name": "Maintenance: Cleanup Token Blacklist",
                                 "queue": "misc",
-                                "next_run_time": next_run.isoformat(),
-                                "previous_run_time": prev_run.isoformat() if prev_run else None,
+                                "next_run_time": next_run,
+                                "previous_run_time": prev_run or None,
                                 "schedule": housekeeping_cron,
                                 "type": "cron",
                                 "task_id": "cleanup_token_blacklist",
-                                "interval_seconds": interval_seconds,
                                 "last_run": None,
                                 "last_success": None,
                                 "last_status": None,
@@ -734,6 +711,21 @@ class QueueManager:
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": f"Failed to get scheduled jobs: {str(e)}"}, 500
+
+    def register_cron_job(self, spec: CronSpec) -> bool:
+        DEFS = "rq:cron:def"
+        EVENTS = "rq:cron:events"
+
+        if not self._redis:
+            logger.error("QueueManager not initialized, cannot register cron job")
+            return False
+
+        payload = spec.model_dump(mode="json")
+        with self._redis.pipeline() as p:
+            p.hset(DEFS, spec.job_id, payload)
+            p.xadd(EVENTS, {"op": "upsert", "job_id": spec.job_id})
+            p.execute()
+            return True
 
     def get_active_jobs(self) -> tuple[dict, int]:
         """Get currently running jobs from StartedJobRegistry"""

@@ -142,7 +142,6 @@ class Bot(BaseModel):
                 cron = croniter(cron_schedule, now)
                 next_run = cron.get_next(datetime)
                 prev_run = croniter(cron_schedule, now).get_prev(datetime)
-                interval_seconds = int((next_run - prev_run).total_seconds()) if next_run and prev_run else None
                 status = bot.status or {}
 
                 entries.append(
@@ -156,7 +155,6 @@ class Bot(BaseModel):
                         "bot_id": bot.id,
                         "task_id": bot.task_id,
                         "previous_run_time": prev_run.isoformat() if prev_run else None,
-                        "interval_seconds": interval_seconds,
                         "last_run": status.get("last_run"),
                         "last_success": status.get("last_success"),
                         "last_status": status.get("status"),

@@ -119,7 +119,6 @@ def test_annotate_jobs_computes_missing_interval(monkeypatch):
 
     annotated = qm_module._annotate_jobs([job])[0]
 
-    assert annotated["interval_seconds"] == 2 * 60 * 60
     assert annotated["status_badge"]["label"] == "Pending first run"
 
 
@@ -255,7 +254,6 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     assert entry["id"] == "cron_collector_source-1"
     assert entry["queue"] == "collectors"
     assert entry["previous_run_time"]
-    assert entry["interval_seconds"] is not None
 
 
 def test_osint_schedule_entries_handle_many(monkeypatch):
@@ -398,7 +396,6 @@ def test_get_scheduled_jobs_with_many_sources(monkeypatch):
                 "previous_run_time": "2024-12-31T23:00:00",
                 "schedule": "0 * * * *",
                 "type": "cron",
-                "interval_seconds": 3600,
                 "last_run": None,
                 "last_success": None,
                 "last_status": None,
