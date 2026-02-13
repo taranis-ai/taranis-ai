@@ -102,23 +102,11 @@ class Task(BaseModel):
             }
 
             if include_timestamps:
-                entry["last_run"] = row.last_run.isoformat() if getattr(row, "last_run", None) else None
-                entry["last_success"] = row.last_success.isoformat() if getattr(row, "last_success", None) else None
+                entry["last_run"] = row.last_run
+                entry["last_success"] = row.last_success
 
             data[row.task_type] = entry
         return data
-
-    @staticmethod
-    def _parse_iso_datetime(value: str | None) -> datetime | None:
-        if not value:
-            return None
-        try:
-            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            if dt.tzinfo:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
-            return dt
-        except ValueError:
-            return None
 
     @staticmethod
     def _build_task_status_badge(stats: dict[str, Any]) -> dict[str, str]:
@@ -144,11 +132,9 @@ class Task(BaseModel):
         formatted: dict[str, dict[str, Any]] = {}
         for task_name, stats in raw_stats.items():
             formatted_stats = stats.copy()
-            last_run_dt = cls._parse_iso_datetime(stats.get("last_run"))
-            last_success_dt = cls._parse_iso_datetime(stats.get("last_success"))
 
-            formatted_stats["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
-            formatted_stats["last_success_display"] = last_success_dt.strftime("%Y-%m-%d %H:%M:%S") if last_success_dt else None
+            formatted_stats["last_run_display"] = stats.get("last_run")
+            formatted_stats["last_success_display"] = stats.get("last_success")
             formatted_stats["status_badge"] = cls._build_task_status_badge(formatted_stats)
             formatted[task_name] = formatted_stats
         return formatted

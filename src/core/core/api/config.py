@@ -590,24 +590,9 @@ class Schedule(MethodView):
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                # Get specific scheduled job
-                try:
-                    from rq.job import Job
+                return queue_manager.queue_manager.get_scheduled_job(task_id)
 
-                    job = Job.fetch(task_id, connection=queue_manager.queue_manager.redis)
-                    if job:
-                        return {
-                            "id": job.id,
-                            "name": job.func_name,
-                            "scheduled_for": job.enqueued_at.isoformat() if job.enqueued_at else None,
-                            "status": job.get_status(),
-                        }, 200
-                except Exception:
-                    return {"error": "Task not found"}, 404
-
-            # Get all scheduled jobs
-            schedules, status = queue_manager.queue_manager.get_scheduled_jobs()
-            return schedules, status
+            return queue_manager.queue_manager.get_scheduled_jobs()
         except Exception:
             logger.exception()
             return {"error": "Failed to get schedules"}, 500

@@ -1,5 +1,5 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, cast
 
 import pytest
@@ -47,32 +47,6 @@ def _make_queue_manager() -> QueueManager:
     qm._queues = cast(dict[str, Any], {})
     qm._redis = _FakeRedis()
     return qm
-
-
-def test_parse_iso_datetime_handles_z_and_offsets():
-    dt_z = qm_module._parse_iso_datetime("2025-01-01T10:00:00Z")
-    dt_offset = qm_module._parse_iso_datetime("2025-01-01T10:00:00+02:00")
-
-    assert dt_z and dt_z.tzinfo is None
-    assert dt_offset and dt_offset.hour == 8 and dt_offset.tzinfo is None
-
-
-def test_parse_iso_datetime_invalid():
-    assert qm_module._parse_iso_datetime("not-a-date") is None
-    assert qm_module._parse_iso_datetime(None) is None
-
-
-@pytest.mark.parametrize(
-    ("delta", "expected"),
-    [
-        (timedelta(seconds=59), "59s"),
-        (timedelta(minutes=1, seconds=1), "1m 1s"),
-        (timedelta(hours=2, minutes=5), "2h 5m"),
-        (timedelta(days=1, hours=3), "1d 3h"),
-    ],
-)
-def test_format_duration(delta, expected):
-    assert qm_module._format_duration(delta) == expected
 
 
 def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):

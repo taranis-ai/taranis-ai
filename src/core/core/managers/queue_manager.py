@@ -623,6 +623,17 @@ class QueueManager:
 
         return all_jobs
 
+    def get_scheduled_job(self, task_id: str) -> tuple[dict, int]:
+        job = Job.fetch(task_id, connection=self._redis)
+        if job:
+            return {
+                "id": job.id,
+                "name": job.func_name,
+                "scheduled_for": job.enqueued_at.isoformat() if job.enqueued_at else None,
+                "status": job.get_status(),
+            }, 200
+        return {"error": "Job not found"}, 404
+
     def get_scheduled_jobs(self) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
 

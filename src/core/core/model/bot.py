@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime
 from typing import Any, Sequence
 
-from croniter import croniter
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
@@ -130,6 +129,8 @@ class Bot(BaseModel):
         """
         from datetime import timezone
 
+        from core.managers.queue_manager import QueueManager
+
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         entries: list[dict[str, Any]] = []
 
@@ -139,26 +140,22 @@ class Bot(BaseModel):
                 continue
 
             try:
-                cron = croniter(cron_schedule, now)
-                next_run = cron.get_next(datetime)
-                prev_run = croniter(cron_schedule, now).get_prev(datetime)
                 status = bot.status or {}
 
                 entries.append(
-                    {
-                        "id": f"cron_bot_{bot.id}",
-                        "name": f"Bot: {bot.name}",
-                        "queue": "bots",
-                        "next_run_time": next_run.isoformat(),
-                        "schedule": cron_schedule,
-                        "type": "cron",
-                        "bot_id": bot.id,
-                        "task_id": bot.task_id,
-                        "previous_run_time": prev_run.isoformat() if prev_run else None,
-                        "last_run": status.get("last_run"),
-                        "last_success": status.get("last_success"),
-                        "last_status": status.get("status"),
-                    }
+                    QueueManager.build_cron_schedule_entry(
+                        job_id=f"cron_bot_{bot.id}",
+                        name=f"Bot: {bot.name}",
+                        queue="bots",
+                        cron_schedule=cron_schedule,
+                        now=now,
+                        stringify_times=True,
+                        bot_id=bot.id,
+                        task_id=bot.task_id,
+                        last_run=status.get("last_run"),
+                        last_success=status.get("last_success"),
+                        last_status=status.get("status"),
+                    )
                 )
             except Exception as exc:
                 logger.error(f"Failed to calculate next run for bot {bot.id}: {exc}")
