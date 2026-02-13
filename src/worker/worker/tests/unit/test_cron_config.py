@@ -9,9 +9,11 @@ from worker.cron_config import TASK_FUNCTION_MAP, load_cron_jobs
 
 
 @pytest.fixture
-def cron_core_api(monkeypatch, mock_core_api):
-    monkeypatch.setattr(cron_config, "CoreApi", lambda: mock_core_api)
-    return mock_core_api
+def cron_core_api(monkeypatch):
+    api = Mock()
+    api.get_cron_jobs = Mock()
+    monkeypatch.setattr(cron_config, "CoreApi", lambda: api)
+    return api
 
 
 @pytest.fixture
