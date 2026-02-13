@@ -44,10 +44,12 @@
 
     <div x-data="{ showPassword: false }" class="join gap-1 w-3/4">
       <label class="floating-label mb-5 input validator w-full shrink">
-        <span>Password</span>
+        <span>Password
+          {% if create %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+        </span>
         <input id="user-password"
                :type="showPassword ? 'text' : 'password'"
-               placeholder="Password"
+               placeholder="Password{% if create %}*{% endif %}"
                class="input input-md validator {% if form_error.password %}input-error{% endif %}"
                name="password"
                {% if create %}required hx-preserve{% endif %} />
