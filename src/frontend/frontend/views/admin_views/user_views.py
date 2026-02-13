@@ -1,23 +1,35 @@
 import json
 from typing import Any
-from flask import render_template, request, Response
-from flask_jwt_extended import get_jwt_identity
 
+from flask import Response, render_template, request
+from flask_jwt_extended import get_jwt_identity
+from models.admin import Organization, Role, User
+
+from frontend.auth import auth_required
+from frontend.config import Config
 from frontend.core_api import CoreApi
-from models.admin import Role, Organization, User
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
-from frontend.config import Config
-from frontend.log import logger
-from frontend.auth import auth_required
 
 
 class UserView(AdminMixin, BaseView):
     model = User
     icon = "user"
     _index = 20
+
+    @classmethod
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+        try:
+            obj = cls.model(**processed_data)
+            dpl = DataPersistenceLayer()
+            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
+            return (result.json(), None) if result.ok else (None, result.json())
+        except Exception as exc:
+            logger.error(f"Error storing form data: {str(exc)}")
+            return None, str(exc)
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:

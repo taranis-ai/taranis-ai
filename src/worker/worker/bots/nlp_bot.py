@@ -1,7 +1,7 @@
-from .base_bot import BaseBot
-from worker.config import Config
 from worker.bot_api import BotApi
-from worker.log import logger
+from worker.config import Config
+
+from .base_bot import BaseBot
 
 
 def batched(stories: list, batch_size=10):
@@ -15,7 +15,7 @@ class NLPBot(BaseBot):
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         update_result = {}
 
         if not parameters:
@@ -43,11 +43,6 @@ class NLPBot(BaseBot):
             current_keywords = self._extract_ner(story_content, is_cybersecurity)
             update_result[story["id"]] = current_keywords
 
-        return self._update_tags(update_result)
-
-    def _update_tags(self, update_result: dict) -> dict:
-        logger.debug(f"Extracted {len(update_result)} tags")
-        self.core_api.update_tags(update_result, self.type)
         return update_result
 
     def _extract_ner(self, text: str, is_cybersecurity: bool = False) -> dict:

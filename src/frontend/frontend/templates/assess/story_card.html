@@ -1,5 +1,5 @@
 {% macro story_card(story, detail_view=False) %}
-  {% from "assess/story_card_actions.html" import story_card_actions %}
+  {% from "assess/story_actions.html" import story_card_actions %}
   {% from "assess/news_item_card.html" import news_item_card %}
   {% from "macros/query_params.html" import update_query_params %}
   {% set story_id = story.id %}
@@ -57,52 +57,8 @@
             </div>
           </div>
 
-          {% if not compact_view %}
-            <div class="flex items-center gap-2">
-              <div class="flex items-center gap-2 text-xs">
-                {% if story.read | default(false) %}
-                  <span class="badge badge-success badge-outline badge-xs">Read</span>
-                {% else %}
-                  <span class="badge badge-primary badge-xs">Unread</span>
-                {% endif %}
-                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs">Important</span>{% endif %}
-                {% if story.relevance is not none %}<span class="badge badge-outline badge-xs">Impact {{ story.relevance }}</span>{% endif %}
-              </div>
-            </div>
-
-            {% if story.in_reports_count %}
-              {% set report_count = story.in_reports_count | int %}
-              <div class="flex items-center gap-2">
-                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
-                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
-                  {% if report_count < 2 %}
-                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
-                  {% else %}
-                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
-
-            {% if story.tags %}
-              <div class="space-y-1">
-                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tags</span>
-                <div class="flex flex-wrap gap-1">
-                  {% for tag in story.tags[:6] %}
-                    {% if tag.name %}
-                      <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                         class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
-                         data-tip="{{ tag.tag_type }}">{{ tag.name | truncate(10, true) }}</a>
-                    {% endif %}
-                  {% endfor %}
-                  {% if story.tags | length > 6 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 6 }}</span>{% endif %}
-                </div>
-              </div>
-            {% endif %}
-          {% endif %}
-
           {% if story.model_extra.source_info %}
-            <div class="flex gap-2">
+            <div class="flex gap-3 mb-2">
               <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Source</span>
               <div class="flex gap-1 text-xs truncate">
                 <span class="whitespace-nowrap truncate">{{ story.model_extra.source_info.name }}</span>
@@ -115,6 +71,39 @@
               </div>
             </div>
           {% endif %}
+
+          {% if not compact_view %}
+            <div class="flex items-center gap-1 mb-2">
+              <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
+                {% if story.read | default(false) %}
+                  <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">Read</span>
+                {% else %}
+                  <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
+                {% endif %}
+                {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
+                {% if story.relevance is not none %}
+                  <span class="badge badge-outline badge-xs whitespace-nowrap">Impact {{ story.relevance }}</span>
+                {% endif %}
+                {% if story.news_items is not none %}
+                  <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if story.in_reports_count %}
+              {% set report_count = story.in_reports_count | int %}
+              <div class="flex items-center gap-1 mb-1">
+                <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">In Reports</span>
+                <div class="tooltip gap-1 text-warning" data-tip="Story in {{ report_count }} Reports">
+                  {% if report_count < 2 %}
+                    {{ heroicon_mini("arrow-up-on-square", class="h-4 w-4") }}
+                  {% else %}
+                    {{ heroicon_mini("arrow-up-on-square-stack", class="h-4 w-4") }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
         </section>
 
         <!-- main content column -->
@@ -125,7 +114,7 @@
               <a href="{{ story.links[0] }}"
                  target="_blank"
                  rel="noopener"
-                 class="link link-primary text-xs inline-flex items-center gap-1 max-w-full truncate"
+                 class="link link-primary text-xs inline-flex items-center gap-1 self-start max-w-full truncate"
                  data-testid="story-link-{{ story_id }}">
                 {{ heroicon_mini("arrow-top-right-on-square") }}
                 <span class="truncate">{{ story.links[0] }}</span>
@@ -144,9 +133,25 @@
 
         <!-- actions column -->
         <section class="flex flex-col items-end gap-1 text-xs lg:flex-shrink-0 lg:ml-auto" @click.stop>
-          {{ story_card_actions(story, story_id, compact_view=compact_view) }}
+          {{ story_card_actions(story, compact_view=compact_view) }}
         </section>
       </div>
+
+      <!-- tags section -->
+      {% if story.tags %}
+        <div class="space-y-1">
+          <div class="flex flex-wrap gap-1">
+            {% for tag in story.tags[:8] %}
+              {% if tag.name %}
+                <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                   class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
+                   data-tip="{{ tag.tag_type }}"><span class="truncate max-w-[12ch]">{{ tag.name | truncate(16, true) }}</span></a>
+              {% endif %}
+            {% endfor %}
+            {% if story.tags | length > 8 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 8 }}</span>{% endif %}
+          </div>
+        </div>
+      {% endif %}
 
       <!-- expandable details section -->
       <div class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full" x-show="isOpen" x-transition x-cloak>
@@ -173,22 +178,6 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-4 lg:flex-row text-sm text-base-content/80 w-full max-w-full">
-          {% if tags_list %}
-            <div class="space-y-2 lg:flex-1">
-              <h3 class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Tag Details</h3>
-              <ul class="space-y-1">
-                {% for tag in tags_list[:8] %}
-                  <li class="flex items-center gap-2">
-                    {{ heroicon_mini("tag") }}
-                    <span>{{ tag.name or tag.title or tag }}</span>
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
-          {% endif %}
-        </div>
-
         <!-- news items list -->
         {% if news_items %}
           <div class="space-y-2 w-full max-w-full">
@@ -197,7 +186,20 @@
               <span class="badge badge-outline badge-sm">{{ news_count }}</span>
             </div>
             <div class="space-y-2">
-              {% for item in news_items %}{{ news_item_card(item) }}{% endfor %}
+              {% if detail_view %}
+                {% for item in news_items %}{{ news_item_card(item, story) }}{% endfor %}
+              {% else %}
+                {% for item in news_items %}
+                  <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
+                    {{ item.title or 'Untitled news item' }}
+                  </h3>
+                  <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
+                    {{ heroicon_mini("arrow-top-right-on-square") }}
+                    <span>{{ item.link }}</span>
+                  </a>
+                  {% if not loop.last %}<div class="divider"></div>{% endif %}
+                {% endfor %}
+              {% endif %}
             </div>
           </div>
         {% endif %}

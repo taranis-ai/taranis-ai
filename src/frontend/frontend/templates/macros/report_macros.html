@@ -51,7 +51,7 @@
       <fieldset class="fieldset bg-base-100 border-base-300 px-2 -mt-6">
         <legend class="fieldset-legend text-xs mb-0">Required</legend>
         <label class="label -mt-2 w-10 inline-block">
-          {{ form_switch_content(name=name_prefix ~ '[required]', value=attribute.required or false, yes_val="true", no_val="false", required=false, input_class="input-xs") }}
+          {{ form_switch_content(name=name_prefix ~ '[required]', value=attribute.required | lower or "false", yes_val="true", no_val="false", required=false, input_class="input-xs") }}
         </label>
       </fieldset>
 

@@ -24,9 +24,10 @@
   {% else %}
     {% set action_url = action.url %}
   {% endif %}
+  {% set testid = "action-" ~ action.label | lower | replace(' ', '-') ~ "-" ~ (item_id | default('button')) %}
   <div class="tooltip" data-tip="{{ action.label }}">
   {% if action.type == 'link' %}
-  <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}">
+  <a href="{{ action_url }}" class="btn btn-ghost btn-sm {{ action.class }}" data-testid="{{ testid }}">
        {{ heroicon_outline(action.icon) }}
   </a>
   {% elif action.type == 'function' %}
@@ -34,12 +35,14 @@
       type="button"
       class="btn btn-ghost btn-sm {{ action.class }}"
       @click.stop="{{ action.function }}('{{ action_url }}')"
+      data-testid="{{ testid }}"
     >
       {{ heroicon_outline(action.icon) }}
     </button>
   {% else %}
   <button class="btn btn-ghost btn-sm {{ action.class }}"
           hx-{{ action.method }}="{{ action_url }}"
+          data-testid="{{ testid }}"
           {% if action.push_url %}hx-push-url="true" {% endif %}
           {% if action.hx_target_error %}hx-target-error="{{ action.hx_target_error }}" {% endif %}
           {% if action.hx_target %}hx-target="{{ action.hx_target }}" {% endif %}

@@ -1,10 +1,13 @@
 import base64
+
 import requests
 
 from .base_publisher import BasePublisher
 
 
 class WORDPRESSPublisher(BasePublisher):
+    REQUIRED_PARAMETERS = ("WP_USER", "WP_PYTHON_APP_SECRET", "WP_URL")
+
     def __init__(self):
         super().__init__()
         self.type = "WORDPRESS_PUBLISHER"
@@ -12,7 +15,7 @@ class WORDPRESSPublisher(BasePublisher):
         self.description = "Publisher for publishing on Wordpress webpage"
 
     def publish(self, publisher, product, rendered_product):
-        parameters = publisher.get("parameters")
+        parameters = self._extract_parameters(publisher)
 
         user = parameters.get("WP_USER")
         python_app_secret = parameters.get("WP_PYTHON_APP_SECRET")

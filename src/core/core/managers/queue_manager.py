@@ -1,12 +1,13 @@
-from celery import Celery
-from flask import Flask
-import requests
 import contextlib
+
+import requests
+from celery import Celery, chain
+from flask import Flask
+from kombu import Queue
+from kombu.exceptions import OperationalError
 from requests.auth import HTTPBasicAuth
 
 from core.log import logger
-from kombu.exceptions import OperationalError
-from kombu import Queue
 
 
 queue_manager: "QueueManager"
@@ -128,6 +129,19 @@ class QueueManager:
             return {"message": f"Refresh for source {source_id} scheduled", "id": task.id, "status": "STARTED"}, 201
         return {"error": "Could not reach rabbitmq"}, 500
 
+    def fetch_single_news_item(self, parameters: dict[str, str]):
+        if task := self.send_task(
+            "fetch_single_news_item", args=[parameters], queue="collectors", task_id=f"fetch_single_news_item_{parameters.get('url')}"
+        ):
+            logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+            try:
+                return task.get(timeout=60)
+            except Exception:
+                logger.exception("Failed to fetch single news item")
+                return {"error": "Failed to fetch single news item"}, 500
+
+        return {"error": "Could not reach rabbitmq"}, 500
+
     def collect_all_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
@@ -157,8 +171,8 @@ class QueueManager:
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def execute_bot_task(self, bot_id: int, filter: dict | None = None):
-        bot_args: dict[str, int | dict] = {"bot_id": bot_id}
+    def execute_bot_task(self, bot_id: str, filter: dict | None = None):
+        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
         if self.send_task("bot_task", kwargs=bot_args, queue="bots", task_id=f"bot_{bot_id}"):
@@ -200,6 +214,17 @@ class QueueManager:
             return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
         except Exception as e:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500
+
+    def autopublish_product(self, product_id: str, auto_publisher_id: str):
+        render_sig = queue_manager.celery.signature(
+            "presenter_task", args=[product_id], queue="presenters", task_id=f"presenter_task_{product_id}"
+        )
+
+        publish_sig = queue_manager.celery.signature(
+            "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
+        )
+
+        chain(render_sig, publish_sig).apply_async()
 
 
 def initialize(app: Flask, initial_setup: bool = True):

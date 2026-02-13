@@ -1,4 +1,6 @@
 import pytest
+from contextlib import suppress
+from sqlalchemy.exc import SQLAlchemyError
 
 
 @pytest.fixture(scope="session")
@@ -18,8 +20,9 @@ def cleanup_sources(app):
 
         yield source_data
 
-        if OSINTSource.get(source_data["id"]):
-            OSINTSource.delete(source_data["id"])
+        with suppress(SQLAlchemyError):
+            if OSINTSource.get(source_data["id"]):
+                OSINTSource.delete(source_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -35,8 +38,9 @@ def cleanup_source_groups(app):
 
         yield source_group_data
 
-        if OSINTSourceGroup.get(source_group_data["id"]):
-            OSINTSourceGroup.delete(source_group_data["id"])
+        with suppress(SQLAlchemyError):
+            if OSINTSourceGroup.get(source_group_data["id"]):
+                OSINTSourceGroup.delete(source_group_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -55,8 +59,9 @@ def cleanup_word_lists(app):
 
         yield word_list_data
 
-        if WordList.get(word_list_data["id"]):
-            WordList.delete(word_list_data["id"])
+        with suppress(SQLAlchemyError):
+            if WordList.get(word_list_data["id"]):
+                WordList.delete(word_list_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -75,8 +80,9 @@ def cleanup_user(app):
 
         yield user_data
 
-        if User.get(user_data["id"]):
-            User.delete(user_data["id"])
+        with suppress(SQLAlchemyError):
+            if User.get(user_data["id"]):
+                User.delete(user_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -93,8 +99,9 @@ def cleanup_role(app):
 
         yield role_data
 
-        if Role.get(role_data["id"]):
-            Role.delete(role_data["id"])
+        with suppress(SQLAlchemyError):
+            if Role.get(role_data["id"]):
+                Role.delete(role_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -111,8 +118,9 @@ def cleanup_organization(app):
 
         yield organization_data
 
-        if Organization.get(organization_data["id"]):
-            Organization.delete(organization_data["id"])
+        with suppress(SQLAlchemyError):
+            if Organization.get(organization_data["id"]):
+                Organization.delete(organization_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -130,8 +138,9 @@ def cleanup_bot(app):
 
         yield bot_data
 
-        if Bot.get(bot_data["id"]):
-            Bot.delete(bot_data["id"])
+        with suppress(SQLAlchemyError):
+            if Bot.get(bot_data["id"]):
+                Bot.delete(bot_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -163,8 +172,9 @@ def cleanup_report_item_type(app):
 
         yield report_type_data
 
-        if ReportItemType.get(report_type_data["id"]):
-            ReportItemType.delete(report_type_data["id"])
+        with suppress(SQLAlchemyError):
+            if ReportItemType.get(report_type_data["id"]):
+                ReportItemType.delete(report_type_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -182,8 +192,9 @@ def cleanup_product_types(app):
 
         yield product_type_data
 
-        if ProductType.get(product_type_data["id"]):
-            ProductType.delete(product_type_data["id"])
+        with suppress(SQLAlchemyError):
+            if ProductType.get(product_type_data["id"]):
+                ProductType.delete(product_type_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -202,8 +213,9 @@ def cleanup_acls(app):
 
         yield rbac_data
 
-        if RoleBasedAccess.get(rbac_data["id"]):
-            RoleBasedAccess.delete(rbac_data["id"])
+        with suppress(SQLAlchemyError):
+            if RoleBasedAccess.get(rbac_data["id"]):
+                RoleBasedAccess.delete(rbac_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -221,8 +233,9 @@ def cleanup_publisher_preset(app):
 
         yield publisher_presets
 
-        if PublisherPreset.get(publisher_presets["id"]):
-            PublisherPreset.delete(publisher_presets["id"])
+        with suppress(SQLAlchemyError):
+            if PublisherPreset.get(publisher_presets["id"]):
+                PublisherPreset.delete(publisher_presets["id"])
 
 
 @pytest.fixture(scope="session")
@@ -240,8 +253,9 @@ def cleanup_attribute(app):
 
         yield attribute_data
 
-        if Attribute.get(attribute_data["id"]):
-            Attribute.delete(attribute_data["id"])
+        with suppress(SQLAlchemyError):
+            if Attribute.get(attribute_data["id"]):
+                Attribute.delete(attribute_data["id"])
 
 
 @pytest.fixture(scope="session")

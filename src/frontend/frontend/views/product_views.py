@@ -1,13 +1,15 @@
 from typing import Any
-from flask import render_template, request, Response, abort
 
+from flask import Response, abort, render_template, request
+from models.admin import ProductType, PublisherPreset
 from models.product import Product
-from models.admin import ProductType
-from frontend.views.base_view import BaseView
-from frontend.filters import render_datetime, render_count, render_item_type
+
+from frontend.auth import auth_required
 from frontend.core_api import CoreApi
-from frontend.log import logger
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_count, render_datetime, render_item_type
+from frontend.log import logger
+from frontend.views.base_view import BaseView
 
 
 class ProductView(BaseView):
@@ -40,6 +42,9 @@ class ProductView(BaseView):
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
+        publishers = DataPersistenceLayer().get_objects(PublisherPreset)
+        base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]
+
         if cls.model_name() in base_context:
             product: Product = base_context[cls.model_name()]
             is_edit = product.id is not None and product.id != "0"
@@ -54,10 +59,17 @@ class ProductView(BaseView):
         error = "Failed to download product"
         try:
             core_resp = CoreApi().download_product(product_id)
-            if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+            if core_resp.ok:
+                return CoreApi.stream_proxy(core_resp, "products_export")
 
-            return CoreApi.stream_proxy(core_resp, "products_export.json")
+            try:
+                error_payload = core_resp.json()
+            except ValueError:
+                error = core_resp.text or "Unknown error"
+            else:
+                error = error_payload.get("error", "Unknown error")
+
+            logger.error(f"Download product failed with status {core_resp.status_code}: {error}")
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"
@@ -65,6 +77,7 @@ class ProductView(BaseView):
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
     @classmethod
+    @auth_required()
     def product_render(cls, product_id: str):
         error = "Failed to render product"
         try:
@@ -73,6 +86,7 @@ class ProductView(BaseView):
                 error = core_resp.json().get("error", "Unknown error")
 
             message = core_resp.json().get("message", "Unknown error")
+            DataPersistenceLayer().invalidate_cache_by_object_id(Product, product_id)
             return render_template("notification/index.html", notification={"message": message, "error": False}), 200
         except Exception as e:
             logger.error(f"Render product failed: {str(e)}")
@@ -84,7 +98,7 @@ class ProductView(BaseView):
     def product_publish(cls, product_id: str):
         error = "Failed to publish product"
         try:
-            publisher = request.args.get("publisher", "")
+            publisher = request.form.get("publisher", "")
             core_resp = CoreApi().publish_product(product_id, publisher_id=publisher)
             if not core_resp.ok:
                 error = core_resp.json().get("error", "Unknown error")

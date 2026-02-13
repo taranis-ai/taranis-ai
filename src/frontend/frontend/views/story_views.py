@@ -1,5 +1,6 @@
-from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse
+import datetime
+from typing import Any, Callable
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import current_user
@@ -7,6 +8,7 @@ from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
 from pydantic import ValidationError
+from werkzeug.datastructures import FileStorage
 
 from frontend.auth import auth_required
 from frontend.cache import add_model_to_cache, get_model_from_cache
@@ -15,6 +17,7 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.router_helpers import parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -54,9 +57,6 @@ class StoryView(BaseView):
         return CacheObject(
             [StoryView._enhance_story_with_details(story, source_dict) for story in stories.items],
             total_count=stories.total_count,
-            page=stories.page,
-            limit=stories.limit,
-            order=stories.order,
         )
 
     @staticmethod
@@ -80,31 +80,63 @@ class StoryView(BaseView):
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
 
-    @staticmethod
-    def _get_story(story_id: str) -> Story | None:
-        if story := get_model_from_cache(Story._model_name, story_id, current_user.id):
-            return story
-        if story_content := CoreApi().get_story(story_id):
-            story = Story(**story_content)
-            add_model_to_cache(story, story_id, current_user.id)
-            return story
-        return None
-
     @classmethod
     @auth_required()
     def get_sharing_dialog(cls) -> str:
-        story_id = request.args.get("story_id", "")
-        if story := cls._get_story(story_id):
-            connectors = DataPersistenceLayer().get_objects(Connector)
-            return render_template("assess/story_sharing_dialog.html", story=story, connectors=connectors)
-        return render_template("assess/story_sharing_dialog.html", story=None, connectors=[])
+        story_ids = request.args.getlist("story_ids")
+        if not story_ids and (story_id := request.args.get("story_id", "")):
+            story_ids = [story_id]
+
+        mail_sharing_link = cls.share_story_link(story_ids)
+        connectors = DataPersistenceLayer().get_objects(Connector)
+        return render_template(
+            "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
+        )
 
     @classmethod
     @auth_required()
-    def submit_sharing_dialog(cls) -> str:
-        story_id = request.form.get("story_id", "")
-        logger.debug(f"Submitting sharing dialog for story {story_id} - {request.form}")
-        return cls.render_response_notification({"message": "Story shared successfully", "category": "success"})
+    def submit_sharing_dialog(cls) -> Response:
+        story_ids = request.form.getlist("story_ids")
+        if not story_ids:
+            return make_response(cls.render_response_notification({"error": "No stories selected for sharing."}), 400)
+
+        logger.debug(f"Submitting sharing dialog for story {story_ids} - {request.form}")
+        connector_id = request.form.get("connector", "")
+        if not connector_id:
+            return make_response(cls.render_response_notification({"error": "No connector selected for sharing."}), 400)
+
+        try:
+            core_response = CoreApi().api_post(f"/assess/story/{connector_id}/share", json_data={"story_ids": story_ids})
+            notification_html = cls.get_notification_from_response(core_response)
+            status_code = getattr(core_response, "status_code", 500) or 500
+        except Exception:
+            logger.exception("Failed to share stories with connector.")
+            notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
+            status_code = 500
+
+        return make_response(notification_html, status_code)
+
+    @classmethod
+    def share_story_link(cls, story_ids: list[str]) -> str:
+        stories: list[Story] = [story for story_id in story_ids if (story := DataPersistenceLayer().get_object(Story, story_id)) is not None]
+
+        subject = "sharing stories from taranis ai"
+        if len(stories) == 1:
+            subject = stories[0].title or subject
+
+        body_lines: list[str] = []
+        for story in stories:
+            title = story.title or f"Story {story.id}"
+            if story.links is not None:
+                links = [f" - {link}\n" for link in story.links]
+                body_lines.append(f"{title}:\n{''.join(links)}")
+        body = "\n\n".join(body_lines).strip()
+
+        params: dict[str, str] = {"subject": subject}
+        if body:
+            params["body"] = body
+
+        return f"mailto:?{urlencode(params, quote_via=quote)}"
 
     @classmethod
     @auth_required()
@@ -126,9 +158,6 @@ class StoryView(BaseView):
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         notification_html = cls.get_notification_from_response(response)
         if StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
@@ -148,12 +177,24 @@ class StoryView(BaseView):
     @auth_required()
     def submit_cluster_dialog(cls) -> Response:
         story_ids = request.form.getlist("story_ids")
-        logger.debug(f"Submitting cluster dialog for stories {story_ids}")
+        open_primary_story = request.form.get("open_primary") == "true"
+        if len(story_ids) < 2:
+            return cls.rerender_list(
+                notification=cls.render_response_notification({"error": "At least two stories must be selected for clustering."})
+            )
+        logger.debug(f"Clustering {story_ids[1:]} into {story_ids[0]}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+        notification_html = cls.get_notification_from_response(response)
+
+        if open_primary_story and getattr(response, "ok", False):
+            primary_story_id = story_ids[0]
+            cls.add_flash_notification(response)
+            flask_response = make_response(notification_html, response.status_code or 200)
+            flask_response.headers["HX-Redirect"] = url_for("assess.story", story_id=primary_story_id)
+            return flask_response
+
+        return cls.rerender_list(notification=notification_html)
 
     @classmethod
     @auth_required()
@@ -168,8 +209,6 @@ class StoryView(BaseView):
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-        for story_id in story_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -186,28 +225,6 @@ class StoryView(BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
-
-    @staticmethod
-    def parse_paging_data(params: dict[str, list[str]] | None = None) -> PagingData:
-        """Unmarshal query parameters into a PagingData model."""
-        source_params = params if params is not None else request.args.to_dict(flat=False)
-        args: dict[str, list[str]] = {key: list(value) for key, value in source_params.items()}
-
-        # Flatten single-value entries for convenience in query_params
-        query_params: dict[str, str | list[str]] = {k: v[0] if len(v) == 1 else v for k, v in args.items()}
-
-        page = request.args.get("page", type=int)
-        limit = request.args.get("limit", type=int)
-        order = request.args.get("order")
-        search = request.args.get("search")
-
-        return PagingData(
-            page=page,
-            limit=limit,
-            order=order,
-            search=search,
-            query_params=query_params,
-        )
 
     @classmethod
     def _build_pagination_context(
@@ -288,7 +305,7 @@ class StoryView(BaseView):
             parsed_url = urlparse(url)
             request_params = parse_qs(parsed_url.query)
 
-        paging_data = cls.parse_paging_data(request_params)
+        paging_data = parse_paging_data(request_params)
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
             return make_response(notification + table, status)
@@ -297,7 +314,7 @@ class StoryView(BaseView):
     @classmethod
     def list_view(cls):
         request_params = request.args.to_dict(flat=False)
-        paging_data = cls.parse_paging_data(request_params)
+        paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
@@ -412,12 +429,6 @@ class StoryView(BaseView):
         content = StoryView._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
-    @classmethod
-    @auth_required()
-    def news_item_view(cls, news_item_id: str = "0"):
-        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="0")
-        return render_template("assess/news_item_create.html", news_item=news_item), 200
-
     @staticmethod
     @auth_required()
     def get_tags():
@@ -432,22 +443,122 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def create_news_item(cls, news_item_id: str = "0"):
+    def news_item_view(cls, news_item_id: str = ""):
+        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "" else NewsItem.model_construct(id="")
+        return render_template("assess/news_item_create.html", news_item=news_item), 200
+
+    @classmethod
+    def _handle_news_item_response(
+        cls,
+        core_response,
+        *,
+        content_builder: Callable[[str], str] | None = None,
+        redirect_on_story: bool = False,
+        status_override: int | None = None,
+    ) -> Response:
+        try:
+            story_id = core_response.json().get("story_id", "")
+        except Exception:
+            story_id = ""
+
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
+        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+        if story_id:
+            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+
+        notification = cls.get_notification_from_response(core_response)
+        status = status_override if status_override is not None else 200 if getattr(core_response, "ok", False) else 400
+
+        if redirect_on_story and story_id:
+            response = make_response(notification, status)
+            response.headers["HX-Redirect"] = url_for("assess.story_edit", story_id=story_id)
+            return response
+
+        content = content_builder(story_id) if content_builder else ""
+        return make_response(notification + content, status)
+
+    @classmethod
+    def news_item_edit_view(cls, core_response) -> Response:
+        return cls._handle_news_item_response(core_response, redirect_on_story=True)
+
+    @classmethod
+    @auth_required()
+    def create_news_item(cls):
+        if url := request.form.get("fetch_url"):
+            return cls._create_news_item_from_url(url)
+
+        if upload_file := request.files.get("file"):
+            return cls._create_news_item_from_file(upload_file)
+
+        item_data = parse_formdata(request.form)
+        item_data["collected"] = datetime.datetime.now().isoformat()
+        news_item = NewsItem(**item_data)
+        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+        return cls.news_item_edit_view(core_response)
+
+    @classmethod
+    @auth_required()
+    def update_news_item(cls, news_item_id: str):
         form_data = parse_formdata(request.form)
         news_item = NewsItem(**form_data)
-        api = CoreApi()
-        if news_item_id == "0":
-            response = api.api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
-        else:
-            response = api.api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
-        notification = cls.get_notification_from_response(response)
+        return cls._handle_news_item_response(
+            core_response,
+            content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
+        )
+
+    @classmethod
+    def _create_news_item_from_file(cls, file: FileStorage):
+        if file.filename == "":
+            return cls.render_response_notification({"error": "No selected file."}), 400
+        elif file.mimetype not in ["text/plain", "application/json"]:
+            return cls.render_response_notification({"error": "Unsupported file type. Please upload a .txt or .json file."}), 400
+
+        try:
+            data = file.read()
+            json_data = json.loads(data)
+            news_item = NewsItem(**json_data)
+            core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+            return cls.news_item_edit_view(core_response)
+        except Exception:
+            logger.exception("Failed to create news item from file.")
+            return cls.render_response_notification({"error": "Failed to create news item from file."}), 400
+
+    @classmethod
+    def _create_news_item_from_url(cls, url: str):
+        try:
+            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
+            return cls.news_item_edit_view(core_response)
+        except Exception:
+            logger.exception("Failed to create news item from URL.")
+            return cls.render_response_notification({"error": "Failed to create news item from URL."})
+
+    @classmethod
+    @auth_required()
+    def delete_news_item(cls, news_item_id: str):
+        try:
+            core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+        except Exception:
+            return cls.render_response_notification({"error": "Failed to delete news item"})
+
+        return cls._handle_news_item_response(
+            core_response,
+            content_builder=cls._get_action_response_content,
+            status_override=200,
+        )
+
+    @classmethod
+    @auth_required()
+    def delete_story(cls, story_id: str):
+        try:
+            core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
+        except Exception:
+            return cls.render_response_notification({"error": "Failed to delete story"})
+
+        cls.add_flash_notification(core_response)
         DataPersistenceLayer().invalidate_cache_by_object(Story)
-
-        notification_html = render_template("notification/index.html", notification=notification)
-        response = make_response(notification_html, 200 if getattr(response, "ok", False) else 400)
-        response.headers["HX-Trigger"] = json.dumps({"story:reload": True})
-        return response
+        return cls.redirect_htmx(url_for("assess.assess"))
 
     @staticmethod
     def _get_current_url_path() -> str:
@@ -464,6 +575,9 @@ class StoryView(BaseView):
         detail_path = url_for("assess.story", story_id=story_id)
 
         context = StoryView.get_item_context(story_id)
+        if not context.get("story"):
+            logger.warning(f"Story {story_id} not found")
+            return render_template("partials/404.html")
         if current_url == edit_path:
             return render_template(
                 "assess/story_edit_content.html",
@@ -481,6 +595,29 @@ class StoryView(BaseView):
             detail_view=False,
             **context,
         )
+
+    @classmethod
+    @auth_required()
+    def ungroup(cls, story_id: str):
+        if news_item_ids := request.form.getlist("news_item_ids[]"):
+            try:
+                response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                notification_html = cls.get_notification_from_response(response)
+                content = cls._get_action_response_content(story_id)
+                return make_response(notification_html + content, 200)
+            except Exception:
+                logger.exception("Failed to ungroup news item.")
+                return cls.render_response_notification({"error": "Failed to ungroup news item."})
+        else:
+            try:
+                core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                DataPersistenceLayer().invalidate_cache_by_object(Story)
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
+            except Exception:
+                logger.exception("Failed to ungroup story.")
+                return cls.render_response_notification({"error": "Failed to ungroup story."})
 
     @classmethod
     @auth_required()

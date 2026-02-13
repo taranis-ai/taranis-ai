@@ -1,5 +1,6 @@
-from pydantic import Field
 from typing import Any
+
+from pydantic import Field
 
 from models.base import TaranisBaseModel
 
@@ -18,7 +19,7 @@ class ProfileSettings(TaranisBaseModel):
     dark_theme: bool = False
     compact_view: bool = False
     show_charts: bool = False
-    infinite_scroll: bool = False
+    infinite_scroll: bool = True
     advanced_story_options: bool = False
     language: str = "en"
     hotkeys: dict[str, Any] = Field(default_factory=dict)

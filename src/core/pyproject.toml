@@ -26,12 +26,13 @@ dependencies = [
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
+    "Pillow",
     "granian",
     "psycopg",
     "requests",
     "authlib",
     "setuptools",
-    "taranis-models",
+    "taranis-models>=1.3.3.dev5",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]
@@ -51,6 +52,7 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 taranis-ai = "core.granian:main"
+taranis-core-healthcheck = "core.healthcheck:main"
 
 [tool.setuptools_scm]
 root = "../.."

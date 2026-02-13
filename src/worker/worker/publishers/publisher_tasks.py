@@ -1,9 +1,9 @@
 from celery import Task
 
 import worker.publishers
-from worker.publishers.base_publisher import BasePublisher
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
+from worker.publishers.base_publisher import BasePublisher
 from worker.types import Product
 
 
@@ -22,9 +22,10 @@ class PublisherTask(Task):
             "ftp_publisher": worker.publishers.FTPPublisher(),
             "sftp_publisher": worker.publishers.SFTPPublisher(),
             "misp_publisher": worker.publishers.MISPPublisher(),
+            "s3_publisher": worker.publishers.S3Publisher(),
         }
 
-    def get_product(self, product_id: int) -> dict[str, str]:
+    def get_product(self, product_id: str) -> dict[str, str]:
         product = self.core_api.get_product(product_id)
 
         if not product:
@@ -40,11 +41,11 @@ class PublisherTask(Task):
             raise RuntimeError(f"Publisher with id {publisher_id} not found")
         return publisher
 
-    def get_rendered_product(self, product_id: int) -> Product | None:
+    def get_rendered_product(self, product_id: str) -> Product | None:
         logger.debug(f"EMAIL Publisher: Getting rendered product for product {product_id}")
         return self.core_api.get_product_render(product_id)
 
-    def run(self, product_id: int, publisher_id: str):
+    def run(self, product_id: str, publisher_id: str):
         product = self.get_product(product_id)
         publisher = self.get_publisher(publisher_id)
         rendered_product = self.get_rendered_product(product_id)

@@ -1,10 +1,13 @@
 import json
 from datetime import datetime, timedelta
 from typing import Sequence
-from sqlalchemy import func, Row
-from core.model.story import Story
-from core.model.news_item import NewsItem
+
+from sqlalchemy import Row, func
+
+from core.managers import queue_manager
 from core.managers.db_manager import db
+from core.model.news_item import NewsItem
+from core.model.story import Story
 
 
 class StoryService:
@@ -93,3 +96,7 @@ class StoryService:
         db.session.commit()
 
         return len(deleted_ids)
+
+    @staticmethod
+    def fetch_and_create_story(parameters: dict[str, str]):
+        return queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)

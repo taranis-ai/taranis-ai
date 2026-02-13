@@ -1,0 +1,215 @@
+{
+    "version": 3,
+    "sources": [
+        {
+            "name": "Source 1",
+            "description": "Description for Source 1",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 2",
+            "description": "Description for Source 2",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 3",
+            "description": "Description for Source 3",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 4",
+            "description": "Description for Source 4",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 5",
+            "description": "Description for Source 5",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 6",
+            "description": "Description for Source 6",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 7",
+            "description": "Description for Source 7",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 8",
+            "description": "Description for Source 8",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 9",
+            "description": "Description for Source 9",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 10",
+            "description": "Description for Source 10",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 11",
+            "description": "Description for Source 11",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 12",
+            "description": "Description for Source 12",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 13",
+            "description": "Description for Source 13",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 14",
+            "description": "Description for Source 14",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 15",
+            "description": "Description for Source 15",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 16",
+            "description": "Description for Source 16",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 17",
+            "description": "Description for Source 17",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 18",
+            "description": "Description for Source 18",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 19",
+            "description": "Description for Source 19",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 20",
+            "description": "Description for Source 20",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        },
+        {
+            "name": "Source 21",
+            "description": "Description for Source 21",
+            "type": "rss_collector",
+            "parameters": [
+                {
+                    "FEED_URL": "test.url"
+                }
+            ]
+        }
+    ]
+}

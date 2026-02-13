@@ -1,8 +1,9 @@
-import requests
 from urllib.parse import urlencode
 
-from worker.log import logger
+import requests
+
 from worker.config import Config
+from worker.log import logger
 from worker.types import Product
 
 
@@ -150,14 +151,6 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_tags(self, tags, bot_type) -> dict | None:
-        try:
-            if tags:
-                return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
-        except Exception:
-            logger.exception("update_tags failed")
-            return None
-
     def run_post_collection_bots(self, source_id) -> dict | None:
         try:
             return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
@@ -225,7 +218,7 @@ class CoreApi:
         """
         try:
             return self.api_post(
-                url="/worker/stories/misp",
+                url="/worker/misp/stories",
                 json_data=stories,
             )
         except Exception:

@@ -1,18 +1,19 @@
 from typing import Any
-from flask import request, abort, Response, url_for
-from pydantic import ValidationError
 
-from frontend.log import logger
+from flask import Response, abort, request, url_for
+from models.admin import ReportItemType
 from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup
-from models.admin import ReportItemType
-from frontend.views.base_view import BaseView
-from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_datetime, render_count
+from pydantic import ValidationError
+
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_count, render_datetime
+from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
+from frontend.views.base_view import BaseView
 
 
 class ReportItemView(BaseView):
@@ -31,7 +32,7 @@ class ReportItemView(BaseView):
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
             {"title": "Created", "field": "created", "sortable": True, "renderer": render_datetime, "render_args": {"field": "created"}},
-            {"title": "Type", "field": "report_item_type", "sortable": True, "renderer": None},
+            {"title": "Type", "field": "report_item_type", "sortable": False, "renderer": None},
             {
                 "title": "Stories",
                 "field": "stories",
@@ -50,17 +51,20 @@ class ReportItemView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        report_types = DataPersistenceLayer().get_objects(ReportItemType)
-        base_context["report_types"] = report_types
-        layout = request.args.get("layout", base_context.get("layout", "split"))
-        report = base_context.get("report")
-        if report and report.grouped_attributes:
-            base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
+        try:
+            report_types = DataPersistenceLayer().get_objects(ReportItemType)
+            base_context["report_types"] = report_types
+            layout = request.args.get("layout", base_context.get("layout", "split"))
+            report = base_context.get("report")
+            if report and report.grouped_attributes:
+                base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
 
-        base_context |= {
-            "layout": layout,
-            "actions": cls.get_report_actions(),
-        }
+            base_context |= {
+                "layout": layout,
+                "actions": cls.get_report_actions(),
+            }
+        except Exception:
+            logger.exception("Error getting extra context for ReportItemView")
 
         return base_context
 

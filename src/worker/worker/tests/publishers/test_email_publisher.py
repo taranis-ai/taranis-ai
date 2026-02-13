@@ -20,7 +20,7 @@ def test_email_publisher_publish_pdf(email_publisher, get_product_pdf_mock, smtp
 def test_publish_without_smtp_address(email_publisher, get_product_mock):
     from worker.tests.publishers.publishers_data import email_publisher_admin_input_no_smtp_address, product_text
 
-    with pytest.raises(ValueError, match="No SMTP server address provided"):
+    with pytest.raises(ValueError, match=r"Missing required parameters for EMAIL Publisher: SMTP_SERVER_ADDRESS"):
         email_publisher.publish(email_publisher_admin_input_no_smtp_address, product_text, get_product_mock)
 
 

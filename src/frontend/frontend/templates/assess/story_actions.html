@@ -1,0 +1,135 @@
+{% macro story_actions(story, size='xs') %}
+  {% set story_id = story.id %}
+  {% set toggled_read = (not (story.read | default(false))) | tojson %}
+  {% set toggled_important = (not (story.important | default(false))) | tojson %}
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+          hx-vals='{"read": {{ toggled_read }} }'
+          hx-target="#story-{{ story_id }}"
+          hx-select="#story-{{ story_id }}"
+          hx-push-url="false"
+          hx-swap="innerHTML"
+          data-testid="toggle-read">
+    {% if story.read | default(false) %}
+      {{ heroicon_mini("eye-slash") }}
+      <span>Mark unread</span>
+    {% else %}
+      {{ heroicon_mini("eye") }}
+      <span>Mark read</span>
+    {% endif %}
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-put="{{ url_for('assess.story', story_id=story_id) }}"
+          hx-vals='{"important": {{ toggled_important }} }'
+          hx-target="#story-{{ story_id }}"
+          hx-select="#story-{{ story_id }}"
+          hx-push-url="false"
+          hx-swap="outerHTML"
+          data-testid="toggle-important">
+    {{ heroicon_mini("star") }}
+    <span>
+      {% if story.important | default(false) %}
+        Remove important
+      {% else %}
+        Mark important
+      {% endif %}
+    </span>
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-get='{{ url_for("assess.share_story") }}?story_id={{ story_id }}'
+          hx-target="body"
+          hx-swap="beforeend"
+          data-testid="share-story">
+    {{ heroicon_mini("share") }}
+    <span>Share</span>
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-post="{{ url_for('assess.ungroup', story_id=story_id) }}"
+          hx-confirm="Are you sure you want to ungroup this story? Ungrouping will create separate stories for each news item."
+          data-testid="ungroup-story">
+    {{ heroicon_mini("arrows-right-left") }}
+    <span>Ungroup</span>
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-delete="{{ url_for('assess.story_delete', story_id=story_id) }}"
+          hx-confirm="Are you sure you want to delete this story? This will delete all associated news items as well."
+          data-testid="delete-story">
+    {{ heroicon_mini("trash") }}
+    <span>Delete</span>
+  </button>
+{% endmacro %}
+
+{% macro story_card_actions(story, compact_view=False) %}
+  {% set story_id = story.id %}
+  {% set card_id = 'story-' ~ story_id %}
+  {% set news_count = story.news_items | length %}
+  {% set news_count_text = '[' ~ news_count ~ ']' if news_count > 1 else '' %}
+  {% set actions = story_actions(story) %}
+
+  <button type="button"
+          class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+          x-bind:class="isOpen ? 'btn-active' : ''"
+          x-on:click="isOpen = !isOpen"
+          data-testid="toggle-summary"
+          x-bind:aria-expanded="isOpen.toString()">
+    <div x-bind:class="isOpen ? 'rotate-180' : ''" class="transition-transform">{{ heroicon_mini("chevron-down") }}</div>
+    {% if not compact_view %}<span x-text="isOpen ? 'Hide details' : 'Show details'"></span>{% endif %}
+  </button>
+
+  <a type="button"
+     class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+     href="{{ url_for('assess.story', story_id=story_id) }}"
+     data-testid="open-detail-view">
+    {{ heroicon_mini("document-magnifying-glass") }}
+    {% if not compact_view %}<span>Open</span>{% endif %}
+  </a>
+
+  <a type="button"
+     href="{{ url_for('assess.story_edit', story_id=story_id) }}"
+     class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+     data-testid="edit-story">
+    {{ heroicon_mini("pencil-square") }}
+    {% if not compact_view %}<span>Edit story</span>{% endif %}
+  </a>
+
+  <div class="dropdown dropdown-end w-full">
+    <button type="button"
+            class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            data-testid="story-actions-menu"
+            aria-label="Additional Story actions">
+      {{ heroicon_mini("ellipsis-horizontal") }}
+      {% if not compact_view %}<span>Actions</span>{% endif %}
+    </button>
+    <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
+      <div class="join join-vertical w-full">{{ actions | trim | safe }}</div>
+    </div>
+  </div>
+
+{% endmacro %}
+
+{% macro story_edit_actions(story) %}
+  {% set actions = story_actions(story, size='sm') %}
+  <div class="dropdown dropdown-end">
+    <button type="button"
+            class="btn btn-outline btn-sm join-item justify-start gap-2"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            data-testid="story-actions-menu"
+            aria-label="Additional Story actions">
+      {{ heroicon_mini("ellipsis-horizontal") }}
+      {% if not compact_view %}<span>Actions</span>{% endif %}
+    </button>
+    <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
+      <div class="join join-vertical w-full">{{ actions | trim | safe }}</div>
+    </div>
+  </div>
+{% endmacro %}
