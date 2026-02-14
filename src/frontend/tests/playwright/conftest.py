@@ -61,7 +61,7 @@ def run_core(app):
 
         print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
-            ["uv", "run", "flask", "run", "--no-sync", "--frozen", "--no-reload", "--port", taranis_core_port],
+            ["uv", "run", "--no-sync", "--frozen", "flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
             env=env,
             # stdout=subprocess.PIPE,
