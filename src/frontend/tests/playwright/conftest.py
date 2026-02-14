@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import os
 import random
 import re
@@ -552,6 +553,78 @@ def pre_seed_report_stories(story_item_list, run_core, api_header, access_token)
     yield story_item_list
 
 
+ALL_ATTRIBUTE_TYPES = {
+    "STRING",
+    "NUMBER",
+    "BOOLEAN",
+    "RADIO",
+    "ENUM",
+    "TEXT",
+    "RICH_TEXT",
+    "DATE",
+    "TIME",
+    "DATE_TIME",
+    "LINK",
+    "ATTACHMENT",
+    "TLP",
+    "CPE",
+    "CVE",
+    "CVSS",
+    "STORY",
+}
+
+
+def pre_seed_report_type(report_definition, access_token, run_core):
+    headers = {"Authorization": f"Bearer {access_token}"}
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
+    r.raise_for_status()
+    items = r.json()["items"]
+
+    # Build lookups
+    by_name = {a["name"]: a for a in items}
+    available_types = {a["type"] for a in items if "type" in a}
+
+    # Assert: the report covers all AttributeTypes present in the system
+    referenced_names = [item["attribute"] for g in report_definition["attribute_groups"] for item in g["attribute_group_items"]]
+    referenced_types = {by_name[name]["type"] for name in referenced_names}
+    missing_types = sorted(available_types - referenced_types)
+    assert not missing_types, (
+        f"Report does not cover all AttributeTypes present in the system. Missing: {missing_types}. Covered: {sorted(referenced_types)}"
+    )
+
+    # Assert: system has no unexpected AttributeTypes (i.e., new types were added)
+    unexpected_types = sorted(available_types - ALL_ATTRIBUTE_TYPES)
+    assert not unexpected_types, f"System has unexpected AttributeTypes: {unexpected_types}"
+
+    r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
+    r.raise_for_status()
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+    from testdata.report_item_type_all_attribute_types import report_definition
+
+    report_definition_copy = copy.deepcopy(report_definition)
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
+
+
+@pytest.fixture(scope="session")
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+    from testdata.report_item_type_all_attribute_types import report_definition
+
+    report_definition_copy = copy.deepcopy(report_definition)
+    report_definition_copy["title"] = report_definition_copy.get("title", "") + " REQUIRED"
+
+    for attribute_group in report_definition_copy.get("attribute_groups", {}):
+        for attribute in attribute_group.get("attribute_group_items", {}):
+            attribute["required"] = True
+
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
+
+
 @pytest.fixture(scope="session")
 def test_osint_source():
     # get absoulute path to testdata/test_osint_source.json
@@ -694,16 +767,16 @@ def story_item_list(fake_source):
                     "published": "2023-08-01T17:01:04.801998",
                 }
             ],
-            # "tags": {
-            #     "this": {"name": "this", "tag_type": "misc"},
-            #     "is": {"name": "is", "tag_type": "misc"},
-            #     "tag": {"name": "tag", "tag_type": "misc"},
-            # },
-            # "attributes": {
-            #     "attribute": {"key": "attribute", "value": "custom"},
-            #     "hip": {"key": "hip", "value": "hop"},
-            #     "cloth": {"key": "cloth", "attribute_type": "short"},
-            # },
+            "tags": {
+                "this": {"name": "this", "tag_type": "misc"},
+                "is": {"name": "is", "tag_type": "misc"},
+                "tag": {"name": "tag", "tag_type": "misc"},
+            },
+            "attributes": {
+                "attribute": {"key": "attribute", "value": "custom"},
+                "hip": {"key": "hip", "value": "hop"},
+                "cloth": {"key": "cloth", "attribute_type": "short"},
+            },
         },
         {
             "id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
@@ -715,8 +788,8 @@ def story_item_list(fake_source):
             "likes": 0,
             "dislikes": 0,
             "relevance": 0,
-            "comments": "",
-            "summary": "",
+            "comments": "test comment",
+            "summary": "test summary",
             "news_items": [
                 {
                     "review": "",
@@ -749,11 +822,11 @@ def story_item_list(fake_source):
                     "published": "2024-07-12T20:00:00.000000",
                 },
             ],
-            # "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
-            # "attributes": [
-            #     {"key": "severity", "value": "high"},
-            #     {"key": "impact", "value": "critical"},
-            #     {"key": "status", "value": "investigating"},
-            # ],
+            "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
+            "attributes": [
+                {"key": "severity", "value": "high"},
+                {"key": "impact", "value": "critical"},
+                {"key": "status", "value": "investigating"},
+            ],
         },
     ]

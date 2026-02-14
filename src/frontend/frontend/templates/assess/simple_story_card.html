@@ -20,35 +20,37 @@
   {% endif %}
 
   <article class="{{ ' '.join(card_classes) }}">
-    <div class="card-body p-4 flex flex-col gap-4 flex-row items-start">
-      <div class="flex-1 space-y-3">
-        <div class="flex flex-col gap-2 flex-row items-start justify-between">
-          <a class="text-lg link link-base" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a>
-          {% if is_used %}<span class="badge badge-success badge-xs badge-outline whitespace-nowrap">Used in attributes</span>{% endif %}
-        </div>
-        <div class="flex flex-col gap-2 flex-row items-start justify-between">
-          {% if story.links %}
-            <a href="{{ story.links[0] }}"
-               target="_blank"
-               rel="noopener"
-               class="link link-primary text-xs inline-flex items-center gap-1 w-fit"
-               data-testid="story-link-{{ story.id }}">
-              {{ heroicon_mini("arrow-top-right-on-square") }}
-              <span>{{ story.links[0] }}</span>
-            </a>
-          {% endif %}
-          <button type="button"
-                  class="btn btn-sm btn-outline"
-                  data-testid="remove-story-{{ story.id }}"
-                  {{ form_action }}
-                  hx-vals='{"stories[]": {{ other_ids | tojson }} }'
-                  hx-target="#report"
-                  hx-target-error="#report">
-            Remove from report
-          </button>
-          {% if story.summary %}<p class="text-sm leading-relaxed text-base-content/70 whitespace-pre-line">{{ story.summary }}</p>{% endif %}
-        </div>
+    <div class="card-body p-4 flex flex-col gap-3">
+      <div class="flex items-start justify-between gap-2">
+        <a class="text-lg link link-base" href="{{ url_for('assess.story', story_id=story.id) }}">{{ story.title }}</a>
+        {% if is_used %}<span class="badge badge-success badge-xs badge-outline whitespace-nowrap">Used in attributes</span>{% endif %}
       </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        {% if story.links %}
+          <a href="{{ story.links[0] }}"
+             target="_blank"
+             rel="noopener"
+             class="link link-primary text-xs inline-flex items-center gap-1 w-fit"
+             data-testid="story-link-{{ story.id }}">
+            {{ heroicon_mini("arrow-top-right-on-square") }}
+            <span>{{ story.links[0] }}</span>
+          </a>
+        {% endif %}
+        <button type="button"
+                class="btn btn-sm btn-outline ml-auto"
+                data-testid="remove-story-{{ story.id }}"
+                {{ form_action }}
+                hx-vals='{"stories[]": {{ other_ids | tojson }} }'
+                hx-target="#report"
+                hx-target-error="#report">
+          Remove from report
+        </button>
+      </div>
+
+      {% if story.summary %}
+        <p class="text-sm leading-relaxed text-base-content/70 whitespace-pre-line">{{ story.summary | truncate(500, False, '…') }}</p>
+      {% endif %}
     </div>
   </article>
 {% endmacro %}

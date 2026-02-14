@@ -55,12 +55,12 @@
       </fieldset>
 
     {% elif attr.type == 'TLP' %}
-      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name) }}</div>
+      <div class="floating-label w-full">{{ tlp_levels(value, name=base_name, required=required) }}</div>
 
+      {# djlint:off #}
     {% elif attr.type in ['DATE', 'DATE_TIME', 'TIME'] %}
       <label class="input w-full">
-        <span class="label">{{ label }}
-          {% if required %}<span class="text-error text-sm">*</span>{% endif %}
+        <span class="label">{{ label }}{% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
         <input type="date"
                name="{{ base_name }}"
@@ -70,10 +70,10 @@
       </label>
 
     {% elif attr.type == 'CVE' %}
-      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', required=required, read_only=read_only, input_id=field_id) }}
 
     {% elif attr.type == 'CVSS' %}
-      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', required=required, read_only=read_only, input_id=field_id) }}
       <p class="text-xs text-base-content/60 mt-1">
         Use the <a href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator" target="_blank">NVD CVSS calculator</a> to determine the score.
       </p>
@@ -81,6 +81,7 @@
     {% elif attr.type == 'STORY' %}
       {% set selected_values = value.split(',') if value else [] %}
       <div class="w-full">
+        <input type="hidden" name="{{ base_name }}[]" value="">
         <select id="attribute_story_{{ attr.id }}" name="{{ base_name }}[]" multiple>
           {% for story in stories %}
             <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title }}</option>
