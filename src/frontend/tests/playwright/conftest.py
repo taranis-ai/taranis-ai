@@ -2,11 +2,13 @@ import contextlib
 import os
 import random
 import re
+import shutil
 import subprocess
 import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
+from pathlib import Path
 from urllib.parse import urlparse
 
 import pytest
@@ -50,7 +52,7 @@ def run_core(app):
             env = config
         env |= os.environ.copy()
         env["PYTHONPATH"] = core_path
-        env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
+        env["FLASK_APP"] = "app.py"
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
         taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
         with contextlib.suppress(Exception):
@@ -59,7 +61,7 @@ def run_core(app):
 
         print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
-            ["flask", "run", "--no-reload", "--port", taranis_core_port],
+            ["uv", "run", "--no-sync", "--frozen", "flask", "run", "--no-reload", "--port", taranis_core_port],
             cwd=core_path,
             env=env,
             # stdout=subprocess.PIPE,
@@ -127,22 +129,14 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 @pytest.fixture(scope="session")
 def setup_test_templates():
     """Set up test template files for e2e tests."""
-    import shutil
-    from pathlib import Path
-
-    # Get paths
     test_data_dir = Path(__file__).parent / "testdata"
     core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
 
-    # Ensure the core templates directory exists
     core_templates_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy test template files
     copied_files = []
     for test_file in test_data_dir.glob("*.html"):
-        dest_file = core_templates_dir / test_file.name
-        shutil.copy2(test_file, dest_file)
-        copied_files.append(dest_file)
+        copied_files.append(shutil.copy2(test_file, core_templates_dir / test_file.name))
 
     yield
 
@@ -552,23 +546,31 @@ def pre_seed_report_stories(story_item_list, run_core, api_header, access_token)
     yield story_item_list
 
 
-@pytest.fixture(scope="session")
-def test_osint_source():
-    # get absoulute path to testdata/test_osint_source.json
+@pytest.fixture
+def testdata_dir():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+    yield os.path.join(dir_path, "testdata")
+
+
+@pytest.fixture(scope="session")
+def test_osint_source(testdata_dir):
+    yield os.path.join(testdata_dir, "test_osint_source.json")
 
 
 @pytest.fixture
-def test_batch_osint_sources(app, run_core, access_token):
+def test_osint_icon_png(testdata_dir):
+    yield os.path.join(testdata_dir, "icon.png")
+
+
+@pytest.fixture
+def test_batch_osint_sources(app, run_core, access_token, testdata_dir):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dir_path, "testdata", "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
+    with open(os.path.join(testdata_dir, "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
         source_data = json.load(f)
 
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
@@ -589,21 +591,18 @@ def test_batch_osint_sources(app, run_core, access_token):
 
 
 @pytest.fixture(scope="session")
-def test_user():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_to_import.json")
+def test_user(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_to_import.json")
 
 
 @pytest.fixture(scope="session")
-def test_user_list():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_list.json")
+def test_user_list(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_list.json")
 
 
 @pytest.fixture(scope="session")
-def test_wordlist():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_word_list.json")
+def test_wordlist(testdata_dir):
+    yield os.path.join(testdata_dir, "test_word_list.json")
 
 
 def report_item_dict(story_item_list):

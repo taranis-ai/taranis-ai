@@ -199,7 +199,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_template()
         remove_template()
 
-    def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source):
+    def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source, test_osint_icon_png):
         page = logged_in_page
         osint_source_name = f"test_source_{uuid.uuid4().hex[:6]}"
 
@@ -259,10 +259,18 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_osint_sources():
             page.get_by_role("link", name=osint_source_name).click()
-            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated_feed_url")
+            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated-feed-url")
+            page.get_by_label("Icon").set_input_files(test_osint_icon_png)
 
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="http://example.com/updated_feed_url")).to_be_visible()
+            form = page.locator("form[hx-put]").first
+            self.highlight_element(page.locator('input[type="submit"]'))
+            form.evaluate("form => { form.noValidate = true; form.requestSubmit(); }")
+            page.wait_for_timeout(500)
+
+            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
+            osint_row = page.get_by_role("row", name=osint_source_name)
+            expect(osint_row.locator("img.icon")).to_be_visible()
 
         def remove_osint_sources():
             page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
