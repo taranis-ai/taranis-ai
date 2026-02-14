@@ -12,8 +12,8 @@
     <span class="label">{{ label }}</span>
     <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
             name="{{ name }}"
-            {% if required %}required{% endif %}
-            {% if disabled %}disabled{% endif %}
+            {% if required %}required="true"{% endif %}
+            {% if disabled %}disabled {% endif %}
             {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
             class="validator select w-full">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}

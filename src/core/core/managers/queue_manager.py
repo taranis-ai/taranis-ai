@@ -232,7 +232,7 @@ def initialize(app: Flask, initial_setup: bool = True):
     queue_manager = QueueManager(app)
     try:
         with queue_manager._celery.connection() as conn:
-            conn.ensure_connection(max_retries=3)
+            conn.ensure_connection(max_retries=2, timeout=1)
             queue_manager.error = ""
         if initial_setup:
             logger.info(f"QueueManager initialized: {queue_manager._celery.broker_connection().as_uri()}")

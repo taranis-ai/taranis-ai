@@ -1,13 +1,13 @@
 from typing import Any, Callable, ClassVar
 
 from flask import abort, current_app, flash, make_response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from jinja2 import TemplateNotFound
 from models.admin import WorkerParameter, WorkerParameterValue
 from models.base import TaranisBaseModel
 from pydantic import ValidationError
 from requests import Response as RequestsResponse
-from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required
 from frontend.cache_models import CacheObject
@@ -398,7 +398,7 @@ class BaseView(MethodView):
             flash(error, "error")
 
     @classmethod
-    def redirect_htmx(cls, target: str) -> Response:
+    def redirect_htmx(cls, target: str) -> ResponseReturnValue:
         if is_htmx_request():
             response = make_response("", 204)
             response.headers["HX-Redirect"] = target
@@ -454,10 +454,10 @@ class BaseView(MethodView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.update_view_table(object_id=0)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)

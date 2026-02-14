@@ -114,7 +114,7 @@ class Stories(MethodView):
                 "exclude_attr",
             ]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-            filter_list_keys = ["source", "group"]
+            filter_list_keys = ["source", "group", "story_ids"]
             for key in filter_list_keys:
                 filter_args[key] = request.args.getlist(key)
 
@@ -299,6 +299,18 @@ class Proposals(MethodView):
         return {"count": StoryConflict.get_proposal_count()}, 200
 
 
+class AssessImport(MethodView):
+    @auth_required("ASSESS_CREATE")
+    @validate_json
+    def post(self):
+        if not (data_json := request.json):
+            return {"error": "No data provided"}, 400
+
+        imported_stories = StoryService.import_stories(data_json, current_user)
+        sse_manager.news_items_updated()
+        return imported_stories
+
+
 def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
@@ -311,6 +323,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
+    assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))

@@ -1,10 +1,10 @@
 from celery import Task
+from models.product import WorkerProduct as Product
 
 import worker.publishers
 from worker.core_api import CoreApi
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.types import Product
 
 
 class PublisherTask(Task):

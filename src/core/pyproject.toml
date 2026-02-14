@@ -21,6 +21,7 @@ dependencies = [
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
+    "lxml",
     "click",
     "celery",
     "SQLAlchemy",
@@ -110,8 +111,8 @@ typeCheckingMode = "standard"
 reportConstantRedefinition = "error"
 reportDuplicateImport = "error"
 reportMissingTypeStubs = "warning"
-reportMissingParameterType = "warning"
-reportMissingTypeArgument = "warning"
+reportMissingParameterType = "none"
+reportMissingTypeArgument = "none"
 
 reportDeprecated = "warning"
 reportMatchNotExhaustive = "warning"

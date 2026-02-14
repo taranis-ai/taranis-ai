@@ -1,6 +1,7 @@
 from typing import Any
 
-from flask import Response, abort, render_template, request
+from flask import abort, render_template, request
+from flask.typing import ResponseReturnValue
 from models.admin import ProductType, PublisherPreset
 from models.product import Product
 
@@ -111,10 +112,10 @@ class ProductView(BaseView):
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.update_view(object_id=0)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)

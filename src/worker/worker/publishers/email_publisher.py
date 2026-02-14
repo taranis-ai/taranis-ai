@@ -5,9 +5,10 @@ from email.message import EmailMessage
 from smtplib import SMTP_SSL, SMTPAuthenticationError, SMTPException
 from typing import Any
 
+from models.product import WorkerProduct as Product
+
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.types import Product
 
 
 class EMAILPublisher(BasePublisher):

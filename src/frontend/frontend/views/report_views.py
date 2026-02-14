@@ -1,6 +1,7 @@
 from typing import Any
 
-from flask import Response, abort, request, url_for
+from flask import abort, request, url_for
+from flask.typing import ResponseReturnValue
 from models.admin import ReportItemType
 from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup
@@ -107,17 +108,17 @@ class ReportItemView(BaseView):
 
     @staticmethod
     @auth_required()
-    def clone_report(report_id: str) -> tuple[str, int] | Response:
+    def clone_report(report_id: str) -> tuple[str, int] | ResponseReturnValue:
         if not report_id:
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
         return ReportItemView.list_view()
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.update_view(object_id=0)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)

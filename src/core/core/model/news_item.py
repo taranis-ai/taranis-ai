@@ -1,22 +1,23 @@
-import uuid
 import hashlib
+import uuid
 from datetime import datetime, timedelta
-from typing import Any, Sequence
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
+from typing import TYPE_CHECKING, Any, Sequence
+
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from typing import TYPE_CHECKING
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.log import logger
-from core.model.user import User
-from core.model.role_based_access import ItemType, RoleBasedAccess
-from core.model.osint_source import OSINTSource
 from core.model.news_item_attribute import NewsItemAttribute
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.user import User
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+
 
 if TYPE_CHECKING:
     from core.model.story import Story
@@ -92,10 +93,18 @@ class NewsItem(BaseModel):
         self.language = language
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
-        self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
-        self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
+        self.collected = self.get_date_field(collected)
+        self.published = self.get_date_field(published)
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
+
+    @staticmethod
+    def get_date_field(date_filed: str | datetime | None) -> datetime:
+        if isinstance(date_filed, datetime):
+            return date_filed
+        if isinstance(date_filed, str):
+            return datetime.fromisoformat(date_filed)
+        return datetime.now()
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
