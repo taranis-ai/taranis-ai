@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 from typing import Any, Literal
 
 from flask import Response, render_template, request, url_for
@@ -152,7 +151,7 @@ class SourceView(AdminMixin, BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
-        except Exception as exc:
+        except Exception:
             logger.exception("Error storing form data")
             return None, "Error storing form data"
 
@@ -261,4 +260,5 @@ class SourceView(AdminMixin, BaseView):
         state_button = render_template("osint_source/state_button.html", osint_source=osint_source)
 
         return notification + state_button, 200
+
     _ALLOWED_ICON_MIMETYPES = {"image/png", "image/jpeg", "image/svg+xml"}

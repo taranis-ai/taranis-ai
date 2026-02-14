@@ -1,13 +1,14 @@
 import contextlib
 import os
-import shutil
 import random
 import re
+import shutil
 import subprocess
 import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
+from pathlib import Path
 from urllib.parse import urlparse
 
 import pytest
@@ -56,10 +57,9 @@ def run_core(app):
             os.remove(f"{parsed_uri.path}")
 
         print(f"Starting Taranis Core on port {taranis_core_port}")
-        repo_root = os.path.abspath(os.path.join(core_path, "..", ".."))
         process = subprocess.Popen(
-            ["uv", "run", "--directory", core_path, "flask", "run", "--no-reload", "--port", taranis_core_port],
-            cwd=repo_root,
+            ["uv", "run", "flask", "run", "--no-sync", "--frozen", "--no-reload", "--port", taranis_core_port],
+            cwd=core_path,
             env=env,
             # stdout=subprocess.PIPE,
             # stderr=subprocess.PIPE,
@@ -126,22 +126,14 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 @pytest.fixture(scope="session")
 def setup_test_templates():
     """Set up test template files for e2e tests."""
-    import shutil
-    from pathlib import Path
-
-    # Get paths
     test_data_dir = Path(__file__).parent / "testdata"
     core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
 
-    # Ensure the core templates directory exists
     core_templates_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy test template files
     copied_files = []
     for test_file in test_data_dir.glob("*.html"):
-        dest_file = core_templates_dir / test_file.name
-        shutil.copy2(test_file, dest_file)
-        copied_files.append(dest_file)
+        copied_files.append(shutil.copy2(test_file, core_templates_dir / test_file.name))
 
     yield
 
