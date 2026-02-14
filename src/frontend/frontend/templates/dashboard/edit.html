@@ -14,7 +14,7 @@
 
   <div class="p-8 bg-base-100" id="edit_dashboard">
     <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
-    <form method="post" action="{{ url_for('base.dashboard') }}">
+    <form hx-post="{{ url_for('base.dashboard') }}" hx-target="#edit_dashboard" hx-swap="outerHTML" method="post">
       <div class="mb-4">
         <div class="flex gap-2">
           <fieldset class="fieldset bg-base-100 flex-none w-1/8">

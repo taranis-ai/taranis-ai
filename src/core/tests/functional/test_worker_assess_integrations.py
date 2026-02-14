@@ -56,7 +56,7 @@ class TestStoryAssessWorkerUpdates:
 
         # Update worker_story with the original worker story_data
         story_data["id"] = misp_story_id
-        update_resp = client.post(f"{self.base_uri_worker}/stories/misp", json=[story_data], headers=api_header)
+        update_resp = client.post(f"{self.base_uri_worker}/misp/stories", json=[story_data], headers=api_header)
         assert update_resp.status_code == 409
         assert isinstance(update_resp.get_json().get("details"), dict)
         assert update_resp.get_json().get("details").get("errors")[0].get("conflict", {}).get("local", {}).get("id") == misp_story_id
@@ -132,7 +132,7 @@ class TestStoryConflictStoreUpdates:
         misp_story_data["title"] = "Updated MISP Story Title"
         full_story_data["title"] = "Updated Full Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[misp_story_data, full_story_data],
             headers=api_header,
         )
@@ -158,7 +158,7 @@ class TestStoryConflictStoreUpdates:
         misp_story_data["title"] = "Second update to MISP Story Title"
         full_story_data["title"] = "Second update to Full Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[misp_story_data, full_story_data],
             headers=api_header,
         )
@@ -248,7 +248,7 @@ class TestNewsItemConflictStoreUpdates:
         context["full_story_data"]["title"] = "Second update to Full Story Title"
 
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )
@@ -275,7 +275,7 @@ class TestNewsItemConflictStoreUpdates:
         context["full_story_data"]["title"] = "Third update to Full Story Title"
 
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )
@@ -308,7 +308,7 @@ class TestNewsItemConflictStoreUpdates:
         # bump title again and post
         context["misp_story_data"]["title"] = "Fourth update to MISP Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )

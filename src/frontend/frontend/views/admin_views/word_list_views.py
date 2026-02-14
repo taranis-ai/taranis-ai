@@ -1,16 +1,17 @@
 import json
-from flask import request, render_template, Response
 from typing import Any
 
+from flask import Response, render_template, request
 from models.admin import WordList
-from frontend.views.base_view import BaseView
-from frontend.core_api import CoreApi
-from frontend.log import logger
-from frontend.config import Config
-from frontend.data_persistence import DataPersistenceLayer
+
 from frontend.auth import auth_required
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class WordListView(AdminMixin, BaseView):
@@ -26,16 +27,26 @@ class WordListView(AdminMixin, BaseView):
     def import_post_view(cls):
         word_lists = request.files.get("file")
         if not word_lists:
-            return cls.import_view("No file or organization provided")
+            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=True)
+            return Response(notification, status=200)
         data = word_lists.read()
-        data = json.loads(data)
-        data = json.dumps(data["data"])
+        try:
+            data = json.loads(data)
+        except ValueError as exc:
+            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=True)
+            return Response(notification, status=200)
 
-        response = CoreApi().import_word_lists(json.loads(data))
+        response = CoreApi().import_word_lists(data)
 
-        if not response:
-            error = "Failed to import word lists"
-            return cls.import_view(error)
+        if not response or not response.ok:
+            if response:
+                notification = cls.get_notification_from_response(response, oob=True)
+            else:
+                notification = render_template(
+                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=True
+                )
+
+            return Response(notification, status=200)
 
         DataPersistenceLayer().invalidate_cache_by_object(WordList)
         return Response(status=200, headers={"HX-Refresh": "true"})
