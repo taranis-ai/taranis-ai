@@ -8,9 +8,6 @@
             "parameters": [
                 {
                     "FEED_URL": "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml"
-                },
-                {
-                    "USE_FEED_CONTENT": "false"
                 }
             ]
         },
@@ -55,7 +52,10 @@
                     "FEED_URL": "https://cert.at/cert-at.de.daily.rss_2.0.xml"
                 },
                 {
-                    "USE_FEED_CONTENT": "false"
+                    "USE_FEED_CONTENT": "true"
+                },
+                {
+                    "CONTENT_LOCATION": "description"
                 }
             ]
         },
@@ -71,6 +71,9 @@
                     "USE_FEED_CONTENT": "true"
                 },
                 {
+                    "CONTENT_LOCATION": "description"
+                },
+                {
                     "REFRESH_INTERVAL": "0 */8 * * *"
                 }
             ]
@@ -84,7 +87,10 @@
                     "FEED_URL": "http://en.blog.nic.cz:80/feed/"
                 },
                 {
-                    "USE_FEED_CONTENT": "false"
+                    "USE_FEED_CONTENT": "true"
+                },
+                {
+                    "CONTENT_LOCATION": "content:encoded"
                 }
             ]
         }

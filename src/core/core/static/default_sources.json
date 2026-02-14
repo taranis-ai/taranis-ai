@@ -11,6 +11,9 @@
                 },
                 {
                     "USE_FEED_CONTENT": "true"
+                },
+                {
+                    "CONTENT_LOCATION": "description"
                 }
             ],
             "group_idx": 1
@@ -64,6 +67,9 @@
                 },
                 {
                     "USE_FEED_CONTENT": "true"
+                },
+                {
+                    "CONTENT_LOCATION": "description"
                 }
             ],
             "group_idx": 5
@@ -128,24 +134,12 @@
         {
             "name": "General News",
             "description": "",
-            "osint_sources": [
-                7,
-                8,
-                9,
-                10
-            ]
+            "osint_sources": [7, 8, 9, 10]
         },
         {
             "name": "Technical News",
             "description": "",
-            "osint_sources": [
-                1,
-                2,
-                3,
-                4,
-                5,
-                6
-            ]
+            "osint_sources": [1, 2, 3, 4, 5, 6]
         }
     ]
 }
