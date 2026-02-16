@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from flask import Response
+from flask import Response, url_for
 
 import frontend.views.auth_views as auth_views_module
 from frontend.views.auth_views import AuthView
@@ -66,3 +66,29 @@ def test_login_flow_handles_non_json_error_response(app):
 
     assert response.status_code == 401
     assert "Login failed" in response.get_data(as_text=True)
+
+
+def test_login_flow_rejects_external_next_redirect(app):
+    core_response = Mock()
+    core_response.ok = True
+    core_response.raw.headers.getlist.return_value = []
+
+    view = AuthView()
+    with app.test_request_context("/login?next=https://evil.example/path"):
+        response = view.login_flow(core_response)
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("base.dashboard")
+
+
+def test_login_flow_allows_relative_next_redirect(app):
+    core_response = Mock()
+    core_response.ok = True
+    core_response.raw.headers.getlist.return_value = []
+
+    view = AuthView()
+    with app.test_request_context("/login?next=/admin"):
+        response = view.login_flow(core_response)
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/admin"

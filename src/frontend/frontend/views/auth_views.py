@@ -1,5 +1,6 @@
 import contextlib
 import requests
+from urllib.parse import urlparse
 from flask import Response, make_response, render_template, request, url_for
 from flask.views import MethodView
 
@@ -10,6 +11,18 @@ from frontend.log import logger
 
 
 class AuthView(MethodView):
+    @staticmethod
+    def _safe_next_location() -> str:
+        fallback = url_for("base.dashboard")
+        next_target = request.args.get("next")
+        if not next_target:
+            return fallback
+
+        parsed = urlparse(next_target)
+        if parsed.scheme or parsed.netloc or next_target.startswith("//"):
+            return fallback
+        return next_target if next_target.startswith("/") else fallback
+
     def _external_login_with_retries(self, auth_headers: dict[str, str], attempts: int = 3) -> Response:
         for attempt in range(1, attempts + 1):
             status_code = "no response"
@@ -44,7 +57,7 @@ class AuthView(MethodView):
                 render_template("login/index.html", login_error=error_message), core_response.status_code
             )
 
-        location = request.args.get("next", url_for("base.dashboard"))
+        location = self._safe_next_location()
         response = Response(status=302, headers={"Location": location})
 
         for h in core_response.raw.headers.getlist("Set-Cookie"):
