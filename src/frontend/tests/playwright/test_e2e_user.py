@@ -519,6 +519,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
+                page.locator(".choices__inner").click()
+                page.get_by_role("option", name="Report Story 2 Add Story").click()
 
                 page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
                 page.get_by_placeholder("STRING field").click()
@@ -541,10 +543,13 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field").fill("1")
                 page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Used in attributes").nth(0)).to_be_visible()
+                expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
 
             def empty_report_fields():
                 page.get_by_text("Report item updated").click()
                 page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
+                page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
                 expect(page.locator("#attribute-4")).to_be_visible()
