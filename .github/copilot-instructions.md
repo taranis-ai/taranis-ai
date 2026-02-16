@@ -4,6 +4,8 @@ This file contains project-specific instructions for GitHub Copilot to provide b
 
 **For Contributors:** These instructions are automatically loaded by GitHub Copilot in VS Code and other supported IDEs. You don't need to manually reference this file - Copilot will use these hints to provide more accurate suggestions and explanations about the project structure and conventions.
 
+For coding agents that support `AGENTS.md`, see `../AGENTS.md` for agent-specific behavior. Shared repository conventions are maintained in this file.
+
 ## Project Overview
 
 taranis.ai - an OSINT application
