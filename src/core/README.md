@@ -73,7 +73,7 @@ This will start the Flask server and run the frontend service at `http://localho
 To run the unit tests just call:
 
 ```bash
-pytest
+uv run --no-sync --frozen python -m pytest tests/unit
 ```
 
 There are [e2e tests](./tests/playwright/README.md) using Playwright
