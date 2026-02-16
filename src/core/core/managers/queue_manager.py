@@ -33,6 +33,7 @@ Manual restarts are only required if the scheduler process itself is offline.
 See: src/worker/worker/cron_config.py for cron job registration logic
 """
 
+import json
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -704,7 +705,7 @@ class QueueManager:
             logger.error("QueueManager not initialized, cannot register cron job")
             return False
 
-        payload = spec.model_dump(mode="json")
+        payload = json.dumps(spec.model_dump(mode="json"))
         with self._redis.pipeline() as p:
             p.hset(DEFS, spec.job_id, payload)
             p.xadd(EVENTS, {"op": "upsert", "job_id": spec.job_id})

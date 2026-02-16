@@ -381,9 +381,9 @@ class OSINTSource(BaseModel):
             meta={"name": f"Collector: {self.name}"},
             job_id=f"osint_source_{self.id}",
             cron=self.get_schedule_with_default(),
-            func="collector_task",
+            func_path="collector_task",
             args=[self.id, False],
-            queue="collectors",
+            queue_name="collectors",
         )
 
     def schedule_osint_source(self):
