@@ -1,3 +1,4 @@
+import contextlib
 from requests.models import Response as ReqResponse
 from functools import wraps
 from flask import Flask, request
@@ -51,9 +52,18 @@ def _redirect_to_login():
 
 
 def logout() -> tuple[str, int] | Response:
-    core_response: ReqResponse = CoreApi().logout()
+    error_msg = "Logout failed"
+    try:
+        core_response: ReqResponse = CoreApi().logout()
+    except Exception as exc:
+        # If the core isn't reachable, fall back to the login page without crashing.
+        logger.error(f"Core logout failed: {exc}")
+        return render_template("login/index.html", login_error="Logout failed"), 500
+
     if not core_response.ok:
-        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        with contextlib.suppress(Exception):
+            error_msg = core_response.json().get("error", error_msg)
+        return render_template("login/index.html", login_error=error_msg), core_response.status_code
 
     response = Response(status=302, headers={"Location": url_for("base.login")})
     if is_htmx_request():
