@@ -1,18 +1,22 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full') %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', data_testid=None) %}
   {% from "macros/forms.html" import form_input_content %}
   <div class="mb-5 {{ width }} flex flex-row">
-    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg) }}
+    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg, data_testid=data_testid) }}
     {% if error %}<div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>{% endif %}
   </div>
 {% endmacro %}
 
-{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full') %}
+{% macro form_select(label, name, value, options=[], input_id=None, required=True, disabled=False, width='w-full', data_testid=None) %}
+  {# djlint:off #}
   <label class="select mb-5 {{ width }}">
-    <span class="label">{{ label }}</span>
+    <span class="label">{{ label }}
+      {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+    </span>
     <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
             name="{{ name }}"
             {% if required %}required{% endif %}
             {% if disabled %}disabled{% endif %}
+            {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
             class="validator select w-full">
       {% if not value %}<option value="" selected disabled>Select an item type</option>{% endif %}
       {% for option in options %}
@@ -20,9 +24,11 @@
       {% endfor %}
     </select>
   </label>
+  {# djlint:on #}
 {% endmacro %}
 
-{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False) %}
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False, data_testid=None) %}
+  {# djlint:off #}
   <label class="floating-label {{ width }}">
     <span class="label">{{ label }}
       {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
@@ -38,74 +44,83 @@
            {% if required %}required aria-required="true"{% endif %}
            {% if read_only %}readonly{% endif %}
            {% if type != 'password' %}autocomplete="off"{% endif %}
+           {% if data_testid %} data-testid="{{ data_testid }}"{% endif %}
            {% if preserve %}hx-preserve{% endif %} />
   </label>
+  {# djlint:on #}
 {% endmacro %}
 
 {% macro form_textarea(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, width='w-full', input_class='') %}
   <label class="floating-label mb-5 {{ width }}">
-    <span class="label">{{ label }}</span>
-    <textarea class="textarea w-full"
-              type="{{ type }}"
-              placeholder="{{ placeholder if placeholder is not none else label }}{% if required %}*{% endif %}"
-              class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
-              name="{{ name }}"
-              {% if required %} required {% endif %}
-              {% if preserve %}hx-preserve{% endif %}>{{ value }}</textarea>
-  </label>
-{% endmacro %}
-
-{% macro form_fileinput(label, name, value, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
-  <label class="floating-label mb-5 {{ width }}">
-    <span class="label">{{ label }}</span>
-    <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
-           type="{{ type }}"
-           placeholder="{{ placeholder if placeholder is not none else label }}"
-           class="input w-full validator file-input"
-           name="{{ name }}"
-           value="{{ value }}"
-           {% if required %}required{% endif %}
-           {% if preserve %}hx-preserve{% endif %} />
-  </label>
-{% endmacro %}
-
-{% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='', disabled=False, input_id=None) %}
-  {% from "macros/forms.html" import form_switch_content %}
-  <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
-    <legend class="fieldset-legend">{{ label }}</legend>
-    <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class, disabled, input_id) }}</label>
-  </fieldset>
-{% endmacro %}
-
-{% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='', disabled=False, input_id=None) %}
-  <!-- Switch with {{ value }} -->
-  <input type="hidden" name="{{ name }}" value="{{ no_val }}" {% if disabled %}disabled{% endif %} />
-  <input id="{{ input_id if input_id else name }}"
-         name="{{ name }}"
-         type="checkbox"
-         value="{{ yes_val }}"
-         class="toggle toggle-primary peer {{ input_class }}"
-         {% if required %}required{% endif %}
-         {% if value == yes_val %}checked{% endif %}
-         {% if disabled %}disabled{% endif %} />
-  <span class="text-base-content peer-checked:hidden">{{ no_val }}</span>
-  <span class="text-base-content hidden peer-checked:inline">{{ yes_val }}</span>
-{% endmacro %}
-
-{% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
-  <div class="mb-5 {{ width }}">
-    <label class="label">
-      <span class="label-text">{{ label }}</span>
+    <span class="label">{{ label }}
+      {% if required %}*{% endif %}</span>
+      <textarea class="textarea w-full"
+                type="{{ type }}"
+                placeholder="{{ placeholder if placeholder is not none else label }}{% if required %}*{% endif %}"
+                class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
+                name="{{ name }}"
+                {% if required %} required {% endif %}
+                {% if preserve %}hx-preserve{% endif %}>{{ value }}</textarea>
     </label>
-    <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
-            name="{{ name }}"
-            {% if required %}required{% endif %}
-            class="select w-full">
-      {% if not value %}<option value="" selected disabled>Select a template</option>{% endif %}
-      {% for option in options %}
-        {% set status = option.validation_status | normalize_validation_status %}
-        <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} [{{ status|badge_label }}]</option>
-      {% endfor %}
-    </select>
-  </div>
-{% endmacro %}
+  {% endmacro %}
+
+  {% macro form_fileinput(label, name, value, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+    <label class="floating-label mb-5 {{ width }}">
+      <span class="label">{{ label }}
+        {% if required %}*{% endif %}</span>
+        <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
+               type="{{ type }}"
+               placeholder="{{ placeholder if placeholder is not none else label }}{% if required %}*{% endif %}"
+               class="input w-full validator file-input"
+               name="{{ name }}"
+               value="{{ value }}"
+               {% if required %}required aria-required="true"{% endif %}
+               {% if preserve %}hx-preserve{% endif %} />
+      </label>
+    {% endmacro %}
+
+    {% macro form_switch(label, name, value, yes_val='Yes', no_val='No', required=True, preserve=True, width='w-full', input_class='', disabled=False, input_id=None) %}
+      {% from "macros/forms.html" import form_switch_content %}
+      <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 {{ width }}">
+        <legend class="fieldset-legend">
+          <span>
+            {{ label }}
+            {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+            </span>
+          </legend>
+          <label class="label">{{ form_switch_content(name, value, yes_val, no_val, required, preserve, input_class, disabled, input_id) }}</label>
+        </fieldset>
+      {% endmacro %}
+
+      {% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='', disabled=False, input_id=None) %}
+        <!-- Switch with {{ value }} -->
+        <input type="hidden" name="{{ name }}" value="{{ no_val }}" {% if disabled %}disabled{% endif %} />
+        <input id="{{ input_id if input_id else name }}"
+               name="{{ name }}"
+               type="checkbox"
+               value="{{ yes_val }}"
+               class="toggle toggle-primary peer {{ input_class }}"
+               {% if required %}required{% endif %}
+               {% if value == yes_val %}checked{% endif %}
+               {% if disabled %}disabled{% endif %} />
+        <span class="text-base-content peer-checked:hidden">{{ no_val }}</span>
+        <span class="text-base-content hidden peer-checked:inline">{{ yes_val }}</span>
+      {% endmacro %}
+
+      {% macro form_select_with_badges(label, name, value, options=[], input_id=None, required=True, width='w-full') %}
+        <div class="mb-5 {{ width }}">
+          <label class="label">
+            <span class="label-text">{{ label }}</span>
+          </label>
+          <select id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
+                  name="{{ name }}"
+                  {% if required %}required{% endif %}
+                  class="select w-full">
+            {% if not value %}<option value="" selected disabled>Select a template</option>{% endif %}
+            {% for option in options %}
+              {% set status = option.validation_status | normalize_validation_status %}
+              <option value="{{ option.id }}" {% if option.id == value %}selected{% endif %}>{{ option.name }} [{{ status|badge_label }}]</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endmacro %}

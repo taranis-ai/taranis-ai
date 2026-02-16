@@ -101,7 +101,20 @@ class StoryView(BaseView):
             return make_response(cls.render_response_notification({"error": "No stories selected for sharing."}), 400)
 
         logger.debug(f"Submitting sharing dialog for story {story_ids} - {request.form}")
-        return make_response(cls.render_response_notification({"message": "Story sharing not implemented yet"}), 200)
+        connector_id = request.form.get("connector", "")
+        if not connector_id:
+            return make_response(cls.render_response_notification({"error": "No connector selected for sharing."}), 400)
+
+        try:
+            core_response = CoreApi().api_post(f"/assess/story/{connector_id}/share", json_data={"story_ids": story_ids})
+            notification_html = cls.get_notification_from_response(core_response)
+            status_code = getattr(core_response, "status_code", 500) or 500
+        except Exception:
+            logger.exception("Failed to share stories with connector.")
+            notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
+            status_code = 500
+
+        return make_response(notification_html, status_code)
 
     @classmethod
     def share_story_link(cls, story_ids: list[str]) -> str:
@@ -176,13 +189,9 @@ class StoryView(BaseView):
 
         if open_primary_story and getattr(response, "ok", False):
             primary_story_id = story_ids[0]
-            content = render_template(
-                "assess/story.html",
-                detail_view=True,
-                **cls.get_item_context(primary_story_id),
-            )
-            flask_response = make_response(notification_html + content, response.status_code or 200)
-            flask_response.headers["HX-Push-Url"] = url_for("assess.story", story_id=primary_story_id)
+            cls.add_flash_notification(response)
+            flask_response = make_response(notification_html, response.status_code or 200)
+            flask_response.headers["HX-Redirect"] = url_for("assess.story", story_id=primary_story_id)
             return flask_response
 
         return cls.rerender_list(notification=notification_html)
@@ -366,32 +375,28 @@ class StoryView(BaseView):
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
 
-    @classmethod
-    def update_from_form(cls, story_id: str):
-        core_response, error = cls.process_form_data(story_id)
-        if error or not core_response:
-            error_payload = error if isinstance(error, dict) else {"error": error or "Failed to update story."}
-            notification_html = render_template(
-                "notification/index.html",
-                notification=cls.get_notification_from_dict(error_payload),
-            )
-            content = render_template(
-                "assess/story_edit_content.html",
-                **cls.get_item_context(story_id),
-            )
-            response = make_response(notification_html + content, 400)
-            response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
-            return response
+    @staticmethod
+    def _extract_report_ids_from_story_data(story_data: Any) -> list[str]:
+        tags = story_data.get("tags") if isinstance(story_data, dict) else None
+        report_ids: list[str] = []
+        for tag in tags or []:
+            tag_type = tag.get("tag_type")
+            if isinstance(tag_type, str) and tag_type.startswith("report_"):
+                if report_id := tag_type.split("report_", 1)[1]:
+                    report_ids.append(report_id)
 
-        notification_html = cls.render_response_notification(core_response)
-        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        content = render_template(
-            "assess/story_edit_content.html",
-            **cls.get_item_context(story_id),
-        )
-        response = make_response(notification_html + content, 200)
-        response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
-        return response
+        return report_ids
+
+    @classmethod
+    def _invalidate_related_report_caches(cls, core_response: Any) -> None:
+        story_data = None
+        if isinstance(core_response, dict):
+            story_data = core_response.get("story")
+        report_ids = cls._extract_report_ids_from_story_data(story_data)
+        if not report_ids:
+            return
+        for report_id in report_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
 
     @classmethod
     @auth_required()
@@ -626,6 +631,7 @@ class StoryView(BaseView):
         notification_html = cls.get_notification_from_response(response)
 
         DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        cls._invalidate_related_report_caches(response.json())
 
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)

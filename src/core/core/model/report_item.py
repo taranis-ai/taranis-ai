@@ -112,7 +112,10 @@ class ReportItem(BaseModel):
             base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             base_query = cls.get_filter_query(filter_args)
-        query = cls._add_paging_to_query(filter_args, base_query)
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
         items = cls.get_filtered(query) or []
         item_list = cls.to_list(items)
         if filter_args.get("order") == "stories_asc":
@@ -253,6 +256,7 @@ class ReportItem(BaseModel):
                     "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
+                    "value": attribute_group_item.attribute.default_value or None,
                     "render_data": {},
                 }
                 if attribute_enum_data:
