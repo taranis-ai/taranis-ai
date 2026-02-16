@@ -1,3 +1,4 @@
+import contextlib
 import requests
 from flask import Response, make_response, render_template, request, url_for
 from flask.views import MethodView
@@ -12,8 +13,14 @@ class AuthView(MethodView):
     def _external_login_with_retries(self, auth_headers: dict[str, str], attempts: int = 3) -> Response:
         for attempt in range(1, attempts + 1):
             status_code = "no response"
+            core_response = None
 
-            if core_response := CoreApi().external_login(auth_headers):
+            try:
+                core_response = CoreApi().external_login(auth_headers)
+            except Exception as exc:
+                logger.warning(f"External login request failed on attempt {attempt}: {exc}")
+
+            if core_response is not None:
                 login_response = self.login_flow(core_response)
                 status_code = str(login_response.status_code)
                 if login_response.status_code == 302 or attempt == attempts:
@@ -24,15 +31,17 @@ class AuthView(MethodView):
         return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
 
     def login_flow(self, core_response: requests.Response) -> Response:
-        try:
-            if not core_response and not core_response.json():
-                return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
-        except Exception:
+        if core_response is None:
             return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
 
         if not core_response.ok:
+            error_message = "Login failed"
+            with contextlib.suppress(Exception):
+                response_json = core_response.json()
+                if isinstance(response_json, dict):
+                    error_message = response_json.get("error", error_message)
             return make_response(
-                render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+                render_template("login/index.html", login_error=error_message), core_response.status_code
             )
 
         location = request.args.get("next", url_for("base.dashboard"))
@@ -55,8 +64,7 @@ class AuthView(MethodView):
                         "login/index.html",
                         notification={"message": "Missing required authentication headers - contact your admin", "error": True},
                     ), 400
-                if external_login_response := self._external_login_with_retries(auth_headers, attempts=3):
-                    return external_login_response
+                return self._external_login_with_retries(auth_headers, attempts=3)
             return render_template("login/index.html", auth_method=auth_method)
 
         return render_template(
