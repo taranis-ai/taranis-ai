@@ -30,6 +30,7 @@ def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
     assert cleanup_job.get("queue") == "misc"
     assert cleanup_job.get("schedule") == "0 2 * * *"
     assert cleanup_job.get("type") == "cron"
+    assert isinstance(cleanup_job.get("next_run_time"), str)
 
 
 def test_annotate_jobs_uses_previous_run_for_overdue(monkeypatch):
@@ -44,9 +45,9 @@ def test_annotate_jobs_uses_previous_run_for_overdue(monkeypatch):
 
     job = {
         "type": "cron",
-        "last_run": "2025-12-11T15:51:07",
-        "previous_run_time": "2025-12-12T08:00:00",
-        "next_run_time": "2025-12-12T16:00:00",
+        "last_run": datetime(2025, 12, 11, 15, 51, 7),
+        "previous_run_time": datetime(2025, 12, 12, 8, 0, 0),
+        "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
     annotated_job = qm_module._annotate_jobs([job])[0]
@@ -67,9 +68,9 @@ def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
 
     job = {
         "type": "cron",
-        "last_run": "2025-12-11T15:51:07",
-        "previous_run_time": "2025-12-12T08:00:00",
-        "next_run_time": "2025-12-12T16:00:00",
+        "last_run": datetime(2025, 12, 11, 15, 51, 7),
+        "previous_run_time": datetime(2025, 12, 12, 8, 0, 0),
+        "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
     annotated_job = qm_module._annotate_jobs([job])[0]
@@ -91,8 +92,8 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
     job = {
         "type": "cron",
         "last_run": None,
-        "previous_run_time": "2025-12-12T08:00:00",
-        "next_run_time": "2025-12-12T16:00:00",
+        "previous_run_time": datetime(2025, 12, 12, 8, 0, 0),
+        "next_run_time": datetime(2025, 12, 12, 16, 0, 0),
     }
 
     annotated_job = qm_module._annotate_jobs([job])[0]

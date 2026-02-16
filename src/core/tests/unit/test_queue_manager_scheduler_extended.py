@@ -11,6 +11,7 @@ from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
+from core.model.task import Task as TaskModel
 
 
 @pytest.fixture(autouse=True)
@@ -61,8 +62,8 @@ def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
 
     job = {
         "type": "scheduled",
-        "next_run_time": "2025-12-12T08:00:00",
-        "last_run": "2025-12-12T07:50:00",
+        "next_run_time": datetime(2025, 12, 12, 8, 0, 0),
+        "last_run": datetime(2025, 12, 12, 7, 50, 0),
     }
 
     annotated = qm_module._annotate_jobs([job])[0]
@@ -85,8 +86,8 @@ def test_annotate_jobs_computes_missing_interval(monkeypatch):
     job = {
         "type": "cron",
         "last_run": None,
-        "previous_run_time": "2025-12-12T08:00:00",
-        "next_run_time": "2025-12-12T10:00:00",
+        "previous_run_time": datetime(2025, 12, 12, 8, 0, 0),
+        "next_run_time": datetime(2025, 12, 12, 10, 0, 0),
     }
 
     annotated = qm_module._annotate_jobs([job])[0]
@@ -198,11 +199,16 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
 
 
 def test_osint_schedule_entries_include_metadata(monkeypatch):
+    class FakeTask:
+        def __init__(self):
+            self.last_run = datetime(2025, 1, 1, 0, 0, 0)
+            self.last_success = datetime(2025, 1, 1, 0, 0, 0)
+            self.status = "ok"
+
     class FakeSource:
         def __init__(self):
             self.id = "source-1"
             self.name = "Source One"
-            self.status = {"last_run": "2025-01-01T00:00:00", "status": "ok"}
             self.task_id = "task-1"
 
         def get_schedule(self):
@@ -212,6 +218,7 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
             return self.get_schedule()
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource()]))
+    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: FakeTask() if task_id == "task-1" else None))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -228,7 +235,6 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
             def __init__(self, i):
                 self.id = f"source-{i}"
                 self.name = f"Source {i}"
-                self.status = {}
                 self.task_id = f"task-{i}"
 
             def get_schedule(self):
@@ -240,6 +246,7 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
         return FakeSource(idx)
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [make_source(i) for i in range(120)]))
+    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: None))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -252,13 +259,13 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
         def __init__(self):
             self.id = "bot-1"
             self.name = "Bot One"
-            self.status = {}
             self.task_id = "task-1"
 
         def get_schedule(self):
             return "not-a-cron"
 
     monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
+    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: None))
 
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -343,8 +350,8 @@ def test_get_scheduled_jobs_with_many_sources(monkeypatch):
                 "id": f"cron_collector_{i}",
                 "name": f"Collector {i}",
                 "queue": "collectors",
-                "next_run_time": "2025-01-01T00:00:00",
-                "previous_run_time": "2024-12-31T23:00:00",
+                "next_run_time": datetime(2025, 1, 1, 0, 0, 0),
+                "previous_run_time": datetime(2024, 12, 31, 23, 0, 0),
                 "schedule": "0 * * * *",
                 "type": "cron",
                 "last_run": None,

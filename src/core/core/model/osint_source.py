@@ -244,7 +244,7 @@ class OSINTSource(BaseModel):
                 continue
 
             try:
-                status = source.status or {}
+                task_result = TaskModel.get(source.task_id)
 
                 schedule_entries.append(
                     QueueManager.build_cron_schedule_entry(
@@ -253,12 +253,11 @@ class OSINTSource(BaseModel):
                         queue="collectors",
                         cron_schedule=cron_schedule,
                         now=now,
-                        stringify_times=True,
                         source_id=source.id,
                         task_id=source.task_id,
-                        last_run=status.get("last_run"),
-                        last_success=status.get("last_success"),
-                        last_status=status.get("status"),
+                        last_run=task_result.last_run if task_result else None,
+                        last_success=task_result.last_success if task_result else None,
+                        last_status=task_result.status if task_result else None,
                     )
                 )
             except Exception as exc:

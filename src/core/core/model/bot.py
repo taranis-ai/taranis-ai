@@ -140,7 +140,7 @@ class Bot(BaseModel):
                 continue
 
             try:
-                status = bot.status or {}
+                task_result = TaskModel.get(bot.task_id)
 
                 entries.append(
                     QueueManager.build_cron_schedule_entry(
@@ -149,12 +149,11 @@ class Bot(BaseModel):
                         queue="bots",
                         cron_schedule=cron_schedule,
                         now=now,
-                        stringify_times=True,
                         bot_id=bot.id,
                         task_id=bot.task_id,
-                        last_run=status.get("last_run"),
-                        last_success=status.get("last_success"),
-                        last_status=status.get("status"),
+                        last_run=task_result.last_run if task_result else None,
+                        last_success=task_result.last_success if task_result else None,
+                        last_status=task_result.status if task_result else None,
                     )
                 )
             except Exception as exc:

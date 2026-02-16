@@ -555,7 +555,6 @@ class QueueManager:
         queue: str,
         cron_schedule: str,
         now: datetime | None = None,
-        stringify_times: bool = False,
         **extra_fields: Any,
     ) -> dict[str, Any]:
         """Build a normalized cron schedule entry."""
@@ -570,8 +569,8 @@ class QueueManager:
             "id": job_id,
             "name": name,
             "queue": queue,
-            "next_run_time": next_run.isoformat() if stringify_times else next_run,
-            "previous_run_time": (prev_run.isoformat() if stringify_times else prev_run) or None,
+            "next_run_time": next_run,
+            "previous_run_time": prev_run or None,
             "schedule": cron_schedule,
             "type": "cron",
             "last_run": None,
@@ -663,7 +662,13 @@ class QueueManager:
 
                         logger.debug(f"Job {job_id}: func={job.func_name}, scheduled_time={scheduled_time}")
 
-                        scheduled_for = scheduled_time.isoformat() if isinstance(scheduled_time, datetime) else None
+                        scheduled_for: datetime | None = None
+                        if isinstance(scheduled_time, datetime):
+                            scheduled_for = (
+                                scheduled_time.astimezone(timezone.utc).replace(tzinfo=None)
+                                if scheduled_time.tzinfo
+                                else scheduled_time
+                            )
 
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
@@ -679,6 +684,11 @@ class QueueManager:
             all_jobs.extend(self._get_cron_schedule_entries())
 
             annotated_jobs = _annotate_jobs(all_jobs)
+            for job in annotated_jobs:
+                for field in ("last_run", "last_success", "next_run_time", "previous_run_time"):
+                    value = job.get(field)
+                    if isinstance(value, datetime):
+                        job[field] = value.isoformat()
 
             logger.info(f"get_scheduled_jobs: returning {len(annotated_jobs)} total jobs")
             return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
