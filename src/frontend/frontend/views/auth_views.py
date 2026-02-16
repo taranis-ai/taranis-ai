@@ -10,12 +10,17 @@ from frontend.log import logger
 
 class AuthView(MethodView):
     def _external_login_with_retries(self, auth_headers: dict[str, str], attempts: int = 3) -> Response:
-        for _ in range(attempts):
+        for attempt in range(1, attempts + 1):
+            status_code = "no response"
+
             if core_response := CoreApi().external_login(auth_headers):
                 login_response = self.login_flow(core_response)
-                if login_response.status_code == 302 or attempts <= 1:
+                status_code = str(login_response.status_code)
+                if login_response.status_code == 302 or attempt == attempts:
                     return login_response
-            logger.debug(f"External login attempt failed, retrying... Status code: {login_response.status_code}")
+
+            if attempt < attempts:
+                logger.debug(f"External login attempt failed, retrying... Status code: {status_code}")
         return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
 
     def login_flow(self, core_response: requests.Response) -> Response:
