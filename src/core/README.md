@@ -27,8 +27,12 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv sync --frozen
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 ```
+
+This local-development setup intentionally uses the checked-out `../models` package.
+Release/container builds still use the packaged `taranis-models` from the lockfile via `uv sync --frozen`.
 
 ## Usage
 

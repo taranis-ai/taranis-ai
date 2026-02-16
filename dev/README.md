@@ -106,7 +106,8 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run core
 flask run
@@ -122,7 +123,8 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run worker
 uv run python start_dev_worker.py
@@ -147,7 +149,8 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run the frontend dev server
 flask run
@@ -170,8 +173,9 @@ When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in
 **Manual start:**
 ```bash
 cd src/worker
-uv sync --all-extras
-uv run python start_cron_scheduler.py
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
+uv run --no-sync --frozen python start_cron_scheduler.py
 ```
 
 **Updating schedules:**
@@ -195,8 +199,9 @@ Access it at: http://localhost:9181
 **Manual start:**
 ```bash
 cd src/worker
-uv sync --all-extras
-uv run rq-dashboard --redis-url redis://localhost:6379
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
+uv run --no-sync --frozen rq-dashboard --redis-url redis://localhost:6379
 ```
 
 ## Technology stack
