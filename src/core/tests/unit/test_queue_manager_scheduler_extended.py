@@ -141,6 +141,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
             self.id = job_id
             self.func_name = "other.task"
             self.args = []
+            self.meta = {}
             self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
 
     class FakeRegistry:
@@ -172,6 +173,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
             self.id = job_id
             self.func_name = "other.task"
             self.args = []
+            self.meta = {}
             self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
             self.exc_info = "boom"
 
@@ -326,7 +328,13 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
 
     import core.api.config as config_api
 
-    fake_qm = type("FakeQM", (), {"redis": object()})()
+    class FakeQM:
+        redis = object()
+
+        def get_scheduled_job(self, task_id):
+            return {"id": "job-42", "name": "worker.do_task", "scheduled_for": "2025-01-01T12:00:00+00:00", "status": "queued"}, 200
+
+    fake_qm = FakeQM()
 
     monkeypatch.setattr(qm_module, "queue_manager", fake_qm)
     monkeypatch.setattr(config_api.queue_manager, "queue_manager", fake_qm)
