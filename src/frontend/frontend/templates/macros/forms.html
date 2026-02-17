@@ -36,7 +36,7 @@
            placeholder="{{ placeholder if placeholder is not none else label }}{% if required %}*{% endif %}"
            class="input w-full validator {% if error %}input-error{% endif %} {{ input_class }}"
            name="{{ name }}"
-           {% if type != 'file' %}value="{{ value if value is not none else '' }}"{% endif %}
+           value="{{ value if value is not none else '' }}"
            {% if pattern %}pattern="{{ pattern }}"{% endif %}
            {% if invalid_msg %} x-on:input=" $el.setCustomValidity(''); if (!$el.validity.valid) { $el.setCustomValidity('{{ invalid_msg }}'); } " {% endif %}
            {% if required %}required aria-required="true"{% endif %}
