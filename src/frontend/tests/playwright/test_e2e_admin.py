@@ -553,7 +553,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.get_by_role("textbox", name="Attribute Title").click()
             page.get_by_role("textbox", name="Attribute Title").fill("attr title text")
-            page.get_by_label("Attribute Type Select an item").select_option("28")
+            page.get_by_label("Attribute Type * Select an").select_option("28")
             page.get_by_role("textbox", name="Attribute Description").click()
             page.get_by_role("textbox", name="Attribute Description").fill("test 5")
             page.get_by_role("textbox", name="Attribute Description").dblclick()
@@ -737,7 +737,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
             page.get_by_label("Presenter Type Select a").select_option("html_presenter")
-            page.get_by_label("TEMPLATE_PATH Select an item").select_option("cert_at_daily_report.html")
+            page.get_by_label("TEMPLATE_PATH * Select an item").select_option("cert_at_daily_report.html")
 
             page.get_by_role("searchbox", name="Select report types").click()
             page.get_by_role("option", name="CERT Report").click()
