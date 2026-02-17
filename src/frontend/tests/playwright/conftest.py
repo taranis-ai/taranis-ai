@@ -568,7 +568,7 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-def pre_seed_report_type(report_definition, access_token, run_core):
+def pre_seed_report_type(report_definition, access_token, run_core, frontend_url: str | None = None):
     headers = {"Authorization": f"Bearer {access_token}"}
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -595,18 +595,28 @@ def pre_seed_report_type(report_definition, access_token, run_core):
 
     r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
     r.raise_for_status()
+    if frontend_url:
+        _invalidate_cached_report_item_types(frontend_url, access_token)
+
+
+def _invalidate_cached_report_item_types(frontend_url: str, access_token: str):
+    # These fixtures seed report item types via Core API directly.
+    # Invalidate the running frontend server cache so select options are refreshed.
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(f"{frontend_url}/invalidate_cache/config_report-item-types", headers=headers, timeout=10)
+    response.raise_for_status()
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -616,7 +626,7 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
 
 
 @pytest.fixture(scope="session")
@@ -766,16 +776,16 @@ def story_item_list(fake_source):
                     "published": "2023-08-01T17:01:04.801998",
                 }
             ],
-            # "tags": {
-            #     "this": {"name": "this", "tag_type": "misc"},
-            #     "is": {"name": "is", "tag_type": "misc"},
-            #     "tag": {"name": "tag", "tag_type": "misc"},
-            # },
-            # "attributes": {
-            #     "attribute": {"key": "attribute", "value": "custom"},
-            #     "hip": {"key": "hip", "value": "hop"},
-            #     "cloth": {"key": "cloth", "attribute_type": "short"},
-            # },
+            "tags": {
+                "this": {"name": "this", "tag_type": "misc"},
+                "is": {"name": "is", "tag_type": "misc"},
+                "tag": {"name": "tag", "tag_type": "misc"},
+            },
+            "attributes": {
+                "attribute": {"key": "attribute", "value": "custom"},
+                "hip": {"key": "hip", "value": "hop"},
+                "cloth": {"key": "cloth", "attribute_type": "short"},
+            },
         },
         {
             "id": "f2bbda19-c353-4ea4-922c-388c5ce80172",
@@ -787,8 +797,8 @@ def story_item_list(fake_source):
             "likes": 0,
             "dislikes": 0,
             "relevance": 0,
-            "comments": "",
-            "summary": "",
+            "comments": "test comment",
+            "summary": "test summary",
             "news_items": [
                 {
                     "review": "",
@@ -821,11 +831,11 @@ def story_item_list(fake_source):
                     "published": "2024-07-12T20:00:00.000000",
                 },
             ],
-            # "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
-            # "attributes": [
-            #     {"key": "severity", "value": "high"},
-            #     {"key": "impact", "value": "critical"},
-            #     {"key": "status", "value": "investigating"},
-            # ],
+            "tags": [{"name": "test", "tag_type": "misc"}, {"name": "story", "tag_type": "misc"}, {"name": "news", "tag_type": "misc"}],
+            "attributes": [
+                {"key": "severity", "value": "high"},
+                {"key": "impact", "value": "critical"},
+                {"key": "status", "value": "investigating"},
+            ],
         },
     ]
