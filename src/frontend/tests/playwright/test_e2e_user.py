@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 from flask import url_for
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
 
 
@@ -311,7 +311,14 @@ class TestEndToEndUser(PlaywrightHelpers):
         infinite_scroll_all_items()
         group_stories()
 
-    def test_user_analyze(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_report_stories):
+    def test_user_analyze(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_report_stories,
+        pre_seed_report_type_all_attribute_types_optional,
+        pre_seed_report_type_all_attribute_types_required,
+    ):
         page = logged_in_page
         report_story_one, report_story_two = pre_seed_report_stories
         story_search_term = " ".join(report_story_one["title"].split()[:2])
@@ -323,6 +330,49 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.goto(url_for("analyze.analyze", _external=True))
             expect(page.get_by_test_id("analyze")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
+
+        def check_report_view_layout_changes():
+            page.get_by_test_id("new-report-button").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title").fill("test title")
+            page.get_by_label("Report Type Select a report").select_option("4")
+            page.get_by_role("link", name="Stacked view").click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
+            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            page.get_by_role("link", name="Split view").click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
+            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            page.get_by_test_id("save-report").click()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_placeholder("Date")).to_be_visible()
+            expect(page.get_by_placeholder("Timeframe")).to_be_visible()
+            expect(page.get_by_placeholder("Handler", exact=True)).to_be_visible()
+            expect(page.get_by_placeholder("CO-Handler")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="news")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="vulnerabilities")).to_be_visible()
+            page.get_by_placeholder("Date").fill("today")
+            page.get_by_placeholder("Timeframe").fill("last week")
+            page.get_by_placeholder("Handler", exact=True).fill("me")
+            page.get_by_placeholder("CO-Handler").fill("you")
+            page.get_by_test_id("save-report").click()
+            page.get_by_placeholder("Date").fill("yesterday")
+            page.get_by_role("link", name="Stacked view").click()
+            expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
+            page.get_by_role("link", name="Split view").click()
+            expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+
+        def delete_test_report():
+            report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+            page.get_by_role("link", name="Analyze").click()
+            page.get_by_test_id(f"action-delete-{report_uuid}").click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
 
         def create_report():
             new_report_button = page.get_by_role("button", name="New Report")
@@ -365,6 +415,11 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
         def verify_report_actions(report_uuid: str):
+            def test_report_item_view():
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_role("link", name="Test report").click()
+                expect(page.get_by_role("paragraph")).to_contain_text("test summary")
+
             def test_remove_story_from_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_role("link", name="Test report").click()
@@ -397,16 +452,313 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
+                report_uuid_2 = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+                return report_uuid_2
 
+            def cleanup_reports(report_uuid_2: str):
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_test_id(f"action-delete-{report_uuid_2}").click()
+                page.get_by_role("button", name="OK").click()
+
+            test_report_item_view()
             test_remove_story_from_report()
             test_story_in_report_assess_view()
             test_create_product_from_report()
-            test_clone_and_delete_report()
+            report_uuid_2 = test_clone_and_delete_report()
+            cleanup_reports(report_uuid_2)
 
+        def check_various_report_type_fields():
+            def create_new_report():
+                page.get_by_test_id("new-report-button").click()
+                expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+                page.get_by_role("textbox", name="Title").fill("all attr report")
+                page.get_by_label("Report Type Select a report").select_option("6")
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item created").click()
+
+                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
+                expect(page.get_by_placeholder("STRING field")).to_be_visible()
+                expect(page.get_by_placeholder("NUMBER field")).to_be_visible()
+                expect(page.get_by_role("group", name="Boolean")).to_be_visible()
+                expect(page.get_by_role("group", name="Confidentiality (Radio)")).to_be_visible()
+                expect(page.get_by_text("Impact (Enum)")).to_be_visible()
+                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible()
+                expect(page.get_by_placeholder("TEXT field", exact=True)).to_be_visible()
+                expect(page.get_by_placeholder("RICH_TEXT field")).to_be_visible()
+                expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_visible()
+                expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_visible()
+                expect(page.get_by_role("textbox", name="Date Time")).to_be_visible()
+                expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible()
+                expect(page.get_by_role("heading", name="Technical References and")).to_be_visible()
+                expect(page.get_by_text('Unsupported attribute type "')).to_be_visible()
+                expect(page.get_by_text("Attachment editing is not yet")).to_be_visible()
+                expect(page.get_by_label("CPE Select an option")).to_be_visible()
+                expect(page.get_by_placeholder("CVE field")).to_be_visible()
+                expect(page.get_by_placeholder("CVSS field")).to_be_visible()
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item updated").click()
+
+            def add_stories_to_new_report():
+                page.get_by_role("link", name="Assess").click()
+                page.get_by_placeholder("Search stories").fill(story_search_term)
+                page.get_by_placeholder("Search stories").press("Enter")
+                page.get_by_role("heading", name=report_story_one["title"]).click()
+                page.get_by_role("heading", name=report_story_two["title"]).click()
+                expect(page.get_by_role("button", name="Cluster")).to_be_visible()
+
+                page.get_by_role("button", name="Add to Report").click()
+                popup = page.get_by_label("Add Stories to report")
+                popup.click()
+                popup.get_by_text("all attr report").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+
+            def set_report_fields():
+                page.get_by_role("link", name="Analyze").click()
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+
+                page.get_by_role("link", name="all attr report").click()
+                page.locator(".choices__inner").click()
+                page.get_by_role("option", name="Report Story 1 Add Story").click()
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
+                page.locator(".choices__inner").click()
+                page.get_by_role("option", name="Report Story 2 Add Story").click()
+
+                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
+                page.get_by_placeholder("STRING field").click()
+                page.get_by_placeholder("STRING field").fill("string")
+                page.get_by_placeholder("NUMBER field").click()
+                page.get_by_placeholder("NUMBER field").fill("111")
+                expect(page.locator("#attribute-4")).to_be_visible()
+                page.locator("#attribute-4").check()
+                page.get_by_role("radio", name="UNRESTRICTED").check()
+                page.get_by_label("Impact (Enum) Select an").select_option("Malicious code execution affecting CIA of the system")
+                page.get_by_placeholder("TEXT field", exact=True).click()
+                page.get_by_placeholder("TEXT field", exact=True).fill("text")
+                page.get_by_placeholder("RICH_TEXT field").click()
+                page.get_by_placeholder("RICH_TEXT field").fill("rich text")
+                page.get_by_role("textbox", name="Date", exact=True).fill("2026-02-05")
+                page.get_by_role("textbox", name="Time", exact=True).fill("111111-11-11")
+                page.get_by_role("textbox", name="Date Time").fill("111111-11-11")
+                page.get_by_label("TLP Level Clear Green Amber").select_option("red")
+                page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
+                page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
+                page.get_by_placeholder("CVSS field").fill("1")
+                page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Used in attributes").nth(0)).to_be_visible()
+                expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
+
+            def empty_report_fields():
+                page.get_by_text("Report item updated").click()
+                page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
+                page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
+                page.get_by_placeholder("STRING field").fill("")
+                page.get_by_placeholder("NUMBER field").fill("")
+                expect(page.locator("#attribute-4")).to_be_visible()
+
+                page.locator("#attribute-4").uncheck()
+                page.get_by_role("radio", name="CLASSIFIED").check()
+                page.get_by_label("Impact (Enum) Malicious code").select_option("Privilege escalation")
+                page.get_by_placeholder("TEXT field", exact=True).fill("")
+                page.get_by_placeholder("RICH_TEXT field").fill("")
+                page.get_by_role("textbox", name="Date", exact=True).fill("")
+                page.get_by_role("textbox", name="Time", exact=True).fill("")
+                page.get_by_role("textbox", name="Date Time").fill("")
+                page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
+                page.get_by_placeholder("CVE field").fill("")
+                page.get_by_placeholder("CVSS field").fill("")
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item updated").click()
+
+            def check_report_fields():
+                page.get_by_role("link", name="Analyze").click()
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+
+                page.get_by_role("link", name="all attr report").click()
+                expect(page.get_by_role("textbox", name="Title")).to_have_value("all attr report")
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible()
+                expect(page.get_by_placeholder("STRING field")).to_be_empty()
+                expect(page.get_by_placeholder("NUMBER field")).to_be_empty()
+                expect(page.locator("#attribute-4")).not_to_be_checked()
+                expect(page.get_by_role("radio", name="CLASSIFIED")).to_be_checked()
+                expect(page.get_by_role("radio", name="UNRESTRICTED")).not_to_be_checked()
+                expect(page.get_by_label("Impact (Enum) Malicious code")).to_have_value("Privilege escalation")
+                expect(page.get_by_placeholder("TEXT field", exact=True)).to_be_empty()
+                expect(page.get_by_placeholder("RICH_TEXT field")).to_be_empty()
+                expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_empty()
+                expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_empty()
+                expect(page.get_by_role("textbox", name="Date Time")).to_be_empty()
+                expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
+                expect(page.get_by_placeholder("CVE field")).to_be_empty()
+                expect(page.get_by_placeholder("CVSS field")).to_be_empty()
+                expect(page.locator("#report_form")).to_contain_text("Use the NVD CVSS calculator to determine the score.")
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item updated").click()
+
+            def check_invalid_states():
+                with pytest.raises(Error, match=r"Cannot type text"):
+                    page.get_by_placeholder("NUMBER field").fill("aaa")
+                page.get_by_placeholder("CVE field").fill("111")
+
+                page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
+                page.get_by_placeholder("CVE field").fill("")
+
+                page.get_by_placeholder("CVSS field").fill("a")
+                page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
+                page.get_by_placeholder("CVSS field").fill("")
+                with pytest.raises(Error, match=r"Malformed value"):
+                    page.get_by_role("textbox", name="Date", exact=True).fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+                    page.get_by_role("textbox", name="Time", exact=True).fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+                    page.get_by_role("textbox", name="Date Time").fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+            def delete_new_report():
+                report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+                page.get_by_role("link", name="Analyze").click()
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+                page.get_by_test_id(f"action-delete-{report_uuid}").click()
+                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+                page.get_by_role("button", name="OK").click()
+                page.get_by_text("Successfully deleted report").click()
+
+            def create_new_report_required():
+                page.get_by_test_id("new-report-button").click()
+                expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+                page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
+                page.get_by_label("Report Type Select a report").select_option("7")
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item created").click()
+                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
+                expect(page.get_by_placeholder("STRING field*")).to_be_visible()
+                expect(page.get_by_placeholder("NUMBER field*")).to_be_visible()
+                expect(page.get_by_text("Boolean *")).to_be_visible()
+                expect(page.get_by_text("Confidentiality (Radio) *")).to_be_visible()
+                expect(page.get_by_text("Impact (Enum) *")).to_be_visible()
+                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible()
+                expect(page.get_by_placeholder("TEXT field*", exact=True)).to_be_visible()
+                expect(page.get_by_placeholder("RICH_TEXT field*")).to_be_visible()
+                expect(page.get_by_text("Date*")).to_be_visible()
+                expect(page.get_by_text("Time*", exact=True)).to_be_visible()
+                expect(page.get_by_text("Date Time*")).to_be_visible()
+                expect(page.get_by_text("TLP Level *")).to_be_visible()
+                expect(page.get_by_role("heading", name="Technical References and Artifacts")).to_be_visible()
+                expect(page.get_by_text('Unsupported attribute type "LINK" is kept as read-only')).to_be_visible()
+                expect(
+                    page.get_by_text("Attachment editing is not yet available in this view. Existing data will be preserved on save.")
+                ).to_be_visible()
+                expect(page.get_by_role("textbox", name="CVE")).to_be_visible()
+                expect(page.get_by_role("textbox", name="CVSS")).to_be_visible()
+
+            def add_stories_to_new_report_required():
+                page.get_by_role("link", name="Assess").click()
+                page.get_by_placeholder("Search stories").fill(story_search_term)
+                page.get_by_placeholder("Search stories").press("Enter")
+                page.get_by_role("heading", name=report_story_one["title"]).click()
+                page.get_by_role("heading", name=report_story_two["title"]).click()
+                expect(page.get_by_role("button", name="Cluster")).to_be_visible()
+
+                page.get_by_role("button", name="Add to Report").click()
+                popup = page.get_by_label("Add Stories to report")
+                popup.click()
+                popup.get_by_text("all attr report REQUIRED").click()
+                page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
+
+            def set_report_fields_required():
+                page.get_by_role("link", name="Analyze").click()
+                expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
+
+                page.get_by_role("link", name="all attr report").click()
+                page.locator(".choices__inner").click()
+                page.get_by_role("option", name="Report Story 1 Add Story").click()
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
+
+                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
+                page.get_by_placeholder("STRING field").click()
+                page.get_by_placeholder("STRING field").fill("string")
+                page.get_by_placeholder("NUMBER field").click()
+                page.get_by_placeholder("NUMBER field").fill("111")
+                expect(page.locator("#attribute-4")).to_be_visible()
+                page.locator("#attribute-4").check()
+                page.get_by_role("radio", name="UNRESTRICTED").check()
+                page.get_by_label("Impact (Enum) * Select an").select_option("Malicious code execution affecting CIA of the system")
+                page.get_by_placeholder("TEXT field*", exact=True).fill("text")
+                page.get_by_placeholder("RICH_TEXT field*").fill("rich text")
+                page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
+                page.get_by_role("textbox", name="Time *", exact=True).fill("111111-11-11")
+                page.get_by_role("textbox", name="Date Time *").fill("111111-11-11")
+                page.get_by_label("TLP Level * Clear Green Amber").select_option("red")
+                page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
+                page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
+                page.get_by_placeholder("CVSS field*").fill("1")
+                page.get_by_test_id("save-report").click()
+                page.get_by_text("Report item updated").click()
+
+            def check_invalid_states_required():
+                with pytest.raises(Error, match=r"Cannot type text"):
+                    page.get_by_placeholder("NUMBER field").fill("aaa")
+                page.get_by_placeholder("CVE field").fill("111")
+
+                page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
+                page.get_by_placeholder("CVE field*").fill("")
+
+                page.get_by_placeholder("CVSS field*").fill("a")
+                page.get_by_test_id("save-report").click()
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
+                page.get_by_placeholder("CVSS field*").fill("")
+                with pytest.raises(Error, match=r"Malformed value"):
+                    page.get_by_role("textbox", name="Date *", exact=True).fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+                    page.get_by_role("textbox", name="Time *", exact=True).fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+                    page.get_by_role("textbox", name="Date Time *").fill("xxxx-xx-xx")
+                    page.get_by_test_id("save-report").click()
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
+
+            def delete_new_report_required():
+                report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+                page.get_by_role("link", name="Analyze").click()
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+                page.get_by_test_id(f"action-delete-{report_uuid}").click()
+                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+                page.get_by_role("button", name="OK").click()
+                page.get_by_text("Successfully deleted report").click()
+
+            create_new_report()
+            add_stories_to_new_report()
+            set_report_fields()
+            empty_report_fields()
+            check_report_fields()
+            check_invalid_states()
+            delete_new_report()
+            ####
+            create_new_report_required()
+            add_stories_to_new_report_required()
+            set_report_fields_required()
+            check_invalid_states_required()
+            delete_new_report_required()
+
+        go_to_analyze()
+        check_report_view_layout_changes()
+        delete_test_report()
         go_to_analyze()
         report_uuid = create_report()
         add_stories_to_report()
         verify_report_actions(report_uuid)
+        go_to_analyze()
+        check_various_report_type_fields()
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, stories_session_wrapper):
         page = logged_in_page
@@ -420,7 +772,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
-            self.highlight_element(page.get_by_label("Product Type Select an item")).select_option("3")
+            self.highlight_element(page.get_by_label("Product Type * Select an item")).select_option("3")
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")

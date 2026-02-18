@@ -1,9 +1,10 @@
 from typing import Any
 
-from flask import abort, request, url_for
 from flask.typing import ResponseReturnValue
+from flask import abort, make_response, render_template, request, url_for
 from models.admin import ReportItemType
 from models.assess import Story
+from models.product import Product
 from models.report import ReportItem, ReportItemAttributeGroup
 from pydantic import ValidationError
 
@@ -46,19 +47,30 @@ class ReportItemView(BaseView):
     @staticmethod
     def _get_story_attributes(grouped_attributes: list[ReportItemAttributeGroup]):
         story_attributes = []
+        used_story_ids = []
         for ag in grouped_attributes:
-            story_attributes.extend(a for a in ag.attributes if a.type and a.type == "STORY")
-        return story_attributes
+            for attribute in ag.attributes:
+                if not attribute.type or attribute.type != "STORY":
+                    continue
+                story_attributes.append(attribute)
+                used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
+        return story_attributes, list(dict.fromkeys(used_story_ids))
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
             report_types = DataPersistenceLayer().get_objects(ReportItemType)
             base_context["report_types"] = report_types
-            layout = request.args.get("layout", base_context.get("layout", "split"))
+            layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
             report = base_context.get("report")
-            if report and report.grouped_attributes:
-                base_context["story_attributes"] = ReportItemView._get_story_attributes(report.grouped_attributes) or []
+            base_context["story_attributes"] = []
+            base_context["used_story_ids"] = []
+
+            if report := base_context.get("report"):
+                if report.grouped_attributes:
+                    base_context["story_attributes"], base_context["used_story_ids"] = ReportItemView._get_story_attributes(
+                        report.grouped_attributes
+                    )
 
             base_context |= {
                 "layout": layout,
@@ -75,6 +87,10 @@ class ReportItemView(BaseView):
         report = context.get("report")
         if not report:
             return context
+        if title := request.values.get("title"):
+            report.title = title
+        if report_item_type_id := request.values.get("report_item_type_id"):
+            report.report_item_type_id = report_item_type_id
         if story_ids := request.args.getlist("story_ids"):
             report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
             context["report"] = report
@@ -113,6 +129,7 @@ class ReportItemView(BaseView):
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
+        DataPersistenceLayer().invalidate_cache_by_object(Product)
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
@@ -126,13 +143,14 @@ class ReportItemView(BaseView):
 
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
-        return {key: ",".join(value) if isinstance(value, list) else value for key, value in attributes.items()}
+        return {key: ",".join(id for id in value if id) if isinstance(value, list) else value for key, value in attributes.items()}
 
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
+            form_data.pop("layout", None)
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:
@@ -141,3 +159,35 @@ class ReportItemView(BaseView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @classmethod
+    def update_view(cls, object_id: int | str = 0):
+        core_response, error = cls.process_form_data(object_id)
+        if not core_response or error:
+            return render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            ), 400
+
+        DataPersistenceLayer().invalidate_cache_by_object(Product)
+
+        notification_response = cls.render_response_notification(core_response)
+        response = notification_response + render_template(
+            cls.get_update_template(),
+            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+        )
+        flask_response = make_response(response, 200)
+        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
+        return flask_response
+
+    @classmethod
+    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
+        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
+        if core_response.ok:
+            DataPersistenceLayer().invalidate_cache_by_object(Product)
+
+        response = cls.get_notification_from_response(core_response)
+        table, table_response = cls.render_list()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code or table_response
