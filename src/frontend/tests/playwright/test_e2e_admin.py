@@ -22,8 +22,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
+        expect(page.get_by_placeholder("Username")).to_have_attribute("required", "")
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
+        expect(page.get_by_placeholder("Password")).to_have_attribute("required", "")
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
@@ -46,6 +48,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_organization():
             page.get_by_test_id("new-organization-button").click()
+            expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(organization_name)
             page.get_by_label("Description").fill("Test description of an organization")
             page.get_by_label("Street").fill("Test Street")
@@ -87,11 +90,17 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_user():
             page.get_by_test_id("new-user-button").click()
+
+            expect(page.get_by_role("textbox", name="Username", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Username", exact=True).fill(username)
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill("Test User")
+            expect(page.get_by_role("textbox", name="Password", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
 
+            expect(page.locator('select[name="organization"]')).to_have_attribute("required", "")
             page.get_by_label("Organization").select_option("1")
+            expect(page.locator('select[name="roles[]"]')).to_have_attribute("required", "")
             page.get_by_role("searchbox", name="Select roles").click()
             page.get_by_role("option", name="User - Basic user role Press").click()
 
@@ -104,6 +113,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_user():
             page.get_by_role("link", name=username).click()
             page.get_by_role("button", name="Generate Password").click()
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill("Test User Updated")
             page.locator('input[type="submit"]').click()
             expect(page.get_by_role("link", name="Test User Updated")).to_be_visible()
@@ -172,6 +182,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_template():
             page.get_by_test_id("new-template-button").click()
+            expect(page.get_by_role("textbox", name="Filename", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Filename", exact=True).fill(template_name)
             page.locator("#editor").get_by_role("textbox").fill(valid_template_content)
 
@@ -249,9 +260,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_osint_sources():
             page.get_by_test_id("new-osint_source-button").click()
+            expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(osint_source_name)
             page.get_by_label("Description").fill("Test description of an OSINT source")
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Collector Type Select a").select_option("rss_collector")
+            expect(page.get_by_role("textbox", name="FEED_URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
@@ -259,6 +273,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_osint_sources():
             page.get_by_role("link", name=osint_source_name).click()
+            expect(page.get_by_role("textbox", name="FEED_URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated_feed_url")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
@@ -287,6 +302,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_osint_source_group():
             page.get_by_test_id("new-osint_source_group-button").click()
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill(osint_group_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of an OSINT source group")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_group_add.png")
@@ -340,8 +356,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-role-button").click()
             expect(page.locator("#role-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill(role_name)
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a role")
+            expect(page.get_by_label("TLP Level")).to_have_attribute("required", "")
             page.get_by_label("TLP Level").select_option("green")
 
             page.locator("th").first.get_by_role("checkbox").check()
@@ -356,7 +375,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name=role_name).click()
             expect(page.locator("#role-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a role")
+            expect(page.get_by_label("TLP Level")).to_have_attribute("required", "")
             page.get_by_label("TLP Level").select_option("amber+strict")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
@@ -395,6 +416,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-word_list-button").click()
             expect(page.locator("#word_list-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill(word_list_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a word list")
             page.get_by_role("textbox", name="Link", exact=True).fill("http://example.com")
@@ -459,13 +481,16 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
             page.get_by_text("No acl items found").click()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
             page.get_by_role("textbox", name="Name").fill("Test ACL")
-            page.get_by_label("Item Type* Select an item").select_option("osint_source_group")
-            expect(page.get_by_label("OSINT Source Group Default")).to_be_visible()
+            expect(page.locator('select[name="item_type"]')).to_have_attribute("required", "")
+            page.get_by_label("Item Type * Select an item").select_option("osint_source_group")
+            expect(page.get_by_label("OSINT Source Group * Default")).to_be_visible()
+            expect(page.locator('select[name="item_id"]')).to_have_attribute("required", "")
 
-            page.get_by_role("group", name="Enabled").get_by_label("No Yes").check()
-            page.get_by_role("checkbox", name="No").check()
+            page.get_by_role("checkbox", name="Enabled").uncheck()
+            page.get_by_role("checkbox", name="read_only").uncheck()
             page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").check()
             page.get_by_role("row", name="User Basic user role").get_by_role("checkbox").check()
             page.get_by_role("button", name="Create ACL").click()
@@ -475,7 +500,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
 
             page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").uncheck()
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("Test ACL updated")
+            page.get_by_role("checkbox", name="Enabled").check()
+            page.get_by_role("checkbox", name="read_only").check()
             page.get_by_role("button", name="Update ACL").click()
 
         def test_acl_delete():
@@ -508,12 +536,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-attribute-button").click()
             expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
             page.get_by_role("textbox", name="Name").fill("attribute number 5")
+            expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("attr 5")
             page.get_by_role("textbox", name="Default Value").click()
             page.get_by_role("textbox", name="Default Value").fill("5")
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Attribute Type Select an item").select_option("number")
             page.get_by_role("button", name="Create Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
@@ -530,21 +561,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-report_item_type-button").click()
             expect(page.get_by_role("heading", name="Create Report Item Type")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").click()
             page.get_by_role("textbox", name="Title").fill("report item type test 5")
+            expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("atrr5")
             page.get_by_role("button", name="+ Add New Group").click()
             expect(page.get_by_role("spinbutton", name="Group Index")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Group Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Group Title").click()
             page.get_by_role("textbox", name="Group Title").fill("group1")
             page.get_by_role("textbox", name="Group Description").click()
             page.get_by_role("button", name="+ Add New Attribute").click()
             expect(page.get_by_role("group", name="Required")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Attribute Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Attribute Title").click()
             page.get_by_role("textbox", name="Attribute Title").fill("attr title text")
+            expect(page.locator("select[name$='[attribute_id]']").first).to_have_attribute("required", "")
             page.get_by_label("Attribute Type * Select an").select_option("28")
             page.get_by_role("textbox", name="Attribute Description").click()
             page.get_by_role("textbox", name="Attribute Description").fill("test 5")
@@ -560,6 +596,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.locator(".col-span-12 > .grid > div").first.click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("number 5 in report")
             page.get_by_label("Report Type Select a report").select_option("6")
             page.get_by_test_id("save-report").click()
@@ -581,8 +618,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name="attribute number").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
             page.get_by_role("textbox", name="Name").fill("attribute number 6")
+            expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("attr 6")
             page.get_by_role("textbox", name="Default Value").click()
@@ -597,6 +636,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").click()
+            expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("update attr use")
             page.get_by_label("Report Type Select a report").select_option("6")
             page.get_by_test_id("save-report").click()
@@ -658,21 +698,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-report_item_type-button").click()
             expect(page.locator("#report_item_type-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title", exact=True).fill(report_type_title)
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a report item type")
 
             page.get_by_role("button", name="+ Add New Group").click()
             group_container = page.locator("#attribute-group-0")
             expect(group_container).to_be_visible()
+            expect(group_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
             group_container.locator("input[name$='[title]']").first.fill(group_title)
             group_container.locator("textarea[name$='[description]']").first.fill("Group description")
 
             group_container.get_by_role("button", name="+ Add New Attribute").click()
             attribute_container = page.locator("#attribute-items-container-0")
             expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
+            expect(attribute_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
             attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
 
             attribute_select = attribute_container.locator("select[name$='[attribute_id]']").first
+            expect(attribute_select).to_have_attribute("required", "")
             first_option_value = attribute_select.locator("option:not([disabled])").first.get_attribute("value")
             assert first_option_value, "Expected at least one attribute option"
             attribute_select.select_option(first_option_value)
@@ -692,6 +737,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name=report_type_title).click()
             expect(page.locator("#report_item_type-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a report item type")
             group_container = page.locator("#attribute-group-0")
             group_container.locator("textarea[name$='[description]']").first.fill("Updated group description")
@@ -726,11 +772,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-product_type-button").click()
             expect(page.locator("#product_type-form")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Presenter Type Select a").select_option("html_presenter")
+            expect(page.get_by_label("TEMPLATE_PATH * Select an item")).to_have_attribute("required", "")
             page.get_by_label("TEMPLATE_PATH * Select an item").select_option("cert_at_daily_report.html")
 
+            expect(page.locator('select[name="report_types[]"]')).to_have_attribute("required", "")
             page.get_by_role("searchbox", name="Select report types").click()
             page.get_by_role("option", name="CERT Report").click()
 
@@ -772,9 +822,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-bot-button").click()
             expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("test bot")
+            expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").fill("test bot description")
+            expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Bot Type Select a bot").select_option("nlp_bot")
             expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
 
@@ -782,14 +836,16 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
             page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
 
-            page.get_by_role("checkbox", name="false").check()
+            page.get_by_role("checkbox", name="run_after_collector").check()
             page.get_by_role("button", name="Create Bot").click()
 
         def test_bot_update():
             page.get_by_role("link", name="test bot", exact=True).click()
             expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("test bot updated")
+            expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("12")
             page.get_by_role("button", name="Update Bot").click()
 
@@ -827,23 +883,29 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-connector-button").click()
             expect(page.get_by_role("heading", name="Create Connector")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Connector Type Select a").select_option("misp_connector")
             expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="URL").fill("test.url")
+            expect(page.get_by_role("textbox", name="API_KEY")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="API_KEY").fill("11111")
+            expect(page.get_by_role("textbox", name="ORGANISATION_ID")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="ORGANISATION_ID").fill("1")
 
-            page.get_by_role("group", name="SSL_CHECK").get_by_label("false true").check()
+            page.get_by_role("checkbox", name="SSL_CHECK").check()
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
             page.get_by_role("button", name="Create Connector").click()
             expect(page.get_by_role("row", name=connector_name)).to_be_visible()
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
-            expect(page.get_by_role("group", name="SSL_CHECK")).to_be_visible()
+            expect(page.get_by_role("checkbox", name="SSL_CHECK")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(f"{connector_name} updated")
             page.get_by_role("button", name="Update Connector").click()
             expect(page.get_by_role("row", name=f"{connector_name} updated")).to_be_visible()
@@ -876,8 +938,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("new-publisher_preset-button").click()
             expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
 
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
+            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
+            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="FTP_URL").fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
             expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
@@ -887,8 +952,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_role("textbox", name="FTP_URL").click()
+            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="FTP_URL").fill("testurl.com")
             page.get_by_role("textbox", name="Name").click()
+            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
             page.get_by_role("button", name="Update Publisher Preset").click()
             expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
@@ -927,10 +994,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_settings.png")
 
         def check_default_values():
+            expect(tlp_select).to_have_attribute("required", "")
             expect(tlp_select).to_have_value("clear")
             expect(collector_proxy_input).to_be_empty()
+            expect(collector_interval_input).to_have_attribute("required", "")
             expect(collector_interval_input).to_have_value("0 */8 * * *")
+            expect(story_conflict_input).to_have_attribute("required", "")
             expect(story_conflict_input).to_have_value("200")
+            expect(news_conflict_input).to_have_attribute("required", "")
             expect(news_conflict_input).to_have_value("200")
             settings_submit.click()  # keep this - against form only every second time to be succesfully POSTed
 

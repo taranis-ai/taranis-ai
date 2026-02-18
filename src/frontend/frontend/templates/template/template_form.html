@@ -14,10 +14,12 @@
       data-template-editor-sync="syncEditorContent"
       onsubmit="return syncEditorContent()">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
-    <span class="label">Filename</span>
+    <span class="label">Filename
+      <span aria-hidden="true" class="text-error">*</span>
+    </span>
     <input id="id"
            type="text"
-           placeholder="Enter filename..."
+           placeholder="Enter filename...*"
            name="id"
            value="{{ '' if template.id == '0' else template.id }}"
            required
