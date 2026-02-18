@@ -3,13 +3,14 @@ info:
   title: Taranis AI
   contact:
     name: Benjamin Akhras
-    email: benjamin.akhras@ait.ac.at
+    url: https://taranis.ai
+    email: taranis@list.ait.ac.at
   description: |-
     The Taranis API provides endpoints for the Taranis is an OSINT gathering and analysis tool.
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.3.0
+  version: 1.3.2
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -77,29 +78,6 @@ paths:
         "401":
           description: authentication error (username + password)
           $ref: "#/components/responses/401Unauthorized"
-        "404":
-          $ref: "#/components/responses/404NotFound"
-        "500":
-          description: Internal server error
-
-    get:
-      tags:
-        - auth
-      operationId: auth.login
-      description: get redirected to the URL requested before authentication
-      parameters:
-        - name: gotoUrl
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          description: successful authentication
-        "302":
-          description: redirection to the URL requested before authentication
-        "400":
-          description: invalid goto url
         "404":
           $ref: "#/components/responses/404NotFound"
         "500":
@@ -3742,8 +3720,7 @@ components:
                 size:
                   type: integer
                 type:
-                  type: string
-                  nullable: true
+                  type: [string, "null"]
 
     report_item_lock:
       type: object
@@ -3774,10 +3751,11 @@ components:
         id:
           type: string
         content:
-          type: string
           description: base64 encoded template content; may be empty string when file is empty or null when not readable
-          nullable: true
-          format: base64
+          anyOf:
+            - type: string
+              format: base64
+            - type: "null"
         validation_status:
           $ref: "#/components/schemas/validation_status"
       required: [id, validation_status]

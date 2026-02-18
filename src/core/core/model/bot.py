@@ -81,7 +81,11 @@ class Bot(BaseModel):
     def filter_by_type(cls, filter_type: str) -> "Bot | None":
         if filter_type.lower() not in [types.value for types in BOT_TYPES]:
             return None
-        return db.session.execute(db.select(cls).where(cls.type == filter_type.lower())).scalar_one_or_none()
+        try:
+            return db.session.execute(db.select(cls).where(cls.type == filter_type.lower())).scalar_one_or_none()
+        except Exception:
+            logger.exception(f"Error filtering bots by type: {filter_type}")
+            return None
 
     @classmethod
     def get_all_by_type(cls, filter_type: str):
