@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-dev
 
 COPY ./src/frontend/. /app/
-RUN rm -f /app/frontend/static/assets/openapi3_1.yaml
-COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
+RUN rm -f /app/frontend/static/assets/openapi3.yaml
+COPY ./src/core/core/static/openapi3.yaml /app/frontend/static/assets/openapi3.yaml
 
 ENV UV_COMPILE_BYTECODE=1
 

@@ -51,9 +51,9 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 ### OpenAPI
 
-<img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
+<img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3.yaml">
 
-An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
+An [OpenAPI spec](./src/core/core/static/openapi3.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
 ### Hardware requirements
 

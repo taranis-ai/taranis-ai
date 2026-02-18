@@ -1,16 +1,18 @@
-import schemathesis
 import logging
+
+import schemathesis
 import werkzeug
 from dotenv import load_dotenv
-from hypothesis import settings, HealthCheck
+from hypothesis import HealthCheck, settings
 
 from core.__init__ import create_app
+
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 
 app = create_app()
 schemathesis.experimental.OPEN_API_3_1.enable()
-schema = schemathesis.from_wsgi("/api/static/openapi3_1.yaml", app, skip_deprecated_operations=True)
+schema = schemathesis.from_wsgi("/api/static/openapi3.yaml", app, skip_deprecated_operations=True)
 
 
 @schema.auth()
