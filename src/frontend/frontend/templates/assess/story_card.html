@@ -157,13 +157,15 @@
 
               <template x-if="isOpen">
                 <div class="flex flex-wrap gap-1">
-                  {% for tag in story.tags if tag.name %}
+                  {% set limit = 30 %}
+                  {% for tag in story.tags[:limit] if tag.name %}
                     <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
                        class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full"
                        data-tip="{{ tag.tag_type }}">
                       <span>{{ tag.name }}</span>
                     </a>
                   {% endfor %}
+                  {% if story.tags|length > limit %}<span class="badge badge-outline badge-xs">+{{ story.tags|length - limit }}</span>{% endif %}
                 </div>
               </template>
 
