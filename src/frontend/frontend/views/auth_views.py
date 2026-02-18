@@ -22,7 +22,8 @@ class AuthView(MethodView):
             )
 
         location = request.args.get("next", url_for("base.dashboard"))
-        response = Response(status=302, headers={"Location": location})
+        response = make_response("", 302)
+        response.headers["Location"] = location
 
         for h in core_response.raw.headers.getlist("Set-Cookie"):
             response.headers.add("Set-Cookie", h)

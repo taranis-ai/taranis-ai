@@ -1,10 +1,11 @@
 import json
 import os
 from pathlib import Path
-from worker.log import logger
-from worker.types import NewsItem
+
+from models.assess import NewsItem
+
 from worker.collectors.base_web_collector import BaseCollector
-import hashlib
+from worker.log import logger
 
 
 class PPNCollector(BaseCollector):
@@ -21,7 +22,7 @@ class PPNCollector(BaseCollector):
 
     def parse_source(self, source):
         self.path = Path(source["parameters"].get("PATH", None))
-        self.osint_source_id = source["id"]
+        self.osint_source_id = str(source["id"])
         if not self.path:
             logger.error("No PATH set")
             raise ValueError("No PATH set")
@@ -55,18 +56,16 @@ class PPNCollector(BaseCollector):
         for item in ppn_items:
             if content := item.get("maintext", None):
                 date = item.get("date_publish", "") or item.get("date_download", "")
-                for_hash: str = item.get("title", "") + item.get("maintext", "")
 
                 news_items.append(
                     NewsItem(
                         osint_source_id=self.osint_source_id,
-                        hash=hashlib.sha256(for_hash.encode()).hexdigest(),
                         author=",".join(item.get("author", [])),
                         title=item.get("title", ""),
                         content=content,
-                        web_url=item.get("url", ""),
+                        link=item.get("url", ""),
                         source=item.get("source_domain", ""),
-                        published_date=date,
+                        published=date,
                         language=item.get("language", ""),
                     )
                 )
