@@ -120,11 +120,16 @@ jobs:
 
       - name: Install core dependencies
         working-directory: src/core
-        run: uv sync --all-extras
+        run: uv sync --frozen
 
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras
+        run: uv sync --frozen
+
+      - name: Install frontend e2e test dependencies only
+        working-directory: src/frontend
+        run: |
+          uv pip install pytest pytest-flask pytest-playwright playwright pytest-responses
 
       - name: Cache Playwright Browsers
         id: playwright-cache
