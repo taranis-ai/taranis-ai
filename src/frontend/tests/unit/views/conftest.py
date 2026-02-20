@@ -458,6 +458,7 @@ def worker_parameter_data():
                     {"label": "FEED_URL", "name": "FEED_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
                     {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "CONTENT_LOCATION", "name": "CONTENT_LOCATION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "USE_FEED_CONTENT", "name": "USE_FEED_CONTENT", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "XPATH", "name": "XPATH", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},
