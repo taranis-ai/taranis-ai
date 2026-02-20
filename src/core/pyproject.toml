@@ -21,7 +21,6 @@ dependencies = [
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
-    "lxml",
     "click",
     "celery",
     "SQLAlchemy",

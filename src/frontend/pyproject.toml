@@ -34,7 +34,6 @@ dependencies = [
     "heroicons[jinja]>=2.11.0",
     "plotly[express]",
     "pandas",
-    "lxml",
     "taranis-models>=1.3.3.dev5",
 ]
 dynamic = ["version"]
@@ -56,7 +55,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses"]
+dev = ["ruff", "pytest", "pytest-flask", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses", "lxml"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

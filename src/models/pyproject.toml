@@ -21,6 +21,7 @@ dependencies = [
     "langcodes",
     "requests",
     "beautifulsoup4",
+    "lxml"
 ]
 dynamic = ["version"]
 
