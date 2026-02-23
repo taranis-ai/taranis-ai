@@ -29,7 +29,7 @@ services:
       - "../../../core:/app"
       - "../../../models:/models"
     ports:
-      - "5000:8080"
+      - "${TARANIS_CORE_PORT:-5000}:8080"
     healthcheck:
       test:
         [

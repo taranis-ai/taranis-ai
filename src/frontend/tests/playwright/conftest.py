@@ -57,7 +57,8 @@ def docker_cleanup():
 @pytest.fixture(scope="session")
 def run_core(docker_services):
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
-    core_url = os.getenv("TARANIS_CORE_URL", "http://127.0.0.1:5000/api")
+    core_port = os.getenv("TARANIS_CORE_PORT", "5000")
+    core_url = os.getenv("TARANIS_CORE_URL", f"http://127.0.0.1:{core_port}/api")
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
