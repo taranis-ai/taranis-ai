@@ -1,3 +1,4 @@
+import base64
 import copy
 import os
 import random
@@ -111,31 +112,40 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def setup_test_templates():
-    """Set up test template files for e2e tests."""
-    import shutil
-    from pathlib import Path
-
-    # Get paths
+def setup_test_templates(run_core, access_token):
+    """Set up test template files for e2e tests via core API."""
     test_data_dir = Path(__file__).parent / "testdata"
-    core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-type": "application/json",
+    }
 
-    # Ensure the core templates directory exists
-    core_templates_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy test template files
-    copied_files = []
+    uploaded_templates = []
     for test_file in test_data_dir.glob("*.html"):
-        dest_file = core_templates_dir / test_file.name
-        shutil.copy2(test_file, dest_file)
-        copied_files.append(dest_file)
+        payload = {
+            "id": test_file.name,
+            "content": base64.b64encode(test_file.read_bytes()).decode("utf-8"),
+        }
+        response = requests.post(
+            f"{run_core}/config/templates",
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        uploaded_templates.append(test_file.name)
 
     yield
 
-    # Cleanup: remove test template files
-    for file_path in copied_files:
-        if file_path.exists():
-            file_path.unlink()
+    for template_name in uploaded_templates:
+        try:
+            requests.delete(
+                f"{run_core}/config/templates/{template_name}",
+                headers=headers,
+                timeout=30,
+            )
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="session")
