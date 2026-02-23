@@ -51,7 +51,7 @@ def run_core(app):
             env = config
         env |= os.environ.copy()
         env["PYTHONPATH"] = core_path
-        env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
+        env["VIRTUAL_ENV"] = f"{os.path.join(core_path, '.venv')}"
         taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
         taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
         with contextlib.suppress(Exception):
@@ -60,7 +60,7 @@ def run_core(app):
 
         print(f"Starting Taranis Core on port {taranis_core_port}")
         process = subprocess.Popen(
-            ["flask", "run", "--no-reload", "--port", taranis_core_port],
+            ["./run_for_e2e.sh", taranis_core_port],
             cwd=core_path,
             env=env,
             # stdout=subprocess.PIPE,
