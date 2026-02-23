@@ -7,7 +7,7 @@ from frontend.router import admin, admin_settings, analyze, assess, asset, base,
 
 def init(app: Flask):
     doc_url_prefix = f"{Config.APPLICATION_ROOT}doc" if Config.APPLICATION_ROOT == "/" else f"{Config.APPLICATION_ROOT}/doc"
-    api_doc(app, config_path="frontend/static/assets/openapi3.yaml", url_prefix=doc_url_prefix, editor=False, blueprint_name="api_doc")
+    api_doc(app, config_path="frontend/static/assets/openapi3_1.yaml", url_prefix=doc_url_prefix, editor=False, blueprint_name="api_doc")
     base.init(app)
     user.init(app)
     admin.init(app)
