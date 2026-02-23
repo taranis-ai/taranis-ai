@@ -8,7 +8,6 @@ from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
-from core.model.connector import Connector
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
@@ -19,21 +18,8 @@ class StoryConflicts(MethodView):
     def get(self, story_id=None):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
-                return {
-                    "storyId": conflict.story_id,
-                    "original": conflict.original,
-                    "updated": conflict.updated,
-                    "hasProposals": conflict.has_proposals,
-                }, 200
-        conflicts = [
-            {
-                "storyId": conflict.story_id,
-                "original": conflict.original,
-                "updated": conflict.updated,
-                "hasProposals": conflict.has_proposals,
-            }
-            for conflict in StoryConflict.conflict_store.values()
-        ]
+                return conflict.to_dict(), 200
+        conflicts = [conflict.to_dict() for conflict in StoryConflict.conflict_store.values()]
         return {"conflicts": conflicts}, 200
 
     @auth_required("ASSESS_UPDATE")
@@ -61,17 +47,8 @@ class StoryConflicts(MethodView):
 class NewsItemConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        conflicts = [
-            {
-                "incoming_story_id": conflict.incoming_story_id,
-                "news_item_id": conflict.news_item_id,
-                "existing_story_id": conflict.existing_story_id,
-                "incoming_story": conflict.incoming_story_data,
-                "misp_address": conflict.misp_address,
-            }
-            for conflict in NewsItemConflict.conflict_store.values()
-        ]
-        return {"conflicts": conflicts}, 200
+        conflicts = [conflict.to_dict() for conflict in NewsItemConflict.conflict_store.values()]
+        return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
     @validate_json
@@ -124,21 +101,6 @@ class ConflictStore(MethodView):
         return {"message": "All conflicts cleared"}, 200
 
 
-class LastChange(MethodView):
-    @auth_required("ASSESS_UPDATE")
-    def post(self):
-        data = request.json
-        if not data:
-            return {"error": "Missing story_ids or news_item_ids"}, 400
-        result, code = {"error": "Couldn't get last changed"}, 500
-        if story_ids := data.get("stories"):
-            result, code = Connector.update_story_last_change(story_ids)
-        if news_item_ids := data.get("news_items"):
-            result, code = Connector.update_news_item_last_change(news_item_ids)
-        sse_manager.news_items_updated()
-        return result, code
-
-
 def initialize(app: Flask):
     conflicts_bp = Blueprint("connectors", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/connectors")
 
@@ -147,7 +109,6 @@ def initialize(app: Flask):
     conflicts_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflicts.as_view("news_item_conflicts"))
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
     conflicts_bp.add_url_rule("/conflicts/clear", view_func=ConflictStore.as_view("clear_conflicts"))
-    conflicts_bp.add_url_rule("/last-change", view_func=LastChange.as_view("last_change"))
 
     conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)

@@ -3,6 +3,7 @@ import secrets
 from copy import deepcopy
 from typing import Any, Sequence
 
+from models.user import ProfileSettings, UserProfile
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from werkzeug.security import generate_password_hash
@@ -14,19 +15,7 @@ from core.model.organization import Organization
 from core.model.role import Role, TLPLevel
 
 
-PROFILE_TEMPLATE = {
-    "dark_theme": False,
-    "hotkeys": {},
-    "split_view": False,
-    "compact_view": False,
-    "show_charts": False,
-    "infinite_scroll": True,
-    "advanced_story_options": False,
-    "highlight": False,
-    "end_of_shift": "18:00",
-    "dashboard": {"show_trending_clusters": True, "trending_cluster_days": 7, "trending_cluster_filter": []},
-    "language": "en",
-}
+PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
 
 
 class User(BaseModel):
@@ -41,7 +30,7 @@ class User(BaseModel):
     organization: Mapped["Organization"] = relationship("Organization")
 
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
-    profile: Mapped["dict"] = db.Column(db.JSON)
+    profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
     def __init__(self, username: str, name: str, organization: int, roles: list[int], password=None, id=None):
         if id:
@@ -53,7 +42,7 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.profile = PROFILE_TEMPLATE.copy()
+        self.profile = deepcopy(PROFILE_TEMPLATE)
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -76,18 +65,18 @@ class User(BaseModel):
         return data
 
     def to_detail_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "username": self.username,
-            "organization": {
-                "name": self.organization.name if self.organization else "",
-                "id": self.organization.id if self.organization else "",
-            },
-            "roles": [{"name": role.name, "id": role.id} for role in self.roles if role],
-            "permissions": self.get_permissions(),
-            "profile": self.profile,
-        }
+        return self.to_user_profile().model_dump(mode="json")
+
+    def to_user_profile(self) -> UserProfile:
+        return UserProfile(
+            id=self.id,
+            username=self.username,
+            name=self.name,
+            organization=({"id": self.organization.id, "name": self.organization.name} if self.organization else None),
+            roles=[{"id": r.id, "name": r.name} for r in self.roles if r],
+            permissions=self.get_permissions(),
+            profile=ProfileSettings.model_validate(self.profile or {}),
+        )
 
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
@@ -154,7 +143,11 @@ class User(BaseModel):
         if search := filter_args.get("search"):
             query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
 
-        return query.order_by(db.asc(User.name))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
 
     @classmethod
     def parse_json(cls, content) -> list | None:
@@ -176,14 +169,16 @@ class User(BaseModel):
         }
 
     def get_profile(self) -> dict:
-        return self.profile
+        return ProfileSettings.model_validate(self.profile or {}).model_dump(mode="json")
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
-        updated_profile = deepcopy(user.profile)
-        updated_profile.update(data)
+        logger.debug(f"Updating profile for user {user.username} with data: {data}")
+        merged = {**(user.profile or {}), **data}
 
-        user.profile = updated_profile
+        validated = ProfileSettings.model_validate(merged)
+        user.profile = validated.model_dump(mode="json")
+
         db.session.commit()
         return {"message": "Profile updated", "id": user.id, "user_profile": user.get_profile()}, 200
 

@@ -4,8 +4,8 @@
   {% from "macros/table.html" import table_header, table_controls %}
   {% set table_id = 'cluster-' ~ cluster_name %}
 
-  <div class="p-8" id="{{ table_id }}-container">
-    <table class="table shadow table-zebra table-sm" id="{{ table_id }}">
+  <div class="p-8" id="{{ table_id }}-container" hx-history-elt>
+    <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="cluster-table">
       <thead>
         <tr>
           {% for col in columns %}{{ table_header(col) }}{% endfor %}
@@ -17,7 +17,9 @@
             {% set edit_route = url_for("assess.assess") ~ "?tags=" ~ item.name %}
             <tr class="hover:bg-info">
               {% for col in columns %}
-                <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]">{{ item[col.field] }}</td>
+                <td onclick="window.location='{{ edit_route }}';" class="cursor-pointer max-w-[50ch]" data-testid="cluster-table-cell">
+                  {{ item[col.field] }}
+                </td>
               {% endfor %}
             </tr>
           {% endfor %}
@@ -31,7 +33,7 @@
           </tr>
         {% endif %}
       </tbody>
-      <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+      <tfoot hx-select="#{{ table_id }}-container" hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
         <tr>
           <td colspan="{{ (columns|length) }}">
             <div class="flex justify-center">{{ table_controls(base_url=base_route, data=data) }}</div>

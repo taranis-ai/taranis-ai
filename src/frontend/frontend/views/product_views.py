@@ -1,8 +1,9 @@
 from typing import Any
-from flask import Response, abort, render_template, request
 
-from models.product import Product
+from flask import abort, render_template, request
+from flask.typing import ResponseReturnValue
 from models.admin import ProductType, PublisherPreset
+from models.product import Product
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -59,10 +60,17 @@ class ProductView(BaseView):
         error = "Failed to download product"
         try:
             core_resp = CoreApi().download_product(product_id)
-            if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+            if core_resp.ok:
+                return CoreApi.stream_proxy(core_resp, "products_export")
 
-            return CoreApi.stream_proxy(core_resp, "products_export.json")
+            try:
+                error_payload = core_resp.json()
+            except ValueError:
+                error = core_resp.text or "Unknown error"
+            else:
+                error = error_payload.get("error", "Unknown error")
+
+            logger.error(f"Download product failed with status {core_resp.status_code}: {error}")
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"
@@ -104,10 +112,10 @@ class ProductView(BaseView):
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.update_view(object_id=0)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)

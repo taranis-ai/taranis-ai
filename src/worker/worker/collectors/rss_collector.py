@@ -1,15 +1,15 @@
 import datetime
-import hashlib
-import feedparser
-import requests
 import logging
 from urllib.parse import urljoin, urlparse
+
 import dateutil.parser as dateparser
+import feedparser
+import requests
+from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class RSSCollectorError(Exception):
@@ -131,17 +131,14 @@ class RSSCollector(BaseWebCollector):
         if content == description:
             description = ""
 
-        for_hash: str = title + self.clean_url(link)
-
         return NewsItem(
-            osint_source_id=source["id"],
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            osint_source_id=str(source["id"]),
             author=author,
             title=title,
             source=self.feed_url,
             content=content,
-            web_url=link,
-            published_date=published,
+            link=link,
+            published=published,
             language=self.language,
         )
 

@@ -1,5 +1,6 @@
 import base64
 import io
+from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
@@ -65,15 +66,15 @@ def convert_integrity_error(error: IntegrityError) -> str:
 
 class DictionariesReload(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def post(self, dictionary_type):
+    def post(self, dictionary_type: str):
         attribute.Attribute.load_dictionaries(dictionary_type)
         return {"message": "success"}, 200
 
 
 class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, acl_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, acl_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if acl_id:
             return role_based_access.RoleBasedAccess.get_for_api(acl_id)
         return role_based_access.RoleBasedAccess.get_all_for_api(filter_args, True)
@@ -84,18 +85,18 @@ class ACLEntries(MethodView):
         return {"message": "ACL created", "id": acl.id}, 201
 
     @auth_required("CONFIG_ACL_UPDATE")
-    def put(self, acl_id):
+    def put(self, acl_id: int):
         return role_based_access.RoleBasedAccess.update(acl_id, request.json)
 
     @auth_required("CONFIG_ACL_DELETE")
-    def delete(self, acl_id):
+    def delete(self, acl_id: int):
         return role_based_access.RoleBasedAccess.delete(acl_id)
 
 
 class Attributes(MethodView):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    @extract_args("search", "page", "limit")
-    def get(self, attribute_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, attribute_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:
             return attribute.Attribute.get_for_api(attribute_id)
 
@@ -107,11 +108,11 @@ class Attributes(MethodView):
         return {"message": "Attribute added", "id": attribute_result.id}, 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def put(self, attribute_id):
+    def put(self, attribute_id: int):
         return attribute.Attribute.update(attribute_id, request.json)
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
-    def delete(self, attribute_id):
+    def delete(self, attribute_id: int):
         return attribute.Attribute.delete(attribute_id)
 
 
@@ -143,8 +144,8 @@ class ReportItemTypesExport(MethodView):
 
 class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, type_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, type_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
         return report_item_type.ReportItemType.get_all_for_api(filter_args, True, current_user)
@@ -159,20 +160,20 @@ class ReportItemTypes(MethodView):
             return {"error": "Failed to add report item type"}, 500
 
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
-    def put(self, type_id):
+    def put(self, type_id: int):
         if item := report_item_type.ReportItemType.update(type_id, request.json):
             return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
         return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
-    def delete(self, type_id):
+    def delete(self, type_id: int):
         return report_item_type.ReportItemType.delete(type_id)
 
 
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, type_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, type_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
         return product_type.ProductType.get_all_for_api(filter_args, True, current_user)
@@ -189,7 +190,7 @@ class ProductTypes(MethodView):
             return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
-    def put(self, type_id):
+    def put(self, type_id: int):
         try:
             return product_type.ProductType.update(type_id, request.json, current_user)
         except Exception as e:
@@ -197,7 +198,7 @@ class ProductTypes(MethodView):
             return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, type_id):
+    def delete(self, type_id: int):
         try:
             return product_type.ProductType.delete(type_id)
         except IntegrityError as e:
@@ -223,15 +224,15 @@ class WorkerParameters(MethodView):
 
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
         return Permission.get_all_for_api(filter_args, True)
 
 
 class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, role_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, role_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if role_id:
             return role.Role.get_for_api(role_id)
         return role.Role.get_all_for_api(filter_args, True)
@@ -242,13 +243,13 @@ class Roles(MethodView):
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
-    def put(self, role_id):
+    def put(self, role_id: int):
         if data := request.json:
             return role.Role.update(role_id, data)
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
-    def delete(self, role_id):
+    def delete(self, role_id: int):
         if user.UserRole.has_assigned_user(role_id):
             logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
             return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
@@ -257,7 +258,7 @@ class Roles(MethodView):
 
 class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    def get(self, template_path=None):
+    def get(self, template_path: str | None = None):
         if template_path:
             resp = build_template_response(template_path)
             return jsonify(resp), 200
@@ -267,7 +268,7 @@ class Templates(MethodView):
         return jsonify({"items": items, "total_count": len(items)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
-    def post(self, template_path=None):
+    def post(self, template_path: str | None = None):
         # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
@@ -325,8 +326,8 @@ class TemplateValidation(MethodView):
 
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, organization_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, organization_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
         return organization.Organization.get_all_for_api(filter_args, True)
@@ -337,11 +338,11 @@ class Organizations(MethodView):
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
-    def put(self, organization_id):
+    def put(self, organization_id: int):
         return organization.Organization.update(organization_id, request.json)
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
-    def delete(self, organization_id):
+    def delete(self, organization_id: int):
         return organization.Organization.delete(organization_id)
 
 
@@ -373,8 +374,8 @@ class UsersExport(MethodView):
 
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, user_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, user_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if user_id:
             return user.User.get_for_api(user_id)
         return user.User.get_all_for_api(filter_args, True)
@@ -391,7 +392,7 @@ class Users(MethodView):
             return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
-    def put(self, user_id):
+    def put(self, user_id: int):
         try:
             return user.User.update(user_id, request.json)
         except IntegrityError as e:
@@ -401,7 +402,7 @@ class Users(MethodView):
             return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
-    def delete(self, user_id):
+    def delete(self, user_id: int):
         try:
             return user.User.delete(user_id)
         except Exception:
@@ -411,14 +412,14 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, bot_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, bot_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
         return bot.Bot.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_BOT_UPDATE")
-    def put(self, bot_id):
+    def put(self, bot_id: str):
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
@@ -435,13 +436,13 @@ class Bots(MethodView):
         return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
 
     @auth_required("CONFIG_BOT_DELETE")
-    def delete(self, bot_id):
+    def delete(self, bot_id: str):
         return bot.Bot.delete(bot_id)
 
 
 class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
-    def post(self, bot_id):
+    def post(self, bot_id: str):
         return queue_manager.queue_manager.execute_bot_task(bot_id)
 
 
@@ -490,8 +491,8 @@ class RefreshInterval(MethodView):
 
 class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, connector_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, connector_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
@@ -526,7 +527,7 @@ class Connectors(MethodView):
 
 class ConnectorsPull(MethodView):
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def post(self, connector_id):
+    def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
             collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
@@ -538,8 +539,8 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, source_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
         return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
@@ -587,7 +588,7 @@ class OSINTSources(MethodView):
 
 class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def post(self, source_id=None):
+    def post(self, source_id: str | None = None):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
                 return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
@@ -597,7 +598,7 @@ class OSINTSourceCollect(MethodView):
 
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def get(self, source_id):
+    def get(self, source_id: str):
         task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
@@ -605,7 +606,7 @@ class OSINTSourcePreview(MethodView):
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def post(self, source_id):
+    def post(self, source_id: str):
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
 
@@ -643,8 +644,8 @@ class OSINTSourcesImport(MethodView):
 
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, group_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, group_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
         return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
@@ -655,33 +656,33 @@ class OSINTSourceGroups(MethodView):
         return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
-    def put(self, group_id):
+    def put(self, group_id: str):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         return osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
-    def delete(self, group_id):
+    def delete(self, group_id: str):
         return osint_source.OSINTSourceGroup.delete(group_id)
 
 
 class TaskResults(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, task_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if task_id:
             return task.Task.get_for_api(task_id)
         return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def delete(self, task_id):
+    def delete(self, task_id: str):
         return task.Task.delete(task_id)
 
 
 class Presenters(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
         filter_args = filter_args or {}
         filter_args["category"] = "publisher"
         return worker.Worker.get_all_for_api(filter_args)
@@ -689,8 +690,8 @@ class Presenters(MethodView):
 
 class Publishers(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
         filter_args = filter_args or {}
         filter_args["category"] = "publisher"
         return worker.Worker.get_all_for_api(filter_args)
@@ -698,8 +699,8 @@ class Publishers(MethodView):
 
 class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search", "page", "limit")
-    def get(self, preset_id=None, filter_args=None):
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, preset_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if preset_id:
             return publisher_preset.PublisherPreset.get_for_api(preset_id)
         return publisher_preset.PublisherPreset.get_all_for_api(filter_args, True)
@@ -710,18 +711,18 @@ class PublisherPresets(MethodView):
         return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
-    def put(self, preset_id):
+    def put(self, preset_id: str):
         return publisher_preset.PublisherPreset.update(preset_id, request.json)
 
     @auth_required("CONFIG_PUBLISHER_DELETE")
-    def delete(self, preset_id):
+    def delete(self, preset_id: str):
         return publisher_preset.PublisherPreset.delete(preset_id)
 
 
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    @extract_args("search", "usage", "with_entries", "page", "limit")
-    def get(self, word_list_id=None, filter_args: dict | None = None):
+    @extract_args("search", "usage", "with_entries", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, word_list_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
         return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
@@ -732,7 +733,7 @@ class WordLists(MethodView):
         return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
-    def delete(self, word_list_id):
+    def delete(self, word_list_id: int):
         try:
             return word_list.WordList.delete(word_list_id)
         except IntegrityError as e:
@@ -742,7 +743,7 @@ class WordLists(MethodView):
             return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
+    def put(self, word_list_id: int):
         if data := request.json:
             return word_list.WordList.update(word_list_id, data)
         return {"error": "No data provided"}, 400
@@ -751,19 +752,26 @@ class WordLists(MethodView):
 class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
-        wls = None
-        if file := request.files.get("file"):
-            wls = word_list.WordList.import_word_lists(file)
-        if json_data := request.get_json(silent=True):
-            wls = word_list.WordList.import_word_lists_from_json(json_data)
-        if wls is None:
-            logger.error("Failed to import Word Lists")
-            return {"error": "Unable to import Word Lists"}, 400
+        try:
+            wls = None
+            if file := request.files.get("file"):
+                wls = word_list.WordList.import_word_lists(file)
+            if json_data := request.get_json(silent=True):
+                wls = word_list.WordList.import_word_lists_from_json(json_data)
+            if wls is None:
+                logger.error("Failed to import Word Lists")
+                return {"error": "Unable to import Word Lists"}, 400
 
-        for wl in wls:
-            queue_manager.queue_manager.gather_word_list(wl.id)
+            for wl in wls:
+                queue_manager.queue_manager.gather_word_list(wl.id)
 
-        return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+            return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+        except ValueError as exc:
+            logger.warning(f"Invalid word list import payload: {exc}")
+            return {"error": str(exc)}, 400
+        except Exception:
+            logger.exception("Exception occurred during Word List import")
+            return {"error": "Unable to import Word Lists"}, 500
 
 
 class WordListExport(MethodView):
@@ -797,8 +805,8 @@ class WorkerInstances(MethodView):
 
 class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    @extract_args("search", "category", "type", "exclude", "page", "limit")
-    def get(self, filter_args=None):
+    @extract_args("search", "category", "type", "exclude", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
         if Config.DISABLE_PPN_COLLECTOR:
             if filter_args:
                 filter_args["exclude"] = "ppn"
@@ -807,7 +815,7 @@ class Workers(MethodView):
         return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
-    def patch(self, worker_id):
+    def patch(self, worker_id: str):
         if not request.json:
             return {"error": "No data provided"}, 400
         if update_worker := worker.Worker.get(worker_id):

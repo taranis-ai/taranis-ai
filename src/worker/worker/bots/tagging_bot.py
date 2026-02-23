@@ -1,5 +1,7 @@
 import re
 
+from worker.log import logger
+
 from .base_bot import BaseBot
 
 
@@ -10,7 +12,7 @@ class TaggingBot(BaseBot):
         self.name = "Tagging Bot"
         self.description = "Bot for tagging news items based on regular expressions"
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         regexp = parameters.get("REGULAR_EXPRESSION")
@@ -37,8 +39,5 @@ class TaggingBot(BaseBot):
                             findings.add(finding[1])
             found_tags[story["id"]] = findings
 
-        if not found_tags:
-            return {"message": "No tags found"}
-
-        self.core_api.update_tags(found_tags, self.type)
-        return {"message": f"Extracted {len(found_tags)} tags"}
+        logger.info({"message": f"Extracted {len(found_tags)} tags"})
+        return found_tags

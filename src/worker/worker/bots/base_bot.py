@@ -1,7 +1,8 @@
-from worker.log import logger
-from worker.core_api import CoreApi
-from urllib.parse import parse_qs
 import datetime
+from urllib.parse import parse_qs
+
+from worker.core_api import CoreApi
+from worker.log import logger
 
 
 class BaseBot:
@@ -14,7 +15,7 @@ class BaseBot:
         self.model = None
         self.bot_api = None
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
         return {"message": "No action defined for this bot"}
@@ -51,7 +52,7 @@ class BaseBot:
     def get_stories(self, parameters: dict) -> list:
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
-        if data is None:
+        if not data:
             logger.debug(f"No Stories for filter: {filter_dict}")
             return []
         return data

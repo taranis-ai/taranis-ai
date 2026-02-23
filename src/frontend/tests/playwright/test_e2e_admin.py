@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
-
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -76,7 +76,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_organization()
         remove_organization()
 
-    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
         username = f"test_user_{uuid.uuid4().hex[:6]}"
 
@@ -113,10 +113,32 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name=username)).not_to_be_visible()
 
+        def import_export_users():
+            page.get_by_role("button", name="Import").click()
+            page.get_by_role("button", name="Choose File").set_input_files(test_user)
+            page.get_by_role("button", name="Submit").click()
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export").click()
+            assert download_info.value is not None
+            download_path = download_info.value.path()
+            with open(test_user_list, "r") as f:
+                imported_user_list_correct = json.load(f)
+            with open(download_path, "r") as f:
+                downloaded_content = json.load(f)
+            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            page.get_by_role("row", name="Jane Smith").get_by_test_id("action-delete-3").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="Jane Smith")).not_to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.get_by_role("row", name="John Doe").get_by_test_id("action-delete-4").click()
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible()
+            page.get_by_role("alert").click()
+
         load_user_list()
         add_user()
         update_user()
         remove_user()
+        import_export_users()
 
     def test_admin_template_management(self, logged_in_page: Page):
         page = logged_in_page
@@ -151,7 +173,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_template():
             page.get_by_test_id("new-template-button").click()
             page.get_by_role("textbox", name="Filename", exact=True).fill(template_name)
-            page.get_by_role("code").first.fill(valid_template_content)
+            page.locator("#editor").get_by_role("textbox").fill(valid_template_content)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             with page.expect_response(url_for("admin.template_data", _external=True)) as response_info:
@@ -161,9 +183,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_template():
             page.get_by_role("link", name=template_name).click()
-            page.get_by_role("code").first.fill(invalid_template_content)
+            page.locator("#editor").get_by_role("textbox").fill(invalid_template_content)
             page.locator('input[type="submit"]').click()
-            expect(page.get_by_text("invalid")).to_be_visible()
+            table = page.get_by_test_id("template-table")
+            invalid_badges = table.locator("tbody tr td:nth-child(3) .badge", has_text="Invalid")
+            expect(invalid_badges).to_have_count(2)
 
         def remove_template():
             page.get_by_role("row", name=template_name).get_by_role("button").click()
@@ -171,10 +195,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("template-table").get_by_role("link", name=template_name)).not_to_be_visible()
 
         load_template_list()
-        # Disabled until https://github.com/microsoft/monaco-editor/issues/5015 is resolved
-        # add_template()
-        # update_template()
-        # remove_template()
+        add_template()
+        update_template()
+        remove_template()
 
     def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source):
         page = logged_in_page
@@ -182,6 +205,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
+            page.get_by_text("No osint_source items found").click()
             expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
@@ -203,6 +227,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
             page.get_by_role("alert").click()
+            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
             page.get_by_role("button", name="Import").click()
@@ -251,7 +276,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_osint_sources()
         remove_osint_sources()
 
-    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors, test_batch_osint_sources):
         page = logged_in_page
         osint_group_name = f"test_osint_group_{uuid.uuid4().hex[:6]}"
 
@@ -282,10 +307,24 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
 
+        def test_page_osint_sources():
+            page.goto(url_for("admin.osint_sources", _external=True))
+            page.goto(url_for("admin.osint_source_groups", _external=True))
+            page.get_by_test_id("new-osint_source_group-button").click()
+            page.locator("#osint_sources").get_by_text("»").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 5 of 5")
+            page.get_by_role("textbox", name="Search...").first.fill("source 21")
+            page.get_by_text("Source 21").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 1 of 3")
+            page.get_by_role("row", name="Source 21").get_by_role("checkbox").check()
+            page.locator("#osint_sources").get_by_text("»").click()
+            expect(page.locator("#osint_sources")).to_contain_text("Page 3 of 3")
+
         load_osint_source_groups()
         add_osint_source_group()
         update_osint_source_group()
         remove_osint_source_group()
+        test_page_osint_sources()
 
     def test_admin_role_management(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -333,7 +372,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_role()
         remove_role()
 
-    def test_admin_wordlist_management(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_wordlist_management(self, logged_in_page: Page, forward_console_and_page_errors, test_wordlist):
         page = logged_in_page
 
         word_list_name = f"test_word_list_{uuid.uuid4().hex[:6]}"
@@ -350,6 +389,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
+            page.locator("#notification-bar [role='alert']").click()
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()
@@ -361,9 +401,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator("input[name='usage[]'][value='COLLECTOR_INCLUDELIST']").check()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
-            with page.expect_response(url_for("admin.word_lists", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
+            notification = page.locator("#notification-bar [role='alert']")
+            if notification.is_visible():
+                notification.click()
+                expect(notification).to_be_hidden()
             expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
@@ -381,13 +423,226 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="OK").click()
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
+        def import_export_word_lists():
+            page.get_by_role("button", name="Import").click()
+            page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
+            page.get_by_role("button", name="Submit").click()
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export").click()
+            assert download_info.value is not None
+            download_path = download_info.value.path()
+            with open(test_wordlist, "r") as f:
+                imported_user_list_correct = json.load(f)
+            with open(download_path, "r") as f:
+                downloaded_content = json.load(f)
+            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            page.get_by_role("row", name="Test wordlist").get_by_test_id("action-delete-1").click()
+            expect(page.get_by_test_id("user-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.get_by_role("alert").click()
+
         load_word_list()
         load_default_word_list()
         add_word_list()
         update_word_list()
         remove_word_list()
+        import_export_word_lists()
 
-    def test_report_types(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_acls(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def load_acls():
+            page.goto(url_for("admin.acls", _external=True))
+
+        def test_acl_create():
+            page.get_by_test_id("new-acl-button").click()
+            expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
+            page.get_by_text("No acl items found").click()
+
+            page.get_by_role("textbox", name="Name").click()
+            page.get_by_role("textbox", name="Name").fill("Test ACL")
+            page.get_by_label("Item Type* Select an item").select_option("osint_source_group")
+            expect(page.get_by_label("OSINT Source Group Default")).to_be_visible()
+
+            page.get_by_role("group", name="Enabled").get_by_label("No Yes").check()
+            page.get_by_role("checkbox", name="No").check()
+            page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").check()
+            page.get_by_role("row", name="User Basic user role").get_by_role("checkbox").check()
+            page.get_by_role("button", name="Create ACL").click()
+
+        def test_acl_update():
+            page.get_by_role("link", name="Test ACL").click()
+            expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
+
+            page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").uncheck()
+            page.get_by_role("textbox", name="Name").fill("Test ACL updated")
+            page.get_by_role("button", name="Update ACL").click()
+
+        def test_acl_delete():
+            expect(page.get_by_role("row", name="Test ACL updated")).to_be_visible()
+            page.get_by_test_id("action-delete-1").click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+
+        load_acls()
+        test_acl_create()
+        test_acl_update()
+        test_acl_delete()
+
+    def test_admin_attributes(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def load_attributes():
+            page.goto(url_for("admin.attributes", _external=True))
+            expect(page.get_by_test_id("attribute-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_attributes.png")
+
+        def test_attribute_create():
+            page.get_by_role("link", name="Administration").click()
+
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_test_id("admin-menu-Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_test_id("new-attribute-button").click()
+            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").click()
+            page.get_by_role("textbox", name="Name").fill("attribute number 5")
+            page.get_by_role("textbox", name="Description").click()
+            page.get_by_role("textbox", name="Description").fill("attr 5")
+            page.get_by_role("textbox", name="Default Value").click()
+            page.get_by_role("textbox", name="Default Value").fill("5")
+            page.get_by_label("Attribute Type Select an item").select_option("number")
+            page.get_by_role("button", name="Create Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_test_id("new-attribute-button").click()
+            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
+
+            page.locator("#attribute-list").get_by_role("link", name="Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_test_id("admin-menu-Report Item Type").click()
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+            page.get_by_test_id("new-report_item_type-button").click()
+            expect(page.get_by_role("heading", name="Create Report Item Type")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title").click()
+            page.get_by_role("textbox", name="Title").fill("report item type test 5")
+            page.get_by_role("textbox", name="Description").click()
+            page.get_by_role("textbox", name="Description").fill("atrr5")
+            page.get_by_role("button", name="+ Add New Group").click()
+            expect(page.get_by_role("spinbutton", name="Group Index")).to_be_visible()
+
+            page.get_by_role("textbox", name="Group Title").click()
+            page.get_by_role("textbox", name="Group Title").fill("group1")
+            page.get_by_role("textbox", name="Group Description").click()
+            page.get_by_role("button", name="+ Add New Attribute").click()
+            expect(page.get_by_role("group", name="Required")).to_be_visible()
+
+            page.get_by_role("textbox", name="Attribute Title").click()
+            page.get_by_role("textbox", name="Attribute Title").fill("attr title text")
+            page.get_by_label("Attribute Type * Select an").select_option("28")
+            page.get_by_role("textbox", name="Attribute Description").click()
+            page.get_by_role("textbox", name="Attribute Description").fill("test 5")
+            page.get_by_role("textbox", name="Attribute Description").dblclick()
+            page.get_by_role("textbox", name="Attribute Description").fill("number 5")
+            page.get_by_role("button", name="Create Report Item Type").click()
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+            page.get_by_role("link", name="Analyze").click()
+            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
+
+            page.get_by_test_id("new-report-button").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
+            page.locator(".col-span-12 > .grid > div").first.click()
+            page.get_by_role("textbox", name="Title").fill("number 5 in report")
+            page.get_by_label("Report Type Select a report").select_option("6")
+            page.get_by_test_id("save-report").click()
+            expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
+            expect(page.get_by_role("heading", name="group1")).to_be_visible()
+            attr_field = page.get_by_role("spinbutton", name="attr title text")
+            expect(attr_field).to_have_value("5")
+
+        def test_attribute_update():
+            page.get_by_role("link", name="Administration").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_test_id("admin-menu-Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
+
+            page.get_by_role("link", name="attribute number").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").click()
+            page.get_by_role("textbox", name="Name").fill("attribute number 6")
+            page.get_by_role("textbox", name="Description").click()
+            page.get_by_role("textbox", name="Description").fill("attr 6")
+            page.get_by_role("textbox", name="Default Value").click()
+            page.get_by_role("textbox", name="Default Value").fill("6")
+            page.get_by_role("button", name="Update Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_role("link", name="Analyze").click()
+            expect(page.get_by_role("row", name="number 5 in report")).to_be_visible()
+
+            page.get_by_test_id("new-report-button").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
+            page.get_by_role("textbox", name="Title").click()
+            page.get_by_role("textbox", name="Title").fill("update attr use")
+            page.get_by_label("Report Type Select a report").select_option("6")
+            page.get_by_test_id("save-report").click()
+            attr_field = page.get_by_role("spinbutton", name="attr title text")
+            expect(attr_field).to_have_value("6")
+
+        def test_attribute_delete():
+            page.get_by_role("link", name="Analyze").click()
+            expect(page.get_by_role("row", name="update attr use")).to_be_visible()
+
+            for _ in range(2):
+                page.locator('[data-testid^="action-delete-"]').first.click()
+                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+                page.get_by_role("button", name="OK").click()
+
+            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
+
+            page.get_by_role("link", name="Administration").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_test_id("admin-menu-Report Item Type").click()
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+            page.get_by_test_id("action-delete-6").click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+
+            page.get_by_role("button", name="OK").click()
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
+
+            page.get_by_test_id("admin-menu-Attribute").click()
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
+
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
+
+            page.get_by_test_id("action-delete-28").click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+
+            page.get_by_role("button", name="OK").click()
+
+        load_attributes()
+        test_attribute_create()
+        test_attribute_update()
+        test_attribute_delete()
+
+    def test_admin_report_types(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
         report_type_title = f"Test Report {uuid.uuid4().hex[:6]}"
@@ -457,7 +712,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         update_report_type()
         remove_report_type()
 
-    def test_product_types(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_product_types(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
         product_type_name = f"test_product_type_{uuid.uuid4().hex[:6]}"
@@ -474,7 +729,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
             page.get_by_label("Presenter Type Select a").select_option("html_presenter")
-            page.get_by_label("TEMPLATE_PATH Select an item").select_option("cert_at_daily_report.html")
+            page.get_by_label("TEMPLATE_PATH * Select an item").select_option("cert_at_daily_report.html")
 
             page.get_by_role("searchbox", name="Select report types").click()
             page.get_by_role("option", name="CERT Report").click()
@@ -504,6 +759,214 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         add_product_type()
         update_product_type()
         remove_product_type()
+
+    def test_admin_bot(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def test_load_bots():
+            page.goto(url_for("admin.bots", _external=True))
+            expect(page.get_by_test_id("bot-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_bots.png")
+
+        def test_bot_create():
+            page.get_by_test_id("new-bot-button").click()
+            expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").fill("test bot")
+            page.get_by_role("textbox", name="Description").fill("test bot description")
+            page.get_by_role("spinbutton", name="Index").fill("21")
+            page.get_by_label("Bot Type Select a bot").select_option("nlp_bot")
+            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+
+            page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
+            page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
+            page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
+
+            page.get_by_role("checkbox", name="false").check()
+            page.get_by_role("button", name="Create Bot").click()
+
+        def test_bot_update():
+            page.get_by_role("link", name="test bot", exact=True).click()
+            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").fill("test bot updated")
+            page.get_by_role("spinbutton", name="Index").fill("12")
+            page.get_by_role("button", name="Update Bot").click()
+
+            page.get_by_role("link", name="test bot updated").click()
+            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+
+            page.get_by_role("button", name="Update Bot").click()
+
+        def test_remove_bot():
+            bot_table = page.get_by_test_id("bot-table")
+            all_rows = bot_table.locator("tbody tr")
+            expect(all_rows).to_have_count(8)
+            bot_table.locator('[data-testid^="action-delete-"]').last.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.locator("#notification-bar [role='alert']").click()
+
+        test_load_bots()
+        test_bot_create()
+        test_bot_update()
+        test_remove_bot()
+
+    def test_admin_connector_management(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        connector_name = f"test_connector_{uuid.uuid4().hex[:6]}"
+
+        def load_connectors():
+            page.goto(url_for("admin.connectors", _external=True))
+            expect(page.get_by_test_id("connector-table")).to_be_visible()
+            page.get_by_text("No connector items found").click()
+            page.screenshot(path="./tests/playwright/screenshots/docs_connectors.png")
+
+        def add_connector():
+            page.get_by_test_id("new-connector-button").click()
+            expect(page.get_by_role("heading", name="Create Connector")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").fill(connector_name)
+            page.get_by_label("Connector Type Select a").select_option("misp_connector")
+            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+
+            page.get_by_role("textbox", name="URL").fill("test.url")
+            page.get_by_role("textbox", name="API_KEY").fill("11111")
+            page.get_by_role("textbox", name="ORGANISATION_ID").fill("1")
+
+            page.get_by_role("group", name="SSL_CHECK").get_by_label("false true").check()
+            page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
+            page.get_by_role("button", name="Create Connector").click()
+            expect(page.get_by_role("row", name=connector_name)).to_be_visible()
+
+        def update_connector():
+            page.get_by_role("link", name=connector_name).click()
+            expect(page.get_by_role("group", name="SSL_CHECK")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").fill(f"{connector_name} updated")
+            page.get_by_role("button", name="Update Connector").click()
+            expect(page.get_by_role("row", name=f"{connector_name} updated")).to_be_visible()
+            page.locator("#notification-bar [role='alert']").click()
+
+        def remove_connector():
+            bot_table = page.get_by_test_id("connector-table")
+            all_rows = bot_table.locator("tbody tr")
+            expect(all_rows).to_have_count(1)
+            bot_table.locator('[data-testid^="action-delete-"]').first.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+            page.locator("#notification-bar [role='alert']").click()
+
+        load_connectors()
+        add_connector()
+        update_connector()
+        remove_connector()
+
+    def test_publisher_presets(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+
+        def load_publisher_presets():
+            page.goto(url_for("admin.publisher_presets", _external=True))
+            expect(page.get_by_test_id("publisher_preset-table")).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_publisher_presets.png")
+
+        def publisher_presets_create():
+            page.get_by_text("No publisher_preset items").click()
+            page.get_by_test_id("new-publisher_preset-button").click()
+            expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
+
+            page.get_by_role("textbox", name="Name").fill("publisher preset test")
+            page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
+            page.get_by_role("textbox", name="FTP_URL").fill("testurl")
+            page.get_by_role("button", name="Create Publisher Preset").click()
+            expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
+
+        def publisher_presets_update():
+            page.get_by_role("link", name="publisher preset test").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            page.get_by_role("textbox", name="FTP_URL").click()
+            page.get_by_role("textbox", name="FTP_URL").fill("testurl.com")
+            page.get_by_role("textbox", name="Name").click()
+            page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
+            page.get_by_role("button", name="Update Publisher Preset").click()
+            expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
+
+        def publisher_presets_delete():
+            page.get_by_role("alert").locator("div").filter(has_text="Successfully updated").click()
+            bot_table = page.get_by_test_id("publisher_preset-table")
+            all_rows = bot_table.locator("tbody tr")
+            expect(all_rows).to_have_count(1)
+            bot_table.locator('[data-testid^="action-delete-"]').first.click()
+
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+
+            page.get_by_role("button", name="OK").click()
+
+            page.get_by_text("PublisherPreset ").click()
+
+        load_publisher_presets()
+        publisher_presets_create()
+        publisher_presets_update()
+        publisher_presets_delete()
+
+    def test_admin_settings(self, logged_in_page):
+        page = logged_in_page
+        settings_form = page.locator("#settings-container form#admin-settings-form")
+        tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
+        collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
+        collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
+        story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
+        news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
+        settings_submit = settings_form.get_by_test_id("settings-submit").first
+
+        def go_to_admin_settings():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            expect(collector_interval_input).to_be_visible()
+            page.screenshot(path="./tests/playwright/screenshots/docs_settings.png")
+
+        def check_default_values():
+            expect(tlp_select).to_have_value("clear")
+            expect(collector_proxy_input).to_be_empty()
+            expect(collector_interval_input).to_have_value("0 */8 * * *")
+            expect(story_conflict_input).to_have_value("200")
+            expect(news_conflict_input).to_have_value("200")
+            settings_submit.click()  # keep this - against form only every second time to be succesfully POSTed
+
+        def change_default_values():
+            expect(collector_interval_input).to_be_visible()
+            tlp_select.select_option("red")
+            collector_proxy_input.fill("https://test")
+            collector_interval_input.fill("0 */8 * * 1")
+            story_conflict_input.fill("20")
+            news_conflict_input.fill("21")
+            settings_submit.click()
+
+        def check_new_values():
+            page.get_by_role("button", name="Invalidate Cache").click()
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            expect(settings_form.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
+            expect(collector_proxy_input).to_have_value("https://test/")
+            expect(collector_interval_input).to_have_value("0 */8 * * 1")
+            expect(story_conflict_input).to_have_value("20")
+            expect(news_conflict_input).to_have_value("21")
+
+        def revert_to_default_values():
+            tlp_select.select_option("clear")
+            collector_proxy_input.fill("")
+            expect(collector_interval_input).to_be_visible()
+            collector_interval_input.fill("0 */8 * * *")
+            story_conflict_input.fill("200")
+            news_conflict_input.fill("200")
+            settings_submit.click()
+
+        go_to_admin_settings()
+        check_default_values()
+        change_default_values()
+        check_new_values()
+        revert_to_default_values()
 
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page

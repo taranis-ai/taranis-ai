@@ -1,17 +1,20 @@
 import contextlib
 from requests.models import Response as ReqResponse
 from functools import wraps
-from flask import Flask, request
-from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user, unset_jwt_cookies
-from flask import redirect, url_for, render_template, Response
 from typing import Any
 
-from frontend.config import Config
-from frontend.log import logger
-from frontend.cache import add_user_to_cache, get_user_from_cache
-from frontend.utils.router_helpers import is_htmx_request
-from frontend.core_api import CoreApi
+from flask import Flask, make_response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
+from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
+from requests.models import Response as ReqResponse
+
+from frontend.cache import add_user_to_cache, get_user_from_cache
+from frontend.config import Config
+from frontend.core_api import CoreApi
+from frontend.log import logger
+from frontend.utils.router_helpers import is_htmx_request
+
 
 jwt = JWTManager()
 
@@ -65,9 +68,12 @@ def logout() -> tuple[str, int] | Response:
             error_msg = core_response.json().get("error", error_msg)
         return render_template("login/index.html", login_error=error_msg), core_response.status_code
 
-    response = Response(status=302, headers={"Location": url_for("base.login")})
+    response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():
-        response = Response(status=200, headers={"HX-Redirect": url_for("base.login")})
+        response.headers["HX-Redirect"] = url_for("base.login")
+    else:
+        response.headers["Location"] = url_for("base.login")
+        response.status_code = 302
 
     response.delete_cookie("access_token")
     unset_jwt_cookies(response)

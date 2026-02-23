@@ -73,6 +73,20 @@ class OmniSearch(MethodView):
         print("TODO: Implement")
 
 
+class NewsItemConflictsView(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        return DashboardView.news_item_conflict_view()
+
+    @auth_required("ASSESS_UPDATE")
+    def post(self):
+        return DashboardView.resolve_news_item_conflict_post()
+
+    @auth_required("ASSESS_UPDATE")
+    def put(self):
+        return DashboardView.resolve_news_item_conflict_put()
+
+
 def init(app: Flask):
     base_bp = Blueprint("base", __name__, url_prefix=app.config["APPLICATION_ROOT"])
 
@@ -82,6 +96,16 @@ def init(app: Flask):
     app.add_url_rule("/favicon.ico", view_func=FaviconView.as_view("favicon_base"))
 
     base_bp.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard_"))
+    base_bp.add_url_rule("/conflicts/menu", view_func=DashboardView.conflict_menu, methods=["GET"], endpoint="conflict_menu")
+    base_bp.add_url_rule("/conflicts/stories", view_func=DashboardView.story_conflict_view, methods=["GET"], endpoint="story_conflicts")
+    base_bp.add_url_rule(
+        "/conflicts/story/<string:story_id>/resolve",
+        view_func=DashboardView.resolve_story_conflict,
+        methods=["POST"],
+        endpoint="story_conflict_resolve",
+    )
+    base_bp.add_url_rule("/conflicts/news-items", view_func=NewsItemConflictsView.as_view("news_item_conflicts"))
+
     base_bp.add_url_rule("/cluster/<string:cluster_name>", view_func=DashboardView.get_cluster, methods=["GET"], endpoint="cluster")
     base_bp.add_url_rule("/dashboard/edit", view_func=DashboardView.edit_dashboard, methods=["GET"], endpoint="edit_dashboard_view")
 

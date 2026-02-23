@@ -1,11 +1,14 @@
-from typing import TYPE_CHECKING
-from sqlalchemy import func
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from core.model.story import Story
-from core.model.news_item_tag import NewsItemTag
-from core.managers.db_manager import db
+from sqlalchemy import func
+
 from core.log import logger
+from core.managers.db_manager import db
+from core.model.news_item_attribute import NewsItemAttribute
+from core.model.news_item_tag import NewsItemTag
+from core.model.story import Story
+
 
 if TYPE_CHECKING:
     from core.model.report_item import ReportItem
@@ -98,6 +101,39 @@ class NewsItemTagService:
         new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
         story_tags.append(new_tag)
         story.tags = story_tags
+        db.session.commit()
+
+    @staticmethod
+    def set_found_bot_tags(result: dict[str, Any], change_by_bot: bool = False):
+        errors = {}
+        found_tags = result.get("result", {}) or {}
+        for story_id, tags in found_tags.items():
+            if not tags:
+                continue
+            story = Story.get(story_id)
+            if not story:
+                errors[story_id] = "Story not found"
+                continue
+            story.set_tags(tags, change_by_bot=change_by_bot)
+
+    @staticmethod
+    def set_bot_execution_attribute(result: dict[str, Any]):
+        bot_type = result.get("bot_type", "UNKNOWN_BOT")
+        bot_id = result.get("bot_id", "UNKNOWN_ID")
+        found_tags = result.get("result", {}) or {}
+        now = datetime.now().isoformat()
+
+        for story_id, tags in found_tags.items():
+            if story := Story.get(story_id):
+                tag_count = len(tags)
+                attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
+                story.attributes.append(
+                    NewsItemAttribute(
+                        key=f"{bot_type}",
+                        value=attribute_value,
+                    )
+                )
+
         db.session.commit()
 
     @classmethod

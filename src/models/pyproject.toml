@@ -18,6 +18,10 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
+    "langcodes",
+    "requests",
+    "beautifulsoup4",
+    "lxml"
 ]
 dynamic = ["version"]
 
