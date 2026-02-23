@@ -125,6 +125,7 @@ class Settings(BaseSettings):
             "create_missing_queues": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
+            "broker_connection_max_retries": 3,
             "enable_utc": True,
         }
         return self

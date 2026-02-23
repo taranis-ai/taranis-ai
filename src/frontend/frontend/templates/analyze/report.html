@@ -7,30 +7,10 @@
 {% set report_types = report_types | default([]) %}
 {% set grouped_attributes = report.grouped_attributes | default([]) %}
 {% set stories = report.stories | default([]) %}
-{% set used_story_ids = story_attributes | map(attribute='value') | reject('equalto', '') | list %}
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
-
-<script type="text/javascript">
-  function initAttributeStoryChoices() {
-    const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
-    story_attribute_ids.forEach(attr => {
-      const field_id = `attribute_story_${attr.id}`;
-      const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
-    });
-  }
-
-  if (typeof htmx !== 'undefined' && htmx.onLoad) {
-    htmx.onLoad(function(elt) {
-      initAttributeStoryChoices();
-    });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      initAttributeStoryChoices();
-    });
-  }
-</script>
+{% set form_target = '#report_form' if is_edit else '#report' %}
 
 <div class="p-4 card bg-base-100 shadow" id="report">
   <div class="card-body gap-4">
@@ -53,6 +33,9 @@
                   hx-vals='{"completed": true}'
                   hx-target="#report"
                   hx-target-error="#report"
+                  hx-swap="outerHTML"
+                  hx-select="#report"
+                  hx-include="#report_form [name=layout]"
                   class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
           </button>
           <button type="button"
@@ -60,17 +43,41 @@
                   hx-vals='{"completed": false}'
                   hx-target="#report"
                   hx-target-error="#report"
+                  hx-swap="outerHTML"
+                  hx-select="#report"
+                  hx-include="#report_form [name=layout]"
                   class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
           </button>
         </div>
       {% endif %}
       <div class="join">
-        <a href="?layout=split" class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
-        <a href="?layout=stacked" class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
+        <a href="?layout=split"
+           hx-get="?layout=split"
+           hx-include="#report_form"
+           hx-target="#report"
+           hx-target-error="#report"
+           hx-swap="outerHTML"
+           hx-select="#report"
+           class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
+        <a href="?layout=stacked"
+           hx-get="?layout=stacked"
+           hx-include="#report_form"
+           hx-target="#report"
+           hx-target-error="#report"
+           hx-swap="outerHTML"
+           hx-select="#report"
+           class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
       </div>
     </div>
 
-    <form id="report_form" class="w-full" {{ form_action }} hx-swap="innerHTML" hx-target="#report" hx-target-error="#report">
+    <form id="report_form"
+          class="w-full"
+          {{ form_action }}
+          hx-swap="outerHTML"
+          hx-target="{{ form_target }}"
+          hx-target-error="{{ form_target }}"
+          hx-select="{{ form_target }}">
+      <input type="hidden" name="layout" value="{{ layout }}">
 
       {% include "partials/admin_form_error.html" %}
 
@@ -122,8 +129,10 @@
                         data-testid="remove-all-stories"
                         {{ form_action }}
                         hx-vals='{"stories[]": [""]}'
-                        hx-target="#report"
-                        hx-target-error="#report">
+                        hx-target="#report_form"
+                        hx-target-error="#report_form"
+                        hx-swap="outerHTML"
+                        hx-select="#report_form">
                   Remove all
                 </button>
               </div>
@@ -146,6 +155,25 @@
 
       <div class="mt-8">
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+        <script type="text/javascript">
+          function initAttributeStoryChoices() {
+            const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
+            story_attribute_ids.forEach(attr => {
+              const field_id = `attribute_story_${attr.id}`;
+              const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
+            });
+          }
+
+          if (typeof htmx !== 'undefined' && htmx.onLoad) {
+            htmx.onLoad(function(elt) {
+              initAttributeStoryChoices();
+            });
+          } else {
+            document.addEventListener('DOMContentLoaded', function() {
+              initAttributeStoryChoices();
+            });
+          }
+        </script>
       </div>
     </form>
   </div>

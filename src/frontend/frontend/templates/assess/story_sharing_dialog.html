@@ -27,6 +27,12 @@
                 hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
         <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
       </div>
+      <div class="flex flex-row mt-4">
+        <a class="btn btn-outline btn-info btn-wide" href="{{ url_for('assess.export_stories', story_ids=sharing_ids) }}" download>
+          {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
+          Export to JSON
+        </a>
+      </div>
     </form>
   </div>
 </dialog>

@@ -2,9 +2,8 @@ import json
 from typing import Any
 
 import urllib3
+from models.product import WorkerProduct as Product
 from pymisp import ExpandedPyMISP, MISPEvent
-
-from worker.types import Product
 
 from .base_publisher import BasePublisher
 

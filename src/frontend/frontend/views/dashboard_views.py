@@ -2,11 +2,11 @@ import json
 
 import pandas as pd
 import plotly.express as px
-from flask import abort, render_template, request, url_for
+from flask import abort, make_response, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
-from werkzeug.wrappers import Response
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import cache
@@ -314,12 +314,12 @@ class DashboardView(BaseView):
         incoming_original = request.form.get("incoming_original")
 
         if not resolved:
-            return Response("Missing resolved_story", 400)
+            return make_response("Missing resolved_story", 400)
 
         try:
             resolved_json = json.loads(resolved)
         except Exception:
-            return Response("Invalid JSON in resolved_story", 400)
+            return make_response("Invalid JSON in resolved_story", 400)
 
         try:
             incoming_json = json.loads(incoming_original) if incoming_original else {}
@@ -333,16 +333,16 @@ class DashboardView(BaseView):
             incoming_story_original=incoming_json,
         )
 
+        result = api.get_story_conflicts() or {}
+
         if not resp.ok:
             logger.error(f"Story conflict resolve failed for {story_id}: {resp.status_code} {resp.text}")
-            refresh = CoreApi().get_story_conflicts() or {}
-            conflict_list = [StoryConflict(**c) for c in refresh.get("conflicts", [])]
+            conflict_list = [StoryConflict(**c) for c in result.get("conflicts", [])]
             if is_htmx_request():
                 html = render_template("conflicts/_story_conflicts_list.html", story_conflicts=conflict_list)
-                return Response(html, 200)
-            return Response(f"Error resolving conflict: {resp.text}", resp.status_code)
+                return make_response(html, 200)
+            return make_response(f"Error resolving conflict: {resp.text}", resp.status_code)
 
-        result = api.get_story_conflicts()
         conflict_list = [StoryConflict(**c) for c in result.get("conflicts", [])]
         template = "conflicts/_story_conflicts_list.html" if is_htmx_request() else "conflicts/story_conflicts.html"
         return render_template(template, story_conflicts=conflict_list)
@@ -359,17 +359,17 @@ class DashboardView(BaseView):
             if not isinstance(payload, dict):
                 payload = parse_formdata(request.form)
             if not isinstance(payload, dict):
-                return Response("Invalid payload", 400)
+                return make_response("Invalid payload", 400)
 
             incoming_story_id = payload.get("incoming_story_id")
             if not incoming_story_id:
-                return Response("Missing incoming_story_id", 400)
+                return make_response("Missing incoming_story_id", 400)
 
             raw_news_items = payload.get("news_items")
             if isinstance(raw_news_items, str):
                 raw_news_items = cls._safe_json_load(raw_news_items)
             if not isinstance(raw_news_items, list):
-                return Response("Missing news_items", 400)
+                return make_response("Missing news_items", 400)
 
             existing_ids_raw = payload.get("existing_story_news_item_ids") or []
             if not isinstance(existing_ids_raw, list):
@@ -391,7 +391,7 @@ class DashboardView(BaseView):
 
             if not deduped_items:
                 logger.warning("No unique news items identified for ingestion")
-                return Response("No unique news items to ingest", 400)
+                return make_response("No unique news items to ingest", 400)
 
             remaining_raw = payload.get("remaining_stories") or []
             remaining_stories = remaining_raw if isinstance(remaining_raw, list) else ([remaining_raw] if remaining_raw else [])
@@ -407,13 +407,13 @@ class DashboardView(BaseView):
 
             if not response.ok:
                 logger.error(f"Core API error: {response.status_code} {response.text}")
-                return Response(response.text, response.status_code)
+                return make_response(response.text, response.status_code)
 
             return cls.news_item_conflict_view()
 
         except Exception as exc:
             logger.exception(f"Failed POST add-unique-items: {exc}")
-            return Response("Internal error adding unique news items", 500)
+            return make_response("Internal error adding unique news items", 500)
 
     @classmethod
     @auth_required("ASSESS_UPDATE")
@@ -423,10 +423,10 @@ class DashboardView(BaseView):
 
             incoming_story = cls._normalize_incoming_story(payload.get("incoming_story"))
             if not incoming_story:
-                incoming_story = cls._load_incoming_story_snapshot(payload.get("incoming_story_id"))
+                incoming_story = cls._load_incoming_story_snapshot(str(payload.get("incoming_story_id")))
             if not incoming_story:
                 logger.error("Unable to resolve conflict without incoming story data")
-                return Response("Unable to load incoming story data", 400)
+                return make_response("Unable to load incoming story data", 400)
 
             payload["incoming_story"] = incoming_story
 
@@ -434,13 +434,13 @@ class DashboardView(BaseView):
             response = api.api_put("/connectors/conflicts/news-items", json_data=payload)
 
             if not response.ok:
-                return Response(response.text, response.status_code)
+                return make_response(response.text, response.status_code)
 
             return cls.news_item_conflict_view()
 
         except Exception as exc:
             logger.exception(f"Failed PUT news-item conflict resolve: {exc}")
-            return Response("Internal error resolving conflict", 500)
+            return make_response("Internal error resolving conflict", 500)
 
     @classmethod
     def render_country_chart(cls, country_data: list[dict]) -> str:
@@ -456,7 +456,7 @@ class DashboardView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return self.static_view()
 
-    def post(self, *args, **kwargs) -> Response:
+    def post(self, *args, **kwargs) -> ResponseReturnValue:
         form_data = parse_formdata(request.form)
         form_data = {"dashboard": form_data.get("dashboard", {})}
         core_response = CoreApi().update_user_profile(form_data)
@@ -468,18 +468,17 @@ class DashboardView(BaseView):
                 "notification/index.html",
                 notification={"message": "Failed to update dashboard settings", "error": True},
             )
-            return Response(html, status=400)
+            return make_response(html, 400)
 
         notification_html = self.get_notification_from_response(core_response)
 
         if core_response.ok:
             self.add_flash_notification(core_response)
-            return Response(
-                status=204,
-                headers={"HX-Redirect": url_for("base.dashboard")},
-            )
+            response = make_response("", 204)
+            response.headers["HX-Redirect"] = url_for("base.dashboard")
+            return response
 
-        return Response(notification_html, status=core_response.status_code or 400)
+        return make_response(notification_html, core_response.status_code or 400)
 
     def put(self, **kwargs):
         return abort(405)
