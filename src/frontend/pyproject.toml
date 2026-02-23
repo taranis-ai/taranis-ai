@@ -55,7 +55,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses", "lxml"]
+dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses", "lxml"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
