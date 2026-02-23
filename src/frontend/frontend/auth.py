@@ -1,10 +1,8 @@
 import contextlib
-from requests.models import Response as ReqResponse
 from functools import wraps
 from typing import Any
 
-from flask import Flask, make_response, redirect, render_template, request, url_for
-from flask.typing import ResponseReturnValue
+from flask import Flask, Response, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
