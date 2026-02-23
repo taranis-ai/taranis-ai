@@ -168,16 +168,16 @@ def migrate_use_feed_content():
     from core.model.osint_source import OSINTSource
     from core.model.parameter_value import ParameterValue
 
-    sources = OSINTSource.get_filtered(OSINTSource.get_filter_query({"filter_manual": False})) or []
+    rss_sources = OSINTSource.get_filtered(OSINTSource.get_filter_query({"type": "rss_collector"})) or []
     updated_sources = 0
     created_parameters = 0
 
-    for source in sources:
+    for source in rss_sources:
         content_location = ParameterValue.find_by_parameter(source.parameters, "CONTENT_LOCATION")
         use_feed_content = ParameterValue.find_by_parameter(source.parameters, "USE_FEED_CONTENT")
 
-        # Only migrate sources that already have at least one of the related parameters.
-        if not content_location and not use_feed_content:
+        # Only migrate sources that haven't been migrated yet and are not a boolean
+        if use_feed_content and use_feed_content.value in ["true", "false"]:
             continue
 
         target_value = "true" if content_location and content_location.value.strip() else "false"
