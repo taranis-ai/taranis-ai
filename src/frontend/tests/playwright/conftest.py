@@ -1,4 +1,3 @@
-import contextlib
 import copy
 import os
 import random
@@ -8,12 +7,11 @@ import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse
+from pathlib import Path
 
 import pytest
 import requests
 import responses
-from dotenv import dotenv_values
 from flask import json
 from playwright.sync_api import Browser, Page
 
@@ -40,46 +38,33 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 
 @pytest.fixture(scope="session")
-def run_core(app):
-    # run the flask core as a subprocess in the background
-    process = None
+def docker_compose_file():
+    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+
+
+@pytest.fixture(scope="session")
+def docker_setup():
+    # Ensure stale stack is removed first, then start services and wait for healthchecks.
+    return ["down -v --remove-orphans", "up -d --wait"]
+
+
+@pytest.fixture(scope="session")
+def docker_cleanup():
+    return ["down -v --remove-orphans"]
+
+
+@pytest.fixture(scope="session")
+def run_core(docker_services):
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    core_url = os.getenv("TARANIS_CORE_URL", "http://127.0.0.1:5000/api")
+
     try:
-        core_path = os.path.abspath("../core")
-        env = {}
-        if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
-            config = {k: v for k, v in config.items() if v}
-            env = config
-        env |= os.environ.copy()
-        env["PYTHONPATH"] = core_path
-        env["VIRTUAL_ENV"] = f"{os.path.join(core_path, '.venv')}"
-        taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
-        taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
-        with contextlib.suppress(Exception):
-            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
-            os.remove(f"{parsed_uri.path}")
-
-        print(f"Starting Taranis Core on port {taranis_core_port}")
-        process = subprocess.Popen(
-            ["./run_for_e2e.sh", taranis_core_port],
-            cwd=core_path,
-            env=env,
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE,
-            universal_newlines=True,
-        )
-
-        core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+        print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
         _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
-
         yield core_url
-
     except Exception as e:
         pytest.fail(str(e))
-    finally:
-        if process:
-            process.terminate()
-            process.wait()
 
 
 @pytest.fixture(scope="session")
