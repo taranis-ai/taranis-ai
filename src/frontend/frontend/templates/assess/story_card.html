@@ -33,6 +33,7 @@
   <article id="story-{{ story_id }}"
            class="{{ ' '.join(card_classes) }}"
            data-story-id="{{ story_id }}"
+           data-story-detail-view="{{ 'true' if detail_view else 'false' }}"
            data-testid="story-card-{{ story_id }}"
            x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
@@ -126,7 +127,7 @@
             {% if summary_content %}
               {{ summary_content }}
             {% else %}
-              {{ story.description }}
+              <em>No summary available.</em>
             {% endif %}
           </div>
         </section>

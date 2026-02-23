@@ -68,6 +68,7 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_manual_source()
     cleanup_invalid_source_icons()
     migrate_refresh_intervals()
+    migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
     if db_engine.dialect.name == "postgresql":
@@ -160,6 +161,39 @@ def migrate_refresh_intervals():
                 new_cron = convert_interval_to_cron(interval)
                 logger.info(f"Updating OSINTSource {source.id}: {interval} minutes -> cron '{new_cron}'")
                 source.update_parameters({"REFRESH_INTERVAL": new_cron})
+
+
+def migrate_use_feed_content():
+    from core.managers.db_manager import db
+    from core.model.osint_source import OSINTSource
+    from core.model.parameter_value import ParameterValue
+
+    rss_sources = OSINTSource.get_filtered(OSINTSource.get_filter_query({"type": "rss_collector"})) or []
+    updated_sources = 0
+    created_parameters = 0
+
+    for source in rss_sources:
+        content_location = ParameterValue.find_by_parameter(source.parameters, "CONTENT_LOCATION")
+        use_feed_content = ParameterValue.find_by_parameter(source.parameters, "USE_FEED_CONTENT")
+
+        # Only migrate sources that haven't been migrated yet and are not a boolean
+        if use_feed_content and use_feed_content.value in ["true", "false"]:
+            continue
+
+        target_value = "true" if content_location and content_location.value.strip() else "false"
+
+        if use_feed_content:
+            if use_feed_content.value != target_value:
+                use_feed_content.value = target_value
+                updated_sources += 1
+        else:
+            source.parameters.append(ParameterValue(parameter="USE_FEED_CONTENT", value=target_value, type="switch"))
+            updated_sources += 1
+            created_parameters += 1
+
+    if updated_sources:
+        db.session.commit()
+        logger.info(f"Migrated USE_FEED_CONTENT for {updated_sources} OSINT sources ({created_parameters} parameters created)")
 
 
 def convert_interval_to_cron(interval: int) -> str:
