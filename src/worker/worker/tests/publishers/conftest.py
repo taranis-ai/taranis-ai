@@ -29,6 +29,11 @@ def s3_publisher():
 
 
 @pytest.fixture
+def taxii_publisher():
+    yield publishers.TAXIIPublisher()
+
+
+@pytest.fixture
 def s3_publisher_testdata():
     s3_publisher_data = {
         "S3_ENDPOINT": "play.min.io",
