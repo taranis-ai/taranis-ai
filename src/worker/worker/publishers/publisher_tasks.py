@@ -23,6 +23,7 @@ class PublisherTask(Task):
             "sftp_publisher": worker.publishers.SFTPPublisher(),
             "misp_publisher": worker.publishers.MISPPublisher(),
             "s3_publisher": worker.publishers.S3Publisher(),
+            "taxii_publisher": worker.publishers.TAXIIPublisher(),
         }
 
     def get_product(self, product_id: str) -> dict[str, str]:

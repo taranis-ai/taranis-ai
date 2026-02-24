@@ -1835,6 +1835,7 @@ dependencies = [
     { name = "python-gnupg" },
     { name = "requests", extra = ["socks"] },
     { name = "taranis-models" },
+    { name = "taxii2-client" },
     { name = "trafilatura" },
     { name = "weasyprint" },
 ]
@@ -1884,12 +1885,27 @@ requires-dist = [
     { name = "setuptools", marker = "extra == 'dev'" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "taranis-models", specifier = ">=1.3.3.dev5" },
+    { name = "taxii2-client" },
     { name = "trafilatura" },
     { name = "watchdog", marker = "extra == 'dev'" },
     { name = "weasyprint" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "taxii2-client"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytz" },
+    { name = "requests" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/75/0f/e556615441432c8a7e07db7695931dbb338e1e177a5faf428cd0eeaace64/taxii2-client-2.3.0.tar.gz", hash = "sha256:fb3bf895e2eaff3cd08bb7aad75c9d30682ffc00b9f3add77de3a67dc6b895a3", size = 23649, upload-time = "2021-03-12T21:19:08.516Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/36/0b/7d9cf9f11f0299072399a237d06bc7c433d06e735c923e8b7a656858d27d/taxii2_client-2.3.0-py2.py3-none-any.whl", hash = "sha256:b4212b8a8bab170cd5dc386ca3ea36bc44b53932f1da30db150abeef00bce7b9", size = 24943, upload-time = "2021-03-12T21:19:06.99Z" },
+]
 
 [[package]]
 name = "tenacity"
