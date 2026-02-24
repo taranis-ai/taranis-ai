@@ -2,12 +2,12 @@ import ast
 import json
 from typing import Any, cast
 
+from models.assess import NewsItem
 from pymisp import PyMISP
 
 from worker.collectors.base_collector import BaseCollector
 from worker.config import Config
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class MispCollector(BaseCollector):
@@ -128,11 +128,11 @@ class MispCollector(BaseCollector):
             author=author,
             title=title,
             content=content,
-            web_url=link,
+            link=link,
             story_id=story_id,
             language=language,
             review=review,
-            osint_source_id=source.get("id", ""),
+            osint_source_id=str(source.get("id", "")),
         )
 
     def get_internal_osint_source_id(self, osint_source_id: str) -> str:

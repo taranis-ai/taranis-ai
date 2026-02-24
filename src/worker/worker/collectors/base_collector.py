@@ -1,15 +1,9 @@
-import contextlib
-import datetime
-import hashlib
 import re
-import uuid
-from urllib.parse import quote
 
-from bs4 import BeautifulSoup
+from models.assess import NewsItem
 
 from worker.core_api import CoreApi
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class NoChangeError(Exception):
@@ -60,7 +54,10 @@ class BaseCollector:
 
     def add_tlp(self, news_items: list[NewsItem], tlp_level: str) -> list[NewsItem]:
         for item in news_items:
-            item.attributes.append({"key": "TLP", "value": tlp_level})
+            if item.attributes is None:
+                item.attributes = [{"key": "TLP", "value": tlp_level}]
+            else:
+                item.attributes.append({"key": "TLP", "value": tlp_level})
         return news_items
 
     def collect(self, source: dict, manual: bool = False):
@@ -69,55 +66,16 @@ class BaseCollector:
     def preview_collector(self, source: dict) -> list[dict]:
         raise NotImplementedError
 
-    def sanitize_html(self, html: str) -> str:
-        if not html:
-            return ""
-        html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
-        return BeautifulSoup(html, "lxml").text
-
-    def sanitize_url(self, url: str) -> str:
-        """
-        Sanitize URL to be compliant with RFC 3986
-        """
-        return quote(url, safe="/:@?&=+$,;")
-
-    def sanitize_date(self, date: str | None | datetime.datetime) -> datetime.datetime:
-        if isinstance(date, datetime.datetime):
-            return date
-        if isinstance(date, str):
-            with contextlib.suppress(ValueError):
-                return datetime.datetime.fromisoformat(date)
-        return datetime.datetime.now()
-
-    def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
-        if not item.id:
-            item.id = str(uuid.uuid4())
-        if not item.osint_source_id:
-            if source.get("id"):
-                item.osint_source_id = source.get("id", "")
-            else:
-                raise ValueError("osint_source_id is required")
-        item.published_date = self.sanitize_date(item.published_date)
-        item.collected_date = self.sanitize_date(item.collected_date)
-        item.attributes = item.attributes or []
-        item.title = self.sanitize_html(item.title)
-        item.content = self.sanitize_html(item.content)
-        item.web_url = self.sanitize_url(item.web_url)
-        item.hash = item.hash or hashlib.sha256((item.author + item.title + item.web_url).encode()).hexdigest()
-        return item
-
     def preview(self, news_items: list[NewsItem], source: dict) -> list[dict]:
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Previewing {len(news_items)} news items")
-        return [n.to_dict() for n in news_items]
+        return [n.model_dump() for n in news_items]
 
     def process_news_items(self, news_items: list[NewsItem], source: dict) -> list[NewsItem]:
         if word_lists := source.get("word_lists"):
             news_items = self.filter_by_word_list(news_items, word_lists)
         if tlp_level := source["parameters"].get("TLP_LEVEL", None):
             news_items = self.add_tlp(news_items, tlp_level)
-
-        news_items = [self.sanitize_news_item(item, source) for item in news_items if item.title or item.content]
 
         return news_items
 
@@ -127,14 +85,14 @@ class BaseCollector:
             new_story = story.copy()
             if news_items := new_story.get("news_items"):
                 processed_news_items = self.process_news_items(news_items, source)
-                new_story["news_items"] = [item.to_dict() for item in processed_news_items]
+                new_story["news_items"] = [item.model_dump(mode="json") for item in processed_news_items]
             processed_stories.append(new_story)
         return processed_stories
 
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        news_items_dicts = [item.to_dict() for item in news_items]
+        news_items_dicts = [item.model_dump(mode="json") for item in news_items]
         if not news_items_dicts:
             return None
         if core_response := self.core_api.add_news_items(news_items_dicts):

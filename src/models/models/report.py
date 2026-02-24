@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import ClassVar, Final
+from typing import ClassVar
 
 from pydantic import Field
 
@@ -21,7 +21,6 @@ class ReportItemAttributeGroup(TaranisBaseModel):
 class ReportItem(TaranisBaseModel):
     _core_endpoint: ClassVar[str] = "/analyze/report-items"
     _model_name: ClassVar[str] = "report"
-    _search_fields: Final[list[str]] = ["title"]
     _pretty_name: ClassVar[str] = "Report"
 
     id: str | None = None

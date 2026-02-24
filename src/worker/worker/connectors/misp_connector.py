@@ -570,4 +570,4 @@ class MispConnector:
             "stories": story_changes,
             "news_items": news_item_changes,
         }
-        self.core_api.api_post("/connectors/last-change", payload)
+        self.core_api.api_put("/worker/misp/last-change", payload)

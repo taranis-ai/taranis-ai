@@ -68,14 +68,17 @@ def _unauthorized_response(clear_cookies: bool = False) -> ResponseReturnValue:
 #     return current_authenticator.refresh(user)
 
 
-def logout() -> ResponseReturnValue:
+def logout() -> tuple[str, int] | ResponseReturnValue:
     core_response: ReqResponse = CoreApi().logout()
     if not core_response.ok:
         return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
 
-    response = make_response("", 302, {"Location": url_for("base.login")})
+    response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():
-        response = make_response("", 200, {"HX-Redirect": url_for("base.login")})
+        response.headers["HX-Redirect"] = url_for("base.login")
+    else:
+        response.headers["Location"] = url_for("base.login")
+        response.status_code = 302
 
     response.delete_cookie("access_token")
     unset_jwt_cookies(response)

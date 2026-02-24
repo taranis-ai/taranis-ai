@@ -9,7 +9,6 @@ import worker.publishers
 from worker.core_api import CoreApi
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.types import Product
 
 
 def publisher_task(product_id: int, publisher_id: str):

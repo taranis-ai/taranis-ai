@@ -1,10 +1,10 @@
 from urllib.parse import urlencode
 
 import requests
+from models.product import WorkerProduct as Product
 
 from worker.config import Config
 from worker.log import logger
-from worker.types import Product
 
 
 class CoreApi:
@@ -132,7 +132,7 @@ class CoreApi:
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
-            return Product(response)
+            return Product.from_response(response)
         except Exception:
             logger.exception("Can't get Product Render")
             return None
@@ -301,7 +301,7 @@ class CoreApi:
         """
         try:
             return self.api_post(
-                url="/worker/stories/misp",
+                url="/worker/misp/stories",
                 json_data=stories,
             )
         except Exception:

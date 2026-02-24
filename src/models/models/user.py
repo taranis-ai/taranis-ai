@@ -19,7 +19,7 @@ class ProfileSettings(TaranisBaseModel):
     dark_theme: bool = False
     compact_view: bool = False
     show_charts: bool = False
-    infinite_scroll: bool = False
+    infinite_scroll: bool = True
     advanced_story_options: bool = False
     language: str = "en"
     hotkeys: dict[str, Any] = Field(default_factory=dict)
@@ -32,7 +32,6 @@ class ProfileSettings(TaranisBaseModel):
 class UserProfile(TaranisBaseModel):
     _core_endpoint = "/users"
     _model_name = "user_profile"
-    _search_fields = ["name", "username"]
 
     id: int | None = None
     username: str = ""

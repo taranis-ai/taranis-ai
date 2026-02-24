@@ -14,7 +14,7 @@ def misp_connector_core_mock(requests_mock, stories):
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
-    requests_mock.post(f"{Config.TARANIS_CORE_URL}/connectors/last-change", json={})
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/misp/last-change", json={})
     requests_mock.patch(f"{Config.TARANIS_CORE_URL}/bots/story/ed13a0b1-4f5f-4c43-bdf2-820ee0d43448/attributes", json={})
 
 

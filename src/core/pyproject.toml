@@ -32,7 +32,7 @@ dependencies = [
     "requests",
     "authlib",
     "setuptools",
-    "taranis-models>=1.3.3.dev2",
+    "taranis-models>=1.3.3.dev5",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]
@@ -110,8 +110,8 @@ typeCheckingMode = "standard"
 reportConstantRedefinition = "error"
 reportDuplicateImport = "error"
 reportMissingTypeStubs = "warning"
-reportMissingParameterType = "warning"
-reportMissingTypeArgument = "warning"
+reportMissingParameterType = "none"
+reportMissingTypeArgument = "none"
 
 reportDeprecated = "warning"
 reportMatchNotExhaustive = "warning"

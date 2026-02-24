@@ -46,10 +46,12 @@ def authenticate(credentials: dict[str, str]) -> Response:
     return current_authenticator.authenticate(credentials)
 
 
-def change_password(old_password: str, new_password: str) -> Response:
+def change_password(old_password: str, new_password: str, confirm_password: str) -> Response:
     try:
         if Config.TARANIS_AUTHENTICATOR != "database":
             return make_response({"error": "Password change is only supported with 'database' authenticator"}, 400)
+        if new_password != confirm_password:
+            return make_response({"error": "New password and confirm password do not match"}, 400)
         return DatabaseAuthenticator().change_password(current_user, old_password, new_password)
     except Exception:
         logger.exception("Error changing password")
@@ -129,6 +131,8 @@ def api_key_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data[Config.JWT_IDENTITY_CLAIM]

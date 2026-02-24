@@ -22,11 +22,10 @@ from uuid_extensions import uuid7str  # noqa: E402
 
 from frontend.config import Config  # noqa: E402
 from frontend.log import logger  # noqa: E402
-from frontend.views.base_view import BaseView  # noqa: E402
 from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
+from frontend.views.base_view import BaseView  # noqa: E402
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
-
 
 
 @pytest.fixture
@@ -590,6 +589,7 @@ def worker_parameter_data():
                     {"label": "FEED_URL", "name": "FEED_URL", "parent": "parameters", "rules": ["required"], "type": "text"},
                     {"label": "USER_AGENT", "name": "USER_AGENT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "CONTENT_LOCATION", "name": "CONTENT_LOCATION", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "USE_FEED_CONTENT", "name": "USE_FEED_CONTENT", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "XPATH", "name": "XPATH", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "PROXY_SERVER", "name": "PROXY_SERVER", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "TLP_LEVEL", "name": "TLP_LEVEL", "parent": "parameters", "rules": ["tlp"], "type": "text"},

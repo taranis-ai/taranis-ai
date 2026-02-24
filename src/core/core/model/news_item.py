@@ -93,10 +93,18 @@ class NewsItem(BaseModel):
         self.language = language
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
-        self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
-        self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
+        self.collected = self.get_date_field(collected)
+        self.published = self.get_date_field(published)
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
+
+    @staticmethod
+    def get_date_field(date_filed: str | datetime | None) -> datetime:
+        if isinstance(date_filed, datetime):
+            return date_filed
+        if isinstance(date_filed, str):
+            return datetime.fromisoformat(date_filed)
+        return datetime.now()
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:

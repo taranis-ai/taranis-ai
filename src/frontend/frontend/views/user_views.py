@@ -1,6 +1,7 @@
 from typing import Any
 
 from flask import render_template, request
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
@@ -35,12 +36,24 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def change_password(cls):
-        if result := CoreApi().api_post("/auth/change_password", json_data=request.form):
-            return cls.get_notification_from_response(result)
-        logger.error("Failed to change password.")
-        return render_template(
-            "user_profile/settings.html", user=current_user, notification={"message": "Failed to change password.", "error": True}
-        ), 200
+        result = CoreApi().api_post("/auth/change_password", json_data=request.form)
+        if result is not None and result.ok:
+            return cls.get_notification_from_response(result, oob=False)
+
+        error_message = None
+        if result is not None:
+            try:
+                payload = result.json() or {}
+                error_message = payload.get("error") or payload.get("message")
+            except Exception:
+                error_message = result.text
+        if not error_message:
+            error_message = "Failed to change password."
+        logger.error(error_message)
+        return (
+            render_template("notification/index.html", notification={"message": error_message, "error": True}, oob=False),
+            200,
+        )
 
     @classmethod
     @auth_required()
@@ -80,5 +93,5 @@ class UserProfileView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         return render_template("user_profile/profile.html", user=current_user), 200
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.post_settings_view()

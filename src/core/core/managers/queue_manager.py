@@ -666,9 +666,7 @@ class QueueManager:
                         scheduled_for: datetime | None = None
                         if isinstance(scheduled_time, datetime):
                             scheduled_for = (
-                                scheduled_time.astimezone(timezone.utc).replace(tzinfo=None)
-                                if scheduled_time.tzinfo
-                                else scheduled_time
+                                scheduled_time.astimezone(timezone.utc).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
                             )
 
                         # Get human-readable name from job args

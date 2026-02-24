@@ -1,14 +1,12 @@
-# GitHub Copilot Instructions
+# AGENTS Instructions
 
-This file contains project-specific instructions for GitHub Copilot to provide better context-aware assistance when working on the taranis.ai codebase.
-
-**For Contributors:** These instructions are automatically loaded by GitHub Copilot in VS Code and other supported IDEs. You don't need to manually reference this file - Copilot will use these hints to provide more accurate suggestions and explanations about the project structure and conventions.
+This file contains project-specific instructions for coding agents working on the taranis.ai codebase.
 
 ## Project Overview
 
 taranis.ai - an OSINT application
 
-See [README.md](../README.md) for more information.
+See [README.md](README.md) for more information.
 
 ## Development Environment
 
@@ -18,20 +16,14 @@ See [README.md](../README.md) for more information.
 - see pyproject.toml for the python packages used (and their versions)
 - uv.lock contains information about used libraries and their versions
 
-### Starting the Development Environment
+## Ask Developer Before Local Run Instructions
 
-The recommended way to start the development environment is to run `./dev/start_dev.sh` from the repository root. This script:
-1. Sources environment variables from `dev/env.dev`
-2. Installs system dependencies (Ubuntu only)
-3. Creates `.env` files for core, worker, and frontend components by copying `dev/env.dev`
-4. Starts Docker Compose services (PostgreSQL database + Redis) via `dev/compose.yml`
-5. Launches a tmux session via `start_tmux.sh` with 4 windows:
-   - **core**: Flask REST API (port 5001)
-   - **tailwind**: CSS watcher for frontend development
-   - **frontend**: Flask frontend (port 5002)
-   - **worker**: RQ workers for background tasks
-
-Each component automatically runs `uv sync` and starts its service when the tmux window is created.
+- do not assume every developer uses tmux
+- before suggesting local startup steps, ask which workflow they want:
+	- `./dev/start_dev.sh` (automated)
+	- manual service startup without tmux (start support services with `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals)
+	- manual tmux workflow from `dev/README.md`
+- if the developer does not specify a preference, propose `./dev/start_dev.sh` as default and mention alternatives briefly
 
 ## Architecture
 
@@ -72,12 +64,15 @@ See .github/workflows for how tests are configured in CI.
 - `uv run pytest tests/functional/` - run only functional tests
 - `uv run pytest -v` - verbose output
 - `uv run pytest -x` - stop on first failure
-- `uv run pytest tests/test_specific.py::test_function_name` - run specific test
+- `uv run pytest -v` - verbose output
+- `uv run pytest -x` - stop on first failure
+- `uv run pytest -k test_function_name` - run specific test
 
 **End-to-End (E2E) Tests:** Located in `src/core/tests/playwright/` and `src/frontend/tests/playwright/`
 - `uv run pytest tests/playwright/ --e2e-ci` - run e2e tests in CI mode
 - `uv run pytest tests/playwright/test_e2e_admin.py --e2e-ci` - run specific e2e test file
-- `uv run pytest tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_login --e2e-ci` - run specific test
+- `uv run pytest --e2e-ci` - run e2e tests in CI mode
+- `uv run pytest -k TestEndToEndAdmin` - run specific test
 - `--e2e-ci` flag is required for e2e tests to run properly
 - Add `--record-video` to record test execution videos
 - Add `--highlight-delay=2` to slow down test execution for debugging
@@ -103,7 +98,7 @@ See .github/workflows for how tests are configured in CI.
 - don't commit how many tests passed (statistics in commit messages are not useful)
 - do not use `pip` for any package installations or management, always use `uv`
 - do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs
-- run tests before comitting code
+- run tests before committing code
 - write tests for new features and bug fixes
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"

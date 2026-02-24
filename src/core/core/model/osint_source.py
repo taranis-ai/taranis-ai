@@ -113,7 +113,10 @@ class OSINTSource(BaseModel):
             base_query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             base_query = cls.get_filter_query(filter_args)
-        query = cls._add_paging_to_query(filter_args, base_query)
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
         items = cls.get_filtered(query) or []
         item_list = cls.to_list(items)
         if filter_args.get("order") == "status_asc":
@@ -473,6 +476,36 @@ class OSINTSource(BaseModel):
             source["type"] = source.pop("collector")["type"]
         return data
 
+    @staticmethod
+    def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            parameters = source.get("parameters")
+            if not isinstance(parameters, list):
+                continue
+
+            content_location_value: str | None = None
+            use_feed_content_index: int | None = None
+
+            for idx, parameter in enumerate(parameters):
+                if not isinstance(parameter, dict):
+                    continue
+                if "CONTENT_LOCATION" in parameter:
+                    content_location_value = str(parameter.get("CONTENT_LOCATION", ""))
+                if "USE_FEED_CONTENT" in parameter:
+                    use_feed_content_index = idx
+
+            if content_location_value is None and use_feed_content_index is None:
+                continue
+
+            target_value = "true" if content_location_value and content_location_value.strip() else "false"
+
+            if use_feed_content_index is not None:
+                parameters[use_feed_content_index]["USE_FEED_CONTENT"] = target_value
+            else:
+                parameters.append({"USE_FEED_CONTENT": target_value})
+
+        return sources
+
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
@@ -514,6 +547,7 @@ class OSINTSource(BaseModel):
         else:
             raise ValueError("Unsupported version")
 
+        data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids
