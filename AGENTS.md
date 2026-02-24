@@ -48,12 +48,15 @@ See .github/workflows for how tests are configured in CI.
 - `uv run pytest tests/functional/` - run only functional tests
 - `uv run pytest -v` - verbose output
 - `uv run pytest -x` - stop on first failure
-- `uv run pytest tests/test_specific.py::test_function_name` - run specific test
+- `uv run pytest -v` - verbose output
+- `uv run pytest -x` - stop on first failure
+- `uv run pytest -k test_function_name` - run specific test
 
 **End-to-End (E2E) Tests:** Located in `src/core/tests/playwright/` and `src/frontend/tests/playwright/`
 - `uv run pytest tests/playwright/ --e2e-ci` - run e2e tests in CI mode
 - `uv run pytest tests/playwright/test_e2e_admin.py --e2e-ci` - run specific e2e test file
-- `uv run pytest tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_login --e2e-ci` - run specific test
+- `uv run pytest --e2e-ci` - run e2e tests in CI mode
+- `uv run pytest -k TestEndToEndAdmin` - run specific test
 - `--e2e-ci` flag is required for e2e tests to run properly
 - Add `--record-video` to record test execution videos
 - Add `--highlight-delay=2` to slow down test execution for debugging
