@@ -10,6 +10,10 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
+The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
+Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
+You only need Docker/Compose available locally.
+
 ### Run tests in headful mode
 
 From `src/frontend` folder run:
@@ -71,5 +75,5 @@ Script has variables to influence dest. subdirectories of respective pictures. C
 
 ## DB file for E2E
 
-Defined in `src/core/tests/.env`.
-When tests are stopped from command line, remove the database file manually.
+The Core service uses an internal SQLite file inside its container for each test session.
+No manual cleanup is required.

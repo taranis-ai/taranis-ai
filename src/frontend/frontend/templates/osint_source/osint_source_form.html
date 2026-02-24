@@ -29,6 +29,8 @@
         {{ form_action }}
         hx-swap="innerHTML"
         hx-target="#form-container"
+        enctype="multipart/form-data"
+        hx-encoding="multipart/form-data"
         hx-target-error="#form-container">
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}

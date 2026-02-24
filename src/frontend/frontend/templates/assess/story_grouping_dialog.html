@@ -15,9 +15,8 @@
     </p>
     {# djlint: off #}
     <form id="sortable-form"
-          hx-post="{{ url_for('assess.submit_cluster_story') }}"
-          hx-target="#assess"
-          hx-on::after-request="document.getElementById('story_grouping_dialog').close()"
+          method="post"
+          action="{{ url_for('assess.submit_cluster_story') }}"
           x-init="
             const sortableContainer = $el.querySelector('#sortable-container');
             if (!sortableContainer || sortableContainer.dataset.sortableInitialized === 'true') return;
@@ -40,6 +39,7 @@
               }
             });
           ">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     {# djlint: on#}
     <div class="sortable" id="sortable-container">
       {% for story in stories %}
@@ -62,7 +62,13 @@
       {% endfor %}
     </div>
     <div class="flex flex-row gap-2">
-      <button type="submit" class="btn btn-outline w-1/2" data-testid="dialog-story-cluster-submit">Cluster</button>
+      <button type="button"
+              class="btn btn-outline w-1/2"
+              hx-post="{{ url_for('assess.submit_cluster_story') }}"
+              hx-target="#assess"
+              hx-include="#sortable-form"
+              hx-on::after-request="document.getElementById('story_grouping_dialog').close()"
+              data-testid="dialog-story-cluster-submit">Cluster</button>
       <button type="submit" name="open_primary" value="true" class="btn btn-primary w-1/2" data-testid="dialog-story-cluster-open">
         Cluster and Open
       </button>

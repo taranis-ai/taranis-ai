@@ -1,4 +1,4 @@
-import contextlib
+import base64
 import copy
 import os
 import random
@@ -8,12 +8,11 @@ import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse
+from pathlib import Path
 
 import pytest
 import requests
 import responses
-from dotenv import dotenv_values
 from flask import json
 from playwright.sync_api import Browser, Page
 
@@ -40,46 +39,34 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 
 @pytest.fixture(scope="session")
-def run_core(app):
-    # run the flask core as a subprocess in the background
-    process = None
+def docker_compose_file():
+    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+
+
+@pytest.fixture(scope="session")
+def docker_setup():
+    # Ensure stale stack is removed first, then start services and wait for healthchecks.
+    return ["down -v --remove-orphans", "up -d --wait"]
+
+
+@pytest.fixture(scope="session")
+def docker_cleanup():
+    return ["down -v --remove-orphans"]
+
+
+@pytest.fixture(scope="session")
+def run_core(docker_services):
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    core_port = os.getenv("TARANIS_CORE_PORT", "5000")
+    core_url = os.getenv("TARANIS_CORE_URL", f"http://127.0.0.1:{core_port}/api")
+
     try:
-        core_path = os.path.abspath("../core")
-        env = {}
-        if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
-            config = {k: v for k, v in config.items() if v}
-            env = config
-        env |= os.environ.copy()
-        env["PYTHONPATH"] = core_path
-        env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
-        taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
-        taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
-        with contextlib.suppress(Exception):
-            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
-            os.remove(f"{parsed_uri.path}")
-
-        print(f"Starting Taranis Core on port {taranis_core_port}")
-        process = subprocess.Popen(
-            ["flask", "run", "--no-reload", "--port", taranis_core_port],
-            cwd=core_path,
-            env=env,
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE,
-            universal_newlines=True,
-        )
-
-        core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+        print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
         _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
-
         yield core_url
-
     except Exception as e:
         pytest.fail(str(e))
-    finally:
-        if process:
-            process.terminate()
-            process.wait()
 
 
 @pytest.fixture(scope="session")
@@ -126,31 +113,40 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def setup_test_templates():
-    """Set up test template files for e2e tests."""
-    import shutil
-    from pathlib import Path
-
-    # Get paths
+def setup_test_templates(run_core, access_token):
+    """Set up test template files for e2e tests via core API."""
     test_data_dir = Path(__file__).parent / "testdata"
-    core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-type": "application/json",
+    }
 
-    # Ensure the core templates directory exists
-    core_templates_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy test template files
-    copied_files = []
+    uploaded_templates = []
     for test_file in test_data_dir.glob("*.html"):
-        dest_file = core_templates_dir / test_file.name
-        shutil.copy2(test_file, dest_file)
-        copied_files.append(dest_file)
+        payload = {
+            "id": test_file.name,
+            "content": base64.b64encode(test_file.read_bytes()).decode("utf-8"),
+        }
+        response = requests.post(
+            f"{run_core}/config/templates",
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        uploaded_templates.append(test_file.name)
 
     yield
 
-    # Cleanup: remove test template files
-    for file_path in copied_files:
-        if file_path.exists():
-            file_path.unlink()
+    for template_name in uploaded_templates:
+        try:
+            requests.delete(
+                f"{run_core}/config/templates/{template_name}",
+                headers=headers,
+                timeout=30,
+            )
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="session")
