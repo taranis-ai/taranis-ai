@@ -2,8 +2,7 @@ from io import BytesIO
 from typing import Any
 
 from minio import Minio
-
-from worker.types import Product
+from models.product import WorkerProduct as Product
 
 from .base_publisher import BasePublisher
 

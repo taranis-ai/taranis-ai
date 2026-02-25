@@ -2,7 +2,8 @@ import datetime
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, json, make_response, redirect, render_template, request, url_for
+from flask import abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
@@ -95,7 +96,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_sharing_dialog(cls) -> Response:
+    def submit_sharing_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         if not story_ids:
             return make_response(cls.render_response_notification({"error": "No stories selected for sharing."}), 400)
@@ -152,7 +153,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_report_dialog(cls) -> Response:
+    def submit_report_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
@@ -175,7 +176,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_cluster_dialog(cls) -> Response:
+    def submit_cluster_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         open_primary_story = request.form.get("open_primary") == "true"
         if len(story_ids) < 2:
@@ -190,9 +191,7 @@ class StoryView(BaseView):
         if open_primary_story and getattr(response, "ok", False):
             primary_story_id = story_ids[0]
             cls.add_flash_notification(response)
-            flask_response = make_response(notification_html, response.status_code or 200)
-            flask_response.headers["HX-Redirect"] = url_for("assess.story", story_id=primary_story_id)
-            return flask_response
+            return cls.redirect_htmx(url_for("assess.story", story_id=primary_story_id))
 
         return cls.rerender_list(notification=notification_html)
 
@@ -204,7 +203,7 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def submit_search_dialog(cls) -> Response:
+    def submit_search_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
@@ -375,32 +374,28 @@ class StoryView(BaseView):
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
 
-    @classmethod
-    def update_from_form(cls, story_id: str):
-        core_response, error = cls.process_form_data(story_id)
-        if error or not core_response:
-            error_payload = error if isinstance(error, dict) else {"error": error or "Failed to update story."}
-            notification_html = render_template(
-                "notification/index.html",
-                notification=cls.get_notification_from_dict(error_payload),
-            )
-            content = render_template(
-                "assess/story_edit_content.html",
-                **cls.get_item_context(story_id),
-            )
-            response = make_response(notification_html + content, 400)
-            response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
-            return response
+    @staticmethod
+    def _extract_report_ids_from_story_data(story_data: Any) -> list[str]:
+        tags = story_data.get("tags") if isinstance(story_data, dict) else None
+        report_ids: list[str] = []
+        for tag in tags or []:
+            tag_type = tag.get("tag_type")
+            if isinstance(tag_type, str) and tag_type.startswith("report_"):
+                if report_id := tag_type.split("report_", 1)[1]:
+                    report_ids.append(report_id)
 
-        notification_html = cls.render_response_notification(core_response)
-        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        content = render_template(
-            "assess/story_edit_content.html",
-            **cls.get_item_context(story_id),
-        )
-        response = make_response(notification_html + content, 200)
-        response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): story_id})
-        return response
+        return report_ids
+
+    @classmethod
+    def _invalidate_related_report_caches(cls, core_response: Any) -> None:
+        story_data = None
+        if isinstance(core_response, dict):
+            story_data = core_response.get("story")
+        report_ids = cls._extract_report_ids_from_story_data(story_data)
+        if not report_ids:
+            return
+        for report_id in report_ids:
+            DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
 
     @classmethod
     @auth_required()
@@ -455,7 +450,7 @@ class StoryView(BaseView):
         content_builder: Callable[[str], str] | None = None,
         redirect_on_story: bool = False,
         status_override: int | None = None,
-    ) -> Response:
+    ) -> ResponseReturnValue:
         try:
             story_id = core_response.json().get("story_id", "")
         except Exception:
@@ -478,7 +473,7 @@ class StoryView(BaseView):
         return make_response(notification + content, status)
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> Response:
+    def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
@@ -511,19 +506,23 @@ class StoryView(BaseView):
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
-            return cls.render_response_notification({"error": "No selected file."}), 400
+            flash("No file selected for upload", "error")
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
         elif file.mimetype not in ["text/plain", "application/json"]:
-            return cls.render_response_notification({"error": "Unsupported file type. Please upload a .txt or .json file."}), 400
+            flash("Unsupported file type. Please upload a .txt or .json file.", "error")
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
 
         try:
             data = file.read()
             json_data = json.loads(data)
-            news_item = NewsItem(**json_data)
-            core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
-            return cls.news_item_edit_view(core_response)
+            core_response = CoreApi().api_post("/assess/import", json_data=json_data)
+            cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
         except Exception:
             logger.exception("Failed to create news item from file.")
-            return cls.render_response_notification({"error": "Failed to create news item from file."}), 400
+            flash("Failed to create news item from file", "error")
+
+        return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
 
     @classmethod
     def _create_news_item_from_url(cls, url: str):
@@ -621,6 +620,30 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def export_stories(cls):
+        story_ids = request.args.getlist("story_ids")
+        if not story_ids:
+            logger.warning("No story IDs provided for export.")
+            return cls.render_response_notification({"error": "Failed to export stories."}), 400
+
+        try:
+            paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
+            stories = DataPersistenceLayer().get_objects(Story, paging_data)
+            export_data = [story.model_dump(mode="json") for story in stories.items]
+
+            response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
+            flask_response = make_response(response_data, 200)
+            flask_response.headers["Content-Type"] = "application/json"
+            flask_response.headers["Content-Disposition"] = (
+                f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+            )
+            return flask_response
+        except Exception:
+            logger.exception("Failed to export stories.")
+            return cls.render_response_notification({"error": "Failed to export stories."}), 500
+
+    @classmethod
+    @auth_required()
     def patch_story(cls, story_id: str):
         try:
             form_data = parse_formdata(request.form)
@@ -635,6 +658,7 @@ class StoryView(BaseView):
         notification_html = cls.get_notification_from_response(response)
 
         DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
+        cls._invalidate_related_report_caches(response.json())
 
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
@@ -649,14 +673,14 @@ class StoryView(BaseView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | Response:
+    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
 
         return self.patch_story(story_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | Response:
+    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
