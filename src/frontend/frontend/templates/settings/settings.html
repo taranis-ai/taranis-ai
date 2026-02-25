@@ -81,26 +81,43 @@
         <h2 class="card-title">Export Stories</h2>
         {% set export_url = links.export_stories | admin_action %}
 
-        <form method="get" action="{{ export_url }}" class="mt-3 space-y-3">
-          <div class="grid grid-cols-2 gap-3">
-            <label class="input w-full p-1">
-              <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
-              <input name="timefrom" type="datetime-local" class="input-bordered input-xs -ml-3" data-testid="story-export-time-from">
-            </label>
+        <div class="mt-3" hx-boost="false">
+          <button class="btn btn-outline btn-info"
+                  type="button"
+                  data-testid="story-export-button"
+                  data-export-open
+                  onclick="document.getElementById('export_stories_dialog').showModal()">Export</button>
+        </div>
+        <dialog id="export_stories_dialog" class="modal" data-export-dialog>
+          <div class="modal-box">
+            <form method="dialog">
+              <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mt-1 mb-4">Export Stories</h3>
+            <form method="get" action="{{ export_url }}" class="space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                <label class="input w-full p-1">
+                  <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
+                  <input name="timefrom" type="datetime-local" class="input-bordered input-xs -ml-3" data-testid="story-export-time-from">
+                </label>
 
-            <label class="input w-full p-1">
-              <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
-              <input name="timeto" type="datetime-local" class="input-bordered input-xs -ml-3" data-testid="story-export-time-to">
-            </label>
+                <label class="input w-full p-1">
+                  <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
+                  <input name="timeto" type="datetime-local" class="input-bordered input-xs -ml-3" data-testid="story-export-time-to">
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2 join">
+                <button class="btn btn-outline btn-info" type="submit" data-testid="story-export-dialog-button">All Stories</button>
+                <button class="btn btn-outline btn-info" type="submit" name="metadata" value="true" data-testid="story-export-dialog-with-metadata-button">
+                  All Stories With Metadata
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div class="grid grid-cols-2 gap-2 join" hx-boost="false">
-            <button class="btn btn-outline btn-info" type="submit" data-testid="story-export-button">Export all Stories</button>
-            <button class="btn btn-outline btn-info" type="submit" name="metadata" value="true"data-testid="story-export-with-metadata-button">
-              Export all Stories with metadata
-            </button>
-          </div>
-        </form>
+          <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+          </form>
+        </dialog>
       </div>
     </div>
   </div>
