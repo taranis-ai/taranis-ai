@@ -970,10 +970,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def test_export_all_stories(story_list):
             export_btn = page.get_by_test_id("story-export-button")
+            export_all_btn = page.get_by_test_id("story-export-dialog-button")
+            export_dialog = page.locator("dialog[data-export-dialog]")
 
             # export all stories
+            self.highlight_element(export_btn).click()
+            expect(export_dialog).to_be_visible()
             with page.expect_download() as dl_info:
-                self.highlight_element(export_btn).click()
+                self.highlight_element(export_all_btn).click()
             download = dl_info.value
             assert download is not None
             download_path = download.path()
@@ -1000,14 +1004,22 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             assert expected_stories == received_stories, "Exported stories do not match stories in DB"
 
+            if export_dialog.is_visible():
+                page.keyboard.press("Escape")
+            expect(export_dialog).not_to_be_visible()
+
         def test_export_stories_metadata_time_filter(story_list):
-            export_meta_btn = page.get_by_test_id("story-export-with-metadata-button")
+            export_btn = page.get_by_test_id("story-export-button")
+            export_meta_btn = page.get_by_test_id("story-export-dialog-with-metadata-button")
             time_from_input = page.get_by_test_id("story-export-time-from")
             time_to_input = page.get_by_test_id("story-export-time-to")
+            export_dialog = page.locator("dialog[data-export-dialog]")
 
             time_from = "2024-05-01T00:00"
             time_to = "2024-06-01T00:00"
 
+            self.highlight_element(export_btn).click()
+            expect(export_dialog).to_be_visible()
             time_from_input.fill(time_from)
             time_to_input.fill(time_to)
 
