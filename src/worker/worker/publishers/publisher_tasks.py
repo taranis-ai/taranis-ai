@@ -3,6 +3,7 @@
 Functions for publishing products to external systems.
 """
 
+from models.product import WorkerProduct as Product
 from rq import get_current_job
 
 import worker.publishers
