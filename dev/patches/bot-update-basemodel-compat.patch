@@ -1,0 +1,163 @@
+diff --git a/src/core/core/api/bots.py b/src/core/core/api/bots.py
+index 74898c64..0f0a4cfd 100644
+--- a/src/core/core/api/bots.py
++++ b/src/core/core/api/bots.py
+@@ -116,7 +116,7 @@ class BotsInfo(MethodView):
+ 
+     @api_key_required
+     def put(self, bot_id):
+-        if bot_result := bot.Bot.update(bot_id, request.json):
++        if bot_result := bot.Bot.update_by_id(bot_id, request.json):
+             return {"message": f"Bot {bot_result.name} updated", "id": bot_result.id}, 200
+         return {"message": f"Bot {bot_id} not found"}, 404
+ 
+diff --git a/src/core/core/api/config.py b/src/core/core/api/config.py
+index 04941d46..d95bee71 100644
+--- a/src/core/core/api/config.py
++++ b/src/core/core/api/config.py
+@@ -425,7 +425,7 @@ class Bots(MethodView):
+         if not (update_data := request.json):
+             return {"error": "No update data passed"}, 400
+         try:
+-            if updated_bot := bot.Bot.update(bot_id, update_data):
++            if updated_bot := bot.Bot.update_by_id(bot_id, update_data):
+                 logger.debug(f"Successfully updated {updated_bot}")
+                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
+         except ValueError as e:
+diff --git a/src/core/core/api/worker.py b/src/core/core/api/worker.py
+index 14a794d6..e1f12f9e 100644
+--- a/src/core/core/api/worker.py
++++ b/src/core/core/api/worker.py
+@@ -260,7 +260,9 @@ class BotInfo(MethodView):
+ 
+     @api_key_required
+     def put(self, bot_id):
+-        return Bot.update(bot_id, request.json)
++        if updated_bot := Bot.update_by_id(bot_id, request.json):
++            return updated_bot.to_dict(), 200
++        return {"error": f"Bot with id {bot_id} not found"}, 404
+ 
+ 
+ class PostCollectionBots(MethodView):
+diff --git a/src/core/core/model/bot.py b/src/core/core/model/bot.py
+index f20237c8..2c8a6e3a 100644
+--- a/src/core/core/model/bot.py
++++ b/src/core/core/model/bot.py
+@@ -2,6 +2,7 @@ import uuid
+ from datetime import datetime
+ from typing import Any, Sequence
+ 
++from models.admin import CronSpec
+ from models.types import BOT_TYPES
+ from sqlalchemy import func
+ from sqlalchemy.orm import Mapped, relationship
+@@ -47,25 +48,39 @@ class Bot(BaseModel):
+         return f"bot_{self.id}"
+ 
+     @classmethod
+-    def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
+-        bot = cls.get(bot_id)
+-        if not bot:
+-            return None
+-        if name := data.get("name"):
+-            bot.name = name
++    def add(cls, data):
++        bot = super().add(data)
++        bot.schedule_bot()
++        return bot
+ 
+-        bot.description = data.get("description", "")
+-        if parameters := data.get("parameters"):
++    def update(self, item: dict[str, Any]) -> tuple[dict[str, Any], int]:
++        if name := item.get("name"):
++            self.name = name
++
++        self.description = item.get("description", "")
++        if parameters := item.get("parameters"):
+             update_parameter = ParameterValue.get_or_create_from_list(parameters)
+-            bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
+-        if index := data.get("index"):
++            self.parameters = ParameterValue.get_update_values(self.parameters, update_parameter)
++        if index := item.get("index"):
+             if not Bot.index_exists(index):
+-                bot.index = index
++                self.index = index
+         db.session.commit()
+ 
+-        # Notify cron scheduler of config change
+-        bot._publish_cron_reload(f"bot_{bot_id}")
++        if self.enabled and self.get_schedule():
++            self.schedule_bot()
++        else:
++            self.unschedule_bot()
++
++        # Keep cache invalidation for UI schedule views.
++        self._publish_cron_reload(f"bot_{self.id}")
+ 
++        return self.to_dict(), 200
++
++    @classmethod
++    def update_by_id(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
++        if not (bot := cls.get(bot_id)):
++            return None
++        bot.update(data)
+         return bot
+ 
+     @classmethod
+@@ -117,6 +132,7 @@ class Bot(BaseModel):
+         if not bot:
+             return {"error": "Bot not found"}, 404
+ 
++        bot.unschedule_bot()
+         TaskModel.delete(bot.task_id)
+         db.session.delete(bot)
+         db.session.commit()
+@@ -125,6 +141,30 @@ class Bot(BaseModel):
+     def get_schedule(self) -> str:
+         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+ 
++    def get_cron_spec(self) -> CronSpec:
++        return CronSpec(
++            meta={"name": f"Bot: {self.name}"},
++            job_id=f"bot_{self.id}",
++            cron=self.get_schedule(),
++            func_path="bot_task",
++            args=[self.id],
++            queue_name="bots",
++        )
++
++    def schedule_bot(self):
++        from core.managers import queue_manager
++
++        cron_schedule = self.get_schedule()
++        if not self.enabled or not cron_schedule:
++            return False
++
++        return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
++
++    def unschedule_bot(self):
++        from core.managers import queue_manager
++
++        return queue_manager.queue_manager.unregister_cron_job(f"bot_{self.id}")
++
+     @classmethod
+     def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
+         """Get schedule entries for all enabled bots.
+@@ -181,13 +221,12 @@ class Bot(BaseModel):
+ 
+     @classmethod
+     def schedule_all_bots(cls):
+-        """Schedule all enabled bots using RQ cron scheduler
+-
+-        Note: Just logs - the cron scheduler automatically picks up bots from database.
+-        """
++        """Schedule all enabled bots with cron definitions."""
+         bots = cls.get_all_for_collector()
+         enabled_with_schedule = [bot for bot in bots if bot.get_schedule()]
+-        logger.info(f"Found {len(enabled_with_schedule)} enabled bots with schedules. Cron scheduler will pick them up automatically.")
++        for bot in enabled_with_schedule:
++            bot.schedule_bot()
++        logger.info(f"Scheduling for {len(enabled_with_schedule)} bots completed")
+ 
+     def _publish_cron_reload(self, reason: str):
+         """Publish a signal to reload cron scheduler configuration"""
