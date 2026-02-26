@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import shutil
 import socket
@@ -166,7 +167,7 @@ def worker_process(core_process: str, redis_backend: dict[str, str]) -> Generato
     }
     worker_path = str(REPO_ROOT / "src" / "worker")
     proc = subprocess.Popen(
-        ["uv", "run", "--directory", worker_path, "python", "-m", "worker"],
+        ["uv", "run", "--no-sync", "--frozen", "--directory", worker_path, "python", "-m", "worker"],
         cwd=str(REPO_ROOT),
         env=env,
         stdout=subprocess.PIPE,
@@ -187,6 +188,13 @@ def worker_process(core_process: str, redis_backend: dict[str, str]) -> Generato
         output = proc.stdout.read() if proc.stdout else ""
         raise RuntimeError(f"Worker failed to become ready: {exc}\nOutput:\n{output}") from exc
     yield
+
+    if proc.poll() is not None:
+        output = proc.stdout.read() if proc.stdout else ""
+        if proc.returncode not in (0, None):
+            raise RuntimeError(f"Cron scheduler crashed during test run. Output:\n{output}")
+        return
+
     proc.terminate()
     try:
         proc.wait(timeout=10)
@@ -201,10 +209,11 @@ def cron_process(core_process: str, redis_backend: dict[str, str]) -> Generator[
         "REDIS_URL": redis_backend["url"],
         "REDIS_PASSWORD": redis_backend["password"],
         "TARANIS_CORE_URL": core_process,
+        "CRON_POLL_INTERVAL_SECONDS": "1.0",
     }
     worker_path = str(REPO_ROOT / "src" / "worker")
     proc = subprocess.Popen(
-        ["uv", "run", "--directory", worker_path, "python", "start_cron_scheduler.py"],
+        ["uv", "run", "--no-sync", "--frozen", "--directory", worker_path, "python", "-m", "worker.cron_scheduler"],
         cwd=str(REPO_ROOT),
         env=env,
         stdout=subprocess.PIPE,
@@ -214,6 +223,19 @@ def cron_process(core_process: str, redis_backend: dict[str, str]) -> Generator[
     if proc.poll() is not None:
         output = proc.stdout.read() if proc.stdout else ""
         raise RuntimeError(f"Cron scheduler exited immediately. Output:\n{output}")
+
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            output = proc.stdout.read() if proc.stdout else ""
+            raise RuntimeError(f"Cron scheduler exited during startup. Output:\n{output}")
+        if redis_conn.get("rq:cron:leader"):
+            break
+        time.sleep(0.5)
+    else:
+        output = proc.stdout.read() if proc.stdout else ""
+        raise RuntimeError(f"Cron scheduler did not become active. Output:\n{output}")
     yield
     proc.terminate()
     try:
@@ -344,10 +366,63 @@ def _poll_task_result(
     raise RuntimeError(f"Task {task_id} did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}")
 
 
+def _poll_cron_registration(
+    redis_backend: dict[str, str],
+    job_id: str,
+    timeout_seconds: int = 15,
+) -> dict:
+    """Wait until a cron spec and its next run timestamp are registered in Redis."""
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    deadline = time.monotonic() + timeout_seconds
+    last_raw_spec = None
+    last_next = None
+
+    while time.monotonic() < deadline:
+        last_raw_spec = redis_conn.hget("rq:cron:def", job_id)
+        last_next = redis_conn.zscore("rq:cron:next", job_id)
+        if last_raw_spec and last_next is not None:
+            parsed = json.loads(last_raw_spec.decode() if isinstance(last_raw_spec, bytes) else last_raw_spec)
+            return parsed
+        time.sleep(0.5)
+
+    raise RuntimeError(
+        f"Cron job {job_id} was not registered in Redis within {timeout_seconds}s. "
+        f"spec={last_raw_spec!r}, next={last_next!r}"
+    )
+
+
+def _poll_cron_expression(
+    redis_backend: dict[str, str],
+    job_id: str,
+    expected_cron: str,
+    timeout_seconds: int = 10,
+) -> dict:
+    """Wait until a cron spec is present in Redis with the expected cron expression."""
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    deadline = time.monotonic() + timeout_seconds
+    last_spec = None
+
+    while time.monotonic() < deadline:
+        raw_spec = redis_conn.hget("rq:cron:def", job_id)
+        if raw_spec:
+            parsed = json.loads(raw_spec.decode() if isinstance(raw_spec, bytes) else raw_spec)
+            last_spec = parsed
+            if parsed.get("cron") == expected_cron:
+                return parsed
+        time.sleep(0.5)
+
+    raise RuntimeError(
+        f"Cron spec for {job_id} did not update to {expected_cron!r} within {timeout_seconds}s. "
+        f"last_spec={last_spec!r}"
+    )
+
+
 def _poll_collector_task_result(
     core_url: str,
     headers: dict[str, str],
     source_name: str,
+    redis_backend: dict[str, str] | None = None,
+    cron_job_id: str | None = None,
     timeout_seconds: int = 90,
 ) -> dict:
     deadline = time.monotonic() + timeout_seconds
@@ -363,9 +438,17 @@ def _poll_collector_task_result(
                         if item.get("status") == "SUCCESS":
                             return item
         time.sleep(1.0)
+    details = ""
+    if redis_backend and cron_job_id:
+        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+        next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
+        spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
+        queued = redis_conn.llen("rq:queue:collectors")
+        failed = redis_conn.zcard("rq:failed:collectors")
+        details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
     raise RuntimeError(
         f"Collector task for source '{source_name}' did not report SUCCESS within {timeout_seconds}s. "
-        f"Last payload: {last_payload}"
+        f"Last payload: {last_payload}.{details}"
     )
 
 
@@ -373,6 +456,8 @@ def _poll_bot_task_result(
     core_url: str,
     headers: dict[str, str],
     bot_task_name: str,
+    redis_backend: dict[str, str] | None = None,
+    cron_job_id: str | None = None,
     timeout_seconds: int = 90,
 ) -> dict:
     deadline = time.monotonic() + timeout_seconds
@@ -387,9 +472,17 @@ def _poll_bot_task_result(
                     if item.get("task") == bot_task_name and item.get("status") == "SUCCESS":
                         return item
         time.sleep(1.0)
+    details = ""
+    if redis_backend and cron_job_id:
+        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+        next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
+        spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
+        queued = redis_conn.llen("rq:queue:bots")
+        failed = redis_conn.zcard("rq:failed:bots")
+        details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
     raise RuntimeError(
         f"Bot task '{bot_task_name}' did not report SUCCESS within {timeout_seconds}s. "
-        f"Last payload: {last_payload}"
+        f"Last payload: {last_payload}.{details}"
     )
 
 
@@ -448,6 +541,7 @@ def test_rq_scheduled_collector_cron(
     core_process: str,
     worker_process: None,
     cron_process: None,
+    redis_backend: dict[str, str],
     rss_server: str,
 ) -> None:
     token = _login(core_process)
@@ -472,10 +566,86 @@ def test_rq_scheduled_collector_cron(
     create_resp.raise_for_status()
     source_id = create_resp.json().get("id")
     assert source_id, "osint source id missing"
+    _poll_cron_registration(redis_backend, f"osint_source_{source_id}")
 
     # Use cron schedule (every minute) and wait for scheduler + worker to execute it.
-    payload = _poll_collector_task_result(core_process, headers, source_payload["name"], timeout_seconds=90)
+    payload = _poll_collector_task_result(
+        core_process,
+        headers,
+        source_payload["name"],
+        redis_backend=redis_backend,
+        cron_job_id=f"osint_source_{source_id}",
+        timeout_seconds=90,
+    )
     assert payload.get("status") == "SUCCESS"
+
+
+@pytest.mark.e2e_ci
+def test_rq_osint_cron_update_immediately_refreshes_next_run(
+    core_process: str,
+    cron_process: None,
+    redis_backend: dict[str, str],
+    rss_server: str,
+) -> None:
+    token = _login(core_process)
+    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+
+    initial_cron = "0 0 1 1 *"
+    updated_cron = "*/1 * * * *"
+
+    create_payload = {
+        "name": "E2E Cron Reload Source",
+        "description": "E2E source for cron update reload behavior",
+        "type": "RSS_COLLECTOR",
+        "parameters": [
+            {"parameter": "FEED_URL", "value": rss_server, "type": "text", "rules": "required"},
+            {"parameter": "REFRESH_INTERVAL", "value": initial_cron, "type": "cron_interval"},
+        ],
+    }
+    create_resp = requests.post(
+        f"{core_process}/config/osint-sources",
+        headers=headers,
+        json=create_payload,
+        timeout=5,
+    )
+    create_resp.raise_for_status()
+    source_id = create_resp.json().get("id")
+    assert source_id, "osint source id missing"
+    job_id = f"osint_source_{source_id}"
+
+    registered_spec = _poll_cron_registration(redis_backend, job_id)
+    assert registered_spec.get("cron") == initial_cron
+
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    initial_next = redis_conn.zscore("rq:cron:next", job_id)
+    assert initial_next is not None
+
+    update_payload = {
+        "parameters": [
+            {"parameter": "REFRESH_INTERVAL", "value": updated_cron, "type": "cron_interval"},
+        ]
+    }
+    update_resp = requests.put(
+        f"{core_process}/config/osint-sources/{source_id}",
+        headers=headers,
+        json=update_payload,
+        timeout=5,
+    )
+    update_resp.raise_for_status()
+
+    updated_spec = _poll_cron_expression(redis_backend, job_id, updated_cron)
+    assert updated_spec.get("cron") == updated_cron
+
+    deadline = time.monotonic() + 4.0
+    next_after_update = redis_conn.zscore("rq:cron:next", job_id)
+    while time.monotonic() < deadline and next_after_update == initial_next:
+        time.sleep(0.5)
+        next_after_update = redis_conn.zscore("rq:cron:next", job_id)
+
+    assert next_after_update is not None
+    assert next_after_update != initial_next, (
+        "Expected scheduler to immediately recompute rq:cron:next after cron spec update"
+    )
 
 
 @pytest.mark.e2e_ci
@@ -483,6 +653,7 @@ def test_rq_scheduled_wordlist_bot_cron(
     core_process: str,
     worker_process: None,
     cron_process: None,
+    redis_backend: dict[str, str],
     wordlist_server: str,
 ) -> None:
     token = _login(core_process)
@@ -552,6 +723,14 @@ def test_rq_scheduled_wordlist_bot_cron(
         timeout=5,
     )
     bot_update.raise_for_status()
+    _poll_cron_registration(redis_backend, f"bot_{bot_id}")
 
-    payload = _poll_bot_task_result(core_process, headers, f"bot_{bot_id}", timeout_seconds=90)
+    payload = _poll_bot_task_result(
+        core_process,
+        headers,
+        f"bot_{bot_id}",
+        redis_backend=redis_backend,
+        cron_job_id=f"bot_{bot_id}",
+        timeout_seconds=90,
+    )
     assert payload.get("status") == "SUCCESS"
