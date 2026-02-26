@@ -166,7 +166,7 @@ The development setup includes an **RQ Cron Scheduler** that automatically enque
 
 * Monitors OSINT sources and bots with cron schedules in the database
 * Automatically enqueues collection and bot tasks at their scheduled times
-* Dynamically updates when schedules change (reloads configuration)
+* Picks up definition changes from Redis on each poll cycle
 
 When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in window 4.
 
@@ -175,14 +175,14 @@ When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in
 cd src/worker
 uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
 uv pip install -e ../models
-uv run --no-sync --frozen python start_cron_scheduler.py
+uv run --no-sync --frozen python -m worker.cron_scheduler
 ```
 
 **Updating schedules:**
 When you update a source/bot schedule in the database (via the UI or API):
 1. The change is immediately saved to the database
-2. The cron scheduler will automatically reload and pick up the changes
-3. For immediate updates during development, you can restart the cron scheduler window in tmux (Ctrl+b, then select window 4, Ctrl+C to stop, up arrow and Enter to restart)
+2. Core updates the cron definition in Redis
+3. The cron scheduler picks up the change on the next poll cycle
 
 ### RQ Dashboard
 

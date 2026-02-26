@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Show registered cron schedulers
-
-This script displays all active RQ cron schedulers.
+"""Show cron scheduler status for the Redis-backed scheduler.
 
 Usage:
     python show_cron_jobs.py
@@ -11,51 +9,43 @@ Or using uv:
 """
 
 from redis import Redis
-from rq.cron import CronScheduler
 
 from worker.config import Config
 from worker.log import logger
 
 
-def show_cron_schedulers():
-    """Display all active cron schedulers."""
-    try:
-        # Connect to Redis
-        redis_conn = Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
+DEFS_KEY = "rq:cron:def"
+NEXT_KEY = "rq:cron:next"
+LOCK_KEY = "rq:cron:leader"
 
+
+def show_cron_status():
+    """Display scheduler lock state and cron definition counters."""
+    try:
+        redis_conn = Redis.from_url(Config.REDIS_URL, password=Config.REDIS_PASSWORD, decode_responses=False)
         logger.info(f"Connecting to Redis: {Config.REDIS_URL}")
         redis_conn.ping()
 
-        # Get all active schedulers
-        logger.info("Fetching active cron schedulers...")
-        schedulers = CronScheduler.all(redis_conn)
+        leader_raw = redis_conn.get(LOCK_KEY)
+        defs_count = redis_conn.hlen(DEFS_KEY)
+        next_count = redis_conn.zcard(NEXT_KEY)
 
-        if not schedulers:
-            print("\n❌ No active cron schedulers found")
-            print("\nMake sure the RQ cron scheduler is running:")
-            print("  uv run python start_cron_scheduler.py")
+        if not leader_raw:
+            print("\nNo active cron scheduler leader found.")
+            print("Start scheduler with:")
+            print("  uv run python -m worker.cron_scheduler")
+            print(f"\nDefinitions in Redis: {defs_count}")
+            print(f"Next-run entries in Redis: {next_count}")
             return
 
-        print(f"\n✅ Found {len(schedulers)} active cron scheduler(s):\n")
-        print("=" * 80)
-
-        for scheduler in schedulers:
-            print(f"\nScheduler Name: {scheduler.name}")
-            print(f"Hostname: {scheduler.hostname}")
-            print(f"PID: {scheduler.pid}")
-            print(f"Created At: {scheduler.created_at}")
-            print(f"Last Heartbeat: {scheduler.last_heartbeat}")
-            if hasattr(scheduler, "config_file") and scheduler.config_file:
-                print(f"Config File: {scheduler.config_file}")
-            print("-" * 80)
-
-        print("\n📝 Note: Individual cron jobs are registered within the scheduler")
-        print("   process and are not visible externally. Check the scheduler logs")
-        print("   to see which jobs have been registered.")
-
+        leader = leader_raw.decode() if isinstance(leader_raw, bytes) else str(leader_raw)
+        print("\nActive cron scheduler leader:")
+        print(f"  {leader}")
+        print(f"\nDefinitions in Redis: {defs_count}")
+        print(f"Next-run entries in Redis: {next_count}")
     except Exception as e:
-        logger.exception(f"Failed to fetch cron schedulers: {e}")
+        logger.exception(f"Failed to fetch cron scheduler status: {e}")
 
 
 if __name__ == "__main__":
-    show_cron_schedulers()
+    show_cron_status()

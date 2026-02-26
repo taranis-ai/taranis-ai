@@ -7,14 +7,13 @@ Architecture:
 1. Core Application (this module):
    - Manages RQ queues (collectors, bots, presenters, publishers, etc.)
    - Enqueues immediate tasks via enqueue_task()
-   - Provides API endpoints for workers to fetch schedules
+   - Stores cron definitions in Redis (`rq:cron:def`)
 
-2. RQ Cron Scheduler (separate process):
-   - Runs as standalone process (src/worker/start_cron_scheduler.py)
-   - Loads cron configuration from worker.cron_config module
-   - Fetches all enabled sources/bots from Core API
-   - Registers cron jobs with RQ using register()
-   - Automatically enqueues jobs at specified cron intervals
+2. Cron Scheduler (separate worker process):
+   - Runs as `python -m worker.cron_scheduler`
+   - Polls Redis for cron definitions (`rq:cron:def`)
+   - Tracks next run timestamps in `rq:cron:next`
+   - Uses leader lock `rq:cron:leader` for single active scheduler
 
 3. RQ Workers:
    - Pick up enqueued jobs from queues
@@ -25,12 +24,8 @@ Schedule Updates:
 ----------------
 When a source/bot schedule is updated:
 1. Changes are saved to the database
-2. This manager publishes a `taranis:cron:reload` signal via Redis
-3. The cron scheduler process (see `CronReloader`) listens to that channel and reloads jobs immediately
-
-Manual restarts are only required if the scheduler process itself is offline.
-
-See: src/worker/worker/cron_config.py for cron job registration logic
+2. Core upserts/deletes the job definition in `rq:cron:def`
+3. The scheduler process picks up changes on its next poll cycle
 """
 
 import json
@@ -588,14 +583,13 @@ class QueueManager:
 
         all_jobs: list[dict[str, Any]] = []
         try:
-            scheduler_names = self._redis.zrange("rq:cron_schedulers", 0, -1)  # type: ignore
-            scheduler_count = len(scheduler_names) if scheduler_names else 0  # type: ignore
-
-            if scheduler_count <= 0:
+            leader_raw = self._redis.get("rq:cron:leader")
+            if not leader_raw:
                 logger.info("No active cron schedulers found")
                 return all_jobs
 
-            logger.debug(f"Found {scheduler_count} active cron scheduler(s) - fetching schedules from database")
+            leader = leader_raw.decode() if isinstance(leader_raw, bytes) else str(leader_raw)
+            logger.debug(f"Found active cron scheduler leader '{leader}' - fetching schedules from database")
 
             # Import here to avoid circular dependencies
             from core.model.bot import Bot

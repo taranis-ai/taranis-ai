@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Sequence
 
+from models.admin import CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
@@ -47,6 +48,12 @@ class Bot(BaseModel):
         return f"bot_{self.id}"
 
     @classmethod
+    def add(cls, data):
+        bot = super().add(data)
+        bot.schedule_bot()
+        return bot
+
+    @classmethod
     def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
         bot = cls.get(bot_id)
         if not bot:
@@ -63,8 +70,12 @@ class Bot(BaseModel):
                 bot.index = index
         db.session.commit()
 
-        # Notify cron scheduler of config change
-        bot._publish_cron_reload(f"bot_{bot_id}")
+        if bot.enabled and bot.get_schedule():
+            bot.schedule_bot()
+        else:
+            bot.unschedule_bot()
+
+        bot._publish_schedule_cache_invalidation()
 
         return bot
 
@@ -117,6 +128,7 @@ class Bot(BaseModel):
         if not bot:
             return {"error": "Bot not found"}, 404
 
+        bot.unschedule_bot()
         TaskModel.delete(bot.task_id)
         db.session.delete(bot)
         db.session.commit()
@@ -124,6 +136,30 @@ class Bot(BaseModel):
 
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+
+    def get_cron_spec(self) -> CronSpec:
+        return CronSpec(
+            meta={"name": f"Bot: {self.name}"},
+            job_id=f"bot_{self.id}",
+            cron=self.get_schedule(),
+            func_path="bot_task",
+            args=[self.id],
+            queue_name="bots",
+        )
+
+    def schedule_bot(self):
+        from core.managers import queue_manager
+
+        cron_schedule = self.get_schedule()
+        if not self.enabled or not cron_schedule:
+            return False
+
+        return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
+
+    def unschedule_bot(self):
+        from core.managers import queue_manager
+
+        return queue_manager.queue_manager.unregister_cron_job(f"bot_{self.id}")
 
     @classmethod
     def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
@@ -181,16 +217,15 @@ class Bot(BaseModel):
 
     @classmethod
     def schedule_all_bots(cls):
-        """Schedule all enabled bots using RQ cron scheduler
-
-        Note: Just logs - the cron scheduler automatically picks up bots from database.
-        """
+        """Schedule all enabled bots with cron definitions."""
         bots = cls.get_all_for_collector()
         enabled_with_schedule = [bot for bot in bots if bot.get_schedule()]
-        logger.info(f"Found {len(enabled_with_schedule)} enabled bots with schedules. Cron scheduler will pick them up automatically.")
+        for bot in enabled_with_schedule:
+            bot.schedule_bot()
+        logger.info(f"Scheduling for {len(enabled_with_schedule)} bots completed")
 
-    def _publish_cron_reload(self, reason: str):
-        """Publish a signal to reload cron scheduler configuration"""
+    def _publish_schedule_cache_invalidation(self):
+        """Publish cache invalidation signal for schedule-related frontend views."""
         try:
             from core.managers import queue_manager
 
@@ -198,16 +233,11 @@ class Bot(BaseModel):
             if qm.error or not qm._redis:
                 return
 
-            # Publish reload signal to cron scheduler
-            qm._redis.publish("taranis:cron:reload", reason)
-            logger.debug(f"Published cron reload signal: {reason}")
-
-            # Publish cache invalidation signal to frontend
             qm._redis.publish("taranis:cache:invalidate", "schedule")
             logger.debug("Published cache invalidation signal for schedules")
 
         except Exception as e:
-            logger.warning(f"Failed to publish cron reload signal: {e}")
+            logger.warning(f"Failed to publish schedule cache invalidation signal: {e}")
 
 
 class BotParameterValue(BaseModel):

@@ -392,8 +392,8 @@ class OSINTSource(BaseModel):
     def schedule_osint_source(self):
         """Schedule this OSINT source collection using RQ
 
-        Note: The actual scheduling is done by the RQ cron scheduler process.
-        This method validates the source and publishes a reload signal.
+        The scheduler process reads cron definitions from Redis.
+        This method validates the source and upserts its cron definition.
         """
         from core.managers import queue_manager
 
@@ -410,7 +410,7 @@ class OSINTSource(BaseModel):
     def unschedule_osint_source(self):
         """Cancel scheduled collection for this OSINT source
 
-        Note: The cron scheduler automatically picks up enabled/disabled state from the database.
+        Removes the source cron definition from Redis.
         """
         from core.managers import queue_manager
 

@@ -20,7 +20,7 @@ tmux send-keys -t taranis:worker "./install_and_run_dev.sh" C-m
 
 # Create Cron Scheduler tab
 tmux new-window -t taranis:4 -n cron -c src/worker
-tmux send-keys -t taranis:cron "uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models && uv pip install -e ../models && uv run --no-sync --frozen python start_cron_scheduler.py" C-m
+tmux send-keys -t taranis:cron "uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models && uv pip install -e ../models && uv run --no-sync --frozen python -m worker.cron_scheduler" C-m
 
 # Create RQ Dashboard tab
 tmux new-window -t taranis:5 -n rq-dashboard -c src/worker

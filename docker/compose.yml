@@ -164,7 +164,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     entrypoint: ["python"]
-    command: ["start_cron_scheduler.py"]
+    command: ["-m", "worker.cron_scheduler"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
@@ -172,7 +172,7 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import redis, os; r = redis.Redis(host='redis', port=6379, password=os.getenv('REDIS_PASSWORD') or None, decode_responses=True); len(list(r.zrange('rq:cron_schedulers', 0, -1))) > 0 or exit(1)\""]
+      test: ["CMD-SHELL", "python -c \"import redis, os; r = redis.Redis(host='redis', port=6379, password=os.getenv('REDIS_PASSWORD') or None, decode_responses=True); r.get('rq:cron:leader') is not None or exit(1)\""]
       interval: 30s
       timeout: 10s
       retries: 3
