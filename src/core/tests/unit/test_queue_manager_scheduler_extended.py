@@ -349,8 +349,8 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
 
 def test_get_scheduled_jobs_with_many_sources(monkeypatch):
     class FakeRedisWithCron:
-        def zrange(self, key, start, end):
-            return ["scheduler"] if key == "rq:cron_schedulers" else []
+        def get(self, key):
+            return b"cron-b-1" if key == "rq:cron:leader" else None
 
     def fake_osint_entries():
         return [

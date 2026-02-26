@@ -7,8 +7,8 @@ from core.model.osint_source import OSINTSource
 
 
 class _FakeRedis:
-    def zrange(self, key, start, end):
-        return ["scheduler"] if key == "rq:cron_schedulers" else []
+    def get(self, key):
+        return b"cron-b-1" if key == "rq:cron:leader" else None
 
 
 def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
