@@ -570,7 +570,7 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-def pre_seed_report_type(report_definition, access_token, run_core):
+def pre_seed_report_type(report_definition, access_token, run_core, frontend_url: str | None = None):
     headers = {"Authorization": f"Bearer {access_token}"}
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -597,18 +597,28 @@ def pre_seed_report_type(report_definition, access_token, run_core):
 
     r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
     r.raise_for_status()
+    if frontend_url:
+        _invalidate_cached_report_item_types(frontend_url, access_token)
+
+
+def _invalidate_cached_report_item_types(frontend_url: str, access_token: str):
+    # These fixtures seed report item types via Core API directly.
+    # Invalidate the running frontend server cache so select options are refreshed.
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(f"{frontend_url}/invalidate_cache/config_report-item-types", headers=headers, timeout=10)
+    response.raise_for_status()
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -618,26 +628,34 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
 
 
 @pytest.fixture(scope="session")
-def test_osint_source():
-    # get absoulute path to testdata/test_osint_source.json
+def testdata_dir():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+    yield os.path.join(dir_path, "testdata")
+
+
+@pytest.fixture(scope="session")
+def test_osint_source(testdata_dir):
+    yield os.path.join(testdata_dir, "test_osint_source.json")
 
 
 @pytest.fixture
-def test_batch_osint_sources(app, run_core, access_token):
+def test_osint_icon_png(testdata_dir):
+    yield os.path.join(testdata_dir, "icon.png")
+
+
+@pytest.fixture
+def test_batch_osint_sources(app, run_core, access_token, testdata_dir):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dir_path, "testdata", "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
+    with open(os.path.join(testdata_dir, "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
         source_data = json.load(f)
 
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
@@ -658,21 +676,18 @@ def test_batch_osint_sources(app, run_core, access_token):
 
 
 @pytest.fixture(scope="session")
-def test_user():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_to_import.json")
+def test_user(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_to_import.json")
 
 
 @pytest.fixture(scope="session")
-def test_user_list():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_list.json")
+def test_user_list(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_list.json")
 
 
 @pytest.fixture(scope="session")
-def test_wordlist():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_word_list.json")
+def test_wordlist(testdata_dir):
+    yield os.path.join(testdata_dir, "test_word_list.json")
 
 
 def report_item_dict(story_item_list):
