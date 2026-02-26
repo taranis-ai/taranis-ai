@@ -1,5 +1,4 @@
 import datetime
-import hashlib
 import json
 from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
@@ -8,12 +7,12 @@ import dateutil.parser as dateparser
 import lxml.html
 import requests
 from bs4 import BeautifulSoup, Tag
+from models.assess import NewsItem
 from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class BaseWebCollector(BaseCollector):
@@ -71,7 +70,7 @@ class BaseWebCollector(BaseCollector):
             self.headers.update({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
-        self.osint_source_id = source["id"]
+        self.osint_source_id = str(source["id"])
 
     def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
@@ -148,16 +147,14 @@ class BaseWebCollector(BaseCollector):
 
     def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
         web_content = self.extract_web_content(web_url, xpath)
-        for_hash: str = web_content["author"] + web_content["title"] + self.clean_url(web_url)
         return NewsItem(
             osint_source_id=self.osint_source_id,
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=web_content["author"],
             title=web_content["title"],
             content=web_content["content"],
-            web_url=web_url,
+            link=web_url,
             source=self.web_url or web_url,
-            published_date=web_content["published_date"],
+            published=web_content["published_date"],
             language=web_content["language"],
             review=web_content["review"],
         )

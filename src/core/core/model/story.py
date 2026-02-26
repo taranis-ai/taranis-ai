@@ -4,6 +4,8 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
 
+from models.assess import NewsItem as NewsItemCreatePayload
+from pydantic import ValidationError
 from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
@@ -161,6 +163,9 @@ class Story(BaseModel):
 
         if item_id := filter_args.get("story_id"):
             return query.filter(cls.id == item_id)
+
+        if item_ids := filter_args.get("story_ids"):
+            return query.filter(cls.id.in_(item_ids))
 
         if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
@@ -420,7 +425,7 @@ class Story(BaseModel):
         return stories, count_dict
 
     @classmethod
-    def get_by_filter_json(cls, filter_args, user):
+    def get_by_filter_json(cls, filter_args: dict[str, Any], user: User | None):
         stories, count = cls.get_by_filter(filter_args=filter_args, user=user)
 
         if count:
@@ -550,7 +555,6 @@ class Story(BaseModel):
 
         data = {
             "title": news_item.get("title"),
-            "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
             "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
@@ -580,18 +584,19 @@ class Story(BaseModel):
 
     @classmethod
     def check_news_item_data(cls, news_item: dict[str, Any]) -> dict[str, str] | None:
-        title = news_item.get("title", "")
-        link = news_item.get("link", "")
-        content = news_item.get("content", "")
-        if not news_item.get("source"):
-            return {"error": "Source not provided"}
-        if not title and not link and not content:
-            return {"error": "At least one of the following parameters must be provided: title, link, content"}
+        try:
+            validated_payload = NewsItemCreatePayload.model_validate(news_item)
+        except ValidationError as exc:
+            errors = "; ".join(f"{'.'.join(str(loc_part) for loc_part in err.get('loc', []))}: {err.get('msg')}" for err in exc.errors())
+            return {"error": f"Invalid news item data{f': {errors}' if errors else ''}"}
+
+        news_item.update(validated_payload.model_dump())
         return None
 
     @classmethod
     def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
         if err := cls.check_news_item_data(news_item):
+            logger.error(err)
             return err, 400
         try:
             return cls.add_from_news_item(news_item)
@@ -1177,7 +1182,7 @@ class Story(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
+        data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
         del data["search_vector"]
         return data

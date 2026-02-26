@@ -1018,7 +1018,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Invalidate Cache").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
-            expect(tlp_select).to_have_value("red")
+            expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
             expect(collector_proxy_input).to_have_value("https://test/")
             expect(collector_interval_input).to_have_value("0 */8 * * 1")
             expect(story_conflict_input).to_have_value("20")

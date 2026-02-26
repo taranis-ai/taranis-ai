@@ -291,6 +291,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.goto(url_for("assess.assess", _external=True))
             expect(page.get_by_role("radiogroup", name="Time presets")).to_be_visible()
             main_story_title = page.get_by_test_id("story-title").nth(0).inner_text()
+            main_story_id = page.get_by_role("article").nth(0).get_attribute("data-story-id")
             page.get_by_test_id("story-title").nth(0).click()
             page.get_by_test_id("story-title").nth(1).click()
             page.get_by_test_id("story-title").nth(2).click()
@@ -298,10 +299,10 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_role("button", name="Cluster").click()
             page.get_by_test_id("dialog-story-cluster-open").click()
-            expect(page.get_by_test_id("story-title")).to_contain_text(main_story_title)
-            page.get_by_role("heading", name=main_story_title, exact=True).click()
-            expect(page.get_by_role("heading", name="Search & Scope")).not_to_be_visible()
-            expect(page.get_by_text("Filter", exact=True)).not_to_be_visible()
+            page.wait_for_url(url_for("assess.story", story_id=main_story_id, _external=True))
+            detail_story = page.get_by_role("article").nth(0)
+            expect(detail_story).to_contain_text(main_story_title)
+            expect(detail_story).to_have_attribute("data-story-detail-view", "true")
 
         go_to_assess()
         access_story()
