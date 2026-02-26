@@ -311,6 +311,22 @@ workers = [
         "parameters": [{"parameter": "MISP_URL"}, {"parameter": "MISP_API_KEY"}],
     },
     {
+        "type": "TAXII_PUBLISHER",
+        "name": "TAXII Publisher",
+        "description": "Publisher for pushing STIX objects to a TAXII 2.1 collection",
+        "parameters": [
+            {"parameter": "TAXII_DISCOVERY_URL"},
+            {"parameter": "TAXII_API_ROOT_URL"},
+            {"parameter": "TAXII_COLLECTION_ID", "rules": "required"},
+            {"parameter": "AUTH_TYPE", "rules": "required", "value": "basic"},
+            {"parameter": "USERNAME"},
+            {"parameter": "PASSWORD"},
+            {"parameter": "API_TOKEN"},
+            {"parameter": "SSL_VERIFY", "type": "switch", "value": "true"},
+            {"parameter": "PROXY_SERVER"},
+        ],
+    },
+    {
         "type": "MISP_CONNECTOR",
         "name": "MISP Connector",
         "description": "Connetor for MISP",
