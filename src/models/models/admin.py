@@ -28,6 +28,32 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
+    queue: str | None = None
+    type: Literal["scheduled", "cron"] | None = None
+    schedule: str | None = None
+    status: str | None = None
+    started_at: str | None = None
+    failed_at: str | None = None
+    error: str | None = None
+    previous_run_time: str | None = None
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_run_relative: str | None = None
+    status_badge: dict[str, str] | None = None
+    is_overdue: bool | None = None
+
+
+class CronSpec(TaranisBaseModel):
+    job_id: str
+    func_path: str
+    queue_name: str
+    cron: str | None = None
+    interval: int | None = None
+    args: list[Any] = Field(default_factory=list)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+    job_options: dict[str, Any] = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskResult(TaranisBaseModel):

@@ -5,8 +5,9 @@ import os
 import uuid
 from io import BytesIO
 
-from tests.functional.helpers import BaseTest
 from werkzeug.datastructures import FileStorage
+
+from tests.functional.helpers import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -90,7 +91,7 @@ class TestSourcesConfigApi(BaseTest):
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
-        assert response.json["message"] == "OSINT Source Test Source deleted"
+        assert response.json["message"] == f"OSINT Source {cleanup_sources['name']} deleted"
 
     def test_create_source_group(self, client, auth_header, cleanup_source_groups):
         response = self.assert_post_ok(client, uri="osint-source-groups", json_data=cleanup_source_groups, auth_header=auth_header)

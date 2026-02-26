@@ -91,10 +91,9 @@ class DataPersistenceLayer:
 
     def _cache_and_paginate_objects(self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None):
         items = result.get("items", [])
+        exclude_keys = {"items", "total_count", "_links"}
+        extra = {key: value for key, value in result.items() if key not in exclude_keys}
         result_object = [object_model(**object) for object in items]
-        if not result_object:
-            logger.warning(f"Empty result for {endpoint}")
-            return CacheObject([], 0)
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
         cache_object = CacheObject(
@@ -105,7 +104,11 @@ class DataPersistenceLayer:
             order=paging_data.order if paging_data and paging_data.order else "",
             query_params=paging_data.query_params if paging_data else {},
             links=links,
+            extra=extra,
         )
+        if not result_object:
+            logger.warning(f"Empty result for {endpoint}")
+            return cache_object
         logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
         cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
         return cache_object

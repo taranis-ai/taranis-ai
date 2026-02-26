@@ -10,11 +10,12 @@ from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
 from core.log import logger
-from core.managers import queue_manager, schedule_manager
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
 )
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import (
     attribute,
@@ -33,7 +34,8 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.service.news_item import NewsItemService
+
+# Project import for shared template logic
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
@@ -458,35 +460,142 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
+class ActiveJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_active_jobs()
+
+
+class FailedJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_failed_jobs()
+
+
+class WorkerStats(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_worker_stats()
+
+
+class SchedulerDashboard(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
+        if scheduled_status != 200:
+            return scheduled_jobs, scheduled_status
+
+        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
+        if queue_status != 200:
+            return queues, queue_status
+
+        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
+        if worker_stats_status != 200:
+            return worker_stats, worker_stats_status
+
+        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
+        if active_status != 200:
+            return active_jobs, active_status
+
+        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
+        if failed_status != 200:
+            return failed_jobs, failed_status
+
+        return {
+            "scheduled_jobs": scheduled_jobs.get("items", []),
+            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
+            "queues": queues if isinstance(queues, list) else [],
+            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
+            "active_jobs": active_jobs.get("items", []),
+            "active_total_count": active_jobs.get("total_count", 0),
+            "failed_jobs": failed_jobs.get("items", []),
+            "failed_total_count": failed_jobs.get("total_count", 0),
+        }, 200
+
+
+class CronJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        """Get all cron job configurations for the RQ scheduler.
+
+        Returns a list of cron job configurations including:
+        - OSINT source collectors
+        - Bots
+        - Housekeeping tasks
+
+        Returns:
+            list: List of cron job configurations with task, queue, args, cron schedule, and task_id
+        """
+        try:
+            cron_jobs = []
+
+            # Get OSINT source collectors
+            sources = osint_source.OSINTSource.get_all_for_collector()
+            for source in sources:
+                cron_schedule = source.get_schedule()
+                if not cron_schedule:
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "collector_task",
+                        "queue": "collectors",
+                        "args": [source.id, False],  # manual=False for scheduled jobs
+                        "cron": cron_schedule,
+                        "task_id": source.task_id,
+                        "name": source.name,
+                    }
+                )
+
+            # Get Bot tasks
+            stmt = db.select(bot.Bot).where(bot.Bot.enabled)
+            bots = db.session.execute(stmt).scalars().all()
+            for bot_item in bots:
+                cron_schedule = bot_item.get_schedule()
+                if not cron_schedule:
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "bot_task",
+                        "queue": "bots",
+                        "args": [bot_item.id],
+                        "cron": cron_schedule,
+                        "task_id": bot_item.task_id,
+                        "name": bot_item.name,
+                    }
+                )
+
+            # Add housekeeping cron jobs
+            cron_jobs.append(
+                {
+                    "task": "cleanup_token_blacklist",
+                    "queue": "misc",
+                    "args": [],
+                    "cron": "0 2 * * *",
+                    "task_id": "cleanup_token_blacklist",
+                    "name": "Cleanup Token Blacklist",
+                }
+            )
+
+            return {"cron_jobs": cron_jobs}, 200
+
+        except Exception:
+            logger.exception("Failed to get cron job configurations")
+            return {"error": "Failed to get cron job configurations"}, 500
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := schedule_manager.schedule.get_periodic_task(task_id):
-                    return result, 200
-                return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.schedule.get_periodic_tasks():
-                return schedules, 200
-            return {"error": "No schedules found"}, 404
+                return queue_manager.queue_manager.get_scheduled_job(task_id)
+
+            return queue_manager.queue_manager.get_scheduled_jobs()
         except Exception:
             logger.exception()
-
-
-class RefreshInterval(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def post(self):
-        data = request.get_json()
-        cron_expr = data.get("cron")
-        if not cron_expr:
-            return jsonify({"error": "Missing cron expression"}), 400
-        try:
-            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
-            formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
-            return jsonify(formatted_times), 200
-        except Exception as e:
-            logger.exception(e)
-            return jsonify({"error": "Failed to compute schedule"}), 500
+            return {"error": "Failed to get schedules"}, 500
 
 
 class Connectors(MethodView):
@@ -568,11 +677,14 @@ class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
-            return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+        if not force:
+            from core.service.news_item import NewsItemService as _NewsItemService
+
+            if _NewsItemService.has_related_news_items(source_id):
+                return {
+                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
                 To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
+                }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
 
@@ -672,7 +784,13 @@ class TaskResults(MethodView):
     def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if task_id:
             return task.Task.get_for_api(task_id)
-        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        result, status = task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        if status != 200:
+            return result, status
+
+        stats = task.Task.get_task_statistics()
+        result.update(stats)
+        return result, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def delete(self, task_id: str):
@@ -879,14 +997,18 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
+    config_bp.add_url_rule("/workers/cron-jobs", view_func=CronJobs.as_view("cron_jobs"))
     config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view("active_jobs"))
+    config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view("failed_jobs"))
+    config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view("worker_stats"))
+    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view("scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
-    config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
     config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
     config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
     config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))

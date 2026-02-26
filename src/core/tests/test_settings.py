@@ -1,5 +1,6 @@
-from pydantic import SecretStr
 import pytest
+from pydantic import SecretStr
+
 from core.config import Settings
 
 
@@ -142,13 +143,14 @@ def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_po
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
     from importlib import reload
+
     import core.config
 
     reload(core.config)
 
     from core import create_app
-    from core.managers.db_manager import db
     from core.config import Config
+    from core.managers.db_manager import db
 
     app = create_app()
 

@@ -23,7 +23,7 @@ RUN uv venv && \
 
 FROM python:3.13-slim
 
-LABEL description="Taranis AI Python Celery Worker"
+LABEL description="Taranis AI Python RQ Worker"
 
 WORKDIR /app
 
@@ -47,6 +47,6 @@ ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
-ENTRYPOINT [ "celery" ]
+ENTRYPOINT [ "python", "-m", "worker" ]
 
-CMD ["--app", "worker", "worker"]
+CMD []

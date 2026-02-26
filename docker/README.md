@@ -32,9 +32,17 @@ Open file `.env` and defaults if needed
 
 Start-up application
 
-```
+```bash
 docker compose up -d
 ```
+
+**Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), use the wrapper script instead to avoid configuration conflicts:
+
+```bash
+./compose.sh up -d
+```
+
+The wrapper script automatically unsets development environment variables that shouldn't affect Docker deployments.
 
 Use the application
 
@@ -87,10 +95,6 @@ There are several Dockerfiles and each of them builds a different component of t
 
 ## Container variables
 
-### `rabbitmq`
-
-Any configuration options are available at [https://hub.docker.com/\_/rabbitmq](https://hub.docker.com/_/rabbitmq).
-
 ### `database`
 
 Any configuration options are available at [https://hub.docker.com/\_/postgres](https://hub.docker.com/_/postgres).
@@ -100,9 +104,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | Environment variable          | Description                                | Default       |
 | ----------------------------- | ------------------------------------------ | ------------- |
 | `TARANIS_AUTHENTICATOR`       | Authentication method for users.           | `database`    |
-| `QUEUE_BROKER_HOST`           | RabbitMQ Host address                      | `rabbitmq`    |
-| `QUEUE_BROKER_USER`           | RabbitMQ user                              | `taranis`     |
-| `QUEUE_BROKER_PASSWORD`       | RabbitMQ password                          | `supersecret` |
+| `REDIS_URL`                   | Redis connection URL                       | `redis://redis:6379` |
 | `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
 | `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
 | `API_KEY`                     | API Key for communication with workers     | `supersecret` |
@@ -123,9 +125,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_BASE_PATH`     | Path under which Taranis AI is reachable   | `/`                         |
 | `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
 | `API_KEY`               | API Key for communication with core        | `supersecret`               |
-| `QUEUE_BROKER_HOST`     | RabbitMQ Host address                      | `rabbitmq`                  |
-| `QUEUE_BROKER_USER`     | RabbitMQ user                              | `taranis`                   |
-| `QUEUE_BROKER_PASSWORD` | RabbitMQ password                          | `supersecret`               |
+| `REDIS_URL`             | Redis connection URL                       | `redis://redis:6379`        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 

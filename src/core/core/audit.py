@@ -1,7 +1,8 @@
-from core.log import TaranisLogger
-from core.config import Config
 from flask import Response, request
 from flask_jwt_extended import current_user
+
+from core.config import Config
+from core.log import TaranisLogger
 
 
 class AuditLogger(TaranisLogger):

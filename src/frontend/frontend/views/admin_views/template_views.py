@@ -1,13 +1,14 @@
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from typing import Any
-from flask import request
 
-from frontend.views.base_view import BaseView
-from frontend.log import logger
+from flask import request
 from models.admin import Template
+
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class TemplateView(AdminMixin, BaseView):

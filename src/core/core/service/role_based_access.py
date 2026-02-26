@@ -1,12 +1,13 @@
 from dataclasses import dataclass
-from sqlalchemy import cast, String, select
+
+from sqlalchemy import String, cast, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import true
 
 from core.managers.db_manager import db
+from core.model.role_based_access import RBACRole, RoleBasedAccess
 from core.model.user import User
-from core.model.role_based_access import RoleBasedAccess, RBACRole
 
 
 @dataclass
@@ -37,8 +38,8 @@ class RoleBasedAccessService:
 
     @classmethod
     def filter_query_with_tlp(cls, query: Select, user: User) -> Select:
-        from core.model.story import Story, StoryNewsItemAttribute
         from core.model.news_item_attribute import NewsItemAttribute
+        from core.model.story import Story, StoryNewsItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
         if user_tlp_level.value == "red":
@@ -59,7 +60,7 @@ class RoleBasedAccessService:
 
     @classmethod
     def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:
-        from core.model.report_item import ReportItem, ReportItemAttribute, AttributeType
+        from core.model.report_item import AttributeType, ReportItem, ReportItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
         accessible_tlps = user_tlp_level.get_accessible_levels()
@@ -113,9 +114,9 @@ class RoleBasedAccessService:
         """
 
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
-        from core.model.word_list import WordList
-        from core.model.report_item import ReportItemType
         from core.model.product_type import ProductType
+        from core.model.report_item import ReportItemType
+        from core.model.word_list import WordList
 
         if resource_type == "osint_source":
             return OSINTSource

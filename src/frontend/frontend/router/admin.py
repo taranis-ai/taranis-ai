@@ -13,13 +13,20 @@ from frontend.views import (
     PublisherView,
     ReportItemTypeView,
     RoleView,
-    SchedulerView,
     SourceGroupView,
     SourceView,
     TemplateView,
     UserView,
     WordListView,
     WorkerView,
+)
+from frontend.views.admin_views.scheduler_views import (
+    ScheduleActiveJobsAPI,
+    ScheduleFailedJobsAPI,
+    ScheduleHistoryAPI,
+    ScheduleJobsAPI,
+    ScheduleQueuesAPI,
+    SchedulerView,
 )
 
 
@@ -138,6 +145,11 @@ def init(app: Flask):
 
     admin_bp.add_url_rule("/scheduler", view_func=SchedulerView.as_view("scheduler"))
     admin_bp.add_url_rule("/scheduler/job/<string:job_id>", view_func=SchedulerView.as_view("edit_job"))
+    admin_bp.add_url_rule("/scheduler/jobs", view_func=ScheduleJobsAPI.as_view("scheduler_jobs_table"))
+    admin_bp.add_url_rule("/scheduler/queues", view_func=ScheduleQueuesAPI.as_view("scheduler_queue_cards"))
+    admin_bp.add_url_rule("/scheduler/active", view_func=ScheduleActiveJobsAPI.as_view("scheduler_active_jobs"))
+    admin_bp.add_url_rule("/scheduler/failed", view_func=ScheduleFailedJobsAPI.as_view("scheduler_failed_jobs"))
+    admin_bp.add_url_rule("/scheduler/history", view_func=ScheduleHistoryAPI.as_view("scheduler_history"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))
     admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationView.as_view("edit_organization"))

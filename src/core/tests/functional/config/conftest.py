@@ -1,5 +1,6 @@
-import pytest
 from contextlib import suppress
+
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -11,12 +12,18 @@ def cleanup_sources(app):
         source_data = {
             "id": "42",
             "description": "This is a test source",
-            "name": "Test Source",
+            "name": "Config Test Source",
             "parameters": [
                 {"FEED_URL": "https://url/feed.xml"},
             ],
             "type": "rss_collector",
         }
+
+        # Ensure we start without any dangling sources from previous runs that reuse this name
+        existing_sources = OSINTSource.get_by_filter({"search": source_data["name"]}) or []
+        for existing in existing_sources:
+            if existing.id != source_data["id"]:
+                OSINTSource.delete(existing.id, force=True)
 
         yield source_data
 

@@ -1,9 +1,11 @@
 from typing import Any
-from models.admin import OSINTSourceGroup, OSINTSource, WordList
-from frontend.views.base_view import BaseView
+
+from models.admin import OSINTSource, OSINTSourceGroup, WordList
+
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.filters import render_count
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class SourceGroupView(AdminMixin, BaseView):

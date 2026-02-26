@@ -1,9 +1,8 @@
-import logging.handlers
-import sys
-import socket
 import logging
+import logging.handlers
+import socket
+import sys
 import traceback
-from celery.signals import after_setup_logger
 
 from worker.config import Config
 
@@ -102,24 +101,13 @@ class Logger(TaranisLogger):
         self.info(log_text)
 
 
-class IgnoreHeartbeatTickFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        return "heartbeat_tick" not in record.getMessage()
-
-
-class IgnorePingFilter(logging.Filter):
-    def filter(self, record):
-        return "pidbox received method ping" not in record.getMessage()
-
-
-@after_setup_logger.connect
-def setup_loggers(logger, *args, **kwargs):
-    logger.setLevel(logging.INFO)
+# Setup logging configuration
+def setup_logging():
+    """Setup logging for RQ workers."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
     if Config.DEBUG:
-        logger.setLevel(logging.DEBUG)
-    ampq_logger = logging.getLogger("amqp.connection.Connection.heartbeat_tick")
-    ampq_logger.addFilter(IgnoreHeartbeatTickFilter())
-    logging.getLogger("kombu.pidbox").addFilter(IgnorePingFilter())
+        root_logger.setLevel(logging.DEBUG)
 
 
 logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)

@@ -2,15 +2,13 @@
 
 Core could be called the "backend" of Taranis AI.
 
-It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via Celery.
-
-Furthermore it acts as celery scheduler backend.
+It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via RQ (Redis Queue).
 
 ## Requirements
 
 * Python version 3.12 or greater.
 * SQLite or PostgreSQL
-* [Optional] RabbitMQ
+* Redis
 
 
 ## Installation
@@ -29,8 +27,12 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv sync --frozen
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 ```
+
+This local-development setup intentionally uses the checked-out `../models` package.
+Release/container builds still use the packaged `taranis-models` from the lockfile via `uv sync --frozen`.
 
 ## Usage
 
@@ -71,7 +73,7 @@ This will start the Flask server and run the frontend service at `http://localho
 To run the unit tests just call:
 
 ```bash
-pytest
+uv run --no-sync --frozen python -m pytest tests/unit
 ```
 
 There are [e2e tests](./tests/playwright/README.md) using Playwright

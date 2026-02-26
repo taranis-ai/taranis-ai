@@ -1,12 +1,13 @@
-from frontend.views.base_view import BaseView
-from models.admin import Connector
-from models.types import CONNECTOR_TYPES
-from frontend.filters import render_icon, render_source_parameter, render_worker_status, render_truncated
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.log import logger
+from typing import Any
 
 from flask import render_template
-from typing import Any
+from models.admin import Connector
+from models.types import CONNECTOR_TYPES
+
+from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
+from frontend.log import logger
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class ConnectorView(AdminMixin, BaseView):

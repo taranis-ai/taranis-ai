@@ -10,11 +10,12 @@ from core.api import (
     dashboard,
     isalive,
     publish,
-    user,
-    task,
-    worker,
     static,
+    task,
+    user,
+    worker,
 )
+
 
 __all__ = [
     "admin",

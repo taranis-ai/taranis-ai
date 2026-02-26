@@ -1,17 +1,31 @@
-import pytest
+import sys
+from pathlib import Path
 from typing import get_origin
+from unittest.mock import MagicMock
+
+import pytest
 import responses
 
-from frontend.log import logger
-from frontend.config import Config
-from frontend.views.base_view import BaseView
-from polyfactory.factories.pydantic_factory import ModelFactory
-from polyfactory.exceptions import ParameterException
-from .utils.formdata import html_form_to_dict, gather_fields_from_model, unwrap_annotation
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-from uuid_extensions import uuid7str
-from faker import Faker
+
+root_path = Path(__file__).resolve().parents[5] / "src" / "models"
+root_str = str(root_path)
+if root_str in sys.path:
+    sys.path.remove(root_str)
+sys.path.insert(0, root_str)
+
+from faker import Faker  # noqa: E402
+from polyfactory.exceptions import ParameterException  # noqa: E402
+from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+from pydantic.fields import FieldInfo  # noqa: E402
+from uuid_extensions import uuid7str  # noqa: E402
+
+from frontend.config import Config  # noqa: E402
+from frontend.log import logger  # noqa: E402
+from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
+from frontend.views.base_view import BaseView  # noqa: E402
+
+from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
 
 
 @pytest.fixture
@@ -23,6 +37,62 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
+
+
+@pytest.fixture
+def source_api_mocks(monkeypatch):
+    mock_api = MagicMock()
+    monkeypatch.setattr(source_views, "CoreApi", lambda: mock_api)
+    return mock_api
+
+
+@pytest.fixture
+def scheduler_api_mocks(monkeypatch):
+    mock_api = MagicMock()
+
+    def _api_get(path):
+        if path == "/config/workers/dashboard":
+            return {
+                "scheduled_jobs": [],
+                "scheduled_total_count": 0,
+                "queues": [],
+                "worker_stats": {},
+                "active_jobs": [],
+                "active_total_count": 0,
+                "failed_jobs": [],
+                "failed_total_count": 0,
+            }
+        return None
+
+    mock_api.api_get.side_effect = _api_get
+    monkeypatch.setattr(scheduler_views, "CoreApi", lambda: mock_api)
+
+    class _TaskResults:
+        extra = {
+            "task_stats": {},
+            "totals": {"successes": 0, "failures": 0, "overall_success_rate": 0},
+        }
+
+        def __len__(self):
+            return 0
+
+    class _DataPersistenceLayer:
+        def get_objects(self, *_, **__):
+            return _TaskResults()
+
+    monkeypatch.setattr(scheduler_views, "DataPersistenceLayer", _DataPersistenceLayer)
+
+    class _Dashboard:
+        worker_status = {}
+
+    class _SourcePersistenceLayer:
+        def get_first(self, *_args, **_kwargs):
+            return _Dashboard()
+
+    monkeypatch.setattr(source_views, "DataPersistenceLayer", _SourcePersistenceLayer)
+    monkeypatch.setattr(bot_views, "DataPersistenceLayer", _SourcePersistenceLayer)
+
+    return mock_api
 
 
 def get_items_from_factory(view_name, model):
@@ -156,6 +226,67 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             status=200,
             content_type="application/json",
         )
+
+    scheduler_expect_object = str(core_payloads.get("Scheduler", {}).get("_expect_object") or "Scheduler Job")
+
+    # Provide scheduler-specific endpoints so the dashboard renders during tests
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/dashboard",
+        json={
+            "scheduled_jobs": [
+                {
+                    "id": "test-scheduler-job",
+                    "name": scheduler_expect_object,
+                    "queue": "collectors",
+                    "type": "cron",
+                    "schedule": "*/15 * * * *",
+                    "next_run_time": "2025-01-01T12:00:00",
+                }
+            ],
+            "scheduled_total_count": 1,
+            "queues": [
+                {"name": "collectors", "messages": 0},
+                {"name": "bots", "messages": 2},
+            ],
+            "worker_stats": {
+                "total_workers": 3,
+                "busy_workers": 1,
+                "idle_workers": 2,
+            },
+            "active_jobs": [],
+            "active_total_count": 0,
+            "failed_jobs": [],
+            "failed_total_count": 0,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        json={
+            "items": [
+                {
+                    "id": "task-1",
+                    "task": "collectors.fetch",
+                    "status": "SUCCESS",
+                    "result": None,
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                },
+                {
+                    "id": "task-2",
+                    "task": "bots.process",
+                    "status": "FAILURE",
+                    "result": {"error": "timeout"},
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                },
+            ],
+            "total_count": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
     yield core_payloads
 
 

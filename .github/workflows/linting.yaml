@@ -125,6 +125,10 @@ jobs:
       - name: Install frontend dependencies
         working-directory: src/frontend
         run: uv sync --all-extras
+      
+      - name: Install worker dependencies
+        working-directory: src/worker
+        run: uv sync --all-extras
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -152,9 +156,14 @@ jobs:
         working-directory: src/frontend
         run: uv run pytest --e2e-ci
 
+      - name: Run e2e tests core
+        id: run_e2e_core
+        working-directory: src/core
+        run: uv run pytest --e2e-ci
+
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && (steps.run_e2e.outcome == 'failure' || steps.run_e2e_frontend.outcome == 'failure') }}
+        if: ${{ !cancelled() && (steps.run_e2e.outcome == 'failure' || steps.run_e2e_frontend.outcome == 'failure' || steps.run_e2e_core.outcome == 'failure') }}
         with:
           retention-days: 7
           overwrite: true

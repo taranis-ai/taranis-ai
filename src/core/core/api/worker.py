@@ -1,11 +1,13 @@
 from flask import Blueprint, Flask, Response, request, send_file
 from flask.views import MethodView
+from sqlalchemy import select
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
@@ -65,8 +67,14 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
-    def get(self, source_id: str):
+    def get(self, source_id: str | None = None):
         try:
+            # Get all sources (for cron scheduler)
+            if source_id is None:
+                sources = OSINTSource.get_all_for_collector()
+                return {"sources": [source.to_worker_dict() for source in sources]}, 200
+
+            # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
@@ -77,6 +85,59 @@ class Sources(MethodView):
         except Exception:
             logger.exception(f"Error fetching source {source_id}")
             return {"error": "Internal server error"}, 500
+
+
+class CronJobs(MethodView):
+    @api_key_required
+    def get(self):
+        """Get cron job configurations for the RQ scheduler (worker auth)."""
+        try:
+            cron_jobs = []
+
+            sources = OSINTSource.get_all_for_collector()
+            for source in sources:
+                if cron_schedule := source.get_schedule():
+                    cron_jobs.append(
+                        {
+                            "task": "collector_task",
+                            "queue": "collectors",
+                            "args": [source.id, False],
+                            "cron": cron_schedule,
+                            "task_id": source.task_id,
+                            "name": source.name,
+                        }
+                    )
+
+            stmt = select(Bot).where(Bot.enabled)
+            bots = db.session.execute(stmt).scalars().all()
+            for bot_item in bots:
+                if cron_schedule := bot_item.get_schedule():
+                    cron_jobs.append(
+                        {
+                            "task": "bot_task",
+                            "queue": "bots",
+                            "args": [bot_item.id],
+                            "cron": cron_schedule,
+                            "task_id": bot_item.task_id,
+                            "name": bot_item.name,
+                        }
+                    )
+
+            cron_jobs.append(
+                {
+                    "task": "cleanup_token_blacklist",
+                    "queue": "misc",
+                    "args": [],
+                    "cron": "0 2 * * *",
+                    "task_id": "cleanup_token_blacklist",
+                    "name": "Cleanup Token Blacklist",
+                }
+            )
+
+            return {"cron_jobs": cron_jobs}, 200
+        except Exception:
+            logger.exception("Failed to get cron job configurations")
+            return {"error": "Failed to get cron job configurations"}, 500
 
 
 class SourceIcon(MethodView):
@@ -251,11 +312,35 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
+class TaskResults(MethodView):
+    @api_key_required
+    def put(self):
+        """Save or update task result from worker."""
+        from core.api.task import handle_task_specific_result
+        from core.model.task import Task
+
+        data = request.json
+        if not data:
+            return {"error": "No data provided"}, 400
+
+        task_id = data.get("id")
+        result = data.get("result")
+        status = data.get("status")
+
+        # Handle task-specific result processing (e.g., presenter results)
+        if status == "SUCCESS" and result and task_id:
+            handle_task_specific_result(task_id, result, status)
+
+        return Task.add_or_update(data)
+
+
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
+    worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
@@ -272,5 +357,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
+    worker_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results_worker"))
 
     app.register_blueprint(worker_bp)

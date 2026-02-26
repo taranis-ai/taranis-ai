@@ -30,14 +30,14 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 | Entrypoint | ingress   | Nginx entrypoint configured as reverse proxy |
 | Frontend   | frontend  | Flask, HTMX & tailwindcss based REST frontend |
 | Backend    | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
-| Worker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
+| Worker     | worker    | RQ workers offering collectors, bots, presenters and publisher features |
 
 ### Support services
 
 | Type            | Name                 | Description                           |
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
-| Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
+| Message-broker  | redis                | Message broker and job queue for RQ workers |
 | SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
 
 ## Features

@@ -30,8 +30,24 @@ See [README.md](README.md) for more information.
 - **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
 - **ingress** (`src/ingress/`) - Nginx entrypoint for routing requests to frontend and backend
 - **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
-- **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
+- **worker** (`src/worker/`) - RQ workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation
+
+### Task Queue System
+
+The application uses **RQ (Redis Queue)** with **Redis** as the message broker for background task processing:
+- **Queue Manager** (`src/core/core/managers/queue_manager.py`) - Manages job scheduling and enqueueing using RQ
+- **Task Functions** (`src/worker/worker/*/`) - Background jobs for data collection, analysis, and publishing
+- **Redis** - Message broker (port 6379) and job persistence
+- **Scheduling** - Uses RQ's built-in scheduler with cron expressions via `croniter>=6.0.0`
+
+Task modules:
+- `collector_tasks.py` - OSINT source data collection
+- `bot_tasks.py` - Automated analysis and processing
+- `presenter_tasks.py` - Report and product generation
+- `publisher_tasks.py` - Publishing to external systems
+- `connector_tasks.py` - Story sharing with MISP and other systems
+- `misc_tasks.py` - Maintenance tasks (token cleanup, wordlist updates)
 
 ## Testing
 
@@ -42,7 +58,7 @@ See .github/workflows for how tests are configured in CI.
 **Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
-**Unit Tests:** In each component directory, run:
+**Unit Tests:** In each component directory, run (after changing into that directory, e.g. `cd src/frontend`):
 - `uv run pytest` - run all tests for that component
 - `uv run pytest tests/unit/` - run only unit tests
 - `uv run pytest tests/functional/` - run only functional tests
@@ -68,6 +84,7 @@ See .github/workflows for how tests are configured in CI.
 
 **Important Notes:**
 - You must run commands separately in each src directory to ensure all dependencies are installed
+- Always execute test and lint commands from within the corresponding component directory (`cd src/<component>`), then run `uv run ...`
 - E2E tests require the application to be running (they start their own test server)
 - Tests are located in each component's `tests/` directory
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
@@ -86,3 +103,4 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+- do not leave trailing whitespace anywhere (especially on otherwise empty lines)

@@ -9,13 +9,13 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Framework :: Celery",
     "Topic :: Security",
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core
-    "celery",
+    "rq>=2.5",
+    "croniter>=6.0.0",
     "click",
     "python-dotenv",
     "pydantic-settings",
@@ -46,13 +46,18 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.scripts]
+taranis-cron = "worker.cron_scheduler:run_scheduler"
+taranis-worker = "worker:start_worker"
+
 [project.optional-dependencies]
 dev = [
     "ruff",
     "pytest",
-    "pytest-celery",
+    "fakeredis",
     "requests-mock",
     "watchdog",
+    "rq-dashboard",
     "build",
     "wheel",
     "setuptools",

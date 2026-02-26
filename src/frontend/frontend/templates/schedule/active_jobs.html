@@ -1,0 +1,55 @@
+{% if active_jobs and active_jobs|length > 0 %}
+  <div class="overflow-x-auto">
+    <table class="table table-zebra w-full">
+      <thead>
+        <tr>
+          <th>Job Name</th>
+          <th>Queue</th>
+          <th>
+            Started At <span class="text-xs opacity-50">↓ Oldest first</span>
+          </th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in active_jobs %}
+          <tr>
+            <td>
+              <div class="font-medium">{{ job.name }}</div>
+              <div class="text-xs opacity-50">{{ job.id }}</div>
+            </td>
+            <td>
+              <span class="badge badge-outline badge-sm">{{ job.queue }}</span>
+            </td>
+            <td>
+              {% if job.started_at %}
+                <span class="text-sm">{{ job.started_at }}</span>
+              {% else %}
+                <span class="text-xs opacity-50">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge badge-success badge-sm">
+                <span class="loading loading-spinner loading-xs"></span>
+                Running
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="text-sm text-center mt-4 opacity-70">{{ active_jobs|length }} jobs currently running</div>
+{% else %}
+  <div class="text-center py-8">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         fill="none"
+         viewBox="0 0 24 24"
+         stroke-width="1.5"
+         stroke="currentColor"
+         class="w-16 h-16 mx-auto opacity-30">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+    <p class="mt-4 text-base-content/50">No jobs currently running</p>
+  </div>
+{% endif %}

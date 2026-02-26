@@ -1,7 +1,8 @@
-from .base_bot import BaseBot
-from worker.log import logger
 from worker.bot_api import BotApi
 from worker.config import Config
+from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class SentimentAnalysisBot(BaseBot):

@@ -1,15 +1,15 @@
 from typing import Any
-from flask import request, render_template
 
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.base_view import BaseView
-from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType, Template
+from flask import render_template, request
+from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
-from frontend.views.admin_views.admin_mixin import AdminMixin
 
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class PublisherView(AdminMixin, BaseView):

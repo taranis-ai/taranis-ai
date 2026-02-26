@@ -12,9 +12,10 @@ Expected behavior when deleting a ProductType:
 """
 
 import pytest
+
+from core.managers.db_manager import db
 from core.model.product_type import ProductType, ProductTypeReportType
 from core.model.report_item_type import ReportItemType
-from core.managers.db_manager import db
 
 
 # ignore warning shown when fixtures try to delete already-deleted product types

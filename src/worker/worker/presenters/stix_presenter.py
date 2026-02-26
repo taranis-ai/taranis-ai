@@ -1,11 +1,13 @@
 import json
-from uuid import uuid4
-from pymisp import MISPEvent
 from datetime import datetime, timezone
+from uuid import uuid4
+
+from misp_stix_converter import MISPtoSTIX21Parser
+from pymisp import MISPEvent
 
 from worker.connectors import base_misp_builder
-from misp_stix_converter import MISPtoSTIX21Parser
 from worker.log import logger
+
 from .base_presenter import BasePresenter
 
 

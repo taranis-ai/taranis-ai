@@ -40,8 +40,24 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _redirect_to_login():
-    return redirect(_login_url_with_next(), code=302)
+def _redirect_to_login_response() -> ResponseReturnValue:
+    login_url = _login_url_with_next()
+
+    if is_htmx_request():
+        return make_response("", 401, {"HX-Redirect": login_url})
+
+    return make_response(redirect(login_url, code=302))
+
+
+def _clear_jwt_cookies(response):
+    response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
+    unset_jwt_cookies(response)
+    return response
+
+
+def _unauthorized_response(clear_cookies: bool = False) -> ResponseReturnValue:
+    response = _redirect_to_login_response()
+    return _clear_jwt_cookies(response) if clear_cookies else response
 
 
 # def authenticate(credentials: dict[str, str]) -> Response:
@@ -93,12 +109,12 @@ def auth_required(permissions: list[str] | str | None = None):
                 verify_jwt_in_request()
             except Exception:
                 logger.info("JWT verification failed")
-                return _redirect_to_login()
+                return _unauthorized_response()
 
             user_name = get_jwt_identity()
             if not user_name:
                 logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return _redirect_to_login()
+                return _unauthorized_response()
 
             permission_claims = current_user.permissions
 
@@ -166,9 +182,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _redirect_to_login()
+    return _unauthorized_response(clear_cookies=True)
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _redirect_to_login()
+    return _unauthorized_response(clear_cookies=True)

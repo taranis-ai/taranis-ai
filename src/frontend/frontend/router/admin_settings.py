@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
 from frontend.auth import auth_required
