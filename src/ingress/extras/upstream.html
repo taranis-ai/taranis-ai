@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taranis unavailable</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0b1220;
+      color: #f4f7ff;
+      padding: 2rem;
+    }
+
+    .card {
+      max-width: 42rem;
+      width: 100%;
+      border: 1px solid #27324a;
+      border-radius: 12px;
+      background: #111a2c;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+      padding: 2rem;
+    }
+
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: 1.8rem;
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0.5rem 0;
+      line-height: 1.6;
+    }
+
+    code {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      background: #1c2942;
+      border: 1px solid #27324a;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Taranis is temporarily unavailable</h1>
+    <p>The request reached ingress, but the upstream service did not respond in time.</p>
+    <p>Please retry in a moment. If this persists, check the status of the backend containers.</p>
+    <code>HTTP status: __STATUS__</code>
+  </main>
+</body>
+</html>
