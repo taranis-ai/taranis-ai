@@ -1,15 +1,15 @@
 import datetime
-import hashlib
-import feedparser
-import requests
 import logging
 from urllib.parse import urljoin, urlparse
+
 import dateutil.parser as dateparser
+import feedparser
+import requests
+from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class RSSCollectorError(Exception):
@@ -34,17 +34,36 @@ class RSSCollector(BaseWebCollector):
         self.last_modified: datetime.datetime | None = None
         self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
+        self.use_feed_content: bool = False
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
+    def _determine_use_feed_content(self, params: dict) -> bool:
+        use_feed_param = params.get("USE_FEED_CONTENT")
+
+        if use_feed_param is not None:
+            if isinstance(use_feed_param, bool):
+                return use_feed_param
+            if isinstance(use_feed_param, str):
+                return use_feed_param.strip().lower() == "true"
+
+        content_location = params.get("CONTENT_LOCATION")
+        if isinstance(content_location, str) and content_location.strip():
+            return True
+
+        return False
+
     def parse_source(self, source: dict):
         super().parse_source(source)
+        params = source.get("parameters", {})
+
         self.feed_url = source["parameters"].get("FEED_URL", "")
         if not self.feed_url:
             raise ValueError("No FEED_URL set in source")
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
+        self.use_feed_content = self._determine_use_feed_content(params)
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
@@ -80,12 +99,40 @@ class RSSCollector(BaseWebCollector):
 
         return None
 
-    def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
-        content_locations = [content_location, "content", "content:encoded"]
-        for location in content_locations:
-            if location in feed_entry and isinstance(feed_entry[location], str):
-                return True, location
-        return False, content_location
+    def extract_content_from_feed(
+        self,
+        feed_entry: feedparser.FeedParserDict,
+        source: dict,
+    ) -> str:
+        params = source.get("parameters", {})
+        custom_location = params.get("CONTENT_LOCATION")
+
+        locations: list[str] = []
+
+        if isinstance(custom_location, str) and custom_location.strip():
+            locations.append(custom_location.strip())
+
+        locations += ["content", "content:encoded", "summary", "description"]
+
+        for location in locations:
+            if location not in feed_entry:
+                continue
+
+            value = feed_entry[location]
+
+            if isinstance(value, list) and value:
+                first = value[0]
+                if isinstance(first, dict) and "value" in first:
+                    content = str(first["value"]).strip()
+                    if content:
+                        return content
+
+            if isinstance(value, str):
+                content = value.strip()
+                if content:
+                    return content
+
+        return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
@@ -113,35 +160,40 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
+
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
 
         published = self.get_published_date(feed_entry)
+        content = ""
 
-        content_location = source["parameters"].get("CONTENT_LOCATION", None)
-        content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
-        content = str(feed_entry[content_location]) if content_from_feed else ""
-        if link:
+        if self.use_feed_content:
+            content = self.extract_content_from_feed(feed_entry, source)
+
+            if self.xpath and content:
+                if extracted := self.xpath_extraction(content, self.xpath):
+                    content = extracted
+        elif link:
             web_content = self.extract_web_content(link, self.xpath)
-            content = content if content_from_feed else str(web_content.get("content"))
+            content = str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
             published = published or web_content.get("published_date") or self.last_modified
 
+        else:
+            logger.warning("No content could be extracted for RSS entry %r", feed_entry.get("id", link or title))
+
         if content == description:
             description = ""
 
-        for_hash: str = title + self.clean_url(link)
-
         return NewsItem(
-            osint_source_id=source["id"],
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            osint_source_id=str(source["id"]),
             author=author,
             title=title,
             source=self.feed_url,
             content=content,
-            web_url=link,
-            published_date=published,
+            link=link,
+            published=published,
             language=self.language,
         )
 

@@ -33,6 +33,7 @@
   <article id="story-{{ story_id }}"
            class="{{ ' '.join(card_classes) }}"
            data-story-id="{{ story_id }}"
+           data-story-detail-view="{{ 'true' if detail_view else 'false' }}"
            data-testid="story-card-{{ story_id }}"
            x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
@@ -126,7 +127,7 @@
             {% if summary_content %}
               {{ summary_content }}
             {% else %}
-              {{ story.description }}
+              <em>No summary available.</em>
             {% endif %}
           </div>
         </section>
@@ -139,19 +140,45 @@
 
       <!-- tags section -->
       {% if story.tags %}
-        <div class="space-y-1">
-          <div class="flex flex-wrap gap-1">
-            {% for tag in story.tags[:8] %}
-              {% if tag.name %}
-                <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
-                   class="tooltip before:z-[50] badge badge-ghost badge-xs whitespace-nowrap"
-                   data-tip="{{ tag.tag_type }}"><span class="truncate max-w-[12ch]">{{ tag.name | truncate(16, true) }}</span></a>
-              {% endif %}
-            {% endfor %}
-            {% if story.tags | length > 8 %}<span class="badge badge-outline badge-xs">+{{ story.tags | length - 8 }}</span>{% endif %}
+        <div class="w-full max-w-full">
+          <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
+            <div class="lg:flex-shrink-0 min-w-0 max-w-full">
+              {% set collapsed_limit = 5 %}
+              {% set expanded_limit = (story.tags|length) if detail_view else 20 %}
+
+              <template x-if="!isOpen">
+                <div class="flex flex-wrap gap-1">
+                  {% for tag in story.tags[:collapsed_limit] if tag.name %}
+                    <a href="{{ update_query_params({'tags': tag.name}) | trim }}" class="badge badge-ghost badge-xs max-w-full truncate">
+                      <span>{{ tag.name }}</span>
+                    </a>
+                  {% endfor %}
+                  {% if story.tags|length > collapsed_limit %}
+                    <span class="badge badge-outline badge-xs">+{{ story.tags|length - collapsed_limit }}</span>
+                  {% endif %}
+                </div>
+              </template>
+
+              <template x-if="isOpen">
+                <div class="flex flex-wrap gap-1">
+                  {% for tag in story.tags[:expanded_limit] if tag.name %}
+                    <a href="{{ update_query_params({'tags': tag.name}) | trim }}"
+                       class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full"
+                       data-tip="{{ tag.tag_type }}">
+                      <span>{{ tag.name }}</span>
+                    </a>
+                  {% endfor %}
+                  {% if (not detail_view) and (story.tags|length > expanded_limit) %}
+                    <span class="badge badge-outline badge-xs">+{{ story.tags|length - expanded_limit }}</span>
+                  {% endif %}
+                </div>
+              </template>
+
+            </div>
           </div>
         </div>
       {% endif %}
+
 
       <!-- expandable details section -->
       <div class="border-t border-base-200 pt-2 space-y-1 w-full max-w-full" x-show="isOpen" x-transition x-cloak>

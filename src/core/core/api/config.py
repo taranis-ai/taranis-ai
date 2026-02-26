@@ -539,7 +539,7 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)

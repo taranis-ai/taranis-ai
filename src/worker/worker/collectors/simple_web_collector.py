@@ -2,11 +2,11 @@ import datetime
 import logging
 
 import requests
+from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class SimpleWebCollector(BaseWebCollector):
