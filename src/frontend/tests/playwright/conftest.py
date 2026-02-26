@@ -3,7 +3,6 @@ import copy
 import os
 import random
 import re
-import shutil
 import subprocess
 import time
 import warnings as pywarnings
