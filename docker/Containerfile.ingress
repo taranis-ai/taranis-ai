@@ -7,3 +7,4 @@ ENV TARANIS_BASE_PATH=/
 
 COPY ./src/ingress/extras/default.conf.template /etc/nginx/default.conf.template
 COPY ./src/ingress/extras/10-base_uri_envsubst_entrypoint.sh /docker-entrypoint.d/
+COPY ./src/ingress/extras/upstream.html /usr/share/nginx/html/taranis/upstream.html

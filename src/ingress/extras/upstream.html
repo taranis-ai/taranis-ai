@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Upstream error · Taranis AI</title>
+  <style>
+    :root{
+      --bg0:#070A12; --bg1:#0B1224; --text:#EAF0FF; --muted:#A9B6DA; --soft:#6C7FB6;
+      --stroke:#2A3A66; --shadow:0 20px 60px rgba(0,0,0,.55); --radius:22px;
+      --accent:#7C3AED; --accent2:#22D3EE; --warn:#FBBF24; --bad:#FB7185;
+    }
+    @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important;scroll-behavior:auto!important;} }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(1000px 700px at 80% 20%, rgba(34,211,238,.25), transparent 55%),
+        radial-gradient(900px 600px at 50% 90%, rgba(251,113,133,.15), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+    .noise{
+      pointer-events:none; position:fixed; inset:0; opacity:.08;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+      mix-blend-mode:overlay;
+    }
+    .wrap{min-height:100%;display:grid;place-items:center;padding:40px 18px}
+    .card{
+      width:min(980px,100%);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(14,24,51,.78), rgba(10,16,36,.62));
+      border:1px solid rgba(42,58,102,.75);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      position:relative;
+      backdrop-filter: blur(10px);
+    }
+    .card::before{
+      content:""; position:absolute; inset:-2px; opacity:.55; pointer-events:none;
+      background:
+        radial-gradient(900px 260px at 20% 0%, rgba(124,58,237,.45), transparent 60%),
+        radial-gradient(700px 260px at 80% 0%, rgba(34,211,238,.35), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.06), transparent 45%);
+    }
+    .grid{
+      pointer-events:none; position:absolute; inset:-120px -120px; opacity:.22;
+      background:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size:48px 48px;
+      mask-image: radial-gradient(closest-side, rgba(0,0,0,.85), transparent 70%);
+      animation: drift 16s linear infinite;
+    }
+    @keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(48px,48px,0)}}
+
+    .inner{position:relative;z-index:1;padding:26px}
+    .top{
+      display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px
+    }
+    .brand{display:flex;align-items:center;gap:12px;user-select:none}
+    .logo{
+      width:40px;height:40px;border-radius:14px;display:grid;place-items:center;
+      background:linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,211,238,.8));
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 14px 35px rgba(124,58,237,.25);
+    }
+    .brand h1{font-size:15px;margin:0;letter-spacing:.4px;font-weight:650}
+    .sub{font-size:12px;color:rgba(169,182,218,.75);margin-top:2px}
+
+    .pill{
+      font-size:12px;padding:6px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(0,0,0,.25);
+      color:var(--muted);
+      display:flex;align-items:center;gap:8px;white-space:nowrap
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 0 rgba(251,191,36,.55);animation:pulse 1.5s ease-out infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,191,36,.55)}70%{box-shadow:0 0 0 14px rgba(251,191,36,0)}100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}}
+
+    .code{
+      font-size:70px;line-height:1;margin:14px 0 8px;letter-spacing:-2px;font-weight:850;
+      background:linear-gradient(90deg, rgba(234,240,255,.95), rgba(169,182,218,.85));
+      -webkit-background-clip:text;background-clip:text;color:transparent
+    }
+    .title{font-size:22px;margin:0 0 10px;font-weight:720}
+    .desc{margin:0 0 16px;color:var(--muted);line-height:1.55;font-size:14.5px;max-width:70ch}
+
+    .cols{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:16px}
+    @media (max-width: 880px){ .cols{grid-template-columns:1fr} }
+
+    .panel{
+      border-radius:18px;border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.20);
+      padding:14px 14px 12px
+    }
+    .panel h3{
+      margin:0 0 10px;font-size:13px;letter-spacing:.35px;text-transform:uppercase;
+      color:var(--muted);font-weight:750
+    }
+    ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+    li{
+      display:flex;gap:10px;align-items:flex-start;
+      padding:10px 10px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);font-size:13px;line-height:1.35
+    }
+    .b{color:rgba(234,240,255,.92);font-weight:700}
+    .mini-dot{
+      width:10px;height:10px;border-radius:50%;margin-top:3px;flex:0 0 auto;
+      background:linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow:0 10px 25px rgba(124,58,237,.18);
+    }
+
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .btn{
+      appearance:none;border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.22);color:var(--text);
+      border-radius:14px;padding:10px 12px;font-size:13px;font-weight:650;
+      letter-spacing:.2px;display:inline-flex;align-items:center;gap:10px;
+      cursor:pointer;text-decoration:none;
+      transition:transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22);background:rgba(0,0,0,.32)}
+    .btn.primary{
+      background:linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,211,238,.85));
+      border-color:rgba(255,255,255,.18);
+      box-shadow:0 16px 35px rgba(34,211,238,.12);
+      color:#081025;
+    }
+
+    .meta{
+      display:flex;flex-wrap:wrap;gap:10px 16px;
+      margin-top:16px;padding-top:14px;
+      border-top:1px solid rgba(255,255,255,.08);
+      color:var(--soft);font-size:12px
+    }
+    .meta b{color:var(--muted);font-weight:650}
+
+    code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      color:rgba(234,240,255,.92);
+      font-size:12px;
+    }
+
+    svg{display:block}
+    .ico{width:18px;height:18px}
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="t">
+      <div class="grid" aria-hidden="true"></div>
+
+      <div class="inner">
+        <div class="top">
+          <div class="brand">
+            <div class="logo" aria-hidden="true">
+              <!-- radar-ish glyph -->
+              <svg class="ico" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3a9 9 0 1 0 9 9" stroke="rgba(8,16,37,.95)" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M12 7a5 5 0 1 0 5 5" stroke="rgba(8,16,37,.95)" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M12 12l7-7" stroke="rgba(8,16,37,.95)" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <h1>Taranis AI</h1>
+              <div class="sub">OSINT · CTI · Automation</div>
+            </div>
+          </div>
+
+          <div class="pill" title="The ingress/gateway could not complete the request">
+            <span class="dot" aria-hidden="true"></span>
+            Upstream error
+          </div>
+        </div>
+
+        <div class="code" id="status">__STATUS__</div>
+        <h2 id="t" class="title">Backend temporarily unavailable</h2>
+        <p class="desc">
+          The ingress reached your deployment, but the Taranis AI backend couldn’t successfully complete this request.
+          This is commonly caused by a rollout in progress, a pod/service not being ready yet, or a backend dependency being slow/unhealthy.
+        </p>
+
+        <div class="cols">
+          <div class="panel">
+            <h3>Most common in Kubernetes / Compose</h3>
+            <ul>
+              <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">Rollout / scaling:</span> pods updating, new replica warming up, image pull, init containers running.</span></li>
+              <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">Readiness not met:</span> service has no ready endpoints (probe failing, app booting, migrations).</span></li>
+              <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">CrashLoop / OOM:</span> container restarts before it can serve traffic.</span></li>
+              <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">Dependencies:</span> DB / Redis / queue unreachable or saturated.</span></li>
+            </ul>
+          </div>
+
+          <div class="panel">
+            <h3>Status-specific hint</h3>
+            <ul id="hint">
+              <li><span class="mini-dot" aria-hidden="true"></span><span>Seeing <span class="b">502</span> usually means the upstream responded “weirdly” (restart/reset/not-ready behind a proxy).</span></li>
+              <li><span class="mini-dot" aria-hidden="true"></span><span>Seeing <span class="b">504</span> usually means the upstream didn’t respond in time (slow boot, slow DB, overloaded workers).</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="btn primary" href="#" onclick="retry(); return false;">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="rgba(8,16,37,.95)" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M20 4v6h-6" stroke="rgba(8,16,37,.95)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Retry
+          </a>
+
+          <button class="btn" type="button" onclick="copyDiagnostics()">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 9h10v12H9z" stroke="rgba(234,240,255,.9)" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M5 3h10v4H5z" stroke="rgba(234,240,255,.9)" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M5 7v14h4" stroke="rgba(234,240,255,.9)" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+            Copy diagnostics
+          </button>
+
+          <a class="btn" href="/" title="Go back to the app root">Home</a>
+        </div>
+
+        <div class="meta">
+          <div><b>Time:</b> <span id="ts">—</span></div>
+          <div><b>Host:</b> <span id="host">—</span></div>
+          <div><b>Path:</b> <span id="path">—</span></div>
+        </div>
+
+        <div class="panel" style="margin-top:14px">
+          <h3>Fast checks (copy/paste)</h3>
+          <ul>
+            <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">Kubernetes:</span> <code>kubectl get pods,svc,ep -n &lt;ns&gt;</code> · <code>kubectl describe pod &lt;pod&gt; -n &lt;ns&gt;</code> · <code>kubectl logs &lt;pod&gt; -n &lt;ns&gt; --tail=200</code></span></li>
+            <li><span class="mini-dot" aria-hidden="true"></span><span><span class="b">Compose:</span> <code>docker compose ps</code> · <code>docker compose logs --tail=200</code> · <code>docker stats</code></span></li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function init(){
+      var now = new Date();
+      document.getElementById("ts").textContent = now.toISOString();
+      document.getElementById("host").textContent = window.location.host || "unknown";
+      document.getElementById("path").textContent = window.location.pathname || "/";
+      // If nginx failed to substitute, show something sane:
+      var s = (document.getElementById("status").textContent || "").trim();
+      if (!/^\d{3}$/.test(s)) document.getElementById("status").textContent = "5xx";
+      // Optionally emphasize status-specific hint:
+      var code = document.getElementById("status").textContent.trim();
+      var hint = document.getElementById("hint");
+      if (hint && (code === "502" || code === "504")) {
+        // keep it subtle: reorder to put matching line first
+        var items = Array.prototype.slice.call(hint.querySelectorAll("li"));
+        items.sort(function(a,b){
+          var at = a.textContent.indexOf(code) !== -1 ? -1 : 1;
+          var bt = b.textContent.indexOf(code) !== -1 ? -1 : 1;
+          return at - bt;
+        });
+        hint.innerHTML = "";
+        items.forEach(function(li){ hint.appendChild(li); });
+      }
+      window.__taranis_upstream = {
+        status: code,
+        time: document.getElementById("ts").textContent,
+        host: window.location.host || "",
+        path: window.location.pathname || "",
+        ua: navigator.userAgent || ""
+      };
+    })();
+
+    function retry(){
+      var key = "taranis_upstream_retry_count";
+      var n = parseInt(sessionStorage.getItem(key) || "0", 10);
+      if (n >= 3){
+        alert("Already retried a few times. If this persists, check pods/readiness/dependencies.");
+        return;
+      }
+      sessionStorage.setItem(key, String(n + 1));
+      window.location.reload();
+    }
+
+    async function copyDiagnostics(){
+      var d = window.__taranis_upstream || {};
+      var text =
+        "Taranis AI upstream error\n" +
+        "status: " + (d.status || "") + "\n" +
+        "time: " + (d.time || "") + "\n" +
+        "host: " + (d.host || "") + "\n" +
+        "path: " + (d.path || "") + "\n" +
+        "user_agent: " + (d.ua || "") + "\n";
+      try{
+        await navigator.clipboard.writeText(text);
+        toast("Diagnostics copied.");
+      } catch(e){
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try{ document.execCommand("copy"); toast("Diagnostics copied."); }
+        catch(_){ alert(text); }
+        finally{ document.body.removeChild(ta); }
+      }
+    }
+
+    function toast(msg){
+      var t = document.createElement("div");
+      t.textContent = msg;
+      t.style.position = "fixed";
+      t.style.left = "50%";
+      t.style.bottom = "22px";
+      t.style.transform = "translateX(-50%)";
+      t.style.padding = "10px 12px";
+      t.style.borderRadius = "14px";
+      t.style.color = "rgba(234,240,255,.95)";
+      t.style.background = "rgba(0,0,0,.55)";
+      t.style.border = "1px solid rgba(255,255,255,.14)";
+      t.style.backdropFilter = "blur(10px)";
+      t.style.boxShadow = "0 18px 50px rgba(0,0,0,.55)";
+      t.style.zIndex = "9999";
+      t.style.font = "600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      document.body.appendChild(t);
+      setTimeout(function(){
+        t.style.transition = "opacity .25s ease, transform .25s ease";
+        t.style.opacity = "0";
+        t.style.transform = "translateX(-50%) translateY(6px)";
+      }, 900);
+      setTimeout(function(){ if (t && t.parentNode) t.parentNode.removeChild(t); }, 1300);
+    }
+  </script>
+</body>
+</html>
