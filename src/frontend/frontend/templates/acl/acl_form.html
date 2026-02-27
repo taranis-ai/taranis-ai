@@ -15,7 +15,9 @@
 
     <div class="join gap-1 w-3/4">
       <label class="select w-full">
-        <span class="label">Item Type*</span>
+        <span class="label">Item Type
+          <span aria-hidden="true" class="text-error">*</span>
+        </span>
         <select id="item_type"
                 name="item_type"
                 required
@@ -34,18 +36,21 @@
         </select>
       </label>
       <label class="select w-full" id="item_ids">
-        <span class="label">Item ID*</span>
-        <select name="item_id" required aria-required="true" disabled class="validator select w-full">
+        <span class="label">
+          {{ selected_item_label | default("Item ID") }}
+          <span aria-hidden="true" class="text-error">*</span>
+        </span>
+        <select name="item_id" required aria-required="true" {% if not item_ids %}disabled{% endif %} class="validator select w-full">
           {% for option in item_ids -%}
-            <option value="{{ option.id }}" {% if option.id == acl.item_id %}selected{% endif %}>{{ option.name }}</option>
+            <option value="{{ option.id }}" {% if option.id ~ '' == acl.item_id ~ '' %}selected{% endif %}>{{ option.name }}</option>
           {% endfor -%}
         </select>
       </label>
     </div>
 
     <div class="join gap-1 w-3/4 m-5">
-      {{ form_switch('Enabled', 'enabled', acl.enabled, required=False, width='w-1/4') }}
-      {{ form_switch('Read Only', 'read_only', acl.read_only, required=False, width='w-1/4') }}
+      {{ form_switch('Enabled', 'enabled', 'Yes' if acl.enabled else 'No', required=False, width='w-1/4') }}
+      {{ form_switch('Read Only', 'read_only', 'Yes' if acl.read_only else 'No', required=False, width='w-1/4') }}
     </div>
     {{ datatable(table_id='roles-table', data=roles, columns=columns, selected_items=acl.roles, selectable=true, input_name="roles[]", headline="Roles", width="w-3/4") }}
     <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />

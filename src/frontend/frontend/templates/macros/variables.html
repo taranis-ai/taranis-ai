@@ -1,4 +1,4 @@
-{% macro tlp_levels(selected, name='tlp_level', input_id='tlp_level', data_testid=None, required='required') %}
+{% macro tlp_levels(selected, name='tlp_level', input_id='tlp_level', data_testid=None, required=True) %}
   {% from "macros/forms.html" import form_select %}
 
   {% set tlp_levels = [
