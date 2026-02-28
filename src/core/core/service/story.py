@@ -18,34 +18,47 @@ class StoryService:
         stories: dict[str, dict] = {}
 
         for row in result:
-            if getattr(row, "news_item_id", None) is not None:
-                story = stories.setdefault(row.id, {"id": row.id, "news_items": []})
+            if getattr(row, "news_item_id", None) is None:
+                continue
+            story = stories.setdefault(row.id, {"id": row.id, "created": row.created.astimezone().isoformat(), "news_items": []})
 
-                story["news_items"].append(
-                    {
-                        "id": row.news_item_id,
-                        "title": row.news_item_title,
-                        "content": row.news_item_content,
-                    }
-                )
+            story["news_items"].append(
+                {
+                    "id": row.news_item_id,
+                    "title": row.news_item_title,
+                    "content": row.news_item_content,
+                }
+            )
 
         return list(stories.values())
 
     @classmethod
-    def export(cls) -> bytes:
+    def export(cls, time_from: datetime | None, time_to: datetime | None) -> bytes:
         query = db.select(
             Story.id,
+            Story.created,
             NewsItem.id.label("news_item_id"),
             NewsItem.title.label("news_item_title"),
             NewsItem.content.label("news_item_content"),
         ).outerjoin(NewsItem, NewsItem.story_id == Story.id)
+
+        if time_from is not None:
+            query = query.where(Story.created >= time_from)
+        if time_to is not None:
+            query = query.where(Story.created <= time_to)
+
         result = db.session.execute(query).all()
         stories = cls.extract_stories(result)
         return json.dumps(stories).encode("utf-8")
 
     @classmethod
-    def export_with_metadata(cls) -> bytes:
+    def export_with_metadata(cls, time_from: datetime | None, time_to: datetime | None) -> bytes:
         query = db.select(Story).join(NewsItem, NewsItem.story_id == Story.id)
+
+        if time_from is not None:
+            query = query.where(Story.created >= time_from)
+        if time_to is not None:
+            query = query.where(Story.created <= time_to)
         stories: list[Story] = list(db.session.execute(query).scalars().unique().all())
         payload = [story.to_dict() for story in stories]
         return json.dumps(payload).encode("utf-8")

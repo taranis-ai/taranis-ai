@@ -506,7 +506,7 @@ def stories(run_core, api_header, fake_source, access_token):
 #     return get_product_to_render
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -515,11 +515,19 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     }
 
     print("Pre-seeding stories via assess API")
+    story_list = []
+    news_item_ids_created: list[str] = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
         r.raise_for_status()
+        response_data = r.json()
+        story_list.append({"story_id": response_data.get("story_id"), **item})
+        news_item_ids_created.extend(response_data.get("news_item_ids", []))
 
-    yield []
+    yield story_list
+
+    for news_item_id in news_item_ids_created:
+        requests.delete(f"{run_core}/assess/news-items/{news_item_id}", headers=headers)
 
 
 @pytest.fixture(scope="session")

@@ -1,4 +1,6 @@
 import json
+from datetime import datetime
+
 from tests.functional.helpers import BaseTest
 
 
@@ -33,6 +35,11 @@ class TestAdminApi(BaseTest):
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):
+    def normalize_timestamp(value: str) -> str:
+        cleaned = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(cleaned)
+        return parsed.replace(tzinfo=None, microsecond=0).isoformat()
+
     full_story[0]["attributes"] = [{"key": "status", "value": "updated"}]
     r = client.post("/api/worker/stories", json=full_story[0], headers=api_header)
     assert r.status_code == 200
@@ -50,9 +57,11 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert isinstance(data, list)
     assert isinstance(data[0], dict)
     assert "id" in data[0]
+    assert "created" in data[0]
     assert "news_items" in data[0]
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
+    assert normalize_timestamp(data[0]["created"]) == normalize_timestamp(full_story[0]["created"])
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
     assert len(exported_news_item_ids) == len(news_item_ids)
@@ -68,7 +77,6 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "relevance" not in data[0]
     assert "comments" not in data[0]
     assert "summary" not in data[0]
-    assert "created" not in data[0]
     assert "updated" not in data[0]
 
     # Export with metadata
