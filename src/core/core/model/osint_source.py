@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
 from core.log import logger
+from core.config import Config
 from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -47,6 +48,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
+    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
         self.id = id or str(uuid.uuid4())
@@ -292,25 +294,47 @@ class OSINTSource(BaseModel):
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
-        if not self._is_valid_image(icon_bytes):
-            raise ValueError("Icon payload is not a valid image file.")
+        if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
+            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+        self._validate_icon_image(icon_bytes)
         return icon_bytes
 
-    @staticmethod
-    def _is_valid_image(icon_bytes: bytes) -> bool:
+    @classmethod
+    def _validate_icon_image(cls, icon_bytes: bytes) -> None:
+        if cls._looks_like_svg(icon_bytes):
+            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
+
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
                 image.verify()
-                image_format = image.format
-            if not image_format:
-                logger.warning("Image verification succeeded but format is unknown.")
-                return False
-            with Image.open(BytesIO(icon_bytes)) as image:
-                image.load()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+                image_format = image.format.upper() if image.format else None
+        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
             logger.warning(f"Pillow verification failed for icon: {exc}")
-            return False
-        return True
+            raise ValueError("Icon payload is not a valid image file.") from exc
+
+        if image_format not in cls._ALLOWED_ICON_FORMATS:
+            raise ValueError(
+                f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
+            )
+
+        try:
+            with Image.open(BytesIO(icon_bytes)) as image:
+                width, height = image.size
+                if width * height > Config.OSINT_SOURCE_ICON_MAX_PIXELS:
+                    raise ValueError(
+                        f"Icon dimensions are too large ({width}x{height}). Maximum pixels: {Config.OSINT_SOURCE_ICON_MAX_PIXELS}."
+                    )
+                image.load()
+        except ValueError:
+            raise
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            logger.warning(f"Pillow decode failed for icon: {exc}")
+            raise ValueError("Icon payload is not a valid image file.") from exc
+
+    @staticmethod
+    def _looks_like_svg(icon_bytes: bytes) -> bool:
+        prefix = icon_bytes[:1024].lstrip().lower()
+        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)

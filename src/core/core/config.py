@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
     DISABLE_PPN_COLLECTOR: bool = True
+    MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
+    OSINT_SOURCE_ICON_MAX_BYTES: int = 256 * 1024
+    OSINT_SOURCE_ICON_MAX_PIXELS: int = 1024 * 1024
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
