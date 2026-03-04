@@ -63,7 +63,7 @@
   </label>
 {% endmacro %}
 
-{% macro form_fileinput(label, name, value, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full') %}
+{% macro form_fileinput(label, name, value, type='file', input_id=None, placeholder=None, required=True, preserve=True, width='w-full', accept=None) %}
   <label class="floating-label mb-5 {{ width }}">
     <span class="label">{{ label }}</span>
     <input id="{% if input_id %}{{ input_id }}{% else %}{{ name }}{% endif %}"
@@ -71,6 +71,7 @@
            placeholder="{{ placeholder if placeholder is not none else label }}"
            class="input w-full validator file-input"
            name="{{ name }}"
+           {% if accept %}accept="{{ accept }}"{% endif %}
            {% if required %}required{% endif %}
            {% if preserve %}hx-preserve{% endif %} />
   </label>

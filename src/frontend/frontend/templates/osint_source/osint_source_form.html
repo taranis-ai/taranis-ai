@@ -37,7 +37,7 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
     {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
-    {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False) }}
+    {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False, accept=icon_accept) }}
 
     <label class="select w-full mb-5">
       <span class="label">Collector Type</span>

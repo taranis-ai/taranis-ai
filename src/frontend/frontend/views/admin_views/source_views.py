@@ -2,6 +2,7 @@ import base64
 import json
 from typing import Any, Literal
 
+import filetype
 from flask import Response, render_template, request, url_for
 from models.admin import Job, OSINTSource, TaskResult
 from models.dashboard import Dashboard
@@ -85,6 +86,7 @@ class SourceView(AdminMixin, BaseView):
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
+        base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
         base_context["actions"] = osint_source_actions
         return base_context
 
@@ -139,21 +141,46 @@ class SourceView(AdminMixin, BaseView):
             form_data = parse_formdata(request.form)
             icon = request.files.get("icon")  # FileStorage
             if icon and icon.filename:
-                if icon.mimetype not in cls._ALLOWED_ICON_MIMETYPES:
-                    error_msg = f"Unsupported icon file type: {icon.mimetype}"
+                max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+                icon_data = icon.read(max_bytes + 1)
+                if len(icon_data) > max_bytes:
+                    error_msg = f"Icon file exceeds maximum size of {max_bytes} bytes."
                     logger.warning(error_msg)
                     return None, error_msg
 
-                icon_data = icon.read()
+                cls._validate_icon_upload(icon_data)
                 icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
                 form_data["icon"] = icon_data_base64
             return cls.store_form_data(form_data, object_id)
+        except ValueError as exc:
+            logger.warning(str(exc))
+            return None, str(exc)
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
         except Exception:
             logger.exception("Error storing form data")
             return None, "Error storing form data"
+
+    @classmethod
+    def _validate_icon_upload(cls, icon_data: bytes) -> None:
+        if not icon_data:
+            raise ValueError("Icon payload is not a valid image file.")
+
+        if cls._looks_like_svg(icon_data):
+            raise ValueError("Unsupported icon file type: image/svg+xml")
+
+        icon_kind = filetype.guess(icon_data)
+        if not icon_kind or not icon_kind.mime.startswith("image/"):
+            raise ValueError("Icon payload is not a valid image file.")
+
+        if icon_kind.mime not in cls._ALLOWED_ICON_MIMETYPES:
+            raise ValueError(f"Unsupported icon file type: {icon_kind.mime}")
+
+    @staticmethod
+    def _looks_like_svg(icon_data: bytes) -> bool:
+        prefix = icon_data[:1024].lstrip().lower()
+        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     @classmethod
     def export_view(cls):
@@ -261,4 +288,6 @@ class SourceView(AdminMixin, BaseView):
 
         return notification + state_button, 200
 
-    _ALLOWED_ICON_MIMETYPES = {"image/png", "image/jpeg", "image/svg+xml"}
+    _ALLOWED_ICON_MIMETYPES = frozenset(
+        mime.strip() for mime in Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES.split(",") if mime.strip()
+    )
