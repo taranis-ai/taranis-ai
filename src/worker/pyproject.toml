@@ -33,6 +33,7 @@ dependencies = [
     "paramiko",
     "python-gnupg",
     "minio",
+    "taxii2-client",
     # Presenters
     "weasyprint",
     "jinja2",
