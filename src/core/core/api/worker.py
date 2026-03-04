@@ -80,6 +80,7 @@ class Sources(MethodView):
 
 
 class SourceIcon(MethodView):
+    @api_key_required
     def put(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):
