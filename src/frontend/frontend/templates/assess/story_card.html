@@ -33,6 +33,8 @@
   <article id="story-{{ story_id }}"
            class="{{ ' '.join(card_classes) }}"
            data-story-id="{{ story_id }}"
+           data-story-important="{{ 'true' if (story.important | default(false) ) else 'false' }}"
+           data-story-read="{{ 'true' if (story.read | default(false) ) else 'false' }}"
            data-story-detail-view="{{ 'true' if detail_view else 'false' }}"
            data-testid="story-card-{{ story_id }}"
            x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
