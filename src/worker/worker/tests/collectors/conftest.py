@@ -1,10 +1,12 @@
-import os
-import pytest
 import datetime
+import os
+from unittest.mock import MagicMock
+
+import pytest
 
 import worker.collectors as collectors
-from worker.config import Config
 from worker.collectors.base_web_collector import BaseWebCollector
+from worker.config import Config
 
 
 def file_loader(filename):
@@ -61,7 +63,7 @@ def news_item_upload_mock(requests_mock):
 
 @pytest.fixture
 def web_collector_url_mock(requests_mock):
-    from worker.tests.testdata import web_collector_url, web_collector_ref_url, head_request
+    from worker.tests.testdata import head_request, web_collector_ref_url, web_collector_url
 
     requests_mock.head(web_collector_url, json=head_request)
     requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
@@ -84,8 +86,13 @@ def base_web_collector_mock(requests_mock):
 
 @pytest.fixture
 def rss_collector_mock(requests_mock, collectors_mock):
-    from worker.tests.testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
-    from worker.tests.testdata import rss_collector_url_not_modified, rss_collector_url_no_content
+    from worker.tests.testdata import (
+        rss_collector_fav_icon_url,
+        rss_collector_targets,
+        rss_collector_url,
+        rss_collector_url_no_content,
+        rss_collector_url_not_modified,
+    )
 
     requests_mock.get(rss_collector_targets[0], json={})
     requests_mock.get(rss_collector_targets[1], json={})
@@ -101,6 +108,38 @@ def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_
     from worker.tests.testdata import web_collector_fav_icon_url
 
     requests_mock.get(web_collector_fav_icon_url, json={})
+
+
+@pytest.fixture
+def browser_web_collector_mock(monkeypatch) -> MagicMock:
+    mock_manager = MagicMock(name="PlaywrightManagerMock")
+    html = file_loader("testweb.html")
+
+    mock_manager.fetch_content_with_js.return_value = html
+    mock_manager.stop_playwright_if_needed.return_value = None
+
+    def fake_playwright_manager_ctor(proxies, headers):
+        return mock_manager
+
+    monkeypatch.setattr(
+        "worker.collectors.simple_web_collector.PlaywrightManager",
+        fake_playwright_manager_ctor,
+    )
+
+    return mock_manager
+
+
+@pytest.fixture
+def browser_web_collector_instance(simple_web_collector):
+    collector = simple_web_collector
+
+    collector.browser_mode = "true"
+    collector.proxies = {}
+    collector.headers = {}
+    collector.digest_splitting = "false"
+    collector.playwright_manager = None
+
+    yield collector
 
 
 @pytest.fixture

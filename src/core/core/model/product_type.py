@@ -60,7 +60,11 @@ class ProductType(BaseModel):
                 )
             )
 
-        return query.order_by(db.asc(cls.title))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "title_asc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:

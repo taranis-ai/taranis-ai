@@ -1,0 +1,27 @@
+{% set error_title = error | default('Page not found') %}
+<section class="p-8" id="dashboard">
+  <div class="relative overflow-hidden rounded-3xl border border-base-300 bg-base-200 shadow-2xl">
+    <div class="relative grid items-start gap-10 px-8 py-12">
+      <h1 class="text-4xl font-black leading-tight text-base-content">404 - {{ error_title }}</h1>
+      <p class="text-base text-base-content/70">
+        We looked around but could not locate this view. Choose a destination below or head back to where you were.
+      </p>
+
+      <div class="flex flex-wrap gap-3">
+        <a href="{{ url_for('base.dashboard') }}" class="btn btn-primary gap-2">
+          {{ heroicon_outline("squares-2x2", class="h-5 w-5") }}
+          Go to dashboard
+        </a>
+        <button type="button" class="btn btn-outline gap-2" onclick="window.history.back()">
+          {{ heroicon_outline("arrow-uturn-left", class="h-5 w-5") }}
+          Go back
+        </button>
+        <a href="https://taranis.ai/docs" class="btn btn-ghost gap-2" target="_blank" rel="noopener noreferrer">
+          {{ heroicon_outline("lifebuoy", class="h-5 w-5") }}
+          Get help
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+</section>

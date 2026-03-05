@@ -27,12 +27,14 @@ class Bot(BaseModel):
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
+    def __init__(
+        self, name: str, type: str | BOT_TYPES, description: str = "", index: int | None = None, parameters=None, id: str | None = None
+    ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
-        self.index = Bot.get_highest_index() + 1
+        self.index = index or Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property
@@ -46,14 +48,14 @@ class Bot(BaseModel):
         return f"bot_{self.id}"
 
     @classmethod
-    def update(cls, bot_id, data) -> "Bot | None":
+    def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
         bot = cls.get(bot_id)
         if not bot:
             return None
         if name := data.get("name"):
             bot.name = name
 
-        bot.description = data.get("description")
+        bot.description = data.get("description", "")
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
@@ -79,7 +81,11 @@ class Bot(BaseModel):
     def filter_by_type(cls, filter_type: str) -> "Bot | None":
         if filter_type.lower() not in [types.value for types in BOT_TYPES]:
             return None
-        return db.session.execute(db.select(cls).where(cls.type == filter_type.lower())).scalar_one_or_none()
+        try:
+            return db.session.execute(db.select(cls).where(cls.type == filter_type.lower())).scalar_one_or_none()
+        except Exception:
+            logger.exception(f"Error filtering bots by type: {filter_type}")
+            return None
 
     @classmethod
     def get_all_by_type(cls, filter_type: str):
@@ -150,7 +156,7 @@ class Bot(BaseModel):
         }
 
     @classmethod
-    def get_filter_query(cls, filter_args: dict) -> Select:
+    def get_filter_query(cls, filter_args: dict[str, Any]) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):

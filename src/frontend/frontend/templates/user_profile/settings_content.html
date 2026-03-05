@@ -25,6 +25,7 @@
             <p class="mt-1 text-sm text-base-content/70">Show the assess interface and story details side by side.</p>
           </div>
           <div class="shrink-0">
+            {# TODO: Reiterate on what is split view supposed to do - is it TBD? #}
             <input type="hidden" name="split_view" value="false">
             <input id="split-view-toggle"
                    name="split_view"
@@ -42,6 +43,7 @@
             <p class="mt-1 text-sm text-base-content/70">Use condensed spacing for tables and lists.</p>
           </div>
           <div class="shrink-0">
+            <input type="hidden" name="compact_view" value="false">
             <input id="compact-view-toggle"
                    name="compact_view"
                    type="checkbox"
@@ -58,6 +60,7 @@
             <p class="mt-1 text-sm text-base-content/70">Display dashboard visualisations when available.</p>
           </div>
           <div class="shrink-0">
+            <input type="hidden" name="show_charts" value="false">
             <input id="show-charts-toggle"
                    name="show_charts"
                    type="checkbox"
@@ -85,6 +88,7 @@
             <p class="mt-1 text-sm text-base-content/70">Automatically load more results when you reach the bottom.</p>
           </div>
           <div class="shrink-0">
+            <input type="hidden" name="infinite_scroll" value="false">
             <input id="infinite-scroll-toggle"
                    name="infinite_scroll"
                    type="checkbox"
@@ -97,10 +101,11 @@
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="advanced-story-toggle">
           <div>
-            <p class="font-semibold text-base-content">Advanced story options</p>
-            <p class="mt-1 text-sm text-base-content/70">Expose additional actions in story detail view.</p>
+            <p class="font-semibold text-base-content">Advanced story edit options</p>
+            <p class="mt-1 text-sm text-base-content/70">Expose additional actions in story edit view.</p>
           </div>
           <div class="shrink-0">
+            <input type="hidden" name="advanced_story_options" value="false">
             <input id="advanced_story_options"
                    name="advanced_story_options"
                    type="checkbox"
@@ -165,6 +170,7 @@
       method="post"
       hx-post="{{ url_for('user.change_password') }}"
       hx-target="#notification-bar"
+      hx-target-error="#notification-bar"
       hx-swap="outerHTML">
   <div class="card bg-base-100 shadow">
     <div class="card-body gap-4">

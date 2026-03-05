@@ -1,19 +1,21 @@
-from flask import Blueprint, request, Flask
-from flask.views import MethodView
 from urllib.parse import unquote
+
+from flask import Blueprint, Flask, request
+from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers.sse_manager import sse_manager
-from core.log import logger
-from core.managers.auth_manager import auth_required
-from core.model import news_item, osint_source, news_item_tag, story
-from core.managers.decorators import validate_json
-from core.managers import queue_manager
-from core.service.news_item import NewsItemService
 from core.audit import audit_logger
 from core.config import Config
-from core.model.story_conflict import StoryConflict
+from core.log import logger
+from core.managers import queue_manager
+from core.managers.auth_manager import auth_required
+from core.managers.decorators import validate_json
+from core.managers.sse_manager import sse_manager
+from core.model import news_item, news_item_tag, osint_source, story
 from core.model.revision import StoryRevision
+from core.model.story_conflict import StoryConflict
+from core.service.news_item import NewsItemService
+from core.service.story import StoryService
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -52,27 +54,36 @@ class NewsItems(MethodView):
         return result, status
 
 
+class NewsItemFetch(MethodView):
+    @auth_required("ASSESS_CREATE")
+    def post(self):
+        if parameters := request.get_json():
+            return StoryService.fetch_and_create_story(parameters)
+
+        return {"error": "Couldn't create News Item"}, 400
+
+
 class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
-    def get(self, item_id):
+    def get(self, item_id: str):
         return news_item.NewsItem.get_for_api(item_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
-    def put(self, item_id):
+    def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
-    def patch(self, item_id):
+    def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_DELETE")
-    def delete(self, item_id):
+    def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
         return response, code
@@ -80,7 +91,7 @@ class NewsItem(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
-    def put(self, news_item_id):
+    def put(self, news_item_id: str):
         return news_item.NewsItem.update_attributes(news_item_id, request.json)
 
 
@@ -104,7 +115,7 @@ class Stories(MethodView):
                 "exclude_attr",
             ]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-            filter_list_keys = ["source", "group"]
+            filter_list_keys = ["source", "group", "story_ids"]
             for key in filter_list_keys:
                 filter_args[key] = request.args.getlist(key)
 
@@ -294,13 +305,13 @@ class StoryRevisions(MethodView):
     def get(self, story_id: str):
         """Get all revisions for a story"""
         from core.managers.db_manager import db
-        
-        revisions = db.session.execute(
-            db.select(StoryRevision)
-            .filter(StoryRevision.story_id == story_id)
-            .order_by(StoryRevision.revision.desc())
-        ).scalars().all()
-        
+
+        revisions = (
+            db.session.execute(db.select(StoryRevision).filter(StoryRevision.story_id == story_id).order_by(StoryRevision.revision.desc()))
+            .scalars()
+            .all()
+        )
+
         return {
             "total_count": len(revisions),
             "items": [
@@ -313,7 +324,7 @@ class StoryRevisions(MethodView):
                     "note": rev.note,
                 }
                 for rev in revisions
-            ]
+            ],
         }, 200
 
 
@@ -322,16 +333,14 @@ class StoryRevisionData(MethodView):
     def get(self, story_id: str, revision_number: int):
         """Get data for a specific revision"""
         from core.managers.db_manager import db
-        
+
         revision = db.session.execute(
-            db.select(StoryRevision)
-            .filter(StoryRevision.story_id == story_id)
-            .filter(StoryRevision.revision == revision_number)
+            db.select(StoryRevision).filter(StoryRevision.story_id == story_id).filter(StoryRevision.revision == revision_number)
         ).scalar_one_or_none()
-        
+
         if not revision:
             return {"error": "Revision not found"}, 404
-            
+
         return {
             "id": revision.id,
             "revision": revision.revision,
@@ -341,6 +350,18 @@ class StoryRevisionData(MethodView):
             "note": revision.note,
             "data": revision.data,
         }, 200
+
+
+class AssessImport(MethodView):
+    @auth_required("ASSESS_CREATE")
+    @validate_json
+    def post(self):
+        if not (data_json := request.json):
+            return {"error": "No data provided"}, 400
+
+        imported_stories = StoryService.import_stories(data_json, current_user)
+        sse_manager.news_items_updated()
+        return imported_stories
 
 
 def initialize(app: Flask):
@@ -355,7 +376,9 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
+    assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
+    assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")

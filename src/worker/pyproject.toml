@@ -19,7 +19,7 @@ dependencies = [
     "click",
     "python-dotenv",
     "pydantic-settings",
-    "taranis-models",
+    "taranis-models>=1.3.3.dev5",
     "requests",
     "requests[socks]",
     # Collector
@@ -29,11 +29,11 @@ dependencies = [
     "pyopenssl",
     "lxml",
     "playwright",
-    "langcodes",
     # Publisher
     "paramiko",
     "python-gnupg",
     "minio",
+    "taxii2-client",
     # Presenters
     "weasyprint",
     "jinja2",
@@ -43,7 +43,6 @@ dependencies = [
     # Bots
     "ioc-finder",
     "ioc-fanger",
-    "langdetect",
     "pypandoc-binary>=1.15",
 ]
 dynamic = ["version"]

@@ -105,13 +105,13 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
-        if not tags:
-            logger.warning("No tags provided for parsing.")
-            return {}
         if isinstance(tags, dict):
             return cls._parse_dict_tags(tags)
+        elif isinstance(tags, list):
+            return cls._parse_list_tags(tags)
 
-        return cls._parse_list_tags(tags)
+        logger.warning(f"Invalid tags format: {type(tags).__name__} - expected list or dict")
+        return {}
 
     @classmethod
     def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
@@ -120,11 +120,6 @@ class NewsItemTag(BaseModel):
         - New: {"APT75": {"name": "APT75", "tag_type": "UNKNOWN"}}
         """
         parsed_tags = {}
-        if not isinstance(tags, dict):
-            raise TypeError(f"Expected a dict for tags, got {type(tags).__name__}")
-        if not tags:
-            logger.warning("Entered tags might have been parsed out, likely due to a wrong format.")
-            raise ValueError("Tags cannot be empty or None.")
 
         for tag_key, tag_data in tags.items():
             if isinstance(tag_data, dict):
@@ -144,8 +139,6 @@ class NewsItemTag(BaseModel):
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:
         dict_tags = {}
-        if not isinstance(tags, list):
-            raise TypeError(f"Expected a list for tags, got {type(tags).__name__}")
         for tag in tags:
             if isinstance(tag, dict) and "name" in tag:
                 dict_tags[tag["name"]] = tag

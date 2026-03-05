@@ -1,15 +1,15 @@
 import datetime
-import hashlib
+import logging
+from urllib.parse import urljoin, urlparse
+
+import dateutil.parser as dateparser
 import feedparser
 import requests
-import logging
-from urllib.parse import urlparse
-import dateutil.parser as dateparser
+from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
-from worker.types import NewsItem
 
 
 class RSSCollectorError(Exception):
@@ -34,28 +34,105 @@ class RSSCollector(BaseWebCollector):
         self.last_modified: datetime.datetime | None = None
         self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
+        self.use_feed_content: bool = False
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
+    def _determine_use_feed_content(self, params: dict) -> bool:
+        use_feed_param = params.get("USE_FEED_CONTENT")
+
+        if use_feed_param is not None:
+            if isinstance(use_feed_param, bool):
+                return use_feed_param
+            if isinstance(use_feed_param, str):
+                return use_feed_param.strip().lower() == "true"
+
+        content_location = params.get("CONTENT_LOCATION")
+        if isinstance(content_location, str) and content_location.strip():
+            return True
+
+        return False
+
     def parse_source(self, source: dict):
         super().parse_source(source)
+        params = source.get("parameters", {})
+
         self.feed_url = source["parameters"].get("FEED_URL", "")
         if not self.feed_url:
             raise ValueError("No FEED_URL set in source")
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
+        self.use_feed_content = self._determine_use_feed_content(params)
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
         return self.rss_collector(source, manual)
 
-    def content_from_feed(self, feed_entry: feedparser.FeedParserDict, content_location: str) -> tuple[bool, str]:
-        content_locations = [content_location, "content", "content:encoded"]
-        for location in content_locations:
-            if location in feed_entry and isinstance(feed_entry[location], str):
-                return True, location
-        return False, content_location
+    @staticmethod
+    def extract_icon_url(icon) -> str | None:
+        def from_mapping(m) -> str | None:
+            href = m.get("href") or m.get("url")
+            if isinstance(href, str) and href.strip():
+                return href.strip()
+            if isinstance(href, list):
+                for item in href:
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+            return None
+
+        if isinstance(icon, (feedparser.FeedParserDict, dict)):
+            return from_mapping(icon)
+
+        if isinstance(icon, str):
+            return icon.strip() or None
+
+        if isinstance(icon, list):
+            for item in icon:
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+                if isinstance(item, (feedparser.FeedParserDict, dict)):
+                    url = from_mapping(item)
+                    if url:
+                        return url
+            return None
+
+        return None
+
+    def extract_content_from_feed(
+        self,
+        feed_entry: feedparser.FeedParserDict,
+        source: dict,
+    ) -> str:
+        params = source.get("parameters", {})
+        custom_location = params.get("CONTENT_LOCATION")
+
+        locations: list[str] = []
+
+        if isinstance(custom_location, str) and custom_location.strip():
+            locations.append(custom_location.strip())
+
+        locations += ["content", "content:encoded", "summary", "description"]
+
+        for location in locations:
+            if location not in feed_entry:
+                continue
+
+            value = feed_entry[location]
+
+            if isinstance(value, list) and value:
+                first = value[0]
+                if isinstance(first, dict) and "value" in first:
+                    content = str(first["value"]).strip()
+                    if content:
+                        return content
+
+            if isinstance(value, str):
+                content = value.strip()
+                if content:
+                    return content
+
+        return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
@@ -83,35 +160,40 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
+
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
 
         published = self.get_published_date(feed_entry)
+        content = ""
 
-        content_location = source["parameters"].get("CONTENT_LOCATION", None)
-        content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
-        content = str(feed_entry[content_location]) if content_from_feed else ""
-        if link:
+        if self.use_feed_content:
+            content = self.extract_content_from_feed(feed_entry, source)
+
+            if self.xpath and content:
+                if extracted := self.xpath_extraction(content, self.xpath):
+                    content = extracted
+        elif link:
             web_content = self.extract_web_content(link, self.xpath)
-            content = content if content_from_feed else str(web_content.get("content"))
+            content = str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
             published = published or web_content.get("published_date") or self.last_modified
 
+        else:
+            logger.warning("No content could be extracted for RSS entry %r", feed_entry.get("id", link or title))
+
         if content == description:
             description = ""
 
-        for_hash: str = title + self.clean_url(link)
-
         return NewsItem(
-            osint_source_id=source["id"],
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            osint_source_id=str(source["id"]),
             author=author,
             title=title,
             source=self.feed_url,
             content=content,
-            web_url=link,
-            published_date=published,
+            link=link,
+            published=published,
             language=self.language,
         )
 
@@ -130,23 +212,35 @@ class RSSCollector(BaseWebCollector):
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
-        icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
-        icon = feed.get("icon", feed.get("image"))
-        if isinstance(icon, feedparser.FeedParserDict):
-            icon_url = str(icon.get("href"))
-        elif isinstance(icon, str):
-            icon_url = str(icon)
-        elif isinstance(icon, list):
-            icon_url = str(icon[0].get("href"))
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
-        if not r.ok:
-            return None
 
-        if "image" not in r.headers.get("content-type", ""):
-            return None
+        default_icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(source_id, icon_content)
+        icon = feed.get("icon") or feed.get("image")
+
+        icon_url = default_icon_url
+        if possible_icon_url := RSSCollector.extract_icon_url(icon):
+            icon_url = urljoin(self.feed_url, possible_icon_url)
+
+        try:
+            r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+            if not r.ok:
+                logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
+                return None
+
+            content_type = (r.headers.get("content-type") or "").lower()
+            if not content_type.startswith("image/"):
+                logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
+                return None
+
+            parsed = urlparse(icon_url)
+            filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
+            icon_content = {"file": (filename, r.content)}
+
+            self.core_api.update_osint_source_icon(source_id, icon_content)
+
+        except Exception as e:
+            logger.error(f"Exception while fetching icon from {icon_url}: {e}")
+
         return None
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source: dict) -> list[NewsItem]:
@@ -206,6 +300,7 @@ class RSSCollector(BaseWebCollector):
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
         feed = self.get_feed(manual)
+        self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
         if not self.last_attempted:
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
@@ -218,7 +313,3 @@ class RSSCollector(BaseWebCollector):
         self.news_items = self.gather_news_items(feed, source)
 
         return self.publish(self.news_items, source)
-
-    def detect_language_from_feed(self, feed: dict):
-        if language := feed.get("feed", {}).get("language"):
-            self.language = language

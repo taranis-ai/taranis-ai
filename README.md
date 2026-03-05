@@ -11,7 +11,7 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 ## Getting Started
 
-For production deployments see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/deployment/)
+For production deployments, see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/01_deployment/)
 
 ## Contributions
 

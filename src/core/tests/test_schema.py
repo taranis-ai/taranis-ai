@@ -1,10 +1,12 @@
-import schemathesis
 import logging
+
+import schemathesis
 import werkzeug
 from dotenv import load_dotenv
-from hypothesis import settings, HealthCheck
+from hypothesis import HealthCheck, settings
 
 from core.__init__ import create_app
+
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 

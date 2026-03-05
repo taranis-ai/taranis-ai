@@ -1,12 +1,12 @@
-from flask import Blueprint, request, Flask
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.model import product_type, product
+from core.model import product, product_type
 from core.service.product import ProductService
-from core.config import Config
 
 
 class ProductTypes(MethodView):
@@ -21,11 +21,8 @@ class Products(MethodView):
         if product_id:
             return product.Product.get_for_api(product_id)
 
-        filter_keys = ["search", "range", "sort"]
+        filter_keys = ["search", "range", "sort", "page", "limit", "offset"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-
-        filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        filter_args["offset"] = int(request.args.get("offset", 0))
 
         return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
@@ -59,6 +56,14 @@ class ProductsRender(MethodView):
         return ProductService.get_render(product_id)
 
 
+class AutoRenderProducts(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self, report_item_id: str):
+        products = ProductService.autopublish_product(report_item_id)
+        product_list = [product.to_dict() for product in products]
+        return {"products": product_list}, 200
+
+
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
 
@@ -69,5 +74,5 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/products", view_func=Products.as_view("products"))
     publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"))
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
-
+    publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))
     app.register_blueprint(publish_bp)

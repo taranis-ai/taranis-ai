@@ -19,6 +19,11 @@ import {
   syntaxHighlighting,
 } from "npm:@codemirror/language";
 import { jinja2 } from "npm:@codemirror/legacy-modes/mode/jinja2";
+import { unifiedMergeView } from "@codemirror/merge";
+
+window.EditorView = EditorView;
+window.EditorState = EditorState;
+
 
 const DEFAULT_OPTIONS = {
   language: StreamLanguage.define(jinja2),
@@ -148,4 +153,48 @@ function mount({ textarea, parent, options = {} }) {
   };
 }
 
-window.TemplateEditor = { mount };
+function mountUnifiedMerge({ parent, originalDoc, newDoc, options = {} }) {
+  if (!parent) return null;
+
+  parent.innerHTML = "";
+  parent.classList.remove("hidden");
+
+  const {
+    lineWrapping = true,
+    editorExtensions = [],
+    ...mergeOptions
+  } = options;
+
+  const editorExtensionsList = buildExtensions({
+    ...DEFAULT_OPTIONS,
+    ...options,
+    extensions: options.editorExtensions ?? [],
+  });
+  if (lineWrapping) {
+    editorExtensionsList.push(EditorView.lineWrapping);
+  }
+
+  if (Array.isArray(editorExtensions) && editorExtensions.length) {
+    editorExtensionsList.push(...editorExtensions);
+  }
+
+  editorExtensionsList.push(
+    unifiedMergeView({
+      original: originalDoc,
+      highlightChanges: true,
+      gutter: true,
+      allowInlineDiffs: true,
+      mergeControls: true,
+      collapseUnchanged: { margin: 3, minSize: 4 },
+      ...mergeOptions,
+    }),
+  );
+
+  return new window.EditorView({
+      doc: newDoc,
+      extensions: editorExtensionsList,
+      parent: parent,
+    });
+}
+
+window.TemplateEditor = { mount, mountUnifiedMerge };

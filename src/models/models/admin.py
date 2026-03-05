@@ -1,20 +1,20 @@
-from pydantic import Field, AnyUrl
-from functools import cached_property
-from typing import Literal, Any
 from datetime import datetime
+from typing import Any, Literal
+
+from pydantic import AnyUrl, Field, SecretStr, field_serializer
 
 from models.base import TaranisBaseModel
 from models.types import (
-    TLPLevel,
-    ItemType,
+    BOT_TYPES,
     COLLECTOR_TYPES,
     CONNECTOR_TYPES,
-    WORKER_TYPES,
-    WORKER_CATEGORY,
     PRESENTER_TYPES,
-    AttributeType,
-    BOT_TYPES,
     PUBLISHER_TYPES,
+    WORKER_CATEGORY,
+    WORKER_TYPES,
+    AttributeType,
+    ItemType,
+    TLPLevel,
 )
 
 
@@ -62,7 +62,6 @@ class Address(TaranisBaseModel):
 class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
     _model_name = "organization"
-    _search_fields = ["name", "description"]
 
     id: int | None = None
     name: str = ""
@@ -81,7 +80,6 @@ class Permission(TaranisBaseModel):
 class ACL(TaranisBaseModel):
     _core_endpoint = "/config/acls"
     _model_name = "acl"
-    _search_fields = ["name", "description"]
     _pretty_name = "ACL"
 
     id: int | None = None
@@ -107,7 +105,6 @@ class ParameterValue(TaranisBaseModel):
 class Worker(TaranisBaseModel):
     _core_endpoint = "/config/worker-types"
     _model_name = "worker_type"
-    _search_fields = ["name", "description"]
     _pretty_name = "Worker Type"
 
     id: str | None = None
@@ -121,7 +118,6 @@ class Worker(TaranisBaseModel):
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
     _model_name = "role"
-    _search_fields = ["name", "description"]
     _pretty_name = "Role"
 
     id: int | None = None
@@ -134,7 +130,6 @@ class Role(TaranisBaseModel):
 class User(TaranisBaseModel):
     _core_endpoint = "/config/users"
     _model_name = "user"
-    _search_fields = ["name", "username"]
 
     id: int | None = None
     name: str
@@ -143,7 +138,13 @@ class User(TaranisBaseModel):
     profile: dict | None = None
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
-    password: str | None = Field(default=None, exclude=True)
+    password: SecretStr | None = None
+
+    @field_serializer("password", when_used="json")
+    def dump_secret(self, v):
+        if isinstance(v, SecretStr):
+            return v.get_secret_value()
+        return v
 
 
 class TaranisConfig(TaranisBaseModel):
@@ -173,7 +174,6 @@ class WordList(TaranisBaseModel):
     _core_endpoint = "/config/word-lists"
     _model_name = "word_list"
     _pretty_name = "Word List"
-    _search_fields = ["name", "description"]
 
     id: int | None = None
     name: str
@@ -198,19 +198,11 @@ class OSINTSource(TaranisBaseModel):
     enabled: bool | None = True
     status: TaskResult | None = None
 
-    @cached_property
-    def search_field(self) -> str:
-        search = f"{self.name} {self.description} "
-        if self.parameters:
-            search += " ".join(self.parameters.values())
-        return search
-
 
 class OSINTSourceGroup(TaranisBaseModel):
     _core_endpoint = "/config/osint-source-groups"
     _model_name = "osint_source_group"
     _pretty_name = "OSINT Source Group"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
@@ -229,7 +221,6 @@ class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
     _model_name = "product_type"
     _pretty_name = "Product Type"
-    _search_fields = ["title", "description"]
 
     id: int | None = None
     title: str
@@ -244,7 +235,6 @@ class PublisherPreset(TaranisBaseModel):
     _core_endpoint = "/config/publisher-presets"
     _model_name = "publisher_preset"
     _pretty_name = "Publisher Preset"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
@@ -278,7 +268,6 @@ class ReportItemType(TaranisBaseModel):
     _core_endpoint = "/config/report-item-types"
     _model_name = "report_item_type"
     _pretty_name = "Report Item Type"
-    _search_fields = ["title", "description"]
 
     id: int | None = None
     title: str
@@ -309,7 +298,6 @@ class Attribute(TaranisBaseModel):
     _core_endpoint = "/config/attributes"
     _model_name = "attribute"
     _pretty_name = "Attribute"
-    _search_fields = ["name", "description"]
 
     id: int | None = None
     name: str
@@ -323,7 +311,6 @@ class Bot(TaranisBaseModel):
     _core_endpoint = "/config/bots"
     _model_name = "bot"
     _pretty_name = "Bot"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str
@@ -338,7 +325,6 @@ class Connector(TaranisBaseModel):
     _core_endpoint = "/config/connectors"
     _model_name = "connector"
     _pretty_name = "Connector"
-    _search_fields = ["name", "description"]
 
     id: str | None = None
     name: str

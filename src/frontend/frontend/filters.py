@@ -1,6 +1,6 @@
 import base64
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable
 
 import filetype
 from flask import render_template, url_for
@@ -31,6 +31,7 @@ __all__ = [
     "render_worker_status",
     "format_datetime",
     "get_published_dates",
+    "index_by",
 ]
 
 
@@ -217,6 +218,10 @@ def get_published_dates(story: Story) -> dict[str, datetime | None]:
             if published_at > published["latest"]:
                 published["latest"] = published_at
     return published
+
+
+def index_by(items: Iterable[Any], attr: str) -> dict[str, Any]:
+    return {str(getattr(item, attr)): item for item in items}
 
 
 @pass_context

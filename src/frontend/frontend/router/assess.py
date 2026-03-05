@@ -11,14 +11,21 @@ def init(app: Flask):
     assess_bp.add_url_rule(
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
     )
+    assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.delete_story, methods=["DELETE"], endpoint="story_delete")
     assess_bp.add_url_rule("/story/<string:story_id>/edit", view_func=StoryView.as_view("story_edit"))
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"
     )
     assess_bp.add_url_rule(
-        "/news-item/<string:news_item_id>", view_func=StoryView.create_news_item, methods=["POST"], endpoint="create_news_item"
+        "/news-item/<string:news_item_id>", view_func=StoryView.update_news_item, methods=["POST"], endpoint="update_news_item"
     )
+    assess_bp.add_url_rule("/news-item", view_func=StoryView.create_news_item, methods=["POST"], endpoint="create_news_item")
     assess_bp.add_url_rule("/news-item/<string:news_item_id>", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
+    assess_bp.add_url_rule(
+        "/news-item/<string:news_item_id>", view_func=StoryView.delete_news_item, methods=["DELETE"], endpoint="delete_news_item"
+    )
+    assess_bp.add_url_rule("/news-item", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
+    assess_bp.add_url_rule("/ungroup/<string:story_id>", view_func=StoryView.ungroup, methods=["POST"], endpoint="ungroup")
     assess_bp.add_url_rule("/search", view_func=StoryView.get_search_dialog, methods=["GET"], endpoint="search_stories")
     assess_bp.add_url_rule("/search", view_func=StoryView.submit_search_dialog, methods=["POST"], endpoint="submit_search_stories")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.get_sharing_dialog, methods=["GET"], endpoint="share_story")
@@ -27,10 +34,11 @@ def init(app: Flask):
     assess_bp.add_url_rule("/story/report", view_func=StoryView.submit_report_dialog, methods=["POST"], endpoint="submit_report_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.get_cluster_dialog, methods=["GET"], endpoint="cluster_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.submit_cluster_dialog, methods=["POST"], endpoint="submit_cluster_story")
+    assess_bp.add_url_rule("/story/export", view_func=StoryView.export_stories, methods=["GET"], endpoint="export_stories")
     assess_bp.add_url_rule("/tags", view_func=StoryView.get_tags, methods=["GET"], endpoint="get_tags")
 
     assess_bp.add_url_rule("/stories/bulk_action", view_func=StoryView.bulk_action, methods=["POST"], endpoint="bulk_action")
-    
+
     # Story revision history routes
     assess_bp.add_url_rule("/story/<string:story_id>/versions", view_func=StoryView.versions_view, methods=["GET"], endpoint="story_versions")
     assess_bp.add_url_rule(

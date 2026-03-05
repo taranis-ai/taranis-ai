@@ -1,10 +1,10 @@
 from celery import Task
+from models.product import WorkerProduct as Product
 
 import worker.publishers
 from worker.core_api import CoreApi
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
-from worker.types import Product
 
 
 class PublisherTask(Task):
@@ -23,6 +23,7 @@ class PublisherTask(Task):
             "sftp_publisher": worker.publishers.SFTPPublisher(),
             "misp_publisher": worker.publishers.MISPPublisher(),
             "s3_publisher": worker.publishers.S3Publisher(),
+            "taxii_publisher": worker.publishers.TAXIIPublisher(),
         }
 
     def get_product(self, product_id: str) -> dict[str, str]:

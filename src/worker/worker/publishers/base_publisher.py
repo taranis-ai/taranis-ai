@@ -2,9 +2,10 @@ import mimetypes
 from datetime import datetime
 from typing import Any
 
+from models.product import WorkerProduct as Product
+
 from worker.core_api import CoreApi
 from worker.log import logger
-from worker.types import Product
 
 
 class BasePublisher:

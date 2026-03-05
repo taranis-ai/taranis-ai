@@ -1,14 +1,15 @@
-from flask import Blueprint, request, abort, Flask
+from flask import Blueprint, Flask, abort, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers import asset_manager
-from core.managers.sse_manager import sse_manager
+from core.config import Config
 from core.log import logger
+from core.managers import asset_manager
 from core.managers.auth_manager import auth_required
+from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
-from core.config import Config
+from core.service.product import ProductService
 
 
 class ReportTypes(MethodView):
@@ -44,11 +45,9 @@ class ReportItem(MethodView):
     def get(self, report_item_id: str | None = None):
         if report_item_id:
             return report_item.ReportItem.get_for_api(report_item_id)
-        filter_keys = ["search", "completed", "range", "sort", "group"]
+        filter_keys = ["search", "completed", "range", "order", "group", "page", "limit"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-        filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
-        filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
         return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ANALYZE_CREATE")
@@ -80,6 +79,8 @@ class ReportItem(MethodView):
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
+            ProductService.autopublish_product(report_item_id)
+
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")
@@ -139,13 +140,15 @@ class ReportItemRevisions(MethodView):
     def get(self, report_item_id: str):
         """Get all revisions for a report item"""
         from core.managers.db_manager import db
-        
-        revisions = db.session.execute(
-            db.select(ReportRevision)
-            .filter(ReportRevision.report_item_id == report_item_id)
-            .order_by(ReportRevision.revision.desc())
-        ).scalars().all()
-        
+
+        revisions = (
+            db.session.execute(
+                db.select(ReportRevision).filter(ReportRevision.report_item_id == report_item_id).order_by(ReportRevision.revision.desc())
+            )
+            .scalars()
+            .all()
+        )
+
         return {
             "total_count": len(revisions),
             "items": [
@@ -158,7 +161,7 @@ class ReportItemRevisions(MethodView):
                     "note": rev.note,
                 }
                 for rev in revisions
-            ]
+            ],
         }, 200
 
 
@@ -167,16 +170,16 @@ class ReportItemRevisionData(MethodView):
     def get(self, report_item_id: str, revision_number: int):
         """Get data for a specific revision"""
         from core.managers.db_manager import db
-        
+
         revision = db.session.execute(
             db.select(ReportRevision)
             .filter(ReportRevision.report_item_id == report_item_id)
             .filter(ReportRevision.revision == revision_number)
         ).scalar_one_or_none()
-        
+
         if not revision:
             return {"error": "Revision not found"}, 404
-            
+
         return {
             "id": revision.id,
             "revision": revision.revision,

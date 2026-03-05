@@ -1,12 +1,13 @@
+from contextlib import contextmanager
+from typing import Any
+
 from celery import Task
 from celery.exceptions import Ignore
-from contextlib import contextmanager
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
-from worker.log import logger, TaranisLogFormatter, TaranisLogger
 from worker.core_api import CoreApi
-from typing import Any
+from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
 
 @contextmanager
@@ -109,6 +110,31 @@ class CollectorPreview(Task):
             except NoChangeError as e:
                 self.update_state(state="NOT_MODIFIED")
                 return f"'{source.get('name')}': {str(e)}"
+            except Exception as e:
+                raise RuntimeError(e) from e
+        return preview_result
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        logger.error(f"Collector task with id: {task_id} failed.\nDescription: {kwargs.get('task_description', '')}")
+
+
+class FetchSingleNewsItem(Task):
+    name = "fetch_single_news_item"
+    track_started = True
+    acks_late = True
+    priority = 8
+
+    def run(self, parameters: dict[str, Any]):
+        collector = worker.collectors.SimpleWebCollector()
+        formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {self.request.id}")
+        task_description = f"Fetching news item wtih {parameters=} and {self.request.id=}"
+        logger.info(f"Starting collector task: {task_description}")
+        with collector_log_fmt(logger, formatter):
+            try:
+                preview_result = collector.preview_collector(parameters)
+            except NoChangeError as e:
+                self.update_state(state="NOT_MODIFIED")
+                return f"'{parameters.get('name')}': {str(e)}"
             except Exception as e:
                 raise RuntimeError(e) from e
         return preview_result

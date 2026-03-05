@@ -1,6 +1,7 @@
-from flask import json
-from collections import defaultdict
 import copy
+from collections import defaultdict
+
+from flask import json
 
 
 class TestStoryAssessWorkerUpdates:
@@ -55,7 +56,7 @@ class TestStoryAssessWorkerUpdates:
 
         # Update worker_story with the original worker story_data
         story_data["id"] = misp_story_id
-        update_resp = client.post(f"{self.base_uri_worker}/stories/misp", json=[story_data], headers=api_header)
+        update_resp = client.post(f"{self.base_uri_worker}/misp/stories", json=[story_data], headers=api_header)
         assert update_resp.status_code == 409
         assert isinstance(update_resp.get_json().get("details"), dict)
         assert update_resp.get_json().get("details").get("errors")[0].get("conflict", {}).get("local", {}).get("id") == misp_story_id
@@ -131,7 +132,7 @@ class TestStoryConflictStoreUpdates:
         misp_story_data["title"] = "Updated MISP Story Title"
         full_story_data["title"] = "Updated Full Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[misp_story_data, full_story_data],
             headers=api_header,
         )
@@ -140,12 +141,12 @@ class TestStoryConflictStoreUpdates:
         response = client.get(f"{self.base_uri_connectors}/conflicts/stories", headers=auth_header)
         assert response.status_code == 200
         assert len(response.get_json().get("conflicts")) == 2, "There should be 2 conflicts in the store"
-        assert response.get_json().get("conflicts")[0].get("storyId") == misp_story_id
-        assert response.get_json().get("conflicts")[1].get("storyId") == full_story_id
-        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("original"))
-        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("updated"))
-        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("original"))
-        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("updated"))
+        assert response.get_json().get("conflicts")[0].get("story_id") == misp_story_id
+        assert response.get_json().get("conflicts")[1].get("story_id") == full_story_id
+        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("existing_story"))
+        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("incoming_story"))
+        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("existing_story"))
+        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("incoming_story"))
 
         assert misp_story_1_original_data.get("title") == "Test title"
         assert misp_story_1_updated_data.get("title") == "Updated MISP Story Title"
@@ -157,20 +158,22 @@ class TestStoryConflictStoreUpdates:
         misp_story_data["title"] = "Second update to MISP Story Title"
         full_story_data["title"] = "Second update to Full Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[misp_story_data, full_story_data],
             headers=api_header,
         )
-        assert response.status_code == 409, "Conflict should be created when trying to update stories again"
+        assert response.status_code == 409, (
+            "Conflict should be created wtest_news_item_conflict_store_updatehen trying to update stories again"
+        )
         response = client.get(f"{self.base_uri_connectors}/conflicts/stories", headers=auth_header)
         assert response.status_code == 200
         assert len(response.get_json().get("conflicts")) == 2, "There should be 2 conflicts in the store"
-        assert response.get_json().get("conflicts")[0].get("storyId") == misp_story_id
-        assert response.get_json().get("conflicts")[1].get("storyId") == full_story_id
-        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("original"))
-        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("updated"))
-        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("original"))
-        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("updated"))
+        assert response.get_json().get("conflicts")[0].get("story_id") == misp_story_id
+        assert response.get_json().get("conflicts")[1].get("story_id") == full_story_id
+        misp_story_1_original_data = json.loads(response.get_json().get("conflicts")[0].get("existing_story"))
+        misp_story_1_updated_data = json.loads(response.get_json().get("conflicts")[0].get("incoming_story"))
+        full_story_2_original_data = json.loads(response.get_json().get("conflicts")[1].get("existing_story"))
+        full_story_2_updated_data = json.loads(response.get_json().get("conflicts")[1].get("incoming_story"))
 
         assert misp_story_1_original_data.get("title") == "Test title"
         assert misp_story_1_updated_data.get("title") == "Second update to MISP Story Title"
@@ -245,7 +248,7 @@ class TestNewsItemConflictStoreUpdates:
         context["full_story_data"]["title"] = "Second update to Full Story Title"
 
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )
@@ -272,7 +275,7 @@ class TestNewsItemConflictStoreUpdates:
         context["full_story_data"]["title"] = "Third update to Full Story Title"
 
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )
@@ -305,7 +308,7 @@ class TestNewsItemConflictStoreUpdates:
         # bump title again and post
         context["misp_story_data"]["title"] = "Fourth update to MISP Story Title"
         response = client.post(
-            f"{self.base_uri_worker}/stories/misp",
+            f"{self.base_uri_worker}/misp/stories",
             json=[context["misp_story_data"], context["full_story_data"]],
             headers=api_header,
         )
@@ -328,8 +331,12 @@ class TestNewsItemConflictStoreUpdates:
 
     def _fetch_news_item_conflicts(self, client, auth_header) -> list[dict]:
         response = client.get(f"{self.base_uri_connectors}/conflicts/news-items", headers=auth_header)
+
         assert response.status_code == 200
-        return response.get_json().get("conflicts", [])
+        body = response.get_json()
+        assert "items" in body
+        assert "conflicts" not in body
+        return body.get("items", [])
 
     def _group_conflicts_by_story(self, conflicts: list[dict]) -> dict[str, list[dict]]:
         conflicts_by_story = defaultdict(list)

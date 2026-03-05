@@ -1,10 +1,11 @@
 from typing import Any
-from flask import render_template
 
-from models.admin import ACL, Role, OSINTSource, OSINTSourceGroup, ProductType, ReportItemType, WordList
+from flask import render_template
+from models.admin import ACL, OSINTSource, OSINTSourceGroup, ProductType, ReportItemType, Role, WordList
+
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.base_view import BaseView
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class ACLView(AdminMixin, BaseView):
@@ -23,9 +24,23 @@ class ACLView(AdminMixin, BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
         dpl = DataPersistenceLayer()
+        item_ids = []
+        selected_item_label = "Item ID"
+        acl = base_context.get("acl")
+        item_type = str(acl.item_type) if acl and acl.item_type else ""
+
+        if item_type in cls.item_types:
+            model = cls.item_types[item_type]["model"]
+            objs = dpl.get_objects(model)
+            use_title = item_type in {"product_type", "report_item_type"}
+            item_ids = [{"id": item.id, "name": item.title if use_title else item.name} for item in objs]
+            selected_item_label = cls.item_types[item_type]["name"]
+
         base_context |= {
             "roles": [p.model_dump() for p in dpl.get_objects(Role)],
             "item_types": cls.item_types.values(),
+            "item_ids": item_ids,
+            "selected_item_label": selected_item_label,
         }
         return base_context
 

@@ -69,7 +69,11 @@ class AttributeEnum(BaseModel):
                     AttributeEnum.description.ilike(f"%{search}%"),
                 )
             )
-        return query.order_by(db.asc(AttributeEnum.index))
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "index_asc"
 
     @classmethod
     def find_by_value(cls, attribute_id, value):
@@ -118,7 +122,7 @@ class Attribute(BaseModel):
     type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
     default_value: Mapped[str] = db.Column(db.String(), default="")
 
-    def __init__(self, name: str, description: str, attribute_type, default_value: str = "", id=None):
+    def __init__(self, name: str, description: str, attribute_type: AttributeType, default_value: str = "", id=None):
         if id:
             self.id = id
         self.name = name
@@ -183,12 +187,23 @@ class Attribute(BaseModel):
                 enum["attribute_id"] = attribute_id
                 AttributeEnum.add_or_update(enum)
 
+        data = cls.convert_enum(data)
+
         for key, value in data.items():
-            if hasattr(attribute, key) and key != "id":
+            if key != "id" and hasattr(attribute, key):
                 setattr(attribute, key, value)
 
         db.session.commit()
         return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
+
+    @classmethod
+    def convert_enum(cls, data: dict[str, Any]) -> dict[str, Any]:
+        data = dict(data)
+
+        if "type" in data and data["type"] is not None:
+            data["type"] = AttributeType[data["type"].upper()]
+
+        return data
 
     @classmethod
     def load_cve_from_file(cls, file_path):

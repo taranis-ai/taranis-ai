@@ -4,7 +4,9 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, inspect
+from models.assess import NewsItem as NewsItemCreatePayload
+from pydantic import ValidationError
+from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -20,11 +22,11 @@ from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
+from core.model.revision import StoryRevision
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType
 from core.model.story_conflict import StoryConflict
 from core.model.user import User
-from core.model.revision import StoryRevision
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -120,6 +122,13 @@ class Story(BaseModel):
         if user:
             query = cls._add_ACL_check(query, user)
             query = cls._add_TLP_check(query, user)
+            query = cls.enhance_with_user_votes(query, user.id)
+
+            if result := db.session.execute(query).first():
+                story, user_vote = result
+                story_data = story.to_detail_dict()
+                story_data["user_vote"] = user_vote
+                return story_data, 200
 
         if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
@@ -155,6 +164,9 @@ class Story(BaseModel):
 
         if item_id := filter_args.get("story_id"):
             return query.filter(cls.id == item_id)
+
+        if item_ids := filter_args.get("story_ids"):
+            return query.filter(cls.id.in_(item_ids))
 
         if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
@@ -261,7 +273,7 @@ class Story(BaseModel):
             if ts_query is None:
                 ts_query = func.websearch_to_tsquery("simple", func.unaccent(search_term))
 
-            logger.debug(f"Adding full-text search for PostgreSQL with search term: {search} sort: {sort}")
+            logger.debug(f"FTS with: {search=} {sort=}")
             q = query.where(cls.search_vector.op("@@")(ts_query))
             if sort:
                 q = q.order_by(db.desc(func.ts_rank_cd(cls.search_vector, ts_query, 32)))
@@ -414,7 +426,7 @@ class Story(BaseModel):
         return stories, count_dict
 
     @classmethod
-    def get_by_filter_json(cls, filter_args, user):
+    def get_by_filter_json(cls, filter_args: dict[str, Any], user: User | None):
         stories, count = cls.get_by_filter(filter_args=filter_args, user=user)
 
         if count:
@@ -544,7 +556,6 @@ class Story(BaseModel):
 
         data = {
             "title": news_item.get("title"),
-            "description": news_item.get("review", news_item.get("content")),
             "created": news_item.get("published"),
             "news_items": [news_item],
             "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
@@ -574,18 +585,19 @@ class Story(BaseModel):
 
     @classmethod
     def check_news_item_data(cls, news_item: dict[str, Any]) -> dict[str, str] | None:
-        title = news_item.get("title", "")
-        link = news_item.get("link", "")
-        content = news_item.get("content", "")
-        if not news_item.get("source"):
-            return {"error": "Source not provided"}
-        if not title and not link and not content:
-            return {"error": "At least one of the following parameters must be provided: title, link, content"}
+        try:
+            validated_payload = NewsItemCreatePayload.model_validate(news_item)
+        except ValidationError as exc:
+            errors = "; ".join(f"{'.'.join(str(loc_part) for loc_part in err.get('loc', []))}: {err.get('msg')}" for err in exc.errors())
+            return {"error": f"Invalid news item data{f': {errors}' if errors else ''}"}
+
+        news_item.update(validated_payload.model_dump())
         return None
 
     @classmethod
     def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
         if err := cls.check_news_item_data(news_item):
+            logger.error(err)
             return err, 400
         try:
             return cls.add_from_news_item(news_item)
@@ -637,6 +649,7 @@ class Story(BaseModel):
         revision_count = story.get_revision_count()
         if revision_count == 0:
             from core.model.revision import StoryRevision
+
             StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 
@@ -693,15 +706,15 @@ class Story(BaseModel):
         original_str, updated_str = StoryConflict.normalize_data(current_full, upstream_data)
 
         if existing_conflict := StoryConflict.conflict_store.get(story_id):
-            existing_conflict.original = original_str
-            existing_conflict.updated = updated_str
+            existing_conflict.existing_story = original_str
+            existing_conflict.incoming_story = updated_str
             existing_conflict.has_proposals = has_proposals_value
             logger.debug(f"Updated existing conflict for story {story_id}")
         else:
             StoryConflict.conflict_store[story_id] = StoryConflict(
                 story_id=story_id,
-                original=original_str,
-                updated=updated_str,
+                existing_story=original_str,
+                incoming_story=updated_str,
                 has_proposals=has_proposals_value,
             )
             logger.warning(f"Story Conflict detected for story {story_id}")
@@ -886,22 +899,25 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        tags_to_remove = self.get_tags_to_remove(parsed_tags)
-        self.patch_tags(parsed_tags)
-        self.remove_tags(tags_to_remove)
+        if change_by_bot:
+            self.patch_tags(parsed_tags)
+        else:
+            tags_to_remove = self.get_tags_to_remove(parsed_tags)
+            self.patch_tags(parsed_tags)
+            self.remove_tags(tags_to_remove)
 
         self.record_revision(note="set_tags")
         db.session.commit()
@@ -997,7 +1013,7 @@ class Story(BaseModel):
             error_message = "; ".join(filter(None, errors))
             logger.error(f"Errors ungrouping stories: {error_message}")
             return {"error": error_message}, 400
-        return {"message": "success"}, 200
+        return {"message": "Ungrouping Stories successful"}, 200
 
     @classmethod
     def ungroup_story(cls, story_id: str, user: User | None = None):
@@ -1042,7 +1058,7 @@ class Story(BaseModel):
             for story in processed_stories:
                 story.record_revision(user, note="remove_news_items")
             db.session.commit()
-            return {"message": "success", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
             logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
@@ -1184,13 +1200,13 @@ class Story(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
+        data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
+        del data["search_vector"]
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
+        data = self.to_dict()
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
@@ -1223,9 +1239,9 @@ class Story(BaseModel):
         """Get the number of revisions for this story"""
         if not self.id:
             return 0
-        return db.session.execute(
-            db.select(db.func.count()).select_from(StoryRevision).filter(StoryRevision.story_id == self.id)
-        ).scalar() or 0
+        return (
+            db.session.execute(db.select(db.func.count()).select_from(StoryRevision).filter(StoryRevision.story_id == self.id)).scalar() or 0
+        )
 
 
 class NewsItemVote(BaseModel):

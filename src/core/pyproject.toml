@@ -26,12 +26,13 @@ dependencies = [
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
+    "Pillow",
     "granian",
     "psycopg",
     "requests",
     "authlib",
     "setuptools",
-    "taranis-models>=1.2.6.dev5",
+    "taranis-models>=1.3.3.dev5",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]
@@ -51,6 +52,7 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 taranis-ai = "core.granian:main"
+taranis-core-healthcheck = "core.healthcheck:main"
 
 [tool.setuptools_scm]
 root = "../.."
@@ -108,8 +110,8 @@ typeCheckingMode = "standard"
 reportConstantRedefinition = "error"
 reportDuplicateImport = "error"
 reportMissingTypeStubs = "warning"
-reportMissingParameterType = "warning"
-reportMissingTypeArgument = "warning"
+reportMissingParameterType = "none"
+reportMissingTypeArgument = "none"
 
 reportDeprecated = "warning"
 reportMatchNotExhaustive = "warning"

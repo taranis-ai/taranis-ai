@@ -1,7 +1,8 @@
 import importlib.util
-import pytest
 import os
 import sys
+
+import pytest
 
 
 class TestWorkerApi:
@@ -217,7 +218,7 @@ class TestWorkerApi:
         story_id = full_story[0].get("id")
 
         response = client.post(
-            f"{self.base_uri}/stories/misp",
+            f"{self.base_uri}/misp/stories",
             json=[full_story[0]],
             headers=api_header,
         )

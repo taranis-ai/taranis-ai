@@ -1,7 +1,8 @@
-from .base_bot import BaseBot
-from worker.config import Config
 from worker.bot_api import BotApi
+from worker.config import Config
 from worker.log import logger
+
+from .base_bot import BaseBot
 
 
 class CyberSecClassifierBot(BaseBot):
@@ -10,7 +11,7 @@ class CyberSecClassifierBot(BaseBot):
         self.type = "CYBERSEC_CLASSIFIER_BOT"
         self.name = "Cybersecurity classification bot"
 
-    def execute(self, parameters: dict | None = None) -> dict:
+    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
             parameters = {}
 

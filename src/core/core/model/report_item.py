@@ -1,26 +1,26 @@
 from __future__ import annotations
 
+import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import uuid
 from typing import Any, Optional
 
 from sqlalchemy import inspect, or_
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
-from sqlalchemy.orm import Mapped, relationship
 
-from core.managers.db_manager import db
-from core.model.base_model import BaseModel
-from core.model.story import Story
-from core.model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
-from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.model.user import User
-from core.model.revision import ReportRevision
 from core.log import logger
-from core.model.attribute import AttributeType, AttributeEnum
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.managers.db_manager import db
+from core.model.attribute import AttributeEnum, AttributeType
+from core.model.base_model import BaseModel
+from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
+from core.model.revision import ReportRevision
+from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.story import Story
+from core.model.user import User
 from core.service.news_item_tag import NewsItemTagService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItem(BaseModel):
@@ -107,6 +107,30 @@ class ReportItem(BaseModel):
         data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
         return data
 
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "stories_asc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])))
+        elif filter_args.get("order") == "stories_desc":
+            item_list.sort(key=lambda x: len(x.get("stories", [])), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
 
@@ -175,9 +199,12 @@ class ReportItem(BaseModel):
         """Get the number of revisions for this report"""
         if not self.id:
             return 0
-        return db.session.execute(
-            db.select(db.func.count()).select_from(ReportRevision).filter(ReportRevision.report_item_id == self.id)
-        ).scalar() or 0
+        return (
+            db.session.execute(
+                db.select(db.func.count()).select_from(ReportRevision).filter(ReportRevision.report_item_id == self.id)
+            ).scalar()
+            or 0
+        )
 
     @staticmethod
     def _clean_title(raw_title: Any) -> str | None:
@@ -249,7 +276,7 @@ class ReportItem(BaseModel):
 
         return sanitized, None
 
-    def clone_report(self):
+    def clone_report(self, user: User | None = None) -> "ReportItem":
         attributes = [a.clone_attribute() for a in self.attributes]
 
         report = ReportItem(
@@ -259,6 +286,8 @@ class ReportItem(BaseModel):
             completed=self.completed,
             stories=[],
         )
+        if user:
+            report.user_id = user.id
         db.session.add(report)
         db.session.commit()
         return report
@@ -329,6 +358,7 @@ class ReportItem(BaseModel):
                     "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
+                    "value": attribute_group_item.attribute.default_value or None,
                     "render_data": {},
                 }
                 if attribute_enum_data:
@@ -379,17 +409,11 @@ class ReportItem(BaseModel):
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
-        if sort := filter_args.get("sort"):
-            if sort == "DATE_DESC":
-                query = query.order_by(db.desc(ReportItem.created))
+        return query
 
-            elif sort == "DATE_ASC":
-                query = query.order_by(db.asc(ReportItem.created))
-
-        offset = filter_args.get("offset", 0)
-        limit = filter_args.get("limit", 20)
-
-        return query.offset(offset).limit(limit)
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "created_desc"
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
@@ -490,6 +514,7 @@ class ReportItem(BaseModel):
         revision_count = report_item.get_revision_count()
         if revision_count == 0:
             from core.model.revision import ReportRevision
+
             ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 

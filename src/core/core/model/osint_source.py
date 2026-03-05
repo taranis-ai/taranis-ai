@@ -1,10 +1,12 @@
 import base64
 import json
 import uuid
+from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
 from models.types import COLLECTOR_TYPES
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
@@ -51,8 +53,9 @@ class OSINTSource(BaseModel):
         self.name = name
         self.description = description
         self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
-        if icon is not None and (icon_data := self.is_valid_base64(icon)):
-            self.icon = icon_data
+        self.icon = None
+        if icon is not None:
+            self.icon = self._parse_icon(icon)
         self.enabled = enabled
         self.parameters = Worker.parse_parameters(self.type, parameters)
 
@@ -102,6 +105,31 @@ class OSINTSource(BaseModel):
         return db.session.execute(query).scalars().all()
 
     @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            base_query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            base_query = cls.get_filter_query(filter_args)
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
+        items = cls.get_filtered(query) or []
+        item_list = cls.to_list(items)
+        if filter_args.get("order") == "status_asc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""))
+        elif filter_args.get("order") == "status_desc":
+            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""), reverse=True)
+
+        if with_count:
+            count = cls.get_filtered_count(base_query)
+            return {"total_count": count, "items": item_list}, 200
+        return {"items": item_list}, 200
+
+    @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
@@ -113,15 +141,30 @@ class OSINTSource(BaseModel):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.where(db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cls.type.ilike(f"%{search}%")))
+            query = query.where(
+                db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cast(cls.type, String).ilike(f"%{search}%"))
+            )
 
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)
 
-        return query.order_by(db.asc(cls.name))
+        if enabled := filter_args.get("enabled"):
+            query = query.where(cls.enabled.is_(enabled))
 
-    def update_icon(self, icon):
-        self.icon = icon
+        if filter_args.get("filter_manual"):
+            query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+
+        return query
+
+    @classmethod
+    def default_sort_column(cls) -> str:
+        return "name_asc"
+
+    def update_icon(self, icon: bytes | str):
+        if icon_bytes := self._parse_icon(icon):
+            self.icon = icon_bytes
+        else:
+            self.icon = None
         db.session.commit()
 
     @classmethod
@@ -221,7 +264,7 @@ class OSINTSource(BaseModel):
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
+    def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
@@ -230,14 +273,44 @@ class OSINTSource(BaseModel):
         if description := data.get("description"):
             osint_source.description = description
         icon_str = data.get("icon")
-        if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
-            osint_source.icon = icon
+        if icon_str is not None:
+            osint_source.icon = osint_source._parse_icon(icon_str)
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
+
+    def _parse_icon(self, icon: bytes | str) -> bytes:
+        icon_bytes: bytes | None = None
+        if isinstance(icon, bytes):
+            icon_bytes = icon or None
+        elif isinstance(icon, str):
+            if not icon.strip():
+                return b""
+            icon_bytes = self.is_valid_base64(icon)
+        if not icon_bytes:
+            raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
+        if not self._is_valid_image(icon_bytes):
+            raise ValueError("Icon payload is not a valid image file.")
+        return icon_bytes
+
+    @staticmethod
+    def _is_valid_image(icon_bytes: bytes) -> bool:
+        try:
+            with Image.open(BytesIO(icon_bytes)) as image:
+                image.verify()
+                image_format = image.format
+            if not image_format:
+                logger.warning("Image verification succeeded but format is unknown.")
+                return False
+            with Image.open(BytesIO(icon_bytes)) as image:
+                image.load()
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            logger.warning(f"Pillow verification failed for icon: {exc}")
+            return False
+        return True
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
@@ -352,6 +425,36 @@ class OSINTSource(BaseModel):
             source["type"] = source.pop("collector")["type"]
         return data
 
+    @staticmethod
+    def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            parameters = source.get("parameters")
+            if not isinstance(parameters, list):
+                continue
+
+            content_location_value: str | None = None
+            use_feed_content_index: int | None = None
+
+            for idx, parameter in enumerate(parameters):
+                if not isinstance(parameter, dict):
+                    continue
+                if "CONTENT_LOCATION" in parameter:
+                    content_location_value = str(parameter.get("CONTENT_LOCATION", ""))
+                if "USE_FEED_CONTENT" in parameter:
+                    use_feed_content_index = idx
+
+            if content_location_value is None and use_feed_content_index is None:
+                continue
+
+            target_value = "true" if content_location_value and content_location_value.strip() else "false"
+
+            if use_feed_content_index is not None:
+                parameters[use_feed_content_index]["USE_FEED_CONTENT"] = target_value
+            else:
+                parameters.append({"USE_FEED_CONTENT": target_value})
+
+        return sources
+
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
@@ -393,6 +496,7 @@ class OSINTSource(BaseModel):
         else:
             raise ValueError("Unsupported version")
 
+        data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids
@@ -515,9 +619,9 @@ class OSINTSourceGroup(BaseModel):
     def delete(cls, osint_source_group_id: str, user: "User | None" = None) -> tuple[dict, int]:
         osint_source_group = cls.get(osint_source_group_id)
         if not osint_source_group:
-            return {"message": "No Sourcegroup found"}, 404
+            return {"error": "No Sourcegroup found"}, 404
         if osint_source_group.default is True:
-            return {"message": "could_not_delete_default_group"}, 400
+            return {"error": "could_not_delete_default_group"}, 400
 
         if not osint_source_group.allowed_with_acl(user=user, require_write_access=True):
             return {"error": "User not allowed to update this group"}, 403
@@ -527,7 +631,7 @@ class OSINTSourceGroup(BaseModel):
         return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_group_id: str, data: dict, user: "User | None" = None) -> tuple[dict, int]:
+    def update(cls, osint_source_group_id: str, data: dict[str, Any], user: "User | None" = None) -> tuple[dict[str, str], int]:
         osint_source_group = cls.get(osint_source_group_id)
         if osint_source_group is None:
             return {"error": "OSINT Source Group not found"}, 404

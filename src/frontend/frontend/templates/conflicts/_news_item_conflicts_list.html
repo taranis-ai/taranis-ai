@@ -1,0 +1,98 @@
+<div id="newsitem-conflicts-wrapper" class="p-6 space-y-6">
+  {% if not grouped_conflicts %}<p>No conflicts found.</p>{% endif %}
+
+  {% for incoming_story_id, conflict_group in grouped_conflicts.items() %}
+    <details class="border rounded-lg bg-base-200 shadow">
+      <summary class="p-4 bg-base-300 flex justify-between items-center cursor-pointer">
+        <div>
+          <h2 class="font-bold text-lg">Incoming Story — ID: {{ incoming_story_id }}</h2>
+          <p class="text-sm opacity-70">{{ conflict_group.incoming_story.title or "Untitled" }}</p>
+        </div>
+        <span aria-hidden="true" class="text-xl select-none">▾</span>
+      </summary>
+
+      <div class="p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div class="border rounded-lg p-4 bg-base-100 shadow">
+            <h3 class="font-semibold text-lg">Incoming Story</h3>
+            <p class="text-xs opacity-70">ID: {{ incoming_story_id }}</p>
+            <ul class="list-disc pl-6 mt-2 space-y-1">
+              {% for item in conflict_group.incoming_story.news_items %}<li>{{ item.title }}</li>{% endfor %}
+            </ul>
+          </div>
+
+          <div class="space-y-6">
+            {% set internal_story_ids = conflict_group.internal_story_ids or [] %}
+            {% set has_internal = conflict_group.has_internal %}
+            {% set aggregated_existing_ids = conflict_group.aggregated_existing_news_item_ids or [] %}
+            {% set unique_news_item_ids = conflict_group.unique_news_item_ids or [] %}
+            {% set unique_news_items = conflict_group.unique_news_items or [] %}
+
+            <div class="space-y-4">
+              {% if has_internal %}
+                {% for story_id in internal_story_ids %}
+                  {% set summary = story_summaries.get(story_id) %}
+                  <div class="border rounded-lg p-4 bg-base-100 shadow space-y-3">
+                    <div>
+                      <p class="text-xs opacity-70">Internal Story ID: {{ story_id }}</p>
+                      {% if summary %}
+                        <h4 class="font-semibold">
+                          <a href="{{ url_for('assess.story', story_id=story_id) }}" class="text-primary hover:underline">{{ summary.title }}</a>
+                        </h4>
+                        <div class="text-xs flex flex-wrap gap-3 mt-1">
+                          <span>News Items: {{ summary.news_item_count or 0 }}</span>
+                          <span>Relevance: {{ summary.relevance if summary.relevance is not none else "n/a" }}</span>
+                          {% if summary.is_misp_story %}<span class="badge badge-warning badge-sm">MISP</span>{% endif %}
+                        </div>
+                      {% else %}
+                        <h4 class="font-semibold">Existing Story</h4>
+                      {% endif %}
+                    </div>
+                    {% if summary %}
+                      <ul class="list-disc pl-4 text-sm space-y-1">
+                        {% for item in summary.news_item_data %}<li>{{ item.title }}</li>{% endfor %}
+                      </ul>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-sm text-warning">No internal stories found for this conflict.</p>
+              {% endif %}
+            </div>
+
+            <form class="space-y-4" hx-post="{{ url_for('base.news_item_conflicts') }}" hx-target="#newsitem-conflicts-wrapper" hx-swap="outerHTML">
+              <input type="hidden" name="incoming_story_id" value="{{ incoming_story_id }}">
+              {% for story in remaining_stories %}<input type="hidden" name="remaining_stories[]" value="{{ story.id }}">{% endfor %}
+              {% for existing_id in aggregated_existing_ids %}
+                <input type="hidden" name="existing_story_news_item_ids[]" value="{{ existing_id }}">
+              {% endfor %}
+              <input type="hidden" name="news_items" value='{{ unique_news_items | tojson | forceescape }}'>
+              <input type="hidden" name="unique_news_item_ids" value='{{ unique_news_item_ids | tojson | forceescape }}'>
+
+              <div class="flex flex-wrap gap-4">
+                <button type="submit" class="btn btn-primary" {% if not has_internal or not unique_news_items %}disabled aria-disabled="true"{% endif %}>
+                  Keep Local Stories + Add Unique Items ({{ unique_news_items | length }})
+                </button>
+              </div>
+
+              {% if not unique_news_items %}<p class="text-sm text-warning">No unique news items available for this conflict.</p>{% endif %}
+            </form>
+
+            <form class="flex flex-wrap gap-4" hx-put="{{ url_for('base.news_item_conflicts') }}" hx-target="#newsitem-conflicts-wrapper" hx-swap="outerHTML">
+              <input type="hidden" name="incoming_story_id" value="{{ incoming_story_id }}">
+              <input type="hidden" name="resolving_story_id" value="{{ incoming_story_id }}">
+              <input type="hidden" name="incoming_story" value='{{ conflict_group.incoming_story | tojson | forceescape }}'>
+              {% for story_id in internal_story_ids %}<input type="hidden" name="existing_story_ids[]" value="{{ story_id }}">{% endfor %}
+              {% for news_id in incoming_ids[incoming_story_id] %}<input type="hidden" name="incoming_news_item_ids[]" value="{{ news_id }}">{% endfor %}
+              {% for story in remaining_stories %}<input type="hidden" name="remaining_stories[]" value="{{ story.id }}">{% endfor %}
+              <button type="submit" class="btn btn-error">Take Incoming Story (Replace Local)</button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </details>
+
+  {% endfor %}
+</div>

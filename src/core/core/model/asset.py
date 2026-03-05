@@ -1,13 +1,14 @@
 import uuid
-from sqlalchemy import or_
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
 from typing import Any
+
+from sqlalchemy import or_
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.report_item import ReportItem
 from core.model.organization import Organization
+from core.model.report_item import ReportItem
 
 
 class Asset(BaseModel):
@@ -129,12 +130,6 @@ class Asset(BaseModel):
 
         if organization := filter_args.get("organization"):
             query = query.join(AssetGroup, Asset.asset_group_id == AssetGroup.id).filter(AssetGroup.organization == organization)
-
-        if sort := filter_args.get("sort"):
-            if sort == "ALPHABETICAL":
-                query = query.order_by(db.asc(Asset.name))
-            else:
-                query = query.order_by(db.desc(Asset.vulnerabilities_count))
 
         return query
 

@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_textarea, form_select %}
+{% from "macros/forms.html" import form_input, form_textarea, form_select, form_switch %}
 {% from "macros/datatable.html" import datatable %}
 
 {% set form_error = form_error | default({}) %}
@@ -48,9 +48,11 @@
              data-testid="download-product"
              download>Download</a>
         {% endif %}
-        <button id="render_button" type="button" class="btn btn-outline" hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">
-          Render
-        </button>
+        <button id="render_button"
+                type="button"
+                class="btn btn-outline"
+                hx-target="#notification-bar"
+                hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
       {% endif %}
       <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()" data-testid="save-product">
         <span x-show="dirty" class="mr-1">!</span>
@@ -85,7 +87,37 @@
 
           {% if is_edit %}
             {% if rendered_product %}
-              <button type="button" class="btn btn-accent mt-4 w-full" @click="triggerAction('publish')">Publish</button>
+              <div class="mt-4 flex flex-wrap items-center gap-4">
+                <button type="button" class="btn btn-accent flex-1" @click="triggerAction('publish')">Publish (manually)</button>
+
+                <label class="form-control flex-1 min-w-[12rem]">
+                  <div class="label pb-1">
+                    <span class="label-text text-sm font-semibold">Default Publisher</span>
+                  </div>
+                  <select id="default_publisher" name="default_publisher" class="select select-bordered appearance-none w-full">
+                    <option value="">—</option>
+                    {% for p in publishers %}
+                      <option value="{{ p.id }}" {% if p.id == product.default_publisher %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <div class="label pt-1">
+                    <span class="label-text-alt text-xs text-base-content/70">Required only when Autopublish is enabled.</span>
+                  </div>
+                </label>
+
+                <div class="flex items-center gap-2">
+                  {{ form_switch(label='',
+                                    name='auto_publish',
+                                    value=product.auto_publish and 'Yes' or 'No',
+                                    yes_val='Yes',
+                                    no_val='No',
+                                    required=False,
+                                    width='',
+                                    input_id='autopublish-switch') }}
+                  <span class="text-sm">Autopublish</span>
+                </div>
+              </div>
+
             {% else %}
               <div class="alert alert-info">Render Product first, to enable publishing</div>
             {% endif %}

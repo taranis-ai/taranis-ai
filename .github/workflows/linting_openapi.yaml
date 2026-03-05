@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'src/core/core/static/openapi3_1.yaml'
+      - "src/core/core/static/openapi3_1.yaml"
 
 jobs:
   open_api_lint:
@@ -16,6 +16,5 @@ jobs:
       - name: Running OpenAPI Spec diff action
         uses: oasdiff/oasdiff-action/breaking@main
         with:
-          base: 'https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml'
-          revision: 'src/core/core/static/openapi3_1.yaml'
-
+          base: "https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml"
+          revision: "src/core/core/static/openapi3_1.yaml"

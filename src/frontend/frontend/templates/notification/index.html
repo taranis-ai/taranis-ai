@@ -1,10 +1,11 @@
-<section id="notification-bar" x-data="{ show: true }" hx-swap-oob="{{ oob | default('true') }}">
+<section id="notification-bar" x-data="{ show: true }"{% if oob is not defined or oob %} hx-swap-oob="true"{% endif %}>
   {% if notification %}
     {% set notification = notification if notification is mapping else {"message": notification} %}
     {% set message = notification.get('message', "") %}
     {% set icon = "exclamation-triangle" if notification.get("error") else notification.get('icon', "information-circle") %}
     {% set class = "alert-error" if notification.get("error") else notification.get('class', "alert-info") %}
     {% set duration = notification.get('duration', 10) %}
+    {% set animation_class = 'animate-shrink-30' if duration >= 30 else ('animate-shrink-20' if duration >= 20 else 'animate-shrink-10') %}
 
     <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
       <div class="alert flex flex-col w-full gap-2 cursor-pointer {{ class }}" role="alert" @click="show = false">
@@ -13,9 +14,26 @@
           <span id="notification-message">{{ message }}</span>
         </div>
         <div class="w-full h-2 bg-black/20 rounded overflow-hidden">
-          <div class="h-full bg-black {{ 'animate-shrink-30' if duration >= 30 else ('animate-shrink-20' if duration >= 20 else 'animate-shrink-10') }}"
-               @animationend="show = false" /></div>
+          <div class="h-full bg-black {{ animation_class }}" @animationend="show = false"></div>
         </div>
       </div>
+    </div>
+  {% endif %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div x-show="show" x-transition class="toast toast-center toast-bottom w-1/2 z-50">
+        {% for category, message in messages %}
+          {% set class = 'alert-error' if category=='error' else 'alert-' + category %}
+          <div class="alert flex flex-col w-full gap-2 cursor-pointer {{ class }}" role="alert" @click="show = false">
+            <div class="flex items-center gap-2">
+              <span id="notification-message">{{ message }}</span>
+            </div>
+            <div class="w-full h-2 bg-black/20 rounded overflow-hidden">
+              <div class="h-full bg-black animate-shrink-30" @animationend="show = false"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
     {% endif %}
-  </section>
+  {% endwith %}
+</section>
