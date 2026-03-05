@@ -34,10 +34,8 @@
                   <td>{{ revision.note or '-' }}</td>
                   <td>
                     {% if not loop.last %}
-                      <a href="{{ url_for('analyze.report_diff', report_id=report.id, from_rev=revisions[loop.index0 + 1].revision, to_rev=revision.revision) }}" 
-                         class="btn btn-sm btn-outline">
-                        View Changes
-                      </a>
+                      <a href="{{ url_for('analyze.report_diff', report_id=report.id, from_rev=revisions[loop.index0 + 1].revision, to_rev=revision.revision) }}"
+                         class="btn btn-sm btn-outline">View Changes</a>
                     {% else %}
                       <span class="text-base-content/40">Initial version</span>
                     {% endif %}
