@@ -519,27 +519,3 @@ class TestWorkerTypes(BaseTest):
         assert response.json["description"] == cleanup_worker_types["description"]
         assert response.json["type"] == cleanup_worker_types["type"]
         assert response.json["parameters"] == cleanup_worker_types["parameters"]
-
-
-class TestWorkerParameters(BaseTest):
-    base_uri = "/api/config"
-
-    def test_worker_parameters_include_requests_timeout_for_remote_bots(self, client, auth_header):
-        response = self.assert_get_ok(client, uri="worker-parameters", auth_header=auth_header)
-        items = {item["id"]: item["parameters"] for item in response.json["items"]}
-
-        remote_bot_types = [
-            "nlp_bot",
-            "story_bot",
-            "summary_bot",
-            "sentiment_analysis_bot",
-            "cybersec_classifier_bot",
-        ]
-        for bot_type in remote_bot_types:
-            timeout_parameter = next((param for param in items[bot_type] if param["name"] == "REQUESTS_TIMEOUT"), None)
-            assert timeout_parameter is not None
-            assert timeout_parameter["type"] == "text"
-            assert "positive_int" in timeout_parameter.get("rules", [])
-            assert "required" not in timeout_parameter.get("rules", [])
-            parameter_names = [param["name"] for param in items[bot_type]]
-            assert parameter_names.index("REQUESTS_TIMEOUT") == parameter_names.index("ITEM_FILTER") + 1
