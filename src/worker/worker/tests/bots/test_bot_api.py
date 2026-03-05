@@ -12,6 +12,7 @@ from worker.config import Config
         ("character", Config.REQUESTS_TIMEOUT),
         (-1, Config.REQUESTS_TIMEOUT),
         (0, Config.REQUESTS_TIMEOUT),
+        (None, Config.REQUESTS_TIMEOUT),
     ],
 )
 def test_bot_api_timeout_resolve(timeout_input, expected_value):
