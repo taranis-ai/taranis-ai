@@ -100,11 +100,20 @@ def delete_template(template_id: str) -> bool:
 
 
 def get_presenter_template_path(presenter_template: str) -> str:
-    """Return the absolute path to a presenter template file."""
-    if Path(presenter_template).is_absolute():
-        return Path(presenter_template).absolute().as_posix()
-    path = Path(Config.DATA_FOLDER) / "presenter_templates" / presenter_template
-    return path.absolute().as_posix()
+    """Return an absolute presenter template path if it stays within the trusted template directory."""
+    templates_dir = (Path(Config.DATA_FOLDER) / "presenter_templates").resolve()
+    candidate = Path(presenter_template)
+    if not candidate.is_absolute():
+        candidate = templates_dir / candidate
+    resolved_candidate = candidate.resolve()
+
+    try:
+        resolved_candidate.relative_to(templates_dir)
+    except ValueError:
+        logger.warning(f"Rejected presenter template path outside allowed directory: {presenter_template}")
+        return ""
+
+    return resolved_candidate.as_posix()
 
 
 def get_presenter_templates() -> list[str]:

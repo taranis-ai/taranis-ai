@@ -2,10 +2,9 @@ from typing import Any
 
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from models.admin import ReportItemType
 from models.assess import Story
 from models.product import Product
-from models.report import ReportItem, ReportItemAttributeGroup
+from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
 from pydantic import ValidationError
 
 from frontend.auth import auth_required
@@ -59,7 +58,7 @@ class ReportItemView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
-            report_types = DataPersistenceLayer().get_objects(ReportItemType)
+            report_types = DataPersistenceLayer().get_objects(ReportTypes)
             base_context["report_types"] = report_types
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
             report = base_context.get("report")

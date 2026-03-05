@@ -334,13 +334,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
-            page.get_by_label("Report Type Select a report").select_option("4")
+            page.get_by_test_id("report-type-select").select_option("4")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_role("link", name="Split view").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
             expect(page.get_by_test_id("report-new-product")).to_be_visible()
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
@@ -470,7 +470,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
-                page.get_by_label("Report Type Select a report").select_option("6")
+                page.get_by_test_id("report-type-select").select_option("6")  # report type with all attribute types
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
@@ -520,8 +520,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 2 Add Story").click()
+                page.keyboard.press("Escape")  # press esc  key to close the dropdown
 
-                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
                 page.get_by_placeholder("STRING field").click()
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
@@ -677,8 +677,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
+                page.keyboard.press("Escape")  # press esc  key to close the dropdown
 
-                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
                 page.get_by_placeholder("STRING field*").click()
                 page.get_by_placeholder("STRING field*").fill("string")
                 page.get_by_placeholder("NUMBER field*").click()

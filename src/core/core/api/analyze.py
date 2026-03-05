@@ -15,7 +15,7 @@ from core.service.product import ProductService
 class ReportTypes(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
-        return report_item_type.ReportItemType.get_all_for_api(filter_args=None, with_count=False, user=current_user)
+        return report_item_type.ReportItemType.get_all_for_user_api(user=current_user)
 
 
 class ReportStories(MethodView):

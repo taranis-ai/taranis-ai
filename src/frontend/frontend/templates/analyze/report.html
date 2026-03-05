@@ -96,7 +96,12 @@
             <div class="col-span-12 md:col-span-6">
               <label class="select w-full mb-5">
                 <span class="label">Report Type</span>
-                <select id="report_item_selector" name="report_item_type_id" class="select select-bordered w-full" {% if is_edit %}disabled{% endif %}>
+                <select id="report_item_selector"
+                        name="report_item_type_id"
+                        data-testid="report-type-select"
+                        hx-preserve
+                        class="select select-bordered w-full"
+                        {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
                     <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
