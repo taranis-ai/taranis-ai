@@ -834,6 +834,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
+            page.get_by_role("textbox", name="REQUESTS_TIMEOUT").fill("30")
             page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
 
             page.get_by_role("checkbox", name="run_after_collector").check()

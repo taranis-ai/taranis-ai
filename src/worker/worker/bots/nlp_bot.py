@@ -24,6 +24,7 @@ class NLPBot(BaseBot):
             self.bot_api = BotApi(
                 bot_endpoint=parameters.get("BOT_ENDPOINT", Config.NLP_API_ENDPOINT),
                 bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+                requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
             )
 
             for story_batch in batched(stories):

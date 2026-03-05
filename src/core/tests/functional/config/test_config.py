@@ -5,8 +5,9 @@ import os
 import uuid
 from io import BytesIO
 
-from tests.functional.helpers import BaseTest
 from werkzeug.datastructures import FileStorage
+
+from tests.functional.helpers import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
