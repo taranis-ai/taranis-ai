@@ -32,6 +32,16 @@ def test_nlp_bot(story_get_mock, ner_bot_mock):
     assert ner_bot_mock.call_count > 1
 
     assert ner_bot_result
+    assert nlp_bot.bot_api.timeout == Config.REQUESTS_TIMEOUT
+
+
+def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
+    import worker.bots as bots
+
+    nlp_bot = bots.NLPBot()
+    nlp_bot.execute({"REQUESTS_TIMEOUT": "17"})
+
+    assert nlp_bot.bot_api.timeout == 17
 
 
 def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):

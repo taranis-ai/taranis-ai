@@ -834,6 +834,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
+            page.get_by_role("textbox", name="REQUESTS_TIMEOUT").fill("30")
             page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
 
             page.get_by_role("checkbox", name="run_after_collector").check()
@@ -980,6 +981,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_admin_settings(self, logged_in_page):
         page = logged_in_page
+        settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
         tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
         collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
@@ -1003,7 +1005,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(story_conflict_input).to_have_value("200")
             expect(news_conflict_input).to_have_attribute("required", "")
             expect(news_conflict_input).to_have_value("200")
-            settings_submit.click()  # keep this - against form only every second time to be succesfully POSTed
 
         def change_default_values():
             expect(collector_interval_input).to_be_visible()
@@ -1012,10 +1013,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             collector_interval_input.fill("0 */8 * * 1")
             story_conflict_input.fill("20")
             news_conflict_input.fill("21")
-            settings_submit.click()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
 
         def check_new_values():
-            page.get_by_role("button", name="Invalidate Cache").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
@@ -1031,7 +1034,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             collector_interval_input.fill("0 */8 * * *")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
-            settings_submit.click()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
         go_to_admin_settings()
         check_default_values()
