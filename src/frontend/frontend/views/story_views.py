@@ -2,7 +2,7 @@ import datetime
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.admin import Connector
