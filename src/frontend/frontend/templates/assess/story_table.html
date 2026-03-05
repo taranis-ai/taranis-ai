@@ -12,6 +12,7 @@
       selectedItems: [],
       storyIds: [],
       storyImportantMap: {},
+      storyReadMap: {},
       showHints: false,
       init() {
         this.refreshStoryMeta();
@@ -44,6 +45,7 @@
         if (!storyList) {
           this.storyIds = [];
           this.storyImportantMap = {};
+          this.storyReadMap = {};
           return;
         }
         const cards = Array.from(storyList.querySelectorAll("article[data-story-id]"));
@@ -51,13 +53,16 @@
           .map(node => node.dataset.storyId)
           .filter(Boolean);
         const importantMap = {};
+        const readMap = {};
         cards.forEach(node => {
           const id = node.dataset.storyId;
           if (!id) return;
           importantMap[id] = node.dataset.storyImportant === "true";
+          readMap[id] = node.dataset.storyRead === "true";
         });
         this.storyIds = Array.from(new Set(ids));
         this.storyImportantMap = importantMap;
+        this.storyReadMap = readMap;
       },
       selectAll() {
         this.refreshStoryMeta();
@@ -69,6 +74,9 @@
       },
       selectedItemsAreImportant() {
         return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyImportantMap[id] === true);
+      },
+      selectedItemsAreRead() {
+        return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyReadMap[id] === true);
       },
       action_vals(action, value) {
         if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });
