@@ -1,16 +1,17 @@
 from typing import Any
-from flask import render_template, url_for, request
 
-from frontend.views.base_view import BaseView
-from frontend.log import logger
+from flask import render_template, request, url_for
 from models.admin import Bot
-from models.types import BOT_TYPES
-from frontend.core_api import CoreApi
-from frontend.auth import auth_required
-from frontend.filters import render_item_type, render_worker_status
-from frontend.data_persistence import DataPersistenceLayer
 from models.dashboard import Dashboard
+from models.types import BOT_TYPES
+
+from frontend.auth import auth_required
+from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
+from frontend.filters import render_item_type, render_worker_status
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class BotView(AdminMixin, BaseView):
@@ -59,7 +60,7 @@ class BotView(AdminMixin, BaseView):
         bot = base_context.get(cls.model_name())
         if bot and (hasattr(bot, "type") and (bot_type := bot.type)):
             parameter_values = bot.parameters
-            parameters = cls.get_worker_parameters(bot_type.name.lower())
+            parameters = cls._reorder_bot_parameters(cls.get_worker_parameters(bot_type.name.lower()))
 
         base_context |= {
             "bot_types": cls.bot_types.values(),
@@ -76,9 +77,21 @@ class BotView(AdminMixin, BaseView):
         if not bot_id and not bot_type:
             logger.warning("No bot ID or bot type provided.")
 
-        parameters = cls.get_worker_parameters(bot_type)
+        parameters = cls._reorder_bot_parameters(cls.get_worker_parameters(bot_type))
 
         return render_template("partials/worker_parameters.html", parameters=parameters)
+
+    @staticmethod
+    def _reorder_bot_parameters(parameters: list[Any]) -> list[Any]:
+        item_filter_idx = next((idx for idx, param in enumerate(parameters) if getattr(param, "name", None) == "ITEM_FILTER"), None)
+        timeout_idx = next((idx for idx, param in enumerate(parameters) if getattr(param, "name", None) == "REQUESTS_TIMEOUT"), None)
+        if item_filter_idx is None or timeout_idx is None or timeout_idx == item_filter_idx + 1:
+            return parameters
+
+        timeout_parameter = parameters.pop(timeout_idx)
+        item_filter_idx = next(idx for idx, param in enumerate(parameters) if getattr(param, "name", None) == "ITEM_FILTER")
+        parameters.insert(item_filter_idx + 1, timeout_parameter)
+        return parameters
 
     @classmethod
     @auth_required()
