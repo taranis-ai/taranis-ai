@@ -99,7 +99,7 @@ def cleanup_invalid_source_icons():
         icon_bytes = getattr(source, "icon", None)
         if icon_bytes:
             try:
-                OSINTSource._validate_icon_image(icon_bytes)
+                OSINTSource._probe_icon_image(icon_bytes)
             except ValueError:
                 logger.warning(f"Removing invalid icon from OSINT source {source.id}")
                 source.icon = None

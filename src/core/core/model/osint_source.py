@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
 from models.types import COLLECTOR_TYPES
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
@@ -296,40 +296,41 @@ class OSINTSource(BaseModel):
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
         if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
             raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
-        self._validate_icon_image(icon_bytes)
-        return icon_bytes
+        return self._normalize_icon_image(icon_bytes)
 
     @classmethod
-    def _validate_icon_image(cls, icon_bytes: bytes) -> None:
+    def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
         if cls._looks_like_svg(icon_bytes):
             raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
 
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
-                image.verify()
                 image_format = image.format.upper() if image.format else None
-        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
-            logger.warning(f"Pillow verification failed for icon: {exc}")
-            raise ValueError("Icon payload is not a valid image file.") from exc
-
-        if image_format not in cls._ALLOWED_ICON_FORMATS:
-            raise ValueError(
-                f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
-            )
-
-        try:
-            with Image.open(BytesIO(icon_bytes)) as image:
-                width, height = image.size
-                if width * height > Config.OSINT_SOURCE_ICON_MAX_PIXELS:
+                if image_format not in cls._ALLOWED_ICON_FORMATS:
                     raise ValueError(
-                        f"Icon dimensions are too large ({width}x{height}). Maximum pixels: {Config.OSINT_SOURCE_ICON_MAX_PIXELS}."
+                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
                     )
                 image.load()
-        except ValueError:
-            raise
+                normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
             logger.warning(f"Pillow decode failed for icon: {exc}")
             raise ValueError("Icon payload is not a valid image file.") from exc
+
+        target_size = Config.OSINT_SOURCE_ICON_PIXELS
+        normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+        offset = ((target_size - normalized.width) // 2, (target_size - normalized.height) // 2)
+        canvas.paste(normalized, offset)
+
+        output_format = Config.OSINT_SOURCE_ICON_FORMAT.upper()
+        with BytesIO() as output:
+            canvas.save(output, format=output_format)
+            return output.getvalue()
+
+    @classmethod
+    def _probe_icon_image(cls, icon_bytes: bytes) -> None:
+        cls._normalize_icon_image(icon_bytes)
 
     @staticmethod
     def _looks_like_svg(icon_bytes: bytes) -> bool:
