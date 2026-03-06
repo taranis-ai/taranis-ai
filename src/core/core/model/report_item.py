@@ -513,8 +513,6 @@ class ReportItem(BaseModel):
         # For legacy reports without revision history, create initial revision first (before changes)
         revision_count = report_item.get_revision_count()
         if revision_count == 0:
-            from core.model.revision import ReportRevision
-
             ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 

@@ -222,6 +222,7 @@ class ReportItemView(BaseView):
         return render_template("analyze/report_diff.html", **context), 200
 
 
+# TODO: Enhance diff calculation to handle more complex attribute types and nested structures, and to provide better formatting of changes in the UI.
 def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
     """Calculate differences between two report data dictionaries"""
     changes = []

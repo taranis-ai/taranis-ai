@@ -648,8 +648,6 @@ class Story(BaseModel):
         # For legacy stories without revision history, create initial revision first (before changes)
         revision_count = story.get_revision_count()
         if revision_count == 0:
-            from core.model.revision import StoryRevision
-
             StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 
