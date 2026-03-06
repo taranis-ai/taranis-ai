@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     REQUESTS_TRUST_ENV: bool = True
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
-    OSINT_SOURCE_ICON_MAX_BYTES: int = 256 * 1024
+    OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp"
 
     # BABEL_DEFAULT_LOCALE: str = "en"

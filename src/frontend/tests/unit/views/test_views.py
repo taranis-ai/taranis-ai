@@ -1,8 +1,9 @@
 import base64
-import pytest
 import json
-from unittest.mock import patch, MagicMock
 from io import BytesIO
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 from frontend.config import Config
@@ -11,9 +12,6 @@ from frontend.views.admin_views.source_views import SourceView
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
 _VALID_PNG_BYTES = base64.b64decode(_VALID_PNG_BASE64)
-_VALID_GIF_BASE64 = "R0lGODdhAQABAIAAAP///////ywAAAAAAQABAAACAkQBADs="
-_VALID_GIF_BYTES = base64.b64decode(_VALID_GIF_BASE64)
-_SVG_BYTES = b"<svg xmlns='http://www.w3.org/2000/svg'></svg>"
 
 
 VIEW_ITEMS = BaseView._registry.items()
@@ -202,20 +200,6 @@ class TestSourceView:
         processed_data = mock_store.call_args.args[0]
         assert processed_data["icon"] == base64.b64encode(_VALID_PNG_BYTES).decode("utf-8")
 
-    def test_process_form_data_rejects_non_image_despite_png_mimetype(self, app):
-        with patch.object(SourceView, "store_form_data") as mock_store:
-            with app.test_request_context(
-                SourceView.get_base_route(),
-                method="POST",
-                data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
-                content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data(0)
-
-        assert response is None
-        assert error == "Icon payload is not a valid image file."
-        mock_store.assert_not_called()
-
     def test_process_form_data_rejects_oversized_icon(self, app):
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
@@ -233,30 +217,15 @@ class TestSourceView:
         assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."
         mock_store.assert_not_called()
 
-    def test_process_form_data_rejects_gif_payload(self, app):
-        with patch.object(SourceView, "store_form_data") as mock_store:
+    def test_process_form_data_returns_core_error_message(self, app):
+        with patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})):
             with app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
-                data={"icon": (BytesIO(_VALID_GIF_BYTES), "icon.png", "image/png")},
+                data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
                 response, error = SourceView.process_form_data(0)
 
         assert response is None
-        assert error == "Unsupported icon file type: image/gif"
-        mock_store.assert_not_called()
-
-    def test_process_form_data_rejects_svg_payload(self, app):
-        with patch.object(SourceView, "store_form_data") as mock_store:
-            with app.test_request_context(
-                SourceView.get_base_route(),
-                method="POST",
-                data={"icon": (BytesIO(_SVG_BYTES), "icon.svg", "image/png")},
-                content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data(0)
-
-        assert response is None
-        assert error == "Unsupported icon file type: image/svg+xml"
-        mock_store.assert_not_called()
+        assert error == "Icon payload is not a valid image file."
