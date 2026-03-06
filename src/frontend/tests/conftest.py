@@ -187,7 +187,7 @@ def pytest_collection_modifyitems(config, items):
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
         "--e2e-user": ("e2e_user", "need --e2e-user option to run tests marked with e2e_user"),
         "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
-        "--e2e-workflow-1": ("e2e_workflow_1", "need --e2e-workflow-1 option to run tests marked with e2e_workflow_1"),
+        "--e2e-tag-search": ("e2e_tag_search", "need --e2e-tag-search option to run tests marked with e2e_tag_search"),
     }
 
     config.option.headed = True
@@ -201,7 +201,7 @@ def pytest_collection_modifyitems(config, items):
             return
 
     skip_all = pytest.mark.skip(
-        reason="need one of --e2e-ci, --e2e-admin, --e2e-user, --e2e-user-workflow, or --e2e-workflow-1 to run these tests"
+        reason="need one of --e2e-ci, --e2e-admin, --e2e-user, --e2e-user-workflow, or --e2e-tag-search to run these tests"
     )
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
