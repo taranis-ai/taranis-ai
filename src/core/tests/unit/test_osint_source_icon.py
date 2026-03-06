@@ -2,7 +2,9 @@ import base64
 
 import pytest
 from models.types import COLLECTOR_TYPES
+from PIL import Image
 
+from core.config import Config
 from core.model.osint_source import OSINTSource
 
 
@@ -10,6 +12,8 @@ _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP
 _VALID_PNG_BYTES = base64.b64decode(_VALID_PNG_BASE64)
 _INVALID_BASE64_IMAGE = base64.b64encode(b"not-an-image").decode("utf-8")
 _INVALID_IMAGE_BYTES = b"not-an-image"
+_VALID_GIF_BASE64 = "R0lGODdhAQABAIAAAP///////ywAAAAAAQABAAACAkQBADs="
+_SVG_BASE64 = base64.b64encode(b"<svg xmlns='http://www.w3.org/2000/svg'></svg>").decode("utf-8")
 
 
 @pytest.mark.usefixtures("app")
@@ -92,3 +96,54 @@ def test_pre_seed_update_removes_invalid_icons(session):
     updated = OSINTSource.get(source.id)
     assert updated is not None
     assert updated.icon is None
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_creation_rejects_oversized_icon():
+    oversized_icon = base64.b64encode(b"\x00" * (Config.OSINT_SOURCE_ICON_MAX_BYTES + 1)).decode("utf-8")
+
+    with pytest.raises(ValueError, match="maximum size"):
+        OSINTSource(
+            name="Too Large",
+            description="A test",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            icon=oversized_icon,
+        )
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_creation_rejects_svg_icon():
+    with pytest.raises(ValueError, match="SVG icons are not supported"):
+        OSINTSource(
+            name="SVG Icon",
+            description="A test",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            icon=_SVG_BASE64,
+        )
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_creation_rejects_unsupported_image_format():
+    with pytest.raises(ValueError, match="Unsupported icon format"):
+        OSINTSource(
+            name="GIF Icon",
+            description="A test",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            icon=_VALID_GIF_BASE64,
+        )
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_creation_converts_decompression_bomb_to_value_error(monkeypatch):
+    def raise_decompression_bomb(*args, **kwargs):
+        raise Image.DecompressionBombError("Decompression bomb")
+
+    monkeypatch.setattr("core.model.osint_source.Image.open", raise_decompression_bomb)
+
+    with pytest.raises(ValueError, match="Icon payload is not a valid image file."):
+        OSINTSource(
+            name="Bomb Icon",
+            description="A test",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            icon=_VALID_PNG_BASE64,
+        )

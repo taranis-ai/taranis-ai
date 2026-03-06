@@ -97,10 +97,13 @@ def cleanup_invalid_source_icons():
 
     for source in sources:
         icon_bytes = getattr(source, "icon", None)
-        if icon_bytes and not OSINTSource._is_valid_image(icon_bytes):
-            logger.warning(f"Removing invalid icon from OSINT source {source.id}")
-            source.icon = None
-            removed_icons += 1
+        if icon_bytes:
+            try:
+                OSINTSource._validate_icon_image(icon_bytes)
+            except ValueError:
+                logger.warning(f"Removing invalid icon from OSINT source {source.id}")
+                source.icon = None
+                removed_icons += 1
 
     if removed_icons:
         db.session.commit()

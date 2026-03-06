@@ -150,6 +150,25 @@ class TestWorkerSourceIcon(BaseTest):
         finally:
             client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
 
+    def test_worker_icon_upload_requires_api_key(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+
+        create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            response = client.put(
+                self.concat_url(f"osint-sources/{source_id}/icon"),
+                data={"file": (BytesIO(_INVALID_IMAGE_BYTES), "icon.png")},
+                content_type="multipart/form-data",
+            )
+            assert response.status_code == 401
+            assert response.json["error"] == "not authorized"
+        finally:
+            client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
+
 
 class TestWordListConfigApi(BaseTest):
     base_uri = "/api/config"
