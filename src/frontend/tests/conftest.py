@@ -1,7 +1,9 @@
 import os
+import subprocess
+
 import pytest
 from dotenv import load_dotenv
-import subprocess
+
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -119,6 +121,7 @@ def pytest_addoption(parser):
     group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")
     group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
+    group.addoption("--e2e-tag-search", action="store_true", default=False, help="run e2e tests for workflow 1")
 
     group.addoption(
         "--fail-on-console",
@@ -184,6 +187,7 @@ def pytest_collection_modifyitems(config, items):
         "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
         "--e2e-user": ("e2e_user", "need --e2e-user option to run tests marked with e2e_user"),
         "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
+        "--e2e-workflow-1": ("e2e_workflow_1", "need --e2e-workflow-1 option to run tests marked with e2e_workflow_1"),
     }
 
     config.option.headed = True
@@ -196,7 +200,9 @@ def pytest_collection_modifyitems(config, items):
             skip_tests(items, keyword, reason)
             return
 
-    skip_all = pytest.mark.skip(reason="need --e2e-ci or --e2e-admin option to run these tests")
+    skip_all = pytest.mark.skip(
+        reason="need one of --e2e-ci, --e2e-admin, --e2e-user, --e2e-user-workflow, or --e2e-workflow-1 to run these tests"
+    )
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)
