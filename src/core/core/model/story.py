@@ -6,7 +6,7 @@ from typing import Any
 
 from models.assess import NewsItem as NewsItemCreatePayload
 from pydantic import ValidationError
-from sqlalchemy import func, or_
+from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -22,6 +22,7 @@ from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
+from core.model.revision import StoryRevision
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType
 from core.model.story_conflict import StoryConflict
@@ -644,6 +645,12 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
+        # For legacy stories without revision history, create initial revision first (before changes)
+        revision_count = story.get_revision_count()
+        if revision_count == 0:
+            StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
+            db.session.flush()
+
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
@@ -674,6 +681,7 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
+        story.record_revision(user, note="update")
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
@@ -909,6 +917,7 @@ class Story(BaseModel):
             self.patch_tags(parsed_tags)
             self.remove_tags(tags_to_remove)
 
+        self.record_revision(note="set_tags")
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
@@ -953,6 +962,7 @@ class Story(BaseModel):
                     story.relevance += 1
                     story.update_status()
             cls.update_stories({story})
+            story.record_revision(user, note="move_items_to_story")
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -986,6 +996,8 @@ class Story(BaseModel):
                 processed_stories.add(story)
 
             cls.update_stories(processed_stories)
+            for story in processed_stories:
+                story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception as e:
@@ -1016,6 +1028,7 @@ class Story(BaseModel):
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
             story.update_status()
+            story.record_revision(user, note="ungroup_story")
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:
@@ -1040,6 +1053,8 @@ class Story(BaseModel):
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
+            for story in processed_stories:
+                story.record_revision(user, note="remove_news_items")
             db.session.commit()
             return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
@@ -1096,9 +1111,10 @@ class Story(BaseModel):
             news_items=[news_item.id],
         )
         db.session.add(new_story)
-        db.session.commit()
+        db.session.flush()
 
         new_story.update_status()
+        db.session.commit()
         return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
@@ -1193,6 +1209,8 @@ class Story(BaseModel):
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
+        data["links"] = self.links
+        data["revision_count"] = self.get_revision_count()
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1203,6 +1221,25 @@ class Story(BaseModel):
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
 
         return data
+
+    def record_revision(self, user: User | None = None, note: str | None = None) -> StoryRevision | None:
+        if not self.id:
+            return None
+
+        state = inspect(self)
+        if state.deleted or state.detached or self in db.session.deleted:
+            return None
+
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        return StoryRevision.create_from_story(self, created_by_id=created_by_id, note=note)
+
+    def get_revision_count(self) -> int:
+        """Get the number of revisions for this story"""
+        if not self.id:
+            return 0
+        return (
+            db.session.execute(db.select(db.func.count()).select_from(StoryRevision).filter(StoryRevision.story_id == self.id)).scalar() or 0
+        )
 
 
 class NewsItemVote(BaseModel):

@@ -75,6 +75,8 @@ class Settings(BaseSettings):
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
 
+        self.SQLALCHEMY_ENGINE_OPTIONS.setdefault("pool_pre_ping", True)
+
         update_payload = {
             "pool_size": self.SQLALCHEMY_POOL_SIZE,
             "max_overflow": self.SQLALCHEMY_MAX_OVERFLOW,
