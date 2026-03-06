@@ -152,15 +152,18 @@ def setup_test_templates(run_core, access_token):
 @pytest.fixture(scope="session")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
+    page = context.new_page()
     # Drop timeout from 30s to 10s
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
     if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    yield context.new_page()
+    yield page
     if request.config.getoption("trace"):
         context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+    page.close()
+    context.close()
 
 
 def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
