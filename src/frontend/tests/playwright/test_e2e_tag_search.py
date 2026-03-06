@@ -5,21 +5,22 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from flask import url_for
 from playwright.sync_api import Page, expect
+from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_tag_search
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
-class TestEndToEndWorkflowTagSearch:
+class TestEndToEndWorkflowTagSearch(PlaywrightHelpers):
     """E2E workflow: open a trending tag, verify tags on three stories, mark important, then cluster them."""
 
     def _login_as_user(self, page: Page) -> None:
         """Authenticate as a regular user and confirm dashboard is visible."""
         page.goto(url_for("base.login", _external=True))
         expect(page).to_have_title("Taranis AI", timeout=5000)
-        page.get_by_placeholder("Username").fill("user")
-        page.get_by_placeholder("Password").fill("test")
-        page.get_by_test_id("login-button").click()
+        self.highlight_element(page.get_by_placeholder("Username")).fill("user")
+        self.highlight_element(page.get_by_placeholder("Password")).fill("test")
+        self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
     def _choose_trending_tag(self, page: Page) -> str:
@@ -29,7 +30,7 @@ class TestEndToEndWorkflowTagSearch:
 
         espionage_link = page.locator("#dashboard a[href*='/assess?tags=']").filter(has_text="espionage").first
         expect(espionage_link).to_be_visible(timeout=30000)
-        espionage_link.click()
+        self.highlight_element(espionage_link, scroll=True).click()
         return "espionage"
 
     def _build_story_title_to_tags_map(self, story_list_enriched: list[dict]) -> dict[str, list[str]]:
@@ -57,7 +58,7 @@ class TestEndToEndWorkflowTagSearch:
         expected_tags = story_title_to_tags.get(story_title)
         assert expected_tags, f"No expected tags found for story title: {story_title}"
 
-        story_card.get_by_test_id("toggle-summary").click()
+        self.highlight_element(story_card.get_by_test_id("toggle-summary"), scroll=True).click()
         tag_badges = story_card.locator("a.badge.badge-ghost.badge-xs > span")
         expect(tag_badges.first).to_be_visible()
 
@@ -65,8 +66,8 @@ class TestEndToEndWorkflowTagSearch:
         missing_tags = set(expected_tags) - visible_tags
         assert not missing_tags, f"Missing tags for story '{story_title}': {sorted(missing_tags)}"
 
-        story_card.get_by_test_id("story-actions-menu").click()
-        story_card.get_by_test_id("toggle-important").click()
+        self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
+        self.highlight_element(story_card.get_by_test_id("toggle-important")).click()
 
         updated_story_card = page.get_by_test_id(f"story-card-{story_id}")
         expect(updated_story_card.locator("span.badge-warning").filter(has_text="Important")).to_be_visible()
@@ -93,18 +94,18 @@ class TestEndToEndWorkflowTagSearch:
 
     def _filter_important_and_cluster(self, page: Page, important_story_ids: list[str]) -> None:
         """Filter to important stories, confirm the three selected are present, then cluster them."""
-        page.get_by_label("Important").select_option("true")
+        self.highlight_element(page.get_by_label("Important"), scroll=True).select_option("true")
         selected_tags = page.locator("#story-list article[data-story-important='true']")
         expect(selected_tags).to_have_count(3)
 
         for story_id in important_story_ids:
             story_card = page.get_by_test_id(f"story-card-{story_id}")
             expect(story_card).to_be_visible()
-            story_card.click()
+            self.highlight_element(story_card, scroll=True).click()
 
-        page.get_by_role("button", name="Cluster").click()
+        self.highlight_element(page.get_by_role("button", name="Cluster"), scroll=True).click()
         expect(page.get_by_test_id("story-to-merge")).to_have_count(3)
-        page.get_by_test_id("dialog-story-cluster-submit").click()
+        self.highlight_element(page.get_by_test_id("dialog-story-cluster-submit")).click()
         expect(page).to_have_url(re.compile(r".*/assess.*"))
 
     def test_tag_search_workflow(self, taranis_frontend: Page, pre_seed_stories_enriched, story_list_enriched):
