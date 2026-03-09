@@ -306,6 +306,10 @@ class StoryRevisions(MethodView):
         """Get all revisions for a story"""
         from core.managers.db_manager import db
 
+        access_response, access_status = story.Story.get_for_api(story_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
+
         revisions = (
             db.session.execute(db.select(StoryRevision).filter(StoryRevision.story_id == story_id).order_by(StoryRevision.revision.desc()))
             .scalars()
@@ -333,6 +337,10 @@ class StoryRevisionData(MethodView):
     def get(self, story_id: str, revision_number: int):
         """Get data for a specific revision"""
         from core.managers.db_manager import db
+
+        access_response, access_status = story.Story.get_for_api(story_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
 
         revision = db.session.execute(
             db.select(StoryRevision).filter(StoryRevision.story_id == story_id).filter(StoryRevision.revision == revision_number)

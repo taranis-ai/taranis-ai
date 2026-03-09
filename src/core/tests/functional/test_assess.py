@@ -152,6 +152,20 @@ class TestAssessStories(BaseTest):
         total_count = response.get_json()["counts"]["total_count"]
         assert total_count == 2
 
+    def test_story_revision_endpoints_enforce_read_access(self, client, auth_header, monkeypatch):
+        def fake_get_for_api(_story_id: str, _user=None):
+            return {"error": "forbidden"}, 403
+
+        monkeypatch.setattr("core.api.assess.story.Story.get_for_api", fake_get_for_api)
+
+        list_response = client.get("/api/assess/stories/story-1/revisions", headers=auth_header)
+        assert list_response.status_code == 403
+        assert list_response.get_json() == {"error": "forbidden"}
+
+        detail_response = client.get("/api/assess/stories/story-1/revisions/1", headers=auth_header)
+        assert detail_response.status_code == 403
+        assert detail_response.get_json() == {"error": "forbidden"}
+
 
 class TestAssessStoriesGrouping(BaseTest):
     base_uri = "/api/assess"
