@@ -275,7 +275,7 @@ def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
             to_attr_types[key] = attr.get("type")
 
     # Find changed and new attributes
-    for key in set(from_attr_dict.keys()) | set(to_attr_dict.keys()):
+    for key in sorted(set(from_attr_dict.keys()) | set(to_attr_dict.keys())):
         from_val = from_attr_dict.get(key)
         to_val = to_attr_dict.get(key)
 
