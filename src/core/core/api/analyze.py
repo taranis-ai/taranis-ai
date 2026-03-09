@@ -44,7 +44,7 @@ class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id: str | None = None):
         if report_item_id:
-            return report_item.ReportItem.get_for_api(report_item_id)
+            return report_item.ReportItem.get_for_api(report_item_id, current_user)
         filter_keys = ["search", "completed", "range", "order", "group", "page", "limit"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
@@ -141,6 +141,10 @@ class ReportItemRevisions(MethodView):
         """Get all revisions for a report item"""
         from core.managers.db_manager import db
 
+        access_response, access_status = report_item.ReportItem.get_for_api(report_item_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
+
         revisions = (
             db.session.execute(
                 db.select(ReportRevision).filter(ReportRevision.report_item_id == report_item_id).order_by(ReportRevision.revision.desc())
@@ -170,6 +174,10 @@ class ReportItemRevisionData(MethodView):
     def get(self, report_item_id: str, revision_number: int):
         """Get data for a specific revision"""
         from core.managers.db_manager import db
+
+        access_response, access_status = report_item.ReportItem.get_for_api(report_item_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
 
         revision = db.session.execute(
             db.select(ReportRevision)
