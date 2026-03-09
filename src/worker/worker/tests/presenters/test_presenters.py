@@ -1,15 +1,25 @@
 import json
+
 import pytest
-import worker.presenters.pdf_presenter as pdfp
+from jinja2.exceptions import SecurityError
+
 import worker.presenters.pandoc_presenter as pandocp
+import worker.presenters.pdf_presenter as pdfp
 
 
 def test_base_presenter_generate(base_presenter, fixed_datetime):
-    from presenters_test_data import test_template, test_product, rendered_report
+    from presenters_test_data import rendered_report, test_product, test_template
 
     # test correct rendering of Jinja2 template
     rendered_product = base_presenter.generate(test_product, test_template)
     assert rendered_product.strip() == rendered_report.strip()
+
+
+def test_base_presenter_blocks_ssti_chain(base_presenter):
+    malicious_template = "{{ self.__init__.__globals__.__builtins__.__import__('os').popen('cat /etc/passwd').read() }}"
+
+    with pytest.raises(SecurityError):
+        _ = base_presenter.generate({}, malicious_template)
 
 
 def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypatch):

@@ -129,6 +129,7 @@ workers = [
         "name": "NLP Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://nlp_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -162,6 +163,7 @@ workers = [
         "name": "Story Clustering Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER", "value": "range=week"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://story_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -174,6 +176,7 @@ workers = [
         "name": "Summary generation Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://summary_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -197,6 +200,7 @@ workers = [
         "name": "Sentiment Analysis Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://sentiment_analysis_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
@@ -209,6 +213,7 @@ workers = [
         "name": "Cybersecurity classification bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://cybersec_classifier_bot:8000"},
             {"parameter": "CLASSIFICATION_THRESHOLD", "value": "0.65"},

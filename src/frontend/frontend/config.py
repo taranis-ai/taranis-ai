@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
     JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True
+    JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()

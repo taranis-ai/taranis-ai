@@ -94,7 +94,7 @@ class ACLEntries(MethodView):
 
 
 class Attributes(MethodView):
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS"])
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, attribute_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:

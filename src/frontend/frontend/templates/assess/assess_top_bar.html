@@ -45,9 +45,9 @@
                 class="btn btn-outline"
                 hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
                 hx-post="{{ url_for('assess.bulk_action') }}"
-                :hx-vals='action_vals("read", true)'>
+                :hx-vals='action_vals("read", !selectedItemsAreRead())'>
           {{ heroicon_mini("eye") }}
-          <span class="text-sm">Mark as read</span>
+          <span class="text-sm" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
           <span class="text-xs opacity-80" x-show="showHints">
             <kbd class="kbd kbd-xs">Shift+Space</kbd>
           </span>
@@ -57,9 +57,9 @@
                 class="btn btn-outline"
                 hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
                 hx-post="{{ url_for('assess.bulk_action') }}"
-                :hx-vals='action_vals("important", true)'>
+                :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
           {{ heroicon_mini("star") }}
-          <span class="text-sm">Mark as important</span>
+          <span class="text-sm" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
           <span class="text-xs" x-show="showHints">
             <kbd class="kbd kbd-xs">Shift+I</kbd>
           </span>

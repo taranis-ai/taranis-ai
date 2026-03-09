@@ -3,6 +3,7 @@ import copy
 import os
 import random
 import re
+import shutil
 import subprocess
 import time
 import warnings as pywarnings
@@ -44,9 +45,17 @@ def docker_compose_file():
 
 
 @pytest.fixture(scope="session")
-def docker_setup():
-    # Ensure stale stack is removed first, then start services and wait for healthchecks.
-    return ["down -v --remove-orphans", "up -d --wait"]
+def docker_compose_command() -> str:
+    if shutil.which("podman-compose"):
+        return "podman-compose"
+    return "docker compose"
+
+
+@pytest.fixture(scope="session")
+def docker_setup(docker_compose_command):
+    # podman-compose does not support --wait; readiness is handled by _wait_for_server_to_be_alive.
+    up_cmd = "up -d" if "podman" in docker_compose_command else "up -d --wait"
+    return ["down -v --remove-orphans", up_cmd]
 
 
 @pytest.fixture(scope="session")
