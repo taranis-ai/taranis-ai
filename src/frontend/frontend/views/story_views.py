@@ -1,10 +1,12 @@
 import datetime
+from difflib import SequenceMatcher
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
+from markupsafe import Markup, escape
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
@@ -754,49 +756,74 @@ def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]
     """Calculate differences between two story data dictionaries"""
     changes = []
 
+    def _inline_text_diff(old_text: str, new_text: str) -> tuple[Markup, Markup]:
+        old_parts: list[str] = []
+        new_parts: list[str] = []
+        matcher = SequenceMatcher(a=old_text, b=new_text)
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            old_segment = escape(old_text[i1:i2])
+            new_segment = escape(new_text[j1:j2])
+
+            if tag == "equal":
+                old_parts.append(str(old_segment))
+                new_parts.append(str(new_segment))
+                continue
+
+            if tag in {"delete", "replace"} and i1 != i2:
+                old_parts.append(f'<span class="line-through bg-error/20 text-error rounded px-0.5">{old_segment}</span>')
+
+            if tag in {"insert", "replace"} and j1 != j2:
+                new_parts.append(f'<span class="bg-success/20 text-success rounded px-0.5">{new_segment}</span>')
+
+        return Markup("".join(old_parts)), Markup("".join(new_parts))
+
+    def _append_text_change(field: str, old_value: Any, new_value: Any) -> None:
+        if old_value == new_value:
+            return
+
+        change: dict[str, Any] = {
+            "field": field,
+            "old_value": old_value,
+            "new_value": new_value,
+        }
+
+        if isinstance(old_value, str) and isinstance(new_value, str):
+            old_value_diff, new_value_diff = _inline_text_diff(old_value, new_value)
+            change["old_value_diff"] = old_value_diff
+            change["new_value_diff"] = new_value_diff
+            change["inline_diff"] = True
+
+        changes.append(change)
+
+    def _normalized_tag_names(data: dict) -> set[str]:
+        tag_names = set()
+        for tag in data.get("tags") or []:
+            if not isinstance(tag, dict):
+                continue
+            name = tag.get("name")
+            if not isinstance(name, str):
+                continue
+            normalized_name = name.strip()
+            if normalized_name:
+                tag_names.add(normalized_name)
+        return tag_names
+
     # Compare title
-    if from_data.get("title") != to_data.get("title"):
-        changes.append(
-            {
-                "field": "Title",
-                "old_value": from_data.get("title"),
-                "new_value": to_data.get("title"),
-            }
-        )
+    _append_text_change("Title", from_data.get("title"), to_data.get("title"))
 
     # Compare description
-    if from_data.get("description") != to_data.get("description"):
-        changes.append(
-            {
-                "field": "Description",
-                "old_value": from_data.get("description"),
-                "new_value": to_data.get("description"),
-            }
-        )
+    _append_text_change("Description", from_data.get("description"), to_data.get("description"))
 
     # Compare summary
-    if from_data.get("summary") != to_data.get("summary"):
-        changes.append(
-            {
-                "field": "Summary",
-                "old_value": from_data.get("summary"),
-                "new_value": to_data.get("summary"),
-            }
-        )
+    _append_text_change("Summary", from_data.get("summary"), to_data.get("summary"))
 
     # Compare comments
-    if from_data.get("comments") != to_data.get("comments"):
-        changes.append(
-            {
-                "field": "Comments",
-                "old_value": from_data.get("comments"),
-                "new_value": to_data.get("comments"),
-            }
-        )
+    _append_text_change("Comments", from_data.get("comments"), to_data.get("comments"))
 
     # Compare tags
-    from_tags = {tag.get("name") for tag in from_data.get("tags", [])}
-    to_tags = {tag.get("name") for tag in to_data.get("tags", [])}
+    from_tags = _normalized_tag_names(from_data)
+    to_tags = _normalized_tag_names(to_data)
 
     added_tags = to_tags - from_tags
     removed_tags = from_tags - to_tags

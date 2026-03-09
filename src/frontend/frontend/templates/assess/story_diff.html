@@ -55,18 +55,26 @@
                   <td class="font-semibold">{{ change.field }}</td>
                   <td>
                     {% if change.old_value is not none %}
-                      <div class="bg-error/10 text-error p-2 rounded">
-                        <span class="line-through">{{ change.old_value }}</span>
-                      </div>
+                      {% if change.inline_diff %}
+                        <div class="bg-error/10 p-2 rounded whitespace-pre-wrap break-words">{{ change.old_value_diff }}</div>
+                      {% else %}
+                        <div class="bg-error/10 text-error p-2 rounded">
+                          <span class="line-through">{{ change.old_value }}</span>
+                        </div>
+                      {% endif %}
                     {% else %}
                       <span class="text-base-content/40">-</span>
                     {% endif %}
                   </td>
                   <td>
                     {% if change.new_value is not none %}
-                      <div class="bg-success/10 text-success p-2 rounded">
-                        <span>{{ change.new_value }}</span>
-                      </div>
+                      {% if change.inline_diff %}
+                        <div class="bg-success/10 p-2 rounded whitespace-pre-wrap break-words">{{ change.new_value_diff }}</div>
+                      {% else %}
+                        <div class="bg-success/10 text-success p-2 rounded">
+                          <span>{{ change.new_value }}</span>
+                        </div>
+                      {% endif %}
                     {% else %}
                       <span class="text-base-content/40">-</span>
                     {% endif %}
