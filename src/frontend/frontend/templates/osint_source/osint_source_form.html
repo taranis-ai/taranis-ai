@@ -35,6 +35,23 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
     {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
+    {% if osint_id != "0" and osint_source.icon %}
+      <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5" data-testid="current-osint-icon">
+        <legend class="fieldset-legend">Current icon</legend>
+        <div class="flex items-center gap-3">
+          {{ osint_source | render_icon }}
+          <span class="text-sm text-base-content/70">An icon is currently uploaded.</span>
+        </div>
+        <label class="label cursor-pointer justify-start gap-2 mt-2">
+          <input type="checkbox"
+                 name="delete_icon"
+                 value="true"
+                 class="checkbox checkbox-primary checkbox-sm"
+                 data-testid="delete-osint-icon-on-save" />
+          <span class="label-text">Remove current icon when saving</span>
+        </label>
+      </fieldset>
+    {% endif %}
     {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False, accept=icon_accept) }}
 
     <label class="select w-full mb-5">

@@ -138,17 +138,23 @@ class SourceView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            icon = request.files.get("icon")  # FileStorage
-            if icon and icon.filename:
-                max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
-                icon_data = icon.read(max_bytes + 1)
-                if len(icon_data) > max_bytes:
-                    error_msg = f"Icon file exceeds maximum size of {max_bytes} bytes."
-                    logger.warning(error_msg)
-                    return None, error_msg
+            delete_icon = str(form_data.pop("delete_icon", "")).lower() in {"true", "1", "yes", "on"}
 
-                icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
-                form_data["icon"] = icon_data_base64
+            if delete_icon:
+                # Explicit delete must win over any concurrent file upload.
+                form_data["icon"] = ""
+            else:
+                icon = request.files.get("icon")  # FileStorage
+                if icon and icon.filename:
+                    max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+                    icon_data = icon.read(max_bytes + 1)
+                    if len(icon_data) > max_bytes:
+                        error_msg = f"Icon file exceeds maximum size of {max_bytes} bytes."
+                        logger.warning(error_msg)
+                        return None, error_msg
+
+                    icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
+                    form_data["icon"] = icon_data_base64
 
             core_response, error = cls.store_form_data(form_data, object_id)
             return core_response, cls._extract_error_message(error)

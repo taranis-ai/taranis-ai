@@ -287,6 +287,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_be_visible()
 
+            page.get_by_role("link", name=osint_source_name).click()
+            expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
+            page.get_by_test_id("delete-osint-icon-on-save").check()
+
+            form = page.locator("form[hx-put]").first
+            self.highlight_element(page.locator('input[type="submit"]'))
+            form.evaluate("form => { form.noValidate = true; form.requestSubmit(); }")
+            page.wait_for_timeout(500)
+
+            page.goto(url_for("admin.osint_sources", _external=True))
+            osint_row = page.get_by_role("row", name=osint_source_name)
+            expect(osint_row.locator("img.icon")).to_have_count(0)
+
         def remove_osint_sources():
             page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
             page.get_by_role("button", name="Delete").click()
