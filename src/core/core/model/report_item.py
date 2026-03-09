@@ -323,7 +323,7 @@ class ReportItem(BaseModel):
         report_item = cls.from_dict(sanitized_data)
 
         if not report_item.allowed_with_acl(user, True):
-            return report_item, 403
+            return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
 
         if user:
             report_item.user_id = user.id
