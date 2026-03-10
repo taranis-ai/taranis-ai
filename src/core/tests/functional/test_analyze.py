@@ -42,10 +42,15 @@ class TestAnalyzeApi(BaseTest):
         POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
         It expects the response to include the cloned report's details
         """
+        from core.model.report_item import ReportItem
+
         report_id = cleanup_report_item["id"]
 
         response = self.assert_post_ok(client, f"report-items/{report_id}/clone", {}, auth_header=auth_header)
         assert "id" in response.get_json() and response.get_json()["id"] != report_id, "Cloned report must have a different ID."
+        cloned_report = ReportItem.get(response.get_json()["id"])
+        assert cloned_report is not None
+        assert cloned_report.user_id is not None
 
     def test_get_report_stories(self, client, auth_header, cleanup_report_item):
         """

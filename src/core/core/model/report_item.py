@@ -301,7 +301,7 @@ class ReportItem(BaseModel):
         if not report.allowed_with_acl(user, True):
             return {"error": "Permission Denied"}, 403
 
-        new_report = report.clone_report()
+        new_report = report.clone_report(user=user)
         new_report.record_revision(user, note="cloned")
         db.session.commit()
         return {
