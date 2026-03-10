@@ -264,8 +264,11 @@ def cleanup_worker_types(app):
     import contextlib
 
     with app.app_context():
+        rss_worker_data = None
         with contextlib.suppress(Exception):
             from core.model.worker import Worker
 
             if rss_worker := Worker.filter_by_type("rss_collector"):
-                yield rss_worker.to_dict()
+                rss_worker_data = rss_worker.to_dict()
+
+        yield rss_worker_data
