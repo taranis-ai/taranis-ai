@@ -147,22 +147,9 @@ def test_story_creation_creates_created_revision():
 
 
 @pytest.mark.usefixtures("session")
-def test_story_creation_handles_mixed_timezone_published_dates():
-    aware_published = datetime.fromisoformat("2024-01-01T00:30:00+02:00")
-    expected_created = datetime.fromisoformat("2023-12-31T22:30:00")
-    payload = {
-        "title": f"Story {uuid.uuid4()}",
-        "news_items": [
-            _news_item_payload(),
-            {
-                **_news_item_payload(),
-                "published": aware_published.isoformat(),
-            },
-        ],
-    }
-    payload["news_items"][0]["published"] = "2024-01-01T00:00:00"
-
-    result, status = Story.add(payload)
+def test_story_creation_handles_mixed_timezone_published_dates(mixed_timezone_story_payload):
+    expected_created = mixed_timezone_story_payload["expected_created"]
+    result, status = Story.add(mixed_timezone_story_payload["payload"])
 
     assert status == 200
     story = Story.get(result["story_id"])

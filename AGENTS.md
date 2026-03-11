@@ -73,6 +73,8 @@ See .github/workflows for how tests are configured in CI.
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests
+- when adding tests in `src/core`, prefer reusing existing fixtures from `src/core/tests/functional/conftest.py`
+- if a new payload/setup fixture is needed for non-functional tests too, add it to `src/core/tests/conftest.py` instead of creating large inline payloads directly inside tests
 
 ## Development Guidelines
 

@@ -92,7 +92,7 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
-        self.language = language or ""
+        self.language = language
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = self.get_date_field(collected)
