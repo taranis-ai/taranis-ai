@@ -198,15 +198,6 @@ class ReportItem(BaseModel):
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
 
-    def ensure_initial_revision(self, user: User | None = None, note: str = "initial") -> ReportRevision | None:
-        if self.revision != 0:
-            return None
-
-        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
-        revision = ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
-        db.session.flush()
-        return revision
-
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""
         return self.revision or 0
@@ -449,7 +440,6 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        report_item.ensure_initial_revision(user)
         stories = Story.get_bulk(story_ids)
         report_item.stories.extend(stories)
         for story in stories:
@@ -466,7 +456,6 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        report_item.ensure_initial_revision(user)
         stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
         for story in stories_to_remove:
             NewsItemTagService.remove_report_tag(story, report_item.id)
@@ -514,9 +503,6 @@ class ReportItem(BaseModel):
         logger.debug(f"Updating Report Item {report_id} with data: {data}")
         if err or not report_item:
             return err, status
-
-        # For legacy reports without revision history, create initial revision first (before changes)
-        report_item.ensure_initial_revision(user)
 
         if title := data.get("title"):
             retag_stories = True

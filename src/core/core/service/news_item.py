@@ -13,9 +13,6 @@ class NewsItemService:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
-        if story := Story.get(news_item.story_id):
-            story.ensure_initial_revision(user)
-
         response, status = news_item.update_item(data)
         if status != 200:
             db.session.rollback()
@@ -48,7 +45,6 @@ class NewsItemService:
             logger.debug(f"Story with: {story_id} assigned to a report")
             return {"error": f"Story with: {story_id} assigned to a report"}, 400
 
-        story.ensure_initial_revision(user)
         story.last_change = "internal"
         story.news_items.remove(news_item)
         news_item.delete_item()

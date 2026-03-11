@@ -124,7 +124,6 @@ class NewsItemTagService:
 
         for story_id, tags in found_tags.items():
             if story := Story.get(story_id):
-                story.ensure_initial_revision()
                 tag_count = len(tags)
                 attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
                 story.attributes.append(
@@ -143,5 +142,6 @@ class NewsItemTagService:
 
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):
+        # TODO: Record StoryRevision entries for affected stories before bulk tag deletion.
         db.session.execute(db.delete(NewsItemTag).where(NewsItemTag.name == tag_name))
         db.session.commit()

@@ -43,20 +43,6 @@ def _create_story(news_item_count: int = 1) -> Story:
     return Story.get(result["story_id"])
 
 
-def _create_legacy_report(sample_report_type, user: User | None = None) -> ReportItem:
-    report = ReportItem(
-        title=f"Legacy Report {uuid.uuid4()}",
-        report_item_type_id=sample_report_type.id,
-        stories=[],
-    )
-    if user:
-        report.user_id = user.id
-    report.add_attributes()
-    db.session.add(report)
-    db.session.flush()
-    return report
-
-
 def _fetch_story_revisions(story_id: str) -> list[StoryRevision]:
     query = db.select(StoryRevision).filter_by(story_id=story_id).order_by(StoryRevision.revision.asc())
     return list(db.session.execute(query).scalars())
@@ -71,20 +57,14 @@ def _fetch_report_revisions(report_id: str) -> list[ReportRevision]:
 def test_story_revisions_are_created_on_updates():
     user = User.find_by_name("admin")
     story = _create_story()
-    original_title = story.title
-    assert story.revision == 0
 
     Story.update(story.id, {"title": "Updated Title"}, user)
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
-    # Expect 2 revisions: initial (legacy) + update
     assert len(revisions) == 2
     assert story.revision == 2
-    # Check initial revision (first in list, revision 1)
     assert revisions[0].revision == 1
-    assert revisions[0].data["title"] == original_title
-    assert revisions[0].note == "initial"
-    # Check update revision (second in list, revision 2)
+    assert revisions[0].note == "created"
     assert revisions[1].revision == 2
     assert revisions[1].data["title"] == "Updated Title"
     assert revisions[1].note == "update"
@@ -102,7 +82,7 @@ def test_story_revisions_are_created_on_updates():
 
 
 @pytest.mark.usefixtures("session")
-def test_story_set_tags_creates_initial_and_update_revisions_for_legacy_story():
+def test_story_set_tags_creates_created_and_update_revisions():
     story = _create_story()
 
     response, status = story.set_tags(["apt29"])
@@ -112,7 +92,7 @@ def test_story_set_tags_creates_initial_and_update_revisions_for_legacy_story():
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
-    assert [revision.note for revision in revisions] == ["initial", "set_tags"]
+    assert [revision.note for revision in revisions] == ["created", "set_tags"]
 
 
 @pytest.mark.usefixtures("session")
@@ -135,7 +115,7 @@ def test_news_item_service_update_creates_story_revisions():
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
-    assert [revision.note for revision in revisions] == ["initial", "update_news_item"]
+    assert [revision.note for revision in revisions] == ["created", "update_news_item"]
     assert revisions[-1].data["news_items"][0]["title"] == "Updated News Item"
 
 
@@ -151,7 +131,19 @@ def test_news_item_attribute_update_creates_story_revisions():
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
-    assert [revision.note for revision in revisions] == ["initial", "update_news_item_attributes"]
+    assert [revision.note for revision in revisions] == ["created", "update_news_item_attributes"]
+
+
+@pytest.mark.usefixtures("session")
+def test_story_creation_creates_created_revision():
+    story = _create_story()
+
+    revisions = _fetch_story_revisions(story.id)
+
+    assert story.revision == 1
+    assert len(revisions) == 1
+    assert revisions[0].revision == 1
+    assert revisions[0].note == "created"
 
 
 @pytest.mark.usefixtures("session")
@@ -185,9 +177,16 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
 
 
 @pytest.mark.usefixtures("session")
-def test_report_add_stories_creates_initial_and_update_revisions_for_legacy_report(sample_report_type):
+def test_report_add_stories_creates_created_and_update_revisions(sample_report_type):
     user = User.find_by_name("admin")
-    report_item = _create_legacy_report(sample_report_type, user=user)
+    payload = {
+        "title": "Initial Report",
+        "completed": False,
+        "report_item_type_id": sample_report_type.id,
+        "stories": [],
+    }
+    report_item, status = ReportItem.add(payload, user)
+    assert status == 200
     story = _create_story()
 
     response, status = ReportItem.add_stories(report_item.id, [story.id], user)
@@ -197,7 +196,7 @@ def test_report_add_stories_creates_initial_and_update_revisions_for_legacy_repo
     db.session.refresh(report_item)
     revisions = _fetch_report_revisions(report_item.id)
     assert report_item.revision == 2
-    assert [revision.note for revision in revisions] == ["initial", "add_stories"]
+    assert [revision.note for revision in revisions] == ["created", "add_stories"]
 
 
 @pytest.mark.usefixtures("session")

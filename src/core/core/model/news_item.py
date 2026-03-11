@@ -195,8 +195,6 @@ class NewsItem(BaseModel):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
-        if story := news_item.story:
-            story.ensure_initial_revision()
         news_item.language = lang
         news_item._update_status()
         if story := news_item.story:
@@ -214,8 +212,6 @@ class NewsItem(BaseModel):
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
-        if story := news_item.story:
-            story.ensure_initial_revision()
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
         news_item._update_status()
