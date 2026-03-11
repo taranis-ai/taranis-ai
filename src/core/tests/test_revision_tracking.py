@@ -147,6 +147,32 @@ def test_story_creation_creates_created_revision():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_creation_handles_mixed_timezone_published_dates():
+    aware_published = datetime.fromisoformat("2024-01-01T00:30:00+02:00")
+    expected_created = datetime.fromisoformat("2023-12-31T22:30:00")
+    payload = {
+        "title": f"Story {uuid.uuid4()}",
+        "news_items": [
+            _news_item_payload(),
+            {
+                **_news_item_payload(),
+                "published": aware_published.isoformat(),
+            },
+        ],
+    }
+    payload["news_items"][0]["published"] = "2024-01-01T00:00:00"
+
+    result, status = Story.add(payload)
+
+    assert status == 200
+    story = Story.get(result["story_id"])
+    assert story is not None
+    assert story.created == expected_created
+    assert story.to_dict()["created"] == "2023-12-31T22:30:00+00:00"
+    assert any(news_item.published == expected_created for news_item in story.news_items)
+
+
+@pytest.mark.usefixtures("session")
 def test_report_item_revisions_cover_create_and_update(sample_report_type):
     user = User.find_by_name("admin")
     payload = {

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from models.assess import NewsItem as NewsItemCreatePayload
+from models.assess import Story as StoryPayload
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -37,7 +38,7 @@ class Story(BaseModel):
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
-    updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -61,7 +62,7 @@ class Story(BaseModel):
         self,
         title: str,
         description: str = "",
-        created: datetime | str = datetime.now(),
+        created: datetime | str | None = None,
         id: str | None = None,
         likes: int = 0,
         dislikes: int = 0,
@@ -96,11 +97,8 @@ class Story(BaseModel):
             self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created: datetime | str | None):
-        if isinstance(created, datetime):
-            return created
-        if isinstance(created, str):
-            return datetime.fromisoformat(created)
-        return datetime.now()
+        payload = StoryPayload.model_validate({"created": created})
+        return payload.created or self.utcnow()
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
         if not news_items:
@@ -230,7 +228,7 @@ class Story(BaseModel):
                 query = query.join(alias, Story.id == alias.story_id).filter(or_(alias.name == tag, alias.tag_type == tag))
 
         if filter_range := filter_args.get("range", "").lower():
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
             if filter_range in ["day", "week", "month", "24h"]:
                 if filter_range == "day":
                     date_limit -= timedelta(days=1)
@@ -251,10 +249,12 @@ class Story(BaseModel):
             query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(cls.created >= datetime.fromisoformat(timefrom))
+            normalized_timefrom = StoryPayload.model_validate({"created": timefrom}).created
+            query = query.filter(cls.created >= normalized_timefrom)
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(cls.updated <= datetime.fromisoformat(timeto))
+            normalized_timeto = StoryPayload.model_validate({"updated": timeto}).updated
+            query = query.filter(cls.updated <= normalized_timeto)
 
         return query
 
@@ -1168,9 +1168,15 @@ class Story(BaseModel):
             if attribute.value != "none":
                 self.upsert_attribute(attribute)
 
+    @staticmethod
+    def _comparison_timestamp(value: datetime) -> datetime:
+        return BaseModel.as_utc_aware(value)
+
     def update_timestamps(self):
-        self.updated = datetime.now()
-        self.created = min(news_item.published for news_item in self.news_items)
+        self.updated = self.utcnow()
+        published_dates = [news_item.published for news_item in self.news_items if news_item.published]
+        if published_dates:
+            self.created = min(published_dates, key=self._comparison_timestamp)
 
     def get_story_tlp(self, input_tlp: TLPLevel | None = None) -> TLPLevel:
         most_restrictive_tlp = input_tlp or TLPLevel.CLEAR

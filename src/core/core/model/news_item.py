@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from models.assess import NewsItem as AssessNewsItem
+from models.assess import Story as AssessStory
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
@@ -38,17 +40,17 @@ class NewsItem(BaseModel):
     content: Mapped[str] = db.Column(db.String())
     collected: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
+        default=BaseModel.utcnow,
     )
     last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
+        default=BaseModel.utcnow,
     )
     updated: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
-        onupdate=datetime.now,
+        default=BaseModel.utcnow,
+        onupdate=BaseModel.utcnow,
     )
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
@@ -90,7 +92,7 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
-        self.language = language
+        self.language = language or ""
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = self.get_date_field(collected)
@@ -100,11 +102,8 @@ class NewsItem(BaseModel):
 
     @staticmethod
     def get_date_field(date_filed: str | datetime | None) -> datetime:
-        if isinstance(date_filed, datetime):
-            return date_filed
-        if isinstance(date_filed, str):
-            return datetime.fromisoformat(date_filed)
-        return datetime.now()
+        payload = AssessNewsItem.model_validate({"osint_source_id": "manual", "title": "_", "published": date_filed})
+        return payload.published or BaseModel.utcnow()
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
@@ -124,7 +123,7 @@ class NewsItem(BaseModel):
     @classmethod
     def latest_collected(cls) -> str | None:
         if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
-            return news_item.collected.astimezone().isoformat()
+            return cls.serialize_datetime(news_item.collected)
         return None
 
     def has_attribute(self, key) -> bool:
@@ -257,11 +256,11 @@ class NewsItem(BaseModel):
             self.content = content
 
         if published := data.get("published"):
-            self.published = published
+            self.published = self.get_date_field(published)
 
         self._update_status("internal")
 
-        self.updated = datetime.now()
+        self.updated = self.utcnow()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
@@ -282,7 +281,7 @@ class NewsItem(BaseModel):
 
         if "range" in filter_args and filter_args["range"].upper() != "ALL":
             filter_range = filter_args["range"].upper()
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range == "DAY":
                 date_limit -= timedelta(days=1)
@@ -303,10 +302,12 @@ class NewsItem(BaseModel):
                 query = query.order_by(db.asc(cls.published))
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(cls.published >= datetime.fromisoformat(timefrom))
+            normalized_timefrom = AssessStory.model_validate({"created": timefrom}).created
+            query = query.filter(cls.published >= normalized_timefrom)
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(cls.published <= datetime.fromisoformat(timeto))
+            normalized_timeto = AssessStory.model_validate({"created": timeto}).created
+            query = query.filter(cls.published <= normalized_timeto)
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)

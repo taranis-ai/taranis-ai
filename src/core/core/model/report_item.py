@@ -30,8 +30,8 @@ class ReportItem(BaseModel):
 
     title: Mapped[str] = db.Column(db.String())
 
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
-    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
+    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
@@ -162,7 +162,7 @@ class ReportItem(BaseModel):
             "id": self.id,
             "title": self.title,
             "type": self.report_item_type.title if self.report_item_type else "",
-            "created": self.created.astimezone().isoformat(),
+            "created": self.serialize_datetime(self.created),
         }
 
     def to_product_dict(self):
