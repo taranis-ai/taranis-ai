@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
 from models.types import COLLECTOR_TYPES
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
 from core.log import logger
+from core.config import Config
 from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -47,6 +48,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
+    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
         self.id = id or str(uuid.uuid4())
@@ -292,25 +294,48 @@ class OSINTSource(BaseModel):
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
-        if not self._is_valid_image(icon_bytes):
-            raise ValueError("Icon payload is not a valid image file.")
-        return icon_bytes
+        if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
+            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+        return self._normalize_icon_image(icon_bytes)
 
-    @staticmethod
-    def _is_valid_image(icon_bytes: bytes) -> bool:
+    @classmethod
+    def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
+        if cls._looks_like_svg(icon_bytes):
+            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
+
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
-                image.verify()
-                image_format = image.format
-            if not image_format:
-                logger.warning("Image verification succeeded but format is unknown.")
-                return False
-            with Image.open(BytesIO(icon_bytes)) as image:
+                image_format = image.format.upper() if image.format else None
+                if image_format not in cls._ALLOWED_ICON_FORMATS:
+                    raise ValueError(
+                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
+                    )
                 image.load()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            logger.warning(f"Pillow verification failed for icon: {exc}")
-            return False
-        return True
+                normalized = ImageOps.exif_transpose(image).convert("RGBA")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            logger.warning(f"Pillow decode failed for icon: {exc}")
+            raise ValueError("Icon payload is not a valid image file.") from exc
+
+        target_size = Config.OSINT_SOURCE_ICON_PIXELS
+        normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+        offset = ((target_size - normalized.width) // 2, (target_size - normalized.height) // 2)
+        canvas.paste(normalized, offset)
+
+        output_format = Config.OSINT_SOURCE_ICON_FORMAT.upper()
+        with BytesIO() as output:
+            canvas.save(output, format=output_format)
+            return output.getvalue()
+
+    @classmethod
+    def _probe_icon_image(cls, icon_bytes: bytes) -> None:
+        cls._normalize_icon_image(icon_bytes)
+
+    @staticmethod
+    def _looks_like_svg(icon_bytes: bytes) -> bool:
+        prefix = icon_bytes[:1024].lstrip().lower()
+        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
