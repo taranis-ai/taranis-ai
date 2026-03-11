@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: taranis
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: CHANGE_ME_INGRESS_HOSTNAME
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ingress
+                port:
+                  number: 8080

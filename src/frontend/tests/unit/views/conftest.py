@@ -136,6 +136,9 @@ def form_formats_from_models():
             if field_required:
                 required_keys.add(key)
 
+        if view_name == "OSINT Source":
+            allowed_keys.add("delete_icon")
+
         payloads[view_name] = {
             "allowed": allowed_keys,
             "required": required_keys,

@@ -5,17 +5,39 @@ import os
 import uuid
 from io import BytesIO
 
+from PIL import Image
+from tests.functional.helpers import BaseTest
 from werkzeug.datastructures import FileStorage
 
-from tests.functional.helpers import BaseTest
+from core.config import Config
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
 _INVALID_IMAGE_BASE64 = base64.b64encode(_INVALID_IMAGE_BYTES).decode("utf-8")
 
 
+def _make_icon_base64(size: tuple[int, int], image_format: str, mode: str = "RGBA", color=(80, 140, 220, 255)) -> str:
+    image = Image.new(mode, size, color)
+    if image_format == "JPEG" and image.mode != "RGB":
+        image = image.convert("RGB")
+    with BytesIO() as output:
+        image.save(output, format=image_format)
+        return base64.b64encode(output.getvalue()).decode("utf-8")
+
+
+_VALID_JPEG_ICON_BASE64 = _make_icon_base64((24, 12), "JPEG", mode="RGB", color=(80, 140, 220))
+_VALID_WIDE_PNG_ICON_BASE64 = _make_icon_base64((Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS // 2), "PNG")
+
+
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
+
+    @staticmethod
+    def _assert_normalized_icon(icon_base64: str) -> None:
+        icon_bytes = base64.b64decode(icon_base64)
+        with Image.open(BytesIO(icon_bytes)) as image:
+            assert image.format == "PNG"
+            assert image.size == (Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS)
 
     def test_import_osint_sources(self, client, auth_header, cleanup_sources):
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -41,6 +63,32 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_post_ok(client, uri="osint-sources", json_data=cleanup_sources, auth_header=auth_header)
         assert response.json["message"] == "OSINT source created successfully"
         assert response.json["id"] == cleanup_sources["id"]
+
+    def test_create_and_modify_source_normalizes_icon(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+        source_payload["icon"] = _VALID_JPEG_ICON_BASE64
+
+        create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            self._assert_normalized_icon(source_response.json["icon"])
+
+            update_response = self.assert_put_ok(
+                client,
+                uri=f"osint-sources/{source_id}",
+                json_data={"icon": _VALID_WIDE_PNG_ICON_BASE64},
+                auth_header=auth_header,
+            )
+            assert update_response.json["id"] == source_id
+
+            updated_source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            self._assert_normalized_icon(updated_source_response.json["icon"])
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
     def test_create_source_rejects_invalid_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
@@ -147,6 +195,25 @@ class TestWorkerSourceIcon(BaseTest):
 
             assert response.status_code == 400
             assert response.json["error"] == "Icon payload is not a valid image file."
+        finally:
+            client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
+
+    def test_worker_icon_upload_requires_api_key(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+
+        create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            response = client.put(
+                self.concat_url(f"osint-sources/{source_id}/icon"),
+                data={"file": (BytesIO(_INVALID_IMAGE_BYTES), "icon.png")},
+                content_type="multipart/form-data",
+            )
+            assert response.status_code == 401
+            assert response.json["error"] == "not authorized"
         finally:
             client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
 

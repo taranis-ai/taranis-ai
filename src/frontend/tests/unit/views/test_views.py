@@ -1,11 +1,20 @@
-import pytest
+import base64
 import json
-from unittest.mock import patch, MagicMock
 from io import BytesIO
+from unittest.mock import MagicMock, patch
+
+import pytest
+from flask import render_template
+from models.admin import OSINTSource
+from models.types import COLLECTOR_TYPES
 
 
+from frontend.config import Config
 from frontend.views.base_view import BaseView
 from frontend.views.admin_views.source_views import SourceView
+
+_VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+_VALID_PNG_BYTES = base64.b64decode(_VALID_PNG_BASE64)
 
 
 VIEW_ITEMS = BaseView._registry.items()
@@ -177,3 +186,116 @@ class TestSourceView:
             assert resp.status_code == 200
             html = resp.get_data(as_text=True)
             assert "Failed to import sources" in html
+
+    def test_process_form_data_accepts_valid_png_icon(self, app):
+        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"icon": (BytesIO(_VALID_PNG_BYTES), "icon.png", "image/png")},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(0)
+
+        assert error is None
+        assert response == {"stored": True}
+        mock_store.assert_called_once()
+        processed_data = mock_store.call_args.args[0]
+        assert processed_data["icon"] == base64.b64encode(_VALID_PNG_BYTES).decode("utf-8")
+
+    def test_process_form_data_rejects_oversized_icon(self, app):
+        max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+        oversized_icon = b"\x00" * (max_bytes + 1)
+
+        with patch.object(SourceView, "store_form_data") as mock_store:
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(0)
+
+        assert response is None
+        assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."
+        mock_store.assert_not_called()
+
+    def test_process_form_data_returns_core_error_message(self, app):
+        with patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})):
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(0)
+
+        assert response is None
+        assert error == "Icon payload is not a valid image file."
+
+    def test_process_form_data_can_delete_icon_without_upload(self, app):
+        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"delete_icon": "true"},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(123)
+
+        assert error is None
+        assert response == {"stored": True}
+        mock_store.assert_called_once()
+        processed_data = mock_store.call_args.args[0]
+        assert processed_data["icon"] == ""
+        assert "delete_icon" not in processed_data
+
+    def test_process_form_data_delete_icon_wins_over_file_upload(self, app):
+        max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+        oversized_icon = b"\x00" * (max_bytes + 1)
+
+        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(123)
+
+        assert error is None
+        assert response == {"stored": True}
+        mock_store.assert_called_once()
+        processed_data = mock_store.call_args.args[0]
+        assert processed_data["icon"] == ""
+
+    def test_osint_source_form_shows_current_icon_and_delete_option(self, app):
+        osint_source = OSINTSource.model_construct(
+            id="source-with-icon",
+            name="Test source",
+            description="",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={},
+            icon=_VALID_PNG_BASE64,
+            enabled=True,
+            status=None,
+        )
+
+        with app.test_request_context("/"):
+            html = render_template(
+                "osint_source/osint_source_form.html",
+                model_name="osint_source",
+                submit_text="Update OSINT Source",
+                form_action='hx-put="/frontend/admin/sources/source-with-icon"',
+                form_error={},
+                osint_source=osint_source,
+                icon_accept="image/png",
+                collector_types=[],
+                parameters=[],
+                parameter_values={},
+            )
+
+        assert "Current icon" in html
+        assert "An icon is currently uploaded." in html
+        assert 'name="delete_icon"' in html
+        assert 'data-testid="current-osint-icon"' in html
