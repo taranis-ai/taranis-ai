@@ -796,7 +796,6 @@ class Story(BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -821,8 +820,6 @@ class Story(BaseModel):
             self.dislikes = self.dislikes + 1
             self.relevance = self.relevance - 1
             vote.dislike = True
-
-        db.session.commit()
         return vote
 
     def remove_like_vote(self, vote):

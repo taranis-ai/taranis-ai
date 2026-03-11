@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 import pytest
 
@@ -113,3 +113,96 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
     assert revisions[-1].revision == 2
     assert revisions[-1].data["title"] == "Updated Report"
     assert revisions[-1].note == "update"
+
+
+@pytest.mark.usefixtures("session")
+def test_story_revision_uses_database_parent_value_when_instance_is_stale():
+    user = User.find_by_name("admin")
+    story = _create_story()
+
+    db.session.execute(db.text("UPDATE story SET revision = 5 WHERE id = :story_id"), {"story_id": story.id})
+    story.record_revision(user, note="stale-sync")
+    db.session.flush()
+
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 6
+    assert revisions[-1].revision == 6
+    assert revisions[-1].note == "stale-sync"
+
+
+@pytest.mark.usefixtures("session")
+def test_report_revision_uses_database_parent_value_when_instance_is_stale(sample_report_type):
+    user = User.find_by_name("admin")
+    payload = {
+        "title": "Initial Report",
+        "completed": False,
+        "report_item_type_id": sample_report_type.id,
+        "stories": [],
+    }
+    report_item, status = ReportItem.add(payload, user)
+    assert status == 200
+
+    db.session.execute(db.text("UPDATE report_item SET revision = 5 WHERE id = :report_id"), {"report_id": report_item.id})
+    report_item.record_revision(user, note="stale-sync")
+    db.session.flush()
+
+    db.session.refresh(report_item)
+    revisions = _fetch_report_revisions(report_item.id)
+    assert report_item.revision == 6
+    assert revisions[-1].revision == 6
+    assert revisions[-1].note == "stale-sync"
+
+
+@pytest.mark.usefixtures("session")
+def test_story_update_votes_before_single_commit(monkeypatch):
+    user = User.find_by_name("admin")
+    story = _create_story()
+    story.revision = 1
+    db.session.flush()
+    events: list[str] = []
+
+    original_record_revision = Story.record_revision
+
+    def record_revision_spy(self, *args, **kwargs):
+        events.append("record_revision")
+        return original_record_revision(self, *args, **kwargs)
+
+    def commit_spy():
+        events.append("commit")
+        raise RuntimeError("stop-after-commit")
+
+    monkeypatch.setattr(Story, "record_revision", record_revision_spy)
+    monkeypatch.setattr(db.session, "commit", commit_spy)
+
+    with pytest.raises(RuntimeError, match="stop-after-commit"):
+        Story.update(story.id, {"vote": "like", "title": "Updated Title"}, user)
+
+    assert events == ["record_revision", "commit"]
+
+
+@pytest.mark.usefixtures("session")
+def test_story_update_attributes_before_single_commit(monkeypatch):
+    user = User.find_by_name("admin")
+    story = _create_story()
+    story.revision = 1
+    db.session.flush()
+    events: list[str] = []
+
+    original_record_revision = Story.record_revision
+
+    def record_revision_spy(self, *args, **kwargs):
+        events.append("record_revision")
+        return original_record_revision(self, *args, **kwargs)
+
+    def commit_spy():
+        events.append("commit")
+        raise RuntimeError("stop-after-commit")
+
+    monkeypatch.setattr(Story, "record_revision", record_revision_spy)
+    monkeypatch.setattr(db.session, "commit", commit_spy)
+
+    with pytest.raises(RuntimeError, match="stop-after-commit"):
+        Story.update(story.id, {"attributes": [{"key": "threat_actor", "value": "APT29"}]}, user)
+
+    assert events == ["record_revision", "commit"]
