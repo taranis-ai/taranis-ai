@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
 
@@ -36,6 +36,20 @@ class BaseModel(db.Model):
         db.session.commit()
         return {"message": f"{self.__class__.__name__} successfully updated"}, 200
 
+    @staticmethod
+    def utcnow() -> datetime:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    @staticmethod
+    def as_utc_aware(value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    @classmethod
+    def serialize_datetime(cls, value: datetime) -> str:
+        return cls.as_utc_aware(value).isoformat()
+
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
         if table is None:
@@ -43,7 +57,7 @@ class BaseModel(db.Model):
         data = {c.name: getattr(self, c.name) for c in table.columns}
         for key, value in data.items():
             if isinstance(value, datetime):
-                data[key] = value.astimezone().isoformat()
+                data[key] = self.serialize_datetime(value)
             elif isinstance(value, Enum):
                 data[key] = value.value
         return data

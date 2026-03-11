@@ -73,6 +73,8 @@ See .github/workflows for how tests are configured in CI.
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests
+- when adding tests in `src/core`, prefer reusing existing fixtures from `src/core/tests/functional/conftest.py`
+- if a new payload/setup fixture is needed for non-functional tests too, add it to `src/core/tests/conftest.py` instead of creating large inline payloads directly inside tests
 
 ## Development Guidelines
 
@@ -86,3 +88,11 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+
+## Datetime Handling
+
+- in `src/core`, treat persisted naive datetimes as **UTC**, not local time
+- for incoming assess/story/news item payload timestamps, prefer normalization through `src/models/models/assess.py`
+- when storing timestamps in naive SQLAlchemy `DateTime` columns, store **UTC clock values** consistently
+- do not introduce new persistence code that uses local naive `datetime.now()` for values that are stored in the database; prefer UTC-based values
+- when serializing naive datetimes from `src/core`, preserve the convention that they represent UTC
