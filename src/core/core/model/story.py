@@ -48,6 +48,7 @@ class Story(BaseModel):
 
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
+    revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
@@ -69,6 +70,7 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
+        revision: int = 0,
         attributes: list[dict[str, Any]] | None = None,
         tags: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
@@ -85,6 +87,7 @@ class Story(BaseModel):
         self.important = important
         self.summary = summary
         self.comments = comments
+        self.revision = revision
         self.news_items = self.load_news_items(news_items)
         self.last_change = "external" if last_change is None else last_change
         if attributes:
@@ -646,8 +649,7 @@ class Story(BaseModel):
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
         # For legacy stories without revision history, create initial revision first (before changes)
-        revision_count = story.get_revision_count()
-        if revision_count == 0:
+        if story.revision == 0:
             StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 
@@ -794,7 +796,6 @@ class Story(BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -819,8 +820,6 @@ class Story(BaseModel):
             self.dislikes = self.dislikes + 1
             self.relevance = self.relevance - 1
             vote.dislike = True
-
-        db.session.commit()
         return vote
 
     def remove_like_vote(self, vote):
@@ -1235,11 +1234,7 @@ class Story(BaseModel):
 
     def get_revision_count(self) -> int:
         """Get the number of revisions for this story"""
-        if not self.id:
-            return 0
-        return (
-            db.session.execute(db.select(db.func.count()).select_from(StoryRevision).filter(StoryRevision.story_id == self.id)).scalar() or 0
-        )
+        return self.revision or 0
 
 
 class NewsItemVote(BaseModel):

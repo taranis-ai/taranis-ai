@@ -3,21 +3,28 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
+
 if TYPE_CHECKING:
-    from core.model.story import Story
     from core.model.report_item import ReportItem
+    from core.model.story import Story
     from core.model.user import User
 
 
-def _next_revision_number(query) -> int:
-    last_revision = db.session.execute(query).scalar()
-    return (last_revision or 0) + 1
+def _increment_parent_revision(item: "Story | ReportItem") -> int:
+    db.session.flush()
+
+    table = item.__table__
+    next_revision = db.session.execute(
+        table.update().where(table.c.id == item.id).values(revision=func.coalesce(table.c.revision, 0) + 1).returning(table.c.revision)
+    ).scalar_one()
+    item.revision = next_revision
+    return next_revision
 
 
 class StoryRevision(BaseModel):
@@ -40,7 +47,7 @@ class StoryRevision(BaseModel):
 
     @classmethod
     def create_from_story(cls, story: "Story", created_by_id: int | None = None, note: str | None = None) -> "StoryRevision":
-        next_revision = _next_revision_number(db.select(cls.revision).filter(cls.story_id == story.id).order_by(cls.revision.desc()).limit(1))
+        next_revision = _increment_parent_revision(story)
         revision = cls(
             story_id=story.id,
             revision=next_revision,
@@ -72,9 +79,7 @@ class ReportRevision(BaseModel):
 
     @classmethod
     def create_from_report(cls, report: "ReportItem", created_by_id: int | None = None, note: str | None = None) -> "ReportRevision":
-        next_revision = _next_revision_number(
-            db.select(cls.revision).filter(cls.report_item_id == report.id).order_by(cls.revision.desc()).limit(1)
-        )
+        next_revision = _increment_parent_revision(report)
         revision = cls(
             report_item_id=report.id,
             revision=next_revision,
