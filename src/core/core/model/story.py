@@ -1038,7 +1038,7 @@ class Story(BaseModel):
             return {"error": f"Ungrouping Stories failed - {str(e)}"}, 500
 
     @classmethod
-    def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
+    def ungroup_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
             new_stories_ids = []
@@ -1056,11 +1056,11 @@ class Story(BaseModel):
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
             for story in processed_stories:
-                story.record_revision(user, note="remove_news_items")
+                story.record_revision(user, note="ungroup_news_items")
             db.session.commit()
-            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully ungrouped {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
-            logger.exception("Grouping News Item stories Failed")
+            logger.exception("Ungrouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
 
     @classmethod

@@ -213,7 +213,7 @@ class UnGroupNewsItem(MethodView):
     def put(self):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
-        response, code = story.Story.remove_news_items_from_story(newsitem_ids, current_user)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user)
         sse_manager.news_items_updated()
         return response, code
 
