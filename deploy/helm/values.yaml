@@ -1,0 +1,164 @@
+global:
+  imagePullPolicy: Always
+
+config:
+  debug: "false"
+  granianHost: CHANGE_ME_BIND_HOST
+  granianPort: "8080"
+  taranisBasePath: /
+  ssePath: /sse
+  taranisPort: "8080"
+  requestsTimeout: "600"
+  sqlalchemyPoolTimeout: "3600"
+  sqlalchemyPoolRecycle: "3600"
+  authenticator: database
+  summaryApiEndpoint: http://summary-bot:8000
+  nlpApiEndpoint: http://nlp-bot:8000
+  storyApiEndpoint: http://story-bot:8000
+  cacheDefaultTimeout: "1"
+
+secrets:
+  jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
+  apiKey: CHANGE_ME_CORE_API_KEY
+  botApiKey: CHANGE_ME_BOT_API_KEY
+  preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
+  preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
+
+database:
+  host: CHANGE_ME_DATABASE_HOSTNAME
+  name: CHANGE_ME_DATABASE_NAME
+  user: CHANGE_ME_DATABASE_USER
+  password: CHANGE_ME_DATABASE_PASSWORD
+
+rabbitmq:
+  host: CHANGE_ME_RABBITMQ_HOSTNAME
+  user: CHANGE_ME_RABBITMQ_USER
+  password: CHANGE_ME_RABBITMQ_PASSWORD
+
+storage:
+  core:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    storageClassName: local-path
+
+ingress:
+  enabled: true
+  className: traefik
+  host: CHANGE_ME_INGRESS_HOSTNAME
+  path: /
+  annotations: {}
+  tls: []
+  # Example TLS configuration:
+  # tls:
+  #   - secretName: taranis-tls
+  #     hosts:
+  #       - taranis.example.com
+
+networkPolicies:
+  enabled: true
+  ingressNamespace: kube-system
+  ingressPodSelector:
+    app.kubernetes.io/name: traefik
+  monitoringNamespace: monitoring
+
+images:
+  core:
+    repository: ghcr.io/taranis-ai/taranis-core
+    tag: latest
+  frontend:
+    repository: ghcr.io/taranis-ai/taranis-frontend
+    tag: latest
+  sse:
+    repository: ghcr.io/taranis-ai/sse-broker
+    tag: latest
+  ingress:
+    repository: ghcr.io/taranis-ai/taranis-ingress
+    tag: latest
+  worker:
+    repository: ghcr.io/taranis-ai/taranis-worker
+    tag: latest
+  nlp:
+    repository: ghcr.io/taranis-ai/taranis-natural-language-processing
+    tag: latest
+  summary:
+    repository: ghcr.io/taranis-ai/taranis-summarize-bot
+    tag: latest
+  story:
+    repository: ghcr.io/taranis-ai/taranis-story-clustering-bot
+    tag: latest
+
+replicas:
+  core: 1
+  frontend: 1
+  sse: 1
+  ingress: 1
+  collector: 1
+  worker: 1
+  nlp: 1
+  summary: 1
+  story: 1
+
+resources:
+  core:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: "2"
+      memory: 1Gi
+  frontend:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: "1"
+      memory: 512Mi
+  sse:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  ingress:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: "1"
+      memory: 512Mi
+  collector:
+    limits:
+      cpu: "2"
+      memory: 6Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  worker:
+    limits:
+      cpu: "4"
+      memory: 6Gi
+    requests:
+      cpu: "1"
+      memory: 512Mi
+  nlp:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  summary:
+    limits:
+      cpu: "3"
+      memory: 4Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  story:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi

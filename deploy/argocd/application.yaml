@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taranis
+spec:
+  project: CHANGE_ME_ARGOCD_PROJECT
+  source:
+    repoURL: CHANGE_ME_GIT_REPOSITORY_URL
+    targetRevision: CHANGE_ME_GIT_REVISION
+    path: deploy/helm
+    helm:
+      valueFiles:
+        - ../argocd/values-example.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: CHANGE_ME_TARGET_NAMESPACE
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=false
