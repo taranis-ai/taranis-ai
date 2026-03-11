@@ -1,6 +1,9 @@
 apiVersion: v2
 name: taranis
-description: Cleaned k3s-first Helm chart for the Taranis application stack
+description: Helm chart for deploying the Taranis AI OSINT application stack
 type: application
 version: 0.1.0
 appVersion: "latest"
+home: https://github.com/taranis-ai/taranis-ai
+sources:
+  - https://github.com/taranis-ai/taranis-ai

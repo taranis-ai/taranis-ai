@@ -1,12 +1,12 @@
-# taranis-template
+# Taranis AI Deployment
 
-Reusable Taranis deployment template with three side-by-side entrypoints:
+Kubernetes deployment configuration with three entrypoints:
 
 - [`kubernetes/`](./kubernetes) for raw manifests plus Kustomize
 - [`helm/`](./helm) for the Helm chart
 - [`argocd/`](./argocd) for an example ArgoCD `Application` using the Helm chart
 
-Everything is derived from the environment-specific manifests in this repository, with placeholders instead of environment values, upstream `ghcr.io/taranis-ai/*` images, placeholder secrets, and k3s-oriented defaults.
+Everything is derived from the environment-specific manifests in this repository, with placeholders instead of environment values, upstream `ghcr.io/taranis-ai/*` images, and k3s-oriented defaults.
 
 ## Structure
 
@@ -55,7 +55,7 @@ Pin explicit tags before production rollout instead of relying on `latest`.
 ## Raw Kubernetes
 
 ```bash
-kubectl apply -k taranis-template/kubernetes
+kubectl apply -k deploy/kubernetes
 ```
 
 Use [`kubernetes/`](./kubernetes) if you want plain manifests with no Helm dependency.
@@ -65,8 +65,8 @@ Use [`kubernetes/`](./kubernetes) if you want plain manifests with no Helm depen
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades.
 
 ```bash
-helm template taranis taranis-template/helm
-helm upgrade --install taranis taranis-template/helm
+helm template taranis deploy/helm
+helm upgrade --install taranis deploy/helm
 ```
 
 ## ArgoCD
@@ -79,7 +79,7 @@ Use [`argocd/`](./argocd) if you want GitOps deployment through the Helm chart.
 1. Apply the application:
 
 ```bash
-kubectl apply -f taranis-template/argocd/application.yaml
+kubectl apply -f deploy/argocd/application.yaml
 ```
 
 ## Validation
@@ -90,6 +90,7 @@ After deploying with any of the three approaches, verify:
 kubectl get configmap,secret,pvc,svc,deploy,ingress
 kubectl rollout status deploy/core
 kubectl rollout status deploy/frontend
+kubectl rollout status deploy/sse-broker
 kubectl rollout status deploy/ingress
 kubectl rollout status deploy/worker
 kubectl rollout status deploy/collector
@@ -112,4 +113,4 @@ kubectl get endpoints core frontend sse ingress nlp-bot summary-bot story-bot
 - These manifests expect a reachable PostgreSQL service and a reachable RabbitMQ service, but they do not create those workloads.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
-- The default ingress manifest is plain HTTP. Add `spec.tls` and a certificate secret or cert-manager integration if you want TLS termination at the Kubernetes ingress layer.
+- The default ingress manifest is plain HTTP. For raw Kubernetes, add `spec.tls` and a certificate secret. For Helm, configure `ingress.tls` and `ingress.annotations` in values.yaml.

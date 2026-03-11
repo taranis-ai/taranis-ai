@@ -72,6 +72,13 @@ spec:
           volumeMounts:
             - name: core
               mountPath: /app/data
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
       volumes:
         - name: core
           persistentVolumeClaim:
@@ -130,6 +137,13 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 50m
+              memory: 128Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -185,8 +199,8 @@ spec:
               cpu: "2"
               memory: 2Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 50m
+              memory: 128Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -233,8 +247,8 @@ spec:
               cpu: "2"
               memory: 2Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 50m
+              memory: 128Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -294,8 +308,8 @@ spec:
               cpu: "2"
               memory: 6Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 100m
+              memory: 256Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -352,8 +366,8 @@ spec:
               cpu: "4"
               memory: 6Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 100m
+              memory: 256Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -414,8 +428,8 @@ spec:
               cpu: "4"
               memory: 8Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 100m
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -472,8 +486,8 @@ spec:
               cpu: "3"
               memory: 4Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 100m
+              memory: 256Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -526,5 +540,5 @@ spec:
               cpu: "2"
               memory: 2Gi
             requests:
-              cpu: "0"
-              memory: "0"
+              cpu: 100m
+              memory: 256Mi

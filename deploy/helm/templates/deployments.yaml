@@ -74,6 +74,8 @@ spec:
           volumeMounts:
             - name: core
               mountPath: /app/data
+          resources:
+            {{- toYaml .Values.resources.core | nindent 12 }}
       volumes:
         - name: core
           persistentVolumeClaim:
@@ -134,6 +136,8 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 10
+          resources:
+            {{- toYaml .Values.resources.frontend | nindent 12 }}
 ---
 apiVersion: apps/v1
 kind: Deployment

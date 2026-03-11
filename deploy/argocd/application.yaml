@@ -7,7 +7,7 @@ spec:
   source:
     repoURL: CHANGE_ME_GIT_REPOSITORY_URL
     targetRevision: CHANGE_ME_GIT_REVISION
-    path: taranis-template/helm
+    path: deploy/helm
     helm:
       valueFiles:
         - ../argocd/values-example.yaml
