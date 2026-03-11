@@ -117,6 +117,20 @@ class TestAssessStories(BaseTest):
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
+    def test_get_stories_include_revision_count(self, client, stories, auth_header):
+        response = self.assert_get_ok(client, "stories", auth_header)
+        items = {item["id"]: item for item in response.get_json()["items"]}
+
+        assert "revision_count" in items[stories[0]]
+        assert items[stories[0]]["revision_count"] > 0
+
+        response = client.get("/api/assess/stories?no_count=true", headers=auth_header)
+        assert response.status_code == 200
+        items = {item["id"]: item for item in response.get_json()["items"]}
+
+        assert "revision_count" in items[stories[0]]
+        assert items[stories[0]]["revision_count"] > 0
+
     def test_get_story_tags(self, client, stories, auth_header):
         from core.model.story import Story
 

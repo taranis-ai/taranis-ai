@@ -402,7 +402,12 @@ class Story(BaseModel):
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
 
         if filter_args.get("no_count", False):
-            return [s.to_dict() for s in cls.get_filtered(query) or []], None
+            stories = []
+            for story in cls.get_filtered(query) or []:
+                story_data = story.to_dict()
+                story_data["revision_count"] = story.get_revision_count()
+                stories.append(story_data)
+            return stories, None
 
         stories = []
         biggest_story = 0
@@ -411,6 +416,7 @@ class Story(BaseModel):
 
         for story, user_vote, report_count in db.session.execute(query):
             story_data = story.to_dict()
+            story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
             biggest_story = max(biggest_story, len(story_data["news_items"]))
