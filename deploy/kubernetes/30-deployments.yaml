@@ -77,8 +77,8 @@ spec:
               cpu: "2"
               memory: 2Gi
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: "2"
+              memory: 1Gi
       volumes:
         - name: core
           persistentVolumeClaim:
@@ -142,8 +142,8 @@ spec:
               cpu: "1"
               memory: 1Gi
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: "1"
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -247,8 +247,8 @@ spec:
               cpu: "2"
               memory: 2Gi
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: "1"
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -366,8 +366,8 @@ spec:
               cpu: "4"
               memory: 6Gi
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: "1"
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment

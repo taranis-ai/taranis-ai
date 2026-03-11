@@ -104,15 +104,15 @@ resources:
       cpu: "2"
       memory: 2Gi
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: "2"
+      memory: 1Gi
   frontend:
     limits:
       cpu: "1"
       memory: 1Gi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: "1"
+      memory: 512Mi
   sse:
     limits:
       cpu: "2"
@@ -125,8 +125,8 @@ resources:
       cpu: "2"
       memory: 2Gi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: "1"
+      memory: 512Mi
   collector:
     limits:
       cpu: "2"
@@ -139,8 +139,8 @@ resources:
       cpu: "4"
       memory: 6Gi
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: "1"
+      memory: 512Mi
   nlp:
     limits:
       cpu: "4"
