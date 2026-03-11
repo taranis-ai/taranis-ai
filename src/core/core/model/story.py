@@ -649,9 +649,7 @@ class Story(BaseModel):
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
         # For legacy stories without revision history, create initial revision first (before changes)
-        if story.revision == 0:
-            StoryRevision.create_from_story(story, created_by_id=user.id if user else None, note="initial")
-            db.session.flush()
+        story.ensure_initial_revision(user)
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
@@ -909,6 +907,8 @@ class Story(BaseModel):
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
+        self.ensure_initial_revision()
+
         if change_by_bot:
             self.patch_tags(parsed_tags)
         else:
@@ -952,6 +952,7 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "not_found"}, 404
+            story.ensure_initial_revision(user)
             for item in news_item_ids:
                 news_item = NewsItem.get(item)
                 if not news_item:
@@ -980,11 +981,13 @@ class Story(BaseModel):
             first_story = Story.get(story_ids.pop(0))
             if not first_story:
                 return {"error": "Story not found"}, 404
+            first_story.ensure_initial_revision(user)
             processed_stories = {first_story}
             for item in story_ids:
                 story = Story.get(item)
                 if not story:
                     continue
+                story.ensure_initial_revision(user)
 
                 first_story.tags = list({tag.name: tag for tag in first_story.tags + story.tags}.values())
                 for news_item in story.news_items[:]:
@@ -1020,6 +1023,7 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
+            story.ensure_initial_revision(user)
             for tag in story.tags:
                 if tag.to_dict().get("tag_type", "").startswith("report"):
                     return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
@@ -1048,6 +1052,8 @@ class Story(BaseModel):
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue
+                if story not in processed_stories:
+                    story.ensure_initial_revision(user)
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item))
@@ -1220,6 +1226,15 @@ class Story(BaseModel):
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
 
         return data
+
+    def ensure_initial_revision(self, user: User | None = None, note: str = "initial") -> StoryRevision | None:
+        if self.revision != 0:
+            return None
+
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        revision = StoryRevision.create_from_story(self, created_by_id=created_by_id, note=note)
+        db.session.flush()
+        return revision
 
     def record_revision(self, user: User | None = None, note: str | None = None) -> StoryRevision | None:
         if not self.id:

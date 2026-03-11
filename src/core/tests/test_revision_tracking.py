@@ -11,9 +11,11 @@ from core.model.report_item import ReportItem
 from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
 from core.model.user import User
+from core.service.news_item import NewsItemService
+from core.service.news_item_tag import NewsItemTagService
 
 
-def _news_item_payload() -> dict:
+def _news_item_payload(source: str = "unit-test") -> dict:
     now = datetime.utcnow().replace(microsecond=0).isoformat()
     title = f"News Item {uuid.uuid4()}"
     content = f"content-{uuid.uuid4()}"
@@ -21,7 +23,7 @@ def _news_item_payload() -> dict:
         "id": str(uuid.uuid4()),
         "title": title,
         "content": content,
-        "source": "unit-test",
+        "source": source,
         "link": "https://example.invalid/story",
         "osint_source_id": "manual",
         "hash": NewsItem.get_hash(title=title, content=content),
@@ -30,15 +32,29 @@ def _news_item_payload() -> dict:
     }
 
 
-def _create_story() -> Story:
+def _create_story(news_item_count: int = 1) -> Story:
     payload = {
         "title": f"Story {uuid.uuid4()}",
         "description": "initial desc",
-        "news_items": [_news_item_payload()],
+        "news_items": [_news_item_payload() for _ in range(news_item_count)],
     }
     result, status = Story.add(payload)
     assert status == 200
     return Story.get(result["story_id"])
+
+
+def _create_legacy_report(sample_report_type, user: User | None = None) -> ReportItem:
+    report = ReportItem(
+        title=f"Legacy Report {uuid.uuid4()}",
+        report_item_type_id=sample_report_type.id,
+        stories=[],
+    )
+    if user:
+        report.user_id = user.id
+    report.add_attributes()
+    db.session.add(report)
+    db.session.flush()
+    return report
 
 
 def _fetch_story_revisions(story_id: str) -> list[StoryRevision]:
@@ -86,6 +102,59 @@ def test_story_revisions_are_created_on_updates():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_set_tags_creates_initial_and_update_revisions_for_legacy_story():
+    story = _create_story()
+
+    response, status = story.set_tags(["apt29"])
+
+    assert status == 200
+    assert response["message"].startswith("Successfully updated story")
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 2
+    assert [revision.note for revision in revisions] == ["initial", "set_tags"]
+
+
+@pytest.mark.usefixtures("session")
+def test_news_item_service_update_creates_story_revisions():
+    user = User.find_by_name("admin")
+    payload = {
+        "title": f"Story {uuid.uuid4()}",
+        "description": "initial desc",
+        "news_items": [_news_item_payload(source="manual")],
+    }
+    result, status = Story.add(payload)
+    assert status == 200
+    story = Story.get(result["story_id"])
+    news_item = story.news_items[0]
+
+    response, status = NewsItemService.update(news_item.id, {"title": "Updated News Item"}, user)
+
+    assert status == 200
+    assert response["story_id"] == story.id
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 2
+    assert [revision.note for revision in revisions] == ["initial", "update_news_item"]
+    assert revisions[-1].data["news_items"][0]["title"] == "Updated News Item"
+
+
+@pytest.mark.usefixtures("session")
+def test_news_item_attribute_update_creates_story_revisions():
+    story = _create_story()
+    news_item = story.news_items[0]
+
+    response, status = NewsItem.update_attributes(news_item.id, [{"key": "threat_actor", "value": "APT29"}])
+
+    assert status == 200
+    assert "updated" in response["message"]
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 2
+    assert [revision.note for revision in revisions] == ["initial", "update_news_item_attributes"]
+
+
+@pytest.mark.usefixtures("session")
 def test_report_item_revisions_cover_create_and_update(sample_report_type):
     user = User.find_by_name("admin")
     payload = {
@@ -113,6 +182,22 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
     assert revisions[-1].revision == 2
     assert revisions[-1].data["title"] == "Updated Report"
     assert revisions[-1].note == "update"
+
+
+@pytest.mark.usefixtures("session")
+def test_report_add_stories_creates_initial_and_update_revisions_for_legacy_report(sample_report_type):
+    user = User.find_by_name("admin")
+    report_item = _create_legacy_report(sample_report_type, user=user)
+    story = _create_story()
+
+    response, status = ReportItem.add_stories(report_item.id, [story.id], user)
+
+    assert status == 200
+    assert response["message"].startswith("Successfully added")
+    db.session.refresh(report_item)
+    revisions = _fetch_report_revisions(report_item.id)
+    assert report_item.revision == 2
+    assert [revision.note for revision in revisions] == ["initial", "add_stories"]
 
 
 @pytest.mark.usefixtures("session")
@@ -206,3 +291,44 @@ def test_story_update_attributes_before_single_commit(monkeypatch):
         Story.update(story.id, {"attributes": [{"key": "threat_actor", "value": "APT29"}]}, user)
 
     assert events == ["record_revision", "commit"]
+
+
+@pytest.mark.usefixtures("session")
+def test_report_title_retag_happens_before_revision_and_commit(sample_report_type, monkeypatch):
+    user = User.find_by_name("admin")
+    story = _create_story()
+    payload = {
+        "title": "Initial Report",
+        "completed": False,
+        "report_item_type_id": sample_report_type.id,
+        "stories": [story.id],
+    }
+    report_item, status = ReportItem.add(payload, user)
+    assert status == 200
+    events: list[str] = []
+
+    original_record_revision = ReportItem.record_revision
+
+    def remove_tag_spy(*args, **kwargs):
+        events.append("remove_report_tag")
+
+    def add_tag_spy(*args, **kwargs):
+        events.append("add_report_tag")
+
+    def record_revision_spy(self, *args, **kwargs):
+        events.append("record_revision")
+        return original_record_revision(self, *args, **kwargs)
+
+    def commit_spy():
+        events.append("commit")
+        raise RuntimeError("stop-after-commit")
+
+    monkeypatch.setattr(NewsItemTagService, "remove_report_tag", remove_tag_spy)
+    monkeypatch.setattr(NewsItemTagService, "add_report_tag", add_tag_spy)
+    monkeypatch.setattr(ReportItem, "record_revision", record_revision_spy)
+    monkeypatch.setattr(db.session, "commit", commit_spy)
+
+    with pytest.raises(RuntimeError, match="stop-after-commit"):
+        ReportItem.update_report_item(report_item.id, {"title": "Renamed Report"}, user)
+
+    assert events == ["remove_report_tag", "add_report_tag", "record_revision", "commit"]

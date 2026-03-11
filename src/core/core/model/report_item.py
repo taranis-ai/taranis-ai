@@ -198,6 +198,15 @@ class ReportItem(BaseModel):
         created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
         return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
 
+    def ensure_initial_revision(self, user: User | None = None, note: str = "initial") -> ReportRevision | None:
+        if self.revision != 0:
+            return None
+
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        revision = ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
+        db.session.flush()
+        return revision
+
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""
         return self.revision or 0
@@ -285,7 +294,6 @@ class ReportItem(BaseModel):
         if user:
             report.user_id = user.id
         db.session.add(report)
-        db.session.commit()
         return report
 
     @classmethod
@@ -441,13 +449,13 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
+        report_item.ensure_initial_revision(user)
         stories = Story.get_bulk(story_ids)
         report_item.stories.extend(stories)
-        report_item.record_revision(user, note="add_stories")
-        db.session.commit()
-
         for story in stories:
             NewsItemTagService.add_report_tag(story, report_item)
+        report_item.record_revision(user, note="add_stories")
+        db.session.commit()
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
         return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
@@ -458,6 +466,7 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
+        report_item.ensure_initial_revision(user)
         stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
         for story in stories_to_remove:
             NewsItemTagService.remove_report_tag(story, report_item.id)
@@ -507,9 +516,7 @@ class ReportItem(BaseModel):
             return err, status
 
         # For legacy reports without revision history, create initial revision first (before changes)
-        if report_item.revision == 0:
-            ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
-            db.session.flush()
+        report_item.ensure_initial_revision(user)
 
         if title := data.get("title"):
             retag_stories = True
@@ -529,11 +536,11 @@ class ReportItem(BaseModel):
                 return {"error": "stories must be a list of story ids"}, 400
             report_item.update_stories(normalized_ids)
 
-        report_item.record_revision(user, note="update")
-        db.session.commit()
-
         if retag_stories:
             report_item.retag_stories()
+
+        report_item.record_revision(user, note="update")
+        db.session.commit()
 
         logger.debug(f"Updated Report Item {report_item.id}")
 

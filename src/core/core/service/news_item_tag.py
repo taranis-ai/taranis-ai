@@ -101,7 +101,6 @@ class NewsItemTagService:
         new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
         story_tags.append(new_tag)
         story.tags = story_tags
-        db.session.commit()
 
     @staticmethod
     def set_found_bot_tags(result: dict[str, Any], change_by_bot: bool = False):
@@ -125,6 +124,7 @@ class NewsItemTagService:
 
         for story_id, tags in found_tags.items():
             if story := Story.get(story_id):
+                story.ensure_initial_revision()
                 tag_count = len(tags)
                 attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
                 story.attributes.append(
@@ -133,13 +133,13 @@ class NewsItemTagService:
                         value=attribute_value,
                     )
                 )
+                story.record_revision(note="set_bot_execution_attribute")
 
         db.session.commit()
 
     @classmethod
     def remove_report_tag(cls, story: "Story", report_id: str):
         story.tags = [tag for tag in story.tags if tag.tag_type != f"report_{report_id}"]
-        db.session.commit()
 
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):

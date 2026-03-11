@@ -58,7 +58,6 @@ class NewsItemTag(BaseModel):
     @classmethod
     def remove_by_story(cls, story):
         db.session.execute(db.delete(cls).where(cls.story_id == story.id))
-        db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}

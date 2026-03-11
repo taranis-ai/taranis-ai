@@ -195,8 +195,12 @@ class NewsItem(BaseModel):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
+        if story := news_item.story:
+            story.ensure_initial_revision()
         news_item.language = lang
         news_item._update_status()
+        if story := news_item.story:
+            story.record_revision(note="update_news_item_lang")
         db.session.commit()
         return {"message": "Language updated"}, 200
 
@@ -210,16 +214,19 @@ class NewsItem(BaseModel):
         if attributes is None:
             return {"error": "Invalid attributes"}, 400
 
+        if story := news_item.story:
+            story.ensure_initial_revision()
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
         news_item._update_status()
+        if story := news_item.story:
+            story.record_revision(note="update_news_item_attributes")
         db.session.commit()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
         if not self.has_attribute(attribute.key):
             self.attributes.append(attribute)
-            db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -229,7 +236,6 @@ class NewsItem(BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     @property
     def tlp_level(self) -> TLPLevel:
@@ -262,7 +268,6 @@ class NewsItem(BaseModel):
         self.updated = datetime.now()
         self.hash = self.get_hash(self.title, self.link, self.content)
 
-        db.session.commit()
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod
@@ -336,7 +341,6 @@ class NewsItem(BaseModel):
 
     def delete_item(self):
         db.session.delete(self)
-        db.session.commit()
 
 
 class NewsItemNewsItemAttribute(BaseModel):
