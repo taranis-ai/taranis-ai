@@ -56,11 +56,14 @@ def test_story_revisions_are_created_on_updates():
     user = User.find_by_name("admin")
     story = _create_story()
     original_title = story.title
+    assert story.revision == 0
 
     Story.update(story.id, {"title": "Updated Title"}, user)
+    db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     # Expect 2 revisions: initial (legacy) + update
     assert len(revisions) == 2
+    assert story.revision == 2
     # Check initial revision (first in list, revision 1)
     assert revisions[0].revision == 1
     assert revisions[0].data["title"] == original_title
@@ -72,8 +75,10 @@ def test_story_revisions_are_created_on_updates():
     assert revisions[1].created_by_id == user.id
 
     Story.update(story.id, {"description": "Changed description"}, user)
+    db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert len(revisions) == 3
+    assert story.revision == 3
     assert revisions[-1].revision == 3
     assert revisions[-1].data["description"] == "Changed description"
     assert revisions[-1].note == "update"
@@ -91,6 +96,7 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
     }
     report_item, status = ReportItem.add(payload, user)
     assert status == 200
+    assert report_item.revision == 1
 
     revisions = _fetch_report_revisions(report_item.id)
     assert len(revisions) == 1
@@ -100,8 +106,10 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
     assert revisions[0].created_by_id == user.id
 
     ReportItem.update_report_item(report_item.id, {"title": "Updated Report"}, user)
+    db.session.refresh(report_item)
     revisions = _fetch_report_revisions(report_item.id)
     assert len(revisions) == 2
+    assert report_item.revision == 2
     assert revisions[-1].revision == 2
     assert revisions[-1].data["title"] == "Updated Report"
     assert revisions[-1].note == "update"

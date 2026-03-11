@@ -33,6 +33,7 @@ class ReportItem(BaseModel):
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
     last_updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
+    revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     user: Mapped["User"] = relationship("User")
@@ -63,6 +64,7 @@ class ReportItem(BaseModel):
         stories=None,
         attributes=None,
         completed=False,
+        revision: int = 0,
         report_item_cpes=None,
         id=None,
     ):
@@ -71,6 +73,7 @@ class ReportItem(BaseModel):
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
         self.completed = completed
+        self.revision = revision
         self.report_item_cpes = report_item_cpes or []
         if stories is not None:
             self.stories = Story.get_bulk(stories)
@@ -197,14 +200,7 @@ class ReportItem(BaseModel):
 
     def get_revision_count(self) -> int:
         """Get the number of revisions for this report"""
-        if not self.id:
-            return 0
-        return (
-            db.session.execute(
-                db.select(db.func.count()).select_from(ReportRevision).filter(ReportRevision.report_item_id == self.id)
-            ).scalar()
-            or 0
-        )
+        return self.revision or 0
 
     @staticmethod
     def _clean_title(raw_title: Any) -> str | None:
@@ -511,8 +507,7 @@ class ReportItem(BaseModel):
             return err, status
 
         # For legacy reports without revision history, create initial revision first (before changes)
-        revision_count = report_item.get_revision_count()
-        if revision_count == 0:
+        if report_item.revision == 0:
             ReportRevision.create_from_report(report_item, created_by_id=user.id if user else None, note="initial")
             db.session.flush()
 

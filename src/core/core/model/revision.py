@@ -15,11 +15,6 @@ if TYPE_CHECKING:
     from core.model.user import User
 
 
-def _next_revision_number(query) -> int:
-    last_revision = db.session.execute(query).scalar()
-    return (last_revision or 0) + 1
-
-
 class StoryRevision(BaseModel):
     __tablename__ = "story_revision"
 
@@ -40,10 +35,10 @@ class StoryRevision(BaseModel):
 
     @classmethod
     def create_from_story(cls, story: "Story", created_by_id: int | None = None, note: str | None = None) -> "StoryRevision":
-        next_revision = _next_revision_number(db.select(cls.revision).filter(cls.story_id == story.id).order_by(cls.revision.desc()).limit(1))
+        story.revision = (story.revision or 0) + 1
         revision = cls(
             story_id=story.id,
-            revision=next_revision,
+            revision=story.revision,
             created_by_id=created_by_id,
             note=note,
             data=cls.snapshot_story(story),
@@ -72,12 +67,10 @@ class ReportRevision(BaseModel):
 
     @classmethod
     def create_from_report(cls, report: "ReportItem", created_by_id: int | None = None, note: str | None = None) -> "ReportRevision":
-        next_revision = _next_revision_number(
-            db.select(cls.revision).filter(cls.report_item_id == report.id).order_by(cls.revision.desc()).limit(1)
-        )
+        report.revision = (report.revision or 0) + 1
         revision = cls(
             report_item_id=report.id,
-            revision=next_revision,
+            revision=report.revision,
             created_by_id=created_by_id,
             note=note,
             data=cls.snapshot_report(report),
