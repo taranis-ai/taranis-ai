@@ -250,7 +250,7 @@ class TestAssessUngroupNewsItem(BaseTest):
         """
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["0a129597-592d-45cb-9a80-3218108b29a0"], auth_header)
-        assert response.get_json()["message"] == "Successfully removed 1 items from their story"
+        assert response.get_json()["message"] == "Successfully ungrouped 1 items from their story"
         assert response.get_json()["new_stories_ids"] not in stories
 
         response = client.get(f"/api/assess/story/{stories[1]}", headers=auth_header)
@@ -289,7 +289,7 @@ class TestAssessUngroupBigStory(BaseTest):
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"], auth_header)
         new_story_id = response.get_json()["new_stories_ids"][0]
-        assert response.get_json()["message"] == "Successfully removed 1 items from their story"
+        assert response.get_json()["message"] == "Successfully ungrouped 1 items from their story"
         assert new_story_id != full_story_id
 
         # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came too early - before all changes were made.
