@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 
 import pytest
-from auth_cases import login
+from auth_cases import login, logout
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -166,16 +166,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Save changes").click()
 
         def relog_in():
-            page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
-
-            page.get_by_role("link", name="Logout").click()
-            expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
-
-            page.get_by_role("textbox", name="Username").fill("admin")
-            page.get_by_role("textbox", name="Username").press("Tab")
-            page.get_by_role("textbox", name="Password").fill("admin1")
-            page.get_by_test_id("login-button").click()
+            logout(self, page)
+            login(self, page, username="admin", password="admin1")
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
