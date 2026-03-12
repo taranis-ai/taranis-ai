@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import AnyUrl, Field, SecretStr, field_serializer
+from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
 from models.base import TaranisBaseModel
 from models.types import (
@@ -16,6 +16,29 @@ from models.types import (
     ItemType,
     TLPLevel,
 )
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None or value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+class ExportStoriesQuery(TaranisBaseModel):
+    timefrom: PastDatetime | None = None
+    timeto: PastDatetime | None = None
+    metadata: bool = False
+
+    @field_validator("timefrom", "timeto", mode="after")
+    @classmethod
+    def normalize_utc_naive(cls, value: PastDatetime | None) -> datetime | None:
+        return _normalize_datetime(value)
+
+    @model_validator(mode="after")
+    def set_timeto_default(self):
+        if self.timefrom and (self.timeto is None or self.timeto < self.timefrom):
+            self.timeto = datetime.now(timezone.utc).replace(tzinfo=None)
+        return self
 
 
 class Job(TaranisBaseModel):
