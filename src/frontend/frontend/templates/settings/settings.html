@@ -12,6 +12,7 @@
   "reset_database": "/api/admin/reset-database",
   "clear_queues": "/api/admin/clear-queues",
   "export_stories": "/api/admin/export-stories",
+  "import_stories": "/story/import",
   "update_settings": "/api/admin/settings"
 } %}
 
@@ -84,6 +85,24 @@
           {{ export_button(export_url, "Export all Stories") }}
           {{ export_button(export_url ~ "?metadata=true", "Export all Stories with metadata") }}
         </div>
+        <form class="mt-4 flex flex-col gap-3"
+              id="stories-import-form"
+              hx-post="{{ links.import_stories }}"
+              hx-encoding="multipart/form-data"
+              hx-target="#notification-bar"
+              hx-swap="outerHTML"
+              enctype="multipart/form-data">
+          <label class="form-control w-full">
+            <span class="label-text mb-2 font-medium">Import Stories from JSON</span>
+            <input type="file"
+                   name="file"
+                   accept="application/json,.json"
+                   class="file-input file-input-bordered w-full"
+                   data-testid="settings-story-import-file"
+                   required>
+          </label>
+          <button type="submit" class="btn btn-outline btn-accent" data-testid="settings-story-import-submit">Import Stories</button>
+        </form>
       </div>
     </div>
   </div>

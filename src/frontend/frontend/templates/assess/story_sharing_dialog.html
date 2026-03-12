@@ -27,35 +27,12 @@
                 hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
         <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
       </div>
+      <div class="flex flex-row mt-4">
+        <a class="btn btn-outline btn-info btn-wide" href="{{ url_for('assess.export_stories', story_ids=sharing_ids) }}" download>
+          {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
+          Export to JSON
+        </a>
+      </div>
     </form>
-    <div class="flex flex-row mt-4 gap-2">
-      <a class="btn btn-outline btn-info btn-wide w-1/2" href="{{ url_for('assess.export_stories', story_ids=sharing_ids) }}" download>
-        {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
-        Export to JSON
-      </a>
-      <form id="story-import-form"
-            class="w-1/2"
-            hx-post="{{ url_for('assess.import_stories') }}"
-            hx-encoding="multipart/form-data"
-            hx-target="#notification-bar"
-            hx-swap="outerHTML"
-            hx-on::after-request="if (event.detail.successful) document.getElementById('share_story_to_connector_dialog').close()"
-            enctype="multipart/form-data">
-        <input id="story-import-file"
-               name="file"
-               type="file"
-               accept="application/json,.json"
-               class="hidden"
-               data-testid="story-import-file"
-               onchange="if (this.files.length) this.form.requestSubmit()">
-        <button type="button"
-                class="btn btn-outline btn-accent btn-wide w-full"
-                data-testid="import-stories-button"
-                onclick="document.getElementById('story-import-file').click()">
-          {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
-          Import from JSON
-        </button>
-      </form>
-    </div>
   </div>
 </dialog>

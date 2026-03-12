@@ -59,7 +59,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}: {response_info.value.text()}"
             expect(page.get_by_text(organization_name)).to_be_visible()
 
         def update_organization():
@@ -1000,7 +1000,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page):
+    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1010,6 +1010,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
         settings_submit = settings_form.get_by_test_id("settings-submit").first
+        stories_import_url = url_for("assess.import_stories", _external=True)
 
         def go_to_admin_settings():
             page.goto(url_for("admin_settings.settings", _external=True))
@@ -1059,10 +1060,47 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 settings_submit.click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
+        def import_stories_from_json():
+            with page.expect_download() as download_info:
+                page.get_by_role("link", name="Export all Stories with metadata").click()
+
+            export_path = download_info.value.path()
+            with open(export_path, "r") as f:
+                import_payload = json.load(f)
+
+            imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
+            imported_story_id = str(uuid.uuid4())
+            import_payload[0]["id"] = imported_story_id
+            import_payload[0]["title"] = imported_story_title
+
+            for index, news_item in enumerate(import_payload[0]["news_items"], start=1):
+                news_item["id"] = str(uuid.uuid4())
+                news_item["story_id"] = imported_story_id
+                news_item["title"] = f"{imported_story_title} News {index}"
+                news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+                news_item.pop("hash", None)
+
+            import_file = tmp_path / "settings_story_import.json"
+            import_file.write_text(json.dumps(import_payload), encoding="utf-8")
+
+            with page.expect_response(stories_import_url) as response_info:
+                page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
+                page.get_by_test_id("settings-story-import-submit").click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}: {response_info.value.text()}"
+
+            page.goto(url_for("assess.assess", _external=True))
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            page.get_by_placeholder("Search stories").fill(imported_story_title)
+            page.get_by_placeholder("Search stories").press("Enter")
+            imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
+            expect(imported_story).to_be_visible()
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
         check_new_values()
+        import_stories_from_json()
+        page.goto(url_for("admin_settings.settings", _external=True))
         revert_to_default_values()
 
     def test_open_api(self, logged_in_page: Page):
