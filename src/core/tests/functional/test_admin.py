@@ -118,3 +118,9 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
 
     assert r.status_code == 400
     assert r.get_json()["error"][0]["loc"] == ["timefrom"]
+
+
+def test_export_stories_allows_empty_datetime_filters(client, auth_header):
+    r = client.get("/api/admin/export-stories?timefrom=&timeto=", headers=auth_header)
+
+    assert r.status_code == 200
