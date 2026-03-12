@@ -165,6 +165,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def change_password_back():
             go_to_user_settings(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            page.locator(".collapse > input").check()
 
             page.get_by_role("textbox", name="Current password").fill("admin1")
             page.get_by_role("textbox", name="New password", exact=True).fill("admin")
