@@ -82,9 +82,9 @@ def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]
 def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any] | list[dict[str, Any]]:
     if isinstance(json_data, dict) and isinstance(json_data.get("items"), list):
         json_data = json_data["items"]
-    if isinstance(json_data, list) and json_data and "news_items" in json_data[0]:
+    if isinstance(json_data, list) and all(isinstance(story_data, dict) for story_data in json_data):
         return [_sanitize_story_import_payload(story_data) for story_data in json_data]
-    if isinstance(json_data, dict) and "news_items" in json_data:
+    if isinstance(json_data, dict):
         return _sanitize_story_import_payload(json_data)
     return json_data
 
@@ -622,7 +622,7 @@ class StoryView(BaseView):
         flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
         DataPersistenceLayer().invalidate_cache(None)
 
-        response = make_response("", 200)
+        response = make_response("", 204)
         response.headers["HX-Refresh"] = "true"
         return response
 

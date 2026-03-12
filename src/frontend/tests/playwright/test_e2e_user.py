@@ -347,7 +347,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert download.suggested_filename.endswith(".json")
 
         download_path = download.path()
-        with open(download_path, "r") as f:
+        with open(download_path, "r", encoding="utf-8") as f:
             downloaded_content = json.load(f)
 
         assert downloaded_content["total_count"] == 1
