@@ -23,3 +23,10 @@ def login(
     page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
     helpers.highlight_element(page.get_by_test_id("login-button")).click()
     expect(page.locator("#dashboard")).to_be_visible()
+
+
+def logout(helpers: PlaywrightHelpers, page: Page) -> None:
+    helpers.highlight_element(page.get_by_role("list").get_by_role("button")).click()
+    expect(page.get_by_role("link", name="Profile")).to_be_visible()
+    helpers.highlight_element(page.get_by_role("link", name="Logout")).click()
+    expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
