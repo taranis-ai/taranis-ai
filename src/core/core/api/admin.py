@@ -3,6 +3,7 @@ from datetime import datetime
 
 from flask import Blueprint, Flask, request, send_file, url_for
 from flask.views import MethodView
+from pydantic import BaseModel, ValidationError
 
 from core.config import Config
 from core.managers import queue_manager
@@ -11,6 +12,12 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.settings import Settings
 from core.model.story import Story
 from core.service.story import StoryService
+
+
+class ExportStoriesQuery(BaseModel):
+    timefrom: datetime | None = None
+    timeto: datetime | None = None
+    metadata: bool = False
 
 
 class DeleteTags(MethodView):
@@ -47,17 +54,13 @@ class ClearQueues(MethodView):
 class ExportStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        def parse_iso_dt(arg_name: str) -> datetime | None:
-            raw = request.args.get(arg_name)
-            if not raw:
-                return None
-            try:
-                return datetime.fromisoformat(raw)
-            except ValueError:
-                return None
+        try:
+            query = ExportStoriesQuery.model_validate(request.args.to_dict())
+        except ValidationError as exc:
+            return {"error": exc.errors(include_url=False)}, 400
 
-        time_from = parse_iso_dt("timefrom")
-        time_to = parse_iso_dt("timeto")
+        time_from = query.timefrom
+        time_to = query.timeto
 
         if time_from and not time_to:
             time_to = datetime.now()
@@ -65,9 +68,7 @@ class ExportStories(MethodView):
         if time_from and time_to and time_to < time_from:
             time_to = datetime.now()
 
-        include_metadata = bool(request.args.get("metadata", False))
-
-        if include_metadata:
+        if query.metadata:
             data = StoryService.export_with_metadata(time_from, time_to)
         else:
             data = StoryService.export(time_from, time_to)
