@@ -3,6 +3,7 @@ import json
 import uuid
 
 import pytest
+from auth_cases import login
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -15,21 +16,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
     def test_login(self, taranis_frontend: Page):
-        page = taranis_frontend
-        self.add_keystroke_overlay(page)
-
-        page.goto(url_for("base.login", _external=True))
-        expect(page).to_have_title("Taranis AI", timeout=5000)
-
-        self.highlight_element(page.get_by_placeholder("Username"))
-        expect(page.get_by_placeholder("Username")).to_have_attribute("required", "")
-        page.get_by_placeholder("Username").fill("admin")
-        self.highlight_element(page.get_by_placeholder("Password"))
-        expect(page.get_by_placeholder("Password")).to_have_attribute("required", "")
-        page.get_by_placeholder("Password").fill("admin")
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        self.highlight_element(page.get_by_test_id("login-button")).click()
-        expect(page.locator("#dashboard")).to_be_visible()
+        login(self, taranis_frontend, username="admin", password="admin")
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
