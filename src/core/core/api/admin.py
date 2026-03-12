@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import Blueprint, Flask, request, send_file, url_for
 from flask.views import MethodView
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 
 from core.config import Config
 from core.managers import queue_manager
@@ -18,6 +18,13 @@ class ExportStoriesQuery(BaseModel):
     timefrom: datetime | None = None
     timeto: datetime | None = None
     metadata: bool = False
+
+    @field_validator("timefrom", "timeto", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value):
+        if value == "":
+            return None
+        return value
 
 
 class DeleteTags(MethodView):
