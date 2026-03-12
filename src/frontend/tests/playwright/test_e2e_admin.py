@@ -5,6 +5,7 @@ import uuid
 import pytest
 from auth_cases import login
 from flask import url_for
+from navigation_steps import go_to_administration, go_to_analyze
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -534,10 +535,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_attributes.png")
 
         def test_attribute_create():
-            page.get_by_role("link", name="Administration").click()
-
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-
+            go_to_administration(self, page)
             page.get_by_test_id("admin-menu-Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
@@ -597,7 +595,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Create Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
-            page.get_by_role("link", name="Analyze").click()
+            go_to_analyze(self, page)
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
             page.get_by_test_id("new-report-button").click()
@@ -614,9 +612,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(attr_field).to_have_value("5")
 
         def test_attribute_update():
-            page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-
+            go_to_administration(self, page)
             page.get_by_test_id("admin-menu-Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
@@ -637,7 +633,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Update Attribute").click()
             expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
-            page.get_by_role("link", name="Analyze").click()
+            go_to_analyze(self, page)
             expect(page.get_by_role("row", name="number 5 in report")).to_be_visible()
 
             page.get_by_test_id("new-report-button").click()
@@ -652,7 +648,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(attr_field).to_have_value("6")
 
         def test_attribute_delete():
-            page.get_by_role("link", name="Analyze").click()
+            go_to_analyze(self, page)
             expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
             for _ in range(2):
@@ -662,9 +658,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
-            page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-
+            go_to_administration(self, page)
             page.get_by_test_id("admin-menu-Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
