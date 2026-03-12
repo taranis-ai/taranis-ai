@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from flask import url_for
@@ -10,7 +10,10 @@ from playwright_helpers import PlaywrightHelpers
 
 
 def remove_tz(date_time: str) -> str:
-    dt = datetime.fromisoformat(date_time).replace(tzinfo=None)
+    dt = datetime.fromisoformat(date_time)
+    if dt.tzinfo is not None and dt.utcoffset() is not None:
+        dt = dt.astimezone(timezone.utc)
+    dt = dt.replace(tzinfo=None)
     return dt.isoformat()
 
 
