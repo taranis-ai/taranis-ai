@@ -5,6 +5,12 @@ import pytest
 
 # from typing import Callable
 from flask import url_for
+from navigation_steps import (
+    go_to_administration,
+    go_to_analyze,
+    go_to_assess,
+    go_to_publish,
+)
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -34,9 +40,9 @@ class TestUserWorkflow(PlaywrightHelpers):
 
     def test_instance_setup(self, taranis_frontend: Page):
         page = taranis_frontend
-        self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+        go_to_assess(self, page)
         self.highlight_element(page.get_by_role("heading", name="No stories found."))
-        self.highlight_element(page.get_by_role("link", name="Administration")).click()
+        go_to_administration(self, page)
         self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
         self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
         page.wait_for_selector("tbody tr")
@@ -44,10 +50,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         assert rows == 10
 
     def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
-        def go_to_assess():
-            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-
         def apply_filter():
             self.highlight_element(page.get_by_role("radio", name="Shift")).check()
             self.highlight_element(page.get_by_label("Read")).select_option("true")
@@ -163,7 +165,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
 
-            go_to_assess()
+            go_to_assess(self, page)
             page.get_by_role("link", name="Reset filters ctrl+esc").click()
             page.get_by_label("Read").select_option("false")
             page.get_by_label("Important").select_option("true")
@@ -199,30 +201,20 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.get_by_test_id("attribute-value-input").last.fill("read")
             page.get_by_role("button", name="Save changes").click()
 
-            go_to_assess()
+            go_to_assess(self, page)
 
         #           Run test
         # ============================
 
         page = taranis_frontend
 
-        go_to_assess()
+        go_to_assess(self, page)
         # test_hotkey_menu()
         apply_filter()
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
     def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
-        def go_to_analyze():
-            self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
-            page.wait_for_url("**/analyze", wait_until="domcontentloaded")
-            # expect(page).to_have_title("Taranis AI | Analyze")
-
-        def go_to_assess():
-            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            # expect(page).to_have_title("Taranis AI | Assess")
-
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
             # page.wait_for_url("**/report/", wait_until="domcontentloaded")
@@ -324,30 +316,29 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         page = taranis_frontend
 
-        go_to_analyze()
+        go_to_analyze(self, page)
         report_1()
-        go_to_analyze()
+        go_to_analyze(self, page)
         report_2()
-        go_to_analyze()
+        go_to_analyze(self, page)
         expect(page.get_by_text("Test Report")).to_be_visible()
         expect(page.get_by_text("Test Disinformation Title")).to_be_visible()
 
-        self.highlight_element(page.get_by_role("link", name="Assess")).click()
+        go_to_assess(self, page)
         add_stories_to_report_1()
 
-        go_to_analyze()
+        go_to_analyze(self, page)
 
         modify_report_1(stories_date_descending)
 
         # TODO: tag search not implemented yet
-        # go_to_assess()
+        # go_to_assess(self, page)
         # check_reports_items_by_tag()
 
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
 
-        self.highlight_element(page.get_by_role("link", name="Publish").first).click()
-        page.wait_for_url("**/publish", wait_until="domcontentloaded")
+        go_to_publish(self, page)
         # expect(page).to_have_title("Taranis AI | Publish")
 
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
