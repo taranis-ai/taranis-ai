@@ -662,6 +662,7 @@ product_types = [
         "type": "HTML_PRESENTER",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
+            {"parameter": "render_options", "type": "text", "value": ""},
         ],
         "report_types": [4],
     },
