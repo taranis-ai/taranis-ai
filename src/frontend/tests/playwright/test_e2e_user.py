@@ -191,14 +191,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         page = logged_in_page
         # page.set_default_timeout(0)
 
-        def go_to_assess():
-            page.goto(url_for("assess.assess", _external=True))
-
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57", timeout=30000)
-
-            expect(page.get_by_test_id("assess")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
-
         def access_story():
             story_articles = page.locator("#story-list article")
             expect(story_articles.first).to_be_visible()
@@ -279,7 +271,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(detail_story).to_contain_text(main_story_title)
             expect(detail_story).to_have_attribute("data-story-detail-view", "true")
 
-        go_to_assess()
+        go_to_assess(self, page)
+        expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57", timeout=30000)
+        expect(page.get_by_test_id("assess")).to_be_visible()
+        page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
         access_story()
         infinite_scroll_all_items()
         group_stories()
@@ -298,11 +293,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         story_search_term_lower = story_search_term.lower()
         report_story_two_primary_link = report_story_two["news_items"][0]["link"]
         report_uuid = ""
-
-        def go_to_analyze():
-            page.goto(url_for("analyze.analyze", _external=True))
-            expect(page.get_by_test_id("analyze")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
@@ -412,7 +402,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_text("Create Product").first).to_be_visible()
 
             def test_clone_and_delete_report():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
                 cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
                 assert cloned_report is not None
@@ -429,7 +419,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 return report_uuid_2
 
             def cleanup_reports(report_uuid_2: str):
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 page.get_by_test_id(f"action-delete-{report_uuid_2}").click()
                 page.get_by_role("button", name="OK").click()
 
@@ -472,7 +462,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_text("Report item updated").click()
 
             def add_stories_to_new_report():
-                page.get_by_role("link", name="Assess").click()
+                go_to_assess(self, page)
                 page.get_by_placeholder("Search stories").fill(story_search_term)
                 page.get_by_placeholder("Search stories").press("Enter")
                 page.get_by_role("heading", name=report_story_one["title"]).click()
@@ -486,7 +476,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
@@ -543,7 +533,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_text("Report item updated").click()
 
             def check_report_fields():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
@@ -595,7 +585,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             def delete_new_report():
                 report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
                 page.get_by_test_id(f"action-delete-{report_uuid}").click()
                 expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
@@ -631,7 +621,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_role("textbox", name="CVSS")).to_be_visible()
 
             def add_stories_to_new_report_required():
-                page.get_by_role("link", name="Assess").click()
+                go_to_assess(self, page)
                 page.get_by_placeholder("Search stories").fill(story_search_term)
                 page.get_by_placeholder("Search stories").press("Enter")
                 page.get_by_role("heading", name=report_story_one["title"]).click()
@@ -645,7 +635,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields_required():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
@@ -702,7 +692,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             def delete_new_report_required():
                 report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
                 page.get_by_test_id(f"action-delete-{report_uuid}").click()
                 expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
@@ -723,14 +713,16 @@ class TestEndToEndUser(PlaywrightHelpers):
             check_invalid_states_required()
             delete_new_report_required()
 
-        go_to_analyze()
+        go_to_analyze(self, page)
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+        page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
         check_report_view_layout_changes()
         delete_test_report()
-        go_to_analyze()
+        go_to_analyze(self, page)
         report_uuid = create_report()
         add_stories_to_report()
         verify_report_actions(report_uuid)
-        go_to_analyze()
+        go_to_analyze(self, page)
         check_various_report_type_fields()
 
     def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, stories_session_wrapper):
