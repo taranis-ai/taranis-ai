@@ -18,6 +18,10 @@ from models.types import (
 )
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is None or value.utcoffset() is None:
         return value
@@ -29,6 +33,13 @@ class ExportStoriesQuery(TaranisBaseModel):
     timeto: PastDatetime | None = None
     metadata: bool = False
 
+    @field_validator("timefrom", "timeto", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value):
+        if value == "":
+            return None
+        return value
+
     @field_validator("timefrom", "timeto", mode="after")
     @classmethod
     def normalize_utc_naive(cls, value: PastDatetime | None) -> datetime | None:
@@ -37,7 +48,7 @@ class ExportStoriesQuery(TaranisBaseModel):
     @model_validator(mode="after")
     def set_timeto_default(self):
         if self.timefrom and (self.timeto is None or self.timeto < self.timefrom):
-            self.timeto = datetime.now(timezone.utc).replace(tzinfo=None)
+            self.timeto = _utcnow()
         return self
 
 
