@@ -20,7 +20,7 @@ class StoryService:
         for row in result:
             if getattr(row, "news_item_id", None) is None:
                 continue
-            story = stories.setdefault(row.id, {"id": row.id, "created": row.created.astimezone().isoformat(), "news_items": []})
+            story = stories.setdefault(row.id, {"id": row.id, "created": row.created.isoformat(), "news_items": []})
 
             story["news_items"].append(
                 {
