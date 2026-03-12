@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import uuid
 from datetime import date
 
@@ -308,6 +309,53 @@ class TestEndToEndUser(PlaywrightHelpers):
         access_story()
         infinite_scroll_all_items()
         group_stories()
+
+    def test_story_export(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_stories,
+        news_items_list: list[dict],
+    ):
+        page = logged_in_page
+        expected_story = news_items_list[0]
+        expected_title = expected_story["title"]
+        expected_news_item_title = expected_story["title"]
+
+        page.goto(url_for("assess.assess", _external=True))
+        expect(page.get_by_test_id("assess")).to_be_visible()
+
+        page.get_by_placeholder("Search stories").fill(expected_title)
+        page.get_by_placeholder("Search stories").press("Enter")
+
+        story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
+        expect(story).to_be_visible()
+        expect(story.get_by_test_id("story-title")).to_have_text(expected_title)
+
+        story.get_by_test_id("story-actions-menu").click()
+        story.get_by_test_id("share-story").click()
+
+        dialog = page.locator("#share_story_to_connector_dialog")
+        expect(dialog).to_be_visible()
+        expect(dialog.get_by_role("link", name="Export to JSON")).to_be_visible()
+
+        with page.expect_download() as download_info:
+            dialog.get_by_role("link", name="Export to JSON").click()
+
+        download = download_info.value
+        assert download.suggested_filename.startswith("stories_export_")
+        assert download.suggested_filename.endswith(".json")
+
+        download_path = download.path()
+        with open(download_path, "r") as f:
+            downloaded_content = json.load(f)
+
+        assert downloaded_content["total_count"] == 1
+        assert len(downloaded_content["items"]) == 1
+        exported_story = downloaded_content["items"][0]
+        assert exported_story["title"] == expected_title
+        assert len(exported_story["news_items"]) >= 1
+        assert exported_story["news_items"][0]["title"] == expected_news_item_title
 
     def test_user_analyze(
         self,
