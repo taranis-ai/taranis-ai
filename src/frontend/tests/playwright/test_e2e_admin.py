@@ -3,6 +3,7 @@ import json
 import uuid
 
 import pytest
+import requests
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -1000,7 +1001,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path):
+    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path, run_core, access_token):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1061,19 +1062,22 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
         def import_stories_from_json():
-            with page.expect_download() as download_info:
-                page.get_by_role("link", name="Export all Stories with metadata").click()
-
-            export_path = download_info.value.path()
-            with open(export_path, "r") as f:
-                import_payload = json.load(f)
+            export_response = requests.get(
+                f"{run_core}/admin/export-stories",
+                params={"metadata": "true"},
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30,
+            )
+            export_response.raise_for_status()
+            import_payload = export_response.json()
 
             imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
             imported_story_id = str(uuid.uuid4())
-            import_payload[0]["id"] = imported_story_id
-            import_payload[0]["title"] = imported_story_title
+            story_to_import = import_payload[0]
+            story_to_import["id"] = imported_story_id
+            story_to_import["title"] = imported_story_title
 
-            for index, news_item in enumerate(import_payload[0]["news_items"], start=1):
+            for index, news_item in enumerate(story_to_import["news_items"], start=1):
                 news_item["id"] = str(uuid.uuid4())
                 news_item["story_id"] = imported_story_id
                 news_item["title"] = f"{imported_story_title} News {index}"
@@ -1081,12 +1085,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 news_item.pop("hash", None)
 
             import_file = tmp_path / "settings_story_import.json"
-            import_file.write_text(json.dumps(import_payload), encoding="utf-8")
+            import_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
 
             with page.expect_response(stories_import_url) as response_info:
                 page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
                 page.get_by_test_id("settings-story-import-submit").click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}: {response_info.value.text()}"
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
             page.goto(url_for("assess.assess", _external=True))
             expect(page.get_by_test_id("assess")).to_be_visible()

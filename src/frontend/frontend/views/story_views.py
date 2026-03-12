@@ -610,12 +610,13 @@ class StoryView(BaseView):
             logger.exception("Failed to import stories.")
             return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
 
-        logger.debug(
-            f"Story import core response status={getattr(core_response, 'status_code', None)} body={getattr(core_response, 'text', None)}"
-        )
         if not getattr(core_response, "ok", False):
             status_code = getattr(core_response, "status_code", 500) or 500
-            return make_response(cls.get_notification_from_response(core_response), status_code)
+            try:
+                notification_html = cls.get_notification_from_response(core_response)
+            except Exception:
+                notification_html = cls.render_response_notification({"error": "Failed to import stories."})
+            return make_response(notification_html, status_code)
 
         imported_count = len(core_response.json().get("imported_stories", []))
         flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
