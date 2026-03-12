@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taranis-config
+  labels:
+    {{- include "taranis.labels" . | nindent 4 }}
+data:
+  DEBUG: {{ .Values.config.debug | quote }}
+  GRANIAN_HOST: {{ .Values.config.granianHost | quote }}
+  GRANIAN_PORT: {{ .Values.config.granianPort | quote }}
+  TARANIS_BASE_PATH: {{ .Values.config.taranisBasePath | quote }}
+  SSE_PATH: {{ .Values.config.ssePath | quote }}
+  TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
+  REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}
+  SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
+  SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
+  TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
+  SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
+  NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}
+  STORY_API_ENDPOINT: {{ .Values.config.storyApiEndpoint | quote }}
+  CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}

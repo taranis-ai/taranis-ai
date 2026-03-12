@@ -1,5 +1,6 @@
-import pytest
 from contextlib import suppress
+
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -260,8 +261,14 @@ def cleanup_attribute(app):
 
 @pytest.fixture(scope="session")
 def cleanup_worker_types(app):
-    with app.app_context():
-        from core.model.worker import Worker
+    import contextlib
 
-        if rss_worker := Worker.filter_by_type("rss_collector"):
-            yield rss_worker.to_dict()
+    with app.app_context():
+        rss_worker_data = None
+        with contextlib.suppress(Exception):
+            from core.model.worker import Worker
+
+            if rss_worker := Worker.filter_by_type("rss_collector"):
+                rss_worker_data = rss_worker.to_dict()
+
+        yield rss_worker_data

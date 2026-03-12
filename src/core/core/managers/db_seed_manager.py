@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import selectinload
 
 from core.config import Config
 from core.log import logger
@@ -71,6 +72,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
+    migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
         migrate_search_indexes()
 
@@ -97,10 +99,13 @@ def cleanup_invalid_source_icons():
 
     for source in sources:
         icon_bytes = getattr(source, "icon", None)
-        if icon_bytes and not OSINTSource._is_valid_image(icon_bytes):
-            logger.warning(f"Removing invalid icon from OSINT source {source.id}")
-            source.icon = None
-            removed_icons += 1
+        if icon_bytes:
+            try:
+                OSINTSource._probe_icon_image(icon_bytes)
+            except ValueError:
+                logger.warning(f"Removing invalid icon from OSINT source {source.id}")
+                source.icon = None
+                removed_icons += 1
 
     if removed_icons:
         db.session.commit()
@@ -119,6 +124,76 @@ def cleanup_empty_stories():
 
     empty_stories = StoryService.delete_stories_with_no_items()
     logger.info(f"Deleted {empty_stories} empty stories")
+
+
+def migrate_missing_initial_revisions(batch_size: int = 100):
+    migrated_story_revisions = _migrate_missing_story_revisions(batch_size=batch_size)
+    migrated_report_revisions = _migrate_missing_report_revisions(batch_size=batch_size)
+
+    if migrated_story_revisions:
+        logger.info(f"Backfilled initial revisions for {migrated_story_revisions} stories")
+    if migrated_report_revisions:
+        logger.info(f"Backfilled initial revisions for {migrated_report_revisions} reports")
+
+
+def _migrate_missing_story_revisions(batch_size: int) -> int:
+    from core.managers.db_manager import db
+    from core.model.news_item import NewsItem
+    from core.model.story import Story
+
+    migrated = 0
+
+    while stories := list(
+        db.session.execute(
+            db.select(Story)
+            .options(
+                selectinload(Story.attributes),
+                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.attributes),
+            )
+            .where(Story.revision == -1)
+            .order_by(Story.id)
+            .limit(batch_size)
+        ).scalars()
+    ):
+        for story in stories:
+            story.revision = 0
+            story.record_revision(note="initial")
+        db.session.commit()
+        migrated += len(stories)
+
+    return migrated
+
+
+def _migrate_missing_report_revisions(batch_size: int) -> int:
+    from core.managers.db_manager import db
+    from core.model.news_item import NewsItem
+    from core.model.report_item import ReportItem
+    from core.model.story import Story
+
+    migrated = 0
+
+    while reports := list(
+        db.session.execute(
+            db.select(ReportItem)
+            .options(
+                selectinload(ReportItem.report_item_type),
+                selectinload(ReportItem.attributes),
+                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
+            )
+            .where(ReportItem.revision == -1)
+            .order_by(ReportItem.id)
+            .limit(batch_size)
+        ).scalars()
+    ):
+        for report in reports:
+            report.revision = 0
+            report.record_revision(note="initial")
+        db.session.commit()
+        migrated += len(reports)
+
+    return migrated
 
 
 def migrate_user_profile(user_profile: dict, template: dict) -> dict:

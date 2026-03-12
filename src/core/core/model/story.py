@@ -5,8 +5,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from models.assess import NewsItem as NewsItemCreatePayload
+from models.assess import Story as StoryPayload
 from pydantic import ValidationError
-from sqlalchemy import func, or_
+from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -22,6 +23,7 @@ from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
+from core.model.revision import StoryRevision
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType
 from core.model.story_conflict import StoryConflict
@@ -36,7 +38,7 @@ class Story(BaseModel):
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
-    updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -47,6 +49,7 @@ class Story(BaseModel):
 
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
+    revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     last_change: Mapped[str] = db.Column(db.String())
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
@@ -59,7 +62,7 @@ class Story(BaseModel):
         self,
         title: str,
         description: str = "",
-        created: datetime | str = datetime.now(),
+        created: datetime | str | None = None,
         id: str | None = None,
         likes: int = 0,
         dislikes: int = 0,
@@ -68,6 +71,7 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
+        revision: int = 0,
         attributes: list[dict[str, Any]] | None = None,
         tags: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
@@ -84,6 +88,7 @@ class Story(BaseModel):
         self.important = important
         self.summary = summary
         self.comments = comments
+        self.revision = revision
         self.news_items = self.load_news_items(news_items)
         self.last_change = "external" if last_change is None else last_change
         if attributes:
@@ -92,11 +97,8 @@ class Story(BaseModel):
             self.tags = NewsItemTag.load_multiple(tags)
 
     def get_creation_date(self, created: datetime | str | None):
-        if isinstance(created, datetime):
-            return created
-        if isinstance(created, str):
-            return datetime.fromisoformat(created)
-        return datetime.now()
+        payload = StoryPayload.model_validate({"created": created})
+        return payload.created or self.utcnow()
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
         if not news_items:
@@ -226,7 +228,7 @@ class Story(BaseModel):
                 query = query.join(alias, Story.id == alias.story_id).filter(or_(alias.name == tag, alias.tag_type == tag))
 
         if filter_range := filter_args.get("range", "").lower():
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
             if filter_range in ["day", "week", "month", "24h"]:
                 if filter_range == "day":
                     date_limit -= timedelta(days=1)
@@ -247,10 +249,12 @@ class Story(BaseModel):
             query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(cls.created >= datetime.fromisoformat(timefrom))
+            normalized_timefrom = StoryPayload.model_validate({"created": timefrom}).created
+            query = query.filter(cls.created >= normalized_timefrom)
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(cls.updated <= datetime.fromisoformat(timeto))
+            normalized_timeto = StoryPayload.model_validate({"updated": timeto}).updated
+            query = query.filter(cls.updated <= normalized_timeto)
 
         return query
 
@@ -398,7 +402,12 @@ class Story(BaseModel):
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
 
         if filter_args.get("no_count", False):
-            return [s.to_dict() for s in cls.get_filtered(query) or []], None
+            stories = []
+            for story in cls.get_filtered(query) or []:
+                story_data = story.to_dict()
+                story_data["revision_count"] = story.get_revision_count()
+                stories.append(story_data)
+            return stories, None
 
         stories = []
         biggest_story = 0
@@ -407,6 +416,7 @@ class Story(BaseModel):
 
         for story, user_vote, report_count in db.session.execute(query):
             story_data = story.to_dict()
+            story_data["revision_count"] = story.get_revision_count()
             story_data["user_vote"] = user_vote
             story_data["in_reports_count"] = report_count
             biggest_story = max(biggest_story, len(story_data["news_items"]))
@@ -519,13 +529,15 @@ class Story(BaseModel):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
             story = cls.from_dict(data)
             db.session.add(story)
-            db.session.commit()
+            db.session.flush()
             if (
                 story.news_items[0].osint_source_id == "manual"
             ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
                 story.update_status()
             else:
                 story.update_status(change="external")
+            story.record_revision(note="created")
+            db.session.commit()
 
             logger.info(f"Story added successfully: {story.id}")
             return {
@@ -674,6 +686,7 @@ class Story(BaseModel):
         story.last_change = "external" if external else "internal"
 
         story.update_timestamps()
+        story.record_revision(user, note="update")
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
 
@@ -786,7 +799,6 @@ class Story(BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -811,8 +823,6 @@ class Story(BaseModel):
             self.dislikes = self.dislikes + 1
             self.relevance = self.relevance - 1
             vote.dislike = True
-
-        db.session.commit()
         return vote
 
     def remove_like_vote(self, vote):
@@ -909,6 +919,7 @@ class Story(BaseModel):
             self.patch_tags(parsed_tags)
             self.remove_tags(tags_to_remove)
 
+        self.record_revision(note="set_tags")
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
@@ -953,6 +964,7 @@ class Story(BaseModel):
                     story.relevance += 1
                     story.update_status()
             cls.update_stories({story})
+            story.record_revision(user, note="move_items_to_story")
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -986,6 +998,8 @@ class Story(BaseModel):
                 processed_stories.add(story)
 
             cls.update_stories(processed_stories)
+            for story in processed_stories:
+                story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception as e:
@@ -1016,6 +1030,7 @@ class Story(BaseModel):
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
             story.update_status()
+            story.record_revision(user, note="ungroup_story")
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
         except Exception as e:
@@ -1023,7 +1038,7 @@ class Story(BaseModel):
             return {"error": f"Ungrouping Stories failed - {str(e)}"}, 500
 
     @classmethod
-    def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
+    def ungroup_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_stories = set()
             new_stories_ids = []
@@ -1040,10 +1055,12 @@ class Story(BaseModel):
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item))
             cls.update_stories(processed_stories)
+            for story in processed_stories:
+                story.record_revision(user, note="ungroup_news_items")
             db.session.commit()
-            return {"message": f"Successfully removed {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
+            return {"message": f"Successfully ungrouped {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
         except Exception:
-            logger.exception("Grouping News Item stories Failed")
+            logger.exception("Ungrouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
 
     @classmethod
@@ -1096,9 +1113,11 @@ class Story(BaseModel):
             news_items=[news_item.id],
         )
         db.session.add(new_story)
-        db.session.commit()
+        db.session.flush()
 
         new_story.update_status()
+        new_story.record_revision(note="created")
+        db.session.commit()
         return new_story.id or None
 
     def get_cybersecurity_status(self) -> str:
@@ -1155,9 +1174,15 @@ class Story(BaseModel):
             if attribute.value != "none":
                 self.upsert_attribute(attribute)
 
+    @staticmethod
+    def _comparison_timestamp(value: datetime) -> datetime:
+        return BaseModel.as_utc_aware(value)
+
     def update_timestamps(self):
-        self.updated = datetime.now()
-        self.created = min(news_item.published for news_item in self.news_items)
+        self.updated = self.utcnow()
+        published_dates = [news_item.published for news_item in self.news_items if news_item.published]
+        if published_dates:
+            self.created = min(published_dates, key=self._comparison_timestamp)
 
     def get_story_tlp(self, input_tlp: TLPLevel | None = None) -> TLPLevel:
         most_restrictive_tlp = input_tlp or TLPLevel.CLEAR
@@ -1193,6 +1218,8 @@ class Story(BaseModel):
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         data["detail_view"] = True
         data["in_reports_count"] = ReportItemStory.count(self.id)
+        data["links"] = self.links
+        data["revision_count"] = self.get_revision_count()
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1203,6 +1230,21 @@ class Story(BaseModel):
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
 
         return data
+
+    def record_revision(self, user: User | None = None, note: str | None = None) -> StoryRevision | None:
+        if not self.id:
+            return None
+
+        state = inspect(self)
+        if state.deleted or state.detached or self in db.session.deleted:
+            return None
+
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        return StoryRevision.create_from_story(self, created_by_id=created_by_id, note=note)
+
+    def get_revision_count(self) -> int:
+        """Get the number of revisions for this story"""
+        return self.revision or 0
 
 
 class NewsItemVote(BaseModel):

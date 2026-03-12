@@ -11,13 +11,15 @@
     x-data='{
       selectedItems: [],
       storyIds: [],
+      storyImportantMap: {},
+      storyReadMap: {},
       showHints: false,
       init() {
-        this.refreshStoryIds();
+        this.refreshStoryMeta();
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (storyList) {
           const observer = new MutationObserver(() => {
-            this.refreshStoryIds();
+            this.refreshStoryMeta();
           });
           observer.observe(storyList, { childList: true, subtree: true });
         }
@@ -38,24 +40,43 @@
       clearSelection() {
         this.selectedItems = [];
       },
-      refreshStoryIds() {
+      refreshStoryMeta() {
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (!storyList) {
           this.storyIds = [];
+          this.storyImportantMap = {};
+          this.storyReadMap = {};
           return;
         }
-        const ids = Array.from(storyList.querySelectorAll("article[data-story-id]"))
+        const cards = Array.from(storyList.querySelectorAll("article[data-story-id]"));
+        const ids = cards
           .map(node => node.dataset.storyId)
           .filter(Boolean);
+        const importantMap = {};
+        const readMap = {};
+        cards.forEach(node => {
+          const id = node.dataset.storyId;
+          if (!id) return;
+          importantMap[id] = node.dataset.storyImportant === "true";
+          readMap[id] = node.dataset.storyRead === "true";
+        });
         this.storyIds = Array.from(new Set(ids));
+        this.storyImportantMap = importantMap;
+        this.storyReadMap = readMap;
       },
       selectAll() {
-        this.refreshStoryIds();
+        this.refreshStoryMeta();
         if (!this.storyIds.length) {
           this.selectedItems = [];
           return;
         }
         this.selectedItems = [...this.storyIds];
+      },
+      selectedItemsAreImportant() {
+        return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyImportantMap[id] === true);
+      },
+      selectedItemsAreRead() {
+        return this.selectedItems.length > 0 && this.selectedItems.every(id => this.storyReadMap[id] === true);
       },
       action_vals(action, value) {
         if (!action && !value) return JSON.stringify({ story_ids: this.selectedItems });

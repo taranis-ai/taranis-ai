@@ -1,11 +1,11 @@
-from flask import request, render_template, url_for
-
+from flask import render_template, request, url_for
 from models.admin import Settings
-from frontend.views.base_view import BaseView
-from frontend.log import logger
+
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class SettingsView(AdminMixin, BaseView):
@@ -51,9 +51,12 @@ class SettingsView(AdminMixin, BaseView):
             if error:
                 notification = render_template("notification/index.html", notification={"message": error, "error": True})
             elif response:
+                DataPersistenceLayer().invalidate_cache(None)
                 notification = render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
         else:
             response = CoreApi().api_post(action_url)
+            if response.ok:
+                DataPersistenceLayer().invalidate_cache(None)
             notification = cls.get_notification_from_response(response)
 
         static_view, static_response = cls.static_view()

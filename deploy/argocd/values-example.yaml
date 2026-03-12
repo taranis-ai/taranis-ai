@@ -1,0 +1,54 @@
+config:
+  debug: "false"
+  granianHost: CHANGE_ME_BIND_HOST
+  taranisBasePath: "/"
+  ssePath: "/sse"
+  authenticator: "database"
+
+secrets:
+  jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
+  apiKey: CHANGE_ME_CORE_API_KEY
+  botApiKey: CHANGE_ME_BOT_API_KEY
+  preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
+  preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
+
+database:
+  host: CHANGE_ME_DATABASE_HOSTNAME
+  name: CHANGE_ME_DATABASE_NAME
+  user: CHANGE_ME_DATABASE_USER
+  password: CHANGE_ME_DATABASE_PASSWORD
+
+rabbitmq:
+  host: CHANGE_ME_RABBITMQ_HOSTNAME
+  user: CHANGE_ME_RABBITMQ_USER
+  password: CHANGE_ME_RABBITMQ_PASSWORD
+
+storage:
+  core:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    storageClassName: local-path
+
+ingress:
+  enabled: true
+  className: traefik
+  host: CHANGE_ME_INGRESS_HOSTNAME
+  path: /
+
+images:
+  core:
+    tag: latest
+  frontend:
+    tag: latest
+  sse:
+    tag: latest
+  ingress:
+    tag: latest
+  worker:
+    tag: latest
+  nlp:
+    tag: latest
+  summary:
+    tag: latest
+  story:
+    tag: latest

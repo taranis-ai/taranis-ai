@@ -1,7 +1,7 @@
 import contextlib
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal, Self
 from urllib.parse import quote
 
@@ -11,6 +11,23 @@ from langcodes.tag_parser import LanguageTagError
 from pydantic import ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_datetime(value: str | datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        with contextlib.suppress(ValueError):
+            value = datetime.fromisoformat(value)
+        if isinstance(value, str):
+            return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class NewsItem(TaranisBaseModel):
@@ -42,6 +59,10 @@ class NewsItem(TaranisBaseModel):
     def from_db(cls, data: dict[str, Any]) -> Self:
         """Trusted DB row: skip *all* validators/sanitizers."""
         return cls.model_construct(**data)
+
+    @classmethod
+    def normalize_datetime(cls, date: str | datetime | None, default_to_now: bool = False) -> datetime | None:
+        return _normalize_datetime(date) or (_utcnow() if default_to_now else None)
 
     @field_validator("language", mode="before")
     @classmethod
@@ -83,12 +104,7 @@ class NewsItem(TaranisBaseModel):
     @field_validator("published", "collected", mode="before")
     @classmethod
     def sanitize_date(cls, date: str | None | datetime) -> datetime:
-        if isinstance(date, datetime):
-            return date
-        if isinstance(date, str):
-            with contextlib.suppress(ValueError):
-                return datetime.fromisoformat(date)
-        return datetime.now()
+        return cls.normalize_datetime(date, default_to_now=True)
 
 
 class StoryTag(TaranisBaseModel):
@@ -122,6 +138,15 @@ class Story(TaranisBaseModel):
     in_reports_count: int | None = None
     tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
+
+    @classmethod
+    def normalize_datetime(cls, date: str | datetime | None) -> datetime | None:
+        return _normalize_datetime(date)
+
+    @field_validator("created", "updated", mode="before")
+    @classmethod
+    def sanitize_story_dates(cls, date: str | None | datetime) -> datetime | None:
+        return cls.normalize_datetime(date)
 
 
 class AssessSource(TaranisBaseModel):

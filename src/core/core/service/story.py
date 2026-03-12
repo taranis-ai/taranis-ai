@@ -125,6 +125,8 @@ class StoryService:
         for story_data in json_data:
             story = Story.from_dict(story_data)
             db.session.add(story)
+            db.session.flush()
+            story.record_revision(note="created")
             imported_stories.append(story)
         db.session.commit()
         return jsonify({"imported_stories": [story.to_dict() for story in imported_stories]})

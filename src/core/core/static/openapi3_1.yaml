@@ -319,7 +319,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/report_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid input data
         "401":
@@ -371,7 +371,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/modify_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid request
         "401":
@@ -3289,6 +3289,19 @@ components:
               type: array
               items:
                 type: string
+    report_item_response:
+      type: object
+      required:
+        - message
+        - id
+        - report
+      properties:
+        message:
+          type: string
+        id:
+          type: string
+        report:
+          $ref: "#/components/schemas/report_item"
 
     parameter_value:
       type: object

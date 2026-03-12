@@ -26,8 +26,8 @@ services:
       UV_PROJECT_ENVIRONMENT: /tmp/.venv
       UV_CACHE_DIR: /tmp/.cache/uv
     volumes:
-      - "../../../core:/app"
-      - "../../../models:/models"
+      - "../../../core:/app:z"
+      - "../../../models:/models:z"
     ports:
       - "${TARANIS_CORE_PORT:-5000}:8080"
     healthcheck:

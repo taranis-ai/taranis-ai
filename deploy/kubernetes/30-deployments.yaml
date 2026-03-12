@@ -1,0 +1,544 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: core
+  template:
+    metadata:
+      labels:
+        app: core
+        taranis.io/expose: "true"
+    spec:
+      containers:
+        - name: core
+          image: ghcr.io/taranis-ai/taranis-core:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+            - secretRef:
+                name: db-credentials
+            - secretRef:
+                name: taranis-rabbitmq-credentials
+          env:
+            - name: APPLICATION_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_BASE_PATH
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: JWT_SECRET_KEY
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: API_KEY
+            - name: PRE_SEED_PASSWORD_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: PRE_SEED_PASSWORD_ADMIN
+            - name: PRE_SEED_PASSWORD_USER
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: PRE_SEED_PASSWORD_USER
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            exec:
+              command:
+                - taranis-core-healthcheck
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - taranis-core-healthcheck
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: core
+              mountPath: /app/data
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: "2"
+              memory: 1Gi
+      volumes:
+        - name: core
+          persistentVolumeClaim:
+            claimName: core
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/taranis-ai/taranis-frontend:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+          env:
+            - name: TARANIS_CORE_URL
+              value: http://core:8080/api
+            - name: APPLICATION_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_BASE_PATH
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: JWT_SECRET_KEY
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            exec:
+              command:
+                - taranis-frontend-healthcheck
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - taranis-frontend-healthcheck
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sse-broker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sse-broker
+  template:
+    metadata:
+      labels:
+        app: sse-broker
+    spec:
+      containers:
+        - name: sse-broker
+          image: ghcr.io/taranis-ai/sse-broker:latest
+          imagePullPolicy: Always
+          env:
+            - name: SSE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: SSE_PATH
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: JWT_SECRET_KEY
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: API_KEY
+          ports:
+            - containerPort: 8088
+              name: http
+          readinessProbe:
+            tcpSocket:
+              port: 8088
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: 8088
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ingress
+  template:
+    metadata:
+      labels:
+        app: ingress
+        taranis.io/expose: "true"
+    spec:
+      containers:
+        - name: ingress
+          image: ghcr.io/taranis-ai/taranis-ingress:latest
+          imagePullPolicy: Always
+          env:
+            - name: NGINX_WORKERS
+              value: "4"
+            - name: NGINX_CONNECTIONS
+              value: "16"
+            - name: TARANIS_CORE_UPSTREAM
+              value: core:8080
+            - name: TARANIS_SSE_UPSTREAM
+              value: sse:8088
+            - name: TARANIS_FRONTEND_UPSTREAM
+              value: frontend:8080
+            - name: TARANIS_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: TARANIS_BASE_PATH
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collector
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: collector
+  template:
+    metadata:
+      labels:
+        app: collector
+    spec:
+      containers:
+        - name: collector
+          image: ghcr.io/taranis-ai/taranis-worker:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+            - secretRef:
+                name: taranis-rabbitmq-credentials
+          env:
+            - name: TARANIS_CORE_URL
+              value: http://core:8080/api
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: API_KEY
+            - name: WORKER_TYPES
+              value: '["Collectors"]'
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: "2"
+              memory: 6Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/taranis-ai/taranis-worker:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+            - secretRef:
+                name: taranis-secrets
+            - secretRef:
+                name: taranis-rabbitmq-credentials
+          env:
+            - name: TARANIS_CORE_URL
+              value: http://core:8080/api
+            - name: WORKER_TYPES
+              value: '["Presenters", "Publishers", "Bots", "Connectors"]'
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: "4"
+              memory: 6Gi
+            requests:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nlp-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nlp-bot
+  template:
+    metadata:
+      labels:
+        app: nlp-bot
+    spec:
+      containers:
+        - name: nlp-bot
+          image: ghcr.io/taranis-ai/taranis-natural-language-processing:latest
+          imagePullPolicy: Always
+          env:
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: DEBUG
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: GRANIAN_BLOCKING_THREADS
+              value: "1"
+            - name: GRANIAN_INTERFACE
+              value: "asgi"
+            - name: HF_HOME
+              value: /app/.cache/huggingface
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "4"
+              memory: 8Gi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summary-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: summary-bot
+  template:
+    metadata:
+      labels:
+        app: summary-bot
+    spec:
+      containers:
+        - name: summary-bot
+          image: ghcr.io/taranis-ai/taranis-summarize-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: DEBUG
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: HF_HOME
+              value: /app/.cache/huggingface
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "3"
+              memory: 4Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: story-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: story-bot
+  template:
+    metadata:
+      labels:
+        app: story-bot
+    spec:
+      containers:
+        - name: story-bot
+          image: ghcr.io/taranis-ai/taranis-story-clustering-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: DEBUG
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi

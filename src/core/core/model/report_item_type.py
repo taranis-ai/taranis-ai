@@ -223,6 +223,15 @@ class ReportItemType(BaseModel):
         data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in sorted_groups]
         return data
 
+    def to_user_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "title": self.title}
+
+    @classmethod
+    def get_all_for_user_api(cls, user):
+        base_query = cls.get_filter_query_with_acl({}, user)
+        items = cls.get_filtered(base_query) or []
+        return {"items": [i.to_user_dict() for i in items]}, 200
+
     @classmethod
     def update(cls, report_type_id, data) -> "ReportItemType | None":
         report_type = cls.get(report_type_id)
