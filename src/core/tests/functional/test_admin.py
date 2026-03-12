@@ -35,11 +35,6 @@ class TestAdminApi(BaseTest):
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):
-    def normalize_timestamp(value: str) -> str:
-        cleaned = value.replace("Z", "+00:00")
-        parsed = datetime.fromisoformat(cleaned)
-        return parsed.replace(tzinfo=None, microsecond=0).isoformat()
-
     full_story[0]["attributes"] = [{"key": "status", "value": "updated"}]
     r = client.post("/api/worker/stories", json=full_story[0], headers=api_header)
     assert r.status_code == 200
@@ -61,7 +56,9 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "news_items" in data[0]
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
-    assert normalize_timestamp(data[0]["created"]) == normalize_timestamp(full_story[0]["created"])
+
+    expected_created = min(datetime.fromisoformat(item["published"]) for item in full_story[0]["news_items"]).isoformat()
+    assert data[0]["created"] == expected_created
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
     assert len(exported_news_item_ids) == len(news_item_ids)
@@ -114,3 +111,10 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     # Attribute we set should be present
     # attrs = {a.get("key"): a.get("value") for a in data[0].get("attributes", [])}
     # assert attrs.get("status") == "updated"
+
+
+def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
+    r = client.get("/api/admin/export-stories?timefrom=invalid", headers=auth_header)
+
+    assert r.status_code == 400
+    assert r.get_json()["error"][0]["loc"] == ["timefrom"]
