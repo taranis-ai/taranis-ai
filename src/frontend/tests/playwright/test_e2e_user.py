@@ -105,12 +105,7 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
 
-        def go_to_user_profile():
-            page.goto(url_for("user.settings", _external=True))
-            expect(page.get_by_text("User", exact=True)).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_profile.png")
-
-        def check_profile():
+        def check_user_settings():
             expect(page.locator("#user-settings-form")).to_contain_text("Split view")
             expect(page.locator("#user-settings-form")).to_contain_text("Show charts")
             expect(page.locator("#user-settings-form")).to_contain_text("Infinite scroll")
@@ -171,7 +166,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             go_to_user_settings(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
-            page.locator(".collapse > input").check()
             page.get_by_role("textbox", name="Current password").fill("admin1")
             page.get_by_role("textbox", name="New password", exact=True).fill("admin")
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
@@ -179,8 +173,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
-        go_to_user_profile()
-        check_profile()
+        go_to_user_settings(self, page)
+        page.screenshot(path="./tests/playwright/screenshots/user_settings.png")
+        check_user_settings()
         change_password_fail()
         change_password()
         test_user_profile_settings_adjustments()

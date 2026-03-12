@@ -35,7 +35,7 @@ def go_to_administration(helpers: PlaywrightHelpers, page: Page) -> None:
 def go_to_user_settings(helpers: PlaywrightHelpers, page: Page) -> None:
     helpers.highlight_element(page.get_by_role("list").get_by_role("button"))
     page.get_by_role("list").get_by_role("button").click()
-    expect(page.get_by_role("link", name="Profile")).to_be_visible()
+    expect(page.get_by_role("link", name="User Settings")).to_be_visible()
     helpers.highlight_element(page.get_by_role("link", name="User Settings"))
     page.get_by_role("link", name="User Settings").click()
-    page.wait_for_url("**/user/settings**", wait_until="domcontentloaded")
+    expect(page.get_by_text("User", exact=True)).to_be_visible()
