@@ -5,6 +5,7 @@ from datetime import date
 import pytest
 from auth_cases import login, logout
 from flask import url_for
+from navigation_steps import go_to_administration, go_to_analyze, go_to_assess, go_to_dashboard, go_to_publish, go_to_user_settings
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -24,19 +25,19 @@ class TestEndToEndUser(PlaywrightHelpers):
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
-            page.locator("#dashboard").get_by_role("link", name="Assess").click()
+            go_to_assess(self, page)
             expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 33")
-            page.get_by_role("link", name="Dashboard").click()
+            go_to_dashboard(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
-            page.locator("#dashboard").get_by_role("link", name="Analyze").click()
+            go_to_analyze(self, page)
             expect(page.get_by_test_id("new-report-button")).to_contain_text("New Report")
-            page.get_by_role("link", name="Dashboard").click()
+            go_to_dashboard(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
-            page.locator("#dashboard").get_by_role("link", name="Publish").click()
+            go_to_publish(self, page)
             expect(page.get_by_test_id("new-product-button")).to_contain_text("New Product")
-            page.get_by_role("link", name="Dashboard").click()
+            go_to_dashboard(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_role("link", name="Edit Dashboard").click()
@@ -91,8 +92,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
         def test_clear_cache(page: Page) -> None:
-            page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            go_to_administration(self, page)
             page.get_by_test_id("admin-menu-Settings").click()
             page.get_by_role("button", name="Invalidate Cache").click()
 
@@ -151,16 +151,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
             page.get_by_role("checkbox", name="Compact view Use condensed").check()
             page.get_by_role("button", name="Save changes").click()
-            page.get_by_role("link", name="Assess").click()
+            go_to_assess(self, page)
 
             page.get_by_role("link", name="Next").click()
 
             page.get_by_role("checkbox", name="Compact view").uncheck()
 
-            page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
-
-            page.get_by_role("link", name="User Settings").click()
+            go_to_user_settings(self, page)
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
             page.get_by_role("checkbox", name="Compact view Use condensed").uncheck()
             page.get_by_role("button", name="Save changes").click()
@@ -171,10 +168,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
-            page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
-
-            page.get_by_role("link", name="User Settings").click()
+            go_to_user_settings(self, page)
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
@@ -348,7 +342,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def delete_test_report():
             report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-            page.get_by_role("link", name="Analyze").click()
+            go_to_analyze(self, page)
             page.get_by_test_id(f"action-delete-{report_uuid}").click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
@@ -395,23 +389,23 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def verify_report_actions(report_uuid: str):
             def test_report_item_view():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_role("paragraph")).to_contain_text("test summary")
 
             def test_remove_story_from_report():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 page.get_by_role("link", name="Test report").click()
                 page.get_by_test_id(f"remove-story-{report_story_one['id']}").click()
 
             def test_story_in_report_assess_view():
-                page.get_by_role("link", name="Assess").click()
+                go_to_assess(self, page)
                 page.get_by_placeholder("Search stories").fill(story_search_term_lower)
                 page.get_by_placeholder("Search stories").press("Enter")
                 expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible()  # only one should be in a report now
 
             def test_create_product_from_report():
-                page.get_by_role("link", name="Analyze").click()
+                go_to_analyze(self, page)
                 page.get_by_test_id(f"action-edit-{report_uuid}").click()
                 page.get_by_test_id("report-new-product").click()
                 expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
