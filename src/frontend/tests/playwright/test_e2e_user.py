@@ -357,6 +357,76 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert len(exported_story["news_items"]) >= 1
         assert exported_story["news_items"][0]["title"] == expected_news_item_title
 
+    def test_story_import(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_stories,
+        news_items_list: list[dict],
+        tmp_path,
+    ):
+        page = logged_in_page
+        exported_story_title = news_items_list[0]["title"]
+        import_anchor_story_title = news_items_list[1]["title"]
+        imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
+
+        def load_story(title: str):
+            page.goto(url_for("assess.assess", _external=True))
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            page.get_by_placeholder("Search stories").fill(title)
+            page.get_by_placeholder("Search stories").press("Enter")
+            story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=title)).first
+            expect(story).to_be_visible()
+            return story
+
+        exported_story = load_story(exported_story_title)
+        exported_story.get_by_test_id("story-actions-menu").click()
+        exported_story.get_by_test_id("share-story").click()
+
+        dialog = page.locator("#share_story_to_connector_dialog")
+        expect(dialog).to_be_visible()
+
+        with page.expect_download() as download_info:
+            dialog.get_by_role("link", name="Export to JSON").click()
+
+        export_path = download_info.value.path()
+        with open(export_path, "r") as f:
+            import_payload = json.load(f)
+
+        imported_story_id = str(uuid.uuid4())
+        import_payload["items"][0]["id"] = imported_story_id
+        import_payload["items"][0]["title"] = imported_story_title
+
+        for index, news_item in enumerate(import_payload["items"][0]["news_items"], start=1):
+            news_item["id"] = str(uuid.uuid4())
+            news_item["story_id"] = imported_story_id
+            news_item["title"] = f"{imported_story_title} News {index}"
+            news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+            news_item.pop("hash", None)
+
+        import_file = tmp_path / "story_import.json"
+        import_file.write_text(json.dumps(import_payload), encoding="utf-8")
+
+        dialog.get_by_role("button", name="✕").click()
+
+        import_anchor_story = load_story(import_anchor_story_title)
+        import_anchor_story.get_by_test_id("story-actions-menu").click()
+        import_anchor_story.get_by_test_id("share-story").click()
+
+        dialog = page.locator("#share_story_to_connector_dialog")
+        expect(dialog).to_be_visible()
+        with page.expect_response("**/story/import") as import_response:
+            dialog.get_by_test_id("story-import-file").set_input_files(str(import_file))
+        assert import_response.value.ok
+
+        page.goto(url_for("assess.assess", _external=True))
+        expect(page.get_by_test_id("assess")).to_be_visible(timeout=30000)
+
+        page.get_by_placeholder("Search stories").fill(imported_story_title)
+        page.get_by_placeholder("Search stories").press("Enter")
+        imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
+        expect(imported_story).to_be_visible()
+
     def test_user_analyze(
         self,
         logged_in_page: Page,

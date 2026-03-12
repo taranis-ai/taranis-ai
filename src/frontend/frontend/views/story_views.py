@@ -25,6 +25,70 @@ from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
 
+_STORY_IMPORT_FIELDS = {
+    "id",
+    "title",
+    "description",
+    "created",
+    "likes",
+    "dislikes",
+    "relevance",
+    "read",
+    "important",
+    "summary",
+    "comments",
+    "revision",
+    "attributes",
+    "tags",
+    "news_items",
+    "last_change",
+}
+
+_NEWS_ITEM_IMPORT_FIELDS = {
+    "id",
+    "title",
+    "source",
+    "content",
+    "osint_source_id",
+    "review",
+    "author",
+    "link",
+    "language",
+    "hash",
+    "attributes",
+    "last_change",
+    "published",
+    "collected",
+    "story_id",
+}
+
+
+def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
+    sanitized_payload = {key: value for key, value in news_item_data.items() if key in _NEWS_ITEM_IMPORT_FIELDS}
+    if story_id:
+        sanitized_payload["story_id"] = story_id
+    return sanitized_payload
+
+
+def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
+    sanitized_payload = {key: value for key, value in story_data.items() if key in _STORY_IMPORT_FIELDS}
+    if news_items := story_data.get("news_items"):
+        sanitized_payload["news_items"] = [
+            _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items
+        ]
+    return sanitized_payload
+
+
+def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any] | list[dict[str, Any]]:
+    if isinstance(json_data, dict) and isinstance(json_data.get("items"), list):
+        json_data = json_data["items"]
+    if isinstance(json_data, list) and json_data and "news_items" in json_data[0]:
+        return [_sanitize_story_import_payload(story_data) for story_data in json_data]
+    if isinstance(json_data, dict) and "news_items" in json_data:
+        return _sanitize_story_import_payload(json_data)
+    return json_data
+
+
 class StoryView(BaseView):
     model = Story
     icon = "newspaper"
@@ -525,6 +589,38 @@ class StoryView(BaseView):
             flash("Failed to create news item from file", "error")
 
         return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+
+    @classmethod
+    @auth_required()
+    def import_stories(cls):
+        if not (upload_file := request.files.get("file")):
+            return make_response(cls.render_response_notification({"error": "No file selected for import."}), 400)
+
+        if upload_file.filename == "":
+            return make_response(cls.render_response_notification({"error": "No file selected for import."}), 400)
+
+        try:
+            json_data = json.loads(upload_file.read())
+            normalized_payload = _normalize_story_import_payload(json_data)
+            core_response = CoreApi().api_post("/assess/import", json_data=normalized_payload)
+        except json.JSONDecodeError:
+            logger.warning("Failed to decode story import JSON payload.")
+            return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
+        except Exception:
+            logger.exception("Failed to import stories.")
+            return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
+
+        if not getattr(core_response, "ok", False):
+            status_code = getattr(core_response, "status_code", 500) or 500
+            return make_response(cls.get_notification_from_response(core_response), status_code)
+
+        imported_count = len(core_response.json().get("imported_stories", []))
+        flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
+        DataPersistenceLayer().invalidate_cache(None)
+
+        response = make_response("", 200)
+        response.headers["HX-Refresh"] = "true"
+        return response
 
     @classmethod
     def _create_news_item_from_url(cls, url: str):

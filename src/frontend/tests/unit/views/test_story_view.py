@@ -1,4 +1,4 @@
-from frontend.views.story_views import _calculate_story_diff
+from frontend.views.story_views import _calculate_story_diff, _normalize_story_import_payload
 
 
 def test_calculate_story_diff_ignores_empty_tag_changes():
@@ -54,3 +54,62 @@ def test_calculate_story_diff_escapes_inline_markup_text():
     assert len(changes) == 1
     assert "&lt;script&gt;" in str(changes[0]["new_value_diff"])
     assert "<script>" not in str(changes[0]["new_value_diff"])
+
+
+def test_normalize_story_import_payload_unwraps_export_items():
+    payload = {"total_count": 1, "items": [{"id": "story-1", "news_items": [{"id": "news-1"}]}]}
+
+    normalized = _normalize_story_import_payload(payload)
+
+    assert normalized == [{"id": "story-1", "news_items": [{"id": "news-1", "story_id": "story-1"}]}]
+
+
+def test_normalize_story_import_payload_keeps_raw_story_list():
+    payload = [{"id": "story-1", "news_items": [{"id": "news-1"}]}]
+
+    normalized = _normalize_story_import_payload(payload)
+
+    assert normalized == [{"id": "story-1", "news_items": [{"id": "news-1", "story_id": "story-1"}]}]
+
+
+def test_normalize_story_import_payload_strips_export_only_fields():
+    payload = {
+        "total_count": 1,
+        "items": [
+            {
+                "id": "story-1",
+                "title": "Imported Story",
+                "updated": "2026-03-12T10:00:00",
+                "links": ["https://example.com/story"],
+                "news_items": [
+                    {
+                        "id": "news-1",
+                        "title": "Imported Story News 1",
+                        "source": "https://example.com/source",
+                        "content": "content",
+                        "osint_source_id": "99",
+                        "updated": "2026-03-12T10:00:00",
+                    }
+                ],
+            }
+        ],
+    }
+
+    normalized = _normalize_story_import_payload(payload)
+
+    assert normalized == [
+        {
+            "id": "story-1",
+            "title": "Imported Story",
+            "news_items": [
+                {
+                    "id": "news-1",
+                    "title": "Imported Story News 1",
+                    "source": "https://example.com/source",
+                    "content": "content",
+                    "osint_source_id": "99",
+                    "story_id": "story-1",
+                }
+            ],
+        }
+    ]
