@@ -1184,6 +1184,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             assert expected == got, "Exported stories with metadata do not match fixture stories within time filter"
 
+            if export_dialog.is_visible():
+                page.keyboard.press("Escape")
+            expect(export_dialog).not_to_be_visible()
+
         def import_stories_from_json():
             export_response = requests.get(
                 f"{run_core}/admin/export-stories",
@@ -1226,11 +1230,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         check_default_values()
         change_default_values()
         check_new_values()
+        test_export_all_stories(pre_seed_stories)
+        test_export_stories_metadata_time_filter(pre_seed_stories)
         import_stories_from_json()
         page.goto(url_for("admin_settings.settings", _external=True))
         revert_to_default_values()
-        test_export_all_stories(pre_seed_stories)
-        test_export_stories_metadata_time_filter(pre_seed_stories)
 
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page
