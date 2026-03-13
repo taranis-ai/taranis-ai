@@ -84,7 +84,7 @@ images:
     repository: ghcr.io/taranis-ai/taranis-summarize-bot
     tag: latest
   story:
-    repository: ghcr.io/taranis-ai/taranis-story-clustering-bot
+    repository: ghcr.io/taranis-ai/taranis-story-clustering
     tag: latest
 
 replicas:

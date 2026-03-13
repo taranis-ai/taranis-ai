@@ -507,7 +507,7 @@ spec:
     spec:
       containers:
         - name: story-bot
-          image: ghcr.io/taranis-ai/taranis-story-clustering-bot:latest
+          image: ghcr.io/taranis-ai/taranis-story-clustering:latest
           imagePullPolicy: Always
           env:
             - name: DEBUG

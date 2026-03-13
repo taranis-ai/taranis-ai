@@ -174,7 +174,7 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -191,7 +191,7 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -208,7 +208,7 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering-bot:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
