@@ -24,6 +24,8 @@ servers:
 tags:
   - name: auth
     description: session-related functionality
+  - name: health
+    description: see whether Taranis dependencies are healthy
   - name: isalive
     description: see whether the Taranis instance is alive
   - name: users
@@ -150,6 +152,58 @@ paths:
                   isalive:
                     type: boolean
                     examples: [True]
+  /health:
+    get:
+      tags:
+        - health
+      operationId: health
+      description: see whether the Taranis instance dependencies are healthy
+      security: []
+      responses:
+        "200":
+          description: all required services are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [True]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
+        "503":
+          description: one or more required services are unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [False]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
   /users:
     get:
       security:

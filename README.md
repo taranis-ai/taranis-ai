@@ -55,6 +55,15 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
+### Core Health Endpoints
+
+Core exposes two unauthenticated health-related endpoints:
+
+* `/api/isalive` is a lightweight liveness probe and only confirms that the core API process is responding.
+* `/api/health` is the operational health endpoint and reports the status of core dependencies with `up`, `down`, or `n/a`.
+
+`/api/health` returns HTTP `200` when all required checks pass and HTTP `503` when a required dependency is unhealthy. In local or test setups that use an in-memory broker, broker and worker checks are reported as `n/a`.
+
 ### Hardware requirements
 
 To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.
