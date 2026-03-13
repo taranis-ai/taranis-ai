@@ -208,7 +208,7 @@ services:
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
     environment:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"

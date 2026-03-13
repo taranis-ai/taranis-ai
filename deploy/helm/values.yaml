@@ -79,13 +79,13 @@ images:
     tag: latest
   nlp:
     repository: ghcr.io/taranis-ai/taranis-natural-language-processing
-    tag: latest
+    tag: stable
   summary:
     repository: ghcr.io/taranis-ai/taranis-summarize-bot
-    tag: latest
+    tag: stable
   story:
     repository: ghcr.io/taranis-ai/taranis-story-clustering
-    tag: latest
+    tag: stable
 
 replicas:
   core: 1
