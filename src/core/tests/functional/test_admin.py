@@ -1,4 +1,6 @@
 import json
+from datetime import datetime
+
 from tests.functional.helpers import BaseTest
 
 
@@ -50,9 +52,13 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert isinstance(data, list)
     assert isinstance(data[0], dict)
     assert "id" in data[0]
+    assert "created" in data[0]
     assert "news_items" in data[0]
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
+
+    expected_created = min(datetime.fromisoformat(item["published"]) for item in full_story[0]["news_items"]).isoformat()
+    assert data[0]["created"] == expected_created
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
     assert len(exported_news_item_ids) == len(news_item_ids)
@@ -68,7 +74,6 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "relevance" not in data[0]
     assert "comments" not in data[0]
     assert "summary" not in data[0]
-    assert "created" not in data[0]
     assert "updated" not in data[0]
 
     # Export with metadata
@@ -106,3 +111,16 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     # Attribute we set should be present
     # attrs = {a.get("key"): a.get("value") for a in data[0].get("attributes", [])}
     # assert attrs.get("status") == "updated"
+
+
+def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
+    r = client.get("/api/admin/export-stories?timefrom=invalid", headers=auth_header)
+
+    assert r.status_code == 400
+    assert r.get_json()["error"][0]["loc"] == ["timefrom"]
+
+
+def test_export_stories_allows_empty_datetime_filters(client, auth_header):
+    r = client.get("/api/admin/export-stories?timefrom=&timeto=", headers=auth_header)
+
+    assert r.status_code == 200
