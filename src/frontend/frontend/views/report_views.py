@@ -58,7 +58,9 @@ class ReportItemView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
-            report_types = DataPersistenceLayer().get_objects(ReportTypes)
+            dpl = DataPersistenceLayer()
+            dpl.invalidate_cache_by_object(ReportTypes)
+            report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
             report = base_context.get("report")
@@ -128,6 +130,7 @@ class ReportItemView(BaseView):
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
         DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
+        DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(Product)
         return ReportItemView.list_view()
 
@@ -139,6 +142,39 @@ class ReportItemView(BaseView):
         if object_id is None:
             return abort(405)
         return self.update_view(object_id=object_id)
+
+    @classmethod
+    def update_view(cls, object_id: int | str = 0):
+        core_response, error = cls.process_form_data(object_id)
+        if not core_response or error:
+            return render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            ), 400
+
+        DataPersistenceLayer().invalidate_cache_by_object(Product)
+
+        notification_response = cls.render_response_notification(core_response)
+        response = notification_response + render_template(
+            cls.get_update_template(),
+            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+        )
+        flask_response = make_response(response, 200)
+        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
+        return flask_response
+
+    @classmethod
+    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
+        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
+        if core_response.ok:
+            DataPersistenceLayer().invalidate_cache_by_object(Story)
+            DataPersistenceLayer().invalidate_cache_by_object(Product)
+
+        response = cls.get_notification_from_response(core_response)
+        table, table_response = cls.render_list()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code or table_response
 
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
@@ -325,35 +361,3 @@ def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
         )
 
     return changes
-
-    @classmethod
-    def update_view(cls, object_id: int | str = 0):
-        core_response, error = cls.process_form_data(object_id)
-        if not core_response or error:
-            return render_template(
-                cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
-            ), 400
-
-        DataPersistenceLayer().invalidate_cache_by_object(Product)
-
-        notification_response = cls.render_response_notification(core_response)
-        response = notification_response + render_template(
-            cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
-        )
-        flask_response = make_response(response, 200)
-        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
-        return flask_response
-
-    @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-        if core_response.ok:
-            DataPersistenceLayer().invalidate_cache_by_object(Product)
-
-        response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code or table_response

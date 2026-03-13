@@ -65,9 +65,14 @@ def docker_cleanup():
 
 @pytest.fixture(scope="session")
 def run_core(docker_services):
+    from frontend.config import Config
+
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
-    core_port = os.getenv("TARANIS_CORE_PORT", "5000")
-    core_url = os.getenv("TARANIS_CORE_URL", f"http://127.0.0.1:{core_port}/api")
+    core_port = docker_services.port_for("core", 8080)
+    core_url = f"http://127.0.0.1:{core_port}/api"
+
+    Config.TARANIS_CORE_HOST = f"http://127.0.0.1:{core_port}"
+    Config.TARANIS_CORE_URL = core_url
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
@@ -99,7 +104,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, build_tailwindcss, run_core):
+def e2e_server(run_core, app, live_server, build_tailwindcss):
     live_server.app = app
     live_server.start()
     yield live_server
@@ -579,7 +584,7 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-def pre_seed_report_type(report_definition, access_token, run_core, frontend_url: str | None = None):
+def pre_seed_report_type(report_definition, access_token, run_core):
     headers = {"Authorization": f"Bearer {access_token}"}
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -606,16 +611,6 @@ def pre_seed_report_type(report_definition, access_token, run_core, frontend_url
 
     r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
     r.raise_for_status()
-    if frontend_url:
-        _invalidate_cached_report_item_types(frontend_url, access_token)
-
-
-def _invalidate_cached_report_item_types(frontend_url: str, access_token: str):
-    # These fixtures seed report item types via Core API directly.
-    # Invalidate the running frontend server cache so select options are refreshed.
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(f"{frontend_url}/invalidate_cache/config_report-item-types", headers=headers, timeout=10)
-    response.raise_for_status()
 
 
 @pytest.fixture(scope="session")
@@ -623,7 +618,7 @@ def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
 
 
 @pytest.fixture(scope="session")
@@ -637,7 +632,7 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    pre_seed_report_type(report_definition_copy, access_token, run_core, e2e_server.url())
+    pre_seed_report_type(report_definition_copy, access_token, run_core)
 
 
 @pytest.fixture(scope="session")
@@ -657,7 +652,7 @@ def test_osint_icon_png(testdata_dir):
 
 
 @pytest.fixture
-def test_batch_osint_sources(app, run_core, access_token, testdata_dir):
+def test_batch_osint_sources(run_core, access_token, testdata_dir):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
@@ -670,7 +665,7 @@ def test_batch_osint_sources(app, run_core, access_token, testdata_dir):
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
         r.raise_for_status()
 
-    yield
+    yield source_data
 
     list_response = requests.get(f"{run_core}/config/osint-sources", headers=headers)
     list_response.raise_for_status()

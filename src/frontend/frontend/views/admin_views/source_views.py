@@ -33,9 +33,12 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
-        if dashboard := DataPersistenceLayer().get_first(Dashboard):
-            if worker_status := dashboard.worker_status:
-                return worker_status.get("collector_task", {}).get("failures", 0)
+        try:
+            if dashboard := DataPersistenceLayer().get_first(Dashboard):
+                if worker_status := dashboard.worker_status:
+                    return worker_status.get("collector_task", {}).get("failures", 0)
+        except Exception:
+            logger.exception("Error retrieving dashboard for source admin menu badge")
 
         return 0
 
