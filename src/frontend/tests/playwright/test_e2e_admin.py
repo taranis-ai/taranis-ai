@@ -15,6 +15,13 @@ from playwright_helpers import PlaywrightHelpers
 class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
+    @staticmethod
+    def dismiss_notification_if_visible(page: Page):
+        notification = page.locator("#notification-bar [role='alert']")
+        if notification.is_visible():
+            notification.click()
+            expect(notification).to_be_hidden()
+
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
@@ -143,7 +150,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="John Doe").get_by_test_id("action-delete-4").click()
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible()
-            page.get_by_role("alert").click()
+            self.dismiss_notification_if_visible(page)
 
         load_user_list()
         add_user()
@@ -240,7 +247,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
-            page.get_by_role("alert").click()
+            self.dismiss_notification_if_visible(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
@@ -259,7 +266,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
             page.get_by_role("button", name="OK").click()
-            page.get_by_role("alert").click()
+            self.dismiss_notification_if_visible(page)
 
         def add_osint_sources():
             page.get_by_test_id("new-osint_source-button").click()
@@ -433,7 +440,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
-            page.locator("#notification-bar [role='alert']").click()
+            self.dismiss_notification_if_visible(page)
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()
@@ -447,10 +454,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
             self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
-            notification = page.locator("#notification-bar [role='alert']")
-            if notification.is_visible():
-                notification.click()
-                expect(notification).to_be_hidden()
+            self.dismiss_notification_if_visible(page)
             expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
@@ -484,7 +488,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="Test wordlist").get_by_test_id("action-delete-1").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
             page.get_by_role("button", name="OK").click()
-            page.get_by_role("alert").click()
+            self.dismiss_notification_if_visible(page)
 
         load_word_list()
         load_default_word_list()
@@ -885,7 +889,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             bot_table.locator('[data-testid^="action-delete-"]').last.click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
-            page.locator("#notification-bar [role='alert']").click()
+            self.dismiss_notification_if_visible(page)
 
         test_load_bots()
         test_bot_create()
