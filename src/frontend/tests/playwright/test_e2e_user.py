@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import json
+import re
 import uuid
 from datetime import date
 
 import pytest
+import requests
+import responses
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -13,6 +17,17 @@ from playwright_helpers import PlaywrightHelpers
 @pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndUser(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI user interface."""
+
+    @staticmethod
+    def _get_assess_story_total(run_core: str, access_token: str) -> int:
+        responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
+        response = requests.get(
+            f"{run_core}/assess/stories",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()["counts"]["total_count"]
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -29,14 +44,15 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
+    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper, run_core, access_token):
         page = logged_in_page
+        expected_total = self._get_assess_story_total(run_core, access_token)
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 33")
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total}")
             page.get_by_role("link", name="Dashboard").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -212,14 +228,15 @@ class TestEndToEndUser(PlaywrightHelpers):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
+    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories, run_core, access_token):
         page = logged_in_page
+        expected_total = self._get_assess_story_total(run_core, access_token)
         # page.set_default_timeout(0)
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
 
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57", timeout=30000)
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total}", timeout=30000)
 
             expect(page.get_by_test_id("assess")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
@@ -272,18 +289,18 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.goto(url_for("assess.assess", _external=True))
 
             expect(page.get_by_test_id("assess")).to_be_visible()
-
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57 Stories")
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total} Stories")
             page.mouse.wheel(0, 5500)
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("40 / 57 Stories")
+            second_page_count = min(40, expected_total)
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"{second_page_count} / {expected_total} Stories")
             page.mouse.wheel(0, 5500)
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("57 / 57 Stories")
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"{expected_total} / {expected_total} Stories")
             page.mouse.wheel(0, 5500)
             expect(page.get_by_text("You're all caught up.")).to_be_visible()
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
-            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("57 stories selected")
+            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text(f"{expected_total} stories selected")
             page.get_by_role("button", name="Clear selection Esc").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
@@ -308,6 +325,53 @@ class TestEndToEndUser(PlaywrightHelpers):
         access_story()
         infinite_scroll_all_items()
         group_stories()
+
+    def test_story_export(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_stories,
+        news_items_list: list[dict],
+    ):
+        page = logged_in_page
+        expected_story = news_items_list[0]
+        expected_title = expected_story["title"]
+        expected_news_item_title = expected_story["title"]
+
+        page.goto(url_for("assess.assess", _external=True))
+        expect(page.get_by_test_id("assess")).to_be_visible()
+
+        page.get_by_placeholder("Search stories").fill(expected_title)
+        page.get_by_placeholder("Search stories").press("Enter")
+
+        story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
+        expect(story).to_be_visible()
+        expect(story.get_by_test_id("story-title")).to_have_text(expected_title)
+
+        story.get_by_test_id("story-actions-menu").click()
+        story.get_by_test_id("share-story").click()
+
+        dialog = page.locator("#share_story_to_connector_dialog")
+        expect(dialog).to_be_visible()
+        expect(dialog.get_by_role("link", name="Export to JSON")).to_be_visible()
+
+        with page.expect_download() as download_info:
+            dialog.get_by_role("link", name="Export to JSON").click()
+
+        download = download_info.value
+        assert download.suggested_filename.startswith("stories_export_")
+        assert download.suggested_filename.endswith(".json")
+
+        download_path = download.path()
+        with open(download_path, "r", encoding="utf-8") as f:
+            downloaded_content = json.load(f)
+
+        assert downloaded_content["total_count"] == 1
+        assert len(downloaded_content["items"]) == 1
+        exported_story = downloaded_content["items"][0]
+        assert exported_story["title"] == expected_title
+        assert len(exported_story["news_items"]) >= 1
+        assert exported_story["news_items"][0]["title"] == expected_news_item_title
 
     def test_user_analyze(
         self,

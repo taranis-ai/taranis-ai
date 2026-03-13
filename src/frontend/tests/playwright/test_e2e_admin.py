@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
+import requests
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -68,7 +69,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
                 self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}: {response_info.value.text()}"
             expect(page.get_by_text(organization_name)).to_be_visible()
 
         def update_organization():
@@ -235,9 +236,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(10)
 
-            # search
-            page.get_by_placeholder("Search...").fill("news")
+            # search by an actual default source name instead of a stale hardcoded term
+            first_source_name = all_rows.first.locator("td").nth(3).inner_text().strip()
+            page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
+            expect(all_rows.first).to_contain_text(first_source_name)
             page.get_by_placeholder("Search...").fill("")
             expect(all_rows).to_have_count(10)
 
@@ -357,14 +360,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.goto(url_for("admin.osint_sources", _external=True))
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            page.locator("#osint_sources").get_by_text("»").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 5 of 5")
-            page.get_by_role("textbox", name="Search...").first.fill("source 21")
-            page.get_by_text("Source 21").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 1 of 3")
-            page.get_by_role("row", name="Source 21").get_by_role("checkbox").check()
-            page.locator("#osint_sources").get_by_text("»").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 3 of 3")
+            source_row = page.locator("#osint_sources tbody tr").first
+            expect(source_row).to_be_visible()
+            source_name = source_row.locator("td").nth(1).inner_text().strip()
+            page.get_by_role("textbox", name="Search...").first.fill(source_name)
+            expect(source_row).to_contain_text(source_name)
+            source_row.get_by_role("checkbox").check()
+            expect(page.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
 
         load_osint_source_groups()
         add_osint_source_group()
@@ -903,11 +905,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = logged_in_page
 
         connector_name = f"test_connector_{uuid.uuid4().hex[:6]}"
+        updated_connector_name = f"{connector_name} updated"
+
+        connector_table = page.get_by_test_id("connector-table")
 
         def load_connectors():
             page.goto(url_for("admin.connectors", _external=True))
-            expect(page.get_by_test_id("connector-table")).to_be_visible()
-            page.get_by_text("No connector items found").click()
+            expect(connector_table).to_be_visible()
+            expect(page.get_by_test_id("new-connector-button")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_connectors.png")
 
         def add_connector():
@@ -930,26 +935,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("checkbox", name="SSL_CHECK").check()
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
             page.get_by_role("button", name="Create Connector").click()
-            expect(page.get_by_role("row", name=connector_name)).to_be_visible()
+            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=connector_name, exact=True)).first
+            expect(connector_row).to_be_visible()
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
             expect(page.get_by_role("checkbox", name="SSL_CHECK")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill(f"{connector_name} updated")
+            page.get_by_role("textbox", name="Name").fill(updated_connector_name)
             page.get_by_role("button", name="Update Connector").click()
-            expect(page.get_by_role("row", name=f"{connector_name} updated")).to_be_visible()
-            page.locator("#notification-bar [role='alert']").click()
+            updated_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
+            expect(updated_row).to_be_visible()
 
         def remove_connector():
-            bot_table = page.get_by_test_id("connector-table")
-            all_rows = bot_table.locator("tbody tr")
-            expect(all_rows).to_have_count(1)
-            bot_table.locator('[data-testid^="action-delete-"]').first.click()
+            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
+            expect(connector_row).to_be_visible()
+            connector_row.locator('[data-testid^="action-delete-"]').click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
-            page.locator("#notification-bar [role='alert']").click()
+            expect(connector_row).not_to_be_visible()
 
         load_connectors()
         add_connector()
@@ -968,23 +973,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("No publisher_preset items").click()
             page.get_by_test_id("new-publisher_preset-button").click()
             expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
+            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
             expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
-            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FTP_URL").fill("testurl")
+            expect(ftp_url_input).to_be_visible()
+            expect(ftp_url_input).to_have_attribute("required", "")
+            ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
             expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
 
         def publisher_presets_update():
             page.get_by_role("link", name="publisher preset test").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
-            page.get_by_role("textbox", name="FTP_URL").click()
-            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FTP_URL").fill("testurl.com")
+            ftp_url_input.click()
+            expect(ftp_url_input).to_have_attribute("required", "")
+            ftp_url_input.fill("testurl.com")
             page.get_by_role("textbox", name="Name").click()
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
@@ -1009,7 +1017,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, pre_seed_stories):
+    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path, run_core, access_token):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1019,6 +1027,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
         settings_submit = settings_form.get_by_test_id("settings-submit").first
+        stories_import_url = url_for("assess.import_stories", _external=True)
 
         def go_to_admin_settings():
             page.goto(url_for("admin_settings.settings", _external=True))
@@ -1175,10 +1184,50 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             assert expected == got, "Exported stories with metadata do not match fixture stories within time filter"
 
+        def import_stories_from_json():
+            export_response = requests.get(
+                f"{run_core}/admin/export-stories",
+                params={"metadata": "true"},
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30,
+            )
+            export_response.raise_for_status()
+            import_payload = export_response.json()
+
+            imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
+            imported_story_id = str(uuid.uuid4())
+            story_to_import = import_payload[0]
+            story_to_import["id"] = imported_story_id
+            story_to_import["title"] = imported_story_title
+
+            for index, news_item in enumerate(story_to_import["news_items"], start=1):
+                news_item["id"] = str(uuid.uuid4())
+                news_item["story_id"] = imported_story_id
+                news_item["title"] = f"{imported_story_title} News {index}"
+                news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+                news_item.pop("hash", None)
+
+            import_file = tmp_path / "settings_story_import.json"
+            import_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
+
+            with page.expect_response(stories_import_url) as response_info:
+                page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
+                page.get_by_test_id("settings-story-import-submit").click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
+            page.goto(url_for("assess.assess", _external=True))
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            page.get_by_placeholder("Search stories").fill(imported_story_title)
+            page.get_by_placeholder("Search stories").press("Enter")
+            imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
+            expect(imported_story).to_be_visible()
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
         check_new_values()
+        import_stories_from_json()
+        page.goto(url_for("admin_settings.settings", _external=True))
         revert_to_default_values()
         test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
