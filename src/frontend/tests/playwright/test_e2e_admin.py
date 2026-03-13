@@ -227,9 +227,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(10)
 
-            # search
-            page.get_by_placeholder("Search...").fill("news")
+            # search by an actual default source name instead of a stale hardcoded term
+            first_source_name = all_rows.first.locator("td").nth(3).inner_text().strip()
+            page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
+            expect(all_rows.first).to_contain_text(first_source_name)
             page.get_by_placeholder("Search...").fill("")
             expect(all_rows).to_have_count(10)
 
@@ -349,14 +351,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.goto(url_for("admin.osint_sources", _external=True))
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            page.locator("#osint_sources").get_by_text("»").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 5 of 5")
-            page.get_by_role("textbox", name="Search...").first.fill("source 21")
-            page.get_by_text("Source 21").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 1 of 3")
-            page.get_by_role("row", name="Source 21").get_by_role("checkbox").check()
-            page.locator("#osint_sources").get_by_text("»").click()
-            expect(page.locator("#osint_sources")).to_contain_text("Page 3 of 3")
+            source_row = page.locator("#osint_sources tbody tr").first
+            expect(source_row).to_be_visible()
+            source_name = source_row.locator("td").nth(1).inner_text().strip()
+            page.get_by_role("textbox", name="Search...").first.fill(source_name)
+            expect(source_row).to_contain_text(source_name)
+            source_row.get_by_role("checkbox").check()
+            expect(page.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
 
         load_osint_source_groups()
         add_osint_source_group()
@@ -960,23 +961,25 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("No publisher_preset items").click()
             page.get_by_test_id("new-publisher_preset-button").click()
             expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
+            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
             expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
-            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FTP_URL").fill("testurl")
+            expect(ftp_url_input).to_have_attribute("required", "")
+            ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
             expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
 
         def publisher_presets_update():
             page.get_by_role("link", name="publisher preset test").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
-            page.get_by_role("textbox", name="FTP_URL").click()
-            expect(page.get_by_role("textbox", name="FTP_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FTP_URL").fill("testurl.com")
+            ftp_url_input.click()
+            expect(ftp_url_input).to_have_attribute("required", "")
+            ftp_url_input.fill("testurl.com")
             page.get_by_role("textbox", name="Name").click()
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")

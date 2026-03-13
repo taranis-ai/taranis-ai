@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import json
+import re
 import uuid
 from datetime import date
 
 import pytest
 import requests
+import responses
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -18,6 +20,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     @staticmethod
     def _get_assess_story_total(run_core: str, access_token: str) -> int:
+        responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
         response = requests.get(
             f"{run_core}/assess/stories",
             headers={"Authorization": f"Bearer {access_token}"},
