@@ -65,9 +65,14 @@ def docker_cleanup():
 
 @pytest.fixture(scope="session")
 def run_core(docker_services):
+    from frontend.config import Config
+
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
-    core_port = os.getenv("TARANIS_CORE_PORT", "5000")
-    core_url = os.getenv("TARANIS_CORE_URL", f"http://127.0.0.1:{core_port}/api")
+    core_port = docker_services.port_for("core", 8080)
+    core_url = f"http://127.0.0.1:{core_port}/api"
+
+    Config.TARANIS_CORE_HOST = f"http://127.0.0.1:{core_port}"
+    Config.TARANIS_CORE_URL = core_url
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
@@ -99,7 +104,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, build_tailwindcss, run_core):
+def e2e_server(run_core, app, live_server, build_tailwindcss):
     live_server.app = app
     live_server.start()
     yield live_server

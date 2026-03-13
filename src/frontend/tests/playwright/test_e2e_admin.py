@@ -896,11 +896,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page = logged_in_page
 
         connector_name = f"test_connector_{uuid.uuid4().hex[:6]}"
+        updated_connector_name = f"{connector_name} updated"
+
+        connector_table = page.get_by_test_id("connector-table")
 
         def load_connectors():
             page.goto(url_for("admin.connectors", _external=True))
-            expect(page.get_by_test_id("connector-table")).to_be_visible()
-            page.get_by_text("No connector items found").click()
+            expect(connector_table).to_be_visible()
+            expect(page.get_by_test_id("new-connector-button")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_connectors.png")
 
         def add_connector():
@@ -923,26 +926,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("checkbox", name="SSL_CHECK").check()
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
             page.get_by_role("button", name="Create Connector").click()
-            expect(page.get_by_role("row", name=connector_name)).to_be_visible()
+            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=connector_name, exact=True)).first
+            expect(connector_row).to_be_visible()
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
             expect(page.get_by_role("checkbox", name="SSL_CHECK")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill(f"{connector_name} updated")
+            page.get_by_role("textbox", name="Name").fill(updated_connector_name)
             page.get_by_role("button", name="Update Connector").click()
-            expect(page.get_by_role("row", name=f"{connector_name} updated")).to_be_visible()
-            page.locator("#notification-bar [role='alert']").click()
+            updated_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
+            expect(updated_row).to_be_visible()
 
         def remove_connector():
-            bot_table = page.get_by_test_id("connector-table")
-            all_rows = bot_table.locator("tbody tr")
-            expect(all_rows).to_have_count(1)
-            bot_table.locator('[data-testid^="action-delete-"]').first.click()
+            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
+            expect(connector_row).to_be_visible()
+            connector_row.locator('[data-testid^="action-delete-"]').click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
-            page.locator("#notification-bar [role='alert']").click()
+            expect(connector_row).not_to_be_visible()
 
         load_connectors()
         add_connector()
