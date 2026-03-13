@@ -643,7 +643,7 @@ product_types = [
         "description": "Default html tailwindcss Presenter",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "osint_report_tailwind.html"},
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
@@ -655,7 +655,7 @@ product_types = [
         "description": "Default html tailwindcss and chartjs Presenter",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "osint_report_tailwind_chart.html"},
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
