@@ -1,9 +1,12 @@
 import os
-import pytest
-from dotenv import load_dotenv
 import subprocess
 
+import pytest
+from dotenv import load_dotenv
+
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
+PLAYWRIGHT_DIR = os.path.join(base_dir, "playwright")
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
 
@@ -28,6 +31,14 @@ if not current_path.endswith("src/frontend"):
         pytest.skip("Unable to locate git root to change into src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
+
+
+E2E_OPTION_TO_FILES = {
+    "--e2e-ci": {"test_e2e_admin.py", "test_e2e_user.py"},
+    "--e2e-admin": {"test_e2e_admin.py"},
+    "--e2e-user": {"test_e2e_user.py"},
+    "--e2e-user-workflow": {"test_e2e_workflow.py"},
+}
 
 
 @pytest.fixture(scope="session")
@@ -164,6 +175,27 @@ def _is_vscode(config) -> bool:
     return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
 
 
+def _selected_e2e_option(config) -> str | None:
+    return next((option for option in E2E_OPTION_TO_FILES if config.getoption(option)), None)
+
+
+def pytest_ignore_collect(collection_path, config):
+    if _is_vscode(config):
+        return False
+
+    path = os.path.normpath(os.path.abspath(str(collection_path)))
+    is_playwright_path = path == PLAYWRIGHT_DIR or path.startswith(PLAYWRIGHT_DIR + os.sep)
+    selected_option = _selected_e2e_option(config)
+
+    if is_playwright_path:
+        if selected_option is None:
+            return True
+        filename = os.path.basename(path)
+        return filename.startswith("test_") and filename.endswith(".py") and filename not in E2E_OPTION_TO_FILES[selected_option]
+
+    return selected_option is not None and path != base_dir
+
+
 def skip_tests(items, keyword, reason):
     skip_marker = pytest.mark.skip(reason=reason)
     for item in items:
@@ -187,14 +219,14 @@ def pytest_collection_modifyitems(config, items):
     }
 
     config.option.headed = True
-
-    for option, (keyword, reason) in options.items():
-        if config.getoption(option):
-            if option == "--e2e-ci":
-                config.option.trace = True
-                config.option.headed = False
-            skip_tests(items, keyword, reason)
-            return
+    selected_option = _selected_e2e_option(config)
+    if selected_option:
+        keyword, reason = options[selected_option]
+        if selected_option == "--e2e-ci":
+            config.option.trace = True
+            config.option.headed = False
+        skip_tests(items, keyword, reason)
+        return
 
     skip_all = pytest.mark.skip(reason="need --e2e-ci or --e2e-admin option to run these tests")
     for item in items:
