@@ -48,7 +48,7 @@ The deployments reference these upstream image paths:
 - `ghcr.io/taranis-ai/taranis-worker`
 - `ghcr.io/taranis-ai/taranis-natural-language-processing`
 - `ghcr.io/taranis-ai/taranis-summarize-bot`
-- `ghcr.io/taranis-ai/taranis-story-clustering-bot`
+- `ghcr.io/taranis-ai/taranis-story-clustering`
 
 Pin explicit tags before production rollout instead of relying on `latest`.
 

@@ -29,7 +29,7 @@
 
         <button type="button"
                 class="btn btn-outline"
-                hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
+                hx-trigger="click, keyup[shiftKey && key == 'R'] from:body"
                 hx-get="{{ url_for('assess.report_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"

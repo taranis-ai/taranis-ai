@@ -387,7 +387,7 @@ spec:
     spec:
       containers:
         - name: nlp-bot
-          image: ghcr.io/taranis-ai/taranis-natural-language-processing:latest
+          image: ghcr.io/taranis-ai/taranis-natural-language-processing:stable
           imagePullPolicy: Always
           env:
             - name: DEBUG
@@ -449,7 +449,7 @@ spec:
     spec:
       containers:
         - name: summary-bot
-          image: ghcr.io/taranis-ai/taranis-summarize-bot:latest
+          image: ghcr.io/taranis-ai/taranis-summarize-bot:stable
           imagePullPolicy: Always
           env:
             - name: DEBUG
@@ -507,7 +507,7 @@ spec:
     spec:
       containers:
         - name: story-bot
-          image: ghcr.io/taranis-ai/taranis-story-clustering-bot:latest
+          image: ghcr.io/taranis-ai/taranis-story-clustering:stable
           imagePullPolicy: Always
           env:
             - name: DEBUG

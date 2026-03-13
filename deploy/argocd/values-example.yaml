@@ -47,8 +47,8 @@ images:
   worker:
     tag: latest
   nlp:
-    tag: latest
+    tag: stable
   summary:
-    tag: latest
+    tag: stable
   story:
-    tag: latest
+    tag: stable
