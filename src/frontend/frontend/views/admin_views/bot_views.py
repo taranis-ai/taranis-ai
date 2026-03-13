@@ -64,9 +64,12 @@ class BotView(AdminMixin, BaseView):
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
-        if dashboard := DataPersistenceLayer().get_first(Dashboard):
-            if worker_status := dashboard.worker_status:
-                return worker_status.get("bot_task", {}).get("failures", 0)
+        try:
+            if dashboard := DataPersistenceLayer().get_first(Dashboard):
+                if worker_status := dashboard.worker_status:
+                    return worker_status.get("bot_task", {}).get("failures", 0)
+        except Exception:
+            logger.exception("Error retrieving dashboard for bot admin menu badge")
 
         return 0
 
