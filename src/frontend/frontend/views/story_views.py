@@ -1,5 +1,6 @@
 import datetime
 from difflib import SequenceMatcher
+from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
@@ -603,7 +604,7 @@ class StoryView(BaseView):
             json_data = json.loads(upload_file.read())
             normalized_payload = _normalize_story_import_payload(json_data)
             core_response = CoreApi().api_post("/assess/import", json_data=normalized_payload)
-        except json.JSONDecodeError:
+        except JSONDecodeError:
             logger.warning("Failed to decode story import JSON payload.")
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
         except Exception:
