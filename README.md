@@ -60,9 +60,7 @@ An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is in
 Core exposes two unauthenticated health-related endpoints:
 
 * `/api/isalive` is a lightweight liveness probe and only confirms that the core API process is responding.
-* `/api/health` is the operational health endpoint and reports the status of core dependencies with `up`, `down`, or `n/a`.
-
-`/api/health` returns HTTP `200` when all required checks pass and HTTP `503` when a required dependency is unhealthy. In local or test setups that use an in-memory broker, broker and worker checks are reported as `n/a`.
+* `/api/health` is the operational health endpoint and reports the status of core dependencies with `up`, `down`, or `n/a` and returns 503 if any dependency is `down` and 200 otherwise.
 
 ### Hardware requirements
 

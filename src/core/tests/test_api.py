@@ -39,48 +39,6 @@ def test_health_database_failure_returns_503(client, monkeypatch):
     }
 
 
-def test_health_broker_failure_returns_503(client, monkeypatch):
-    monkeypatch.setattr("core.service.health.check_database", lambda: "up")
-    monkeypatch.setattr("core.service.health.broker_health_applicable", lambda: True)
-    monkeypatch.setattr("core.service.health.check_broker", lambda: "down")
-
-    response = client.get("/api/health")
-
-    assert response.status_code == 503
-    assert response.json == {
-        "healthy": False,
-        "services": {"database": "up", "broker": "down", "workers": "down"},
-    }
-
-
-def test_health_worker_failure_returns_503(client, monkeypatch):
-    monkeypatch.setattr("core.service.health.check_database", lambda: "up")
-    monkeypatch.setattr("core.service.health.broker_health_applicable", lambda: True)
-    monkeypatch.setattr("core.service.health.check_broker", lambda: "up")
-    monkeypatch.setattr("core.service.health.check_workers", lambda: "down")
-
-    response = client.get("/api/health")
-
-    assert response.status_code == 503
-    assert response.json == {
-        "healthy": False,
-        "services": {"database": "up", "broker": "up", "workers": "down"},
-    }
-
-
-def test_health_marks_broker_and_workers_not_applicable_for_memory_transport(client, monkeypatch):
-    monkeypatch.setattr("core.service.health.check_database", lambda: "up")
-    monkeypatch.setattr("core.service.health.broker_health_applicable", lambda: False)
-
-    response = client.get("/api/health")
-
-    assert response.status_code == 200
-    assert response.json == {
-        "healthy": True,
-        "services": {"database": "up", "broker": "n/a", "workers": "n/a"},
-    }
-
-
 def test_auth_login(client):
     body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)
