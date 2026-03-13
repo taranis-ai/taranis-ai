@@ -639,6 +639,30 @@ product_types = [
         "report_types": [1, 2, 3, 4],
     },
     {
+        "title": "Default html tailwindcss Presenter",
+        "description": "Default html tailwindcss Presenter",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
+            {"parameter": "render_options", "type": "text", "value": ""},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
+        "title": "Default html chartjs Presenter",
+        "description": "Default html tailwindcss and chartjs Presenter",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "html_docx_template.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
+            {"parameter": "render_options", "type": "text", "value": ""},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
         "title": "Default PDF Presenter",
         "description": "Default PDF Presenter",
         "type": "PDF_PRESENTER",
