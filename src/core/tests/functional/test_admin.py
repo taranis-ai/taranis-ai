@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from tests.functional.helpers import BaseTest
 
@@ -118,6 +118,15 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
 
     assert r.status_code == 400
     assert r.get_json()["error"][0]["loc"] == ["timefrom"]
+
+
+def test_export_stories_rejects_future_datetime_filters(client, auth_header):
+    future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+
+    r = client.get(f"/api/admin/export-stories?timeto={future_time}", headers=auth_header)
+
+    assert r.status_code == 400
+    assert r.get_json()["error"][0]["loc"] == ["timeto"]
 
 
 def test_export_stories_allows_empty_datetime_filters(client, auth_header):

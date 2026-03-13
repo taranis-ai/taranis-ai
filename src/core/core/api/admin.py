@@ -3,7 +3,8 @@ from datetime import datetime
 
 from flask import Blueprint, Flask, request, send_file, url_for
 from flask.views import MethodView
-from pydantic import BaseModel, ValidationError, field_validator
+from models.admin import ExportStoriesQuery
+from pydantic import ValidationError
 
 from core.config import Config
 from core.managers import queue_manager
@@ -12,19 +13,6 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.settings import Settings
 from core.model.story import Story
 from core.service.story import StoryService
-
-
-class ExportStoriesQuery(BaseModel):
-    timefrom: datetime | None = None
-    timeto: datetime | None = None
-    metadata: bool = False
-
-    @field_validator("timefrom", "timeto", mode="before")
-    @classmethod
-    def empty_string_to_none(cls, value):
-        if value == "":
-            return None
-        return value
 
 
 class DeleteTags(MethodView):
@@ -68,12 +56,6 @@ class ExportStories(MethodView):
 
         time_from = query.timefrom
         time_to = query.timeto
-
-        if time_from and not time_to:
-            time_to = datetime.now()
-
-        if time_from and time_to and time_to < time_from:
-            time_to = datetime.now()
 
         if query.metadata:
             data = StoryService.export_with_metadata(time_from, time_to)
