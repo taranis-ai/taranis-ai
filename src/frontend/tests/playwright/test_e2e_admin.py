@@ -967,6 +967,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
             expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
+            expect(ftp_url_input).to_be_visible()
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
