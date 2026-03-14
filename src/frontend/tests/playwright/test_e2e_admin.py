@@ -217,7 +217,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
-            page.get_by_text("No osint_source items found").click()
             expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
@@ -266,10 +265,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(osint_source_name)
             page.get_by_label("Description").fill("Test description of an OSINT source")
-            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
-            page.get_by_label("Collector Type Select a").select_option("rss_collector")
-            expect(page.get_by_role("textbox", name="FEED_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/feed")
+            feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
+            self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
+            expect(feed_url_input).to_have_attribute("required", "")
+            feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page.get_by_role("link", name=osint_source_name)).to_be_visible()
@@ -502,7 +501,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def test_acl_create():
             page.get_by_test_id("new-acl-button").click()
             expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
-            page.get_by_text("No acl items found").click()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
@@ -798,10 +796,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
-            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
-            page.get_by_label("Presenter Type Select a").select_option("html_presenter")
-            expect(page.get_by_label("TEMPLATE_PATH * Select an item")).to_have_attribute("required", "")
-            page.get_by_label("TEMPLATE_PATH * Select an item").select_option("cert_at_daily_report.html")
+            template_path_select = page.locator('select[name="parameters[TEMPLATE_PATH]"]')
+            self.select_dynamic_type_and_wait(page, "html_presenter", "/admin/product_type_parameters/0", template_path_select)
+            expect(template_path_select).to_have_attribute("required", "")
+            template_path_select.select_option("cert_at_daily_report.html")
 
             expect(page.locator('select[name="report_types[]"]')).to_have_attribute("required", "")
             page.get_by_role("searchbox", name="Select report types").click()
@@ -844,6 +842,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def test_bot_create():
             page.get_by_test_id("new-bot-button").click()
             expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
+            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("test bot")
@@ -851,9 +850,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
-            page.get_by_label("Bot Type Select a bot").select_option("nlp_bot")
-            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+            self.select_dynamic_type_and_wait(page, "nlp_bot", "/admin/bot_parameters/0", refresh_interval_input)
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
@@ -865,7 +862,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def test_bot_update():
             page.get_by_role("link", name="test bot", exact=True).click()
-            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("test bot updated")
@@ -874,7 +871,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Update Bot").click()
 
             page.get_by_role("link", name="test bot updated").click()
-            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
 
@@ -909,12 +906,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_connector():
             page.get_by_test_id("new-connector-button").click()
             expect(page.get_by_role("heading", name="Create Connector")).to_be_visible()
+            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
-            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
-            page.get_by_label("Connector Type Select a").select_option("misp_connector")
-            expect(page.get_by_role("group", name="REFRESH_INTERVAL")).to_be_visible()
+            self.select_dynamic_type_and_wait(page, "misp_connector", "/admin/connector_parameters/0", refresh_interval_input)
 
             expect(page.get_by_role("textbox", name="URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="URL").fill("test.url")
@@ -923,7 +919,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="ORGANISATION_ID")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="ORGANISATION_ID").fill("1")
 
-            page.get_by_role("checkbox", name="SSL_CHECK").check()
+            page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]').set_checked(True)
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
             page.get_by_role("button", name="Create Connector").click()
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=connector_name, exact=True)).first
@@ -931,7 +927,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
-            expect(page.get_by_role("checkbox", name="SSL_CHECK")).to_be_visible()
+            expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(updated_connector_name)
@@ -961,16 +957,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_publisher_presets.png")
 
         def publisher_presets_create():
-            page.get_by_text("No publisher_preset items").click()
             page.get_by_test_id("new-publisher_preset-button").click()
             expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
             ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
-            expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
-            page.get_by_label("Publisher Type Select a").select_option("ftp_publisher")
-            expect(ftp_url_input).to_be_visible()
+            self.select_dynamic_type_and_wait(page, "ftp_publisher", "/admin/publisher_parameters/0", ftp_url_input)
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
@@ -992,16 +985,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def publisher_presets_delete():
             page.get_by_role("alert").locator("div").filter(has_text="Successfully updated").click()
-            bot_table = page.get_by_test_id("publisher_preset-table")
-            all_rows = bot_table.locator("tbody tr")
+            publisher_table = page.get_by_test_id("publisher_preset-table")
+            all_rows = publisher_table.locator("tbody tr")
             expect(all_rows).to_have_count(1)
-            bot_table.locator('[data-testid^="action-delete-"]').first.click()
+            publisher_table.locator('[data-testid^="action-delete-"]').first.click()
 
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
 
             page.get_by_role("button", name="OK").click()
-
-            page.get_by_text("PublisherPreset ").click()
+            expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
 
         load_publisher_presets()
         publisher_presets_create()
