@@ -494,44 +494,71 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_admin_acls(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
+        acl_table = page.get_by_test_id("acl-table")
 
         def load_acls():
             page.goto(url_for("admin.acls", _external=True))
+            expect(acl_table).to_be_visible()
+            expect(page.get_by_test_id("new-acl-button")).to_be_visible()
 
         def test_acl_create():
             page.get_by_test_id("new-acl-button").click()
-            expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
+            acl_form = page.locator("#acl-form")
+            expect(acl_form).to_be_visible()
 
-            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").click()
-            page.get_by_role("textbox", name="Name").fill("Test ACL")
-            expect(page.locator('select[name="item_type"]')).to_have_attribute("required", "")
-            page.get_by_label("Item Type * Select an item").select_option("osint_source_group")
-            expect(page.get_by_label("OSINT Source Group * Default")).to_be_visible()
-            expect(page.locator('select[name="item_id"]')).to_have_attribute("required", "")
+            name_input = acl_form.locator('input[name="name"]')
+            item_type_select = acl_form.locator('select[name="item_type"]')
+            item_id_select = acl_form.locator('#item_ids select[name="item_id"]')
+            roles_table = acl_form.locator("#roles-table")
+            roles_widget = acl_form.locator("#dataTableDiv")
 
-            page.get_by_role("checkbox", name="Enabled").uncheck()
-            page.get_by_role("checkbox", name="read_only").uncheck()
-            page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").check()
-            page.get_by_role("row", name="User Basic user role").get_by_role("checkbox").check()
+            expect(name_input).to_have_attribute("required", "")
+            name_input.fill("Test ACL")
+            expect(item_type_select).to_have_attribute("required", "")
+            with page.expect_response(
+                lambda response: (
+                    response.request.method == "GET"
+                    and "/admin/acl/item_ids" in response.url
+                    and "item_type=osint_source_group" in response.url
+                )
+            ) as response_info:
+                item_type_select.select_option("osint_source_group")
+            assert response_info.value.ok, f"Expected successful item load, but got {response_info.value.status}: {response_info.value.url}"
+            expect(item_id_select).to_be_enabled()
+            expect(item_id_select).to_have_attribute("required", "")
+
+            acl_form.locator('input[name="enabled"][type="checkbox"]').set_checked(False)
+            acl_form.locator('input[name="read_only"][type="checkbox"]').set_checked(False)
+            roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]').click()
+            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(1)
+            roles_table.locator("tbody tr", has_text="User Basic user role").locator('input[type="checkbox"]').click()
+            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="2"]')).to_have_count(1)
             page.get_by_role("button", name="Create ACL").click()
 
         def test_acl_update():
             page.get_by_role("link", name="Test ACL").click()
-            expect(page.get_by_role("row", name="Name Description Id")).to_be_visible()
+            acl_form = page.locator("#acl-form")
+            expect(acl_form).to_be_visible()
 
-            page.get_by_role("row", name="Admin Administrator role").get_by_role("checkbox").uncheck()
-            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill("Test ACL updated")
-            page.get_by_role("checkbox", name="Enabled").check()
-            page.get_by_role("checkbox", name="read_only").check()
+            roles_table = acl_form.locator("#roles-table")
+            roles_widget = acl_form.locator("#dataTableDiv")
+            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(1)
+            roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]').click()
+            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(0)
+            name_input = acl_form.locator('input[name="name"]')
+            expect(name_input).to_have_attribute("required", "")
+            name_input.fill("Test ACL updated")
+            acl_form.locator('input[name="enabled"][type="checkbox"]').set_checked(True)
+            acl_form.locator('input[name="read_only"][type="checkbox"]').set_checked(True)
             page.get_by_role("button", name="Update ACL").click()
 
         def test_acl_delete():
-            expect(page.get_by_role("row", name="Test ACL updated")).to_be_visible()
-            page.get_by_test_id("action-delete-1").click()
+            acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
+            expect(acl_row).to_be_visible()
+            acl_row.locator('[data-testid^="action-delete-"]').click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
+            expect(acl_row).not_to_be_visible()
 
         load_acls()
         test_acl_create()
