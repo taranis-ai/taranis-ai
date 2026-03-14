@@ -1,12 +1,11 @@
-from flask import render_template, abort
-
-
+from flask import abort, render_template
 from models.dashboard import Dashboard
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+
+from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.config import Config
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class AdminDashboardView(AdminMixin, BaseView):
@@ -36,7 +35,13 @@ class AdminDashboardView(AdminMixin, BaseView):
             logger.error(f"Error retrieving {cls.model_name()} items: {error}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
-        context = {"data": dashboard[0], "build_info": cls.get_build_info(), **cls._common_context(error)}
+        context = {
+            "data": dashboard[0],
+            "dashboard_health": cls.get_dashboard_health(dashboard[0]),
+            "build_info": cls.get_build_info(),
+            "health_badge_classes": cls.get_health_badge_classes(),
+            **cls._common_context(error),
+        }
         return render_template(template, **context), 200
 
     @classmethod
@@ -45,6 +50,34 @@ class AdminDashboardView(AdminMixin, BaseView):
         if Config.GIT_INFO:
             result |= Config.GIT_INFO
         return result
+
+    @staticmethod
+    def get_health_badge_classes() -> dict[str, str]:
+        return {
+            "up": "badge-success",
+            "down": "badge-error",
+            "n/a": "badge-neutral",
+        }
+
+    @staticmethod
+    def get_dashboard_health(dashboard: Dashboard) -> dict[str, bool | dict[str, str]] | None:
+        health_status = dashboard.get("health_status") if isinstance(dashboard, dict) else getattr(dashboard, "health_status", None)
+        if not health_status:
+            return None
+
+        services = getattr(health_status, "services", {})
+        if isinstance(health_status, dict):
+            services = health_status.get("services", {})
+            healthy = health_status.get("healthy", False)
+        else:
+            healthy = getattr(health_status, "healthy", False)
+
+        if hasattr(services, "model_dump"):
+            services = services.model_dump()
+        elif not isinstance(services, dict):
+            services = {}
+
+        return {"healthy": bool(healthy), "services": services}
 
     def get(self, **kwargs):
         return self.static_view()
