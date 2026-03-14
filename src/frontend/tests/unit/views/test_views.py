@@ -8,10 +8,12 @@ from flask import render_template
 from models.admin import OSINTSource
 from models.types import COLLECTOR_TYPES
 
-
+from frontend.cache import cache
 from frontend.config import Config
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.dashboard_views import AdminDashboardView
 from frontend.views.admin_views.source_views import SourceView
+from frontend.views.base_view import BaseView
+
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
 _VALID_PNG_BYTES = base64.b64decode(_VALID_PNG_BASE64)
@@ -299,3 +301,47 @@ class TestSourceView:
         assert "An icon is currently uploaded." in html
         assert 'name="delete_icon"' in html
         assert 'data-testid="current-osint-icon"' in html
+
+
+def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock):
+    for key in list(cache.cache._cache.keys()):
+        if key.endswith("_dashboard"):
+            cache.delete(key)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
+        json={
+            "items": [
+                {
+                    "total_news_items": 10,
+                    "total_story_items": 5,
+                    "total_products": 2,
+                    "report_items_completed": 3,
+                    "report_items_in_progress": 1,
+                    "latest_collected": "2025-01-14T21:16:42.699574+01:00",
+                    "schedule_length": 4,
+                    "conflict_count": 0,
+                    "health_status": {
+                        "healthy": False,
+                        "services": {
+                            "database": "up",
+                            "broker": "down",
+                            "workers": "down",
+                        },
+                    },
+                    "worker_status": {},
+                }
+            ]
+        },
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client.get(AdminDashboardView.get_base_route())
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "System Health" in html
+    assert "Degraded" in html
+    assert "database" in html
+    assert "broker" in html
+    assert "workers" in html

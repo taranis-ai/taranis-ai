@@ -3,7 +3,6 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from core.config import Config
-from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.service.dashboard import DashboardService
@@ -30,11 +29,7 @@ class TrendingClusters(MethodView):
 
         trending_cluster_days = dashboard_settings.get("trending_cluster_days", 7)
         trending_cluster_filter = dashboard_settings.get("trending_cluster_filter", None)
-        logger.debug(f"{trending_cluster_days=}, {trending_cluster_filter=}")
         days = int(request.args.get("days", trending_cluster_days))
-        legacy = request.args.get("legacy", "false").lower() == "true"
-        if legacy:
-            return NewsItemTagService.get_largest_tag_types(days)
 
         items = list(NewsItemTagService.get_largest_tag_types(days).values())
 
