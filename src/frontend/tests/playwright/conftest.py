@@ -181,6 +181,19 @@ def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
     return any(re.search(p, msg_text) for p in allow_patterns)
 
 
+def _dismiss_notifications(page: Page):
+    if page.is_closed():
+        return
+
+    alerts = page.locator("#notification-bar [role='alert']")
+    while alerts.count():
+        try:
+            alerts.first.click(timeout=500)
+            page.wait_for_timeout(100)
+        except Exception:
+            break
+
+
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
     cookies: list[dict] = []
@@ -219,7 +232,16 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     page.context.add_cookies(context_cookies)
 
-    yield page
+    def on_load():
+        _dismiss_notifications(page)
+
+    page.on("load", on_load)
+    _dismiss_notifications(page)
+
+    try:
+        yield page
+    finally:
+        page.remove_listener("load", on_load)
 
 
 @pytest.fixture
@@ -270,6 +292,7 @@ def forward_console_and_page_errors(request, logged_in_page):
     finally:
         page.remove_listener("console", on_console)
         page.remove_listener("pageerror", on_pageerror)
+        _dismiss_notifications(page)
 
         for w in warns:
             pywarnings.warn(UserWarning(w), stacklevel=0)

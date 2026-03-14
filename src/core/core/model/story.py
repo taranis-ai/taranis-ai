@@ -169,15 +169,20 @@ class Story(BaseModel):
         if item_ids := filter_args.get("story_ids"):
             return query.filter(cls.id.in_(item_ids))
 
+        source_group_filters = []
+
         if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
             query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
 
         if group := filter_args.get("group"):
-            query = query.filter(OSINTSourceGroup.id.in_(group))
+            source_group_filters.append(OSINTSourceGroup.id.in_(group))
 
         if source := filter_args.get("source"):
-            query = query.filter(OSINTSource.id.in_(source))
+            source_group_filters.append(OSINTSource.id.in_(source))
+
+        if source_group_filters:
+            query = query.filter(or_(*source_group_filters))
 
         if search := filter_args.get("search"):
             sort: bool = "relevance" in filter_args.get("sort", "").lower()
