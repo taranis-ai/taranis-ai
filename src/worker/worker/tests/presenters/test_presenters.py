@@ -137,3 +137,57 @@ def test_generate_real_stix_bundle(stix_presenter):
     assert bundle["spec_version"] == "2.1"
     assert isinstance(bundle["objects"], list)
     assert any(obj["type"] == "report" for obj in bundle["objects"])
+
+
+def test_stix_bundle_exports_report_groups_as_objects(stix_presenter):
+    from presenters_test_data import test_stix_product
+
+    result = stix_presenter.generate(test_stix_product, None)
+    bundle = json.loads(result)
+
+    report_group_objects = [
+        obj for obj in bundle["objects"] if obj.get("type") == "x-misp-object" and obj.get("x_misp_name") == "taranis-report-group"
+    ]
+    assert len(report_group_objects) == 2
+
+    grouped_fields = {}
+    for obj in report_group_objects:
+        group_name = None
+        fields = []
+        for attribute in obj.get("x_misp_attributes", []):
+            if attribute.get("object_relation") == "group_name":
+                group_name = attribute.get("value")
+            if attribute.get("object_relation") == "field":
+                fields.append(json.loads(attribute["value"]))
+
+        assert group_name
+        grouped_fields[group_name] = fields
+
+    assert {"name": "Links", "type": "text", "value": "link2"} in grouped_fields["Identify and Act"]
+    assert {"name": "Links", "type": "text", "value": "link1"} in grouped_fields["Vulnerability"]
+    assert {"name": "TLP", "type": "text", "value": "clear"} in grouped_fields["Vulnerability"]
+
+
+def test_stix_bundle_contains_product_grouping_context(stix_presenter):
+    from presenters_test_data import test_stix_product
+
+    result = stix_presenter.generate(test_stix_product, None)
+    bundle = json.loads(result)
+
+    grouping_objects = [obj for obj in bundle["objects"] if obj.get("type") == "grouping"]
+    assert len(grouping_objects) == 1
+
+    grouping_object = grouping_objects[0]
+    report_ids = {obj["id"] for obj in bundle["objects"] if obj.get("type") == "report"}
+
+    assert grouping_object["context"] == "unspecified"
+    assert set(grouping_object["object_refs"]) == report_ids
+    assert grouping_object["x_taranis_product_id"] == test_stix_product["id"]
+    assert grouping_object["x_taranis_product_title"] == test_stix_product["title"]
+    assert grouping_object["x_taranis_product_type"] == test_stix_product["type"]
+    assert grouping_object["x_taranis_product_mime_type"] == test_stix_product["mime_type"]
+    assert grouping_object["x_taranis_product_type_id"] == test_stix_product["type_id"]
+    assert grouping_object["x_taranis_product_report_count"] == len(report_ids)
+    assert grouping_object["x_taranis_product_description"] == test_stix_product["description"]
+    assert "description" not in grouping_object
+    assert "x_taranis_product_fields" not in grouping_object

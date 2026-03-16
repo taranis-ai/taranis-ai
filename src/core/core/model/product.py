@@ -123,6 +123,7 @@ class Product(BaseModel):
         return {
             "id": self.id,
             "title": self.title,
+            "description": self.description,
             "type": self.product_type.type,
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),

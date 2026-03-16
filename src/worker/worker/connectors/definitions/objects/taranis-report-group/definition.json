@@ -1,0 +1,20 @@
+{
+    "attributes": {
+        "group_name": {
+            "description": "Name of the report item group",
+            "misp-attribute": "text",
+            "ui-priority": 0
+        },
+        "field": {
+            "description": "Serialized field entry with original field name, value and mapped type",
+            "misp-attribute": "text",
+            "multiple": true,
+            "ui-priority": 0
+        }
+    },
+    "description": "A flexible report group exported from Taranis report-item attributes",
+    "meta-category": "misc",
+    "name": "Taranis Report Group",
+    "uuid": "a367bd9c-d5d1-40e8-a8ac-0ddf9c3dd2d8",
+    "version": 1
+}
