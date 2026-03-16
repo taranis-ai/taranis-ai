@@ -247,10 +247,6 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
             },
-            "search_terms": {
-                "extra_title": "Story Filter Extra Source Story",
-                "anonymous_title": "Anonymous News Item",
-            },
         }
 
         ReportItem.delete_all()
