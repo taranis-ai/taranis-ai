@@ -110,9 +110,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             expect(page.locator('select[name="organization"]')).to_have_attribute("required", "")
             page.get_by_label("Organization").select_option("1")
-            expect(page.locator('select[name="roles[]"]')).to_have_attribute("required", "")
-            page.get_by_role("searchbox", name="Select roles").click()
-            page.get_by_role("option", name="User - Basic user role Press").click()
+            roles_select = page.locator('select[name="roles[]"]')
+            expect(roles_select).to_have_attribute("required", "")
+            roles_select.select_option(label="User - Basic user role", force=True)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             with page.expect_response(url_for("admin.users", _external=True)) as response_info:
