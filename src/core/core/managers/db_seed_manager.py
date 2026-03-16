@@ -60,8 +60,10 @@ def sync_enums(db_engine: Engine):
 
 
 def pre_seed_update(db_engine: Engine):
-    from core.managers.pre_seed_data import bots, workers
+    from core.managers.pre_seed_data import bots, product_types, report_types, workers
     from core.model.bot import Bot
+    from core.model.product_type import ProductType
+    from core.model.report_item import ReportItemType
     from core.model.settings import Settings
     from core.model.worker import Worker
 
@@ -86,6 +88,16 @@ def pre_seed_update(db_engine: Engine):
         bot = Bot.filter_by_type(b["type"])
         if not bot:
             Bot.add(b)
+
+    for r in report_types:
+        rt = ReportItemType.filter_by_title(r["title"])
+        if not rt:
+            ReportItemType.add(r)
+
+    for p in product_types:
+        pt = ProductType.filter_by_title(p["title"])
+        if not pt:
+            ProductType.add(p)
 
     Settings.initialize()
 

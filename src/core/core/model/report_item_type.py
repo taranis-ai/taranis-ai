@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.attribute import Attribute
 from core.model.base_model import BaseModel
@@ -231,6 +232,14 @@ class ReportItemType(BaseModel):
         base_query = cls.get_filter_query_with_acl({}, user)
         items = cls.get_filtered(base_query) or []
         return {"items": [i.to_user_dict() for i in items]}, 200
+
+    @classmethod
+    def filter_by_title(cls, title: str) -> "ReportItemType | None":
+        try:
+            return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
+        except Exception:
+            logger.exception(f"Error filtering product types by title: {title}")
+            return None
 
     @classmethod
     def update(cls, report_type_id, data) -> "ReportItemType | None":
