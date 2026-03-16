@@ -141,6 +141,123 @@ def stories(app, news_items):
 
 
 @pytest.fixture(scope="class")
+def story_filter_data(app, stories, fake_source, cleanup_report_item):
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.news_item import NewsItem
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+        from core.model.report_item import ReportItem
+        from core.model.story import Story, StoryNewsItemAttribute
+
+        extra_source = OSINTSource(
+            id="story-filter-source-extra",
+            name="Story Filter Extra Source",
+            description="Additional source for story filter tests",
+            type="rss_collector",
+            parameters=[{"FEED_URL": "https://example.invalid/story-filter-extra.xml"}],
+        )
+        source_group = OSINTSourceGroup(
+            id="story-filter-group",
+            name="Story Filter Group",
+            description="Source group for story filter tests",
+        )
+
+        db.session.add_all([extra_source, source_group])
+        source_group.osint_sources.append(OSINTSource.get(fake_source))
+        db.session.commit()
+
+        extra_story_payload = {
+            "title": "Story Filter Extra Source Story",
+            "news_items": [
+                {
+                    "id": "story-filter-news-item-extra",
+                    "title": "Story Filter Extra Source Story",
+                    "content": "Story Filter Extra Source Story Content",
+                    "source": "unit-test",
+                    "link": "https://example.invalid/story-filter-extra",
+                    "osint_source_id": extra_source.id,
+                    "hash": NewsItem.get_hash(
+                        title="Story Filter Extra Source Story",
+                        content="Story Filter Extra Source Story Content",
+                    ),
+                    "collected": "2025-01-01T00:00:00",
+                    "published": "2025-01-01T00:00:00",
+                }
+            ],
+        }
+        result, status = Story.add(extra_story_payload)
+        assert status == 200
+
+        grouped_flagged = Story.get(stories[0])
+        grouped_plain = Story.get(stories[1])
+        manual_important = Story.get(stories[2])
+        source_only = Story.get(result["story_id"])
+        assert grouped_flagged is not None
+        assert grouped_plain is not None
+        assert manual_important is not None
+        assert source_only is not None
+
+        grouped_flagged.read = True
+        grouped_flagged.important = True
+        grouped_flagged.relevance = 10
+
+        grouped_plain.read = False
+        grouped_plain.important = False
+        grouped_plain.relevance = 0
+
+        manual_important.read = False
+        manual_important.important = True
+        manual_important.relevance = 0
+
+        source_only.read = True
+        source_only.important = False
+        source_only.relevance = 5
+        db.session.commit()
+
+        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
+        assert manual_important.set_tags(["filter-gamma"])[1] == 200
+        assert source_only.set_tags(["filter-delta"])[1] == 200
+
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = "story-filter-report-item"
+        report_payload["title"] = "Story Filter Report Item"
+        report_payload["stories"] = [grouped_flagged.id]
+        report_item, status = ReportItem.add(report_payload)
+        assert status == 200
+        assert isinstance(report_item, ReportItem)
+
+        yield {
+            "stories": {
+                "grouped_flagged": grouped_flagged.id,
+                "grouped_plain": grouped_plain.id,
+                "manual_important": manual_important.id,
+                "source_only": source_only.id,
+            },
+            "sources": {
+                "grouped": fake_source,
+                "source_only": extra_source.id,
+            },
+            "groups": {
+                "primary": source_group.id,
+            },
+            "tags": {
+                "alpha": "filter-alpha",
+                "beta": "filter-beta",
+                "gamma": "filter-gamma",
+                "delta": "filter-delta",
+            },
+        }
+
+        ReportItem.delete_all()
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()
+        OSINTSourceGroup.delete(source_group.id)
+        OSINTSource.delete(extra_source.id)
+
+
+@pytest.fixture(scope="class")
 def cleanup_report_item(app):
     with app.app_context():
         from core.model.report_item import ReportItem

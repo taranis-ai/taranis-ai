@@ -1,0 +1,31 @@
+{% from "macros/table.html" import table, table_search_bar %}
+
+{% set actions = actions | default([]) %}
+{% set data = model_plural_name | get_var %}
+{% set table_container = model_name + '-table-container' %}
+
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [] }">
+  <div class="flex gap-4 mb-4">
+    {% if routes.edit_route %}
+      <div class="grow-0">
+        <a href="{{ routes.edit_route }}" class="btn btn-primary" data-testid="new-{{ model_name }}-button">New {{ name }}</a>
+      </div>
+    {% endif %}
+    {{ table_search_bar(table_container, routes.base_route) }}
+    {% if routes.edit_route %}
+      <div class="grow-0">
+        <button type="button"
+                class="btn btn-error"
+                data-testid="delete-{{ model_name }}-button"
+                :hx-vals="JSON.stringify({ ids: selectedItems })"
+                hx-delete="{{ routes.base_route }}"
+                hx-confirm="Are you sure you want to delete the selected items?"
+                hx-target="#{{ table_container }}"
+                :disabled="selectedItems.length === 0">
+          Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
+        </button>
+      </div>
+    {% endif %}
+  </div>
+  {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
+</div>
