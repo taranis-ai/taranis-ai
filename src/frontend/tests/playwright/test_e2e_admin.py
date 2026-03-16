@@ -941,7 +941,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def add_connector():
             page.get_by_test_id("new-connector-button").click()
-            expect(page.get_by_role("heading", name="Create Connector")).to_be_visible()
+            expect(page.get_by_test_id("connector-form")).to_be_visible()
             refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
@@ -957,19 +957,20 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]').set_checked(True)
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
-            page.get_by_role("button", name="Create Connector").click()
-            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=connector_name, exact=True)).first
-            expect(connector_row).to_be_visible()
+            page.get_by_test_id("connector-submit-button").click()
+            expect(page.get_by_test_id("connector-form")).to_have_count(0)
+            expect(connector_table.get_by_role("link", name=connector_name, exact=True)).to_be_visible()
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
+            expect(page.get_by_test_id("connector-form")).to_be_visible()
             expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(updated_connector_name)
-            page.get_by_role("button", name="Update Connector").click()
-            updated_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
-            expect(updated_row).to_be_visible()
+            page.get_by_test_id("connector-submit-button").click()
+            expect(page.get_by_test_id("connector-form")).to_have_count(0)
+            expect(connector_table.get_by_role("link", name=updated_connector_name, exact=True)).to_be_visible()
 
         def remove_connector():
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first

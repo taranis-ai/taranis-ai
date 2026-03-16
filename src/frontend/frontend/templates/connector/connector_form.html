@@ -14,8 +14,10 @@
   {% endif %}
 
   <form id="{{ model_name }}-form"
+        data-testid="connector-form"
         class="w-1/2 ml-[10%]"
         {{ form_action }}
+        hx-sync="this:replace"
         hx-swap="innerHTML"
         hx-target="#form-container"
         hx-target-error="#form-container">
@@ -28,11 +30,13 @@
       <span class="label">Connector Type</span>
       <select id="connector_type"
               name="type"
+              data-testid="connector-type-select"
               required
               class="validator select w-full"
               hx-get="{{ url_for('admin.connector_parameters', connector_id=connector_id) }}"
               hx-trigger="change"
               hx-include="#connector_type"
+              hx-sync="closest form:replace"
               hx-target="#parameters"
               hx-swap="innerHTML"
               {% if connector.type %}disabled{% endif %}>
@@ -44,8 +48,8 @@
       {% if connector.type %}<input type="hidden" name="type" value="{{ connector.type }}">{% endif %}
     </label>
 
-    <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
+    <div id="parameters" data-testid="connector-parameters">{% include "partials/worker_parameters.html" %}</div>
 
-    <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />
+    <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="connector-submit-button" />
   </form>
 </div>
