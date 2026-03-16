@@ -6,4 +6,6 @@ uv sync --upgrade --all-extras --directory src/core
 uv sync --upgrade --all-extras --directory src/worker
 uv sync --upgrade --all-extras --directory src/models
 uv sync --upgrade --all-extras --directory src/frontend
-deno outdated --update --config src/frontend/deno.json
+pushd src/frontend
+deno outdated --update
+

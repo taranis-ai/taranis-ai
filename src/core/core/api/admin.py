@@ -1,15 +1,18 @@
 import io
-from flask import Blueprint, Flask, request, send_file, url_for
-from flask.views import MethodView
 from datetime import datetime
 
+from flask import Blueprint, Flask, request, send_file, url_for
+from flask.views import MethodView
+from models.admin import ExportStoriesQuery
+from pydantic import ValidationError
+
+from core.config import Config
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
+from core.model.settings import Settings
 from core.model.story import Story
 from core.service.story import StoryService
-from core.model.settings import Settings
-from core.managers import queue_manager
-from core.config import Config
 
 
 class DeleteTags(MethodView):
@@ -46,14 +49,23 @@ class ClearQueues(MethodView):
 class ExportStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        if request.args.get("metadata", False):
-            data = StoryService.export_with_metadata()
-        else:
-            data = StoryService.export()
+        try:
+            query = ExportStoriesQuery.model_validate(request.args.to_dict())
+        except ValidationError as exc:
+            return {"error": exc.errors(include_url=False)}, 400
 
-        timestamp = datetime.now().isoformat()
+        time_from = query.timefrom
+        time_to = query.timeto
+
+        if query.metadata:
+            data = StoryService.export_with_metadata(time_from, time_to)
+        else:
+            data = StoryService.export(time_from, time_to)
+
         if data is None:
             return {"error": "Unable to export"}, 400
+
+        timestamp = datetime.now().isoformat()
         return send_file(
             io.BytesIO(data),
             download_name=f"story_export_{timestamp}.json",
