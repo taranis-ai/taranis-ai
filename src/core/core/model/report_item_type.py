@@ -156,7 +156,7 @@ class ReportItemType(BaseModel):
     __tablename__ = "report_item_type"
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    title: Mapped[str] = db.Column(db.String())
+    title: Mapped[str] = db.Column(db.String(), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
     attribute_groups: Mapped[list["AttributeGroup"]] = relationship(
@@ -238,7 +238,7 @@ class ReportItemType(BaseModel):
         try:
             return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
         except Exception:
-            logger.exception(f"Error filtering product types by title: {title}")
+            logger.exception(f"Error filtering report types by title: {title}")
             return None
 
     @classmethod
