@@ -1,651 +1,213 @@
-from __future__ import annotations
-
-import uuid
-from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import Any, Optional
-
-from sqlalchemy import inspect, or_
-from sqlalchemy.orm import Mapped, relationship
+from typing import Any
+from datetime import datetime
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import Select
-from sqlalchemy.sql.expression import false
 
-from core.log import logger
-from core.managers.db_manager import db
-from core.model.attribute import AttributeEnum, AttributeType
+from core.managers.log_manager import logger
+from core.model.report_item_type import ReportItemType
+from core.model.attribute import Attribute
+from core.model.news_item import NewsItemAggregate
+from core.model.report_item_cpe import ReportItemCpe
 from core.model.base_model import BaseModel
-from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
-from core.model.revision import ReportRevision
-from core.model.role_based_access import ItemType, RoleBasedAccess
-from core.model.story import Story
-from core.model.user import User
-from core.service.news_item_tag import NewsItemTagService
-from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItem(BaseModel):
+    """Report item model.
+
+    Attributes:
+        id: Primary key
+        uuid: UUID of the report item
+        title: Title
+        title_prefix: Title prefix
+        created: Creation timestamp
+        last_updated: Last update timestamp
+        completed: Whether the report item is completed
+        user_id: User ID of the creator
+        remote_user: Remote user name
+        report_item_type_id: Foreign key to report item type
+    """
+
     __tablename__ = "report_item"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uuid: Mapped[str] = mapped_column(index=True, unique=True)
+    title: Mapped[str]
+    title_prefix: Mapped[str]
+    created: Mapped[datetime]
+    last_updated: Mapped[datetime]
+    completed: Mapped[bool] = mapped_column(default=False)
+    user_id: Mapped[int | None]
+    remote_user: Mapped[str | None]
 
-    title: Mapped[str] = db.Column(db.String())
-
-    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
-    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
-    completed: Mapped[bool] = db.Column(db.Boolean, default=False)
-    revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
-
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    user: Mapped["User"] = relationship("User")
-
-    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
+    report_item_type_id: Mapped[int] = mapped_column(index=True)
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
-    stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False
+    attributes: Mapped[list["Attribute"]] = relationship(
+        "Attribute",
+        secondary="report_item_attribute",
+        back_populates="report_items",
+        cascade="all, delete",
     )
 
-    attributes: Mapped[list["ReportItemAttribute"]] = relationship(
-        "ReportItemAttribute",
-        back_populates="report_item",
-        cascade="all, delete-orphan",
-        order_by="ReportItemAttribute.index",
-        lazy="selectin",
+    news_item_aggregates: Mapped[list["NewsItemAggregate"]] = relationship(
+        "NewsItemAggregate",
+        secondary="news_item_aggregate_report_item",
+        back_populates="report_items",
     )
 
-    report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
-        "ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item"
-    )
+    report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship("ReportItemCpe", back_populates="report_item", cascade="all, delete-orphan")
 
     def __init__(
         self,
-        title,
-        report_item_type_id,
-        stories=None,
-        attributes=None,
-        completed=False,
-        revision: int = 0,
-        report_item_cpes=None,
-        id=None,
+        id: int | None = None,
+        uuid: str | None = None,
+        title: str | None = None,
+        title_prefix: str | None = None,
+        created: datetime | None = None,
+        last_updated: datetime | None = None,
+        completed: bool = False,
+        user_id: int | None = None,
+        remote_user: str | None = None,
+        report_item_type_id: int | None = None,
+        report_item_type: ReportItemType | None = None,
+        attributes: list | None = None,
+        news_item_aggregates: list | None = None,
+        report_item_cpes: list | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
-        self.title = title
-        self.report_item_type_id = report_item_type_id
-        self.attributes = attributes or []
+        self.id = id
+        self.uuid = uuid or ""
+        self.title = title or ""
+        self.title_prefix = title_prefix or ""
+        self.created = created or datetime.now()
+        self.last_updated = last_updated or datetime.now()
         self.completed = completed
-        self.revision = revision
+        self.user_id = user_id
+        self.remote_user = remote_user
+        self.report_item_type_id = report_item_type_id
+        if report_item_type:
+            self.report_item_type = report_item_type
+        self.attributes = attributes or []
+        self.news_item_aggregates = news_item_aggregates or []
         self.report_item_cpes = report_item_cpes or []
-        if stories is not None:
-            self.stories = Story.get_bulk(stories)
 
     @classmethod
-    def count_all(cls, is_completed: bool) -> int:
-        return cls.get_filtered_count(db.select(cls).filter_by(completed=is_completed))
+    def get_filter_query_with_joins(cls, filter_args: dict) -> Select:
+        """Get filter query with joins.
 
-    @classmethod
-    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
-        # sourcery skip: assign-if-exp, reintroduce-else, swap-if-else-branches, use-named-expression
-        item = cls.get(item_id)
-        if not item:
-            return {"error": f"{cls.__name__} {item_id} not found"}, 404
-        if user and not item.allowed_with_acl(user, False):
-            return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
+        Arguments:
+            filter_args: filter arguments
 
-        return item.to_detail_dict(), 200
+        Returns:
+            Query with joins
+        """
+        query = cls.get_filter_query(filter_args)
 
-    @classmethod
-    def get_story_ids(cls, item_id: str) -> tuple[dict[str, Any], int]:
-        if report_item := cls.get(item_id):
-            return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
-        return {"error": "Report Item not found"}, 404
-
-    @classmethod
-    def get_detail_json(cls, id: str) -> dict[str, Any] | None:
-        report_item = cls.get(id)
-        return report_item.to_detail_dict() if report_item else None
-
-    def to_dict(self):
-        data = super().to_dict()
-        data["stories"] = [story.id for story in self.stories]
-        data["report_item_type"] = self.report_item_type.title if self.report_item_type else ""
-        return data
-
-    @classmethod
-    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = filter_args or {}
-        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        if user:
-            base_query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            base_query = cls.get_filter_query(filter_args)
-        query = base_query
-        if not cls._should_fetch_all(filter_args):
-            query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query)
-        items = cls.get_filtered(query) or []
-        item_list = cls.to_list(items)
-        if filter_args.get("order") == "stories_asc":
-            item_list.sort(key=lambda x: len(x.get("stories", [])))
-        elif filter_args.get("order") == "stories_desc":
-            item_list.sort(key=lambda x: len(x.get("stories", [])), reverse=True)
-
-        if with_count:
-            count = cls.get_filtered_count(base_query)
-            return {"total_count": count, "items": item_list}, 200
-        return {"items": item_list}, 200
-
-    def get_attribute_dict(self) -> list[dict[str, Any]]:
-        return [attribute.to_report_dict() for attribute in self.attributes]
-
-    def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-        attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
-        grouped: OrderedDict[str | None, list[dict[str, Any]]] = OrderedDict()
-        for attribute in attribute_dicts:
-            group_title = attribute.get("group_title")
-            grouped.setdefault(group_title, []).append(attribute)
-        return [{"title": title, "attributes": items} for title, items in grouped.items()]
-
-    def get_attribute_groups(self, attributes: list[dict[str, Any]] | None = None) -> list[str]:
-        grouped_attributes = self.get_grouped_attributes(attributes)
-        return [(group["title"] or "") for group in grouped_attributes]
-
-    def to_detail_dict(self):
-        data = super().to_dict()
-        attributes = self.get_attribute_dict()
-        data["grouped_attributes"] = self.get_grouped_attributes(attributes)
-        data["stories"] = [story.to_dict() for story in self.stories if story]
-        data["revision_count"] = self.get_revision_count()
-        return data
-
-    def to_supported_products_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "type": self.report_item_type.title if self.report_item_type else "",
-            "created": self.serialize_datetime(self.created),
-        }
-
-    def to_product_dict(self):
-        data = super().to_dict()
-
-        if self.attributes:
-            grouped_attributes = {}
-            for attribute in self.attributes:
-                group_title = attribute.group_title
-                attribute_title = attribute.title
-                attribute_value = attribute.value
-
-                if group_title not in grouped_attributes:
-                    grouped_attributes[group_title] = {}
-
-                grouped_attributes[group_title][attribute_title] = attribute_value
-
-            data["attributes"] = grouped_attributes
-        else:
-            data["attributes"] = {}
-
-        data["stories"] = [story.to_worker_dict() for story in self.stories if story]
-        return data
-
-    def record_revision(self, user: User | None = None, note: str | None = None) -> ReportRevision | None:
-        if not self.id:
-            return None
-
-        state = inspect(self)
-        if state.deleted or state.detached or self in db.session.deleted:
-            return None
-
-        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
-        return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
-
-    def get_revision_count(self) -> int:
-        """Get the number of revisions for this report"""
-        return self.revision or 0
-
-    @staticmethod
-    def _clean_title(raw_title: Any) -> str | None:
-        if isinstance(raw_title, str):
-            title = raw_title.strip()
-            if title:
-                return title
-        return None
-
-    @staticmethod
-    def _extract_story_ids(stories: Any) -> list[str] | None:
-        if not isinstance(stories, list):
-            return None
-
-        normalized: list[str] = []
-        for story in stories:
-            if isinstance(story, str):
-                normalized.append(story)
-                continue
-            if isinstance(story, dict):
-                story_id = story.get("id") or story.get("story_id")
-                if isinstance(story_id, str):
-                    normalized.append(story_id)
-                    continue
-            return None
-        return normalized
-
-    @classmethod
-    def _sanitize_create_payload(cls, data: Any) -> tuple[dict[str, Any] | None, tuple[dict[str, Any], int] | None]:
-        if not isinstance(data, dict):
-            return None, ({"error": "Invalid request payload"}, 400)
-
-        if (title := cls._clean_title(data.get("title"))) is None:
-            return None, ({"error": "Title is required"}, 400)
-
-        try:
-            report_item_type_id = int(data.get("report_item_type_id"))
-        except (TypeError, ValueError):
-            return None, ({"error": "report_item_type_id must be an integer"}, 400)
-
-        if report_item_type_id <= 0 or not ReportItemType.get(report_item_type_id):
-            return None, ({"error": "Invalid report item type"}, 400)
-
-        sanitized: dict[str, Any] = {
-            "title": title,
-            "report_item_type_id": report_item_type_id,
-        }
-
-        if "completed" in data:
-            completed = data.get("completed")
-            if not isinstance(completed, bool):
-                return None, ({"error": "completed must be a boolean"}, 400)
-            sanitized["completed"] = completed
-
-        if "stories" in data:
-            normalized_stories = cls._extract_story_ids(data.get("stories"))
-            if normalized_stories is None:
-                return None, ({"error": "stories must be a list of story ids"}, 400)
-            sanitized["stories"] = normalized_stories
-
-        if "report_item_cpes" in data:
-            sanitized["report_item_cpes"] = data["report_item_cpes"]
-
-        if raw_id := data.get("id"):
-            if isinstance(raw_id, str) and raw_id.strip():
-                sanitized["id"] = raw_id.strip()
-            else:
-                return None, ({"error": "id must be a non-empty string"}, 400)
-
-        return sanitized, None
-
-    def clone_report(self, user: User | None = None) -> "ReportItem":
-        attributes = [a.clone_attribute() for a in self.attributes]
-
-        report = ReportItem(
-            title=f"{self.title} ({datetime.now().isoformat()})",
-            report_item_type_id=self.report_item_type_id,
-            attributes=attributes,
-            completed=self.completed,
-            stories=[],
-        )
-        if user:
-            report.user_id = user.id
-        db.session.add(report)
-        return report
-
-    @classmethod
-    def clone(cls, report_id: str, user: User) -> tuple[dict[str, Any], int]:
-        report = cls.get(report_id)
-        if not report:
-            return {"error": "Report not found"}, 404
-
-        if not report.allowed_with_acl(user, True):
-            return {"error": "Permission Denied"}, 403
-
-        new_report = report.clone_report(user=user)
-        new_report.record_revision(user, note="cloned")
-        db.session.commit()
-        return {
-            "message": f"Successfully cloned Report '{new_report.title}'",
-            "report": new_report.to_detail_dict(),
-            "id": new_report.id,
-        }, 200
-
-    @classmethod
-    def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
-        return [cls.from_dict(report_item) for report_item in data]
-
-    @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem" | dict[str, Any], int]:
-        sanitized_data, error = cls._sanitize_create_payload(report_item_data)
-        if error:
-            return error[0], error[1]
-
-        report_item = cls.from_dict(sanitized_data)
-
-        if not report_item.allowed_with_acl(user, True):
-            return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
-
-        if user:
-            report_item.user_id = user.id
-        report_item.add_attributes()
-
-        if stories := report_item.stories:
-            for story in stories:
-                NewsItemTagService.add_report_tag(story, report_item)
-        db.session.add(report_item)
-        db.session.flush()
-        report_item.record_revision(user, note="created")
-        db.session.commit()
-        return report_item, 200
-
-    def add_attributes(self):
-        """Adds attributes based on the report item type to the report item."""
-        report_item_type = ReportItemType.get(self.report_item_type_id)
-        if not report_item_type:
-            return
-
-        next_index = 0
-        sorted_groups = sorted(report_item_type.attribute_groups, key=AttributeGroup.sort)
-        for attribute_group in sorted_groups:
-            sorted_items = sorted(attribute_group.attribute_group_items, key=AttributeGroupItem.sort)
-            for attribute_group_item in sorted_items:
-                attribute_enums = AttributeEnum.get_all_for_attribute(attribute_group_item.attribute.id)
-                attribute_enum_data = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums] if attribute_enums else None
-                attr = {
-                    "title": attribute_group_item.title,
-                    "description": attribute_group_item.description,
-                    "index": next_index,
-                    "required": attribute_group_item.required,
-                    "attribute_type": attribute_group_item.attribute.type,
-                    "group_title": attribute_group.title,
-                    "value": attribute_group_item.attribute.default_value or None,
-                    "render_data": {},
-                }
-                if attribute_enum_data:
-                    attr["render_data"]["attribute_enums"] = attribute_enum_data
-                if default_value := attribute_group_item.attribute.default_value:
-                    attr["render_data"]["default_value"] = default_value
-                if attribute_group_item.attribute.type == AttributeType.TLP:
-                    attr["value"] = "clear"
-                self.attributes.append(ReportItemAttribute(**attr))
-                next_index += 1
-
-    def allowed_with_acl(self, user, require_write_access) -> bool:
-        if not RoleBasedAccess.is_enabled() or not user:
-            return True
-
-        query = RBACQuery(
-            user=user,
-            resource_id=str(self.report_item_type_id),
-            resource_type=ItemType.REPORT_ITEM_TYPE,
-            require_write_access=require_write_access,
-        )
-
-        return RoleBasedAccessService.user_has_access_to_resource(query)
+        return query.join(ReportItemType, cls.report_item_type)
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls)
-        query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
+        """Get filter query.
+
+        Arguments:
+            filter_args: filter arguments
+
+        Returns:
+            Query
+        """
+        query = cls.get_base_query()
 
         if search := filter_args.get("search"):
-            query = query.where(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
+            query = query.filter(
+                or_(
+                    func.lower(cls.title).like(func.lower(f"%{search}%")),
+                    func.lower(cls.title_prefix).like(func.lower(f"%{search}%")),
+                )
+            )
 
-        if filter_range := filter_args.get("range"):
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if completed := filter_args.get("completed"):
+            query = query.filter(cls.completed == (completed == "true"))
 
-            if filter_range.upper() == "WEEK":
-                date_limit -= timedelta(days=date_limit.weekday())
-                query = query.filter(ReportItem.created >= date_limit)
-
-            if filter_range.upper() == "MONTH":
-                date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                query = query.filter(ReportItem.created >= date_limit)
-
-        completed = filter_args.get("completed", "").lower()
-        if completed == "true":
-            query = query.filter(ReportItem.completed)
-
-        if completed == "false":
-            query = query.filter(ReportItem.completed == false())
+        if range_filter := filter_args.get("range"):
+            filter_range = range_filter.upper()
+            if filter_range == "WEEK":
+                query = query.filter(cls.created >= datetime.now() - datetime.timedelta(days=7))
+            elif filter_range == "MONTH":
+                query = query.filter(cls.created >= datetime.now() - datetime.timedelta(days=31))
 
         return query
 
     @classmethod
-    def default_sort_column(cls) -> str:
-        return "created_desc"
+    def get_all_for_api(cls, filter_args: dict) -> tuple[list[dict[str, Any]], int]:
+        query = cls.get_filter_query_with_joins(filter_args)
+        return super().get_all_for_api_from_query(query, filter_args)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["report_item_type"] = self.report_item_type.to_dict()
+        data["attributes"] = [attr.to_dict() for attr in self.attributes]
+        data["news_item_aggregates"] = [agg.to_dict() for agg in self.news_item_aggregates]
+        data["report_item_cpes"] = [cpe.to_dict() for cpe in self.report_item_cpes]
+        return data
 
     @classmethod
-    def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
-        query = cls.get_filter_query(filter_args)
-        rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-        query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
-        return query
+    def get_detail_by_uuid(cls, report_item_uuid: str) -> dict[str, Any] | None:
+        """Get report item detail by UUID.
+
+        Arguments:
+            report_item_uuid: Report item UUID
+
+        Returns:
+            Report item detail
+        """
+        if report_item := cls.get_by_uuid(report_item_uuid):
+            return report_item.to_dict()
+        return None
 
     @classmethod
-    def get_by_cpe(cls, cpes):
-        query = db.select(cls).distinct(cls.id).join(ReportItemCpe, ReportItem.id == ReportItemCpe.report_item_id)
-        query = query.filter(ReportItemCpe.value.in_(cpes))
-        return cls.get_filtered(query)
+    def delete_by_uuid(cls, report_item_uuid: str) -> dict[str, Any]:
+        """Delete report item by UUID.
+
+        Arguments:
+            report_item_uuid: Report item UUID
+
+        Returns:
+            Success status
+        """
+        report_item = cls.get_by_uuid(report_item_uuid)
+        if not report_item:
+            logger.warning(f"Report item {report_item_uuid} not found")
+            return {"error": "Report item not found"}
+
+        report_item.delete()
+        logger.info(f"Report item {report_item_uuid} deleted")
+        return {"message": "Report item deleted", "id": report_item_uuid}
 
     @classmethod
-    def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[Optional["ReportItem"], dict, int]:
-        if not (report_item := cls.get(report_id)):
-            return None, {"error": "Report Item not Found"}, 404
+    def update_by_uuid(cls, report_item_uuid: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Update report item by UUID.
 
-        if not report_item.allowed_with_acl(user, True):
-            return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
+        Arguments:
+            report_item_uuid: Report item UUID
+            data: Update data
 
-        return report_item, {}, 200
+        Returns:
+            Updated report item
+        """
+        report_item = cls.get_by_uuid(report_item_uuid)
+        if not report_item:
+            logger.warning(f"Report item {report_item_uuid} not found")
+            return {"error": "Report item not found"}
 
-    @classmethod
-    def add_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
-        if err or not report_item:
-            return err, status
+        if "title" in data:
+            report_item.title = data["title"]
+        if "title_prefix" in data:
+            report_item.title_prefix = data["title_prefix"]
+        if "completed" in data:
+            report_item.completed = data["completed"]
 
-        stories = Story.get_bulk(story_ids)
-        report_item.stories.extend(stories)
-        for story in stories:
-            NewsItemTagService.add_report_tag(story, report_item)
-        report_item.record_revision(user, note="add_stories")
-        db.session.commit()
+        report_item.last_updated = datetime.now()
+        report_item.update()
 
-        logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
-        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
-
-    @classmethod
-    def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
-        if err or not report_item:
-            return err, status
-
-        stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
-        for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, report_item.id)
-
-        report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
-        report_item.record_revision(user, note="remove_stories")
-        db.session.commit()
-
-        return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
-
-    @classmethod
-    def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
-        new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
-        return {"message": f"Successfully updated Report Item {report_id}", "report": new_report}, status
-
-    def update_stories(self, story_ids: list[str]):
-        new_stories = Story.get_bulk(story_ids)
-        new_story_ids_set = set(story_ids)
-
-        existing_story_ids_set = {story.id for story in self.stories}
-
-        # Identify stories to add and remove
-        stories_to_add = [story for story in new_stories if story.id not in existing_story_ids_set]
-        stories_to_remove = [story for story in self.stories if story.id not in new_story_ids_set]
-
-        # Add new stories and their tags
-        for story in stories_to_add:
-            NewsItemTagService.add_report_tag(story, self)
-            self.stories.append(story)
-
-        # Remove old stories and their tags
-        for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, self.id)
-            self.stories.remove(story)
-
-    def retag_stories(self):
-        for story in self.stories:
-            NewsItemTagService.remove_report_tag(story, self.id)
-            NewsItemTagService.add_report_tag(story, self)
-
-    @classmethod
-    def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
-        retag_stories = False
-        logger.debug(f"Updating Report Item {report_id} with data: {data}")
-        if err or not report_item:
-            return err, status
-
-        if title := data.get("title"):
-            retag_stories = True
-            report_item.title = title
-
-        completed = data.get("completed")
-        if completed is not None:
-            report_item.completed = completed
-
-        if attributes_data := data.pop("attributes", None):
-            report_item.update_attributes(attributes_data)
-
-        story_ids = data.get("story_ids", data.get("stories"))
-        if story_ids is not None:
-            normalized_ids = cls._extract_story_ids(story_ids)
-            if normalized_ids is None:
-                return {"error": "stories must be a list of story ids"}, 400
-            report_item.update_stories(normalized_ids)
-
-        if retag_stories:
-            report_item.retag_stories()
-
-        report_item.record_revision(user, note="update")
-        db.session.commit()
-
-        logger.debug(f"Updated Report Item {report_item.id}")
-
-        return report_item.to_detail_dict(), 200
-
-    def update_attributes(self, attributes_data: dict, commit=False):
-        for attr in self.attributes:
-            attr_id_str = str(attr.id)
-            if attr_id_str in attributes_data:
-                attr.value = attributes_data[attr_id_str]
-        if commit:
-            db.session.commit()
-
-    @classmethod
-    def delete(cls, report_id: str) -> tuple[dict[str, Any], int]:
-        from core.model.product import ProductReportItem
-
-        report = cls.get(report_id)
-        if not report:
-            return {"error": "Report not found"}, 404
-
-        if ProductReportItem.assigned(report_id):
-            return {"error": "Report is used in a product"}, 409
-
-        db.session.delete(report)
-        db.session.commit()
-        return {"message": f"Successfully deleted report '{report.title}'"}, 200
-
-
-class ReportItemAttribute(BaseModel):
-    __tablename__ = "report_item_attribute"
-
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    value: Mapped[str] = db.Column(db.String())
-
-    title: Mapped[str] = db.Column(db.String())
-    description: Mapped[str] = db.Column(db.String())
-
-    index: Mapped[int] = db.Column(db.Integer)
-    required: Mapped[bool] = db.Column(db.Boolean, default=False)
-    attribute_type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
-    group_title: Mapped[str] = db.Column(db.String())
-    render_data = db.Column(db.JSON)
-
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
-    report_item = relationship("ReportItem")
-
-    def __init__(
-        self,
-        value=None,
-        title=None,
-        description=None,
-        index=None,
-        required=None,
-        attribute_type=None,
-        group_title=None,
-        render_data=None,
-        id=None,
-    ):
-        if id:
-            self.id = id
-        self.value = value or ""
-        self.title = title or ""
-        self.description = description or ""
-        self.index = index or 0
-        self.required = required or False
-        if attribute_type and attribute_type in AttributeType:
-            self.attribute_type = attribute_type
-        self.render_data = render_data
-        self.group_title = group_title or ""
-
-    @classmethod
-    def find_attribute_by_title(cls, report_item_id, title: str) -> "ReportItemAttribute | None":
-        query = db.select(cls).filter_by(report_item_id=report_item_id, title=title)
-        return cls.get_first(query)
-
-    @staticmethod
-    def sort(report_item_attribute):
-        return report_item_attribute.last_updated
-
-    def to_product_dict(self):
-        return {
-            self.title: self.value,
-        }
-
-    def to_report_dict(self):
-        return {
-            "id": str(self.id),
-            "title": self.title,
-            "description": self.description,
-            "index": self.index,
-            "required": self.required,
-            "type": self.attribute_type.name,
-            "group_title": self.group_title,
-            "render_data": self.render_data,
-            "value": self.value,
-        }
-
-    def clone_attribute(self):
-        value = "" if self.attribute_type in [AttributeType.STORY] else self.value
-
-        return ReportItemAttribute(
-            value=value,
-            title=self.title,
-            description=self.description,
-            index=self.index,
-            required=self.required,
-            attribute_type=self.attribute_type,
-            group_title=self.group_title,
-            render_data=self.render_data,
-        )
-
-
-class ReportItemCpe(BaseModel):
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    value: Mapped[str] = db.Column(db.String())
-
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
-    report_item: Mapped["ReportItem"] = relationship("ReportItem")
-
-    def __init__(self, value):
-        self.value = value
+        logger.info(f"Report item {report_item_uuid} updated")
+        return report_item.to_dict()
