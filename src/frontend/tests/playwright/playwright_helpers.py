@@ -1,7 +1,8 @@
 import time
 from uuid import UUID
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 class PlaywrightHelpers:
@@ -116,6 +117,26 @@ class PlaywrightHelpers:
                 expect(page.get_by_test_id(test_id)).to_be_visible(timeout=3000)
             except Exception as e:
                 raise AssertionError(f"❌ Expected test ID '{test_id}' to be visible, but it was not.") from e
+
+    def select_dynamic_type_and_wait(self, page: Page, option: str, parameter_route_fragment: str, ready_locator: Locator):
+        """Select a type that loads extra parameters over HTMX and wait for the new controls."""
+        type_select = page.locator('select[name="type"]')
+        expect(type_select).to_have_attribute("required", "")
+
+        def response_predicate(response):
+            return response.request.method == "GET" and parameter_route_fragment in response.url and f"type={option}" in response.url
+
+        try:
+            with page.expect_response(response_predicate, timeout=2000) as response_info:
+                type_select.select_option(option)
+            response = response_info.value
+        except PlaywrightTimeoutError:
+            with page.expect_response(response_predicate, timeout=5000) as response_info:
+                type_select.dispatch_event("change")
+            response = response_info.value
+
+        assert response.ok, f"Expected successful parameter load for {option!r}, but got {response.status}: {response.url}"
+        expect(ready_locator).to_be_visible()
 
     def is_uuid4(self, value: str) -> bool:
         try:

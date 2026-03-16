@@ -67,6 +67,14 @@ class ProductType(BaseModel):
         return "title_asc"
 
     @classmethod
+    def filter_by_title(cls, title: str) -> "ProductType | None":
+        try:
+            return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
+        except Exception:
+            logger.exception(f"Error filtering product types by title: {title}")
+            return None
+
+    @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
         query = cls.get_filter_query(filter_args)
         rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
