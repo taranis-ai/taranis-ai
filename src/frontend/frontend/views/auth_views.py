@@ -1,10 +1,10 @@
 import contextlib
+
 import requests
-from urllib.parse import urlparse
 from flask import Response, make_response, render_template, request, url_for
 from flask.views import MethodView
 
-from frontend.auth import logout
+from frontend.auth import is_safe_redirect_target, logout
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.log import logger
@@ -15,13 +15,9 @@ class AuthView(MethodView):
     def _safe_next_location() -> str:
         fallback = url_for("base.dashboard")
         next_target = request.args.get("next")
-        if not next_target:
+        if not is_safe_redirect_target(next_target):
             return fallback
-
-        parsed = urlparse(next_target)
-        if parsed.scheme or parsed.netloc or next_target.startswith("//"):
-            return fallback
-        return next_target if next_target.startswith("/") else fallback
+        return next_target
 
     def _external_login_with_retries(self, auth_headers: dict[str, str], attempts: int = 3) -> Response:
         for attempt in range(1, attempts + 1):
@@ -53,9 +49,7 @@ class AuthView(MethodView):
                 response_json = core_response.json()
                 if isinstance(response_json, dict):
                     error_message = response_json.get("error", error_message)
-            return make_response(
-                render_template("login/index.html", login_error=error_message), core_response.status_code
-            )
+            return make_response(render_template("login/index.html", login_error=error_message), core_response.status_code)
 
         location = self._safe_next_location()
         response = Response(status=302, headers={"Location": location})

@@ -54,6 +54,14 @@
       </div>
       <div class="flex flex-col gap-3">
         <div class="flex justify-end gap-2">
+          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-42" {% if has_rt_id %}disabled{% endif %}>
+            {{ heroicon_mini("check") }}
+            <span>Save changes</span>
+          </button>
+          <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-sm btn-outline w-42">
+            {{ heroicon_mini("arrow-uturn-left") }}
+            <span>Return to story</span>
+          </a>
           <button type="button"
                   class="btn btn-outline btn-sm"
                   hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
@@ -204,9 +212,9 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="submit" class="btn btn-primary sm:w-48" {% if has_rt_id %}disabled{% endif %}>Save changes</button>
-            <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-ghost sm:w-48">Return to story</a>
-            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
+            {% if has_rt_id %}
+              <p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>
+            {% endif %}
           </footer>
         </div>
       </form>
