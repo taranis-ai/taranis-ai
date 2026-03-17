@@ -54,7 +54,7 @@
       </div>
       <div class="flex flex-col gap-3">
         <div class="flex justify-end gap-2">
-          <button type="submit" class="btn btn-sm btn-primary w-42" {% if has_rt_id %}disabled{% endif %}>
+          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-42" {% if has_rt_id %}disabled{% endif %}>
             {{ heroicon_mini("check") }}
             <span>Save changes</span>
           </button>
