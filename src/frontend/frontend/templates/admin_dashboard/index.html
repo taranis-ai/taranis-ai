@@ -18,6 +18,7 @@
         Build date: <b>{{ build_info.get("build_date") | format_datetime }}</b>
       {% endcall %}
 
+      {% include "admin_dashboard/health_status.html" %}
       {% include "admin_dashboard/worker_stats.html" %}
     </div>
   </div>

@@ -6,6 +6,7 @@ from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.model.task import Task
+from core.service.health import get_health_response
 
 
 class DashboardService:
@@ -19,6 +20,7 @@ class DashboardService:
         latest_collected = NewsItem.latest_collected()
         schedule_length = schedule_manager.schedule.get_periodic_tasks().get("total_count", 0)
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
+        health_status, _ = get_health_response()
         return {
             "items": [
                 {
@@ -30,6 +32,7 @@ class DashboardService:
                     "latest_collected": latest_collected,
                     "schedule_length": schedule_length,
                     "conflict_count": conflict_count,
+                    "health_status": health_status,
                     "worker_status": cls.get_worker_status(),
                 }
             ]

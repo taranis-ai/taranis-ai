@@ -1,0 +1,18 @@
+{% if dashboard_health %}
+  {% call dashboard_card('System Health', None) %}
+    <div class="flex flex-col gap-2 text-sm">
+      <div class="flex items-center gap-2">
+        <span class="badge {{ 'badge-success' if dashboard_health.healthy else 'badge-error' }}">
+          {{ 'Healthy' if dashboard_health.healthy else 'Degraded' }}
+        </span>
+      </div>
+
+      {% for service, status in dashboard_health.services.items() %}
+        <div class="flex items-center justify-between gap-4">
+          <span class="capitalize">{{ service }}</span>
+          <span class="badge {{ health_badge_classes.get(status, 'badge-neutral') }}">{{ status }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endcall %}
+{% endif %}

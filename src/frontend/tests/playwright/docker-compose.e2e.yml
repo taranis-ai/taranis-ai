@@ -34,7 +34,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8080/api/isalive'', timeout=2)"',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8080/api/health'', timeout=2)"',
         ]
       interval: 2s
       timeout: 3s
