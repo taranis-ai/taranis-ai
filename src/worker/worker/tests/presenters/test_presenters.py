@@ -2,7 +2,6 @@ import json
 
 import pytest
 from jinja2.exceptions import SecurityError
-from weasyprint import HTML as WeasyHTML
 
 import worker.presenters.pandoc_presenter as pandocp
 import worker.presenters.pdf_presenter as pdfp
@@ -89,13 +88,19 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
 
 
 def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime, monkeypatch):
-    class UncompressedHTML(WeasyHTML):
-        def write_pdf(self, target=None, **options):
-            assert target is None
-            options.setdefault("uncompressed_pdf", True)
-            return super().write_pdf(target=target, **options)
+    class FakeHTML:
+        def __init__(self, string):
+            self.string = string
 
-    monkeypatch.setattr(pdfp, "HTML", UncompressedHTML, raising=True)
+        def write_pdf(self, target=None, finisher=None):
+            assert target is None
+            assert finisher is not None
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            return b"%PDF-1.7\n<<" + b"".join(f"/{key} ({value})".encode() for key, value in fake_pdf.info.items()) + b">>\n"
+
+    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
 
     product = {"title": "A Test Report"}
     template = """
