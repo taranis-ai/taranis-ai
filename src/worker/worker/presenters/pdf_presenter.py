@@ -8,6 +8,10 @@ class PDFPresenter(BasePresenter):
     name = "PDF Presenter"
     description = "Presenter for generating PDF documents"
 
+    @staticmethod
+    def _remove_generated_metadata(_document, pdf) -> None:
+        pdf.info.clear()
+
     def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
         if parameters is None:
             parameters = {}
@@ -16,7 +20,7 @@ class PDFPresenter(BasePresenter):
 
         try:
             html = HTML(string=output_text)
-            data = html.write_pdf(target=None)
+            data = html.write_pdf(target=None, finisher=self._remove_generated_metadata)
         except Exception as error:
             BasePresenter.print_exception(self, error)
             raise ValueError(f"PDF generation failed: {error}") from error
