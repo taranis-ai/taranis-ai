@@ -31,6 +31,7 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
         def write_pdf(self, target=None, finisher=None):
             assert target is None
             assert finisher is not None
+            assert callable(finisher)
             return b"%PDF-1.7\n%fake\n"
 
     monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
