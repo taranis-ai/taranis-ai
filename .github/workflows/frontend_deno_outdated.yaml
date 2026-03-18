@@ -1,0 +1,132 @@
+name: frontend deno outdated
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  outdated:
+    name: check frontend deno dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+          cache: true
+
+      - name: Check for outdated Deno dependencies
+        id: outdated
+        run: |
+          set -euo pipefail
+
+          deno outdated -q > outdated.txt
+
+          if [ -s outdated.txt ]; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write workflow summary
+        if: always()
+        env:
+          HAS_UPDATES: ${{ steps.outdated.outputs.has_updates }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          checked_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          {
+            echo "## Frontend Deno outdated check"
+            echo
+            echo "- Path: \`src/frontend\`"
+            echo "- Checked at (UTC): \`$checked_at\`"
+            echo "- Repository: \`${{ github.repository }}\`"
+            echo "- Branch: \`${{ github.ref_name }}\`"
+            echo "- Run: $RUN_URL"
+            echo
+
+            if [ -f outdated.txt ] && [ -s outdated.txt ]; then
+              echo "Outdated dependencies were found."
+              echo
+              echo '```text'
+              cat outdated.txt
+              echo '```'
+            elif [ "${HAS_UPDATES:-}" = "false" ]; then
+              echo "No outdated dependencies found."
+            else
+              echo "The outdated check did not produce a report. Inspect the job logs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Mattermost
+        id: mattermost
+        if: ${{ steps.outdated.outputs.has_updates == 'true' }}
+        continue-on-error: true
+        env:
+          MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${MATTERMOST_WEBHOOK_URL:-}" ]; then
+            echo "::error::MATTERMOST_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          checked_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          payload="$(jq -Rn \
+            --arg repo "${{ github.repository }}" \
+            --arg workflow "${{ github.workflow }}" \
+            --arg branch "${{ github.ref_name }}" \
+            --arg checked_at "$checked_at" \
+            --arg run_url "$RUN_URL" \
+            --arg report "$(cat outdated.txt)" \
+            '{text: ("Frontend Deno dependencies are outdated.\n\nRepository: \($repo)\nWorkflow: \($workflow)\nBranch: \($branch)\nChecked at (UTC): \($checked_at)\nRun: \($run_url)\n\n```text\n\($report)\n```")}')"
+
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "$MATTERMOST_WEBHOOK_URL"
+
+      - name: Update summary with notification status
+        if: ${{ always() && steps.outdated.outputs.has_updates == 'true' }}
+        env:
+          MATTERMOST_OUTCOME: ${{ steps.mattermost.outcome }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo
+            if [ "${MATTERMOST_OUTCOME:-}" = "success" ]; then
+              echo "- Mattermost notification: sent"
+            else
+              echo "- Mattermost notification: failed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if outdated dependencies exist
+        if: ${{ steps.outdated.outputs.has_updates == 'true' }}
+        env:
+          MATTERMOST_OUTCOME: ${{ steps.mattermost.outcome }}
+        run: |
+          if [ "${MATTERMOST_OUTCOME:-}" = "success" ]; then
+            echo "::error::Outdated frontend Deno dependencies found. Mattermost notification was sent. See workflow summary for details."
+          else
+            echo "::error::Outdated frontend Deno dependencies found. Mattermost notification failed or is not configured. See workflow summary and logs for details."
+          fi
+          exit 1
