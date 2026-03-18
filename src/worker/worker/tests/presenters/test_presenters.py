@@ -32,6 +32,10 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
             assert target is None
             assert finisher is not None
             assert callable(finisher)
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            assert fake_pdf.info == {"Title": "A Test Report"}
             return b"%PDF-1.7\n%fake\n"
 
     monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
@@ -68,6 +72,10 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
 
         def write_pdf(self, target=None, finisher=None):
             assert finisher is not None
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            assert fake_pdf.info == {"Title": "A Test Report"}
             return ""
 
     monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
