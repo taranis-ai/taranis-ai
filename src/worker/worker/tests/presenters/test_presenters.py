@@ -100,9 +100,9 @@ def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime,
     out = pdf_presenter.generate(product, template)
 
     assert isinstance(out, (bytes, bytearray))
-    assert b"/Info" not in out
     assert b"/Producer" not in out
-    assert b"/Title" not in out
+    assert b"WeasyPrint" not in out
+    assert b"/Title" in out
 
 
 def test_pandoc_presenter_succesful_render(pandoc_presenter, fixed_datetime, monkeypatch):
