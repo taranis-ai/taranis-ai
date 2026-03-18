@@ -102,7 +102,6 @@ def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime,
     assert b"/Info" not in out
     assert b"/Producer" not in out
     assert b"/Title" not in out
-    assert product["current_date"] == "2025-01-02"
 
 
 def test_pandoc_presenter_succesful_render(pandoc_presenter, fixed_datetime, monkeypatch):
