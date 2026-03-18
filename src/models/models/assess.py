@@ -104,7 +104,7 @@ class NewsItem(TaranisBaseModel):
     @field_validator("published", "collected", mode="before")
     @classmethod
     def sanitize_date(cls, date: str | None | datetime) -> datetime:
-        return cls.normalize_datetime(date, default_to_now=True)
+        return cls.normalize_datetime(date, default_to_now=True) or _utcnow()
 
 
 class StoryTag(TaranisBaseModel):
