@@ -49,6 +49,19 @@ class NewsItem(TaranisBaseModel):
     language: LanguageAlpha2 | None = None
     last_change: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_model_input(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        normalized.pop("updated", None)
+        normalized.pop("hash", None)
+        if normalized.get("language") in ("", None):
+            normalized.pop("language", None)
+        return normalized
+
     @classmethod
     def from_input(cls, data: Any) -> Self:
         """Untrusted input: run validators + sanitizers."""
@@ -94,6 +107,9 @@ class NewsItem(TaranisBaseModel):
     @classmethod
     def sanitize_date(cls, date: str | None | datetime) -> datetime:
         return cls.normalize_datetime(date, default_to_now=True) or _utcnow()
+
+    def to_core_dict(self) -> dict[str, Any]:
+        return self.model_dump(exclude={"updated"})
 
 
 class StoryTag(TaranisBaseModel):

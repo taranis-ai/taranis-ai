@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
 
-from models.assess import NewsItem as NewsItemCreatePayload
+from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
@@ -561,20 +561,19 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict) -> "tuple[dict, int]":
-        if NewsItem.identical(news_item.get("hash")):
+    def add_from_news_item(cls, news_item: AssessNewsItem) -> "tuple[dict, int]":
+        if news_item_obj := NewsItem.get_by_hash(news_item.hash):
             logger.warning("Identical news item found. Skipping...")
-            news_item_obj = NewsItem.get(news_item.get("id", ""))
             return {
                 "error": "Identical news item found. Skipping...",
                 "skipped_news_item_story_id": news_item_obj.story_id if news_item_obj else None,
-            }, 400
+            }, 409
 
         data = {
-            "title": news_item.get("title"),
-            "created": news_item.get("published"),
-            "news_items": [news_item],
-            "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
+            "title": news_item.title,
+            "created": news_item.published,
+            "news_items": [NewsItem.from_payload(news_item)],
+            "last_change": "internal" if news_item.osint_source_id == "manual" else "external",
         }
 
         return cls.add(data)
@@ -600,23 +599,24 @@ class Story(BaseModel):
         return {"message": "Stories added or updated successfully", "details": {"story_ids": story_ids}}, 200
 
     @classmethod
-    def check_news_item_data(cls, news_item: dict[str, Any]) -> dict[str, str] | None:
+    def check_news_item_data(cls, news_item: dict[str, Any]) -> tuple[AssessNewsItem | None, dict[str, str] | None]:
         try:
-            validated_payload = NewsItemCreatePayload.model_validate(news_item)
+            return AssessNewsItem.from_input(news_item), None
         except ValidationError as exc:
-            errors = "; ".join(f"{'.'.join(str(loc_part) for loc_part in err.get('loc', []))}: {err.get('msg')}" for err in exc.errors())
-            return {"error": f"Invalid news item data{f': {errors}' if errors else ''}"}
+            return None, AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data")
 
-        news_item.update(validated_payload.model_dump())
-        return None
+        return None, None
 
     @classmethod
     def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
-        if err := cls.check_news_item_data(news_item):
+        normalized_news_item, err = cls.check_news_item_data(news_item)
+        if err:
             logger.error(err)
             return err, 400
+        if normalized_news_item is None:
+            return {"error": "Invalid news item data"}, 400
         try:
-            return cls.add_from_news_item(news_item)
+            return cls.add_from_news_item(normalized_news_item)
         except Exception as e:
             logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
@@ -628,13 +628,17 @@ class Story(BaseModel):
         skipped_items = []
         try:
             for news_item in news_items_list:
-                if err := cls.check_news_item_data(news_item):
+                normalized_news_item, err = cls.check_news_item_data(news_item)
+                if err:
                     logger.warning(err)
                     skipped_items.append(err)
                     continue
-                message, status = cls.add_from_news_item(news_item)
-                if status > 299:
+                if normalized_news_item is None:
                     skipped_items.append(news_item.get("title", "Unknown Title"))
+                    continue
+                message, status = cls.add_from_news_item(normalized_news_item)
+                if status > 299:
+                    skipped_items.append(normalized_news_item.title or news_item.get("title", "Unknown Title"))
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
