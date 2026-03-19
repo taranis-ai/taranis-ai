@@ -27,8 +27,14 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
         def __init__(self, string):
             self.string = string
 
-        def write_pdf(self, target=None):
+        def write_pdf(self, target=None, finisher=None):
             assert target is None
+            assert finisher is not None
+            assert callable(finisher)
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            assert fake_pdf.info == {"Title": "A Test Report"}
             return b"%PDF-1.7\n%fake\n"
 
     monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
@@ -63,7 +69,12 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
         def __init__(self, string):
             self.string = string
 
-        def write_pdf(self, target=None):
+        def write_pdf(self, target=None, finisher=None):
+            assert finisher is not None
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            assert fake_pdf.info == {"Title": "A Test Report"}
             return ""
 
     monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
@@ -74,6 +85,37 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
     with pytest.raises(ValueError) as exception:
         _ = pdf_presenter.generate(product, template)
     assert str(exception.value) == "PDF generation failed: No data returned"
+
+
+def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime, monkeypatch):
+    class FakeHTML:
+        def __init__(self, string):
+            self.string = string
+
+        def write_pdf(self, target=None, finisher=None):
+            assert target is None
+            assert finisher is not None
+            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
+            finisher(object(), fake_pdf)
+            return b"%PDF-1.7\n<<" + b"".join(f"/{key} ({value})".encode() for key, value in fake_pdf.info.items()) + b">>\n"
+
+    monkeypatch.setattr(pdfp, "HTML", FakeHTML, raising=True)
+
+    product = {"title": "A Test Report"}
+    template = """
+    <html>
+      <head><title>{{ data.title }}</title></head>
+      <body><p>{{ data.current_date }}</p></body>
+    </html>
+    """
+
+    out = pdf_presenter.generate(product, template)
+
+    assert isinstance(out, (bytes, bytearray))
+    assert b"/Producer" not in out
+    assert b"WeasyPrint" not in out
+    assert b"/Title" in out
 
 
 def test_pandoc_presenter_succesful_render(pandoc_presenter, fixed_datetime, monkeypatch):
