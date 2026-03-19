@@ -6,9 +6,8 @@ from typing import Any, Literal, Self
 from urllib.parse import quote
 
 from bs4 import BeautifulSoup
-from langcodes import Language
-from langcodes.tag_parser import LanguageTagError
 from pydantic import ValidationInfo, field_validator, model_validator
+from pydantic_extra_types.language_code import LanguageAlpha2
 
 from models.base import TaranisBaseModel
 
@@ -47,7 +46,7 @@ class NewsItem(TaranisBaseModel):
     updated: datetime | None = None
     attributes: list[str | dict[str, Any]] | None = None
     story_id: str | None = None
-    language: str | None = None
+    language: LanguageAlpha2 | None = None
     last_change: str | None = None
 
     @classmethod
@@ -63,16 +62,6 @@ class NewsItem(TaranisBaseModel):
     @classmethod
     def normalize_datetime(cls, date: str | datetime | None, default_to_now: bool = False) -> datetime | None:
         return _normalize_datetime(date) or (_utcnow() if default_to_now else None)
-
-    @field_validator("language", mode="before")
-    @classmethod
-    def normalize_language_code(cls, v: str, info: ValidationInfo) -> str:
-        if v:
-            try:
-                return Language.get(v).language or ""
-            except (LanguageTagError, ValueError, TypeError):
-                return ""
-        return ""
 
     @model_validator(mode="after")
     def check_required_fields(self) -> Self:

@@ -44,6 +44,7 @@
         <div class="grid gap-4 md:grid-cols-2">
           <form class="card border border-base-200 bg-base-100 shadow-sm"
                 hx-post="{{ url_for('assess.create_news_item') }}"
+                hx-target-error="#notification-bar"
                 hx-encoding="multipart/form-data"
                 enctype="multipart/form-data">
             <div class="card-body space-y-3">
@@ -62,6 +63,7 @@
             class="card bg-base-100 shadow-xl border border-base-200"
             hx-post="{{ form_submit_url }}"
             hx-target="main"
+            hx-target-error="#notification-bar"
             hx-swap="outerHTML">
         <div class="card-body space-y-6">
           <label class="input w-full">
@@ -107,6 +109,18 @@
                    class="input input-bordered w-full"
                    {% if read_only %}readonly{% endif %}>
             <span class="label-text-alt text-xs text-base-content/60">Providing a URL helps others trace the original source.</span>
+          </label>
+
+          <label class="input w-full">
+            <span class="label-text font-semibold">Language</span>
+            <input type="text"
+                   name="language"
+                   value="{{ news_item.language or '' }}"
+                   pattern="[a-zA-Z]{2}"
+                   placeholder="e.g. en, de, fr"
+                   class="input input-bordered w-full"
+                   {% if read_only %}readonly{% endif %}>
+            <span class="label-text-alt text-xs text-base-content/60">ISO 639 language code</span>
           </label>
 
           <label class="floating-label w-full">

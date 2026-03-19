@@ -76,6 +76,16 @@
             </div>
           {% endif %}
 
+          {% set languages = news_items | map(attribute='language') | select('string') | select | unique | list %}
+          {% if languages and detail_view %}
+            <div class="flex gap-3 mb-2">
+              <span class="font-semibold uppercase tracking-wide text-xs text-base-content/60">Language</span>
+              <div class="flex gap-1">
+                {% for lang in languages %}<span class="badge badge-ghost badge-xs uppercase">{{ lang }}</span>{% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
           {% if not compact_view %}
             <div class="flex items-center gap-1 mb-2">
               <div class="flex flex-wrap items-center gap-2 gap-y-1 text-xs">
@@ -181,9 +191,12 @@
                 {% for item in news_items %}{{ news_item_card(item, story) }}{% endfor %}
               {% else %}
                 {% for item in news_items %}
-                  <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
-                    {{ item.title or 'Untitled news item' }}
-                  </h3>
+                  <div class="flex flex-wrap items-start gap-2">
+                    <h3 class="font-semibold text-base text-base-content highlight break-all" data-testid="news-item-title-{{ item.id }}">
+                      {{ item.title or 'Untitled news item' }}
+                    </h3>
+                    {% if item.language %}<span class="badge badge-ghost badge-sm uppercase">{{ item.language }}</span>{% endif %}
+                  </div>
                   <a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-xs inline-flex items-center gap-1">
                     {{ heroicon_mini("arrow-top-right-on-square") }}
                     <span>{{ item.link }}</span>

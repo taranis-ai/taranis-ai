@@ -255,6 +255,9 @@ class NewsItem(BaseModel):
         if content := data.get("content"):
             self.content = content
 
+        if "language" in data:
+            self.language = data.get("language", "")
+
         if published := data.get("published"):
             self.published = self.get_date_field(published)
 
