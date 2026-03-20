@@ -117,7 +117,7 @@ class NewsItem(BaseModel):
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
-        combined_str = f"{title}{link}" if title or link else content
+        combined_str = f"{title}{link}"
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
