@@ -31,6 +31,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        page.context.clear_cookies()
         self.add_keystroke_overlay(page)
 
         page.goto(url_for("base.login", _external=True))
