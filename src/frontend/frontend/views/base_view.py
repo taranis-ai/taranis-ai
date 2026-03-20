@@ -299,12 +299,8 @@ class BaseView(MethodView):
                 **cls.get_update_context(object_id, error=error),
             ), 400
 
-        notification_response = cls.render_response_notification(core_response)
-        table_response, table_status = cls.list_view()
-        response = notification_response + table_response
-        flask_response = make_response(response, table_status)
-        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
-        return flask_response
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
