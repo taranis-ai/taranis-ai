@@ -31,12 +31,12 @@ class AttributeView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
+            form_data.pop("csrf_token", None)
             logger.debug(f"Parsed form data: {form_data}")
-            obj = cls.model(**form_data)
-            dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
-            DataPersistenceLayer().invalidate_cache_by_object(ReportItemType)
-            return (result.json(), None) if result.ok else (None, result.json().get("error"))
+            core_response, error = cls.store_form_data(form_data, object_id)
+            if core_response and not error:
+                DataPersistenceLayer().invalidate_cache_by_object(ReportItemType)
+            return core_response, error
         except Exception as exc:
             logger.exception("Error processing form data for Attribute")
             return None, str(exc)

@@ -14,6 +14,23 @@ class ReportItemTypeView(AdminMixin, BaseView):
     icon = "presentation-chart-bar"
     _index = 120
 
+    @staticmethod
+    def _normalize_attribute_groups(form_data: dict[str, Any]) -> dict[str, Any]:
+        attribute_groups = form_data.get("attribute_groups", {})
+        if isinstance(attribute_groups, dict):
+            attribute_groups = list(attribute_groups.values())
+        else:
+            attribute_groups = list(attribute_groups or [])
+
+        for group in attribute_groups:
+            if items := group.get("attribute_group_items"):
+                group["attribute_group_items"] = list(items.values()) if isinstance(items, dict) else list(items)
+            else:
+                group["attribute_group_items"] = []
+
+        form_data["attribute_groups"] = attribute_groups
+        return form_data
+
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
@@ -45,10 +62,21 @@ class ReportItemTypeView(AdminMixin, BaseView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         form_data = parse_formdata(request.form)
-        attribute_groups = list(form_data.get("attribute_groups", {}).values())
-        for group in attribute_groups:
-            if items := group.get("attribute_group_items"):
-                group["attribute_group_items"] = list(items.values())
-
-        form_data["attribute_groups"] = attribute_groups
+        form_data.pop("csrf_token", None)
+        form_data = cls._normalize_attribute_groups(form_data)
         return cls.store_form_data(form_data, object_id)
+
+    @classmethod
+    def _submitted_form_model(cls, object_id: int | str = 0):
+        form_data = parse_formdata(request.form)
+        form_data.pop("csrf_token", None)
+        if not form_data:
+            return None
+
+        form_data["id"] = object_id or 0
+        form_data = cls._normalize_attribute_groups(form_data)
+
+        try:
+            return cls.model(**form_data)
+        except Exception:
+            return cls.model.model_construct(**form_data)

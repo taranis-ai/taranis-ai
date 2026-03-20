@@ -7,12 +7,11 @@
 {% if validation_status and template.id != '0' %}<div class="w-3/4 mb-5">{{ validation_status | render_validation_status }}</div>{% endif %}
 
 <form id="{{ model_name }}-form"
-      {{ form_action }}
-      hx-swap="innerHTML"
-      hx-target="#form-container"
-      hx-target-error="#notification-bar"
+      method="post"
+      action="{{ form_action }}"
       data-template-editor-sync="syncEditorContent"
       onsubmit="return syncEditorContent()">
+  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename
       <span aria-hidden="true" class="text-error">*</span>

@@ -25,7 +25,6 @@ class SourceView(AdminMixin, BaseView):
     icon = "book-open"
     import_route = "admin.import_osint_sources"
     _index = 63
-    _use_ssr_form_submit = True
 
     collector_types = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}

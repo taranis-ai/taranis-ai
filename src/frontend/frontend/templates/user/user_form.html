@@ -44,10 +44,7 @@
   </div>
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ user_id }}</p>
 
-  <form id="user-form"
-        class="w-3/4 ml-[10%]"
-        method="post"
-        action="{% if user_id == 0 %}{{ url_for("admin.users") }}{% else %}{{ url_for('admin.edit_user', user_id=user_id) }}{% endif %}">
+  <form id="user-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     {% include "partials/admin_form_error.html" %}
 

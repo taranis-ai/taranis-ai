@@ -19,7 +19,6 @@ class UserView(AdminMixin, BaseView):
     model = User
     icon = "user"
     _index = 20
-    _use_ssr_form_submit = True
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:

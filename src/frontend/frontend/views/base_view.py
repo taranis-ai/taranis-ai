@@ -34,7 +34,6 @@ class BaseView(MethodView):
     _show_sidebar: ClassVar[bool] = False
     _index: ClassVar[float | int] = float("inf")
     _read_only: ClassVar[bool] = True
-    _use_ssr_form_submit: ClassVar[bool] = False
 
     _registry: ClassVar[dict[str, Any]] = {}
 
@@ -193,16 +192,27 @@ class BaseView(MethodView):
         return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
 
     @classmethod
+    def uses_ssr_form_submit(cls) -> bool:
+        return cls._is_admin and not cls._read_only
+
+    @classmethod
+    def get_form_action(cls, object_id: int | str = 0) -> str:
+        if str(object_id) == "0":
+            action = cls.get_base_route()
+            return action if cls.uses_ssr_form_submit() else f"hx-post={action}"
+
+        action = cls.get_edit_route(**{cls._get_object_key(): object_id})
+        return action if cls.uses_ssr_form_submit() else f"hx-put={action}"
+
+    @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        key = cls._get_object_key()
-        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
 
         context = cls._common_context(object_id=object_id)
         context.update(
             {
                 "form_error": None,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(object_id),
                 "submit_text": submit,
             }
         )
@@ -212,14 +222,13 @@ class BaseView(MethodView):
 
     @classmethod
     def get_create_context(cls) -> dict[str, Any]:
-        form_action = f"hx-post={cls.get_base_route()}"
         submit = f"Create {cls.pretty_name()}"
 
         context = cls._common_context()
         context.update(
             {
                 "form_error": None,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(),
                 "submit_text": submit,
             }
         )
@@ -235,8 +244,6 @@ class BaseView(MethodView):
         form_error: str | None = None,
         resp_obj: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        key = cls._get_object_key()
-        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
 
         context = cls._common_context(object_id=object_id)
@@ -244,7 +251,7 @@ class BaseView(MethodView):
             {
                 "error": error,
                 "form_error": form_error,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(object_id),
                 "submit_text": submit,
             }
         )
@@ -255,7 +262,7 @@ class BaseView(MethodView):
             if msg := resp_obj.get("message"):
                 context["message"] = msg
             if new_id := resp_obj.get("id"):
-                context["form_action"] = f"hx-put={cls.get_edit_route(**{key: new_id})}"
+                context["form_action"] = cls.get_form_action(new_id)
         else:
             context[cls.model_name()] = cls.model.model_construct(id="0")
 
@@ -294,13 +301,23 @@ class BaseView(MethodView):
     def update_view_table(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
+            if cls.uses_ssr_form_submit():
+                return cls._render_submit_error(object_id, error=error, resp_obj=core_response)
             return render_template(
                 cls.get_update_template(),
                 **cls.get_update_context(object_id, error=error),
             ), 400
 
-        cls.add_flash_notification(core_response)
-        return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
+        if cls.uses_ssr_form_submit():
+            cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
+
+        notification_response = cls.render_response_notification(core_response)
+        table_response, table_status = cls.list_view()
+        response = notification_response + table_response
+        flask_response = make_response(response, table_status)
+        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
+        return flask_response
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
@@ -503,18 +520,8 @@ class BaseView(MethodView):
     def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
         return cls.get_base_route()
 
-    def submit_and_redirect(self, object_id: int | str = 0) -> tuple[str, int] | ResponseReturnValue:
-        core_response, error = self.process_form_data(object_id)
-        if not core_response or error:
-            return self._render_submit_error(object_id, error=error, resp_obj=core_response)
-
-        self.add_flash_notification(core_response)
-        return self.redirect_htmx(self.get_submit_redirect_target(object_id, core_response))
-
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        if self._use_ssr_form_submit:
-            return self.submit_and_redirect(object_id=self._get_object_id(kwargs) or 0)
-        return self.update_view_table(object_id=0)
+        return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

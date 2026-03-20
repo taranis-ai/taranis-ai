@@ -289,7 +289,7 @@ class TestSourceView:
                 "osint_source/osint_source_form.html",
                 model_name="osint_source",
                 submit_text="Update OSINT Source",
-                form_action='hx-put="/frontend/admin/sources/source-with-icon"',
+                form_action="/frontend/admin/sources/source-with-icon",
                 form_error={},
                 osint_source=osint_source,
                 icon_accept="image/png",

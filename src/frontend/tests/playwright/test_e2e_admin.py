@@ -94,9 +94,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Country").fill("Test Country")
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
 
-            with page.expect_response(url_for("admin.organizations", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}: {response_info.value.text()}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.organizations", _external=True))
             expect(page.get_by_text(organization_name)).to_be_visible()
 
         def update_organization():
@@ -104,7 +103,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Description").fill("Updated description of an organization")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="Updated description of an organization")).to_be_visible()
+            expect(page).to_have_url(url_for("admin.organizations", _external=True))
+            expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
 
         def remove_organization():
             page.get_by_role("row", name=organization_name).get_by_role("button").click()
@@ -224,15 +224,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator("#editor").get_by_role("textbox").fill(valid_template_content)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            with page.expect_response(url_for("admin.template_data", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.template_data", _external=True))
             expect(page.get_by_text(template_name)).to_be_visible()
 
         def update_template():
             page.get_by_role("link", name=template_name).click()
             page.locator("#editor").get_by_role("textbox").fill(invalid_template_content)
             page.locator('input[type="submit"]').click()
+            expect(page).to_have_url(url_for("admin.template_data", _external=True))
             template_row = page.get_by_test_id("template-table").locator("tbody tr").filter(has_text=template_name)
             expect(template_row).to_contain_text("Invalid")
 
@@ -362,9 +362,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Name", exact=True).fill(osint_group_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of an OSINT source group")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_group_add.png")
-            with page.expect_response(url_for("admin.osint_source_groups", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.osint_source_groups", _external=True))
             expect(page.get_by_role("link", name=osint_group_name)).to_be_visible()
 
         def update_osint_source_group():
@@ -372,7 +371,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of an OSINT source group")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="Updated description of an OSINT source group")).to_be_visible()
+            expect(page).to_have_url(url_for("admin.osint_source_groups", _external=True))
+            expect(page.get_by_role("row", name=osint_group_name)).to_contain_text("Updated description of an OSINT source group")
 
         def remove_osint_source_group():
             page.get_by_role("row", name=osint_group_name).get_by_role("button").click()
@@ -421,9 +421,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator("th").first.get_by_role("checkbox").check()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_roles_add.png")
-            with page.expect_response(url_for("admin.roles", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.roles", _external=True))
             expect(page.get_by_role("link", name=role_name)).to_be_visible()
 
         def update_role():
@@ -436,7 +435,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("TLP Level").select_option("amber+strict")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="Updated description of a role")).to_be_visible()
+            expect(page).to_have_url(url_for("admin.roles", _external=True))
+            expect(page.get_by_role("row", name=role_name)).to_contain_text("Updated description of a role")
 
         def remove_role():
             page.get_by_role("row", name=role_name).get_by_role("button").click()
@@ -806,9 +806,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 attribute_required.check()
 
             page.screenshot(path="./tests/playwright/screenshots/docs_report_types_add.png")
-            with page.expect_response(url_for("admin.report_item_types", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.report_item_types", _external=True))
             expect(page.get_by_role("link", name=report_type_title)).to_be_visible()
 
         def update_report_type():
@@ -823,6 +822,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             attribute_container.locator("input[name$='[description]']").first.fill("Updated attribute description")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.report_item_types", _external=True))
             row = page.get_by_role("row", name=report_type_title)
             expect(row).to_contain_text("Updated description of a report item type")
 
@@ -864,9 +864,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.screenshot(path="./tests/playwright/screenshots/docs_product_type_add.png")
             page.get_by_role("searchbox", name="Select report types").press("Escape")
-            with page.expect_response(url_for("admin.product_types", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.product_types", _external=True))
             expect(page.get_by_role("link", name=product_type_name)).to_be_visible()
 
         def update_product_type():
@@ -876,7 +875,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a product type")
 
             page.locator('input[type="submit"]').click()
-            expect(page.get_by_role("link", name="Updated description of a product type")).to_be_visible()
+            expect(page).to_have_url(url_for("admin.product_types", _external=True))
+            expect(page.get_by_role("row", name=product_type_name)).to_contain_text("Updated description of a product type")
 
         def remove_product_type():
             page.get_by_role("row", name=product_type_name).get_by_role("button").click()
@@ -1042,7 +1042,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
 
         def publisher_presets_delete():
-            page.get_by_role("alert").locator("div").filter(has_text="Successfully updated").click()
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
             expect(all_rows).to_have_count(1)
