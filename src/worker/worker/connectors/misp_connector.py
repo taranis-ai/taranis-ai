@@ -77,21 +77,6 @@ class MispConnector:
             None,
         )
 
-    def add_news_item_objects(self, news_items: list[dict], event: MISPEvent) -> None:
-        """
-        For each news item in 'news_items', create a TaranisObject and add it to the event.
-        """
-        for news_item in news_items:
-            news_item.pop("last_change", None)  # key intended for internal use only
-            object_data = base_misp_builder.get_news_item_object_dict_empty()
-            # sourcery skip: dict-assign-update-to-union
-            object_data.update({k: news_item[k] for k in object_data if k in news_item})  # only keep keys that are in the object_data dict
-
-            news_item_object = BaseMispObject(
-                parameters=object_data, template="taranis-news-item", misp_objects_path_custom="worker/connectors/definitions/objects"
-            )
-            event.add_object(news_item_object)
-
     def create_event_report_content(self, story) -> str:
         return "# Story description\n" + story.get("description") + "\n\n" + "# Story comment\n" + story.get("comments")
 
@@ -116,15 +101,10 @@ class MispConnector:
             logger.error(f"Requested event to update with UUID: {event_uuid} does not exist")
             return None
 
-    def add_story_properties_to_event(self, story: dict, event: MISPEvent) -> None:
-        if news_items := story.pop("news_items", None):
-            self.add_news_item_objects(news_items, event)
-        base_misp_builder.add_story_object(story, event)
-
     def add_misp_event(self, misp: PyMISP, story: dict) -> MISPEvent | None:
         event = MISPEvent()
         base_misp_builder.init_misp_event(event, story, self.sharing_group_id, self.distribution)
-        self.add_story_properties_to_event(story, event)
+        base_misp_builder.add_story_properties_to_event(story, event)
 
         # Create a new report without reusing any UUID.
         new_report = self.create_event_report(story)
@@ -150,6 +130,10 @@ class MispConnector:
         for obj_id in objects_to_remove:
             misp.delete_object(obj_id)
             logger.info(f"Deleted Taranis news object with MISP object ID={obj_id} because its 'id' was removed from the story.")
+
+        if objects_to_remove:
+            objects_to_remove_set = set(objects_to_remove)
+            event.Object = [misp_object for misp_object in event.objects if misp_object.id not in objects_to_remove_set]
 
     def get_event_object_ids(self, event: MISPEvent) -> set:
         ids_in_misp = set()
@@ -489,15 +473,39 @@ class MispConnector:
         logger.debug(f"Proposed attributes (shadow attributes): {shadow_attributes=}")
         return shadow_attributes
 
-    def _create_event(self, story_prepared, misp_event_uuid, existing_event) -> MISPEvent:
+    def _extract_story_and_news_item_payload(self, story_prepared: dict) -> tuple[dict, list[dict]]:
+        story_payload = story_prepared.copy()
+        news_item_payload = story_payload.pop("news_items", []) or []
+        return story_payload, news_item_payload
+
+    def _build_story_and_news_item_objects(self, event: MISPEvent, story_prepared: dict) -> tuple[MISPObject, list[MISPObject]]:
+        story_payload, news_item_payload = self._extract_story_and_news_item_payload(story_prepared)
+        new_news_item_objects = base_misp_builder.add_news_item_objects(news_item_payload, event)
+        story_object = base_misp_builder.add_story_object(story_payload, event)
+        return story_object, new_news_item_objects
+
+    def _link_story_to_existing_news_items(self, story_object: MISPObject, existing_event: MISPEvent) -> None:
+        for existing_news_item_object in existing_event.objects:
+            if existing_news_item_object.name != "taranis-news-item" or not existing_news_item_object.uuid:
+                continue
+            story_object.add_reference(existing_news_item_object.uuid, base_misp_builder.DEFAULT_NEWS_ITEM_RELATIONSHIP_TYPE)
+
+    @staticmethod
+    def _get_existing_report_uuid(existing_event: MISPEvent) -> str | None:
+        if isinstance(existing_event.EventReport, list) and existing_event.EventReport:
+            return existing_event.EventReport[0].uuid
+        return None
+
+    def _create_event(self, story_prepared: dict, misp_event_uuid: str, existing_event: MISPEvent) -> MISPEvent:
         event = MISPEvent()
         base_misp_builder.init_misp_event(event, story_prepared, self.sharing_group_id, self.distribution)
-        self.add_story_properties_to_event(story_prepared, event)
+
+        story_object, new_news_item_objects = self._build_story_and_news_item_objects(event, story_prepared)
+        self._link_story_to_existing_news_items(story_object, existing_event)
+        base_misp_builder.add_story_news_item_references(story_object, new_news_item_objects)
 
         event.uuid = misp_event_uuid
-        existing_report_uuid = None
-        if isinstance(existing_event.EventReport, list) and len(existing_event.EventReport) > 0:
-            existing_report_uuid = existing_event.EventReport[0].uuid
+        existing_report_uuid = self._get_existing_report_uuid(existing_event)
         new_report = self.create_event_report(story_prepared, existing_report_uuid)
         event.EventReport = [new_report]
         return event

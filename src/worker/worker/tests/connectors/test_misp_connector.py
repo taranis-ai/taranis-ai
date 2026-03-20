@@ -1,10 +1,33 @@
 import json
+from copy import deepcopy
 
 import pytest
 
 from worker.config import Config
 from worker.connectors import base_misp_builder, connector_tasks
 from worker.connectors.misp_connector import MispConnector
+
+
+def _news_item_payload(news_item_id: str, hash_value: str, story_id: str = "story-1") -> dict:
+    return {
+        "id": news_item_id,
+        "hash": hash_value,
+        "title": f"title-{news_item_id}",
+        "content": f"content-{news_item_id}",
+        "link": f"https://{news_item_id}.example",
+        "source": "manual",
+        "story_id": story_id,
+    }
+
+
+def _story_payload(news_items: list[dict] | None = None) -> dict:
+    return {
+        "id": "story-1",
+        "title": "Story",
+        "description": "",
+        "comments": "",
+        "news_items": news_items or [],
+    }
 
 
 @pytest.fixture
@@ -157,3 +180,64 @@ def test_distribution_not_provided():
     connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
     assert connector.distribution == 4
+
+
+def test_add_story_properties_links_story_to_news_items_with_object_references(stories):
+    from pymisp import MISPEvent
+
+    story = deepcopy(stories[0])
+    news_item_count = len(story.get("news_items", []))
+    event = MISPEvent()
+
+    base_misp_builder.add_story_properties_to_event(story, event)
+
+    story_object = next(obj for obj in event.objects if obj.name == "taranis-story")
+    news_item_objects = [obj for obj in event.objects if obj.name == "taranis-news-item"]
+
+    assert len(news_item_objects) == news_item_count
+    assert len(story_object.ObjectReference) == news_item_count
+
+    referenced_uuids = {reference.referenced_uuid for reference in story_object.ObjectReference}
+    relationship_types = {reference.relationship_type for reference in story_object.ObjectReference}
+
+    assert referenced_uuids == {obj.uuid for obj in news_item_objects}
+    assert relationship_types == {base_misp_builder.DEFAULT_NEWS_ITEM_RELATIONSHIP_TYPE}
+
+
+def test_create_event_keeps_existing_news_item_references_on_update():
+    from pymisp import MISPEvent
+
+    connector = MispConnector()
+    existing_event = MISPEvent()
+    existing_news_item = base_misp_builder.add_news_item_objects([_news_item_payload("existing", "hash-existing")], existing_event)[0]
+
+    event_to_add = connector._create_event(
+        _story_payload([]),
+        "story-1",
+        existing_event,
+    )
+
+    story_object = next(obj for obj in event_to_add.objects if obj.name == "taranis-story")
+    referenced_uuids = {reference.referenced_uuid for reference in story_object.ObjectReference}
+
+    assert referenced_uuids == {existing_news_item.uuid}
+
+
+def test_create_event_references_existing_and_new_news_items_on_update():
+    from pymisp import MISPEvent
+
+    connector = MispConnector()
+    existing_event = MISPEvent()
+    existing_news_item = base_misp_builder.add_news_item_objects([_news_item_payload("existing", "hash-existing")], existing_event)[0]
+
+    event_to_add = connector._create_event(
+        _story_payload([_news_item_payload("new", "hash-new")]),
+        "story-1",
+        existing_event,
+    )
+
+    story_object = next(obj for obj in event_to_add.objects if obj.name == "taranis-story")
+    new_news_item = next(obj for obj in event_to_add.objects if obj.name == "taranis-news-item")
+    referenced_uuids = {reference.referenced_uuid for reference in story_object.ObjectReference}
+
+    assert referenced_uuids == {existing_news_item.uuid, new_news_item.uuid}

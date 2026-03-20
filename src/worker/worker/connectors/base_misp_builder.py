@@ -1,11 +1,13 @@
 import json
 
-from pymisp import MISPEvent
+from pymisp import MISPEvent, MISPObject
+
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.log import logger
 
 
 DEFAULT_MISP_OBJECTS_PATH = "worker/connectors/definitions/objects"
+DEFAULT_NEWS_ITEM_RELATIONSHIP_TYPE = "includes"
 
 
 def get_news_item_object_dict_empty() -> dict:
@@ -75,20 +77,23 @@ def init_misp_event(event: MISPEvent, data: dict, sharing_group_id: int | None =
     return None
 
 
-def add_news_item_objects(news_items: list[dict], event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+def add_news_item_objects(
+    news_items: list[dict], event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH
+) -> list[MISPObject]:
+    news_item_objects: list[MISPObject] = []
     for news_item in news_items:
         news_item.pop("last_change", None)
         news_item_object_dict = get_news_item_object_dict_empty()
         news_item_object_dict.update({k: news_item[k] for k in news_item_object_dict if k in news_item})
 
-        news_item_object_dict = BaseMispObject(
+        news_item_object = BaseMispObject(
             parameters=news_item_object_dict,
             template="taranis-news-item",
             misp_objects_path_custom=misp_objects_path_custom,
         )
-        event.add_object(news_item_object_dict)
+        news_item_objects.append(event.add_object(news_item_object))
 
-    return None
+    return news_item_objects
 
 
 def get_story_object_dict(story: dict) -> dict:
@@ -112,7 +117,7 @@ def get_story_object_dict(story: dict) -> dict:
     return story_object_dict
 
 
-def add_story_object(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+def add_story_object(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> MISPObject:
     object_data = get_story_object_dict(story)
     object_data["attributes"] = []
 
@@ -128,11 +133,22 @@ def add_story_object(story: dict, event: MISPEvent, misp_objects_path_custom: st
     if story.get("attributes"):
         story_object.add_attributes("attributes", *attribute_list)
 
-    event.add_object(story_object)
+    return event.add_object(story_object)
+
+
+def add_story_news_item_references(
+    story_object: MISPObject,
+    news_item_objects: list[MISPObject],
+    relationship_type: str = DEFAULT_NEWS_ITEM_RELATIONSHIP_TYPE,
+) -> None:
+    for news_item_object in news_item_objects:
+        story_object.add_reference(news_item_object, relationship_type)
 
 
 def add_story_properties_to_event(story: dict, event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
+    news_item_objects: list[MISPObject] = []
     if news_items := story.pop("news_items", None):
-        add_news_item_objects(news_items, event, misp_objects_path_custom=misp_objects_path_custom)
+        news_item_objects = add_news_item_objects(news_items, event, misp_objects_path_custom=misp_objects_path_custom)
 
-    add_story_object(story, event, misp_objects_path_custom=misp_objects_path_custom)
+    story_object = add_story_object(story, event, misp_objects_path_custom=misp_objects_path_custom)
+    add_story_news_item_references(story_object, news_item_objects)

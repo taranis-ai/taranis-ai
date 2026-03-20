@@ -264,6 +264,24 @@ class MispCollector(BaseCollector):
 
         return cleaned
 
+    def _get_referenced_news_item_uuids(self, story_object: dict | None, news_item_objects: list[dict]) -> set[str]:
+        news_item_uuids = {uuid for obj in news_item_objects if isinstance((uuid := obj.get("uuid")), str)}
+        if not news_item_uuids:
+            return set()
+
+        referenced_news_item_uuids: set[str] = set()
+
+        if story_object:
+            for reference in story_object.get("ObjectReference", []):
+                relationship_type = reference.get("relationship_type")
+                referenced_uuid = reference.get(
+                    "referenced_uuid",
+                )
+                if relationship_type and isinstance(referenced_uuid, str) and referenced_uuid in news_item_uuids:
+                    referenced_news_item_uuids.add(referenced_uuid)
+
+        return referenced_news_item_uuids
+
     def get_extended_event_news_items(self, event: dict, misp, source) -> list:
         all_news_items = []
         if extending_events := event.get("Event", {}).get("extensionEvents", {}):
@@ -294,17 +312,24 @@ class MispCollector(BaseCollector):
             return None
         return self.to_story_dict(story_properties, story_news_items)
 
-    def extract_story_data_from_event_objects(self, event_object_dicts: list[dict], source) -> tuple[dict, list]:  # TODO: check this
-        story_news_items = []
+    def extract_story_data_from_event_objects(self, event_object_dicts: list[dict], source) -> tuple[dict, list]:
         story_properties = {}
-        for object in event_object_dicts:
-            if object.get("name") == "taranis-story":
-                story_properties = self.get_story_properties_from_story_object(object)
-            elif object.get("name") == "taranis-news-item":
-                news_item = self.create_news_item(object, source)
-                story_news_items.append(news_item)
+        story_object = None
+        news_item_objects = []
+
+        for event_object in event_object_dicts:
+            if event_object.get("name") == "taranis-story":
+                story_object = event_object
+                story_properties = self.get_story_properties_from_story_object(event_object)
+            elif event_object.get("name") == "taranis-news-item":
+                news_item_objects.append(event_object)
             else:
-                logger.warning(f"Unknown object type in MISP event: {object.get('name')}")
+                logger.warning(f"Unknown object type in MISP event: {event_object.get('name')}")
+
+        referenced_news_item_uuids = self._get_referenced_news_item_uuids(story_object, news_item_objects)
+        selected_news_item_objects = [item for item in news_item_objects if item.get("uuid") in referenced_news_item_uuids]
+        story_news_items = [self.create_news_item(item, source) for item in selected_news_item_objects]
+
         return story_properties, story_news_items
 
     def get_recent_taranis_events(self, misp: PyMISP) -> list[dict[str, Any]]:

@@ -5,6 +5,10 @@ from worker.config import Config
 from worker.tests.testdata import news_items
 
 
+def _attribute(relation: str, value: str) -> dict:
+    return {"object_relation": relation, "value": value}
+
+
 def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
     import datetime
 
@@ -236,6 +240,104 @@ def test_misp_collector_collect(misp_collector_mock, misp_collector):
     result = misp_collector.collect(source)
 
     assert result is None
+
+
+def test_extract_story_data_uses_object_references_for_story_nesting(misp_collector):
+    event_object_dicts = [
+        {
+            "name": "taranis-story",
+            "uuid": "story-uuid",
+            "ObjectReference": [
+                {
+                    "object_uuid": "story-uuid",
+                    "referenced_uuid": "news-linked-uuid",
+                    "relationship_type": "derived-from",
+                }
+            ],
+            "Attribute": [
+                _attribute("id", "story-1"),
+                _attribute("title", "Story title"),
+            ],
+        },
+        {
+            "name": "taranis-news-item",
+            "uuid": "news-linked-uuid",
+            "ObjectReference": [],
+            "Attribute": [
+                _attribute("id", "news-linked-id"),
+                _attribute("hash", "hash-linked"),
+                _attribute("title", "Linked item"),
+                _attribute("content", "Linked content"),
+                _attribute("link", "https://linked.example"),
+                _attribute("story_id", "story-1"),
+                _attribute("source", "manual"),
+            ],
+        },
+        {
+            "name": "taranis-news-item",
+            "uuid": "news-unlinked-uuid",
+            "ObjectReference": [],
+            "Attribute": [
+                _attribute("id", "news-unlinked-id"),
+                _attribute("hash", "hash-unlinked"),
+                _attribute("title", "Unlinked item"),
+                _attribute("content", "Unlinked content"),
+                _attribute("link", "https://unlinked.example"),
+                _attribute("source", "manual"),
+            ],
+        },
+    ]
+
+    story_properties, news_items_for_story = misp_collector.extract_story_data_from_event_objects(event_object_dicts, {"id": "source-1"})
+
+    assert story_properties["id"] == "story-1"
+    assert len(news_items_for_story) == 1
+    assert news_items_for_story[0].id == "news-linked-id"
+    assert news_items_for_story[0].story_id == "story-1"
+
+
+def test_extract_story_data_returns_no_news_items_when_no_references(misp_collector):
+    event_object_dicts = [
+        {
+            "name": "taranis-story",
+            "uuid": "story-uuid",
+            "ObjectReference": [],
+            "Attribute": [
+                _attribute("id", "story-1"),
+                _attribute("title", "Story title"),
+            ],
+        },
+        {
+            "name": "taranis-news-item",
+            "uuid": "news-1-uuid",
+            "ObjectReference": [],
+            "Attribute": [
+                _attribute("id", "news-1-id"),
+                _attribute("hash", "hash-1"),
+                _attribute("title", "First item"),
+                _attribute("content", "First content"),
+                _attribute("link", "https://first.example"),
+                _attribute("source", "manual"),
+            ],
+        },
+        {
+            "name": "taranis-news-item",
+            "uuid": "news-2-uuid",
+            "ObjectReference": [],
+            "Attribute": [
+                _attribute("id", "news-2-id"),
+                _attribute("hash", "hash-2"),
+                _attribute("title", "Second item"),
+                _attribute("content", "Second content"),
+                _attribute("link", "https://second.example"),
+                _attribute("source", "manual"),
+            ],
+        },
+    ]
+
+    _, news_items_for_story = misp_collector.extract_story_data_from_event_objects(event_object_dicts, {"id": "source-1"})
+
+    assert news_items_for_story == []
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
