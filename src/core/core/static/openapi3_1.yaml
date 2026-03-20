@@ -714,7 +714,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/story"
         "400":
-          description: erronous input data
+          description: erroneous input data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -761,7 +761,7 @@ paths:
               schema:
                 type: object
         "400":
-          description: erronous input data
+          description: erroneous input data
         "409":
           description: news item already exists
         "401":
@@ -786,7 +786,7 @@ paths:
               schema:
                 type: object
         "400":
-          description: erronous input data
+          description: erroneous input data
         "409":
           description: news item already exists
         "401":

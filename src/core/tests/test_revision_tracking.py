@@ -144,6 +144,26 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_add_single_news_item_allows_distinct_content_only_items():
+    first_payload = _news_item_payload(source="manual")
+    first_payload["title"] = ""
+    first_payload["link"] = ""
+    first_payload["content"] = f"content-only-{uuid.uuid4()}"
+
+    second_payload = _news_item_payload(source="manual")
+    second_payload["title"] = ""
+    second_payload["link"] = ""
+    second_payload["content"] = f"content-only-{uuid.uuid4()}"
+
+    first_response, first_status = Story.add_single_news_item(first_payload)
+    second_response, second_status = Story.add_single_news_item(second_payload)
+
+    assert first_status == 200
+    assert second_status == 200
+    assert first_response["story_id"] != second_response["story_id"]
+
+
+@pytest.mark.usefixtures("session")
 def test_news_item_service_update_rejects_duplicate_title_and_link_hash():
     user = User.find_by_name("admin")
     first_story = _create_story()

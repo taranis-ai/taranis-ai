@@ -127,8 +127,7 @@ class BaseView(MethodView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
-            form_data = parse_formdata(request.form)
-            form_data.pop("csrf_token", None)
+            form_data = cls._get_normalized_form_data()
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
@@ -192,17 +191,17 @@ class BaseView(MethodView):
         return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
 
     @classmethod
-    def uses_ssr_form_submit(cls) -> bool:
-        return cls._is_admin and not cls._read_only
+    def submits_via_standard_form(cls) -> bool:
+        return False
 
     @classmethod
     def get_form_action(cls, object_id: int | str = 0) -> str:
         if str(object_id) == "0":
             action = cls.get_base_route()
-            return action if cls.uses_ssr_form_submit() else f"hx-post={action}"
+            return f"hx-post={action}"
 
         action = cls.get_edit_route(**{cls._get_object_key(): object_id})
-        return action if cls.uses_ssr_form_submit() else f"hx-put={action}"
+        return f"hx-put={action}"
 
     @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
@@ -301,23 +300,9 @@ class BaseView(MethodView):
     def update_view_table(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
-            if cls.uses_ssr_form_submit():
-                return cls._render_submit_error(object_id, error=error, resp_obj=core_response)
-            return render_template(
-                cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error),
-            ), 400
+            return cls.handle_submit_error(object_id, error=error, resp_obj=core_response)
 
-        if cls.uses_ssr_form_submit():
-            cls.add_flash_notification(core_response)
-            return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
-
-        notification_response = cls.render_response_notification(core_response)
-        table_response, table_status = cls.list_view()
-        response = notification_response + table_response
-        flask_response = make_response(response, table_status)
-        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
-        return flask_response
+        return cls.handle_submit_success(object_id, core_response)
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
@@ -489,8 +474,7 @@ class BaseView(MethodView):
 
     @classmethod
     def _submitted_form_model(cls, object_id: int | str = 0):
-        form_data = parse_formdata(request.form)
-        form_data.pop("csrf_token", None)
+        form_data = cls._get_normalized_form_data()
         if not form_data:
             return None
 
@@ -502,7 +486,17 @@ class BaseView(MethodView):
             return cls.model.model_construct(**form_data)
 
     @classmethod
-    def _render_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        return form_data
+
+    @classmethod
+    def _get_normalized_form_data(cls) -> dict[str, Any]:
+        return cls._normalize_form_data(parse_formdata(request.form))
+
+    @classmethod
+    def render_submitted_form_error(
+        cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
+    ) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
         context = cls.get_create_context() if object_id == 0 else cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
 
@@ -519,6 +513,22 @@ class BaseView(MethodView):
     @classmethod
     def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
         return cls.get_base_route()
+
+    @classmethod
+    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        return render_template(
+            cls.get_update_template(),
+            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+        ), 400
+
+    @classmethod
+    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        notification_response = cls.render_response_notification(core_response)
+        table_response, table_status = cls.list_view()
+        response = notification_response + table_response
+        flask_response = make_response(response, table_status)
+        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
+        return flask_response
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)

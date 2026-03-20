@@ -31,7 +31,6 @@ class AttributeView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            form_data.pop("csrf_token", None)
             logger.debug(f"Parsed form data: {form_data}")
             core_response, error = cls.store_form_data(form_data, object_id)
             if core_response and not error:

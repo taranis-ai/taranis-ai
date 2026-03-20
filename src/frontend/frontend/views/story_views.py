@@ -546,7 +546,7 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def create_news_item(cls):
-        logger.debug(f"Creating news item with form data: {request.form}")
+        logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
             return cls._create_news_item_from_url(url)
 

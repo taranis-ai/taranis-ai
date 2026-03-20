@@ -88,7 +88,6 @@ class ProductTypeView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            form_data.pop("csrf_token", None)
             return cls.store_form_data(form_data, object_id)
         except Exception as exc:
             return None, str(exc)

@@ -605,8 +605,6 @@ class Story(BaseModel):
         except ValidationError as exc:
             return None, AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data")
 
-        return None, None
-
     @classmethod
     def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
         normalized_news_item, err = cls.check_news_item_data(news_item)

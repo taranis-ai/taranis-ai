@@ -149,7 +149,6 @@ class SourceView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            form_data.pop("csrf_token", None)
             delete_icon = str(form_data.pop("delete_icon", "")).lower() in {"true", "1", "yes", "on"}
 
             if delete_icon:

@@ -1,10 +1,9 @@
 from typing import Any
 
-from flask import render_template, request
+from flask import render_template
 from models.admin import Attribute, ReportItemAttribute, ReportItemAttributeGroup, ReportItemType
 
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
@@ -14,8 +13,8 @@ class ReportItemTypeView(AdminMixin, BaseView):
     icon = "presentation-chart-bar"
     _index = 120
 
-    @staticmethod
-    def _normalize_attribute_groups(form_data: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
         attribute_groups = form_data.get("attribute_groups", {})
         if isinstance(attribute_groups, dict):
             attribute_groups = list(attribute_groups.values())
@@ -58,25 +57,3 @@ class ReportItemTypeView(AdminMixin, BaseView):
             group_index=group_index,
             **cls.get_extra_context({}),
         )
-
-    @classmethod
-    def process_form_data(cls, object_id: int | str):
-        form_data = parse_formdata(request.form)
-        form_data.pop("csrf_token", None)
-        form_data = cls._normalize_attribute_groups(form_data)
-        return cls.store_form_data(form_data, object_id)
-
-    @classmethod
-    def _submitted_form_model(cls, object_id: int | str = 0):
-        form_data = parse_formdata(request.form)
-        form_data.pop("csrf_token", None)
-        if not form_data:
-            return None
-
-        form_data["id"] = object_id or 0
-        form_data = cls._normalize_attribute_groups(form_data)
-
-        try:
-            return cls.model(**form_data)
-        except Exception:
-            return cls.model.model_construct(**form_data)

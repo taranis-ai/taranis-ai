@@ -56,7 +56,6 @@ class TemplateView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: str | int):
         try:
             form_data = parse_formdata(request.form)
-            form_data.pop("csrf_token", None)
             obj = Template(**form_data)
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
