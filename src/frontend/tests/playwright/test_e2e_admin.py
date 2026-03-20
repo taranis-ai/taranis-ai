@@ -309,12 +309,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name=osint_source_name)).to_be_visible()
 
         def update_osint_sources():
-            page.get_by_role("link", name=osint_source_name).click()
-            expect(page.get_by_role("textbox", name="FEED_URL")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated-feed-url")
+            page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name).click()
+            form = page.locator("#osint_source-form").first
+            expect(form).to_be_visible()
+            feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
+            expect(feed_url_input).to_have_attribute("required", "")
+            feed_url_input.fill("http://example.com/updated-feed-url")
             page.get_by_label("Icon").set_input_files(test_osint_icon_png)
 
-            form = page.locator("#osint_source-form").first
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
@@ -322,11 +324,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_be_visible()
 
-            page.get_by_role("link", name=osint_source_name).click()
+            page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name).click()
+            form = page.locator("#osint_source-form").first
+            expect(form).to_be_visible()
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
-            form = page.locator("#osint_source-form").first
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
