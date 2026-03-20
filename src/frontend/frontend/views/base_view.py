@@ -389,13 +389,17 @@ class BaseView(MethodView):
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
 
     @classmethod
-    def add_flash_notification(cls, response: RequestsResponse):
-        if not response or not response.json():
-            flash("No response from core API", "error")
-        if message := response.json().get("message"):
-            flash(message, "success")
-        elif error := response.json().get("error"):
-            flash(error, "error")
+    def add_flash_notification(cls, response: RequestsResponse | dict[str, Any] | None):
+        if isinstance(response, dict):
+            notification = cls.get_notification_from_dict(response)
+        elif response and response.json():
+            notification = cls.get_notification_from_dict(response.json())
+        else:
+            notification = {"message": "No response from core API", "error": True}
+
+        category = "error" if notification.get("error") else "success"
+        if message := notification.get("message"):
+            flash(message, category)
 
     @classmethod
     def redirect_htmx(cls, target: str) -> ResponseReturnValue:

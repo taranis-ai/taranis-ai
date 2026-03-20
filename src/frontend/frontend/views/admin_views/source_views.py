@@ -2,7 +2,7 @@ import base64
 import json
 from typing import Any, Literal
 
-from flask import Response, render_template, request, url_for
+from flask import render_template, request, url_for
 from models.admin import Job, OSINTSource, TaskResult
 from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
@@ -135,7 +135,8 @@ class SourceView(AdminMixin, BaseView):
             return cls.import_view(error)
 
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        cls.add_flash_notification(response)
+        return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
     def process_form_data(cls, object_id: int | str):
@@ -279,3 +280,27 @@ class SourceView(AdminMixin, BaseView):
         state_button = render_template("osint_source/state_button.html", osint_source=osint_source)
 
         return notification + state_button, 200
+
+    @classmethod
+    def _render_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        if object_id == 0:
+            context = cls.get_create_context()
+            if error:
+                context["notification"] = {"message": error, "error": True}
+            if resp_obj and (message := resp_obj.get("message")):
+                context["message"] = message
+            return render_template(cls.get_edit_template(), **context), 400
+
+        return render_template(
+            cls.get_edit_template(),
+            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+        ), 400
+
+    def post(self, osint_source_id: str | None = None):
+        object_id = osint_source_id or 0
+        core_response, error = self.process_form_data(object_id)
+        if not core_response or error:
+            return self._render_submit_error(object_id, error=error, resp_obj=core_response)
+
+        self.add_flash_notification(core_response)
+        return self.redirect_htmx(self.get_base_route())

@@ -314,10 +314,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated-feed-url")
             page.get_by_label("Icon").set_input_files(test_osint_icon_png)
 
-            form = page.locator("form[hx-put]").first
-            self.highlight_element(page.locator('input[type="submit"]'))
-            form.evaluate("form => { form.noValidate = true; form.requestSubmit(); }")
-            page.wait_for_timeout(500)
+            form = page.locator("#osint_source-form").first
+            form.evaluate("form => { form.noValidate = true; }")
+            self.highlight_element(form.locator('input[type="submit"]')).click()
 
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
@@ -328,10 +327,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
-            form = page.locator("form[hx-put]").first
-            self.highlight_element(page.locator('input[type="submit"]'))
-            form.evaluate("form => { form.noValidate = true; form.requestSubmit(); }")
-            page.wait_for_timeout(500)
+            form = page.locator("#osint_source-form").first
+            form.evaluate("form => { form.noValidate = true; }")
+            self.highlight_element(form.locator('input[type="submit"]')).click()
 
             page.goto(url_for("admin.osint_sources", _external=True))
             osint_row = page.get_by_role("row", name=osint_source_name)
