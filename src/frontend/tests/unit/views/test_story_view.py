@@ -131,3 +131,7 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     assert form[0].get("hx-target-error") == "#notification-bar"
     assert len(file_form) == 1
     assert file_form[0].get("hx-target-error") == "#notification-bar"
+
+    source_input = form[0].xpath('.//input[@name="source"]')
+    assert len(source_input) == 1
+    assert source_input[0].get("required") is None

@@ -59,14 +59,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
         expect(page.get_by_role("heading", name="Create manual news item")).to_be_visible()
+        create_news_item_url = url_for("assess.create_news_item", _external=True)
 
         page.get_by_role("textbox", name="Title *").fill("Invalid language test")
         page.get_by_role("textbox", name="Link Providing a URL helps others trace the original source.").fill("http://blubb.xxx")
         page.get_by_role("textbox", name="Language ISO 639 language code").fill("xx")
 
-        with page.expect_response(
-            lambda response: response.url.endswith("/frontend/news-item") and response.request.method == "POST"
-        ) as response_info:
+        with page.expect_response(create_news_item_url) as response_info:
             page.get_by_role("button", name="Create news item").click()
 
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
