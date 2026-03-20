@@ -140,6 +140,13 @@ class SourceView(AdminMixin, BaseView):
         return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        target_id = core_response.get("id") or object_id
+        if not target_id or str(target_id) == "0":
+            return cls.get_base_route()
+        return cls.get_edit_route(**{cls._get_object_key(): target_id})
+
+    @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)

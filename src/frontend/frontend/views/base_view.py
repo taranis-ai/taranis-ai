@@ -503,13 +503,17 @@ class BaseView(MethodView):
 
         return render_template(cls.get_edit_template(), **context), 400
 
+    @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        return cls.get_base_route()
+
     def submit_and_redirect(self, object_id: int | str = 0) -> tuple[str, int] | ResponseReturnValue:
         core_response, error = self.process_form_data(object_id)
         if not core_response or error:
             return self._render_submit_error(object_id, error=error, resp_obj=core_response)
 
         self.add_flash_notification(core_response)
-        return self.redirect_htmx(self.get_base_route())
+        return self.redirect_htmx(self.get_submit_redirect_target(object_id, core_response))
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         if self._use_ssr_form_submit:

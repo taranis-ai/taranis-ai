@@ -306,11 +306,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("link", name=osint_source_name)).to_be_visible()
+            expect(page.locator("#osint_source-form")).to_be_visible()
+            expect(page.get_by_label("Name")).to_have_value(osint_source_name)
 
         def update_osint_sources():
-            page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name).click()
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
@@ -320,20 +319,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
-            osint_row = page.get_by_role("row", name=osint_source_name)
-            expect(osint_row.locator("img.icon")).to_be_visible()
-
-            page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name).click()
-            form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
+
+            form = page.locator("#osint_source-form").first
+            expect(form).to_be_visible()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
+            expect(form).to_be_visible()
+            expect(page.get_by_label("Name")).to_have_value(osint_source_name)
+            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
