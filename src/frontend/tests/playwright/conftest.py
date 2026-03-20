@@ -237,16 +237,12 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     page.context.add_cookies(context_cookies)
 
-    def on_load():
-        _dismiss_notifications(page)
-
-    page.on("load", on_load)
     _dismiss_notifications(page)
 
     try:
         yield page
     finally:
-        page.remove_listener("load", on_load)
+        _dismiss_notifications(page)
 
 
 @pytest.fixture

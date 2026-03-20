@@ -344,7 +344,7 @@ class BaseView(MethodView):
             params = parse_paging_data(request_params)
             logger.debug(f"Listing {cls.model_name()} items with params: {params}")
             items = DataPersistenceLayer().get_objects(cls.model, params)
-            error = None if items else f"No {cls.model_name()} items found"
+            error = None
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
