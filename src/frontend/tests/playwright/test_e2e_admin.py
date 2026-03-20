@@ -141,9 +141,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             roles_select.select_option(label="User - Basic user role", force=True)
 
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
-            with page.expect_response(url_for("admin.users", _external=True)) as response_info:
-                self.highlight_element(page.locator('input[type="submit"]')).click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+            self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.users", _external=True))
             expect(page.get_by_role("link", name=username)).to_be_visible()
 
         def update_user():
@@ -152,6 +151,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill("Test User Updated")
             page.locator('input[type="submit"]').click()
+            expect(page).to_have_url(url_for("admin.users", _external=True))
             expect(page.get_by_role("link", name="Test User Updated")).to_be_visible()
 
         def remove_user():
@@ -306,6 +306,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
+            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("link", name=osint_source_name)).to_be_visible()
 
         def update_osint_sources():
@@ -317,8 +318,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             form = page.locator("#osint_source-form").first
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-
-            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_be_visible()
@@ -330,8 +330,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             form = page.locator("#osint_source-form").first
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-
-            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_have_count(0)
 

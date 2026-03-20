@@ -19,17 +19,7 @@ class UserView(AdminMixin, BaseView):
     model = User
     icon = "user"
     _index = 20
-
-    @classmethod
-    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
-        try:
-            obj = cls.model(**processed_data)
-            dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
-            return (result.json(), None) if result.ok else (None, result.json())
-        except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
-            return None, str(exc)
+    _use_ssr_form_submit = True
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:

@@ -25,6 +25,7 @@ class SourceView(AdminMixin, BaseView):
     icon = "book-open"
     import_route = "admin.import_osint_sources"
     _index = 63
+    _use_ssr_form_submit = True
 
     collector_types = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
@@ -142,6 +143,7 @@ class SourceView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
+            form_data.pop("csrf_token", None)
             delete_icon = str(form_data.pop("delete_icon", "")).lower() in {"true", "1", "yes", "on"}
 
             if delete_icon:
@@ -280,27 +282,3 @@ class SourceView(AdminMixin, BaseView):
         state_button = render_template("osint_source/state_button.html", osint_source=osint_source)
 
         return notification + state_button, 200
-
-    @classmethod
-    def _render_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
-        if object_id == 0:
-            context = cls.get_create_context()
-            if error:
-                context["notification"] = {"message": error, "error": True}
-            if resp_obj and (message := resp_obj.get("message")):
-                context["message"] = message
-            return render_template(cls.get_edit_template(), **context), 400
-
-        return render_template(
-            cls.get_edit_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
-        ), 400
-
-    def post(self, osint_source_id: str | None = None):
-        object_id = osint_source_id or 0
-        core_response, error = self.process_form_data(object_id)
-        if not core_response or error:
-            return self._render_submit_error(object_id, error=error, resp_obj=core_response)
-
-        self.add_flash_notification(core_response)
-        return self.redirect_htmx(self.get_base_route())
