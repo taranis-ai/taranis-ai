@@ -153,7 +153,8 @@ class TestSourceView:
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
-            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
+            assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
+            assert resp.headers["Location"] == SourceView.get_base_route()
 
             mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 

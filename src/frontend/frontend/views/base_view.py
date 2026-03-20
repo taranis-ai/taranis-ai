@@ -388,7 +388,7 @@ class BaseView(MethodView):
                 payload = response.json()
         except Exception:
             payload = None
-        if not payload:
+        if not isinstance(payload, dict):
             return render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(payload), oob=oob)
 
@@ -407,7 +407,11 @@ class BaseView(MethodView):
                     payload = response.json()
             except Exception:
                 payload = None
-            notification = cls.get_notification_from_dict(payload) if payload else {"message": "No response from core API", "error": True}
+            notification = (
+                cls.get_notification_from_dict(payload)
+                if isinstance(payload, dict)
+                else {"message": "No response from core API", "error": True}
+            )
 
         category = "error" if notification.get("error") else "success"
         if message := notification.get("message"):
@@ -487,24 +491,17 @@ class BaseView(MethodView):
     @classmethod
     def _render_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
+        context = cls.get_create_context() if object_id == 0 else cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
 
         if object_id == 0:
-            context = cls.get_create_context()
             if error:
                 context["notification"] = {"message": error, "error": True}
             if resp_obj and (message := resp_obj.get("message")):
                 context["message"] = message
-            if submitted_model is not None:
-                context[cls.model_name()] = submitted_model
-            return render_template(cls.get_edit_template(), **cls.get_extra_context(context)), 400
-
-        context = cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
         if submitted_model is not None:
             context[cls.model_name()] = submitted_model
-        return render_template(
-            cls.get_edit_template(),
-            **cls.get_extra_context(context),
-        ), 400
+
+        return render_template(cls.get_edit_template(), **context), 400
 
     def submit_and_redirect(self, object_id: int | str = 0) -> tuple[str, int] | ResponseReturnValue:
         core_response, error = self.process_form_data(object_id)

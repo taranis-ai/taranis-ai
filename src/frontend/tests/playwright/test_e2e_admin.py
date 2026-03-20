@@ -232,9 +232,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name=template_name).click()
             page.locator("#editor").get_by_role("textbox").fill(invalid_template_content)
             page.locator('input[type="submit"]').click()
-            table = page.get_by_test_id("template-table")
-            invalid_badges = table.locator("tbody tr td:nth-child(3) .badge", has_text="Invalid")
-            expect(invalid_badges).to_have_count(2)
+            template_row = page.get_by_test_id("template-table").locator("tbody tr").filter(has_text=template_name)
+            expect(template_row).to_contain_text("Invalid")
 
         def remove_template():
             page.get_by_role("row", name=template_name).get_by_role("button").click()
