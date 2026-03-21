@@ -427,7 +427,7 @@ class Bots(MethodView):
                 logger.debug(f"Successfully updated {updated_bot}")
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"Bot with ID: {bot_id} not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")

@@ -352,6 +352,7 @@ class Bot(TaranisBaseModel):
     description: str = ""
     type: BOT_TYPES
     index: int | None = None
+    enabled: bool = True
     parameters: dict[str, str] | None = Field(default_factory=dict)
     status: TaskResult | None = None
 
