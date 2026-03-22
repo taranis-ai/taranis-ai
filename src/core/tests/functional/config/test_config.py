@@ -6,10 +6,10 @@ import uuid
 from io import BytesIO
 
 from PIL import Image
-from tests.functional.helpers import BaseTest
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
+from tests.functional.helpers import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -389,7 +389,15 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
         assert response.json["id"] == cleanup_bot["id"]
 
-    def test_modify_bot(self, client, auth_header, cleanup_bot):
+    def test_modify_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            if Bot.get(cleanup_bot["id"]):
+                Bot.delete(cleanup_bot["id"])
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         bot_data = {
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
@@ -400,16 +408,92 @@ class TestBotConfigApi(BaseTest):
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
         assert response.json["id"] == f"{bot_id}"
 
-    def test_get_bots(self, client, auth_header, cleanup_bot):
+    def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": True,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "0 */8 * * *",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        response = self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": False,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        assert response.json["id"] == f"{bot_id}"
+
+        with app.app_context():
+            updated_bot = Bot.get(bot_id)
+            assert updated_bot is not None
+            assert updated_bot.enabled is False
+            assert updated_bot.get_schedule() == ""
+            assert bot_id not in Bot.get_post_collection()
+
+    def test_get_bots(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "description": "Boty McBotFace",
+                "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+            },
+            auth_header=auth_header,
+        )
+
         response = self.assert_get_ok(client, uri=f"bots?search={cleanup_bot['name']}", auth_header=auth_header)
         assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
 
-    def test_delete_bot(self, client, auth_header, cleanup_bot):
+    def test_delete_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 

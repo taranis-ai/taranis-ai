@@ -1,37 +1,23 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@codemirror/commands@*": "6.10.3",
     "npm:@codemirror/commands@^6.10.3": "6.10.3",
-    "npm:@codemirror/language@*": "6.12.2",
     "npm:@codemirror/language@^6.12.2": "6.12.2",
-    "npm:@codemirror/legacy-modes@*": "6.5.2",
     "npm:@codemirror/legacy-modes@^6.5.2": "6.5.2",
     "npm:@codemirror/merge@^6.12.1": "6.12.1",
-    "npm:@codemirror/state@*": "6.6.0",
     "npm:@codemirror/state@^6.6.0": "6.6.0",
-    "npm:@codemirror/view@*": "6.40.0",
     "npm:@codemirror/view@^6.40.0": "6.40.0",
-    "npm:@tailwindcss/cli@*": "4.2.2",
     "npm:@tailwindcss/cli@^4.2.2": "4.2.2",
-    "npm:alpinejs@*": "3.15.8",
     "npm:alpinejs@^3.15.8": "3.15.8",
-    "npm:choices.js@*": "11.2.1",
     "npm:choices.js@^11.2.1": "11.2.1",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.19": "5.5.19",
-    "npm:fuse.js@*": "7.1.0",
     "npm:fuse.js@^7.1.0": "7.1.0",
-    "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
-    "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
-    "npm:htmx.org@*": "2.0.8",
     "npm:htmx.org@^2.0.8": "2.0.8",
-    "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
-    "npm:sweetalert2@*": "11.26.23",
-    "npm:sweetalert2@^11.26.23": "11.26.23",
+    "npm:sweetalert2@^11.26.24": "11.26.24",
     "npm:tailwindcss@^4.2.2": "4.2.2"
   },
   "npm": {
@@ -528,8 +514,8 @@
     "style-mod@4.1.3": {
       "integrity": "sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ=="
     },
-    "sweetalert2@11.26.23": {
-      "integrity": "sha512-6Y6Auvk/gLUcVtPHWhDkJs+JCDraxAWNdITdIbOqeo3mZthVZT3XfDjrxcSHtElUz7DmF21oEqUCW2eWR15eDA=="
+    "sweetalert2@11.26.24": {
+      "integrity": "sha512-SLgukW4wicewpW5VOukSXY5Z6DL/z7HCOK2ODSjmQPiSphCN8gJAmh9npoceXOtBRNoDN0xIz+zHYthtfiHmjg=="
     },
     "tailwindcss@4.2.2": {
       "integrity": "sha512-KWBIxs1Xb6NoLdMVqhbhgwZf2PGBpPEiwOqgI4pFIYbNTfBXiKYyWoTsXgBQ9WFg/OlhnvHaY+AEpW7wSmFo2Q=="
@@ -559,7 +545,7 @@
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.8",
       "npm:sortablejs@^1.15.7",
-      "npm:sweetalert2@^11.26.23",
+      "npm:sweetalert2@^11.26.24",
       "npm:tailwindcss@^4.2.2"
     ]
   }
