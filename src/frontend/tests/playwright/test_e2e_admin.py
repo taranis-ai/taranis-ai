@@ -300,7 +300,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(osint_source_name)
             page.get_by_label("Description").fill("Test description of an OSINT source")
-            page.locator('select[name="rank"]').select_option("4")
+            page.locator('input[name="rank"][value="4"]').check()
             feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
             self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
             expect(feed_url_input).to_have_attribute("required", "")
@@ -313,8 +313,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
-            expect(form.locator('select[name="rank"]')).to_have_value("4")
-            form.locator('select[name="rank"]').select_option("2")
+            expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()
+            form.locator('input[name="rank"][value="2"]').check()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
             expect(feed_url_input).to_have_attribute("required", "")
             feed_url_input.fill("http://example.com/updated-feed-url")
@@ -327,7 +327,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
-            expect(form.locator('select[name="rank"]')).to_have_value("2")
+            expect(form.locator('input[name="rank"][value="2"]')).to_be_checked()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
             form.evaluate("form => { form.noValidate = true; }")

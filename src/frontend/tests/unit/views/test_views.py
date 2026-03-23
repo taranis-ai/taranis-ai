@@ -329,7 +329,9 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
         assert 'name="delete_icon"' in html
         assert 'data-testid="current-osint-icon"' in html
         assert 'data-testid="osint-source-rank"' in html
-        assert ">3 stars<" in html
+        assert 'value="3"' in html
+        assert 'aria-label="3 stars"' in html
+        assert "checked" in html
 
     def test_osint_source_form_disables_rank_for_manual_source(self, app):
         osint_source = OSINTSource.model_construct(
@@ -360,7 +362,9 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
 
         assert 'data-testid="osint-source-rank"' in html
         assert 'name="rank" value="0"' in html
-        assert "disabled" in html
+        assert 'aria-label="Unrated"' in html
+        assert html.count('name="rank"') == 7
+        assert html.count("disabled") >= 6
 
 
 def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock):
