@@ -1,9 +1,10 @@
 {
-  "version": 3,
+  "version": 4,
   "sources": [
     {
       "name": "Aktuelles aus dem BM.I",
       "description": "\u00dcbersicht der neuesten Artikel aus dem Bundesministerium f\u00fcr Inneres",
+      "rank": 4,
       "type": "rss_collector",
       "parameters": [
         {

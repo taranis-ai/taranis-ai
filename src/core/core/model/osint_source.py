@@ -12,8 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
-from core.log import logger
 from core.config import Config
+from core.log import logger
 from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -38,6 +38,7 @@ class OSINTSource(BaseModel):
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
+    rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters: Mapped[list["ParameterValue"]] = relationship(
@@ -50,10 +51,21 @@ class OSINTSource(BaseModel):
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
     _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
 
-    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        type: str | COLLECTOR_TYPES,
+        parameters=None,
+        icon=None,
+        enabled=True,
+        id=None,
+        rank: int = 0,
+    ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
+        self.rank = self._parse_rank(rank)
         self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
         self.icon = None
         if icon is not None:
@@ -175,6 +187,18 @@ class OSINTSource(BaseModel):
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
+    @staticmethod
+    def _parse_rank(rank: Any) -> int:
+        try:
+            normalized_rank = int(rank)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("OSINT source rank must be an integer between 0 and 5.") from exc
+
+        if not 0 <= normalized_rank <= 5:
+            raise ValueError("OSINT source rank must be between 0 and 5.")
+
+        return normalized_rank
+
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
@@ -211,6 +235,7 @@ class OSINTSource(BaseModel):
             "id": self.id,
             "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
             "name": self.name,
+            "rank": self.rank,
             "type": self.type,
         }
 
@@ -270,14 +295,16 @@ class OSINTSource(BaseModel):
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
-        if name := data.get("name"):
-            osint_source.name = name
-        if description := data.get("description"):
-            osint_source.description = description
-        icon_str = data.get("icon")
-        if icon_str is not None:
-            osint_source.icon = osint_source._parse_icon(icon_str)
-        if parameters := data.get("parameters"):
+        if "name" in data:
+            osint_source.name = data["name"]
+        if "description" in data:
+            osint_source.description = data["description"]
+        if "rank" in data:
+            osint_source.rank = cls._parse_rank(data["rank"])
+        if "icon" in data:
+            osint_source.icon = osint_source._parse_icon(data.get("icon"))
+        if "parameters" in data:
+            parameters = data.get("parameters") or []
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
         db.session.commit()
@@ -307,9 +334,7 @@ class OSINTSource(BaseModel):
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(
-                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
-                    )
+                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
@@ -395,6 +420,7 @@ class OSINTSource(BaseModel):
         export_dict = {
             "name": self.name,
             "description": self.description,
+            "rank": self.rank,
             "type": self.type,
             "parameters": self.get_export_parameters(export_args.get("with_secrets", False)),
         }
@@ -417,7 +443,7 @@ class OSINTSource(BaseModel):
 
         id_to_index_map = {osint_source.id: idx for idx, osint_source in enumerate(data, 1)}
         export_data = {
-            "version": 3,
+            "version": 4,
             "sources": [osint_source.to_export_dict(id_to_index_map, export_args) for osint_source in data],
         }
         if export_args.get("with_groups", False):
@@ -449,6 +475,12 @@ class OSINTSource(BaseModel):
                 )
             source["type"] = source.pop("collector")["type"]
         return data
+
+    @staticmethod
+    def normalize_rank(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            source["rank"] = OSINTSource._parse_rank(source.get("rank", 0))
+        return sources
 
     @staticmethod
     def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -518,9 +550,13 @@ class OSINTSource(BaseModel):
         elif json_data["version"] == 3:
             data = json_data["sources"]
             groups = json_data.get("groups", [])
+        elif json_data["version"] == 4:
+            data = json_data["sources"]
+            groups = json_data.get("groups", [])
         else:
             raise ValueError("Unsupported version")
 
+        data = cls.normalize_rank(data)
         data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")

@@ -276,6 +276,7 @@ class TestSourceView:
             id="source-with-icon",
             name="Test source",
             description="",
+            rank=3,
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
             parameters={},
             icon=_VALID_PNG_BASE64,
@@ -301,6 +302,39 @@ class TestSourceView:
         assert "An icon is currently uploaded." in html
         assert 'name="delete_icon"' in html
         assert 'data-testid="current-osint-icon"' in html
+        assert 'data-testid="osint-source-rank"' in html
+        assert ">3 stars<" in html
+
+    def test_osint_source_form_disables_rank_for_manual_source(self, app):
+        osint_source = OSINTSource.model_construct(
+            id="manual",
+            name="Manual",
+            description="",
+            rank=0,
+            type=COLLECTOR_TYPES.MANUAL_COLLECTOR,
+            parameters={},
+            icon=None,
+            enabled=True,
+            status=None,
+        )
+
+        with app.test_request_context("/"):
+            html = render_template(
+                "osint_source/osint_source_form.html",
+                model_name="osint_source",
+                submit_text="Update OSINT Source",
+                form_action='hx-put="/frontend/admin/sources/manual"',
+                form_error={},
+                osint_source=osint_source,
+                icon_accept="image/png",
+                collector_types=[],
+                parameters=[],
+                parameter_values={},
+            )
+
+        assert 'data-testid="osint-source-rank"' in html
+        assert 'name="rank" value="0"' in html
+        assert "disabled" in html
 
 
 def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock):

@@ -281,6 +281,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(osint_source_name)
             page.get_by_label("Description").fill("Test description of an OSINT source")
+            page.locator('select[name="rank"]').select_option("4")
             feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
             self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
             expect(feed_url_input).to_have_attribute("required", "")
@@ -292,6 +293,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_osint_sources():
             page.get_by_role("link", name=osint_source_name).click()
             expect(page.get_by_role("textbox", name="FEED_URL")).to_have_attribute("required", "")
+            expect(page.locator('select[name="rank"]')).to_have_value("4")
+            page.locator('select[name="rank"]').select_option("2")
             page.get_by_role("textbox", name="FEED_URL").fill("http://example.com/updated-feed-url")
             page.get_by_label("Icon").set_input_files(test_osint_icon_png)
 
@@ -307,6 +310,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.get_by_role("link", name=osint_source_name).click()
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
+            expect(page.locator('select[name="rank"]')).to_have_value("2")
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
             form = page.locator("form[hx-put]").first

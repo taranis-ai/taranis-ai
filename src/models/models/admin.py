@@ -225,6 +225,7 @@ class OSINTSource(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
+    rank: int = Field(default=0, ge=0, le=5)
     type: COLLECTOR_TYPES | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
 

@@ -3573,6 +3573,10 @@ components:
           type: string
         description:
           type: string
+        rank:
+          type: integer
+          minimum: 0
+          maximum: 5
         type:
           type: string
         parameters:

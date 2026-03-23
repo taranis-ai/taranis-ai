@@ -100,6 +100,20 @@ class Story(BaseModel):
         payload = StoryPayload.model_validate({"created": created})
         return payload.created or self.utcnow()
 
+    @staticmethod
+    def get_initial_relevance_for_source(osint_source_id: str | None) -> int:
+        if not osint_source_id:
+            return 0
+        if osint_source := OSINTSource.get(osint_source_id):
+            return osint_source.rank
+        return 0
+
+    @classmethod
+    def get_initial_relevance_for_news_item(cls, news_item: NewsItem | dict[str, Any]) -> int:
+        if isinstance(news_item, NewsItem):
+            return cls.get_initial_relevance_for_source(news_item.osint_source_id)
+        return cls.get_initial_relevance_for_source(news_item.get("osint_source_id"))
+
     def load_news_items(self, news_items) -> list["NewsItem"]:
         if not news_items:
             return []
@@ -573,6 +587,7 @@ class Story(BaseModel):
         data = {
             "title": news_item.get("title"),
             "created": news_item.get("published"),
+            "relevance": cls.get_initial_relevance_for_news_item(news_item),
             "news_items": [news_item],
             "last_change": "internal" if news_item.get("osint_source_id") == "manual" else "external",
         }
@@ -1115,6 +1130,7 @@ class Story(BaseModel):
             title=news_item.title,
             created=news_item.published,
             description=news_item.review or news_item.content,
+            relevance=cls.get_initial_relevance_for_news_item(news_item),
             news_items=[news_item.id],
         )
         db.session.add(new_story)
