@@ -120,6 +120,53 @@ def test_news_item_service_update_creates_story_revisions():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
+    shared_title = f"Duplicate {uuid.uuid4()}"
+    shared_link = "https://example.invalid/duplicate"
+    first_payload = _news_item_payload(source="manual")
+    first_payload["title"] = shared_title
+    first_payload["link"] = shared_link
+    first_payload["content"] = "first-content"
+
+    second_payload = _news_item_payload(source="manual")
+    second_payload["title"] = shared_title
+    second_payload["link"] = shared_link
+    second_payload["content"] = "second-content"
+
+    first_response, first_status = Story.add_single_news_item(first_payload)
+    assert first_status == 200
+
+    second_response, second_status = Story.add_single_news_item(second_payload)
+
+    assert second_status == 409
+    assert second_response["error"] == "Identical news item found. Skipping..."
+    assert second_response["skipped_news_item_story_id"] == first_response["story_id"]
+
+
+@pytest.mark.usefixtures("session")
+def test_news_item_service_update_rejects_duplicate_title_and_link_hash():
+    user = User.find_by_name("admin")
+    first_story = _create_story()
+    second_story = _create_story()
+    first_news_item = first_story.news_items[0]
+    second_news_item = second_story.news_items[0]
+    first_news_item_id = first_news_item.id
+    first_story_id = first_story.id
+
+    update_payload = {
+        "title": first_news_item.title,
+        "link": first_news_item.link,
+        "content": f"new-content-{uuid.uuid4()}",
+    }
+    response, status = NewsItemService.update(second_news_item.id, update_payload, user)
+
+    assert status == 409
+    assert response["error"] == "Identical news item found. Skipping..."
+    assert response["conflicting_news_item_id"] == first_news_item_id
+    assert response["story_id"] == first_story_id
+
+
+@pytest.mark.usefixtures("session")
 def test_news_item_attribute_update_creates_story_revisions():
     story = _create_story()
     news_item = story.news_items[0]

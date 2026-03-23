@@ -8,7 +8,8 @@
   {% if bot.status %}
     <div class="mb-5 w-3/4 ml-[10%]">{{ worker_status(bot.status) }}</div>
   {% endif %}
-  <form id="bot-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="bot-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}

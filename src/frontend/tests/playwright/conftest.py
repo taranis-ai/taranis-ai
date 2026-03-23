@@ -163,7 +163,7 @@ def setup_test_templates(run_core, access_token):
             pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
@@ -172,9 +172,14 @@ def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_
     if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    yield context.new_page()
-    if request.config.getoption("trace"):
-        context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+    page = context.new_page()
+    try:
+        yield page
+    finally:
+        if request.config.getoption("trace"):
+            context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+        page.close()
+        context.close()
 
 
 def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
@@ -232,16 +237,12 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     page.context.add_cookies(context_cookies)
 
-    def on_load():
-        _dismiss_notifications(page)
-
-    page.on("load", on_load)
     _dismiss_notifications(page)
 
     try:
         yield page
     finally:
-        page.remove_listener("load", on_load)
+        _dismiss_notifications(page)
 
 
 @pytest.fixture

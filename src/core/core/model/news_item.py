@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
+from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
@@ -64,9 +65,9 @@ class NewsItem(BaseModel):
 
     def __init__(
         self,
-        title: str,
-        source: str,
-        content: str,
+        title: str = "",
+        source: str = "",
+        content: str = "",
         osint_source_id: str = "manual",
         review: str = "",
         author: str = "",
@@ -100,16 +101,23 @@ class NewsItem(BaseModel):
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "NewsItem":
+        return cls.from_payload(AssessNewsItem.from_input(data))
+
+    @classmethod
+    def from_payload(cls, payload: AssessNewsItem) -> "NewsItem":
+        return cls(**payload.to_core_dict())
+
     @staticmethod
-    def get_date_field(date_filed: str | datetime | None) -> datetime:
-        payload = AssessNewsItem.model_validate({"osint_source_id": "manual", "title": "_", "published": date_filed})
-        return payload.published or BaseModel.utcnow()
+    def get_date_field(date_field: str | datetime | None) -> datetime:
+        return AssessNewsItem.normalize_datetime(date_field, default_to_now=True) or BaseModel.utcnow()
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
-        combined_str = f"{title}{link}{content}"
+        combined_str = f"{title}{link}"
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
@@ -119,6 +127,12 @@ class NewsItem(BaseModel):
     @classmethod
     def find_by_hash(cls, hash):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
+
+    @classmethod
+    def get_by_hash(cls, hash: str | None) -> "NewsItem | None":
+        if not hash:
+            return None
+        return cls.get_first(db.select(cls).where(cls.hash == hash))
 
     @classmethod
     def latest_collected(cls) -> str | None:
@@ -237,31 +251,34 @@ class NewsItem(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data) -> tuple[dict, int]:
-        if self.source != "manual":
+        if self.osint_source_id != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
-        if title := data.get("title"):
-            self.title = title
+        try:
+            payload = AssessNewsItem.from_input(self.to_detail_dict() | data | {"osint_source_id": self.osint_source_id})
+        except ValidationError as exc:
+            return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if review := data.get("review"):
-            self.review = review
+        if duplicate_item := self.get_by_hash(payload.hash):
+            if duplicate_item.id != self.id:
+                return {
+                    "error": "Identical news item found. Skipping...",
+                    "conflicting_news_item_id": duplicate_item.id,
+                    "story_id": duplicate_item.story_id,
+                }, 409
 
-        if author := data.get("author"):
-            self.author = author
-
-        if link := data.get("link"):
-            self.link = link
-
-        if content := data.get("content"):
-            self.content = content
-
-        if published := data.get("published"):
-            self.published = self.get_date_field(published)
+        self.title = payload.title or ""
+        self.review = payload.review or ""
+        self.author = payload.author or ""
+        self.link = payload.link or ""
+        self.content = payload.content or ""
+        self.language = str(payload.language or "")
+        self.published = payload.published or self.published
+        self.hash = payload.hash or self.hash
 
         self._update_status("internal")
 
         self.updated = self.utcnow()
-        self.hash = self.get_hash(self.title, self.link, self.content)
 
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 

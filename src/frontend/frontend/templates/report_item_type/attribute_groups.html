@@ -1,6 +1,8 @@
 {% from "macros/forms.html" import form_input_content, form_textarea %}
 {% from "macros/report_macros.html" import render_attribute_group %}
-{% set highest_group_index = report_item_type.attribute_groups | map(attribute='index') | max | default(-1) %}
+{% set attribute_groups = report_item_type.attribute_groups | default([], true) %}
+{% set group_indices = attribute_groups | map(attribute='index') | list %}
+{% set highest_group_index = (group_indices | max) if group_indices else -1 %}
 <div class="mb-4">
   <button type="button"
           class="btn btn-primary"
@@ -11,5 +13,5 @@
 </div>
 
 <div id="groups-container" class="space-y-4">
-  {% for group in report_item_type.attribute_groups %}{{ render_attribute_group(group, attribute_types) }}{% endfor %}
+  {% for group in attribute_groups %}{{ render_attribute_group(group, attribute_types) }}{% endfor %}
 </div>
