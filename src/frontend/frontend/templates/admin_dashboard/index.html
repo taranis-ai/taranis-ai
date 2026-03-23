@@ -15,7 +15,40 @@
       {% endcall %}
 
       {% call dashboard_card('Release Info') %}
-        Build date: <b>{{ build_info.get("build_date") | format_datetime }}</b>
+        <div class="grid gap-4 text-sm w-full">
+          {% for section_name, section_build_info in [("Core", release_info.get("core")), ("Frontend", release_info.get("frontend"))] %}
+            <div class="flex flex-col gap-1">
+              <span class="text-xs uppercase tracking-wide text-base-content/60">{{ section_name }}</span>
+              {% if section_build_info %}
+                <div>
+                  Build date:
+                  {% if section_build_info.get("build_date") %}
+                    <b>{{ section_build_info.get("build_date") | format_datetime }}</b>
+                  {% else %}
+                    <span class="text-base-content/60">Unavailable</span>
+                  {% endif %}
+                </div>
+                {% if section_build_info.get("tag") %}
+                  <div>
+                    Tag: <b>{{ section_build_info.get("tag") }}</b>
+                  </div>
+                {% endif %}
+                {% if section_build_info.get("HEAD") %}
+                  <div>
+                    Commit: <b>{{ section_build_info.get("HEAD") }}</b>
+                  </div>
+                {% endif %}
+                {% if section_build_info.get("branch") %}
+                  <div>
+                    Branch: <b>{{ section_build_info.get("branch") }}</b>
+                  </div>
+                {% endif %}
+              {% else %}
+                <span class="text-base-content/60">Unavailable</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
       {% endcall %}
 
       {% include "admin_dashboard/health_status.html" %}

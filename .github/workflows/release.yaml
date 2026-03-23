@@ -52,10 +52,12 @@ jobs:
           TAG: ${{ env.TAG }}
         run: |
           images=("taranis-core" "taranis-worker" "taranis-ingress" "taranis-frontend")
+          short_sha=$(printf '%.7s' "${GITHUB_SHA}")
+          git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
 
           for image in "${images[@]}"; do
-            printf 'FROM ghcr.io/%s/%s:latest\nENV APP_VERSION=%s\n' \
-              "${REPOSITORY_OWNER}" "${image}" "${TAG}" \
+            printf 'FROM ghcr.io/%s/%s:latest\nENV GIT_INFO=%s\n' \
+              "${REPOSITORY_OWNER}" "${image}" "${git_info}" \
             | docker buildx build \
               --platform linux/amd64,linux/arm64 \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
