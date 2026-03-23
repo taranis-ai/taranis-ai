@@ -11,6 +11,7 @@ from models.types import COLLECTOR_TYPES
 from frontend.cache import cache
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
+from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.base_view import BaseView
 
@@ -153,7 +154,8 @@ class TestSourceView:
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
-            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
+            assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
+            assert resp.headers["Location"] == SourceView.get_base_route()
 
             mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 
@@ -252,6 +254,30 @@ class TestSourceView:
         assert processed_data["icon"] == ""
         assert "delete_icon" not in processed_data
 
+
+def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
+    with app.test_request_context(
+        "/admin/report-item-types/0",
+        method="POST",
+        data={
+            "title": "Incident Report",
+            "description": "Shared normalization",
+            "attribute_groups[][index]": "0",
+            "attribute_groups[][title]": "Indicators",
+            "attribute_groups[][attribute_group_items][][index]": "0",
+            "attribute_groups[][attribute_group_items][][title]": "Domain",
+            "csrf_token": "secret",
+        },
+    ):
+        model = ReportItemTypeView._submitted_form_model()
+
+    assert model is not None
+    assert model.title == "Incident Report"
+    assert len(model.attribute_groups or []) == 1
+    assert model.attribute_groups[0].title == "Indicators"
+    assert len(model.attribute_groups[0].attribute_group_items) == 1
+    assert model.attribute_groups[0].attribute_group_items[0].title == "Domain"
+
     def test_process_form_data_delete_icon_wins_over_file_upload(self, app):
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
@@ -289,7 +315,7 @@ class TestSourceView:
                 "osint_source/osint_source_form.html",
                 model_name="osint_source",
                 submit_text="Update OSINT Source",
-                form_action='hx-put="/frontend/admin/sources/source-with-icon"',
+                form_action="/frontend/admin/sources/source-with-icon",
                 form_error={},
                 osint_source=osint_source,
                 icon_accept="image/png",

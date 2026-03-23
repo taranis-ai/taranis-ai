@@ -1,5 +1,6 @@
-from frontend.utils.form_data_parser import parse_formdata
 from werkzeug.datastructures import ImmutableMultiDict
+
+from frontend.utils.form_data_parser import parse_formdata
 
 
 def test_parse_formdata():
@@ -52,6 +53,12 @@ def test_parse_formdata_with_empty_values():
     formdata = ImmutableMultiDict([("name", ""), ("age", "30"), ("address[city]", "")])
     expected = {"name": "", "age": "30", "address": {"city": ""}}
     assert parse_formdata(formdata) == expected
+
+
+def test_parse_formdata_ignores_csrf_token():
+    formdata = ImmutableMultiDict([("csrf_token", "secret"), ("name", "John")])
+
+    assert parse_formdata(formdata) == {"name": "John"}
 
 
 def test_parse_formdata_with_list_of_dicts():

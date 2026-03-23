@@ -1,5 +1,7 @@
 from typing import cast
+
 from flask import current_app
+from flask.typing import ResponseReturnValue
 from jinja2 import TemplateNotFound
 
 
@@ -39,3 +41,28 @@ class AdminMixin:
             return path
         except TemplateNotFound:
             return f"default/admin{fallback_suffix}"
+
+    @classmethod
+    def submits_via_standard_form(cls) -> bool:
+        return not cls._read_only
+
+    @classmethod
+    def get_form_action(cls, object_id: int | str = 0) -> str:
+        if not cls.submits_via_standard_form():
+            return super(AdminMixin, cls).get_form_action(object_id)
+        if str(object_id) == "0":
+            return cls.get_base_route()
+        return cls.get_edit_route(**{cls._get_object_key(): object_id})
+
+    @classmethod
+    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict | None = None) -> tuple[str, int]:
+        if not cls.submits_via_standard_form():
+            return super(AdminMixin, cls).handle_submit_error(object_id, error=error, resp_obj=resp_obj)
+        return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
+
+    @classmethod
+    def handle_submit_success(cls, object_id: int | str, core_response: dict) -> ResponseReturnValue:
+        if not cls.submits_via_standard_form():
+            return super(AdminMixin, cls).handle_submit_success(object_id, core_response)
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))

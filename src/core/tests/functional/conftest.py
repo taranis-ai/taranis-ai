@@ -113,14 +113,15 @@ def cleanup_news_item(fake_source):
     news_item = {
         "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebb",
         "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c87",
-        "title": "Test News Item 13",
+        "title": "<b>Test News Item 13</b>",
         "review": "CVE-2020-1234 - Test Story 1",
         "author": "John Doe",
-        "source": "https://url/13",
-        "link": "https://url/13",
-        "content": "CVE-2020-1234 - Test Story 1",
-        "collected": "2023-08-01T17:01:04.802015",
-        "published": "2023-08-01T17:01:04.801998",
+        "source": "manual submission",
+        "link": "https://url/13 path?q=a b",
+        "content": "<p>CVE-2020-1234 - Test Story 1</p>",
+        "collected": "2023-08-01T17:01:04.802015+02:00",
+        "published": "2023-08-01T17:01:04.801998+02:00",
+        "updated": "2024-01-02T03:04:05+02:00",
         "osint_source_id": fake_source,
     }
 
@@ -545,7 +546,6 @@ def full_story(fake_source):
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
     with open(story_json) as f:
         story = json.load(f)
-        story[0].get("news_items")[0].pop("updated")
         story[0].get("news_items")[0]["osint_source_id"] = fake_source
         yield story
 
@@ -561,8 +561,6 @@ def full_story_with_multiple_items_id(fake_source):
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
     with open(story_json) as f:
         story = json.load(f)
-        story[1].get("news_items")[0].pop("updated")
-        story[1].get("news_items")[1].pop("updated")
         story[1].get("news_items")[0]["osint_source_id"] = fake_source
         story[1].get("news_items")[1]["osint_source_id"] = fake_source
 

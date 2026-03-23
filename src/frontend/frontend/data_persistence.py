@@ -92,11 +92,19 @@ class DataPersistenceLayer:
     def _cache_and_paginate_objects(self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None):
         items = result.get("items", [])
         result_object = [object_model(**object) for object in items]
-        if not result_object:
-            logger.warning(f"Empty result for {endpoint}")
-            return CacheObject([], 0)
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
+        if not result_object:
+            logger.debug(f"Empty result for {endpoint}")
+            return CacheObject(
+                [],
+                total_count=total_count,
+                limit=paging_data.limit if paging_data and paging_data.limit else 20,
+                page=paging_data.page if paging_data and paging_data.page else 1,
+                order=paging_data.order if paging_data and paging_data.order else "",
+                query_params=paging_data.query_params if paging_data else {},
+                links=links,
+            )
         cache_object = CacheObject(
             result_object,
             total_count=total_count,

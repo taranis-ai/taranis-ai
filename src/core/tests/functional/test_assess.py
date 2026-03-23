@@ -44,11 +44,27 @@ class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"
 
     def test_post_AddNewsItem(self, client, cleanup_news_item, auth_header):
+        from core.model.news_item import NewsItem
+
         response = self.assert_get_ok(client, "news-items", auth_header)
         assert len(response.get_json()["items"]) == 0, f"No news items should exist, found {response.get_json()['items']}"
 
         response = self.assert_post_ok(client, "news-items", cleanup_news_item, auth_header)
-        assert uuid.UUID(response.get_json()["story_id"], version=4)
+        response_json = response.get_json()
+        assert uuid.UUID(response_json["story_id"], version=4)
+
+        news_item_id = response_json["news_item_ids"][0]
+        item_response = self.assert_get_ok(client, f"news-items/{news_item_id}", auth_header)
+        news_item = item_response.get_json()
+
+        assert news_item["id"] == cleanup_news_item["id"]
+        assert news_item["title"] == "Test News Item 13"
+        assert news_item["content"] == "CVE-2020-1234 - Test Story 1"
+        assert news_item["link"] == "https://url/13%20path?q=a%20b"
+        assert news_item["published"] == "2023-08-01T15:01:04.801998+00:00"
+        assert news_item["collected"] == "2023-08-01T15:01:04.802015+00:00"
+        assert news_item["hash"] == NewsItem.get_hash(title="Test News Item 13", link="https://url/13%20path?q=a%20b")
+        assert news_item["updated"] != cleanup_news_item["updated"]
 
     def test_add_single_news_item_uses_source_rank_for_story_relevance(self, app, cleanup_ranked_news_item):
         from core.model.story import Story
@@ -76,6 +92,30 @@ class TestAssessNewsItems(BaseTest):
     def test_get_NewsItem(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
         assert response.get_json()["id"] == cleanup_news_item["id"]
+
+    def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
+        from core.model.news_item import NewsItem
+
+        update_payload = {
+            "title": "<i>Updated News Item</i>",
+            "content": "<div>Updated content</div>",
+            "link": "https://url/updated path?q=c d",
+            "language": "de",
+            "published": "2024-01-01T00:00:00+02:00",
+        }
+
+        response = self.assert_put_ok(client, f"news-items/{cleanup_news_item['id']}", update_payload, auth_header)
+        assert response.get_json()["news_item_id"] == cleanup_news_item["id"]
+
+        item_response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
+        news_item = item_response.get_json()
+
+        assert news_item["title"] == "Updated News Item"
+        assert news_item["content"] == "Updated content"
+        assert news_item["link"] == "https://url/updated%20path?q=c%20d"
+        assert news_item["language"] == "de"
+        assert news_item["published"] == "2023-12-31T22:00:00+00:00"
+        assert news_item["hash"] == NewsItem.get_hash(title="Updated News Item", link="https://url/updated%20path?q=c%20d")
 
     def test_delete_NewsItem(self, client, cleanup_news_item, auth_header):
         response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)

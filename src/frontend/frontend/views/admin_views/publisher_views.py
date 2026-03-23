@@ -1,15 +1,15 @@
 from typing import Any
-from flask import request, render_template
 
-from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.base_view import BaseView
-from frontend.data_persistence import DataPersistenceLayer
-from models.admin import PublisherPreset, ProductType, ReportItemType, Template
+from flask import render_template, request
+from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
-from frontend.views.admin_views.admin_mixin import AdminMixin
 
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class PublisherView(AdminMixin, BaseView):
@@ -73,7 +73,7 @@ class ProductTypeView(AdminMixin, BaseView):
         parameter_values = {}
         presenter = base_context.get(cls.model_name())
         if presenter and (hasattr(presenter, "type") and (presenter_type := presenter.type)):
-            parameter_values = presenter.parameters.dict()
+            parameter_values = presenter.parameters.dict() if hasattr(presenter.parameters, "dict") else presenter.parameters
             parameters = cls.get_worker_parameters(worker_type=presenter_type.name.lower())
         base_context |= {
             "presenter_types": cls.presenter_types.values(),
@@ -88,10 +88,7 @@ class ProductTypeView(AdminMixin, BaseView):
     def process_form_data(cls, object_id: int | str):
         try:
             form_data = parse_formdata(request.form)
-            obj = cls.model(**form_data)
-            dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
-            return (result.json(), None) if result.ok else (None, result.json().get("error"))
+            return cls.store_form_data(form_data, object_id)
         except Exception as exc:
             return None, str(exc)
 

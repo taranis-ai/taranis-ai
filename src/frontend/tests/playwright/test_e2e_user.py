@@ -31,6 +31,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        page.context.clear_cookies()
         self.add_keystroke_overlay(page)
 
         page.goto(url_for("base.login", _external=True))
@@ -406,7 +407,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_test_id("report-id")).not_to_contain_text("ID: 0", timeout=10000)
+            expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
             expect(page.get_by_placeholder("Date")).to_be_visible()
@@ -420,6 +422,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
+            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated", timeout=10000)
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")

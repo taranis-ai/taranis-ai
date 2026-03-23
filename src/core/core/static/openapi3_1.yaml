@@ -604,7 +604,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/news_item"
+              $ref: "#/components/schemas/news_item_create"
       responses:
         "200":
           description: the Story IDs and NewsItem IDs of the created news item
@@ -613,7 +613,7 @@ paths:
               schema:
                 type: object
         "400":
-          description: failed to decode the request body
+          description: invalid news item data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -714,7 +714,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/story"
         "400":
-          description: erronous input data
+          description: erroneous input data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -752,14 +752,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                read:
-                  type: boolean
-                important:
-                  type: boolean
-                vote:
-                  type: boolean
+              $ref: "#/components/schemas/news_item_update"
       responses:
         "200":
           description: the news item was modified
@@ -768,7 +761,34 @@ paths:
               schema:
                 type: object
         "400":
-          description: erronous input data
+          description: erroneous input data
+        "409":
+          description: news item already exists
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: partially modify the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_update"
+      responses:
+        "200":
+          description: the news item was modified
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: erroneous input data
+        "409":
+          description: news item already exists
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -3506,6 +3526,57 @@ components:
         - title
         - source
         - content
+    news_item_create:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        source:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        collected:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
+        last_change:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_attribute"
+      anyOf:
+        - required: [title]
+        - required: [content]
+    news_item_update:
+      type: object
+      additionalProperties: false
+      properties:
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
 
     news_item_tag:
       type: object
