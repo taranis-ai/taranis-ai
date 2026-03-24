@@ -5,6 +5,7 @@ from core.managers.data_manager import (
     InvalidPresenterTemplatePathError,
     get_presenter_template_path,
     save_template_content,
+    validate_existing_presenter_template_id,
     validate_presenter_template_id,
     validate_presenter_template_name,
 )
@@ -61,6 +62,7 @@ def test_validate_presenter_template_id_accepts_existing_template(templates_dir)
     template.write_text("hello", encoding="utf-8")
 
     assert validate_presenter_template_id("report_template.html") == "report_template.html"
+    assert validate_existing_presenter_template_id("report_template.html") == "report_template.html"
 
 
 @pytest.mark.parametrize("template_id", ["missing_template.html", "escaped.html"])
@@ -72,6 +74,11 @@ def test_validate_presenter_template_id_rejects_invalid_resolved_paths(templates
 
     with pytest.raises(InvalidPresenterTemplatePathError, match="Invalid presenter template path"):
         validate_presenter_template_id(template_id)
+
+
+def test_validate_existing_presenter_template_id_rejects_missing_template(templates_dir):
+    with pytest.raises(InvalidPresenterTemplatePathError, match="Invalid presenter template path"):
+        validate_existing_presenter_template_id("missing_template.html")
 
 
 def test_save_template_content_rejects_invalid_template_path(templates_dir, tmp_path):

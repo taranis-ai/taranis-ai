@@ -198,10 +198,7 @@ def validate_presenter_template_id(template_id: str) -> str:
 
 
 def validate_existing_presenter_template_id(template_id: str) -> str:
-    try:
-        return validate_presenter_template_id(template_id)
-    except InvalidPresenterTemplatePathError as exc:
-        raise ValueError("TEMPLATE_PATH must reference an existing presenter template") from exc
+    return validate_presenter_template_id(template_id)
 
 
 def initialize(initial_setup: bool = True) -> None:
