@@ -118,18 +118,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(all_rows).to_have_count(5)
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
-        def test_clear_cache(page: Page) -> None:
-            page.goto(url_for("admin_settings.settings", _external=True))
-            expect(page.locator("#settings-container")).to_be_visible()
-            invalidate_cache_button = page.get_by_role("button", name="Invalidate Cache")
-            expect(invalidate_cache_button).to_be_visible()
-            invalidate_cache_button.click()
-
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
         test_dashboard_edit_settings(page)
         test_dashboard_entity_location_pagination(page)
-        test_clear_cache(page)  # TODO Fix cache (necessary because cache is not correctly invalidated)
 
     def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
