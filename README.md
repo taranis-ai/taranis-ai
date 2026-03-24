@@ -55,15 +55,6 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
-### OSINT Source Ranking
-
-OSINT sources support a rank from `0` to `5` in the admin UI.
-
-* `0` means unrated.
-* `1` through `5` map to the source trust/ranking stars.
-* The rank is applied only when a new story is created from a source's news item.
-* Changing a source rank does not retroactively recalculate relevance for existing stories.
-
 ### Core Health Endpoints
 
 Core exposes two unauthenticated health-related endpoints:
