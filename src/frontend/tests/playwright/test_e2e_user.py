@@ -119,9 +119,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
         def test_clear_cache(page: Page) -> None:
-            page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-            page.get_by_test_id("admin-menu-Settings").click()
+            page.goto(url_for("admin_settings.settings", _external=True))
             expect(page.locator("#settings-container")).to_be_visible()
             invalidate_cache_button = page.get_by_role("button", name="Invalidate Cache")
             expect(invalidate_cache_button).to_be_visible()
@@ -232,7 +230,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories, run_core, access_token):
+    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, run_core, access_token, pre_seed_stories):
         page = logged_in_page
         expected_total = self._get_assess_story_total(run_core, access_token)
         # page.set_default_timeout(0)

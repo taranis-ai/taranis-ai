@@ -1057,7 +1057,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path, run_core, access_token):
+    def test_admin_settings(self, logged_in_page, tmp_path, run_core, access_token, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
