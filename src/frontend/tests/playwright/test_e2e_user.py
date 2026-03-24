@@ -254,6 +254,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(menu).to_be_visible()
             expect(menu).to_be_enabled()
             title = story.locator("h2[data-testid='story-title']").inner_text()
+            edited_title = f"{title} edited title"
 
             story.get_by_test_id("toggle-summary").click()
             story.get_by_test_id("story-actions-menu").click()
@@ -266,7 +267,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             story.get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
             page.get_by_test_id("edit-story").click()
-            page.get_by_role("textbox", name="Title").fill(f"{title} edited title")
+            page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             page.get_by_test_id("tag-name-input").fill("tag name")
@@ -287,7 +288,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("link", name="Return to story").click()
-            expect(page.get_by_test_id("story-title")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76 edited title")
+            expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
         def infinite_scroll_all_items():
             page.goto(url_for("assess.assess", _external=True))

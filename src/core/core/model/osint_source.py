@@ -12,8 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
-from core.log import logger
 from core.config import Config
+from core.log import logger
 from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -307,9 +307,7 @@ class OSINTSource(BaseModel):
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(
-                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP."
-                    )
+                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
@@ -344,6 +342,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        if source_id == "manual":
+            return {"error": "The manual source cannot be deleted"}, 400
+
         if not (source := cls.get(source_id)):
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
