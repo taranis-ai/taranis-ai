@@ -1,4 +1,5 @@
 import pytest
+from uuid import uuid4
 
 from tests.functional.helpers import BaseTest
 
@@ -116,3 +117,48 @@ class TestAnalyzeApi(BaseTest):
         response = client.get(self.concat_url(uri), headers=auth_header)
         assert response.status_code == 403
         assert response.get_json() == {"error": "forbidden"}
+
+    def test_hidden_report_type_cannot_be_forged_into_report_creation(self, app, client, auth_header_user_permissions):
+        from core.managers.db_manager import db
+        from core.model.report_item_type import ReportItemType
+        from core.model.role_based_access import ItemType, RoleBasedAccess
+
+        acl_id = None
+
+        with app.app_context():
+            protected_report_type = ReportItemType.get_all_for_collector()[0]
+            acl = RoleBasedAccess(
+                name=f"report-type-acl-{uuid4()}",
+                description="Restrict report type to admin role for regression test",
+                item_type=ItemType.REPORT_ITEM_TYPE,
+                item_id=str(protected_report_type.id),
+                roles=[1],
+                read_only=False,
+                enabled=True,
+            )
+            db.session.add(acl)
+            db.session.commit()
+            acl_id = acl.id
+            protected_report_type_id = protected_report_type.id
+
+        try:
+            list_response = client.get(self.concat_url("report-types"), headers=auth_header_user_permissions)
+            assert list_response.status_code == 200
+            assert protected_report_type_id not in {item["id"] for item in list_response.get_json()["items"]}
+
+            create_response = client.post(
+                self.concat_url("report-items"),
+                json={
+                    "id": f"forged-report-{uuid4()}",
+                    "title": "Forged report",
+                    "report_item_type_id": protected_report_type_id,
+                    "stories": [],
+                },
+                headers=auth_header_user_permissions,
+            )
+            assert create_response.status_code == 403
+            assert "not allowed to create Report" in create_response.get_json()["error"]
+        finally:
+            with app.app_context():
+                if acl_id and RoleBasedAccess.get(acl_id):
+                    RoleBasedAccess.delete(acl_id)
