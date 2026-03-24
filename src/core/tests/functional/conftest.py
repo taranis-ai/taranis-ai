@@ -14,9 +14,7 @@ def fake_source(app):
             "description": "This is a test source",
             "name": "Test Source",
             "rank": 0,
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
+            "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
         source_id = source_data["id"]
@@ -39,9 +37,7 @@ def ranked_source(app):
             "description": "Ranked source",
             "name": "Ranked Source",
             "rank": 4,
-            "parameters": [
-                {"FEED_URL": "https://ranked.example/feed.xml"},
-            ],
+            "parameters": {"FEED_URL": "https://ranked.example/feed.xml"},
             "type": "rss_collector",
         }
 
@@ -228,7 +224,7 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
             name="Story Filter Extra Source",
             description="Additional source for story filter tests",
             type="rss_collector",
-            parameters=[{"FEED_URL": "https://example.invalid/story-filter-extra.xml"}],
+            parameters={"FEED_URL": "https://example.invalid/story-filter-extra.xml"},
         )
         source_group = OSINTSourceGroup(
             id="story-filter-group",

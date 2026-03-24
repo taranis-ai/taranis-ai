@@ -5,6 +5,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
+from models.admin import OSINTSource as OSINTSourceModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -62,16 +63,29 @@ class OSINTSource(BaseModel):
         id=None,
         rank: int = 0,
     ):
-        self.id = id or str(uuid.uuid4())
-        self.name = name
-        self.description = description
-        self.rank = self._parse_rank(rank)
-        self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
+        payload = OSINTSourceModel.model_validate(
+            {
+                "id": id,
+                "name": name,
+                "description": description,
+                "rank": rank,
+                "type": type,
+                "parameters": {} if parameters is None else parameters,
+                "icon": icon,
+                "enabled": enabled,
+            }
+        )
+
+        self.id = payload.id or str(uuid.uuid4())
+        self.name = payload.name
+        self.description = payload.description
+        self.rank = payload.rank
+        self.type = payload.type if payload.type is not None else COLLECTOR_TYPES.MANUAL_COLLECTOR
         self.icon = None
-        if icon is not None:
-            self.icon = self._parse_icon(icon)
-        self.enabled = enabled
-        self.parameters = Worker.parse_parameters(self.type, parameters)
+        if payload.icon is not None:
+            self.icon = self._parse_icon(payload.icon)
+        self.enabled = True if payload.enabled is None else payload.enabled
+        self.parameters = Worker.parse_parameters(self.type, payload.parameters)
 
     @property
     def tlp_level(self) -> TLPLevel:
@@ -88,6 +102,16 @@ class OSINTSource(BaseModel):
     @property
     def task_id(self):
         return f"collect_{self.type}_{self.id}"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
+        data = dict(data)
+        data.pop("enabled", None)
+        return cls.from_payload(OSINTSourceModel.model_validate(data))
+
+    @classmethod
+    def from_payload(cls, payload: OSINTSourceModel) -> "OSINTSource":
+        return cls(**payload.model_dump(exclude={"status"}))
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -180,24 +204,6 @@ class OSINTSource(BaseModel):
         else:
             self.icon = None
         db.session.commit()
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["enabled"]
-        [data.pop(key, None) for key in drop_keys if key in data]
-        return cls(**data)
-
-    @staticmethod
-    def _parse_rank(rank: Any) -> int:
-        try:
-            normalized_rank = int(rank)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("OSINT source rank must be an integer between 0 and 5.") from exc
-
-        if not 0 <= normalized_rank <= 5:
-            raise ValueError("OSINT source rank must be between 0 and 5.")
-
-        return normalized_rank
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -295,18 +301,30 @@ class OSINTSource(BaseModel):
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
-        if "name" in data:
-            osint_source.name = data["name"]
-        if "description" in data:
-            osint_source.description = data["description"]
-        if "rank" in data:
-            osint_source.rank = cls._parse_rank(data["rank"])
-        if "icon" in data:
-            osint_source.icon = osint_source._parse_icon(data.get("icon"))
-        if "parameters" in data:
-            parameters = data.get("parameters") or []
-            update_parameter = ParameterValue.get_or_create_from_list(parameters)
-            osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
+        update_data = {key: value for key, value in data.items() if key not in {"id", "type", "enabled"}}
+        validated_source = cls.from_dict(
+            {
+                "id": osint_source.id,
+                "name": osint_source.name,
+                "description": osint_source.description,
+                "rank": osint_source.rank,
+                "type": osint_source.type,
+                "parameters": {parameter.parameter: parameter.value for parameter in osint_source.parameters},
+                "icon": base64.b64encode(osint_source.icon).decode("utf-8") if osint_source.icon else None,
+            }
+            | update_data
+        )
+
+        if "name" in update_data:
+            osint_source.name = validated_source.name
+        if "description" in update_data:
+            osint_source.description = validated_source.description
+        if "rank" in update_data:
+            osint_source.rank = validated_source.rank
+        if "icon" in update_data:
+            osint_source.icon = validated_source.icon
+        if "parameters" in update_data:
+            osint_source.parameters = validated_source.parameters
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -453,14 +471,14 @@ class OSINTSource(BaseModel):
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
-    def get_export_parameters(self, with_secrets: bool = False) -> list[dict[str, str]]:
-        parameters = []
+    def get_export_parameters(self, with_secrets: bool = False) -> dict[str, str]:
+        parameters: dict[str, str] = {}
         for parameter in self.parameters:
             if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
-                parameters.append({parameter.parameter: "<REDACTED>"})
+                parameters[parameter.parameter] = "<REDACTED>"
                 continue
             if parameter.value:
-                parameters.append(parameter.to_dict())
+                parameters[parameter.parameter] = parameter.value
         return parameters
 
     @classmethod
@@ -468,22 +486,36 @@ class OSINTSource(BaseModel):
         for source in data:
             source["parameters"] = []
             for parameter in source.pop("parameter_values", []):
-                source["parameters"].append(
-                    {
-                        parameter["parameter"]["key"]: parameter["value"],
-                    }
-                )
+                source["parameters"].append({parameter["parameter"]["key"]: parameter["value"]})
             source["type"] = source.pop("collector")["type"]
         return data
 
     @staticmethod
     def normalize_rank(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for source in sources:
-            source["rank"] = OSINTSource._parse_rank(source.get("rank", 0))
+            source["rank"] = source.get("rank", 0)
         return sources
 
     @staticmethod
     def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            parameters = source.get("parameters")
+            if not isinstance(parameters, dict):
+                continue
+
+            content_location_value = str(parameters.get("CONTENT_LOCATION", ""))
+            has_use_feed_content = "USE_FEED_CONTENT" in parameters
+
+            if not content_location_value and not has_use_feed_content:
+                continue
+
+            target_value = "true" if content_location_value and content_location_value.strip() else "false"
+            parameters["USE_FEED_CONTENT"] = target_value
+
+        return sources
+
+    @staticmethod
+    def normalize_use_feed_content_parameter_legacy(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for source in sources:
             parameters = source.get("parameters")
             if not isinstance(parameters, list):
@@ -511,6 +543,28 @@ class OSINTSource(BaseModel):
                 parameters.append({"USE_FEED_CONTENT": target_value})
 
         return sources
+
+    @staticmethod
+    def convert_legacy_import_parameters(parameters: Any) -> Any:
+        if not isinstance(parameters, list):
+            return parameters
+
+        converted: dict[str, Any] = {}
+        for parameter in parameters:
+            if not isinstance(parameter, dict) or len(parameter) != 1:
+                return parameters
+            key, value = next(iter(parameter.items()))
+            converted[key] = value
+        return converted
+
+    @classmethod
+    def convert_legacy_import_sources(cls, sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        converted_sources = []
+        for source in sources:
+            converted_source = dict(source)
+            converted_source["parameters"] = cls.convert_legacy_import_parameters(source.get("parameters"))
+            converted_sources.append(converted_source)
+        return converted_sources
 
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
@@ -545,19 +599,28 @@ class OSINTSource(BaseModel):
         groups = []
         if json_data["version"] == 1:
             data = cls.parse_version_1(json_data["data"])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
         elif json_data["version"] == 2:
             data = json_data["data"]
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
         elif json_data["version"] == 3:
             data = json_data["sources"]
             groups = json_data.get("groups", [])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
         elif json_data["version"] == 4:
             data = json_data["sources"]
             groups = json_data.get("groups", [])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter(data)
         else:
             raise ValueError("Unsupported version")
 
-        data = cls.normalize_rank(data)
-        data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids

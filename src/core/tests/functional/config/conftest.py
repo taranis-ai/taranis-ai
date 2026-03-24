@@ -14,9 +14,7 @@ def cleanup_sources(app):
             "description": "This is a test source",
             "name": "Test Source",
             "rank": 0,
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
+            "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
 

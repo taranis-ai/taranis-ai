@@ -315,7 +315,7 @@ def pre_seed_manual_source():
                 "description": "Manual source",
                 "rank": 0,
                 "type": "MANUAL_COLLECTOR",
-                "parameters": [],
+                "parameters": {},
             }
         )
 

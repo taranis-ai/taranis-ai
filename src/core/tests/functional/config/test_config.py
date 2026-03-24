@@ -80,7 +80,7 @@ class TestSourcesConfigApi(BaseTest):
                     "description": "",
                     "rank": 5,
                     "type": "rss_collector",
-                    "parameters": [{"FEED_URL": "https://example.com/v4.xml"}],
+                    "parameters": {"FEED_URL": "https://example.com/v4.xml"},
                 }
             ],
         }
@@ -148,6 +148,17 @@ class TestSourcesConfigApi(BaseTest):
 
         assert response.status_code == 400
         assert response.json["error"] == "Icon payload is not a valid image file."
+
+    def test_create_source_rejects_invalid_rank(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_payload["id"] = uuid.uuid4().hex
+        source_payload["rank"] = 6
+
+        response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert "Validation failed for model 'OSINTSource':" in response.json["error"]
+        assert "Field 'rank': Input should be less than or equal to 5" in response.json["error"]
 
     def test_modify_source(self, client, auth_header, cleanup_sources):
         source_data = {
