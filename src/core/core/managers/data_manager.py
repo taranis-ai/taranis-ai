@@ -7,6 +7,8 @@ from shutil import copy
 from core.config import Config
 from core.log import logger
 
+_INTERNAL_TEMPLATE_FILES = {"README.md", "template_hashes.json"}
+
 
 def file_hash(file_path):
     hash_md5 = hashlib.md5(usedforsecurity=False)
@@ -44,6 +46,7 @@ def sync_presenter_templates_to_data() -> None:
 def get_template_content(template_id: str) -> str | None:
     """Return the template content as a string, or None if not found."""
     try:
+        template_id = validate_presenter_template_id(template_id)
         path = Path(Config.DATA_FOLDER) / "presenter_templates" / template_id
         if not path.is_file():
             return None
@@ -64,11 +67,7 @@ def list_templates() -> list[str]:
         path = Path(Config.DATA_FOLDER) / "presenter_templates"
         if not path.exists():
             return []
-        return [
-            f.name
-            for f in path.iterdir()
-            if f.is_file() and not f.name.startswith(".") and f.name not in ["README.md", "template_hashes.json"]
-        ]
+        return [f.name for f in path.iterdir() if f.is_file() and is_valid_presenter_template_id(f.name)]
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
         return []
@@ -77,6 +76,7 @@ def list_templates() -> list[str]:
 def save_template_content(template_id: str, content: str) -> None:
     """Save the template content to a file."""
     try:
+        template_id = validate_presenter_template_id(template_id)
         path = Path(Config.DATA_FOLDER) / "presenter_templates"
         path.mkdir(parents=True, exist_ok=True)
         file_path = path / template_id
@@ -89,6 +89,7 @@ def save_template_content(template_id: str, content: str) -> None:
 def delete_template(template_id: str) -> bool:
     """Delete the template file. Returns True if deleted, False otherwise."""
     try:
+        template_id = validate_presenter_template_id(template_id)
         path = Path(Config.DATA_FOLDER) / "presenter_templates" / template_id
         if path.is_file():
             path.unlink()
@@ -104,7 +105,12 @@ def get_presenter_template_path(presenter_template: str) -> str:
     templates_dir = (Path(Config.DATA_FOLDER) / "presenter_templates").resolve()
     candidate = Path(presenter_template)
     if not candidate.is_absolute():
-        candidate = templates_dir / candidate
+        try:
+            presenter_template = validate_presenter_template_id(presenter_template)
+        except ValueError:
+            logger.warning(f"Rejected invalid presenter template id: {presenter_template}")
+            return ""
+        candidate = templates_dir / presenter_template
     resolved_candidate = candidate.resolve()
 
     try:
@@ -119,7 +125,7 @@ def get_presenter_template_path(presenter_template: str) -> str:
 def get_presenter_templates() -> list[str]:
     """List all presenter template filenames."""
     path = Path(Config.DATA_FOLDER) / "presenter_templates"
-    return [file.name for file in path.glob("*") if file.is_file() and file.name not in ["README.md", "template_hashes.json"]]
+    return [file.name for file in path.glob("*") if file.is_file() and is_valid_presenter_template_id(file.name)]
 
 
 def get_template_as_base64(presenter_template: str) -> str:
@@ -145,3 +151,32 @@ def get_default_json(filename: str) -> str:
 def initialize(initial_setup: bool = True) -> None:
     if initial_setup:
         sync_presenter_templates_to_data()
+
+
+def is_valid_presenter_template_id(template_id: str) -> bool:
+    if not isinstance(template_id, str):
+        return False
+    if not template_id or template_id != template_id.strip():
+        return False
+
+    candidate = Path(template_id)
+    return (
+        not candidate.is_absolute()
+        and candidate.name == template_id
+        and template_id not in {".", ".."}
+        and not template_id.startswith(".")
+        and template_id not in _INTERNAL_TEMPLATE_FILES
+    )
+
+
+def validate_presenter_template_id(template_id: str) -> str:
+    if not is_valid_presenter_template_id(template_id):
+        raise ValueError("Invalid presenter template path")
+    return template_id
+
+
+def validate_existing_presenter_template_id(template_id: str) -> str:
+    template_id = validate_presenter_template_id(template_id)
+    if template_id not in get_presenter_templates():
+        raise ValueError("TEMPLATE_PATH must reference an existing presenter template")
+    return template_id

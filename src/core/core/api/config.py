@@ -14,6 +14,7 @@ from core.managers import queue_manager, schedule_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
+    validate_presenter_template_id,
 )
 from core.managers.decorators import extract_args
 from core.model import (
@@ -287,6 +288,10 @@ class Templates(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        try:
+            validate_presenter_template_id(template_path)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
