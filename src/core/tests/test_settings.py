@@ -1,5 +1,6 @@
-from pydantic import SecretStr
 import pytest
+from pydantic import SecretStr
+
 from core.config import Settings
 
 
@@ -49,7 +50,7 @@ def test_api_key(app):
 def test_flask_secret_key(app):
     with app.app_context():
         secret_key = app.config.get("JWT_SECRET_KEY", None)
-        assert secret_key == "test_key"
+        assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
@@ -142,13 +143,14 @@ def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_po
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
     from importlib import reload
+
     import core.config
 
     reload(core.config)
 
     from core import create_app
-    from core.managers.db_manager import db
     from core.config import Config
+    from core.managers.db_manager import db
 
     app = create_app()
 
