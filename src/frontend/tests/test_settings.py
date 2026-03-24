@@ -7,4 +7,4 @@ def test_flask_cookie_name(app):
 def test_flask_secret_key(app):
     with app.app_context():
         secret_key = app.config.get("JWT_SECRET_KEY", None)
-        assert secret_key == "test_key"
+        assert secret_key == "test_key_for_tests_only_do_not_use"

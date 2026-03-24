@@ -3,7 +3,6 @@ import base64
 from core.managers.data_manager import (
     InvalidPresenterTemplatePathError,
     save_template_content,
-    validate_presenter_template_name,
 )
 from core.service.template_validation import validate_template_content
 
@@ -16,11 +15,6 @@ def create_or_update_template(template_id, base64_content):
     """
     if not template_id or not base64_content:
         return {"error": "Missing template id or content"}, 400
-
-    try:
-        template_id = validate_presenter_template_name(template_id)
-    except InvalidPresenterTemplatePathError as e:
-        return {"error": str(e)}, 400
 
     # Decode content
     try:

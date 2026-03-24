@@ -81,6 +81,12 @@ def test_validate_existing_presenter_template_id_rejects_missing_template(templa
         validate_existing_presenter_template_id("missing_template.html")
 
 
+def test_save_template_content_accepts_valid_template_path(templates_dir):
+    save_template_content("report_template.html", "content")
+
+    assert (templates_dir / "report_template.html").read_text(encoding="utf-8") == "content"
+
+
 def test_save_template_content_rejects_invalid_template_path(templates_dir, tmp_path):
     with pytest.raises(InvalidPresenterTemplatePathError, match="Invalid presenter template path"):
         save_template_content("../escape.txt", "secret")

@@ -122,7 +122,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("link", name="Administration").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
             page.get_by_test_id("admin-menu-Settings").click()
-            page.get_by_role("button", name="Invalidate Cache").click()
+            expect(page.locator("#settings-container")).to_be_visible()
+            invalidate_cache_button = page.get_by_role("button", name="Invalidate Cache")
+            expect(invalidate_cache_button).to_be_visible()
+            invalidate_cache_button.click()
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
@@ -407,7 +410,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-id")).not_to_contain_text("ID: 0", timeout=10000)
             expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
@@ -422,6 +424,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
+            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"), timeout=10000)
             expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated", timeout=10000)
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("link", name="Stacked view").click()
@@ -837,7 +840,15 @@ class TestEndToEndUser(PlaywrightHelpers):
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
-            self.highlight_element(page.get_by_label("Product Type * Select an item")).select_option("3")
+            product_type_select = page.get_by_label("Product Type * Select an item")
+            product_type_value = product_type_select.locator("option").evaluate_all(
+                """options => {
+                    const selectable = options.find(option => option.value && !option.disabled);
+                    return selectable ? selectable.value : null;
+                }"""
+            )
+            assert product_type_value is not None, "Expected at least one selectable product type"
+            self.highlight_element(product_type_select).select_option(product_type_value)
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")

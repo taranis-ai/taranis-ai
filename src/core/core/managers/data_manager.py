@@ -33,17 +33,8 @@ def _get_presenter_templates_dir() -> Path:
     return Path(Config.DATA_FOLDER) / _PRESENTER_TEMPLATES_DIRNAME
 
 
-def _list_presenter_template_files() -> list[Path]:
-    templates_dir = _get_presenter_templates_dir()
-    if not templates_dir.exists():
-        return []
-    return [file for file in templates_dir.iterdir() if file.is_file() and is_valid_presenter_template_id(file.name)]
-
-
 def validate_presenter_template_name(template_id: str) -> str:
-    if not is_valid_presenter_template_id(template_id):
-        raise InvalidPresenterTemplatePathError
-    return template_id
+    return validate_presenter_template_id(template_id, must_exist=False)
 
 
 def _resolve_presenter_template_path(presenter_template: str, *, must_exist: bool = False) -> Path:
@@ -61,7 +52,7 @@ def _resolve_presenter_template_path(presenter_template: str, *, must_exist: boo
     if resolved_candidate.parent != templates_dir:
         raise InvalidPresenterTemplatePathError
 
-    if not is_valid_presenter_template_id(resolved_candidate.name):
+    if candidate.is_absolute() and not is_valid_presenter_template_id(resolved_candidate.name):
         raise InvalidPresenterTemplatePathError
 
     if must_exist and not resolved_candidate.is_file():
@@ -99,11 +90,10 @@ def get_template_content(template_id: str) -> str | None:
     """Return the template content as a string, or None if not found."""
     try:
         path = _resolve_presenter_template_path(template_id, must_exist=True)
-        template_id = path.name
         try:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError as e:
-            logger.error(f"Template {template_id} is not valid UTF-8: {e}")
+            logger.error(f"Template {path.name} is not valid UTF-8: {e}")
             return "__INVALID_UTF8__"
         return "__EMPTY__" if content.strip() == "" else content
     except Exception as e:
@@ -114,7 +104,10 @@ def get_template_content(template_id: str) -> str | None:
 def list_templates() -> list[str]:
     """List all template IDs (filenames) in the presenter_templates directory."""
     try:
-        return [file.name for file in _list_presenter_template_files()]
+        templates_dir = _get_presenter_templates_dir()
+        if not templates_dir.exists():
+            return []
+        return [file.name for file in templates_dir.iterdir() if file.is_file() and is_valid_presenter_template_id(file.name)]
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
         return []
@@ -193,12 +186,18 @@ def is_valid_presenter_template_id(template_id: str) -> bool:
     )
 
 
-def validate_presenter_template_id(template_id: str) -> str:
-    return _resolve_presenter_template_path(template_id, must_exist=True).name
+def validate_presenter_template_id(template_id: str, *, must_exist: bool = True) -> str:
+    if not is_valid_presenter_template_id(template_id):
+        raise InvalidPresenterTemplatePathError
+
+    if must_exist:
+        return _resolve_presenter_template_path(template_id, must_exist=True).name
+
+    return template_id
 
 
 def validate_existing_presenter_template_id(template_id: str) -> str:
-    return validate_presenter_template_id(template_id)
+    return validate_presenter_template_id(template_id, must_exist=True)
 
 
 def initialize(initial_setup: bool = True) -> None:
