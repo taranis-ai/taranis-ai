@@ -64,11 +64,36 @@ def auth_user():
 
 
 @pytest.fixture(scope="session")
+def auth_user_basic():
+    from frontend.cache import add_user_to_cache
+
+    basic_user = {
+        "id": 2,
+        "username": "user",
+        "name": "Ford Prefect",
+        "organization": {"id": 1, "name": "Galactic Government"},
+        "permissions": ["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        "profile": {},
+        "roles": [{"id": 2, "name": "User"}],
+    }
+
+    yield add_user_to_cache(basic_user)
+
+
+@pytest.fixture(scope="session")
 def access_token(app, auth_user):
     from flask_jwt_extended import create_access_token
 
     with app.app_context():
         yield create_access_token(identity=auth_user)
+
+
+@pytest.fixture(scope="session")
+def access_token_basic(app, auth_user_basic):
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        yield create_access_token(identity=auth_user_basic)
 
 
 @pytest.fixture(scope="session")
@@ -92,10 +117,34 @@ def access_token_response(app, auth_user, run_core):
 
 
 @pytest.fixture
+def access_token_response_basic(app, auth_user_basic, run_core):
+    from flask import jsonify
+    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+
+    with app.app_context():
+        access_token = create_access_token(identity=auth_user_basic)
+        refresh_token = create_refresh_token(identity=auth_user_basic)
+        response = jsonify({"access_token": access_token})
+        response.status_code = 200
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        yield response
+
+
+@pytest.fixture
 def authenticated_client(client, access_token):
     client.set_cookie(
         key="access_token_cookie",
         value=access_token,
+    )
+    return client
+
+
+@pytest.fixture(scope="session")
+def authenticated_client_basic(client, access_token_basic):
+    client.set_cookie(
+        key="access_token_cookie",
+        value=access_token_basic,
     )
     return client
 

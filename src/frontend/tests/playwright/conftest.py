@@ -216,16 +216,8 @@ def _cookies_from_response(resp) -> list[dict]:
     return cookies
 
 
-@pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
-    """
-    Returns a Playwright Page whose browser context has the JWT cookies set,
-    so any navigation is already authenticated.
-    """
-    page = taranis_frontend
-    base_url: str = e2e_server.url()
-
-    cookies = _cookies_from_response(access_token_response)
+def _add_auth_cookies(page: Page, base_url: str, token_response) -> None:
+    cookies = _cookies_from_response(token_response)
     context_cookies = []
     context_cookies.extend(
         {
@@ -237,6 +229,18 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     page.context.add_cookies(context_cookies)
 
+
+@pytest.fixture
+def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+    """
+    Returns a Playwright Page whose browser context has the JWT cookies set,
+    so any navigation is already authenticated.
+    """
+    page = taranis_frontend
+    base_url: str = e2e_server.url()
+
+    _add_auth_cookies(page, base_url, access_token_response)
+
     _dismiss_notifications(page)
 
     try:
@@ -246,13 +250,21 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
 
 
 @pytest.fixture
-def forward_console_and_page_errors(request, logged_in_page):
-    """
-    For each test:
-      - collect console messages and page errors
-      - at teardown: fail on configured severities, warn on warnings
-    """
-    page = logged_in_page
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
+    page = taranis_frontend
+    base_url: str = e2e_server.url()
+
+    _add_auth_cookies(page, base_url, access_token_response_basic)
+
+    _dismiss_notifications(page)
+
+    try:
+        yield page
+    finally:
+        _dismiss_notifications(page)
+
+
+def _forward_console_and_page_errors(request, page: Page):
     fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
     warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
     allow_patterns = request.config.getoption("--console-allow") or []
@@ -301,6 +313,21 @@ def forward_console_and_page_errors(request, logged_in_page):
         if errors:
             bullet_list = "\n".join(f"  - {e}" for e in errors)
             pytest.fail(f"Console/Page errors detected:\n{bullet_list}")
+
+
+@pytest.fixture
+def forward_console_and_page_errors(request, logged_in_page):
+    """
+    For each test:
+      - collect console messages and page errors
+      - at teardown: fail on configured severities, warn on warnings
+    """
+    yield from _forward_console_and_page_errors(request, logged_in_page)
+
+
+@pytest.fixture
+def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
+    yield from _forward_console_and_page_errors(request, non_admin_logged_in_page)
 
 
 @pytest.fixture(scope="session")
