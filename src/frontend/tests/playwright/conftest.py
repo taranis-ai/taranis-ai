@@ -6,7 +6,6 @@ import re
 import shutil
 import subprocess
 import time
-import uuid
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -215,21 +214,6 @@ def _cookies_from_response(resp) -> list[dict]:
             for name, morsel in c.items()
         )
     return cookies
-
-
-def _normalize_seed_url(value: str | None) -> str | None:
-    if not value:
-        return value
-    return re.sub(r"^(https?):\s+//", r"\1://", value.strip())
-
-
-def _build_seed_news_item(item: dict) -> dict:
-    seed_item = copy.deepcopy(item)
-    seed_item["id"] = str(uuid.uuid4())
-    seed_item.pop("hash", None)
-    seed_item["source"] = _normalize_seed_url(seed_item.get("source"))
-    seed_item["link"] = _normalize_seed_url(seed_item.get("link"))
-    return seed_item
 
 
 @pytest.fixture
@@ -572,12 +556,10 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     story_list = []
     news_item_ids_created: list[str] = []
     for item in news_items_list:
-        seed_item = _build_seed_news_item(item)
-        r = requests.post(f"{run_core}/assess/news-items", json=seed_item, headers=headers)
-        if not r.ok:
-            raise AssertionError(f"Failed to seed assess news item {seed_item['title']!r}: {r.status_code} {r.text}")
+        r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
+        r.raise_for_status()
         response_data = r.json()
-        story_list.append({"story_id": response_data.get("story_id"), **seed_item})
+        story_list.append({"story_id": response_data.get("story_id"), **item})
         news_item_ids_created.extend(response_data.get("news_item_ids", []))
 
     yield story_list
