@@ -184,6 +184,8 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             return {"message": "Product type created", "id": product.id}, 201
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -194,6 +196,8 @@ class ProductTypes(MethodView):
     def put(self, type_id: int):
         try:
             return product_type.ProductType.update(type_id, request.json, current_user)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except Exception as e:
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
