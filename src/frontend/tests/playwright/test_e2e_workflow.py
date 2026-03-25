@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import re
+import time
 
 import pytest
 
@@ -32,30 +32,21 @@ class TestUserWorkflow(PlaywrightHelpers):
         expect(page.locator("#dashboard")).to_contain_text("Publish")
         expect(page.locator("#dashboard")).to_contain_text("Connectors")
 
-    def test_instance_setup(self, logged_in_page: Page):
-        page = logged_in_page
+    def test_instance_setup(self, taranis_frontend: Page):
+        page = taranis_frontend
+        self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+        self.highlight_element(page.get_by_role("heading", name="No stories found."))
+        self.highlight_element(page.get_by_role("link", name="Administration")).click()
+        self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
+        self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
+        page.wait_for_selector("tbody tr")
+        rows = page.locator("tbody tr").count()
+        assert rows == 10
 
-        page.goto(url_for("assess.assess", _external=True))
-        expect(page.get_by_test_id("assess")).to_be_visible()
-
-        page.goto(url_for("admin.osint_sources", _external=True))
-        load_defaults_button = page.get_by_role("button", name="Load default OSINT Source")
-        if load_defaults_button.is_visible():
-            self.highlight_element(load_defaults_button).click()
-
-        osint_table = page.get_by_test_id("osint_source-table")
-        all_rows = osint_table.locator("tbody tr")
-        expect(all_rows.first).to_be_visible()
-        assert all_rows.count() >= 1
-
-    def test_assess(self, logged_in_page: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
-        page = logged_in_page
-        expected_important_count = len(stories_date_descending_important)
-
+    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
         def go_to_assess():
-            page.goto(url_for("assess.assess", _external=True))
+            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            expect(page.get_by_test_id("assess")).to_be_visible()
 
         def apply_filter():
             self.highlight_element(page.get_by_role("radio", name="Shift")).check()
@@ -65,54 +56,85 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Important")).select_option("true")
             self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
             self.highlight_element(page.get_by_label("Important")).select_option("true")
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text(str(expected_important_count))
+            expect(page.get_by_test_id("assess_story_count").get_by_text("5")).to_be_visible()
             self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
             self.highlight_element(page.get_by_label("Read")).select_option("false")
             self.highlight_element(page.get_by_label("Important")).select_option("false")
 
-        def mark_story_as_read(story_id: str):
-            story_card = page.get_by_test_id(f"story-card-{story_id}")
-            self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
-            toggle_read = story_card.get_by_test_id("toggle-read")
-            expect(toggle_read).to_be_visible()
-            self.highlight_element(toggle_read, scroll=False).click()
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-
         def assess_workflow_1(non_important_story_ids):
-            assert len(non_important_story_ids) >= 4, "Expected at least four non-important stories for the workflow test"
+            def mark_story_as_read(story_id: str):
+                story_card = page.get_by_test_id(f"story-card-{story_id}")
+                self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
+                toggle_read = story_card.get_by_test_id("toggle-read")
+                expect(toggle_read).to_be_visible()
+                self.highlight_element(toggle_read, scroll=False).click()
+                expect(story_card.get_by_test_id("story-summary")).to_be_visible()
 
+            # Check summary and mark as read
+            assert len(non_important_story_ids) == 28
+
+            # first story
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary"), scroll=False
             )
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
             mark_story_as_read(non_important_story_ids[0])
 
+            # next story
             self.highlight_element(
                 page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary"), scroll=False
             )
             expect(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary")).to_be_visible()
             mark_story_as_read(non_important_story_ids[1])
 
-            for story_id in non_important_story_ids[2:4]:
-                self.highlight_element(page.get_by_test_id(f"story-card-{story_id}").get_by_test_id("story-actions-menu")).click()
-                self.highlight_element(page.get_by_test_id(f"story-card-{story_id}"), scroll=False).click()
+            for i in range(2, 7):
+                mark_story_as_read(non_important_story_ids[i])
+
+            # select multiple, press mark as read once
+            for i in range(7, 10):
+                self.highlight_element(
+                    page.get_by_test_id(f"story-card-{non_important_story_ids[i]}").get_by_test_id("story-actions-menu")
+                ).click()
+                self.highlight_element(page.get_by_test_id(f"story-card-{non_important_story_ids[i]}"), scroll=False).click()
             self.highlight_element(page.get_by_role("button", name="Mark as read")).click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
+            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[10]}")).to_be_visible()
+
+            # remaining stories
+            for i in range(10, 20):
+                mark_story_as_read(non_important_story_ids[i])
+
+            # after all stories are marked as read in first page, last story is carried over -> mark it twice
+            mark_story_as_read(non_important_story_ids[19])
+
+            for i in range(20, 28):
+                print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
+                mark_story_as_read(non_important_story_ids[i])
 
         def assess_workflow_2(important_story_ids):
-            assert len(important_story_ids) >= 4, "Expected at least four important stories for the workflow test"
             page.get_by_label("Important").select_option("true")
 
-            for story_id in important_story_ids[:4]:
-                self.highlight_element(page.get_by_test_id(f"story-card-{story_id}").get_by_test_id("toggle-summary")).click()
-                self.highlight_element(page.get_by_test_id(f"story-card-{story_id}").get_by_test_id("toggle-summary")).click()
+            # Show/unshow details of all stories
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("toggle-summary")).click()
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("toggle-summary")).click()
 
+            # Open specific story
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("open-detail-view")).click()
             self.short_sleep(0.5)
 
+            # Mark as read
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-read")).click()
+            # Remove mark as important
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
 
@@ -121,17 +143,28 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.get_by_label("Read").select_option("false")
             page.get_by_label("Important").select_option("true")
 
+            # Merge stories
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}")).click()
             self.highlight_element(page.get_by_role("button", name="Cluster")).click()
             expect(page.get_by_test_id("story-to-merge")).to_have_count(2)
+            self.expect_list_of_test_ids_visible(
+                page,
+                [
+                    f"story-card-{important_story_ids[2]}",
+                    f"story-card-{important_story_ids[3]}",
+                ],
+            )
             page.get_by_test_id("dialog-story-cluster-submit").click()
 
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("edit-story")).click()
+            # Edit story
+            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("edit-story")).click()
+
             self.highlight_element(page.get_by_role("textbox", name="Summary")).fill(
                 "Recent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
             )
             self.highlight_element(page.get_by_role("textbox", name="Analyst comments")).fill("I like this story, it needs to be reviewed.")
+
             page.get_by_role("button", name="Add tag").click()
             page.get_by_test_id("tag-name-input").last.fill("Austria")
             page.get_by_test_id("tag-value-input").last.fill("Location")
@@ -143,107 +176,158 @@ class TestUserWorkflow(PlaywrightHelpers):
 
             go_to_assess()
 
+        #           Run test
+        # ============================
+
+        page = taranis_frontend
+
         go_to_assess()
+        # test_hotkey_menu()
         apply_filter()
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
-    def test_reports(self, logged_in_page: Page, stories_date_descending: list):
-        page = logged_in_page
-        report_title = "Test Report"
-        disinformation_title = "Test Disinformation Title"
-
+    def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
         def go_to_analyze():
-            page.goto(url_for("analyze.analyze", _external=True))
+            self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
             page.wait_for_url("**/analyze", wait_until="domcontentloaded")
-            expect(page.get_by_test_id("analyze")).to_be_visible()
+            # expect(page).to_have_title("Taranis AI | Analyze")
 
         def go_to_assess():
-            page.goto(url_for("assess.assess", _external=True))
+            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            expect(page.get_by_test_id("assess")).to_be_visible()
+            # expect(page).to_have_title("Taranis AI | Assess")
 
-        def create_report(report_type: str, title: str) -> str:
+        def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
-            page.get_by_label("Select a report").select_option(report_type)
-            self.highlight_element(page.get_by_label("Title")).fill(title)
-            if title == report_title:
-                page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
-            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
-            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"))
-            return page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+            # page.wait_for_url("**/report/", wait_until="domcontentloaded")
+            page.get_by_label("Select a report").select_option("CERT Report")
 
-        def add_stories_to_reports():
-            story_titles = page.get_by_test_id("story-title")
-            expect(story_titles.first).to_be_visible()
-            self.highlight_element(story_titles.first).click()
-            if story_titles.count() > 1:
-                self.highlight_element(story_titles.nth(1)).click()
+            time.sleep(0.5)
+            page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
+
+            # self.highlight_element(page.get_by_text("CERT Report")).click()
+            self.highlight_element(page.get_by_label("Title")).fill("Test Report")
+            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
+
+        def report_2():
+            self.highlight_element(page.get_by_role("button", name="New Report")).click()
+            # self.highlight_element(page.get_by_role("combobox")).click()
+            # self.highlight_element(page.get_by_text("Disinformation")).click()
+            page.get_by_label("Select a report").select_option("Disinformation")
+
+            self.highlight_element(page.get_by_label("Title")).fill("Test Disinformation Title")
+            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
+
+        def add_stories_to_report_1():
+            # Select all
+            self.highlight_element(page.get_by_test_id("assess-select-all-button")).click()
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
+
+            # First dialog
             self.highlight_element(page.get_by_test_id("select-report-input")).click()
-            self.highlight_element(page.get_by_text(report_title)).click()
+            self.highlight_element(page.get_by_text("Test Report")).click()
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
 
+            # Second dialog
             self.highlight_element(page.get_by_test_id("story-title").first).click()
             self.highlight_element(page.get_by_role("button", name="Add to Report")).click()
+
             self.highlight_element(page.get_by_test_id("select-report-input")).click()
-            self.highlight_element(page.get_by_text(disinformation_title)).click()
+            self.highlight_element(page.get_by_text("Test Disinformation Title")).click()
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             page.keyboard.press("Escape")
 
-        def select_first_options(searchbox_name: str, limit: int = 2):
-            self.highlight_element(page.get_by_role("searchbox", name=searchbox_name)).click()
-            choices = page.locator(".choices", has=page.get_by_role("searchbox", name=searchbox_name))
-            option_count = choices.get_by_role("option").count()
-            for index in range(min(limit, option_count)):
-                self.highlight_element(choices.get_by_role("option").nth(index)).click()
-                choices = page.locator(".choices", has=page.get_by_role("searchbox", name=searchbox_name))
-            page.keyboard.press("Escape")
-
-        def modify_report(report_id: str):
-            page.goto(url_for("analyze.report", report_id=report_id, _external=True))
-            first_story_link = page.locator("[data-testid^='story-link-']").first
-            expect(first_story_link).to_be_visible()
+        def modify_report_1(stories_date_descending):
+            self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
             self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
             self.highlight_element(page.get_by_placeholder("Timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_placeholder("Handler", exact=True), scroll=False).fill("John Doe")
             self.highlight_element(page.get_by_placeholder("CO-Handler"), scroll=False).fill("Arthur Doyle")
-            select_first_options("news")
-            select_first_options("vulnerabilities")
+
+            # NEWS dropdown
+            self.highlight_element(page.get_by_role("searchbox", name="news")).click()
+            news_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="news"))
+            self.highlight_element(news_choices.get_by_role("option").nth(0)).click()
+            news_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="news"))
+            self.highlight_element(news_choices.get_by_role("option").nth(1)).click()
+            page.keyboard.press("Escape")
+
+            # VULNERABILITIES dropdown
+            self.highlight_element(page.get_by_role("searchbox", name="vulnerabilities")).click()
+            vuln_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="vulnerabilities"))
+            self.highlight_element(vuln_choices.get_by_role("option").nth(2)).click()
+
+            self.highlight_element(page.get_by_role("searchbox", name="vulnerabilities")).click()
+            vuln_choices = page.locator(".choices", has=page.get_by_role("searchbox", name="vulnerabilities"))
+            self.highlight_element(vuln_choices.get_by_role("option").nth(3)).click()
+            page.keyboard.press("Escape")
+
+            # Save & toggle report views
             self.highlight_element(page.get_by_test_id("save-report")).click()
-            expect(first_story_link).to_be_visible()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
             self.highlight_element(page.get_by_role("link", name="Stacked view")).click()
-            expect(first_story_link).to_be_visible()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
             self.highlight_element(page.get_by_role("link", name="Split view")).click()
-            expect(first_story_link).to_be_visible()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
             self.highlight_element(page.get_by_role("button", name="Completed")).click()
-            expect(first_story_link).to_be_visible()
+            self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
+
+            # TODO: see if needed:
+            # page.get_by_test_id("save-report").click()
+            time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/report_item_view.png")
 
-        go_to_analyze()
-        report_1_id = create_report("CERT Report", report_title)
-        go_to_analyze()
-        create_report("Disinformation", disinformation_title)
-        go_to_assess()
-        add_stories_to_reports()
-        modify_report(report_1_id)
+        def check_reports_items_by_tag():
+            self.highlight_element(page.get_by_role("button", name="reset filter")).click()
+            self.highlight_element(page.get_by_label("Tags", exact=True)).click()
+            self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
+            self.short_sleep(0.5)
+            self.highlight_element(page.get_by_text("Test Report").last).click()
+            page.get_by_test_id("all-stories-div").click()
+            page.keyboard.press("Control+A")
+            self.short_sleep(duration=1)
+            page.keyboard.press("Control+Space")
+            self.short_sleep(duration=1)
 
-    def test_e2e_publish(self, logged_in_page: Page):
-        page = logged_in_page
+        #           Run test
+        # ============================
 
-        page.goto(url_for("publish.publish", _external=True))
+        page = taranis_frontend
+
+        go_to_analyze()
+        report_1()
+        go_to_analyze()
+        report_2()
+        go_to_analyze()
+        expect(page.get_by_text("Test Report")).to_be_visible()
+        expect(page.get_by_text("Test Disinformation Title")).to_be_visible()
+
+        self.highlight_element(page.get_by_role("link", name="Assess")).click()
+        add_stories_to_report_1()
+
+        go_to_analyze()
+
+        modify_report_1(stories_date_descending)
+
+        # TODO: tag search not implemented yet
+        # go_to_assess()
+        # check_reports_items_by_tag()
+
+    def test_e2e_publish(self, taranis_frontend: Page):
+        page = taranis_frontend
+
+        self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
-        expect(page.get_by_test_id("product-table")).to_be_visible()
+        # expect(page).to_have_title("Taranis AI | Publish")
 
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
-        product_type_select = page.get_by_label("Product Type * Select an item")
-        product_type_options = product_type_select.locator("option").evaluate_all(
-            """options => options
-            .filter(option => option.value)
-            .map(option => ({ value: option.value, label: option.textContent?.trim() ?? "" }))"""
-        )
-        assert product_type_options, "No product type options available for workflow publish test"
-        self.highlight_element(product_type_select).select_option(product_type_options[0]["value"])
+        self.highlight_element(page.get_by_label("Product Type * Select an item")).click()
+        page.get_by_label("Product Type * Select an item").select_option("5")
 
         self.highlight_element(page.get_by_role("textbox", name="Title")).fill("Test Product Title")
         self.highlight_element(page.get_by_role("textbox", name="Description")).click()
@@ -251,7 +335,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         self.highlight_element(page.get_by_role("button", name="! Create Product")).click()
 
         # Assert the existing Product
-        expect(page.locator("#product_type_id option:checked")).not_to_have_value("")
+        expect(page.locator("#product_type_id option:checked")).to_have_text("CERT Daily Report")
         expect(page.get_by_role("textbox", name="Title")).to_be_visible()
         expect(page.get_by_role("textbox", name="Description")).to_be_visible()
         expect(page.get_by_role("cell", name="Test Report")).to_be_visible()
