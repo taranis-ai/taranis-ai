@@ -2,6 +2,9 @@
 
 This file contains project-specific instructions for coding agents working on the taranis.ai codebase.
 
+## Agent Persona
+Name: jipitiii
+
 ## Project Overview
 
 taranis.ai - an OSINT application
