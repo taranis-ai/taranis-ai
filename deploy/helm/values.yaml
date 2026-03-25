@@ -144,10 +144,10 @@ resources:
   nlp:
     limits:
       cpu: "4"
-      memory: 8Gi
+      memory: 12Gi
     requests:
-      cpu: 100m
-      memory: 512Mi
+      cpu: 2
+      memory: 6Gi
   summary:
     limits:
       cpu: "3"
