@@ -39,6 +39,46 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
     return True
 
 
+def _wait_for_seeded_core_resources(
+    run_core: str,
+    access_token: str,
+    timeout_seconds: int = 60,
+    poll_interval: float = 1.0,
+) -> None:
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    deadline = time.monotonic() + timeout_seconds
+    last_state = "seed data not checked yet"
+
+    while time.monotonic() < deadline:
+        try:
+            osint_sources_response = requests.get(f"{run_core}/assess/osint-sources-list", headers=headers, timeout=30)
+            osint_sources_response.raise_for_status()
+            osint_source_ids = {item["id"] for item in osint_sources_response.json().get("items", [])}
+
+            product_types_response = requests.get(f"{run_core}/publish/product-types", headers=headers, timeout=30)
+            product_types_response.raise_for_status()
+            product_type_count = len(product_types_response.json().get("items", []))
+
+            manual_ready = "manual" in osint_source_ids
+            product_types_ready = product_type_count > 0
+            last_state = (
+                f"manual_ready={manual_ready}, "
+                f"osint_source_ids={sorted(osint_source_ids)}, "
+                f"product_type_count={product_type_count}"
+            )
+            if manual_ready and product_types_ready:
+                return
+        except requests.exceptions.RequestException as exc:
+            last_state = str(exc)
+
+        time.sleep(poll_interval)
+
+    pytest.fail(f"Core seed data was not ready after {timeout_seconds}s: {last_state}")
+
+
 @pytest.fixture(scope="session")
 def docker_compose_file():
     return str(Path(__file__).parent / "docker-compose.e2e.yml")
