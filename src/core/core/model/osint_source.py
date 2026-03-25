@@ -302,19 +302,18 @@ class OSINTSource(BaseModel):
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
-        update_data = {key: value for key, value in data.items() if key not in {"id", "type", "enabled"}}
-        validated_update = OSINTSourceUpdateModel.model_validate(update_data)
+        validated_update = OSINTSourceUpdateModel.model_validate(data)
         update_fields = validated_update.model_fields_set
 
-        if "name" in update_fields:
+        if "name" in update_fields and validated_update.name is not None:
             osint_source.name = validated_update.name
-        if "description" in update_fields:
+        if "description" in update_fields and validated_update.description is not None:
             osint_source.description = validated_update.description
-        if "rank" in update_fields:
+        if "rank" in update_fields and validated_update.rank is not None:
             osint_source.rank = validated_update.rank
-        if "icon" in update_fields:
+        if "icon" in update_fields and validated_update.icon is not None:
             osint_source.icon = osint_source._parse_icon(validated_update.icon)
-        if "parameters" in update_fields:
+        if "parameters" in update_fields and validated_update.parameters is not None:
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
