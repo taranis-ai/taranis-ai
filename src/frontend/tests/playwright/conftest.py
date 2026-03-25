@@ -77,7 +77,7 @@ def run_core(docker_services):
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
-        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
+        _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
         yield core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -584,7 +584,14 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     news_item_ids_created: list[str] = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
-        r.raise_for_status()
+        if not r.ok:
+            try:
+                error_payload = r.json()
+            except ValueError:
+                error_payload = r.text
+            raise AssertionError(
+                f"Failed to pre-seed news item '{item.get('title', '<unknown>')}' with status {r.status_code}: {error_payload}"
+            )
         response_data = r.json()
         story_list.append({"story_id": response_data.get("story_id"), **item})
         news_item_ids_created.extend(response_data.get("news_item_ids", []))

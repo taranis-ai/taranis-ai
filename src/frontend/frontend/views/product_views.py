@@ -41,7 +41,7 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        product_types = DataPersistenceLayer().get_objects(ProductType)
+        product_types = DataPersistenceLayer().get_objects_by_endpoint(ProductType, "/publish/product-types")
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         publishers = DataPersistenceLayer().get_objects(PublisherPreset)
         base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]

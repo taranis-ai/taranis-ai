@@ -390,6 +390,10 @@ spec:
               value: "1"
             - name: GRANIAN_INTERFACE
               value: "asgi"
+            - name: GRANIAN_WORKERS
+              value: "2"
+            - name: GRANIAN_WORKERS_MAX_RSS
+              value: "5500"
             - name: HF_HOME
               value: /app/.cache/huggingface
           ports:

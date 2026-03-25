@@ -1,9 +1,12 @@
+from uuid import uuid4
+
 import pytest
 
 
 @pytest.fixture(scope="session")
 def news_items_list(app, fake_source):
-    yield [
+    seed = uuid4().hex[:8]
+    items = [
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk21",
             "content": "APT81 targets national research labs to steal genetic engineering data.",
@@ -54,7 +57,7 @@ def news_items_list(app, fake_source):
             "review": "",
             "link": "https://www.pharmasecuritytoday.com/apt76-2024.html",
             "osint_source_id": fake_source,
-            "published": "2026-05-14T06:20:00+02:00",
+            "published": "2024-05-14T06:20:00+02:00",
         },
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk17",
@@ -319,7 +322,7 @@ def news_items_list(app, fake_source):
         {
             "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
             "content": "TEST CONTENT YYYY",
-            "source": "https: //www.some.link/RSSNewsfeed.xml",
+            "source": "https://www.some.link/RSSNewsfeed.xml",
             "title": "Mobile World Congress 2023",
             "author": "",
             "collected": "2022-02-21T15:00:14.086285",
@@ -332,13 +335,13 @@ def news_items_list(app, fake_source):
         {
             "id": "0a129597-592d-45cb-9a80-3218108b29a0",
             "content": "TEST CONTENT XXXX",
-            "source": "https: //www.content.xxxx.link/RSSNewsfeed.xml",
+            "source": "https://www.content.xxxx.link/RSSNewsfeed.xml",
             "title": "Bundesinnenministerin Nancy Faeser wird Claudia Plattner zur neuen BSI-Präsidentin berufen",
             "author": "",
             "collected": "2023-01-20T15:00:14.086285",
             "hash": "e270c3a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da6",
             "review": "Claudia Plattner wird ab 1. Juli 2023 das Bundesamt für Sicherheitin der Informationstechnik (BSI) leiten.",
-            "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
+            "link": "https://www.some.other.link/BSI-Praesidentin_230207.html",
             "osint_source_id": fake_source,
             "published": "2023-01-20T19:15:00+01:00",
         },
@@ -746,3 +749,11 @@ def news_items_list(app, fake_source):
             "published": "2000-03-14T08:58:59+01:00",
         },
     ]
+
+    for index, item in enumerate(items):
+        item["title"] = f"{item['title']} [{seed}-{index}]"
+        if link := item.get("link"):
+            separator = "&" if "?" in link else "?"
+            item["link"] = f"{link}{separator}e2e-seed={seed}-{index}"
+
+    yield items
