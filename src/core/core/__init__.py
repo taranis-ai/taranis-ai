@@ -22,8 +22,8 @@ def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
 
 
 def initilize_database(app: Flask):
-    data_manager.initialize(True)
     db_manager.initialize(app, True)
+    data_manager.initialize(True)
     queue_manager.initialize(app, True)
     schedule_manager.initialize()
     queue_manager.queue_manager.post_init()
@@ -31,11 +31,11 @@ def initilize_database(app: Flask):
 
 def initialize_managers(app: Flask, initial_setup: bool = True):
     sentry_manager.initialize()
-    data_manager.initialize(initial_setup)
     db_manager.initialize(app, initial_setup)
     queue_manager.initialize(app, initial_setup)
     auth_manager.initialize(app)
     api_manager.initialize(app)
+    data_manager.initialize(initial_setup)
     schedule_manager.initialize()
     if initial_setup:
         queue_manager.queue_manager.post_init()
