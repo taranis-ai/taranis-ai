@@ -13,6 +13,7 @@ def test_is_alive_fail(client):
 
 def test_health_ok(client, monkeypatch):
     monkeypatch.setattr("core.service.health.check_database", lambda: "up")
+    monkeypatch.setattr("core.service.health.check_seed_data", lambda: "up")
     monkeypatch.setattr("core.service.health.broker_health_applicable", lambda: True)
     monkeypatch.setattr("core.service.health.check_broker", lambda: "up")
     monkeypatch.setattr("core.service.health.check_workers", lambda: "up")
@@ -22,7 +23,7 @@ def test_health_ok(client, monkeypatch):
     assert response.status_code == 200
     assert response.json == {
         "healthy": True,
-        "services": {"database": "up", "broker": "up", "workers": "up"},
+        "services": {"database": "up", "seed_data": "up", "broker": "up", "workers": "up"},
     }
 
 
@@ -35,7 +36,21 @@ def test_health_database_failure_returns_503(client, monkeypatch):
     assert response.status_code == 503
     assert response.json == {
         "healthy": False,
-        "services": {"database": "down", "broker": "n/a", "workers": "n/a"},
+        "services": {"database": "down", "seed_data": "down", "broker": "n/a", "workers": "n/a"},
+    }
+
+
+def test_health_seed_data_failure_returns_503(client, monkeypatch):
+    monkeypatch.setattr("core.service.health.check_database", lambda: "up")
+    monkeypatch.setattr("core.service.health.check_seed_data", lambda: "down")
+    monkeypatch.setattr("core.service.health.broker_health_applicable", lambda: False)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 503
+    assert response.json == {
+        "healthy": False,
+        "services": {"database": "up", "seed_data": "down", "broker": "n/a", "workers": "n/a"},
     }
 
 
