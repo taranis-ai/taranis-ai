@@ -28,6 +28,9 @@ def pre_seed():
         pre_seed_report_items()
         logger.debug("Report items seeded")
 
+        sync_presenter_templates()
+        logger.debug("Presenter templates seeded")
+
         pre_seed_workers()
         logger.debug("Workers seeded")
 
@@ -69,6 +72,7 @@ def pre_seed_update(db_engine: Engine):
 
     pre_seed_source_groups()
     pre_seed_manual_source()
+    sync_presenter_templates()
     cleanup_invalid_source_icons()
     migrate_refresh_intervals()
     migrate_use_feed_content()
@@ -122,6 +126,12 @@ def cleanup_invalid_source_icons():
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
+
+
+def sync_presenter_templates():
+    from core.managers.data_manager import sync_presenter_templates_to_data
+
+    sync_presenter_templates_to_data()
 
 
 def migrate_search_indexes():
