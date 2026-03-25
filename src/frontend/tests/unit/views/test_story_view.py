@@ -1,3 +1,6 @@
+from flask import url_for
+from lxml import html
+
 from frontend.views.story_views import _calculate_story_diff, _normalize_story_import_payload
 
 
@@ -113,3 +116,22 @@ def test_normalize_story_import_payload_strips_export_only_fields():
             ],
         }
     ]
+
+
+def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
+    response = authenticated_client.get(url_for("assess.get_news_item", news_item_id=0))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    form = tree.xpath('//form[@id="news-item-form"]')
+    file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
+
+    assert len(form) == 1
+    assert form[0].get("hx-target-error") == "#notification-bar"
+    assert len(file_form) == 1
+    assert file_form[0].get("hx-target-error") == "#notification-bar"
+
+    source_input = form[0].xpath('.//input[@name="source"]')
+    assert len(source_input) == 1
+    assert source_input[0].get("required") is None

@@ -505,8 +505,8 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def news_item_view(cls, news_item_id: str = ""):
-        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "" else NewsItem.model_construct(id="")
+    def news_item_view(cls, news_item_id: str = "0"):
+        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
         return render_template("assess/news_item_create.html", news_item=news_item), 200
 
     @classmethod
@@ -546,6 +546,7 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def create_news_item(cls):
+        logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
             return cls._create_news_item_from_url(url)
 
@@ -554,7 +555,13 @@ class StoryView(BaseView):
 
         item_data = parse_formdata(request.form)
         item_data["collected"] = datetime.datetime.now().isoformat()
-        news_item = NewsItem(**item_data)
+        try:
+            news_item = NewsItem(**item_data)
+        except ValidationError as e:
+            logger.exception(format_pydantic_errors(e, NewsItem))
+            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
         core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
         return cls.news_item_edit_view(core_response)
 
@@ -562,7 +569,14 @@ class StoryView(BaseView):
     @auth_required()
     def update_news_item(cls, news_item_id: str):
         form_data = parse_formdata(request.form)
-        news_item = NewsItem(**form_data)
+        try:
+            news_item = NewsItem(**form_data)
+        except ValidationError as e:
+            logger.exception(format_pydantic_errors(e, NewsItem))
+            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+
         core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
         return cls._handle_news_item_response(

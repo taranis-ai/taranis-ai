@@ -6,10 +6,10 @@ import uuid
 from io import BytesIO
 
 from PIL import Image
-from tests.functional.helpers import BaseTest
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
+from tests.functional.helpers import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -389,7 +389,15 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
         assert response.json["id"] == cleanup_bot["id"]
 
-    def test_modify_bot(self, client, auth_header, cleanup_bot):
+    def test_modify_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            if Bot.get(cleanup_bot["id"]):
+                Bot.delete(cleanup_bot["id"])
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         bot_data = {
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
@@ -400,16 +408,92 @@ class TestBotConfigApi(BaseTest):
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
         assert response.json["id"] == f"{bot_id}"
 
-    def test_get_bots(self, client, auth_header, cleanup_bot):
+    def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": True,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "0 */8 * * *",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        response = self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": False,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        assert response.json["id"] == f"{bot_id}"
+
+        with app.app_context():
+            updated_bot = Bot.get(bot_id)
+            assert updated_bot is not None
+            assert updated_bot.enabled is False
+            assert updated_bot.get_schedule() == ""
+            assert bot_id not in Bot.get_post_collection()
+
+    def test_get_bots(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "description": "Boty McBotFace",
+                "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+            },
+            auth_header=auth_header,
+        )
+
         response = self.assert_get_ok(client, uri=f"bots?search={cleanup_bot['name']}", auth_header=auth_header)
         assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
 
-    def test_delete_bot(self, client, auth_header, cleanup_bot):
+    def test_delete_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 
@@ -454,11 +538,53 @@ class TestProductTypes(BaseTest):
         assert response.json["message"] == "Product type created"
         assert response.json["id"] == cleanup_product_types["id"]
 
+    def test_create_product_type_rejects_invalid_template_path(self, client, auth_header):
+        response = client.post(
+            self.concat_url("product-types"),
+            json={
+                "title": f"invalid-template-{uuid.uuid4().hex[:8]}",
+                "type": "pdf_presenter",
+                "description": "Product type desc",
+                "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+            },
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid presenter template path"
+
     def test_modify_product_type(self, client, auth_header, cleanup_product_types):
         product_type_data = {"title": "Producty McProductFace"}
         product_type_id = cleanup_product_types["id"]
         response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
         assert response.json["message"] == f"Updated product type {product_type_data['title']}"
+
+    def test_modify_product_type_rejects_invalid_template_path(self, client, auth_header):
+        payload = {
+            "title": f"update-template-{uuid.uuid4().hex[:8]}",
+            "type": "pdf_presenter",
+            "description": "Product type desc",
+            "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
+        }
+        create_response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        product_type_id = create_response.json["id"]
+        try:
+            response = client.put(
+                self.concat_url(f"product-types/{product_type_id}"),
+                json={
+                    "type": "pdf_presenter",
+                    "description": "Product type desc",
+                    "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+                },
+                headers=auth_header,
+            )
+
+            assert response.status_code == 400
+            assert response.json["error"] == "Invalid presenter template path"
+        finally:
+            client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
 
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]

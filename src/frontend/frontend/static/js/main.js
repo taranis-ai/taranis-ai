@@ -54,9 +54,9 @@ function initChoices(elementID, placeholder = "items", config = {}) {
     input: ["choices__input", "!bg-base-200"],
     inputCloned: ["choices__input--cloned", "!bg-base-200"],
     list: ["choices__list", "!bg-base-200"],
-    itemSelectable: ["choices__item--selectable", "!bg-primary-300"],
+    itemSelectable: ["choices__item--selectable", "choices-item-selectable-primary"],
     itemChoice: ["choices__item--choice", "!bg-base-200"],
-    selectedState: ["is-selected", "!bg-primary"],
+    selectedState: ["is-selected", "choices-selected-primary"],
   };
 
   const defaultConfig = {

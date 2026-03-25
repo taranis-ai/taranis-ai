@@ -41,6 +41,7 @@ BOT_PARAMETER_ORDER_BY_TYPE = {
         "REFRESH_INTERVAL",
     ],
 }
+OPTIONAL_BOT_PARAMETERS = {"REFRESH_INTERVAL"}
 
 
 class BotView(AdminMixin, BaseView):
@@ -99,6 +100,7 @@ class BotView(AdminMixin, BaseView):
             "bot_types": cls.bot_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
+            "optional_parameters": OPTIONAL_BOT_PARAMETERS,
             "actions": bot_actions + cls.get_default_actions(),
         }
         return base_context
@@ -112,7 +114,11 @@ class BotView(AdminMixin, BaseView):
 
         parameters = cls._reorder_bot_parameters(bot_type, cls.get_worker_parameters(bot_type))
 
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template(
+            "partials/worker_parameters.html",
+            parameters=parameters,
+            optional_parameters=OPTIONAL_BOT_PARAMETERS,
+        )
 
     @staticmethod
     def _reorder_bot_parameters(bot_type: str, parameters: list[Any]) -> list[Any]:

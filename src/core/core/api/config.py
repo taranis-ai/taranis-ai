@@ -14,6 +14,7 @@ from core.managers import queue_manager, schedule_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
+    validate_presenter_template_id,
 )
 from core.managers.decorators import extract_args
 from core.model import (
@@ -183,6 +184,8 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             return {"message": "Product type created", "id": product.id}, 201
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -193,6 +196,8 @@ class ProductTypes(MethodView):
     def put(self, type_id: int):
         try:
             return product_type.ProductType.update(type_id, request.json, current_user)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except Exception as e:
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
@@ -287,6 +292,10 @@ class Templates(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        try:
+            validate_presenter_template_id(template_path)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
@@ -427,7 +436,7 @@ class Bots(MethodView):
                 logger.debug(f"Successfully updated {updated_bot}")
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"Bot with ID: {bot_id} not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")

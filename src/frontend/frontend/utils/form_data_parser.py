@@ -43,6 +43,8 @@ def parse_formdata(formdata: ImmutableMultiDict[Any, Any]) -> dict[str, Any]:
     list_counters: dict[int, dict[tuple[str, ...], int]] = {}
     # Each key may appear multiple times; getlist(key) preserves insertion order
     for full_key, val in formdata.items(multi=True):
+        if full_key == "csrf_token":
+            continue
         tokens = _parse_key(full_key)
         _insert_value(result, tokens, val, list_counters)
     return result

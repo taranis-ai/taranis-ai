@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import datetime
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,7 @@ from models.types import COLLECTOR_TYPES
 from frontend.cache import cache
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
+from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.base_view import BaseView
 
@@ -153,7 +155,8 @@ class TestSourceView:
                 SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
             )
 
-            assert resp.status_code == 200, f"Expected 200 OK response, got {resp.status_code}"
+            assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
+            assert resp.headers["Location"] == SourceView.get_base_route()
 
             mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
 
@@ -252,6 +255,30 @@ class TestSourceView:
         assert processed_data["icon"] == ""
         assert "delete_icon" not in processed_data
 
+
+def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
+    with app.test_request_context(
+        "/admin/report-item-types/0",
+        method="POST",
+        data={
+            "title": "Incident Report",
+            "description": "Shared normalization",
+            "attribute_groups[][index]": "0",
+            "attribute_groups[][title]": "Indicators",
+            "attribute_groups[][attribute_group_items][][index]": "0",
+            "attribute_groups[][attribute_group_items][][title]": "Domain",
+            "csrf_token": "secret",
+        },
+    ):
+        model = ReportItemTypeView._submitted_form_model()
+
+    assert model is not None
+    assert model.title == "Incident Report"
+    assert len(model.attribute_groups or []) == 1
+    assert model.attribute_groups[0].title == "Indicators"
+    assert len(model.attribute_groups[0].attribute_group_items) == 1
+    assert model.attribute_groups[0].attribute_group_items[0].title == "Domain"
+
     def test_process_form_data_delete_icon_wins_over_file_upload(self, app):
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
@@ -288,7 +315,7 @@ class TestSourceView:
                 "osint_source/osint_source_form.html",
                 model_name="osint_source",
                 submit_text="Update OSINT Source",
-                form_action='hx-put="/frontend/admin/sources/source-with-icon"',
+                form_action="/frontend/admin/sources/source-with-icon",
                 form_error={},
                 osint_source=osint_source,
                 icon_accept="image/png",
@@ -303,10 +330,14 @@ class TestSourceView:
         assert 'data-testid="current-osint-icon"' in html
 
 
-def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock):
+def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock, monkeypatch):
     for key in list(cache.cache._cache.keys()):
         if key.endswith("_dashboard"):
             cache.delete(key)
+
+    monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
+    monkeypatch.setattr(Config, "GIT_INFO", {"tag": "1.3.5", "HEAD": "front456", "branch": "master"})
+
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
         json={
@@ -335,13 +366,84 @@ def test_admin_dashboard_renders_health_card(authenticated_client, responses_moc
         status=200,
         content_type="application/json",
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}/build-info",
+        json={
+            "build_date": "2025-01-15T09:30:00+00:00",
+            "tag": "1.3.4",
+            "HEAD": "core123",
+            "branch": "master",
+        },
+        status=200,
+        content_type="application/json",
+    )
 
     response = authenticated_client.get(AdminDashboardView.get_base_route())
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
+    assert "Release Info" in html
+    assert "Core" in html
+    assert "Frontend" in html
+    assert "1.3.4" in html
+    assert "core123" in html
+    assert "1.3.5" in html
+    assert "front456" in html
     assert "System Health" in html
     assert "Degraded" in html
     assert "database" in html
     assert "broker" in html
     assert "workers" in html
+
+
+def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(authenticated_client, responses_mock, monkeypatch):
+    for key in list(cache.cache._cache.keys()):
+        if key.endswith("_dashboard"):
+            cache.delete(key)
+
+    monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
+    monkeypatch.setattr(Config, "GIT_INFO", {"tag": "1.3.5", "HEAD": "front456", "branch": "master"})
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
+        json={
+            "items": [
+                {
+                    "total_news_items": 10,
+                    "total_story_items": 5,
+                    "total_products": 2,
+                    "report_items_completed": 3,
+                    "report_items_in_progress": 1,
+                    "latest_collected": "2025-01-14T21:16:42.699574+01:00",
+                    "schedule_length": 4,
+                    "conflict_count": 0,
+                    "health_status": {
+                        "healthy": True,
+                        "services": {
+                            "database": "up",
+                            "broker": "up",
+                            "workers": "up",
+                        },
+                    },
+                    "worker_status": {},
+                }
+            ]
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}/build-info",
+        json={"message": "unavailable"},
+        status=503,
+        content_type="application/json",
+    )
+
+    response = authenticated_client.get(AdminDashboardView.get_base_route())
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Frontend" in html
+    assert "1.3.5" in html
+    assert "front456" in html
+    assert "Unavailable" in html
