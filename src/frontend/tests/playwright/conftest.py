@@ -557,7 +557,14 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     news_item_ids_created: list[str] = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
-        r.raise_for_status()
+        if not r.ok:
+            try:
+                error_payload = r.json()
+            except ValueError:
+                error_payload = r.text
+            raise AssertionError(
+                f"Failed to pre-seed news item '{item.get('title', '<unknown>')}' with status {r.status_code}: {error_payload}"
+            )
         response_data = r.json()
         story_list.append({"story_id": response_data.get("story_id"), **item})
         news_item_ids_created.extend(response_data.get("news_item_ids", []))

@@ -1,9 +1,12 @@
+from uuid import uuid4
+
 import pytest
 
 
 @pytest.fixture(scope="session")
 def news_items_list(app, fake_source):
-    yield [
+    seed = uuid4().hex[:8]
+    items = [
         {
             "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk21",
             "content": "APT81 targets national research labs to steal genetic engineering data.",
@@ -746,3 +749,11 @@ def news_items_list(app, fake_source):
             "published": "2000-03-14T08:58:59+01:00",
         },
     ]
+
+    for index, item in enumerate(items):
+        item["title"] = f"{item['title']} [{seed}-{index}]"
+        if link := item.get("link"):
+            separator = "&" if "?" in link else "?"
+            item["link"] = f"{link}{separator}e2e-seed={seed}-{index}"
+
+    yield items
