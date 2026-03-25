@@ -831,15 +831,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
-            product_type_select = page.get_by_label("Product Type * Select an item")
-            product_type_value = product_type_select.locator("option").evaluate_all(
-                """options => {
-                    const selectable = options.find(option => option.value && !option.disabled);
-                    return selectable ? selectable.value : null;
-                }"""
-            )
-            assert product_type_value is not None, "Expected at least one selectable product type"
-            self.highlight_element(product_type_select).select_option(product_type_value)
+            self.highlight_element(page.get_by_label("Product Type * Select an item")).select_option("3")
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")
