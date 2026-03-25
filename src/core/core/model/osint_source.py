@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
 from models.admin import OSINTSource as OSINTSourceModel
+from models.admin import OSINTSourceUpdateModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -302,29 +303,19 @@ class OSINTSource(BaseModel):
         if not osint_source:
             return None
         update_data = {key: value for key, value in data.items() if key not in {"id", "type", "enabled"}}
-        validated_source = cls.from_dict(
-            {
-                "id": osint_source.id,
-                "name": osint_source.name,
-                "description": osint_source.description,
-                "rank": osint_source.rank,
-                "type": osint_source.type,
-                "parameters": {parameter.parameter: parameter.value for parameter in osint_source.parameters},
-                "icon": base64.b64encode(osint_source.icon).decode("utf-8") if osint_source.icon else None,
-            }
-            | update_data
-        )
+        validated_update = OSINTSourceUpdateModel.model_validate(update_data)
+        update_fields = validated_update.model_fields_set
 
-        if "name" in update_data:
-            osint_source.name = validated_source.name
-        if "description" in update_data:
-            osint_source.description = validated_source.description
-        if "rank" in update_data:
-            osint_source.rank = validated_source.rank
-        if "icon" in update_data:
-            osint_source.icon = validated_source.icon
-        if "parameters" in update_data:
-            osint_source.parameters = validated_source.parameters
+        if "name" in update_fields:
+            osint_source.name = validated_update.name
+        if "description" in update_fields:
+            osint_source.description = validated_update.description
+        if "rank" in update_fields:
+            osint_source.rank = validated_update.rank
+        if "icon" in update_fields:
+            osint_source.icon = osint_source._parse_icon(validated_update.icon)
+        if "parameters" in update_fields:
+            osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source

@@ -234,6 +234,14 @@ class OSINTSource(TaranisBaseModel):
     status: TaskResult | None = None
 
 
+class OSINTSourceUpdateModel(TaranisBaseModel):
+    name: str | None = None
+    description: str | None = None
+    rank: int | None = Field(default=None, ge=0, le=5)
+    parameters: dict[str, str] | None = None
+    icon: str | None = None
+
+
 class OSINTSourceGroup(TaranisBaseModel):
     _core_endpoint = "/config/osint-source-groups"
     _model_name = "osint_source_group"

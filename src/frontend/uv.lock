@@ -55,16 +55,16 @@ wheels = [
 
 [[package]]
 name = "build"
-version = "1.4.0"
+version = "1.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "os_name == 'nt'" },
     { name = "packaging" },
     { name = "pyproject-hooks" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/18/94eaffda7b329535d91f00fe605ab1f1e5cd68b2074d03f255c7d250687d/build-1.4.0.tar.gz", hash = "sha256:f1b91b925aa322be454f8330c6fb48b465da993d1e7e7e6fa35027ec49f3c936", size = 50054, upload-time = "2026-01-08T16:41:47.696Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/1d/ab15c8ac57f4ee8778d7633bc6685f808ab414437b8644f555389cdc875e/build-1.4.2.tar.gz", hash = "sha256:35b14e1ee329c186d3f08466003521ed7685ec15ecffc07e68d706090bf161d1", size = 83433, upload-time = "2026-03-25T14:20:27.659Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c5/0d/84a4380f930db0010168e0aa7b7a8fed9ba1835a8fbb1472bc6d0201d529/build-1.4.0-py3-none-any.whl", hash = "sha256:6a07c1b8eb6f2b311b96fcbdbce5dab5fe637ffda0fd83c9cac622e927501596", size = 24141, upload-time = "2026-01-08T16:41:46.453Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/57/3b7d4dd193ade4641c865bc2b93aeeb71162e81fc348b8dad020215601ed/build-1.4.2-py3-none-any.whl", hash = "sha256:7a4d8651ea877cb2a89458b1b198f2e69f536c95e89129dbf5d448045d60db88", size = 24643, upload-time = "2026-03-25T14:20:26.568Z" },
 ]
 
 [[package]]
@@ -529,11 +529,11 @@ wheels = [
 
 [[package]]
 name = "narwhals"
-version = "2.18.0"
+version = "2.18.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/47/b4/02a8add181b8d2cd5da3b667cd102ae536e8c9572ab1a130816d70a89edb/narwhals-2.18.0.tar.gz", hash = "sha256:1de5cee338bc17c338c6278df2c38c0dd4290499fcf70d75e0a51d5f22a6e960", size = 620222, upload-time = "2026-03-10T15:51:27.14Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/96/45218c2fdec4c9f22178f905086e85ef1a6d63862dcc3cd68eb60f1867f5/narwhals-2.18.1.tar.gz", hash = "sha256:652a1fcc9d432bbf114846688884c215f17eb118aa640b7419295d2f910d2a8b", size = 620578, upload-time = "2026-03-24T15:11:25.456Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/75/0b4a10da17a44cf13567d08a9c7632a285297e46253263f1ae119129d10a/narwhals-2.18.0-py3-none-any.whl", hash = "sha256:68378155ee706ac9c5b25868ef62ecddd62947b6df7801a0a156bc0a615d2d0d", size = 444865, upload-time = "2026-03-10T15:51:24.085Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/c3/06490e98393dcb4d6ce2bf331a39335375c300afaef526897881fbeae6ab/narwhals-2.18.1-py3-none-any.whl", hash = "sha256:a0a8bb80205323851338888ba3a12b4f65d352362c8a94be591244faf36504ad", size = 444952, upload-time = "2026-03-24T15:11:23.801Z" },
 ]
 
 [[package]]
@@ -1211,7 +1211,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.5.dev5"
+version = "1.3.5.dev6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1223,9 +1223,9 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/85/a3309a34ee9dc989842e200b83eb7af7d0ae2cfc5fa7260c7f0420dbf8ab/taranis_models-1.3.5.dev5.tar.gz", hash = "sha256:4726062741045bf25fa0a8e5a364eb3e68fa8966e5179248822ecb8f3ffcacc3", size = 38046, upload-time = "2026-03-24T12:11:44.655Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/9a/61967ba1c4626ab7246adcab4e73ae5fb68dfee1ad380ca337ecf2cde10e/taranis_models-1.3.5.dev6.tar.gz", hash = "sha256:08350b1ceceabd2b47e8019a11e1f0925eed538b7f8be3a35dd230510206ae3a", size = 38168, upload-time = "2026-03-25T14:48:20.442Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/fb/da3c734e931197a409569b33dcfbdfa10d69e98ae8986165a6ca7a68c8e1/taranis_models-1.3.5.dev5-py3-none-any.whl", hash = "sha256:92dd13dd31fdc961e486cf2bc7c7b35c00eed47c9b831f11c9a515cb59ad5c96", size = 16777, upload-time = "2026-03-24T12:11:43.038Z" },
+    { url = "https://files.pythonhosted.org/packages/32/8f/fdbcbdaab71195e2fe84a044f7f396708fbbdda85838506f1f3a41eadfeb/taranis_models-1.3.5.dev6-py3-none-any.whl", hash = "sha256:adbfcbd7b5d022bc3dcc12fe03c5c8e046f50c9d6a2b30b584571912cd36d1d6", size = 16806, upload-time = "2026-03-25T14:48:19.197Z" },
 ]
 
 [[package]]
