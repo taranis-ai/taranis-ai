@@ -8,6 +8,12 @@ from core.log import logger
 from core.managers.db_enum_manager import sync_enum_with_db
 
 
+def _sync_presenter_templates() -> None:
+    from core.managers.data_manager import sync_presenter_templates_to_data
+
+    sync_presenter_templates_to_data()
+
+
 def pre_seed():
     try:
         pre_seed_permissions()
@@ -27,6 +33,9 @@ def pre_seed():
 
         pre_seed_report_items()
         logger.debug("Report items seeded")
+
+        _sync_presenter_templates()
+        logger.debug("Presenter templates seeded")
 
         pre_seed_workers()
         logger.debug("Workers seeded")
@@ -69,6 +78,7 @@ def pre_seed_update(db_engine: Engine):
 
     pre_seed_source_groups()
     pre_seed_manual_source()
+    _sync_presenter_templates()
     cleanup_invalid_source_icons()
     migrate_refresh_intervals()
     migrate_use_feed_content()
