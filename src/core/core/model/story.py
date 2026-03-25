@@ -1261,6 +1261,8 @@ class Story(BaseModel):
             return None
 
         state = inspect(self)
+        if not state:
+            return None
         if state.deleted or state.detached or self in db.session.deleted:
             return None
 
