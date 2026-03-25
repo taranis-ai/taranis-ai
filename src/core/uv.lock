@@ -740,6 +740,15 @@ wheels = [
 ]
 
 [[package]]
+name = "language-tags"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/7e/b6a0efe4fee11e9742c1baaedf7c574084238a70b03c1d8eb2761383848f/language_tags-1.2.0.tar.gz", hash = "sha256:e934acba3e3dc85f867703eca421847a9ab7b7679b11b5d5cfd096febbf8bde6", size = 207901, upload-time = "2023-01-11T18:38:07.893Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/42/327554649ed2dd5ce59d3f5da176c7be20f9352c7c6c51597293660b7b08/language_tags-1.2.0-py3-none-any.whl", hash = "sha256:d815604622242fdfbbfd747b40c31213617fd03734a267f2e39ee4bd73c88722", size = 213449, upload-time = "2023-01-11T18:38:05.692Z" },
+]
+
+[[package]]
 name = "lxml"
 version = "6.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1070,15 +1079,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pycountry"
-version = "26.2.16"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/de/1d/061b9e7a48b85cfd69f33c33d2ef784a531c359399ad764243399673c8f5/pycountry-26.2.16.tar.gz", hash = "sha256:5b6027d453fcd6060112b951dd010f01f168b51b4bf8a1f1fc8c95c8d94a0801", size = 7711342, upload-time = "2026-02-17T03:42:52.367Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9c/42/7703bd45b62fecd44cd7d3495423097e2f7d28bc2e99e7c1af68892ab157/pycountry-26.2.16-py3-none-any.whl", hash = "sha256:115c4baf7cceaa30f59a4694d79483c9167dbce7a9de4d3d571c5f3ea77c305a", size = 8044600, upload-time = "2026-02-17T03:42:49.777Z" },
-]
-
-[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1143,19 +1143,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/aa/81/05e400037eaf55ad400bcd318c05bb345b57e708887f07ddb2d20e3f0e98/pydantic_core-2.41.5-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:aabf5777b5c8ca26f7824cb4a120a740c9588ed58df9b2d196ce92fba42ff8dc", size = 1915388, upload-time = "2025-11-04T13:42:52.215Z" },
     { url = "https://files.pythonhosted.org/packages/6e/0d/e3549b2399f71d56476b77dbf3cf8937cec5cd70536bdc0e374a421d0599/pydantic_core-2.41.5-graalpy312-graalpy250_312_native-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c007fe8a43d43b3969e8469004e9845944f1a80e6acd47c150856bb87f230c56", size = 1942879, upload-time = "2025-11-04T13:42:56.483Z" },
     { url = "https://files.pythonhosted.org/packages/f7/07/34573da085946b6a313d7c42f82f16e8920bfd730665de2d11c0c37a74b5/pydantic_core-2.41.5-graalpy312-graalpy250_312_native-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:76d0819de158cd855d1cbb8fcafdf6f5cf1eb8e470abe056d5d161106e38062b", size = 2139017, upload-time = "2025-11-04T13:42:59.471Z" },
-]
-
-[[package]]
-name = "pydantic-extra-types"
-version = "2.11.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/71/dba38ee2651f84f7842206adbd2233d8bbdb59fb85e9fa14232486a8c471/pydantic_extra_types-2.11.1.tar.gz", hash = "sha256:46792d2307383859e923d8fcefa82108b1a141f8a9c0198982b3832ab5ef1049", size = 172002, upload-time = "2026-03-16T08:08:03.92Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/c1/3226e6d7f5a4f736f38ac11a6fbb262d701889802595cdb0f53a885ac2e0/pydantic_extra_types-2.11.1-py3-none-any.whl", hash = "sha256:1722ea2bddae5628ace25f2aa685b69978ef533123e5638cfbddb999e0100ec1", size = 79526, upload-time = "2026-03-16T08:08:02.533Z" },
 ]
 
 [[package]]
@@ -1589,15 +1576,16 @@ wheels = [
 
 [[package]]
 name = "setuptools-scm"
-version = "9.2.2"
+version = "10.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "setuptools" },
+    { name = "vcs-versioning" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/b1/19587742aad604f1988a8a362e660e8c3ac03adccdb71c96d86526e5eb62/setuptools_scm-9.2.2.tar.gz", hash = "sha256:1c674ab4665686a0887d7e24c03ab25f24201c213e82ea689d2f3e169ef7ef57", size = 203385, upload-time = "2025-10-19T22:08:05.608Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/67/d68809cc1abb0df437f9d21fe1928c282fd13ef158671a7b60bfe2e65940/setuptools_scm-10.0.2.tar.gz", hash = "sha256:1da0f4d7e55b4599f0569637c08909a8e8a5f32989d3bae767375bf935d4d5a3", size = 55133, upload-time = "2026-03-25T16:30:27.733Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/ea/ac2bf868899d0d2e82ef72d350d97a846110c709bacf2d968431576ca915/setuptools_scm-9.2.2-py3-none-any.whl", hash = "sha256:30e8f84d2ab1ba7cb0e653429b179395d0c33775d54807fc5f1dd6671801aef7", size = 62975, upload-time = "2025-10-19T22:08:04.007Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/b4/94dcb28fe25c1c8e14547bbe5115aee44f920e5e4796e3ead7d682b15b6b/setuptools_scm-10.0.2-py3-none-any.whl", hash = "sha256:cc4ebd0532926505c1e96bcaa6c36cf7bef83267c6f2ea42e75554bbd7e93112", size = 20663, upload-time = "2026-03-25T16:30:26.546Z" },
 ]
 
 [[package]]
@@ -1780,21 +1768,20 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.5.dev6"
+version = "1.3.5.dev7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "language-tags" },
     { name = "lxml" },
-    { name = "pycountry" },
     { name = "pydantic" },
-    { name = "pydantic-extra-types" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/9a/61967ba1c4626ab7246adcab4e73ae5fb68dfee1ad380ca337ecf2cde10e/taranis_models-1.3.5.dev6.tar.gz", hash = "sha256:08350b1ceceabd2b47e8019a11e1f0925eed538b7f8be3a35dd230510206ae3a", size = 38168, upload-time = "2026-03-25T14:48:20.442Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/27/6150a8c70041efb3514e8fbd0dbc0c8905ad53237deecc7611e44b7dab10/taranis_models-1.3.5.dev7.tar.gz", hash = "sha256:831d4ed978a751e7975f899f1ca2d7091a72c08be3036b6257ce9a6d74ff5c68", size = 37885, upload-time = "2026-03-25T16:11:40.933Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/8f/fdbcbdaab71195e2fe84a044f7f396708fbbdda85838506f1f3a41eadfeb/taranis_models-1.3.5.dev6-py3-none-any.whl", hash = "sha256:adbfcbd7b5d022bc3dcc12fe03c5c8e046f50c9d6a2b30b584571912cd36d1d6", size = 16806, upload-time = "2026-03-25T14:48:19.197Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/4d/3ae8ba3d513cafd4a25bf95feb2fd32e48190cf5bfafdbe15107fb8d2786/taranis_models-1.3.5.dev7-py3-none-any.whl", hash = "sha256:6ccdf135660f7131e264141398243159f6224124cfd5ee4dd1dec007379c0a3e", size = 16891, upload-time = "2026-03-25T16:11:41.811Z" },
 ]
 
 [[package]]
@@ -1909,6 +1896,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
+]
+
+[[package]]
+name = "vcs-versioning"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/4b/3a429205c14e8d342fef34fced00b53bdebcab01ced0db6f01c39d792a48/vcs_versioning-1.0.1.tar.gz", hash = "sha256:bd597fd2c79dc4ea0a59fc6a525793acb7d2ba06ee64b80750b97e92b6bcf691", size = 91785, upload-time = "2026-03-19T15:39:25.638Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/e9/ee8aff785e6682ab5b45dcd80a6a822bea6bd6f5002854b9e2cf2b3c59db/vcs_versioning-1.0.1-py3-none-any.whl", hash = "sha256:58b244773ac6a6a6d6611f7eaea2298923df0573f31578d666edbca16855d96d", size = 78656, upload-time = "2026-03-19T15:39:24.282Z" },
 ]
 
 [[package]]
