@@ -25,8 +25,9 @@ class AdminDashboardView(AdminMixin, BaseView):
     @classmethod
     def static_view(cls):
         error = None
+        data_persistence = DataPersistenceLayer()
         try:
-            dashboard = DataPersistenceLayer().get_objects(cls.model)
+            dashboard = data_persistence.get_first(Dashboard)
         except Exception as exc:
             dashboard = None
             error = str(exc)
@@ -36,20 +37,37 @@ class AdminDashboardView(AdminMixin, BaseView):
             return render_template("errors/404.html", error="No Dashboard items found"), 404
         template = cls.get_list_template()
         context = {
-            "data": dashboard[0],
-            "dashboard_health": cls.get_dashboard_health(dashboard[0]),
-            "build_info": cls.get_build_info(),
+            "data": dashboard,
+            "dashboard_health": cls.get_dashboard_health(dashboard),
+            "release_info": cls.get_release_info(data_persistence),
             "health_badge_classes": cls.get_health_badge_classes(),
             **cls._common_context(error),
         }
         return render_template(template, **context), 200
 
     @classmethod
-    def get_build_info(cls):
+    def get_build_info(cls) -> dict[str, str]:
         result = {"build_date": Config.BUILD_DATE.isoformat()}
         if Config.GIT_INFO:
             result |= Config.GIT_INFO
         return result
+
+    @classmethod
+    def get_core_build_info(cls, data_persistence: DataPersistenceLayer) -> dict[str, str] | None:
+        endpoint = f"{cls.model._core_endpoint}/build-info"
+        build_info = data_persistence.api.api_get(endpoint)
+        if isinstance(build_info, dict):
+            return build_info
+
+        logger.warning("Failed to retrieve core build info for admin dashboard")
+        return None
+
+    @classmethod
+    def get_release_info(cls, data_persistence: DataPersistenceLayer) -> dict[str, dict[str, str] | None]:
+        return {
+            "core": cls.get_core_build_info(data_persistence),
+            "frontend": cls.get_build_info(),
+        }
 
     @staticmethod
     def get_health_badge_classes() -> dict[str, str]:
@@ -60,24 +78,11 @@ class AdminDashboardView(AdminMixin, BaseView):
         }
 
     @staticmethod
-    def get_dashboard_health(dashboard: Dashboard) -> dict[str, bool | dict[str, str]] | None:
-        health_status = dashboard.get("health_status") if isinstance(dashboard, dict) else getattr(dashboard, "health_status", None)
-        if not health_status:
-            return None
+    def get_dashboard_health(dashboard: Dashboard) -> dict[str, bool | dict[str, str]]:
+        if health_status := dashboard.health_status:
+            return {"healthy": bool(health_status.healthy), "services": health_status.services.model_dump()}
 
-        services = getattr(health_status, "services", {})
-        if isinstance(health_status, dict):
-            services = health_status.get("services", {})
-            healthy = health_status.get("healthy", False)
-        else:
-            healthy = getattr(health_status, "healthy", False)
-
-        if hasattr(services, "model_dump"):
-            services = services.model_dump()
-        elif not isinstance(services, dict):
-            services = {}
-
-        return {"healthy": bool(healthy), "services": services}
+        return {"healthy": False, "services": {"database": "n/a", "broker": "n/a", "workers": "n/a"}}
 
     def get(self, **kwargs):
         return self.static_view()

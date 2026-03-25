@@ -1061,7 +1061,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, pre_seed_stories, tmp_path, run_core, access_token):
+    def test_admin_settings(self, logged_in_page, tmp_path, run_core, access_token, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1111,6 +1111,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(news_conflict_input).to_have_value("21")
 
         def revert_to_default_values():
+            page.goto(url_for("admin_settings.settings", _external=True))
             tlp_select.select_option("clear")
             collector_proxy_input.fill("")
             expect(collector_interval_input).to_be_visible()
@@ -1270,6 +1271,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
             expect(imported_story).to_be_visible()
 
+        def test_clear_cache() -> None:
+            page.goto(url_for("admin_settings.settings", _external=True))
+            page.get_by_role("button", name="Invalidate Cache").click()
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
@@ -1277,7 +1282,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
         import_stories_from_json()
-        page.goto(url_for("admin_settings.settings", _external=True))
+        test_clear_cache()
         revert_to_default_values()
 
     def test_open_api(self, logged_in_page: Page):

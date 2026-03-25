@@ -387,6 +387,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        if source_id == "manual":
+            return {"error": "The manual source cannot be deleted"}, 400
+
         if not (source := cls.get(source_id)):
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 

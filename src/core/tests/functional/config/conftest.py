@@ -185,7 +185,7 @@ def cleanup_product_types(app):
         product_type_data = {
             "id": 42,
             "type": "pdf_presenter",
-            "parameters": {"TEMPLATE_PATH": "template path"},
+            "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
             "title": "Test Product type",
             "description": "Product type desc",
         }

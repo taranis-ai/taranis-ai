@@ -612,11 +612,53 @@ class TestProductTypes(BaseTest):
         assert response.json["message"] == "Product type created"
         assert response.json["id"] == cleanup_product_types["id"]
 
+    def test_create_product_type_rejects_invalid_template_path(self, client, auth_header):
+        response = client.post(
+            self.concat_url("product-types"),
+            json={
+                "title": f"invalid-template-{uuid.uuid4().hex[:8]}",
+                "type": "pdf_presenter",
+                "description": "Product type desc",
+                "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+            },
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid presenter template path"
+
     def test_modify_product_type(self, client, auth_header, cleanup_product_types):
         product_type_data = {"title": "Producty McProductFace"}
         product_type_id = cleanup_product_types["id"]
         response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
         assert response.json["message"] == f"Updated product type {product_type_data['title']}"
+
+    def test_modify_product_type_rejects_invalid_template_path(self, client, auth_header):
+        payload = {
+            "title": f"update-template-{uuid.uuid4().hex[:8]}",
+            "type": "pdf_presenter",
+            "description": "Product type desc",
+            "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
+        }
+        create_response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        product_type_id = create_response.json["id"]
+        try:
+            response = client.put(
+                self.concat_url(f"product-types/{product_type_id}"),
+                json={
+                    "type": "pdf_presenter",
+                    "description": "Product type desc",
+                    "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+                },
+                headers=auth_header,
+            )
+
+            assert response.status_code == 400
+            assert response.json["error"] == "Invalid presenter template path"
+        finally:
+            client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
 
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]

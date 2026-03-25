@@ -404,6 +404,10 @@ spec:
               value: "1"
             - name: GRANIAN_BLOCKING_THREADS
               value: "1"
+            - name: GRANIAN_WORKERS
+              value: "2"
+            - name: GRANIAN_WORKERS_MAX_RSS
+              value: "5500"
             - name: GRANIAN_INTERFACE
               value: "asgi"
             - name: HF_HOME
@@ -426,10 +430,10 @@ spec:
           resources:
             limits:
               cpu: "4"
-              memory: 8Gi
+              memory: 12Gi
             requests:
-              cpu: 100m
-              memory: 512Mi
+              cpu: "2"
+              memory: 6Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
