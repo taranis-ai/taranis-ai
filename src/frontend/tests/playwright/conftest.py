@@ -167,7 +167,12 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def setup_test_templates(run_core, access_token):
+def core_seed_data_ready(run_core, access_token):
+    _wait_for_seeded_core_resources(run_core, access_token)
+
+
+@pytest.fixture(scope="session")
+def setup_test_templates(run_core, access_token, core_seed_data_ready):
     """Set up test template files for e2e tests via core API."""
     test_data_dir = Path(__file__).parent / "testdata"
     headers = {
@@ -585,7 +590,7 @@ def stories(run_core, api_header, fake_source, access_token):
 
 
 @pytest.fixture(scope="module")
-def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
+def pre_seed_stories(news_items_list, run_core, access_token, core_seed_data_ready):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
     headers = {
@@ -805,7 +810,7 @@ def report_item_dict(story_item_list):
 
 
 @pytest.fixture(scope="session")
-def fake_source(app, run_core, access_token):
+def fake_source(app, run_core, access_token, core_seed_data_ready):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
