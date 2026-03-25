@@ -198,8 +198,3 @@ def validate_presenter_template_id(template_id: str, *, must_exist: bool = True)
 
 def validate_existing_presenter_template_id(template_id: str) -> str:
     return validate_presenter_template_id(template_id, must_exist=True)
-
-
-def initialize(initial_setup: bool = True) -> None:
-    if initial_setup:
-        sync_presenter_templates_to_data()
