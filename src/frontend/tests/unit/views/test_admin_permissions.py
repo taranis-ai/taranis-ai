@@ -9,4 +9,4 @@ def test_non_admin_attributes_page_is_forbidden(app, authenticated_client_basic)
     assert response.status_code == 403
 
     html = response.get_data(as_text=True)
-    assert "forbidden" in html
+    assert "forbidden" in html.lower()
