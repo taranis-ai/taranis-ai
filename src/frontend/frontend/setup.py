@@ -15,6 +15,7 @@ from models.user import UserProfile
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
+from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
 from frontend.views.base_view import BaseView
@@ -102,7 +103,7 @@ def is_user_admin(user: UserProfile) -> bool:
     """
     Checks if the current user has admin privileges.
     """
-    return any(p.startswith("CONFIG_") for p in user.permissions or [])
+    return user_has_admin_permissions(user.permissions)
 
 
 def inject_current_user() -> dict[str, Any]:

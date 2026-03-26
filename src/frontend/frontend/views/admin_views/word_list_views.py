@@ -4,7 +4,7 @@ from typing import Any
 from flask import Response, render_template, request
 from models.admin import WordList
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -52,7 +52,7 @@ class WordListView(AdminMixin, BaseView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def export_view(cls):
         word_list_ids = request.args.getlist("ids")
         core_resp = CoreApi().export_word_lists({"ids": word_list_ids})
@@ -64,7 +64,7 @@ class WordListView(AdminMixin, BaseView):
         return CoreApi.stream_proxy(core_resp, "word_lists_export.json")
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def load_default_word_lists(cls):
         response = CoreApi().load_default_word_lists()
         if not response:
@@ -82,7 +82,7 @@ class WordListView(AdminMixin, BaseView):
         return response, core_response.status_code
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def update_word_lists(cls, word_list_id: int | None = None):
         core_response = CoreApi().update_word_lists(word_list_id)
         response = cls.get_notification_from_response(core_response)
