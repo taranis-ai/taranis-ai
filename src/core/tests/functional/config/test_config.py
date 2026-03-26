@@ -136,6 +136,107 @@ class TestSourcesConfigApi(BaseTest):
         assert response.json["items"][0]["description"] == "Sourcy McSourceFace"
         assert response.json["items"][0]["id"] == source_id
 
+    def test_get_sources_excludes_manual_collectors_by_default(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+
+        unique_suffix = uuid.uuid4().hex
+        rss_source_id = f"rss-{unique_suffix}"
+        manual_source_id = f"manual-{unique_suffix}"
+
+        rss_source = {
+            "id": rss_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should remain visible",
+            "parameters": [{"FEED_URL": "https://example.invalid/feed.xml"}],
+            "type": "rss_collector",
+        }
+        manual_source = {
+            "id": manual_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should be hidden by default",
+            "parameters": [],
+            "type": "manual_collector",
+        }
+
+        with app.app_context():
+            OSINTSource.add(rss_source)
+            OSINTSource.add(manual_source)
+
+        try:
+            response = self.assert_get_ok(client, uri=f"osint-sources?search={unique_suffix}&fetch_all=true", auth_header=auth_header)
+            payload = response.get_json()
+
+            assert payload["total_count"] == 1
+            assert [item["id"] for item in payload["items"]] == [rss_source_id]
+        finally:
+            with app.app_context():
+                if OSINTSource.get(rss_source_id):
+                    OSINTSource.delete(rss_source_id)
+                if OSINTSource.get(manual_source_id):
+                    OSINTSource.delete(manual_source_id)
+
+    def test_get_sources_orders_by_status(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        unique_suffix = uuid.uuid4().hex
+        failure_source_id = f"failure-{unique_suffix}"
+        success_source_id = f"success-{unique_suffix}"
+
+        sources = [
+            {
+                "id": failure_source_id,
+                "name": f"Status Ordered Source {unique_suffix}",
+                "description": "Failure source",
+                "parameters": [{"FEED_URL": "https://example.invalid/failure.xml"}],
+                "type": "rss_collector",
+            },
+            {
+                "id": success_source_id,
+                "name": f"Status Ordered Source {unique_suffix}",
+                "description": "Success source",
+                "parameters": [{"FEED_URL": "https://example.invalid/success.xml"}],
+                "type": "rss_collector",
+            },
+        ]
+        tasks = [
+            {"id": f"collect_rss_collector_{failure_source_id}", "task": "collector_task", "status": "FAILURE"},
+            {"id": f"collect_rss_collector_{success_source_id}", "task": "collector_task", "status": "SUCCESS"},
+        ]
+
+        with app.app_context():
+            for source in sources:
+                OSINTSource.add(source)
+            for task in tasks:
+                Task.add(task)
+
+        try:
+            asc_response = self.assert_get_ok(
+                client,
+                uri=f"osint-sources?search={unique_suffix}&order=status_asc&fetch_all=true",
+                auth_header=auth_header,
+            )
+            asc_payload = asc_response.get_json()
+            assert asc_payload["total_count"] == 2
+            assert [item["id"] for item in asc_payload["items"]] == [failure_source_id, success_source_id]
+
+            desc_response = self.assert_get_ok(
+                client,
+                uri=f"osint-sources?search={unique_suffix}&order=status_desc&fetch_all=true",
+                auth_header=auth_header,
+            )
+            desc_payload = desc_response.get_json()
+            assert desc_payload["total_count"] == 2
+            assert [item["id"] for item in desc_payload["items"]] == [success_source_id, failure_source_id]
+        finally:
+            with app.app_context():
+                for task in tasks:
+                    if Task.get(task["id"]):
+                        Task.delete(task["id"])
+                for source in sources:
+                    if OSINTSource.get(source["id"]):
+                        OSINTSource.delete(source["id"])
+
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)

@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from tests.functional.helpers import BaseTest
@@ -24,6 +26,52 @@ class TestAnalyzeApi(BaseTest):
         items = response.get_json()["items"]
         assert len(items) == 1
         assert items[0]["title"] == cleanup_report_item["title"]
+
+    def test_get_reports_orders_by_story_count(self, client, auth_header, cleanup_report_item, stories, app):
+        from core.model.report_item import ReportItem
+
+        unique_suffix = uuid.uuid4().hex
+        empty_report_id = f"empty-{unique_suffix}"
+        linked_report_id = f"linked-{unique_suffix}"
+
+        payloads = [
+            {
+                "id": empty_report_id,
+                "title": f"Story Count Report {unique_suffix}",
+                "completed": False,
+                "report_item_type_id": cleanup_report_item["report_item_type_id"],
+                "stories": [],
+            },
+            {
+                "id": linked_report_id,
+                "title": f"Story Count Report {unique_suffix}",
+                "completed": False,
+                "report_item_type_id": cleanup_report_item["report_item_type_id"],
+                "stories": stories[:2],
+            },
+        ]
+
+        with app.app_context():
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                assert report_item.id == payload["id"]
+
+        try:
+            asc_response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order=stories_asc", auth_header)
+            asc_payload = asc_response.get_json()
+            assert asc_payload["total_count"] == 2
+            assert [item["id"] for item in asc_payload["items"]] == [empty_report_id, linked_report_id]
+
+            desc_response = self.assert_get_ok(client, f"report-items?search={unique_suffix}&order=stories_desc", auth_header)
+            desc_payload = desc_response.get_json()
+            assert desc_payload["total_count"] == 2
+            assert [item["id"] for item in desc_payload["items"]] == [linked_report_id, empty_report_id]
+        finally:
+            with app.app_context():
+                for payload in payloads:
+                    if ReportItem.get(payload["id"]):
+                        ReportItem.delete(payload["id"])
 
     def test_update_report(self, client, auth_header, cleanup_report_item):
         """

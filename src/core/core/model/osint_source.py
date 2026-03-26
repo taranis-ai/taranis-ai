@@ -108,28 +108,17 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = filter_args or {}
+        filter_args = dict(filter_args or {})
         filter_args["filter_manual"] = filter_args.get("filter_manual", True)
-        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        if user:
-            base_query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            base_query = cls.get_filter_query(filter_args)
-        query = base_query
-        if not cls._should_fetch_all(filter_args):
-            query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query)
-        items = cls.get_filtered(query) or []
-        item_list = cls.to_list(items)
-        if filter_args.get("order") == "status_asc":
-            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""))
-        elif filter_args.get("order") == "status_desc":
-            item_list.sort(key=lambda x: x.get("status", {}).get("status", ""), reverse=True)
 
-        if with_count:
-            count = cls.get_filtered_count(base_query)
-            return {"total_count": count, "items": item_list}, 200
-        return {"items": item_list}, 200
+        response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
+        items = response.get("items", [])
+        if filter_args.get("order") == "status_asc":
+            items.sort(key=lambda item: (item.get("status") or {}).get("status", ""))
+        elif filter_args.get("order") == "status_desc":
+            items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
+
+        return response, status_code
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
