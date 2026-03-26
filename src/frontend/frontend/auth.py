@@ -4,7 +4,7 @@ from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, current_app, make_response, redirect, render_template, request, url_for
-from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
 from werkzeug.exceptions import MethodNotAllowed, NotFound
