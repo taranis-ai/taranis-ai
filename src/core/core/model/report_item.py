@@ -99,6 +99,14 @@ class ReportItem(BaseModel):
             return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
         return {"error": "Report Item not found"}, 404
 
+    @staticmethod
+    def recompute_story_relevance(stories: list[Story]) -> None:
+        if not stories:
+            return
+        db.session.flush()
+        for story in {story for story in stories if story is not None}:
+            story.recompute_relevance()
+
     @classmethod
     def get_detail_json(cls, id: str) -> dict[str, Any] | None:
         report_item = cls.get(id)
@@ -444,6 +452,7 @@ class ReportItem(BaseModel):
         report_item.stories.extend(stories)
         for story in stories:
             NewsItemTagService.add_report_tag(story, report_item)
+        cls.recompute_story_relevance(stories)
         report_item.record_revision(user, note="add_stories")
         db.session.commit()
 
@@ -461,6 +470,7 @@ class ReportItem(BaseModel):
             NewsItemTagService.remove_report_tag(story, report_item.id)
 
         report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
+        cls.recompute_story_relevance(stories_to_remove)
         report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
@@ -490,6 +500,8 @@ class ReportItem(BaseModel):
         for story in stories_to_remove:
             NewsItemTagService.remove_report_tag(story, self.id)
             self.stories.remove(story)
+
+        ReportItem.recompute_story_relevance(stories_to_add + stories_to_remove)
 
     def retag_stories(self):
         for story in self.stories:
@@ -551,7 +563,12 @@ class ReportItem(BaseModel):
         if ProductReportItem.assigned(report_id):
             return {"error": "Report is used in a product"}, 409
 
+        affected_stories = list(report.stories)
+        for story in affected_stories:
+            NewsItemTagService.remove_report_tag(story, report.id)
         db.session.delete(report)
+        db.session.flush()
+        cls.recompute_story_relevance(affected_stories)
         db.session.commit()
         return {"message": f"Successfully deleted report '{report.title}'"}, 200
 

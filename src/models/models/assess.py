@@ -152,6 +152,7 @@ class Story(TaranisBaseModel):
     user_vote: Literal["like", "dislike", "", None] = None
     summary: str | None = None
     relevance: int | None = None
+    relevance_override: int | None = None
     comments: str | None = None
     in_reports_count: int | None = None
     tags: list[dict[str, Any]] | None = None
