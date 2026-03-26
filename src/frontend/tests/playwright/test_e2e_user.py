@@ -140,12 +140,13 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_non_admin_direct_admin_attributes_shows_denied_state(
         self,
         non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
     ):
         page = non_admin_logged_in_page
 
         page.goto(url_for("admin.attributes", _external=True))
 
-        expect(page.get_by_text("forbidden")).to_be_visible()
+        expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0

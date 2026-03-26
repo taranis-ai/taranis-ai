@@ -182,8 +182,8 @@ def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_
         context.close()
 
 
-def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
-    return any(re.search(p, msg_text) for p in allow_patterns)
+def _allowed(entry: str, allow_patterns: list[str]) -> bool:
+    return any(re.search(pattern, entry) for pattern in allow_patterns)
 
 
 def _dismiss_notifications(page: Page):
@@ -264,10 +264,13 @@ def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_re
         _dismiss_notifications(page)
 
 
-def _forward_console_and_page_errors(request, page: Page):
+def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
     fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
     warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
-    allow_patterns = request.config.getoption("--console-allow") or []
+    allow_patterns = [
+        *(request.config.getoption("--console-allow") or []),
+        *(extra_allow_patterns or []),
+    ]
 
     errors: list[str] = []
     warns: list[str] = []
@@ -280,7 +283,7 @@ def _forward_console_and_page_errors(request, page: Page):
         loc_s = f"{loc.get('url', '')}:{loc.get('lineNumber', '?')}:{loc.get('columnNumber', '?')}"
         entry = f"[console.{t}] {loc_s} :: {txt}"
 
-        if _allowed(txt, allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
 
         if t in fail_on:
@@ -290,7 +293,7 @@ def _forward_console_and_page_errors(request, page: Page):
 
     def on_pageerror(err):
         entry = f"[pageerror] {err}"
-        if _allowed(str(err), allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
         if "pageerror" in fail_on:
             errors.append(entry)
@@ -327,7 +330,13 @@ def forward_console_and_page_errors(request, logged_in_page):
 
 @pytest.fixture
 def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
-    yield from _forward_console_and_page_errors(request, non_admin_logged_in_page)
+    yield from _forward_console_and_page_errors(
+        request,
+        non_admin_logged_in_page,
+        extra_allow_patterns=[
+            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+        ],
+    )
 
 
 @pytest.fixture(scope="session")
