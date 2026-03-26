@@ -197,6 +197,9 @@ def _is_vscode(config) -> bool:
        -k EXP
        -  was started from from Zed or VSCode
     """
+    # Explicit e2e flags must keep strict collection filtering even in VSCode terminals.
+    if any(config.getoption(option) for option in E2E_OPTION_TO_FILES):
+        return False
 
     k_expr = None
     try:
