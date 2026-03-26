@@ -13,9 +13,8 @@ def fake_source(app):
             "id": "99",
             "description": "This is a test source",
             "name": "Test Source",
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
+            "rank": 0,
+            "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
         source_id = source_data["id"]
@@ -26,6 +25,30 @@ def fake_source(app):
         yield source_id
 
         OSINTSource.delete(source_id)
+
+
+@pytest.fixture(scope="class")
+def ranked_source(app):
+    with app.app_context():
+        from core.model.osint_source import OSINTSource
+
+        source_data = {
+            "id": "source-rank-4",
+            "description": "Ranked source",
+            "name": "Ranked Source",
+            "rank": 4,
+            "parameters": {"FEED_URL": "https://ranked.example/feed.xml"},
+            "type": "rss_collector",
+        }
+
+        if existing_source := OSINTSource.get(source_data["id"]):
+            OSINTSource.update(existing_source.id, {"rank": source_data["rank"]})
+        else:
+            OSINTSource.add(source_data)
+
+        yield source_data["id"]
+
+        OSINTSource.delete(source_data["id"])
 
 
 @pytest.fixture(scope="class")
@@ -103,6 +126,52 @@ def cleanup_news_item(fake_source):
     NewsItem.delete(news_item["id"])
 
 
+@pytest.fixture
+def cleanup_ranked_news_item(ranked_source):
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebc",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c88",
+        "title": "Ranked News Item",
+        "review": "Ranked source story",
+        "author": "Jane Doe",
+        "source": "https://url/ranked",
+        "link": "https://url/ranked",
+        "content": "Ranked source story",
+        "collected": "2023-08-02T17:01:04.802015",
+        "published": "2023-08-02T17:01:04.801998",
+        "osint_source_id": ranked_source,
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
+@pytest.fixture
+def cleanup_manual_news_item():
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebd",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c89",
+        "title": "Manual News Item",
+        "review": "Manual source story",
+        "author": "Analyst",
+        "source": "manual",
+        "link": "https://url/manual",
+        "content": "Manual source story",
+        "collected": "2023-08-03T17:01:04.802015",
+        "published": "2023-08-03T17:01:04.801998",
+        "osint_source_id": "manual",
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
 @pytest.fixture(scope="class")
 def cleanup_news_item_2(fake_source):
     from core.model.news_item import NewsItem
@@ -155,7 +224,7 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
             name="Story Filter Extra Source",
             description="Additional source for story filter tests",
             type="rss_collector",
-            parameters=[{"FEED_URL": "https://example.invalid/story-filter-extra.xml"}],
+            parameters={"FEED_URL": "https://example.invalid/story-filter-extra.xml"},
         )
         source_group = OSINTSourceGroup(
             id="story-filter-group",

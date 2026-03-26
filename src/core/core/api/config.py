@@ -5,7 +5,9 @@ from typing import Any
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
@@ -559,6 +561,8 @@ class OSINTSources(MethodView):
         try:
             if source := osint_source.OSINTSource.add(request.json):
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return {"error": "OSINT source could not be created"}, 400
@@ -570,6 +574,8 @@ class OSINTSources(MethodView):
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         except ValueError as e:
             return {"error": str(e)}, 400
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
@@ -640,11 +646,14 @@ class OSINTSourcesExport(MethodView):
 class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        sources = None
-        if file := request.files.get("file"):
-            sources = osint_source.OSINTSource.import_osint_sources(file)
-        if json_data := request.get_json(silent=True):
-            sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        try:
+            sources = None
+            if file := request.files.get("file"):
+                sources = osint_source.OSINTSource.import_osint_sources(file)
+            if json_data := request.get_json(silent=True):
+                sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400

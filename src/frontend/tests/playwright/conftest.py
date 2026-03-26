@@ -15,7 +15,7 @@ import pytest
 import requests
 import responses
 from flask import json
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
@@ -163,7 +163,7 @@ def setup_test_templates(run_core, access_token):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
@@ -216,7 +216,7 @@ def _cookies_from_response(resp) -> list[dict]:
     return cookies
 
 
-def _add_auth_cookies(page: Page, base_url: str, token_response) -> None:
+def _add_auth_cookies(context: BrowserContext, base_url: str, token_response) -> None:
     cookies = _cookies_from_response(token_response)
     context_cookies = []
     context_cookies.extend(
@@ -227,7 +227,18 @@ def _add_auth_cookies(page: Page, base_url: str, token_response) -> None:
         }
         for c in cookies
     )
-    page.context.add_cookies(context_cookies)
+    context.add_cookies(context_cookies)
+
+
+def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) -> Page:
+    context = taranis_frontend.context
+    base_url: str = e2e_server.url()
+
+    _add_auth_cookies(context, base_url, token_response)
+
+    page = context.new_page()
+    _dismiss_notifications(page)
+    return page
 
 
 @pytest.fixture
@@ -236,32 +247,24 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     Returns a Playwright Page whose browser context has the JWT cookies set,
     so any navigation is already authenticated.
     """
-    page = taranis_frontend
-    base_url: str = e2e_server.url()
-
-    _add_auth_cookies(page, base_url, access_token_response)
-
-    _dismiss_notifications(page)
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
 
     try:
         yield page
     finally:
         _dismiss_notifications(page)
+        page.close()
 
 
 @pytest.fixture
 def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
-    page = taranis_frontend
-    base_url: str = e2e_server.url()
-
-    _add_auth_cookies(page, base_url, access_token_response_basic)
-
-    _dismiss_notifications(page)
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
 
     try:
         yield page
     finally:
         _dismiss_notifications(page)
+        page.close()
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
@@ -809,9 +812,7 @@ def fake_source(app, run_core, access_token):
         "id": "99",
         "description": "This is a test source",
         "name": "Test Source",
-        "parameters": [
-            {"FEED_URL": "https://url/feed.xml"},
-        ],
+        "parameters": {"FEED_URL": "https://url/feed.xml"},
         "type": "rss_collector",
     }
 
