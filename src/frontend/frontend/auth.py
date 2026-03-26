@@ -1,6 +1,6 @@
 import contextlib
 from functools import wraps
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, current_app, make_response, redirect, render_template, request, url_for
@@ -22,6 +22,13 @@ jwt = JWTManager()
 
 def init(app: Flask) -> None:
     jwt.init_app(app)
+
+
+def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
+    permission_set = set(permissions or [])
+    return "ALL" in permission_set or "ADMIN_OPERATIONS" in permission_set or any(
+        permission.startswith("CONFIG_") for permission in permission_set
+    )
 
 
 def is_safe_redirect_target(next_target: str | None) -> bool:
@@ -141,6 +148,32 @@ def auth_required(permissions: list[str] | str | None = None):
         return wrapper
 
     return auth_required_wrap
+
+
+def admin_required():
+    def admin_required_wrap(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs: dict[str, Any]):
+            try:
+                verify_jwt_in_request()
+            except Exception:
+                logger.info("JWT verification failed")
+                return _redirect_to_login()
+
+            user_name = get_jwt_identity()
+            if not user_name:
+                logger.error(f"Missing identity in JWT: {get_jwt()}")
+                return _redirect_to_login()
+
+            if not user_has_admin_permissions(current_user.permissions):
+                logger.error(f"user {user_name} is not allowed to access admin routes")
+                return {"error": "forbidden"}, 403
+
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return admin_required_wrap
 
 
 def api_key_required(fn):
