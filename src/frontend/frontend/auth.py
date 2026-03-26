@@ -3,8 +3,9 @@ from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
-from flask import Flask, Response, current_app, make_response, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, current_app, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
 from werkzeug.exceptions import MethodNotAllowed, NotFound
@@ -78,6 +79,26 @@ def _redirect_to_login():
     return redirect(_login_url_with_next(), code=302)
 
 
+def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
+    try:
+        verify_jwt_in_request()
+    except JWTExtendedException:
+        logger.info("JWT verification failed")
+        return None
+
+    user_name = get_jwt_identity()
+    if not user_name:
+        logger.error("Missing identity in JWT")
+        return None
+
+    user = current_user
+    if not user:
+        logger.error(f"Unable to resolve current user for identity {user_name}")
+        return None
+
+    return user_name, user
+
+
 # def authenticate(credentials: dict[str, str]) -> Response:
 #     return current_authenticator.authenticate(credentials)
 
@@ -123,25 +144,19 @@ def auth_required(permissions: list[str] | str | None = None):
             else:
                 permissions_set = {permissions}
 
-            try:
-                verify_jwt_in_request()
-            except Exception:
-                logger.info("JWT verification failed")
+            resolved_user = _resolve_authenticated_user()
+            if not resolved_user:
                 return _redirect_to_login()
 
-            user_name = get_jwt_identity()
-            if not user_name:
-                logger.error("Missing identity in JWT")
-                return _redirect_to_login()
-
-            permission_claims = current_user.permissions
+            user_name, user = resolved_user
+            permission_claims = set(user.permissions or [])
 
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.error(
                     f"user {user_name} Insufficient permissions in JWT for identity",
                 )
-                return redirect("/forbidden", code=403)
+                abort(403)
 
             return fn(*args, **kwargs)
 
@@ -154,20 +169,14 @@ def admin_required():
     def admin_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs: dict[str, Any]):
-            try:
-                verify_jwt_in_request()
-            except Exception:
-                logger.info("JWT verification failed")
+            resolved_user = _resolve_authenticated_user()
+            if not resolved_user:
                 return _redirect_to_login()
 
-            user_name = get_jwt_identity()
-            if not user_name:
-                logger.error("Missing identity in JWT")
-                return _redirect_to_login()
-
-            if not user_has_admin_permissions(current_user.permissions):
+            user_name, user = resolved_user
+            if not user_has_admin_permissions(user.permissions):
                 logger.error(f"user {user_name} is not allowed to access admin routes")
-                return {"error": "forbidden"}, 403
+                abort(403)
 
             return fn(*args, **kwargs)
 
