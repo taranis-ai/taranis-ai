@@ -163,7 +163,7 @@ def setup_test_templates(run_core, access_token):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
