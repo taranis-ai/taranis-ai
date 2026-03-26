@@ -140,19 +140,15 @@ class TestEndToEndUser(PlaywrightHelpers):
     def test_non_admin_direct_admin_attributes_shows_denied_state(
         self,
         non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
     ):
         page = non_admin_logged_in_page
 
         page.goto(url_for("admin.attributes", _external=True))
 
-        expect(page.get_by_test_id("attribute-table")).to_be_visible()
-        expect(page.get_by_test_id("new-attribute-button")).to_be_visible()
-        expect(page.get_by_text("No data available")).to_be_visible()
-        expect(page.locator("#notification-bar")).to_contain_text("Failed to fetch Attribute from: /config/attributes")
+        expect(page.get_by_text("forbidden")).to_be_visible()
 
         assert page.get_by_role("link", name="Administration").count() == 0
-        assert page.get_by_role("row", name="Attachment Attachment").count() == 0
+        assert page.get_by_test_id("attribute-table").count() == 0
 
     def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page

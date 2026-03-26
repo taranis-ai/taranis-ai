@@ -140,8 +140,9 @@ def authenticated_client(client, access_token):
     return client
 
 
-@pytest.fixture(scope="session")
-def authenticated_client_basic(client, access_token_basic):
+@pytest.fixture
+def authenticated_client_basic(app, access_token_basic):
+    client = app.test_client()
     client.set_cookie(
         key="access_token_cookie",
         value=access_token_basic,
