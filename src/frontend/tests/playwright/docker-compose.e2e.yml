@@ -1,4 +1,5 @@
 services:
+  # Fast local iteration mode: mount source folders and run Core directly from Python.
   core:
     image: python:3.13-slim
     working_dir: /app

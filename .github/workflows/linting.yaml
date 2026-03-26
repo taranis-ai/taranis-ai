@@ -118,18 +118,9 @@ jobs:
           echo "PLAYWRIGHT_VERSION=$FRONTEND_PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
 
 
-      - name: Install core dependencies
-        working-directory: src/core
-        run: uv sync --frozen
-
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --frozen
-
-      - name: Install frontend e2e test dependencies only
-        working-directory: src/frontend
-        run: |
-          uv pip install pytest pytest-flask pytest-playwright playwright pytest-responses
+        run: uv sync --all-extras --frozen
 
       - name: Cache Playwright Browsers
         id: playwright-cache
@@ -155,6 +146,9 @@ jobs:
       - name: Run e2e tests frontend
         id: run_e2e_frontend
         working-directory: src/frontend
+        env:
+          TARANIS_E2E_CORE_MODE: production
+          TARANIS_CORE_START_TIMEOUT: "180"
         run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace

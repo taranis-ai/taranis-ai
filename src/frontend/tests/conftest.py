@@ -228,7 +228,7 @@ def pytest_collection_modifyitems(config, items):
         skip_tests(items, keyword, reason)
         return
 
-    skip_all = pytest.mark.skip(reason="need --e2e-ci or --e2e-admin option to run these tests")
+    skip_all = pytest.mark.skip(reason="need one of --e2e-ci, --e2e-admin, --e2e-user, --e2e-user-workflow to run these tests")
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)

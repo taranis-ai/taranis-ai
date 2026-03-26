@@ -21,6 +21,19 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 
 
+FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
+PRODUCTION_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.prod.yml"
+
+
+def _selected_core_runtime_mode() -> str:
+    mode = os.getenv("TARANIS_E2E_CORE_MODE", "").strip().lower()
+    if mode in {"production", "prod"}:
+        return "production"
+    if mode in {"fast", "dev"}:
+        return "fast"
+    return "production" if os.getenv("CI") else "fast"
+
+
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -41,7 +54,10 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 @pytest.fixture(scope="session")
 def docker_compose_file():
-    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+    runtime_mode = _selected_core_runtime_mode()
+    compose_file = PRODUCTION_CORE_COMPOSE_FILE if runtime_mode == "production" else FAST_CORE_COMPOSE_FILE
+    print(f"Using {runtime_mode} Core runtime for E2E tests: {compose_file.name}")
+    return str(compose_file)
 
 
 @pytest.fixture(scope="session")
@@ -77,7 +93,7 @@ def run_core(docker_services):
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
-        _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
+        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
         yield core_url
     except Exception as e:
         pytest.fail(str(e))

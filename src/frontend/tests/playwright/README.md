@@ -10,8 +10,13 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
-The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
-Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
+The E2E harness starts and stops a dedicated Docker Compose stack for the test session.
+
+Core runtime modes:
+- `fast` (default locally): runs Core from a plain Python container with `src/core` mounted, so code changes are picked up without rebuilding.
+- `production` (default in CI): builds Core from `docker/Containerfile.core` and runs it with Postgres and RabbitMQ sidecars.
+
+Use `TARANIS_E2E_CORE_MODE=fast` or `TARANIS_E2E_CORE_MODE=production` to override.
 You only need Docker/Compose available locally.
 
 ### Run tests in headful mode
@@ -73,7 +78,9 @@ It takes two arguments:
 
 Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
 
-## DB file for E2E
+## Data Storage for E2E
 
-The Core service uses an internal SQLite file inside its container for each test session.
+- In `fast` mode, Core uses an internal SQLite file inside its container for each test session.
+- In `production` mode, Core uses ephemeral Postgres and RabbitMQ containers.
+
 No manual cleanup is required.
