@@ -162,7 +162,7 @@ def admin_required():
 
             user_name = get_jwt_identity()
             if not user_name:
-                logger.error(f"Missing identity in JWT: {get_jwt()}")
+                logger.error(f"Missing identity in JWT")
                 return _redirect_to_login()
 
             if not user_has_admin_permissions(current_user.permissions):
