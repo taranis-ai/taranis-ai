@@ -31,7 +31,7 @@
         },
         {
             "name": "Aktuelles aus dem BM.I",
-            "description": "\u00dcbersicht der neuesten Artikel aus dem Bundesministerium f\u00fcr Inneres",
+            "description": "Übersicht der neuesten Artikel aus dem Bundesministerium für Inneres",
             "type": "rss_collector",
             "parameters": [
                 {
@@ -109,7 +109,7 @@
         },
         {
             "name": "news.ORF.at",
-            "description": "Die aktuellsten Nachrichten auf einen Blick - aus \u00d6sterreich und der ganzen Welt. In Text, Bild und Video.",
+            "description": "Die aktuellsten Nachrichten auf einen Blick - aus Österreich und der ganzen Welt. In Text, Bild und Video.",
             "type": "rss_collector",
             "parameters": [
                 {
@@ -120,7 +120,7 @@
         },
         {
             "name": "oesterreich.ORF.at",
-            "description": "Die aktuellsten Nachrichten auf einen Blick - aus \u00d6sterreich und der ganzen Welt. In Text, Bild und Video.",
+            "description": "Die aktuellsten Nachrichten auf einen Blick - aus Österreich und der ganzen Welt. In Text, Bild und Video.",
             "type": "rss_collector",
             "parameters": [
                 {
@@ -134,12 +134,24 @@
         {
             "name": "General News",
             "description": "",
-            "osint_sources": [7, 8, 9, 10]
+            "osint_sources": [
+                7,
+                8,
+                9,
+                10
+            ]
         },
         {
             "name": "Technical News",
             "description": "",
-            "osint_sources": [1, 2, 3, 4, 5, 6]
+            "osint_sources": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+            ]
         }
     ]
 }

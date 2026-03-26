@@ -1,18 +1,15 @@
 {
-  "version": 3,
-  "sources": [
-    {
-      "name": "Aktuelles aus dem BM.I",
-      "description": "\u00dcbersicht der neuesten Artikel aus dem Bundesministerium f\u00fcr Inneres",
-      "type": "rss_collector",
-      "parameters": [
+    "version": 4,
+    "sources": [
         {
-          "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"
-        },
-        {
-          "USE_FEED_CONTENT": "false"
+            "name": "Aktuelles aus dem BM.I",
+            "description": "Übersicht der neuesten Artikel aus dem Bundesministerium für Inneres",
+            "rank": 4,
+            "type": "rss_collector",
+            "parameters": {
+                "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml",
+                "USE_FEED_CONTENT": "false"
+            }
         }
-      ]
-    }
-  ]
+    ]
 }

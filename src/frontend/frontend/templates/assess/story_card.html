@@ -96,7 +96,7 @@
                 {% endif %}
                 {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
                 {% if story.relevance is not none %}
-                  <span class="badge badge-outline badge-xs whitespace-nowrap">Impact {{ story.relevance }}</span>
+                  <span class="badge badge-outline badge-xs whitespace-nowrap">Relevance {{ story.relevance }}</span>
                 {% endif %}
                 {% if story.news_items is not none %}
                   <span class="badge badge-outline badge-xs whitespace-nowrap">News Items {{ story.news_items | length }}</span>

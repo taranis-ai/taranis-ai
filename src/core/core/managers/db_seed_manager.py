@@ -323,8 +323,9 @@ def pre_seed_manual_source():
                 "id": "manual",
                 "name": "Manual",
                 "description": "Manual source",
+                "rank": 0,
                 "type": "MANUAL_COLLECTOR",
-                "parameters": [],
+                "parameters": {},
             }
         )
 

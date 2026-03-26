@@ -15,7 +15,7 @@
     "@codemirror/state": "npm:@codemirror/state@^6.6.0",
     "@codemirror/view": "npm:@codemirror/view@^6.40.0",
     "@codemirror/commands": "npm:@codemirror/commands@^6.10.3",
-    "@codemirror/language": "npm:@codemirror/language@^6.12.2",
+    "@codemirror/language": "npm:@codemirror/language@^6.12.3",
     "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.2",
     "@codemirror/merge": "npm:@codemirror/merge@^6.12.1",
     "codemirror": "npm:codemirror@^6.0.2"  },

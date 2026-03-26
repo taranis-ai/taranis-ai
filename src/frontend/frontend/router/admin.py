@@ -1,7 +1,7 @@
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.views import (
     ACLView,
     AdminDashboardView,
@@ -24,39 +24,39 @@ from frontend.views import (
 
 
 class ImportUsers(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self):
         return UserView.import_view()
 
-    @auth_required()
+    @admin_required()
     def post(self):
         return UserView.import_post_view()
 
 
 class ExportOSINTSources(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self):
         return SourceView.export_view()
 
 
 class ImportOSINTSources(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self):
         return SourceView.import_view()
 
-    @auth_required()
+    @admin_required()
     def post(self):
         return SourceView.import_post_view()
 
 
 class LoadDefaultOSINTSources(MethodView):
-    @auth_required()
+    @admin_required()
     def post(self):
         return SourceView.load_default_osint_sources()
 
 
 class OSINTSourceCollect(MethodView):
-    @auth_required()
+    @admin_required()
     def post(self, osint_source_id: str | None = None):
         if osint_source_id:
             return SourceView.collect_osint_source(osint_source_id)
@@ -64,52 +64,52 @@ class OSINTSourceCollect(MethodView):
 
 
 class ImportWordLists(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self):
         return WordListView.import_view()
 
-    @auth_required()
+    @admin_required()
     def post(self):
         return WordListView.import_post_view()
 
 
 class ACLItemAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self):
         item_type = request.args.get("item_type", "")
         return ACLView.get_acl_item_ids_view(item_type)
 
 
 class OSINTSourceParameterAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self, osint_source_id: str):
         collector_type = request.args.get("type", "")
         return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type)
 
 
 class PublisherParameterAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self, publisher_id: str):
         publisher_type = request.args.get("type", "")
         return PublisherView.get_publisher_parameters_view(publisher_id, publisher_type)
 
 
 class ProductTypeParameterAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self, product_type_id: int) -> str:
         presenter_type = request.args.get("type", "")
         return ProductTypeView.get_product_type_parameters_view(product_type_id, presenter_type)
 
 
 class ReportItemTypeGroupsAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def post(self):
         group_index = request.form.get("group_index", type=int) or 0
         return ReportItemTypeView.get_report_item_type_groups_view(group_index)
 
 
 class ReportItemTypeGroupItemAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def post(self):
         group_index = request.form.get("attribute_group_index", type=int) or 0
         attribute_index = request.form.get("attribute_index", type=int) or 0
@@ -117,7 +117,7 @@ class ReportItemTypeGroupItemAPI(MethodView):
 
 
 class ConnectorParameterAPI(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self, connector_id: str):
         connector_type = request.args.get("type", "")
         return ConnectorView.get_connector_parameters_view(connector_id, connector_type)

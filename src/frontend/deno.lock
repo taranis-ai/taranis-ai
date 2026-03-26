@@ -3,8 +3,7 @@
   "specifiers": {
     "npm:@codemirror/commands@*": "6.10.3",
     "npm:@codemirror/commands@^6.10.3": "6.10.3",
-    "npm:@codemirror/language@*": "6.12.2",
-    "npm:@codemirror/language@^6.12.2": "6.12.2",
+    "npm:@codemirror/language@^6.12.3": "6.12.3",
     "npm:@codemirror/legacy-modes@*": "6.5.2",
     "npm:@codemirror/legacy-modes@^6.5.2": "6.5.2",
     "npm:@codemirror/merge@^6.12.1": "6.12.1",
@@ -53,8 +52,8 @@
         "@lezer/common"
       ]
     },
-    "@codemirror/language@6.12.2": {
-      "integrity": "sha512-jEPmz2nGGDxhRTg3lTpzmIyGKxz3Gp3SJES4b0nAuE5SWQoKdT5GoQ69cwMmFd+wvFUhYirtDTr0/DRHpQAyWg==",
+    "@codemirror/language@6.12.3": {
+      "integrity": "sha512-QwCZW6Tt1siP37Jet9Tb02Zs81TQt6qQrZR2H+eGMcFsL1zMrk2/b9CLC7/9ieP1fjIUMgviLWMmgiHoJrj+ZA==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
@@ -544,7 +543,7 @@
   "workspace": {
     "dependencies": [
       "npm:@codemirror/commands@^6.10.3",
-      "npm:@codemirror/language@^6.12.2",
+      "npm:@codemirror/language@^6.12.3",
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/merge@^6.12.1",
       "npm:@codemirror/state@^6.6.0",

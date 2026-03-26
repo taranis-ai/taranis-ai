@@ -49,13 +49,59 @@ class TestSourcesConfigApi(BaseTest):
             assert response.json["count"] == 6
             assert response.json["message"] == "Successfully imported sources"
 
+    def test_import_osint_sources_v3_defaults_rank_to_zero(self, client, auth_header):
+        payload = {
+            "version": 3,
+            "sources": [
+                {
+                    "name": "V3 Import Source",
+                    "description": "",
+                    "type": "rss_collector",
+                    "parameters": [{"FEED_URL": "https://example.com/v3.xml"}],
+                }
+            ],
+        }
+
+        response = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header)
+        source_id = response.json["sources"][0]
+
+        try:
+            source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            assert source_response.json["rank"] == 0
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
+    def test_import_osint_sources_v4_keeps_rank(self, client, auth_header):
+        payload = {
+            "version": 4,
+            "sources": [
+                {
+                    "name": "V4 Import Source",
+                    "description": "",
+                    "rank": 5,
+                    "type": "rss_collector",
+                    "parameters": {"FEED_URL": "https://example.com/v4.xml"},
+                }
+            ],
+        }
+
+        response = self.assert_post_ok(client, uri="import-osint-sources", json_data=payload, auth_header=auth_header)
+        source_id = response.json["sources"][0]
+
+        try:
+            source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            assert source_response.json["rank"] == 5
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
     def test_export_osint_sources(self, client, auth_header, cleanup_sources):
         response = self.assert_get_ok(client, uri="export-osint-sources", auth_header=auth_header)
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        file_path = os.path.join(dir_path, "osint_sources_test_data_v2.json")
+        file_path = os.path.join(dir_path, "osint_sources_test_data_v4.json")
         with open(file_path, "rb") as f:
             test_data = json.load(f)
             test_result = response.json
+            assert test_result["version"] == 4
             for source in test_data["data"]:
                 assert source in test_result["sources"]
 
@@ -63,6 +109,9 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_post_ok(client, uri="osint-sources", json_data=cleanup_sources, auth_header=auth_header)
         assert response.json["message"] == "OSINT source created successfully"
         assert response.json["id"] == cleanup_sources["id"]
+
+        source_response = self.assert_get_ok(client, uri=f"osint-sources/{cleanup_sources['id']}", auth_header=auth_header)
+        assert source_response.json["rank"] == 0
 
     def test_create_and_modify_source_normalizes_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
@@ -100,13 +149,37 @@ class TestSourcesConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Icon payload is not a valid image file."
 
+    def test_create_source_rejects_invalid_rank(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_payload["id"] = uuid.uuid4().hex
+        source_payload["rank"] = 6
+
+        response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert "Validation failed for model 'OSINTSource':" in response.json["error"]
+        assert "Field 'rank': Input should be less than or equal to 5" in response.json["error"]
+
     def test_modify_source(self, client, auth_header, cleanup_sources):
         source_data = {
             "description": "Sourcy McSourceFace",
+            "rank": 5,
         }
         source_id = cleanup_sources["id"]
         response = self.assert_put_ok(client, uri=f"osint-sources/{source_id}", json_data=source_data, auth_header=auth_header)
         assert response.json["id"] == f"{source_id}"
+
+        source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+        assert source_response.json["description"] == "Sourcy McSourceFace"
+        assert source_response.json["rank"] == 5
+
+    def test_modify_source_can_store_rank_zero(self, client, auth_header, cleanup_sources):
+        source_id = cleanup_sources["id"]
+        response = self.assert_put_ok(client, uri=f"osint-sources/{source_id}", json_data={"rank": 0}, auth_header=auth_header)
+        assert response.json["id"] == f"{source_id}"
+
+        source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+        assert source_response.json["rank"] == 0
 
     def test_modify_source_rejects_invalid_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
@@ -135,6 +208,7 @@ class TestSourcesConfigApi(BaseTest):
         assert response.json["items"][0]["name"] == cleanup_sources["name"]
         assert response.json["items"][0]["description"] == "Sourcy McSourceFace"
         assert response.json["items"][0]["id"] == source_id
+        assert response.json["items"][0]["rank"] == 0
 
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
@@ -669,6 +743,11 @@ class TestPublisherPreset(BaseTest):
 
 class TestAttributes(BaseTest):
     base_uri = "/api/config"
+
+    def test_get_attributes_is_forbidden_for_non_admin_user(self, client, auth_header_user_permissions):
+        response = client.get(self.concat_url("attributes"), headers=auth_header_user_permissions)
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "forbidden"}
 
     def test_create_attribute(self, client, auth_header, cleanup_attribute):
         response = self.assert_post_ok(client, uri="attributes", json_data=cleanup_attribute, auth_header=auth_header)
