@@ -5,7 +5,7 @@ from models.admin import Bot
 from models.dashboard import Dashboard
 from models.types import BOT_TYPES
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type, render_worker_status
@@ -106,7 +106,7 @@ class BotView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def get_bot_parameters_view(cls, bot_id: str):
         bot_type = request.args.get("type", "")
         if not bot_id and not bot_type:
@@ -136,7 +136,7 @@ class BotView(AdminMixin, BaseView):
         return [parameter for _, parameter in ordered_parameters]
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def execute_bot(cls, bot_id: str):
         response = CoreApi().execute_bot(bot_id)
         if not response:

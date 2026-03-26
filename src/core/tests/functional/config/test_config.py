@@ -744,6 +744,11 @@ class TestPublisherPreset(BaseTest):
 class TestAttributes(BaseTest):
     base_uri = "/api/config"
 
+    def test_get_attributes_is_forbidden_for_non_admin_user(self, client, auth_header_user_permissions):
+        response = client.get(self.concat_url("attributes"), headers=auth_header_user_permissions)
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "forbidden"}
+
     def test_create_attribute(self, client, auth_header, cleanup_attribute):
         response = self.assert_post_ok(client, uri="attributes", json_data=cleanup_attribute, auth_header=auth_header)
         assert response.json["id"] == cleanup_attribute["id"]

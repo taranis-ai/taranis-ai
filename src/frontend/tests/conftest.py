@@ -30,6 +30,36 @@ if not current_path.endswith("src/frontend"):
 load_dotenv(dotenv_path=env_file, override=True)
 
 
+def _create_access_token(app, user):
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        return create_access_token(identity=user)
+
+
+def _build_access_token_response(app, user):
+    from flask import jsonify
+    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+
+    with app.app_context():
+        access_token = create_access_token(identity=user)
+        refresh_token = create_refresh_token(identity=user)
+        response = jsonify({"access_token": access_token})
+        response.status_code = 200
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        return response
+
+
+def _build_authenticated_client(app, access_token):
+    client = app.test_client()
+    client.set_cookie(
+        key="access_token_cookie",
+        value=access_token,
+    )
+    return client
+
+
 @pytest.fixture(scope="session")
 def app():
     from frontend.__init__ import create_app
@@ -64,11 +94,30 @@ def auth_user():
 
 
 @pytest.fixture(scope="session")
-def access_token(app, auth_user):
-    from flask_jwt_extended import create_access_token
+def auth_user_basic():
+    from frontend.cache import add_user_to_cache
 
-    with app.app_context():
-        yield create_access_token(identity=auth_user)
+    basic_user = {
+        "id": 2,
+        "username": "user",
+        "name": "Ford Prefect",
+        "organization": {"id": 1, "name": "Galactic Government"},
+        "permissions": ["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        "profile": {},
+        "roles": [{"id": 2, "name": "User"}],
+    }
+
+    yield add_user_to_cache(basic_user)
+
+
+@pytest.fixture(scope="session")
+def access_token(app, auth_user):
+    yield _create_access_token(app, auth_user)
+
+
+@pytest.fixture(scope="session")
+def access_token_basic(app, auth_user_basic):
+    yield _create_access_token(app, auth_user_basic)
 
 
 @pytest.fixture(scope="session")
@@ -78,26 +127,22 @@ def api_header():
 
 @pytest.fixture
 def access_token_response(app, auth_user, run_core):
-    from flask import jsonify
-    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
-
-    with app.app_context():
-        access_token = create_access_token(identity=auth_user)
-        refresh_token = create_refresh_token(identity=auth_user)
-        response = jsonify({"access_token": access_token})
-        response.status_code = 200
-        set_access_cookies(response, access_token)
-        set_refresh_cookies(response, refresh_token)
-        yield response
+    yield _build_access_token_response(app, auth_user)
 
 
 @pytest.fixture
-def authenticated_client(client, access_token):
-    client.set_cookie(
-        key="access_token_cookie",
-        value=access_token,
-    )
-    return client
+def access_token_response_basic(app, auth_user_basic, run_core):
+    yield _build_access_token_response(app, auth_user_basic)
+
+
+@pytest.fixture
+def authenticated_client(app, access_token):
+    return _build_authenticated_client(app, access_token)
+
+
+@pytest.fixture
+def authenticated_client_basic(app, access_token_basic):
+    return _build_authenticated_client(app, access_token_basic)
 
 
 @pytest.fixture(scope="session")

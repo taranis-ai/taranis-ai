@@ -4,8 +4,11 @@ from flask import current_app
 from flask.typing import ResponseReturnValue
 from jinja2 import TemplateNotFound
 
+from frontend.auth import admin_required
+
 
 class AdminMixin:
+    decorators = [admin_required()]
     _is_admin = True
     _show_sidebar = True
     _read_only = False

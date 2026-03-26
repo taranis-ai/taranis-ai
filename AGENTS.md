@@ -75,6 +75,7 @@ See .github/workflows for how tests are configured in CI.
 - If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
 - E2E tests require the application to be running (they start their own test server)
 - Tests are located in each component's `tests/` directory
+- If you run tests from VS Code / VSC and inherit `DEBUG=release` from the editor environment, override it to a boolean first (for example `DEBUG=true`) or unset it; frontend and core settings parse `DEBUG` as a boolean and `release` breaks test startup
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests

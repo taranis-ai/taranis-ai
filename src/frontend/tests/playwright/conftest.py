@@ -15,7 +15,7 @@ import pytest
 import requests
 import responses
 from flask import json
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
@@ -182,8 +182,8 @@ def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_
         context.close()
 
 
-def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
-    return any(re.search(p, msg_text) for p in allow_patterns)
+def _allowed(entry: str, allow_patterns: list[str]) -> bool:
+    return any(re.search(pattern, entry) for pattern in allow_patterns)
 
 
 def _dismiss_notifications(page: Page):
@@ -216,17 +216,8 @@ def _cookies_from_response(resp) -> list[dict]:
     return cookies
 
 
-@pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
-    """
-    Returns a Playwright Page whose browser context has the JWT cookies set,
-    so any navigation is already authenticated.
-    """
-    context = taranis_frontend.context
-    page = context.new_page()
-    base_url: str = e2e_server.url()
-
-    cookies = _cookies_from_response(access_token_response)
+def _add_auth_cookies(context: BrowserContext, base_url: str, token_response) -> None:
+    cookies = _cookies_from_response(token_response)
     context_cookies = []
     context_cookies.extend(
         {
@@ -238,7 +229,25 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     context.add_cookies(context_cookies)
 
+
+def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) -> Page:
+    context = taranis_frontend.context
+    base_url: str = e2e_server.url()
+
+    _add_auth_cookies(context, base_url, token_response)
+
+    page = context.new_page()
     _dismiss_notifications(page)
+    return page
+
+
+@pytest.fixture
+def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+    """
+    Returns a Playwright Page whose browser context has the JWT cookies set,
+    so any navigation is already authenticated.
+    """
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
 
     try:
         yield page
@@ -248,16 +257,23 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
 
 
 @pytest.fixture
-def forward_console_and_page_errors(request, logged_in_page):
-    """
-    For each test:
-      - collect console messages and page errors
-      - at teardown: fail on configured severities, warn on warnings
-    """
-    page = logged_in_page
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
+
+    try:
+        yield page
+    finally:
+        _dismiss_notifications(page)
+        page.close()
+
+
+def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
     fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
     warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
-    allow_patterns = request.config.getoption("--console-allow") or []
+    allow_patterns = [
+        *(request.config.getoption("--console-allow") or []),
+        *(extra_allow_patterns or []),
+    ]
 
     errors: list[str] = []
     warns: list[str] = []
@@ -270,7 +286,7 @@ def forward_console_and_page_errors(request, logged_in_page):
         loc_s = f"{loc.get('url', '')}:{loc.get('lineNumber', '?')}:{loc.get('columnNumber', '?')}"
         entry = f"[console.{t}] {loc_s} :: {txt}"
 
-        if _allowed(txt, allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
 
         if t in fail_on:
@@ -280,7 +296,7 @@ def forward_console_and_page_errors(request, logged_in_page):
 
     def on_pageerror(err):
         entry = f"[pageerror] {err}"
-        if _allowed(str(err), allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
         if "pageerror" in fail_on:
             errors.append(entry)
@@ -303,6 +319,27 @@ def forward_console_and_page_errors(request, logged_in_page):
         if errors:
             bullet_list = "\n".join(f"  - {e}" for e in errors)
             pytest.fail(f"Console/Page errors detected:\n{bullet_list}")
+
+
+@pytest.fixture
+def forward_console_and_page_errors(request, logged_in_page):
+    """
+    For each test:
+      - collect console messages and page errors
+      - at teardown: fail on configured severities, warn on warnings
+    """
+    yield from _forward_console_and_page_errors(request, logged_in_page)
+
+
+@pytest.fixture
+def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
+    yield from _forward_console_and_page_errors(
+        request,
+        non_admin_logged_in_page,
+        extra_allow_patterns=[
+            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+        ],
+    )
 
 
 @pytest.fixture(scope="session")
