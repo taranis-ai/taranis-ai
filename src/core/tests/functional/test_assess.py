@@ -66,6 +66,24 @@ class TestAssessNewsItems(BaseTest):
         assert news_item["hash"] == NewsItem.get_hash(title="Test News Item 13", link="https://url/13%20path?q=a%20b")
         assert news_item["updated"] != cleanup_news_item["updated"]
 
+    def test_add_single_news_item_uses_source_rank_for_story_relevance(self, app, cleanup_ranked_news_item):
+        from core.model.story import Story
+
+        with app.app_context():
+            response, status = Story.add_single_news_item(dict(cleanup_ranked_news_item))
+            assert status == 200
+
+            story = Story.get(response["story_id"])
+            assert story is not None
+            assert story.relevance == 4
+
+    def test_post_AddManualNewsItem_keeps_story_relevance_zero(self, client, cleanup_manual_news_item, auth_header):
+        response = self.assert_post_ok(client, "news-items", cleanup_manual_news_item, auth_header)
+        story_id = response.get_json()["story_id"]
+
+        story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
+        assert story_response.get_json()["relevance"] == 0
+
     def test_get_NewsItems(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, "news-items", auth_header)
         assert len(response.get_json()["items"]) == 1
