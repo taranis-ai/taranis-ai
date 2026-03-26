@@ -16,11 +16,13 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "pydantic",
+    "pydantic-extra-types",
     "pydantic-settings",
     "python-dotenv",
-    "langcodes",
+    "pycountry",
     "requests",
     "beautifulsoup4",
+    "lxml"
 ]
 dynamic = ["version"]
 

@@ -1,11 +1,14 @@
+import contextlib
 from functools import wraps
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
-from flask import Flask, make_response, redirect, render_template, request, url_for
-from flask.typing import ResponseReturnValue
+from flask import Flask, Response, current_app, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
+from werkzeug.exceptions import MethodNotAllowed, NotFound
+from werkzeug.routing import RequestRedirect
 
 from frontend.cache import add_user_to_cache, get_user_from_cache
 from frontend.config import Config
@@ -21,6 +24,30 @@ def init(app: Flask) -> None:
     jwt.init_app(app)
 
 
+def is_safe_redirect_target(next_target: str | None) -> bool:
+    if not next_target:
+        return False
+
+    decoded_target = unquote(next_target)
+    if any(char in decoded_target for char in ("\x00", "\r", "\n", "\\")):
+        return False
+
+    parsed_target = urlsplit(decoded_target)
+    if parsed_target.scheme or parsed_target.netloc or decoded_target.startswith("//") or not parsed_target.path.startswith("/"):
+        return False
+
+    adapter = current_app.url_map.bind_to_environ(request.environ)
+
+    try:
+        adapter.match(parsed_target.path, method="GET")
+    except RequestRedirect:
+        return True
+    except (NotFound, MethodNotAllowed):
+        return False
+
+    return True
+
+
 def _login_url_with_next() -> str:
     login_url = url_for("base.login")
 
@@ -34,7 +61,7 @@ def _login_url_with_next() -> str:
     if query_string:
         next_target = f"{path}?{query_string}"
 
-    if not next_target or next_target == login_url:
+    if next_target == login_url or not is_safe_redirect_target(next_target):
         return login_url
 
     return url_for("base.login", next=next_target)
@@ -52,10 +79,19 @@ def _redirect_to_login():
 #     return current_authenticator.refresh(user)
 
 
-def logout() -> tuple[str, int] | ResponseReturnValue:
-    core_response: ReqResponse = CoreApi().logout()
+def logout() -> tuple[str, int] | Response:
+    error_msg = "Logout failed"
+    try:
+        core_response: ReqResponse = CoreApi().logout()
+    except Exception as exc:
+        # If the core isn't reachable, fall back to the login page without crashing.
+        logger.error(f"Core logout failed: {exc}")
+        return render_template("login/index.html", login_error="Logout failed"), 500
+
     if not core_response.ok:
-        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        with contextlib.suppress(Exception):
+            error_msg = core_response.json().get("error", error_msg)
+        return render_template("login/index.html", login_error=error_msg), core_response.status_code
 
     response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():

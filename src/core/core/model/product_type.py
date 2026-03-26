@@ -6,7 +6,12 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
 from core.log import logger
-from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64
+from core.managers.data_manager import (
+    get_presenter_template_path,
+    get_presenter_templates,
+    get_template_as_base64,
+    validate_existing_presenter_template_id,
+)
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
@@ -35,7 +40,7 @@ class ProductType(BaseModel):
         self.title = title
         self.type = type
         self.description = description
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = self._parse_parameters(type, parameters)
         if report_types:
             self.report_types = ReportItemType.get_bulk(report_types)
 
@@ -65,6 +70,14 @@ class ProductType(BaseModel):
     @classmethod
     def default_sort_column(cls) -> str:
         return "title_asc"
+
+    @classmethod
+    def filter_by_title(cls, title: str) -> "ProductType | None":
+        try:
+            return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
+        except Exception:
+            logger.exception(f"Error filtering product types by title: {title}")
+            return None
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -100,19 +113,31 @@ class ProductType(BaseModel):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
             return {"error": f"User {user} does not have write access to product type {product_type_id}"}, 403
 
+        parsed_parameters = None
+        if type := data.get("type"):
+            parsed_parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
+
         if title := data.get("title"):
             product_type.title = title
 
         product_type.description = data.get("description")
 
-        if type := data.get("type"):
+        if type:
             product_type.type = type
-            product_type.parameters = Worker.parse_parameters(type, data.get("parameters", product_type.parameters))
+            product_type.parameters = parsed_parameters
         report_types = data.get("report_types", None)
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)
         db.session.commit()
         return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
+
+    @staticmethod
+    def _parse_parameters(worker_type: str, parameters) -> list[ParameterValue]:
+        parsed_parameters = Worker.parse_parameters(worker_type, parameters)
+        template_parameter = ParameterValue.find_by_parameter(parsed_parameters, "TEMPLATE_PATH")
+        if template_parameter and template_parameter.value:
+            template_parameter.value = validate_existing_presenter_template_id(str(template_parameter.value))
+        return parsed_parameters
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

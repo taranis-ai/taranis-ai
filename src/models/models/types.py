@@ -129,6 +129,7 @@ class PUBLISHER_TYPES(StrEnum):
     EMAIL_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
+    TAXII_PUBLISHER = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -169,6 +170,7 @@ class WORKER_TYPES(StrEnum):
     EMAIL_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
+    TAXII_PUBLISHER = auto()
     MISP_CONNECTOR = auto()
     PPN_COLLECTOR = auto()
 

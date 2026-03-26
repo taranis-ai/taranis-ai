@@ -3,6 +3,9 @@ import uuid
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from models.assess import NewsItem as AssessNewsItem
+from models.assess import Story as AssessStory
+from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, relationship
@@ -38,17 +41,17 @@ class NewsItem(BaseModel):
     content: Mapped[str] = db.Column(db.String())
     collected: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
+        default=BaseModel.utcnow,
     )
     last_change: Mapped[str] = db.Column(db.String())
     published: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
+        default=BaseModel.utcnow,
     )
     updated: Mapped[datetime] = db.Column(
         db.DateTime,
-        default=datetime.now,
-        onupdate=datetime.now,
+        default=BaseModel.utcnow,
+        onupdate=BaseModel.utcnow,
     )
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
@@ -62,9 +65,9 @@ class NewsItem(BaseModel):
 
     def __init__(
         self,
-        title: str,
-        source: str,
-        content: str,
+        title: str = "",
+        source: str = "",
+        content: str = "",
         osint_source_id: str = "manual",
         review: str = "",
         author: str = "",
@@ -98,19 +101,23 @@ class NewsItem(BaseModel):
         self.story_id = story_id
         self.attributes = NewsItemAttribute.load_multiple(attributes or [])
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "NewsItem":
+        return cls.from_payload(AssessNewsItem.from_input(data))
+
+    @classmethod
+    def from_payload(cls, payload: AssessNewsItem) -> "NewsItem":
+        return cls(**payload.to_core_dict())
+
     @staticmethod
-    def get_date_field(date_filed: str | datetime | None) -> datetime:
-        if isinstance(date_filed, datetime):
-            return date_filed
-        if isinstance(date_filed, str):
-            return datetime.fromisoformat(date_filed)
-        return datetime.now()
+    def get_date_field(date_field: str | datetime | None) -> datetime:
+        return AssessNewsItem.normalize_datetime(date_field, default_to_now=True) or BaseModel.utcnow()
 
     @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
-        combined_str = f"{title}{link}{content}"
+        combined_str = f"{title}{link}"
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
@@ -122,9 +129,15 @@ class NewsItem(BaseModel):
         return cls.get_filtered(db.select(cls).where(cls.hash == hash))
 
     @classmethod
+    def get_by_hash(cls, hash: str | None) -> "NewsItem | None":
+        if not hash:
+            return None
+        return cls.get_first(db.select(cls).where(cls.hash == hash))
+
+    @classmethod
     def latest_collected(cls) -> str | None:
         if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
-            return news_item.collected.astimezone().isoformat()
+            return cls.serialize_datetime(news_item.collected)
         return None
 
     def has_attribute(self, key) -> bool:
@@ -197,6 +210,8 @@ class NewsItem(BaseModel):
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
         news_item._update_status()
+        if story := news_item.story:
+            story.record_revision(note="update_news_item_lang")
         db.session.commit()
         return {"message": "Language updated"}, 200
 
@@ -213,13 +228,14 @@ class NewsItem(BaseModel):
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
         news_item._update_status()
+        if story := news_item.story:
+            story.record_revision(note="update_news_item_attributes")
         db.session.commit()
         return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
         if not self.has_attribute(attribute.key):
             self.attributes.append(attribute)
-            db.session.commit()
 
     def find_attribute_by_key(self, key: str) -> NewsItemAttribute | None:
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
@@ -229,40 +245,41 @@ class NewsItem(BaseModel):
             existing_attribute.value = attribute.value
         else:
             self.attributes.append(attribute)
-        db.session.commit()
 
     @property
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data) -> tuple[dict, int]:
-        if self.source != "manual":
+        if self.osint_source_id != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
-        if title := data.get("title"):
-            self.title = title
+        try:
+            payload = AssessNewsItem.from_input(self.to_detail_dict() | data | {"osint_source_id": self.osint_source_id})
+        except ValidationError as exc:
+            return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if review := data.get("review"):
-            self.review = review
+        if duplicate_item := self.get_by_hash(payload.hash):
+            if duplicate_item.id != self.id:
+                return {
+                    "error": "Identical news item found. Skipping...",
+                    "conflicting_news_item_id": duplicate_item.id,
+                    "story_id": duplicate_item.story_id,
+                }, 409
 
-        if author := data.get("author"):
-            self.author = author
-
-        if link := data.get("link"):
-            self.link = link
-
-        if content := data.get("content"):
-            self.content = content
-
-        if published := data.get("published"):
-            self.published = published
+        self.title = payload.title or ""
+        self.review = payload.review or ""
+        self.author = payload.author or ""
+        self.link = payload.link or ""
+        self.content = payload.content or ""
+        self.language = str(payload.language or "")
+        self.published = payload.published or self.published
+        self.hash = payload.hash or self.hash
 
         self._update_status("internal")
 
-        self.updated = datetime.now()
-        self.hash = self.get_hash(self.title, self.link, self.content)
+        self.updated = self.utcnow()
 
-        db.session.commit()
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200
 
     @classmethod
@@ -281,7 +298,7 @@ class NewsItem(BaseModel):
 
         if "range" in filter_args and filter_args["range"].upper() != "ALL":
             filter_range = filter_args["range"].upper()
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range == "DAY":
                 date_limit -= timedelta(days=1)
@@ -302,10 +319,12 @@ class NewsItem(BaseModel):
                 query = query.order_by(db.asc(cls.published))
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(cls.published >= datetime.fromisoformat(timefrom))
+            normalized_timefrom = AssessStory.model_validate({"created": timefrom}).created
+            query = query.filter(cls.published >= normalized_timefrom)
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(cls.published <= datetime.fromisoformat(timeto))
+            normalized_timeto = AssessStory.model_validate({"created": timeto}).created
+            query = query.filter(cls.published <= normalized_timeto)
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
@@ -336,7 +355,6 @@ class NewsItem(BaseModel):
 
     def delete_item(self):
         db.session.delete(self)
-        db.session.commit()
 
 
 class NewsItemNewsItemAttribute(BaseModel):

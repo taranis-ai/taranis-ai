@@ -11,6 +11,19 @@ def test_is_alive_fail(client):
     assert b'"isalive": false' not in response.data
 
 
+def test_health_returns_service_response(client, monkeypatch):
+    expected_body = {
+        "healthy": False,
+        "services": {"database": "down", "seed_data": "down", "broker": "n/a", "workers": "n/a"},
+    }
+    monkeypatch.setattr("core.api.health.health_service.get_health_response", lambda: (expected_body, 503))
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 503
+    assert response.json == expected_body
+
+
 def test_auth_login(client):
     body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)

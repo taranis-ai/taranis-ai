@@ -8,13 +8,15 @@ from core.api import (
     config,
     connectors,
     dashboard,
+    health,
     isalive,
     publish,
-    user,
-    task,
-    worker,
     static,
+    task,
+    user,
+    worker,
 )
+
 
 __all__ = [
     "admin",
@@ -25,6 +27,7 @@ __all__ = [
     "bots",
     "config",
     "dashboard",
+    "health",
     "isalive",
     "publish",
     "user",

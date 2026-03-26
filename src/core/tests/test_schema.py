@@ -1,10 +1,12 @@
-import schemathesis
 import logging
+
+import schemathesis
 import werkzeug
 from dotenv import load_dotenv
-from hypothesis import settings, HealthCheck
+from hypothesis import HealthCheck, settings
 
 from core.__init__ import create_app
+
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 
@@ -59,7 +61,7 @@ def test_dashboard_schema(case):
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint=r"^/api/(?!auth|isalive)")
+@schema.parametrize(endpoint=r"^/api/(?!auth|isalive|health)")
 @settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_schema_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):

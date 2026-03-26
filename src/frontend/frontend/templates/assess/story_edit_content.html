@@ -54,6 +54,14 @@
       </div>
       <div class="flex flex-col gap-3">
         <div class="flex justify-end gap-2">
+          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-42" {% if has_rt_id %}disabled{% endif %}>
+            {{ heroicon_mini("check") }}
+            <span>Save changes</span>
+          </button>
+          <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-sm btn-outline w-42">
+            {{ heroicon_mini("arrow-uturn-left") }}
+            <span>Return to story</span>
+          </a>
           <button type="button"
                   class="btn btn-outline btn-sm"
                   hx-trigger="click, keyup[shiftKey && code == 'R'] from:body"
@@ -123,6 +131,15 @@
             <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
             <p class="text-sm font-medium">{{ news_count }}</p>
           </div>
+          {% set languages = (story.news_items or []) | map(attribute='language') | select('string') | select | unique | list %}
+          {% if languages %}
+            <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Languages</p>
+              <div class="flex flex-wrap gap-1 mt-1">
+                {% for lang in languages %}<span class="badge badge-ghost badge-sm uppercase">{{ lang }}</span>{% endfor %}
+              </div>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -140,7 +157,6 @@
         <div class="card-body space-y-1">
           <header class="flex items-center justify-between">
             <h2 class="card-title text-xl">Editor</h2>
-            <span class="badge badge-outline badge-sm">Autosave via submit</span>
           </header>
           <label class="input w-full">
             <span class="label justify-between">
@@ -204,9 +220,9 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="submit" class="btn btn-primary sm:w-48" {% if has_rt_id %}disabled{% endif %}>Save changes</button>
-            <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-ghost sm:w-48">Return to story</a>
-            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
+            {% if has_rt_id %}
+              <p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>
+            {% endif %}
           </footer>
         </div>
       </form>

@@ -3,13 +3,14 @@ info:
   title: Taranis AI
   contact:
     name: Benjamin Akhras
-    email: benjamin.akhras@ait.ac.at
+    url: https://taranis.ai
+    email: taranis@list.ait.ac.at
   description: |-
     The Taranis API provides endpoints for the Taranis is an OSINT gathering and analysis tool.
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.3.0
+  version: 1.3.2
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
@@ -23,6 +24,8 @@ servers:
 tags:
   - name: auth
     description: session-related functionality
+  - name: health
+    description: see whether Taranis dependencies are healthy
   - name: isalive
     description: see whether the Taranis instance is alive
   - name: users
@@ -77,29 +80,6 @@ paths:
         "401":
           description: authentication error (username + password)
           $ref: "#/components/responses/401Unauthorized"
-        "404":
-          $ref: "#/components/responses/404NotFound"
-        "500":
-          description: Internal server error
-
-    get:
-      tags:
-        - auth
-      operationId: auth.login
-      description: get redirected to the URL requested before authentication
-      parameters:
-        - name: gotoUrl
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          description: successful authentication
-        "302":
-          description: redirection to the URL requested before authentication
-        "400":
-          description: invalid goto url
         "404":
           $ref: "#/components/responses/404NotFound"
         "500":
@@ -172,6 +152,58 @@ paths:
                   isalive:
                     type: boolean
                     examples: [True]
+  /health:
+    get:
+      tags:
+        - health
+      operationId: health
+      description: see whether the Taranis instance dependencies are healthy
+      security: []
+      responses:
+        "200":
+          description: all required services are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [True]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
+        "503":
+          description: one or more required services are unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [False]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
   /users:
     get:
       security:
@@ -341,7 +373,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/report_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid input data
         "401":
@@ -393,7 +425,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/modify_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid request
         "401":
@@ -572,7 +604,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/news_item"
+              $ref: "#/components/schemas/news_item_create"
       responses:
         "200":
           description: the Story IDs and NewsItem IDs of the created news item
@@ -581,7 +613,7 @@ paths:
               schema:
                 type: object
         "400":
-          description: failed to decode the request body
+          description: invalid news item data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -682,7 +714,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/story"
         "400":
-          description: erronous input data
+          description: erroneous input data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -720,14 +752,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                read:
-                  type: boolean
-                important:
-                  type: boolean
-                vote:
-                  type: boolean
+              $ref: "#/components/schemas/news_item_update"
       responses:
         "200":
           description: the news item was modified
@@ -736,7 +761,34 @@ paths:
               schema:
                 type: object
         "400":
-          description: erronous input data
+          description: erroneous input data
+        "409":
+          description: news item already exists
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: partially modify the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_update"
+      responses:
+        "200":
+          description: the news item was modified
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: erroneous input data
+        "409":
+          description: news item already exists
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -3311,6 +3363,19 @@ components:
               type: array
               items:
                 type: string
+    report_item_response:
+      type: object
+      required:
+        - message
+        - id
+        - report
+      properties:
+        message:
+          type: string
+        id:
+          type: string
+        report:
+          $ref: "#/components/schemas/report_item"
 
     parameter_value:
       type: object
@@ -3461,6 +3526,57 @@ components:
         - title
         - source
         - content
+    news_item_create:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        source:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        collected:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
+        last_change:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_attribute"
+      anyOf:
+        - required: [title]
+        - required: [content]
+    news_item_update:
+      type: object
+      additionalProperties: false
+      properties:
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
 
     news_item_tag:
       type: object
@@ -3742,8 +3858,7 @@ components:
                 size:
                   type: integer
                 type:
-                  type: string
-                  nullable: true
+                  type: [string, "null"]
 
     report_item_lock:
       type: object
@@ -3774,10 +3889,11 @@ components:
         id:
           type: string
         content:
-          type: string
           description: base64 encoded template content; may be empty string when file is empty or null when not readable
-          nullable: true
-          format: base64
+          anyOf:
+            - type: string
+              format: base64
+            - type: "null"
         validation_status:
           $ref: "#/components/schemas/validation_status"
       required: [id, validation_status]

@@ -9,6 +9,7 @@ workers = [
             {"parameter": "USE_GLOBAL_PROXY", "type": "switch"},
             {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
             {"parameter": "CONTENT_LOCATION"},
+            {"parameter": "USE_FEED_CONTENT", "type": "switch"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
@@ -128,6 +129,7 @@ workers = [
         "name": "NLP Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://nlp_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -161,6 +163,7 @@ workers = [
         "name": "Story Clustering Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER", "value": "range=week"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://story_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -173,6 +176,7 @@ workers = [
         "name": "Summary generation Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://summary_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
@@ -196,6 +200,7 @@ workers = [
         "name": "Sentiment Analysis Bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://sentiment_analysis_bot:8000"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
@@ -208,6 +213,7 @@ workers = [
         "name": "Cybersecurity classification bot",
         "parameters": [
             {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
             {"parameter": "BOT_ENDPOINT", "value": "http://cybersec_classifier_bot:8000"},
             {"parameter": "CLASSIFICATION_THRESHOLD", "value": "0.65"},
@@ -308,6 +314,22 @@ workers = [
         "name": "MISP Publisher",
         "description": "Publisher for publishing in MISP",
         "parameters": [{"parameter": "MISP_URL"}, {"parameter": "MISP_API_KEY"}],
+    },
+    {
+        "type": "TAXII_PUBLISHER",
+        "name": "TAXII Publisher",
+        "description": "Publisher for pushing STIX objects to a TAXII 2.1 collection",
+        "parameters": [
+            {"parameter": "TAXII_DISCOVERY_URL"},
+            {"parameter": "TAXII_API_ROOT_URL"},
+            {"parameter": "TAXII_COLLECTION_ID", "rules": "required"},
+            {"parameter": "AUTH_TYPE", "rules": "required", "value": "basic"},
+            {"parameter": "USERNAME"},
+            {"parameter": "PASSWORD"},
+            {"parameter": "API_TOKEN"},
+            {"parameter": "SSL_VERIFY", "type": "switch", "value": "true"},
+            {"parameter": "PROXY_SERVER"},
+        ],
     },
     {
         "type": "MISP_CONNECTOR",
@@ -617,6 +639,30 @@ product_types = [
         "report_types": [1, 2, 3, 4],
     },
     {
+        "title": "Default html tailwindcss Presenter",
+        "description": "Default html tailwindcss Presenter",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "osint_report_tailwind.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
+            {"parameter": "render_options", "type": "text", "value": ""},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
+        "title": "Default html chartjs Presenter",
+        "description": "Default html tailwindcss and chartjs Presenter",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "TEMPLATE_PATH", "type": "text", "value": "osint_report_tailwind_chart.html"},
+            {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
+            {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
+            {"parameter": "render_options", "type": "text", "value": ""},
+        ],
+        "report_types": [1, 2, 3, 4],
+    },
+    {
         "title": "Default PDF Presenter",
         "description": "Default PDF Presenter",
         "type": "PDF_PRESENTER",
@@ -640,6 +686,7 @@ product_types = [
         "type": "HTML_PRESENTER",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
+            {"parameter": "render_options", "type": "text", "value": ""},
         ],
         "report_types": [4],
     },

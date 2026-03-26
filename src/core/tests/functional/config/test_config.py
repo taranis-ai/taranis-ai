@@ -5,16 +5,39 @@ import os
 import uuid
 from io import BytesIO
 
-from tests.functional.helpers import BaseTest
+from PIL import Image
 from werkzeug.datastructures import FileStorage
+
+from core.config import Config
+from tests.functional.helpers import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
 _INVALID_IMAGE_BASE64 = base64.b64encode(_INVALID_IMAGE_BYTES).decode("utf-8")
 
 
+def _make_icon_base64(size: tuple[int, int], image_format: str, mode: str = "RGBA", color=(80, 140, 220, 255)) -> str:
+    image = Image.new(mode, size, color)
+    if image_format == "JPEG" and image.mode != "RGB":
+        image = image.convert("RGB")
+    with BytesIO() as output:
+        image.save(output, format=image_format)
+        return base64.b64encode(output.getvalue()).decode("utf-8")
+
+
+_VALID_JPEG_ICON_BASE64 = _make_icon_base64((24, 12), "JPEG", mode="RGB", color=(80, 140, 220))
+_VALID_WIDE_PNG_ICON_BASE64 = _make_icon_base64((Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS // 2), "PNG")
+
+
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
+
+    @staticmethod
+    def _assert_normalized_icon(icon_base64: str) -> None:
+        icon_bytes = base64.b64decode(icon_base64)
+        with Image.open(BytesIO(icon_bytes)) as image:
+            assert image.format == "PNG"
+            assert image.size == (Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS)
 
     def test_import_osint_sources(self, client, auth_header, cleanup_sources):
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -40,6 +63,32 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_post_ok(client, uri="osint-sources", json_data=cleanup_sources, auth_header=auth_header)
         assert response.json["message"] == "OSINT source created successfully"
         assert response.json["id"] == cleanup_sources["id"]
+
+    def test_create_and_modify_source_normalizes_icon(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+        source_payload["icon"] = _VALID_JPEG_ICON_BASE64
+
+        create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            self._assert_normalized_icon(source_response.json["icon"])
+
+            update_response = self.assert_put_ok(
+                client,
+                uri=f"osint-sources/{source_id}",
+                json_data={"icon": _VALID_WIDE_PNG_ICON_BASE64},
+                auth_header=auth_header,
+            )
+            assert update_response.json["id"] == source_id
+
+            updated_source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            self._assert_normalized_icon(updated_source_response.json["icon"])
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
     def test_create_source_rejects_invalid_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
@@ -146,6 +195,25 @@ class TestWorkerSourceIcon(BaseTest):
 
             assert response.status_code == 400
             assert response.json["error"] == "Icon payload is not a valid image file."
+        finally:
+            client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
+
+    def test_worker_icon_upload_requires_api_key(self, client, auth_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+
+        create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            response = client.put(
+                self.concat_url(f"osint-sources/{source_id}/icon"),
+                data={"file": (BytesIO(_INVALID_IMAGE_BYTES), "icon.png")},
+                content_type="multipart/form-data",
+            )
+            assert response.status_code == 401
+            assert response.json["error"] == "not authorized"
         finally:
             client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
 
@@ -321,7 +389,15 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
         assert response.json["id"] == cleanup_bot["id"]
 
-    def test_modify_bot(self, client, auth_header, cleanup_bot):
+    def test_modify_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            if Bot.get(cleanup_bot["id"]):
+                Bot.delete(cleanup_bot["id"])
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         bot_data = {
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
@@ -332,16 +408,92 @@ class TestBotConfigApi(BaseTest):
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
         assert response.json["id"] == f"{bot_id}"
 
-    def test_get_bots(self, client, auth_header, cleanup_bot):
+    def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": True,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "0 */8 * * *",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        response = self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "enabled": False,
+                "parameters": {
+                    "RUN_AFTER_COLLECTOR": "true",
+                    "REFRESH_INTERVAL": "",
+                },
+            },
+            auth_header=auth_header,
+        )
+
+        assert response.json["id"] == f"{bot_id}"
+
+        with app.app_context():
+            updated_bot = Bot.get(bot_id)
+            assert updated_bot is not None
+            assert updated_bot.enabled is False
+            assert updated_bot.get_schedule() == ""
+            assert bot_id not in Bot.get_post_collection()
+
+    def test_get_bots(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+        self.assert_put_ok(
+            client,
+            uri=f"bots/{bot_id}",
+            json_data={
+                "name": cleanup_bot["name"],
+                "type": cleanup_bot["type"],
+                "description": "Boty McBotFace",
+                "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+            },
+            auth_header=auth_header,
+        )
+
         response = self.assert_get_ok(client, uri=f"bots?search={cleanup_bot['name']}", auth_header=auth_header)
         assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
 
-    def test_delete_bot(self, client, auth_header, cleanup_bot):
+    def test_delete_bot(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
         bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 
@@ -386,11 +538,53 @@ class TestProductTypes(BaseTest):
         assert response.json["message"] == "Product type created"
         assert response.json["id"] == cleanup_product_types["id"]
 
+    def test_create_product_type_rejects_invalid_template_path(self, client, auth_header):
+        response = client.post(
+            self.concat_url("product-types"),
+            json={
+                "title": f"invalid-template-{uuid.uuid4().hex[:8]}",
+                "type": "pdf_presenter",
+                "description": "Product type desc",
+                "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+            },
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid presenter template path"
+
     def test_modify_product_type(self, client, auth_header, cleanup_product_types):
         product_type_data = {"title": "Producty McProductFace"}
         product_type_id = cleanup_product_types["id"]
         response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
         assert response.json["message"] == f"Updated product type {product_type_data['title']}"
+
+    def test_modify_product_type_rejects_invalid_template_path(self, client, auth_header):
+        payload = {
+            "title": f"update-template-{uuid.uuid4().hex[:8]}",
+            "type": "pdf_presenter",
+            "description": "Product type desc",
+            "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
+        }
+        create_response = client.post(self.concat_url("product-types"), json=payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        product_type_id = create_response.json["id"]
+        try:
+            response = client.put(
+                self.concat_url(f"product-types/{product_type_id}"),
+                json={
+                    "type": "pdf_presenter",
+                    "description": "Product type desc",
+                    "parameters": {"TEMPLATE_PATH": "/etc/passwd"},
+                },
+                headers=auth_header,
+            )
+
+            assert response.status_code == 400
+            assert response.json["error"] == "Invalid presenter template path"
+        finally:
+            client.delete(self.concat_url(f"product-types/{product_type_id}"), headers=auth_header)
 
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]

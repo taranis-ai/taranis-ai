@@ -9,7 +9,7 @@ from core.config import Config
 def main() -> int:
     port = int(os.getenv("GRANIAN_PORT", "8080"))
 
-    url = f"http://127.0.0.1:{port}{Config.APPLICATION_ROOT}api/isalive"
+    url = f"http://127.0.0.1:{port}{Config.APPLICATION_ROOT}api/health"
 
     try:
         requests.get(url, timeout=5).raise_for_status()

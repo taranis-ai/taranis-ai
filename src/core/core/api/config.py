@@ -14,6 +14,7 @@ from core.managers import queue_manager, schedule_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
+    validate_presenter_template_id,
 )
 from core.managers.decorators import extract_args
 from core.model import (
@@ -94,7 +95,7 @@ class ACLEntries(MethodView):
 
 
 class Attributes(MethodView):
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS"])
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, attribute_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:
@@ -183,6 +184,8 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             return {"message": "Product type created", "id": product.id}, 201
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -193,6 +196,8 @@ class ProductTypes(MethodView):
     def put(self, type_id: int):
         try:
             return product_type.ProductType.update(type_id, request.json, current_user)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except Exception as e:
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
@@ -287,6 +292,10 @@ class Templates(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        try:
+            validate_presenter_template_id(template_path)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
@@ -427,7 +436,7 @@ class Bots(MethodView):
                 logger.debug(f"Successfully updated {updated_bot}")
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"Bot with ID: {bot_id} not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
@@ -539,7 +548,7 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)

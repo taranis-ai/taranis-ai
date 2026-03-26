@@ -1,16 +1,32 @@
 import contextlib
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal, Self
 from urllib.parse import quote
 
 from bs4 import BeautifulSoup
-from langcodes import Language
-from langcodes.tag_parser import LanguageTagError
 from pydantic import ValidationInfo, field_validator, model_validator
+from pydantic_extra_types.language_code import LanguageAlpha2
 
 from models.base import TaranisBaseModel
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_datetime(value: str | datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        with contextlib.suppress(ValueError):
+            value = datetime.fromisoformat(value)
+        if isinstance(value, str):
+            return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class NewsItem(TaranisBaseModel):
@@ -30,8 +46,21 @@ class NewsItem(TaranisBaseModel):
     updated: datetime | None = None
     attributes: list[str | dict[str, Any]] | None = None
     story_id: str | None = None
-    language: str | None = None
+    language: LanguageAlpha2 | None = None
     last_change: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_model_input(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        normalized.pop("updated", None)
+        normalized.pop("hash", None)
+        if normalized.get("language") in ("", None):
+            normalized.pop("language", None)
+        return normalized
 
     @classmethod
     def from_input(cls, data: Any) -> Self:
@@ -43,15 +72,9 @@ class NewsItem(TaranisBaseModel):
         """Trusted DB row: skip *all* validators/sanitizers."""
         return cls.model_construct(**data)
 
-    @field_validator("language", mode="before")
     @classmethod
-    def normalize_language_code(cls, v: str, info: ValidationInfo) -> str:
-        if v:
-            try:
-                return Language.get(v).language or ""
-            except (LanguageTagError, ValueError, TypeError):
-                return ""
-        return ""
+    def normalize_datetime(cls, date: str | datetime | None, default_to_now: bool = False) -> datetime | None:
+        return _normalize_datetime(date) or (_utcnow() if default_to_now else None)
 
     @model_validator(mode="after")
     def check_required_fields(self) -> Self:
@@ -83,12 +106,10 @@ class NewsItem(TaranisBaseModel):
     @field_validator("published", "collected", mode="before")
     @classmethod
     def sanitize_date(cls, date: str | None | datetime) -> datetime:
-        if isinstance(date, datetime):
-            return date
-        if isinstance(date, str):
-            with contextlib.suppress(ValueError):
-                return datetime.fromisoformat(date)
-        return datetime.now()
+        return cls.normalize_datetime(date, default_to_now=True) or _utcnow()
+
+    def to_core_dict(self) -> dict[str, Any]:
+        return self.model_dump(exclude={"updated"})
 
 
 class StoryTag(TaranisBaseModel):
@@ -122,6 +143,15 @@ class Story(TaranisBaseModel):
     in_reports_count: int | None = None
     tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
+
+    @classmethod
+    def normalize_datetime(cls, date: str | datetime | None) -> datetime | None:
+        return _normalize_datetime(date)
+
+    @field_validator("created", "updated", mode="before")
+    @classmethod
+    def sanitize_story_dates(cls, date: str | None | datetime) -> datetime | None:
+        return cls.normalize_datetime(date)
 
 
 class AssessSource(TaranisBaseModel):

@@ -137,6 +137,9 @@ Report Items:
 test_stix_product = {
     "id": "2342835f-ffef-4d36-a381-2d7bb0ddd553",
     "mime_type": "application/stix+json",
+    "description": "This product-level description must be preserved in STIX.",
+    "owner_team": "cti-blue",
+    "delivery_context": {"channel": "email", "priority": 2},
     "report_items": [
         {
             "attributes": {

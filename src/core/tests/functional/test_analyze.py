@@ -1,3 +1,5 @@
+import pytest
+
 from tests.functional.helpers import BaseTest
 
 
@@ -40,10 +42,15 @@ class TestAnalyzeApi(BaseTest):
         POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
         It expects the response to include the cloned report's details
         """
+        from core.model.report_item import ReportItem
+
         report_id = cleanup_report_item["id"]
 
         response = self.assert_post_ok(client, f"report-items/{report_id}/clone", {}, auth_header=auth_header)
         assert "id" in response.get_json() and response.get_json()["id"] != report_id, "Cloned report must have a different ID."
+        cloned_report = ReportItem.get(response.get_json()["id"])
+        assert cloned_report is not None
+        assert cloned_report.user_id is not None
 
     def test_get_report_stories(self, client, auth_header, cleanup_report_item):
         """
@@ -77,3 +84,35 @@ class TestAnalyzeApi(BaseTest):
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
         assert response.json["message"] == "Successfully deleted report 'Updated Report Title'"
+
+    def test_get_report_item_passes_current_user_for_acl_check(self, client, auth_header, monkeypatch):
+        captured_args: dict[str, object] = {}
+
+        def fake_get_for_api(report_item_id: str, user=None):
+            captured_args["report_item_id"] = report_item_id
+            captured_args["user"] = user
+            return {"id": report_item_id}, 200
+
+        monkeypatch.setattr("core.api.analyze.report_item.ReportItem.get_for_api", fake_get_for_api)
+
+        response = client.get("/api/analyze/report-items/report-1", headers=auth_header)
+        assert response.status_code == 200
+        assert captured_args["report_item_id"] == "report-1"
+        assert captured_args["user"] is not None
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "report-items/report-1/revisions",
+            "report-items/report-1/revisions/1",
+        ],
+    )
+    def test_report_revision_endpoints_enforce_read_access(self, client, auth_header, monkeypatch, uri):
+        def fake_get_for_api(_report_item_id: str, _user=None):
+            return {"error": "forbidden"}, 403
+
+        monkeypatch.setattr("core.api.analyze.report_item.ReportItem.get_for_api", fake_get_for_api)
+
+        response = client.get(self.concat_url(uri), headers=auth_header)
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "forbidden"}

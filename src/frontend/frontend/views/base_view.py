@@ -127,7 +127,7 @@ class BaseView(MethodView):
     @classmethod
     def process_form_data(cls, object_id: int | str):
         try:
-            form_data = parse_formdata(request.form)
+            form_data = cls._get_normalized_form_data()
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
@@ -191,16 +191,27 @@ class BaseView(MethodView):
         return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
 
     @classmethod
+    def submits_via_standard_form(cls) -> bool:
+        return False
+
+    @classmethod
+    def get_form_action(cls, object_id: int | str = 0) -> str:
+        if str(object_id) == "0":
+            action = cls.get_base_route()
+            return f"hx-post={action}"
+
+        action = cls.get_edit_route(**{cls._get_object_key(): object_id})
+        return f"hx-put={action}"
+
+    @classmethod
     def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
-        key = cls._get_object_key()
-        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
 
         context = cls._common_context(object_id=object_id)
         context.update(
             {
                 "form_error": None,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(object_id),
                 "submit_text": submit,
             }
         )
@@ -210,14 +221,13 @@ class BaseView(MethodView):
 
     @classmethod
     def get_create_context(cls) -> dict[str, Any]:
-        form_action = f"hx-post={cls.get_base_route()}"
         submit = f"Create {cls.pretty_name()}"
 
         context = cls._common_context()
         context.update(
             {
                 "form_error": None,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(),
                 "submit_text": submit,
             }
         )
@@ -233,16 +243,14 @@ class BaseView(MethodView):
         form_error: str | None = None,
         resp_obj: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        key = cls._get_object_key()
-        form_action = f"hx-put={cls.get_edit_route(**{key: object_id})}"
         submit = f"Update {cls.pretty_name()}"
 
-        context = cls._common_context()
+        context = cls._common_context(object_id=object_id)
         context.update(
             {
                 "error": error,
                 "form_error": form_error,
-                "form_action": form_action,
+                "form_action": cls.get_form_action(object_id),
                 "submit_text": submit,
             }
         )
@@ -253,7 +261,7 @@ class BaseView(MethodView):
             if msg := resp_obj.get("message"):
                 context["message"] = msg
             if new_id := resp_obj.get("id"):
-                context["form_action"] = f"hx-put={cls.get_edit_route(**{key: new_id})}"
+                context["form_action"] = cls.get_form_action(new_id)
         else:
             context[cls.model_name()] = cls.model.model_construct(id="0")
 
@@ -292,17 +300,9 @@ class BaseView(MethodView):
     def update_view_table(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
-            return render_template(
-                cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error),
-            ), 400
+            return cls.handle_submit_error(object_id, error=error, resp_obj=core_response)
 
-        notification_response = cls.render_response_notification(core_response)
-        table_response, table_status = cls.list_view()
-        response = notification_response + table_response
-        flask_response = make_response(response, table_status)
-        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
-        return flask_response
+        return cls.handle_submit_success(object_id, core_response)
 
     @classmethod
     def update_view(cls, object_id: int | str = 0):
@@ -329,7 +329,7 @@ class BaseView(MethodView):
             params = parse_paging_data(request_params)
             logger.debug(f"Listing {cls.model_name()} items with params: {params}")
             items = DataPersistenceLayer().get_objects(cls.model, params)
-            error = None if items else f"No {cls.model_name()} items found"
+            error = None
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
@@ -380,22 +380,40 @@ class BaseView(MethodView):
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse, oob: bool = True) -> str:
-        if not response or not response.json():
+        payload = None
+        try:
+            if response and response.content:
+                payload = response.json()
+        except Exception:
+            payload = None
+        if not isinstance(payload, dict):
             return render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
-        return render_template("notification/index.html", notification=cls.get_notification_from_dict(response.json()), oob=oob)
+        return render_template("notification/index.html", notification=cls.get_notification_from_dict(payload), oob=oob)
 
     @classmethod
     def render_response_notification(cls, response: dict) -> str:
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
 
     @classmethod
-    def add_flash_notification(cls, response: RequestsResponse):
-        if not response or not response.json():
-            flash("No response from core API", "error")
-        if message := response.json().get("message"):
-            flash(message, "success")
-        elif error := response.json().get("error"):
-            flash(error, "error")
+    def add_flash_notification(cls, response: RequestsResponse | dict[str, Any] | None):
+        if isinstance(response, dict):
+            notification = cls.get_notification_from_dict(response)
+        else:
+            payload = None
+            try:
+                if response and response.content:
+                    payload = response.json()
+            except Exception:
+                payload = None
+            notification = (
+                cls.get_notification_from_dict(payload)
+                if isinstance(payload, dict)
+                else {"message": "No response from core API", "error": True}
+            )
+
+        category = "error" if notification.get("error") else "success"
+        if message := notification.get("message"):
+            flash(message, category)
 
     @classmethod
     def redirect_htmx(cls, target: str) -> ResponseReturnValue:
@@ -454,8 +472,66 @@ class BaseView(MethodView):
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
+    @classmethod
+    def _submitted_form_model(cls, object_id: int | str = 0):
+        form_data = cls._get_normalized_form_data()
+        if not form_data:
+            return None
+
+        form_data["id"] = object_id or 0
+
+        try:
+            return cls.model(**form_data)
+        except Exception:
+            return cls.model.model_construct(**form_data)
+
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        return form_data
+
+    @classmethod
+    def _get_normalized_form_data(cls) -> dict[str, Any]:
+        return cls._normalize_form_data(parse_formdata(request.form))
+
+    @classmethod
+    def render_submitted_form_error(
+        cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
+    ) -> tuple[str, int]:
+        submitted_model = cls._submitted_form_model(object_id)
+        context = cls.get_create_context() if object_id == 0 else cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
+
+        if object_id == 0:
+            if error:
+                context["notification"] = {"message": error, "error": True}
+            if resp_obj and (message := resp_obj.get("message")):
+                context["message"] = message
+        if submitted_model is not None:
+            context[cls.model_name()] = submitted_model
+
+        return render_template(cls.get_edit_template(), **context), 400
+
+    @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        return cls.get_base_route()
+
+    @classmethod
+    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        return render_template(
+            cls.get_update_template(),
+            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+        ), 400
+
+    @classmethod
+    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        notification_response = cls.render_response_notification(core_response)
+        table_response, table_status = cls.list_view()
+        response = notification_response + table_response
+        flask_response = make_response(response, table_status)
+        flask_response.headers["HX-Push-Url"] = cls.get_base_route()
+        return flask_response
+
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view_table(object_id=0)
+        return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

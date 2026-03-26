@@ -1,10 +1,12 @@
+import base64
 import json
 from typing import Any, Literal
 
-from flask import Response, render_template, request, url_for
+from flask import render_template, request, url_for
 from models.admin import Job, OSINTSource, TaskResult
 from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
+from pydantic import ValidationError
 
 from frontend.auth import auth_required
 from frontend.config import Config
@@ -12,6 +14,8 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
+from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
@@ -29,9 +33,12 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def get_admin_menu_badge(cls) -> int:
-        if dashboard := DataPersistenceLayer().get_first(Dashboard):
-            if worker_status := dashboard.worker_status:
-                return worker_status.get("collector_task", {}).get("failures", 0)
+        try:
+            if dashboard := DataPersistenceLayer().get_first(Dashboard):
+                if worker_status := dashboard.worker_status:
+                    return worker_status.get("collector_task", {}).get("failures", 0)
+        except Exception:
+            logger.exception("Error retrieving dashboard for source admin menu badge")
 
         return 0
 
@@ -81,6 +88,7 @@ class SourceView(AdminMixin, BaseView):
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
         base_context["collector_types"] = cls.collector_types.values()
+        base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
         base_context["actions"] = osint_source_actions
         return base_context
 
@@ -127,7 +135,52 @@ class SourceView(AdminMixin, BaseView):
             return cls.import_view(error)
 
         DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        cls.add_flash_notification(response)
+        return cls.redirect_htmx(cls.get_base_route())
+
+    @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        target_id = core_response.get("id") or object_id
+        if not target_id or str(target_id) == "0":
+            return cls.get_base_route()
+        return cls.get_edit_route(**{cls._get_object_key(): target_id})
+
+    @classmethod
+    def process_form_data(cls, object_id: int | str):
+        try:
+            form_data = parse_formdata(request.form)
+            delete_icon = str(form_data.pop("delete_icon", "")).lower() in {"true", "1", "yes", "on"}
+
+            if delete_icon:
+                # Explicit delete must win over any concurrent file upload.
+                form_data["icon"] = ""
+            else:
+                icon = request.files.get("icon")  # FileStorage
+                if icon and icon.filename:
+                    max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+                    icon_data = icon.read(max_bytes + 1)
+                    if len(icon_data) > max_bytes:
+                        error_msg = f"Icon file exceeds maximum size of {max_bytes} bytes."
+                        logger.warning(error_msg)
+                        return None, error_msg
+
+                    icon_data_base64 = base64.b64encode(icon_data).decode("utf-8")
+                    form_data["icon"] = icon_data_base64
+
+            core_response, error = cls.store_form_data(form_data, object_id)
+            return core_response, cls._extract_error_message(error)
+        except ValidationError as exc:
+            logger.error(format_pydantic_errors(exc, cls.model))
+            return None, format_pydantic_errors(exc, cls.model)
+        except Exception:
+            logger.exception("Error storing form data")
+            return None, "Error storing form data"
+
+    @staticmethod
+    def _extract_error_message(error: Any) -> Any:
+        if isinstance(error, dict):
+            return error.get("error", str(error))
+        return error
 
     @classmethod
     def export_view(cls):

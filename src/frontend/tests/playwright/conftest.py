@@ -1,19 +1,19 @@
-import contextlib
+import base64
 import copy
 import os
 import random
 import re
+import shutil
 import subprocess
 import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse
+from pathlib import Path
 
 import pytest
 import requests
 import responses
-from dotenv import dotenv_values
 from flask import json
 from playwright.sync_api import Browser, Page
 
@@ -40,46 +40,47 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 
 @pytest.fixture(scope="session")
-def run_core(app):
-    # run the flask core as a subprocess in the background
-    process = None
+def docker_compose_file():
+    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+
+
+@pytest.fixture(scope="session")
+def docker_compose_command() -> str:
+    if shutil.which("podman-compose"):
+        return "podman-compose"
+    return "docker compose"
+
+
+@pytest.fixture(scope="session")
+def docker_setup(docker_compose_command):
+    # podman-compose does not support --wait; readiness is handled by _wait_for_server_to_be_alive.
+    up_cmd = "up -d" if "podman" in docker_compose_command else "up -d --wait"
+    return ["down -v --remove-orphans", up_cmd]
+
+
+@pytest.fixture(scope="session")
+def docker_cleanup():
+    return ["down -v --remove-orphans"]
+
+
+@pytest.fixture(scope="session")
+def run_core(docker_services):
+    from frontend.config import Config
+
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    core_port = docker_services.port_for("core", 8080)
+    core_url = f"http://127.0.0.1:{core_port}/api"
+
+    Config.TARANIS_CORE_HOST = f"http://127.0.0.1:{core_port}"
+    Config.TARANIS_CORE_URL = core_url
+
     try:
-        core_path = os.path.abspath("../core")
-        env = {}
-        if config := dotenv_values(os.path.join(core_path, "tests", ".env")):
-            config = {k: v for k, v in config.items() if v}
-            env = config
-        env |= os.environ.copy()
-        env["PYTHONPATH"] = core_path
-        env["PATH"] = f"{os.path.join(core_path, '.venv', 'bin')}:{env.get('PATH', '')}"
-        taranis_core_port = env.get("TARANIS_CORE_PORT", "5000")
-        taranis_core_start_timeout = int(env.get("TARANIS_CORE_START_TIMEOUT", 10))
-        with contextlib.suppress(Exception):
-            parsed_uri = urlparse(env.get("SQLALCHEMY_DATABASE_URI"))
-            os.remove(f"{parsed_uri.path}")
-
-        print(f"Starting Taranis Core on port {taranis_core_port}")
-        process = subprocess.Popen(
-            ["flask", "run", "--no-reload", "--port", taranis_core_port],
-            cwd=core_path,
-            env=env,
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE,
-            universal_newlines=True,
-        )
-
-        core_url = env.get("TARANIS_CORE_URL", f"http://127.0.0.1:{taranis_core_port}/api")
+        print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
-        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
-
+        _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
         yield core_url
-
     except Exception as e:
         pytest.fail(str(e))
-    finally:
-        if process:
-            process.terminate()
-            process.wait()
 
 
 @pytest.fixture(scope="session")
@@ -103,7 +104,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, build_tailwindcss, run_core):
+def e2e_server(run_core, app, live_server, build_tailwindcss):
     live_server.app = app
     live_server.start()
     yield live_server
@@ -126,34 +127,43 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def setup_test_templates():
-    """Set up test template files for e2e tests."""
-    import shutil
-    from pathlib import Path
-
-    # Get paths
+def setup_test_templates(run_core, access_token):
+    """Set up test template files for e2e tests via core API."""
     test_data_dir = Path(__file__).parent / "testdata"
-    core_templates_dir = Path(__file__).parent.parent.parent.parent / "core" / "taranis_data" / "presenter_templates"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-type": "application/json",
+    }
 
-    # Ensure the core templates directory exists
-    core_templates_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy test template files
-    copied_files = []
+    uploaded_templates = []
     for test_file in test_data_dir.glob("*.html"):
-        dest_file = core_templates_dir / test_file.name
-        shutil.copy2(test_file, dest_file)
-        copied_files.append(dest_file)
+        payload = {
+            "id": test_file.name,
+            "content": base64.b64encode(test_file.read_bytes()).decode("utf-8"),
+        }
+        response = requests.post(
+            f"{run_core}/config/templates",
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        uploaded_templates.append(test_file.name)
 
     yield
 
-    # Cleanup: remove test template files
-    for file_path in copied_files:
-        if file_path.exists():
-            file_path.unlink()
+    for template_name in uploaded_templates:
+        try:
+            requests.delete(
+                f"{run_core}/config/templates/{template_name}",
+                headers=headers,
+                timeout=30,
+            )
+        except Exception:
+            pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
@@ -162,13 +172,31 @@ def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_
     if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    yield context.new_page()
-    if request.config.getoption("trace"):
-        context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+    page = context.new_page()
+    try:
+        yield page
+    finally:
+        if request.config.getoption("trace"):
+            context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+        page.close()
+        context.close()
 
 
 def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
     return any(re.search(p, msg_text) for p in allow_patterns)
+
+
+def _dismiss_notifications(page: Page):
+    if page.is_closed():
+        return
+
+    alerts = page.locator("#notification-bar [role='alert']")
+    while alerts.count():
+        try:
+            alerts.first.click(timeout=500)
+            page.wait_for_timeout(100)
+        except Exception:
+            break
 
 
 def _cookies_from_response(resp) -> list[dict]:
@@ -209,7 +237,12 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     )
     page.context.add_cookies(context_cookies)
 
-    yield page
+    _dismiss_notifications(page)
+
+    try:
+        yield page
+    finally:
+        _dismiss_notifications(page)
 
 
 @pytest.fixture
@@ -260,6 +293,7 @@ def forward_console_and_page_errors(request, logged_in_page):
     finally:
         page.remove_listener("console", on_console)
         page.remove_listener("pageerror", on_pageerror)
+        _dismiss_notifications(page)
 
         for w in warns:
             pywarnings.warn(UserWarning(w), stacklevel=0)
@@ -510,7 +544,7 @@ def stories(run_core, api_header, fake_source, access_token):
 #     return get_product_to_render
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -519,11 +553,26 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     }
 
     print("Pre-seeding stories via assess API")
+    story_list = []
+    news_item_ids_created: list[str] = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
-        r.raise_for_status()
+        if not r.ok:
+            try:
+                error_payload = r.json()
+            except ValueError:
+                error_payload = r.text
+            raise AssertionError(
+                f"Failed to pre-seed news item '{item.get('title', '<unknown>')}' with status {r.status_code}: {error_payload}"
+            )
+        response_data = r.json()
+        story_list.append({"story_id": response_data.get("story_id"), **item})
+        news_item_ids_created.extend(response_data.get("news_item_ids", []))
 
-    yield []
+    yield story_list
+
+    for news_item_id in news_item_ids_created:
+        requests.delete(f"{run_core}/assess/news-items/{news_item_id}", headers=headers)
 
 
 @pytest.fixture(scope="session")
@@ -604,7 +653,7 @@ def pre_seed_report_type(report_definition, access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -612,7 +661,7 @@ def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -626,28 +675,36 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def test_osint_source():
-    # get absoulute path to testdata/test_osint_source.json
+def testdata_dir():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+    yield os.path.join(dir_path, "testdata")
+
+
+@pytest.fixture(scope="session")
+def test_osint_source(testdata_dir):
+    yield os.path.join(testdata_dir, "test_osint_source.json")
 
 
 @pytest.fixture
-def test_batch_osint_sources(app, run_core, access_token):
+def test_osint_icon_png(testdata_dir):
+    yield os.path.join(testdata_dir, "icon.png")
+
+
+@pytest.fixture
+def test_batch_osint_sources(run_core, access_token, testdata_dir):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dir_path, "testdata", "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
+    with open(os.path.join(testdata_dir, "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
         source_data = json.load(f)
 
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
         r.raise_for_status()
 
-    yield
+    yield source_data
 
     list_response = requests.get(f"{run_core}/config/osint-sources", headers=headers)
     list_response.raise_for_status()
@@ -662,21 +719,18 @@ def test_batch_osint_sources(app, run_core, access_token):
 
 
 @pytest.fixture(scope="session")
-def test_user():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_to_import.json")
+def test_user(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_to_import.json")
 
 
 @pytest.fixture(scope="session")
-def test_user_list():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_list.json")
+def test_user_list(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_list.json")
 
 
 @pytest.fixture(scope="session")
-def test_wordlist():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_word_list.json")
+def test_wordlist(testdata_dir):
+    yield os.path.join(testdata_dir, "test_word_list.json")
 
 
 def report_item_dict(story_item_list):

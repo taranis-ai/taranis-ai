@@ -6,12 +6,13 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from apscheduler.triggers.cron import CronTrigger
 from models.types import COLLECTOR_TYPES
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
+from core.config import Config
 from core.log import logger
 from core.managers import schedule_manager
 from core.managers.db_manager import db
@@ -47,6 +48,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
+    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
         self.id = id or str(uuid.uuid4())
@@ -292,25 +294,46 @@ class OSINTSource(BaseModel):
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
-        if not self._is_valid_image(icon_bytes):
-            raise ValueError("Icon payload is not a valid image file.")
-        return icon_bytes
+        if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
+            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+        return self._normalize_icon_image(icon_bytes)
 
-    @staticmethod
-    def _is_valid_image(icon_bytes: bytes) -> bool:
+    @classmethod
+    def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
+        if cls._looks_like_svg(icon_bytes):
+            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
+
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
-                image.verify()
-                image_format = image.format
-            if not image_format:
-                logger.warning("Image verification succeeded but format is unknown.")
-                return False
-            with Image.open(BytesIO(icon_bytes)) as image:
+                image_format = image.format.upper() if image.format else None
+                if image_format not in cls._ALLOWED_ICON_FORMATS:
+                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
                 image.load()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            logger.warning(f"Pillow verification failed for icon: {exc}")
-            return False
-        return True
+                normalized = ImageOps.exif_transpose(image).convert("RGBA")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            logger.warning(f"Pillow decode failed for icon: {exc}")
+            raise ValueError("Icon payload is not a valid image file.") from exc
+
+        target_size = Config.OSINT_SOURCE_ICON_PIXELS
+        normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+        offset = ((target_size - normalized.width) // 2, (target_size - normalized.height) // 2)
+        canvas.paste(normalized, offset)
+
+        output_format = Config.OSINT_SOURCE_ICON_FORMAT.upper()
+        with BytesIO() as output:
+            canvas.save(output, format=output_format)
+            return output.getvalue()
+
+    @classmethod
+    def _probe_icon_image(cls, icon_bytes: bytes) -> None:
+        cls._normalize_icon_image(icon_bytes)
+
+    @staticmethod
+    def _looks_like_svg(icon_bytes: bytes) -> bool:
+        prefix = icon_bytes[:1024].lstrip().lower()
+        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
@@ -319,6 +342,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        if source_id == "manual":
+            return {"error": "The manual source cannot be deleted"}, 400
+
         if not (source := cls.get(source_id)):
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
@@ -425,6 +451,36 @@ class OSINTSource(BaseModel):
             source["type"] = source.pop("collector")["type"]
         return data
 
+    @staticmethod
+    def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            parameters = source.get("parameters")
+            if not isinstance(parameters, list):
+                continue
+
+            content_location_value: str | None = None
+            use_feed_content_index: int | None = None
+
+            for idx, parameter in enumerate(parameters):
+                if not isinstance(parameter, dict):
+                    continue
+                if "CONTENT_LOCATION" in parameter:
+                    content_location_value = str(parameter.get("CONTENT_LOCATION", ""))
+                if "USE_FEED_CONTENT" in parameter:
+                    use_feed_content_index = idx
+
+            if content_location_value is None and use_feed_content_index is None:
+                continue
+
+            target_value = "true" if content_location_value and content_location_value.strip() else "false"
+
+            if use_feed_content_index is not None:
+                parameters[use_feed_content_index]["USE_FEED_CONTENT"] = target_value
+            else:
+                parameters.append({"USE_FEED_CONTENT": target_value})
+
+        return sources
+
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
@@ -466,6 +522,7 @@ class OSINTSource(BaseModel):
         else:
             raise ValueError("Unsupported version")
 
+        data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids

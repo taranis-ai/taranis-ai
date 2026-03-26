@@ -39,6 +39,15 @@
   .choices[data-type*="text"] .choices__button {
     background-image: var(--choices-icon-cross) !important;
   }
+
+  .choices-item-selectable-primary {
+    background-color: color-mix(in oklab, var(--color-primary) 25%, var(--color-base-200)) !important;
+  }
+
+  .choices-selected-primary {
+    background-color: var(--color-primary) !important;
+    color: var(--color-primary-content) !important;
+  }
 }
 
 @layer base {

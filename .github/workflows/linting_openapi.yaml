@@ -4,7 +4,12 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'src/core/core/static/openapi3_1.yaml'
+      - ".github/workflows/linting_openapi.yaml"
+      - "src/core/core/static/openapi3_1.yaml"
+
+env:
+  UV_NO_SYNC: true
+  UV_FROZEN: true
 
 jobs:
   open_api_lint:
@@ -13,9 +18,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Validate OpenAPI spec
+        run: uvx --from openapi-spec-validator openapi-spec-validator src/core/core/static/openapi3_1.yaml
+
       - name: Running OpenAPI Spec diff action
         uses: oasdiff/oasdiff-action/breaking@main
         with:
-          base: 'https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml'
-          revision: 'src/core/core/static/openapi3_1.yaml'
-
+          base: "https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml"
+          revision: "src/core/core/static/openapi3_1.yaml"

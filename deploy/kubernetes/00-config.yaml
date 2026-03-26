@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taranis-config
+data:
+  DEBUG: "false"
+  GRANIAN_HOST: CHANGE_ME_BIND_HOST
+  GRANIAN_PORT: "8080"
+  TARANIS_BASE_PATH: /
+  SSE_PATH: /sse
+  TARANIS_PORT: "8080"
+  REQUESTS_TIMEOUT: "600"
+  SQLALCHEMY_POOL_TIMEOUT: "3600"
+  SQLALCHEMY_POOL_RECYCLE: "3600"
+  TARANIS_AUTHENTICATOR: database
+  SUMMARY_API_ENDPOINT: http://summary-bot:8000
+  NLP_API_ENDPOINT: http://nlp-bot:8000
+  STORY_API_ENDPOINT: http://story-bot:8000
+  CACHE_DEFAULT_TIMEOUT: "1"

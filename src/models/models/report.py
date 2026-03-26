@@ -18,6 +18,15 @@ class ReportItemAttributeGroup(TaranisBaseModel):
     attributes: list[ReportItemAttribute] = Field(default_factory=list)
 
 
+class ReportTypes(TaranisBaseModel):
+    _core_endpoint: ClassVar[str] = "/analyze/report-types"
+    _model_name: ClassVar[str] = "report_type"
+    _pretty_name: ClassVar[str] = "Report Type"
+
+    id: int | None = None
+    title: str | None = ""
+
+
 class ReportItem(TaranisBaseModel):
     _core_endpoint: ClassVar[str] = "/analyze/report-items"
     _model_name: ClassVar[str] = "report"

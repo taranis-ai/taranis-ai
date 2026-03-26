@@ -38,6 +38,15 @@ uv sync --frozen
 taranis-ai
 ```
 
+## Health Endpoints
+
+Core exposes two unauthenticated endpoints for monitoring:
+
+* `/api/isalive` is a fast liveness probe for checking whether the API process responds.
+* `/api/health` is the readiness and dependency health endpoint for database, broker, and workers where applicable.
+
+`/api/health` returns `200` when all required services are healthy and `503` when a required dependency is down. In local or test environments using an in-memory broker, broker and worker checks are reported as `n/a`.
+
 ## Development Setup
 
 It is best to follow the [dev setup guide](../../dev/README.md)

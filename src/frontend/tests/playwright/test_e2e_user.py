@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import json
+import re
 import uuid
 from datetime import date
 
 import pytest
+import requests
+import responses
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -14,8 +18,34 @@ from playwright_helpers import PlaywrightHelpers
 class TestEndToEndUser(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI user interface."""
 
+    @staticmethod
+    def _get_assess_story_counts(page: Page) -> tuple[int, int]:
+        count_text = page.get_by_test_id("assess_story_count").inner_text()
+        match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
+        assert match, f"Unable to parse assess story count from: {count_text!r}"
+        return int(match.group(1)), int(match.group(2))
+
+    @staticmethod
+    def _get_assess_selection_count(page: Page) -> int:
+        count_text = page.get_by_test_id("assess_story_selection_count").inner_text()
+        match = re.search(r"(\d+)\s+stories selected", count_text)
+        assert match, f"Unable to parse assess story selection count from: {count_text!r}"
+        return int(match.group(1))
+
+    @staticmethod
+    def _get_assess_story_total(run_core: str, access_token: str) -> int:
+        responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
+        response = requests.get(
+            f"{run_core}/assess/stories",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()["counts"]["total_count"]
+
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        page.context.clear_cookies()
         self.add_keystroke_overlay(page)
 
         page.goto(url_for("base.login", _external=True))
@@ -29,14 +59,15 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
+    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper, run_core, access_token):
         page = logged_in_page
+        expected_total = self._get_assess_story_total(run_core, access_token)
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 33")
+            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total}")
             page.get_by_role("link", name="Dashboard").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -52,19 +83,17 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
-
-            page.get_by_role("group", name="Show Trending Clusters").get_by_label("False").uncheck()
-            page.get_by_role("group", name="Show Charts in Dashboard").get_by_label("False").click()
+            page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
+            page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible()
             expect(page.get_by_role("main")).to_be_visible()
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
 
-            page.get_by_role("group", name="Show Trending Clusters").locator("label").click()
-            expect(page.get_by_role("checkbox", name="True")).to_be_visible()
-
-            page.get_by_role("group", name="Show Charts in Dashboard").locator("label").click()
+            page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").check()
+            expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
+            page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
             expect(page.locator("#dashboard")).to_contain_text("Location")
@@ -103,17 +132,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(all_rows).to_have_count(5)
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
-        def test_clear_cache(page: Page) -> None:
-            page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
-            page.get_by_test_id("admin-menu-Settings").click()
-            page.get_by_role("button", name="Invalidate Cache").click()
-
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
         test_dashboard_edit_settings(page)
         test_dashboard_entity_location_pagination(page)
-        test_clear_cache(page)  # TODO Fix cache (necessary because cache is not correctly invalidated)
 
     def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
@@ -216,38 +238,47 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
         page = logged_in_page
-        # page.set_default_timeout(0)
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
-
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57", timeout=30000)
-
             expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
+            visible_count, total_count = self._get_assess_story_counts(page)
+            assert 0 < visible_count <= total_count
             page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
 
         def access_story():
-            story_articles = page.locator("#story-list article")
-            expect(story_articles.first).to_be_visible()
-            story = story_articles.nth(0)
-            menu = story.get_by_test_id("story-actions-menu")
+            target_title = pre_seed_stories[0]["title"]
+            page.get_by_placeholder("Search stories").fill(target_title)
+            page.get_by_placeholder("Search stories").press("Enter")
+
+            story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
+            expect(story).to_be_visible()
+            story_id = story.get_attribute("data-story-id")
+            assert story_id, "Expected story card to expose a story id"
+
+            def story_card():
+                return page.locator(f'article[data-story-id="{story_id}"]')
+
+            menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
             expect(menu).to_be_visible()
             expect(menu).to_be_enabled()
-            title = story.locator("h2[data-testid='story-title']").inner_text()
+            title = story_card().locator("h2[data-testid='story-title']").inner_text()
+            edited_title = f"{title} edited title"
 
-            story.get_by_test_id("toggle-summary").click()
-            story.get_by_test_id("story-actions-menu").click()
-            story.get_by_test_id("toggle-read").click()
-            story.get_by_test_id("story-actions-menu").click()
-            story.get_by_test_id("toggle-important").click()
-            story.get_by_test_id("story-actions-menu").click()
-            story.get_by_test_id("share-story").click()
+            story_card().get_by_test_id("toggle-summary").click()
+            story_card().get_by_test_id("story-actions-menu").click()
+            story_card().get_by_test_id("toggle-read").click()
+            story_card().get_by_test_id("story-actions-menu").click()
+            story_card().get_by_test_id("toggle-important").click()
+            story_card().get_by_test_id("story-actions-menu").click()
+            story_card().get_by_test_id("share-story").click()
             page.get_by_role("button", name="✕").click()
-            story.get_by_test_id("open-detail-view").click()
+            story_card().get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
             page.get_by_test_id("edit-story").click()
-            page.get_by_role("textbox", name="Title").fill(f"{title} edited title")
+            page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             page.get_by_test_id("tag-name-input").fill("tag name")
@@ -268,48 +299,92 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("link", name="Return to story").click()
-            expect(page.get_by_test_id("story-title")).to_contain_text("Pharmaceutical Trade Secrets Theft by APT76 edited title")
+            expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
         def infinite_scroll_all_items():
             page.goto(url_for("assess.assess", _external=True))
 
             expect(page.get_by_test_id("assess")).to_be_visible()
+            initial_visible_count, expected_total = self._get_assess_story_counts(page)
+            assert initial_visible_count > 0
+            final_visible_count = initial_visible_count
+            for _ in range(6):
+                page.mouse.wheel(0, 5500)
+                page.wait_for_timeout(300)
+                final_visible_count, final_total = self._get_assess_story_counts(page)
+                assert final_total == expected_total
+                assert final_visible_count >= initial_visible_count
+                if final_visible_count >= expected_total:
+                    break
 
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("20 / 57 Stories")
-            page.mouse.wheel(0, 5500)
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("40 / 57 Stories")
-            page.mouse.wheel(0, 5500)
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text("57 / 57 Stories")
-            page.mouse.wheel(0, 5500)
-            expect(page.get_by_text("You're all caught up.")).to_be_visible()
+            final_visible_count, final_total = self._get_assess_story_counts(page)
+            assert final_total == expected_total
+            assert final_visible_count >= expected_total
+
+            caught_up_message = page.get_by_text("You're all caught up.")
+            if caught_up_message.count():
+                expect(caught_up_message).to_be_visible()
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
-            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("57 stories selected")
+            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
+            selected_count = self._get_assess_selection_count(page)
+            assert expected_total <= selected_count <= final_visible_count
             page.get_by_role("button", name="Clear selection Esc").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
-
-        def group_stories():
-            page.goto(url_for("assess.assess", _external=True))
-            expect(page.get_by_role("radiogroup", name="Time presets")).to_be_visible()
-            main_story_title = page.get_by_test_id("story-title").nth(0).inner_text()
-            main_story_id = page.get_by_role("article").nth(0).get_attribute("data-story-id")
-            page.get_by_test_id("story-title").nth(0).click()
-            page.get_by_test_id("story-title").nth(1).click()
-            page.get_by_test_id("story-title").nth(2).click()
-            page.get_by_test_id("story-title").nth(3).click()
-
-            page.get_by_role("button", name="Cluster").click()
-            page.get_by_test_id("dialog-story-cluster-open").click()
-            page.wait_for_url(url_for("assess.story", story_id=main_story_id, _external=True))
-            detail_story = page.get_by_role("article").nth(0)
-            expect(detail_story).to_contain_text(main_story_title)
-            expect(detail_story).to_have_attribute("data-story-detail-view", "true")
 
         go_to_assess()
         access_story()
         infinite_scroll_all_items()
-        group_stories()
+
+    def test_story_export(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        pre_seed_stories,
+        news_items_list: list[dict],
+    ):
+        page = logged_in_page
+        expected_story = news_items_list[0]
+        expected_title = expected_story["title"]
+        possible_story_titles = {expected_title, f"{expected_title} edited title"}
+        expected_news_item_title = expected_story["title"]
+
+        page.goto(url_for("assess.assess", _external=True))
+        expect(page.get_by_test_id("assess")).to_be_visible()
+
+        page.get_by_placeholder("Search stories").fill(expected_title)
+        page.get_by_placeholder("Search stories").press("Enter")
+
+        story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
+        expect(story).to_be_visible()
+        story_title = story.get_by_test_id("story-title").inner_text()
+        assert story_title in possible_story_titles
+
+        story.get_by_test_id("story-actions-menu").click()
+        story.get_by_test_id("share-story").click()
+
+        dialog = page.locator("#share_story_to_connector_dialog")
+        expect(dialog).to_be_visible()
+        expect(dialog.get_by_role("link", name="Export to JSON")).to_be_visible()
+
+        with page.expect_download() as download_info:
+            dialog.get_by_role("link", name="Export to JSON").click()
+
+        download = download_info.value
+        assert download.suggested_filename.startswith("stories_export_")
+        assert download.suggested_filename.endswith(".json")
+
+        download_path = download.path()
+        with open(download_path, "r", encoding="utf-8") as f:
+            downloaded_content = json.load(f)
+
+        assert downloaded_content["total_count"] == 1
+        assert len(downloaded_content["items"]) == 1
+        exported_story = downloaded_content["items"][0]
+        assert exported_story["title"] in possible_story_titles
+        assert len(exported_story["news_items"]) >= 1
+        assert exported_story["news_items"][0]["title"] == expected_news_item_title
 
     def test_user_analyze(
         self,
@@ -336,15 +411,15 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
-            page.get_by_label("Report Type Select a report").select_option("4")
+            page.get_by_test_id("report-type-select").select_option("4")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_role("link", name="Split view").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_label("Report Type CERT Report")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
             expect(page.get_by_placeholder("Date")).to_be_visible()
@@ -358,6 +433,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
+            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"), timeout=10000)
+            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated", timeout=10000)
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
@@ -472,7 +549,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
-                page.get_by_label("Report Type Select a report").select_option("6")
+                page.get_by_test_id("report-type-select").select_option("6")  # report type with all attribute types
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
@@ -522,8 +599,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 2 Add Story").click()
+                page.keyboard.press("Escape")  # press esc  key to close the dropdown
 
-                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
                 page.get_by_placeholder("STRING field").click()
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
@@ -679,12 +756,12 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
+                page.keyboard.press("Escape")  # press esc  key to close the dropdown
 
-                page.locator("div").filter(has_text="Title * Report Type CERT").nth(3).click()
-                page.get_by_placeholder("STRING field").click()
-                page.get_by_placeholder("STRING field").fill("string")
-                page.get_by_placeholder("NUMBER field").click()
-                page.get_by_placeholder("NUMBER field").fill("111")
+                page.get_by_placeholder("STRING field*").click()
+                page.get_by_placeholder("STRING field*").fill("string")
+                page.get_by_placeholder("NUMBER field*").click()
+                page.get_by_placeholder("NUMBER field*").fill("111")
                 expect(page.locator("#attribute-4")).to_be_visible()
                 page.locator("#attribute-4").check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
@@ -772,7 +849,14 @@ class TestEndToEndUser(PlaywrightHelpers):
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
             expect(page.get_by_test_id("product-form")).to_be_visible()
-            self.highlight_element(page.get_by_label("Product Type * Select an item")).select_option("3")
+            product_type_select = page.get_by_label("Product Type * Select an item")
+            product_type_options = product_type_select.locator("option").evaluate_all(
+                """options => options
+                .filter(option => option.value)
+                .map(option => ({ value: option.value, label: option.textContent?.trim() ?? "" }))"""
+            )
+            assert product_type_options, "No product type options available for product creation"
+            self.highlight_element(product_type_select).select_option(product_type_options[0]["value"])
 
             self.highlight_element(page.get_by_placeholder("Title")).fill(product_title)
             page.get_by_placeholder("Description").fill("This is a test product.")

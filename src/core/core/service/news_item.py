@@ -13,10 +13,13 @@ class NewsItemService:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
-        news_item.update_item(data)
+        response, status = news_item.update_item(data)
+        if status != 200:
+            db.session.rollback()
+            return response, status
 
         if story := Story.get(news_item.story_id):
-            story.update_status()
+            story.record_revision(user, note="update_news_item")
             db.session.commit()
             return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item_id}, 200
 
@@ -46,6 +49,7 @@ class NewsItemService:
         story.news_items.remove(news_item)
         news_item.delete_item()
         story.update_status()
+        story.record_revision(user, note="delete_news_item")
         db.session.commit()
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
         return {"message": "News Item deleted", "id": news_item_id, "story_id": story_id}, 200

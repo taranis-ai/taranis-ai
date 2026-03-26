@@ -12,6 +12,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
 from core.model import news_item, news_item_tag, osint_source, story
+from core.model.revision import StoryRevision
 from core.model.story_conflict import StoryConflict
 from core.service.news_item import NewsItemService
 from core.service.story import StoryService
@@ -212,7 +213,7 @@ class UnGroupNewsItem(MethodView):
     def put(self):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
-        response, code = story.Story.remove_news_items_from_story(newsitem_ids, current_user)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -299,6 +300,66 @@ class Proposals(MethodView):
         return {"count": StoryConflict.get_proposal_count()}, 200
 
 
+class StoryRevisions(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str):
+        """Get all revisions for a story"""
+        from core.managers.db_manager import db
+
+        access_response, access_status = story.Story.get_for_api(story_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
+
+        revisions = (
+            db.session.execute(db.select(StoryRevision).filter(StoryRevision.story_id == story_id).order_by(StoryRevision.revision.desc()))
+            .scalars()
+            .all()
+        )
+
+        return {
+            "total_count": len(revisions),
+            "items": [
+                {
+                    "id": rev.id,
+                    "revision": rev.revision,
+                    "created_at": rev.created_at.isoformat() if rev.created_at else None,
+                    "created_by": rev.created_by.username if rev.created_by else None,
+                    "created_by_id": rev.created_by_id,
+                    "note": rev.note,
+                }
+                for rev in revisions
+            ],
+        }, 200
+
+
+class StoryRevisionData(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str, revision_number: int):
+        """Get data for a specific revision"""
+        from core.managers.db_manager import db
+
+        access_response, access_status = story.Story.get_for_api(story_id, current_user)
+        if access_status != 200:
+            return access_response, access_status
+
+        revision = db.session.execute(
+            db.select(StoryRevision).filter(StoryRevision.story_id == story_id).filter(StoryRevision.revision == revision_number)
+        ).scalar_one_or_none()
+
+        if not revision:
+            return {"error": "Revision not found"}, 404
+
+        return {
+            "id": revision.id,
+            "revision": revision.revision,
+            "created_at": revision.created_at.isoformat() if revision.created_at else None,
+            "created_by": revision.created_by.username if revision.created_by else None,
+            "created_by_id": revision.created_by_id,
+            "note": revision.note,
+            "data": revision.data,
+        }, 200
+
+
 class AssessImport(MethodView):
     @auth_required("ASSESS_CREATE")
     @validate_json
@@ -337,6 +398,11 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/bulk_action", view_func=Stories.as_view("bulk_action"))
     assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
     assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/revisions", view_func=StoryRevisions.as_view("story_revisions"))
+    assess_bp.add_url_rule(
+        "/stories/<string:story_id>/revisions/<int:revision_number>",
+        view_func=StoryRevisionData.as_view("story_revision_data"),
+    )
 
     assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)
