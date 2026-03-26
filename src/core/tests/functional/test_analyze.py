@@ -120,19 +120,30 @@ class TestAnalyzeApi(BaseTest):
 
     def test_hidden_report_type_cannot_be_forged_into_report_creation(self, app, client, auth_header_user_permissions):
         from core.managers.db_manager import db
+        from core.model.report_item import ReportItem
         from core.model.report_item_type import ReportItemType
+        from core.model.role import Role
         from core.model.role_based_access import ItemType, RoleBasedAccess
 
         acl_id = None
+        created_report_id = f"forged-report-{uuid4()}"
+
+        visible_before_acl = client.get(self.concat_url("report-types"), headers=auth_header_user_permissions)
+        assert visible_before_acl.status_code == 200
+        visible_type_ids = [item["id"] for item in visible_before_acl.get_json()["items"]]
+        assert visible_type_ids, "Expected at least one report type visible to the non-admin test user"
 
         with app.app_context():
-            protected_report_type = ReportItemType.get_all_for_collector()[0]
+            admin_role = Role.filter_by_name("Admin")
+            assert admin_role is not None
+            protected_report_type = ReportItemType.get(visible_type_ids[0])
+            assert protected_report_type is not None
             acl = RoleBasedAccess(
                 name=f"report-type-acl-{uuid4()}",
                 description="Restrict report type to admin role for regression test",
                 item_type=ItemType.REPORT_ITEM_TYPE,
                 item_id=str(protected_report_type.id),
-                roles=[1],
+                roles=[admin_role.id],
                 read_only=False,
                 enabled=True,
             )
@@ -149,7 +160,7 @@ class TestAnalyzeApi(BaseTest):
             create_response = client.post(
                 self.concat_url("report-items"),
                 json={
-                    "id": f"forged-report-{uuid4()}",
+                    "id": created_report_id,
                     "title": "Forged report",
                     "report_item_type_id": protected_report_type_id,
                     "stories": [],
@@ -160,5 +171,7 @@ class TestAnalyzeApi(BaseTest):
             assert "not allowed to create Report" in create_response.get_json()["error"]
         finally:
             with app.app_context():
+                if ReportItem.get(created_report_id):
+                    ReportItem.delete(created_report_id)
                 if acl_id and RoleBasedAccess.get(acl_id):
                     RoleBasedAccess.delete(acl_id)
