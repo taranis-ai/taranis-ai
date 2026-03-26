@@ -6,10 +6,12 @@ import re
 import shutil
 import subprocess
 import time
+import uuid
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -23,6 +25,58 @@ from tests.playwright.fixtures.test_story_list_enriched import story_list_enrich
 
 FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
 PRODUCTION_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.prod.yml"
+
+
+def _normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
+    normalized = url.strip().rstrip("/")
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError(f"{env_name} must be an absolute URL, got: {url}")
+    return normalized
+
+
+def _external_frontend_base_url() -> str | None:
+    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
+    if not base_url:
+        return None
+    return _normalize_and_validate_absolute_url(base_url, "TARANIS_E2E_EXTERNAL_BASE_URL")
+
+
+def _external_core_api_url() -> str | None:
+    core_url = os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL", "").strip()
+    if not core_url:
+        return None
+    normalized = _normalize_and_validate_absolute_url(core_url, "TARANIS_E2E_EXTERNAL_CORE_URL")
+    return normalized if normalized.endswith("/api") else f"{normalized}/api"
+
+
+def _external_auth_credentials() -> tuple[str, str]:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_USERNAME", "admin")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_PASSWORD", "admin")
+    return username, password
+
+
+def _core_host_from_api_url(core_api_url: str) -> str:
+    parsed = urlsplit(core_api_url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+class ExternalE2EServer:
+    def __init__(self, base_url: str):
+        self._base_url = base_url
+
+    def url(self) -> str:
+        return self._base_url
+
+
+def _login_to_core(core_api_url: str, username: str, password: str):
+    response = requests.post(
+        f"{core_api_url}/auth/login",
+        json={"username": username, "password": password},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response
 
 
 def _selected_core_runtime_mode() -> str:
@@ -80,10 +134,20 @@ def docker_cleanup():
 
 
 @pytest.fixture(scope="session")
-def run_core(docker_services):
+def run_core(request):
     from frontend.config import Config
 
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+
+    if external_core_url := _external_core_api_url():
+        Config.TARANIS_CORE_HOST = _core_host_from_api_url(external_core_url)
+        Config.TARANIS_CORE_URL = external_core_url
+        print(f"Using external Taranis Core for E2E tests: {external_core_url}")
+        _wait_for_server_to_be_alive(f"{external_core_url}/isalive", taranis_core_start_timeout)
+        yield external_core_url
+        return
+
+    docker_services = request.getfixturevalue("docker_services")
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -120,10 +184,35 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(run_core, app, live_server, build_tailwindcss):
+def e2e_server(run_core, app, request):
+    if external_frontend_url := _external_frontend_base_url():
+        print(f"Using external Taranis Frontend for E2E tests: {external_frontend_url}")
+        yield ExternalE2EServer(external_frontend_url)
+        return
+
+    live_server = request.getfixturevalue("live_server")
+    request.getfixturevalue("build_tailwindcss")
     live_server.app = app
     live_server.start()
     yield live_server
+
+
+@pytest.fixture(scope="session")
+def access_token(request):
+    if external_core_url := _external_core_api_url():
+        username, password = _external_auth_credentials()
+        login_response = _login_to_core(external_core_url, username, password)
+        token = login_response.json().get("access_token")
+        if not token:
+            raise RuntimeError("External core login response does not contain 'access_token'")
+        return token
+
+    app = request.getfixturevalue("app")
+    auth_user = request.getfixturevalue("auth_user")
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        return create_access_token(identity=auth_user)
 
 
 @pytest.fixture(scope="session")
@@ -218,7 +307,22 @@ def _dismiss_notifications(page: Page):
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
     cookies: list[dict] = []
-    set_cookie_headers = resp.headers.getlist("Set-Cookie")
+    set_cookie_headers: list[str] = []
+
+    headers = getattr(resp, "headers", None)
+    if headers is not None and hasattr(headers, "getlist"):
+        set_cookie_headers = list(headers.getlist("Set-Cookie"))
+
+    if not set_cookie_headers:
+        raw_headers = getattr(getattr(resp, "raw", None), "headers", None)
+        if raw_headers is not None and hasattr(raw_headers, "getlist"):
+            set_cookie_headers = list(raw_headers.getlist("Set-Cookie"))
+
+    if not set_cookie_headers and headers is not None:
+        header = headers.get("Set-Cookie")
+        if header:
+            set_cookie_headers = [header]
+
     for header in set_cookie_headers:
         c = SimpleCookie()
         c.load(header)
@@ -233,7 +337,7 @@ def _cookies_from_response(resp) -> list[dict]:
 
 
 @pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+def logged_in_page(taranis_frontend: Page, e2e_server, request):
     """
     Returns a Playwright Page whose browser context has the JWT cookies set,
     so any navigation is already authenticated.
@@ -241,7 +345,14 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     page = taranis_frontend
     base_url: str = e2e_server.url()
 
-    cookies = _cookies_from_response(access_token_response)
+    external_core_url = _external_core_api_url()
+    if external_core_url:
+        username, password = _external_auth_credentials()
+        login_response = _login_to_core(external_core_url, username, password)
+        cookies = _cookies_from_response(login_response)
+    else:
+        access_token_response = request.getfixturevalue("access_token_response")
+        cookies = _cookies_from_response(access_token_response)
     context_cookies = []
     context_cookies.extend(
         {
@@ -506,6 +617,12 @@ def stories(run_core, api_header, fake_source, access_token):
     request_responses = []
     for story in cleaned_stories[:36]:
         r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
+        if not r.ok:
+            try:
+                error_payload = r.json()
+            except ValueError:
+                error_payload = r.text
+            raise AssertionError(f"Failed to seed story '{story.get('id')}' via /worker/stories with status {r.status_code}: {error_payload}")
         request_responses.append(r)
 
         # === Story grouping (clustering) logic ===
@@ -785,8 +902,9 @@ def fake_source(app, run_core, access_token):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
+    source_id = f"e2e-source-{uuid.uuid4().hex[:12]}"
     source_data = {
-        "id": "99",
+        "id": source_id,
         "description": "This is a test source",
         "name": "Test Source",
         "parameters": [
@@ -803,6 +921,18 @@ def fake_source(app, run_core, access_token):
     r.raise_for_status()
 
     yield source_data["id"]
+
+    try:
+        delete_response = requests.delete(
+            f"{run_core}/config/osint-sources/{source_data['id']}",
+            headers=headers,
+            params={"force": "true"},
+            timeout=30,
+        )
+        if delete_response.status_code not in {200, 204, 404}:
+            delete_response.raise_for_status()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session")

@@ -15,8 +15,15 @@ The E2E harness starts and stops a dedicated Docker Compose stack for the test s
 Core runtime modes:
 - `fast` (default locally): runs Core from a plain Python container with `src/core` mounted, so code changes are picked up without rebuilding.
 - `production` (default in CI): builds Core from `docker/Containerfile.core` and runs it with Postgres and RabbitMQ sidecars.
+- `external`: run tests against an already running stack (for example smoke-test compose).
 
 Use `TARANIS_E2E_CORE_MODE=fast` or `TARANIS_E2E_CORE_MODE=production` to override.
+For `external` mode set:
+- `TARANIS_E2E_EXTERNAL_BASE_URL` (for example `http://127.0.0.1:8080/frontend`)
+- `TARANIS_E2E_EXTERNAL_CORE_URL` (for example `http://127.0.0.1:8080/api`)
+- `TARANIS_E2E_EXTERNAL_API_KEY` (required when seeding via worker API on external stacks)
+- optional `TARANIS_E2E_EXTERNAL_AUTH_USERNAME` / `TARANIS_E2E_EXTERNAL_AUTH_PASSWORD` (defaults: `admin` / `admin`)
+
 You only need Docker/Compose available locally.
 
 ### Run tests in headful mode

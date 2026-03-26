@@ -1,5 +1,6 @@
 import os
 import subprocess
+from urllib.parse import urlsplit
 
 import pytest
 from dotenv import load_dotenv
@@ -33,6 +34,31 @@ if not current_path.endswith("src/frontend"):
 load_dotenv(dotenv_path=env_file, override=True)
 
 
+def _external_frontend_base_url() -> str | None:
+    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
+    if not base_url:
+        return None
+    return base_url.rstrip("/")
+
+
+def _configure_external_frontend_environment() -> tuple[str, str, str] | None:
+    base_url = _external_frontend_base_url()
+    if not base_url:
+        return None
+
+    parsed = urlsplit(base_url)
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError(f"TARANIS_E2E_EXTERNAL_BASE_URL must be absolute, got: {base_url}")
+
+    application_root = parsed.path.rstrip("/") or "/"
+
+    # Keep local url generation (`url_for(..., _external=True)`) aligned with the external target stack.
+    os.environ["APPLICATION_ROOT"] = application_root
+    os.environ["JWT_COOKIE_SECURE"] = "False"
+
+    return parsed.netloc, application_root, parsed.scheme
+
+
 E2E_OPTION_TO_FILES = {
     "--e2e-ci": {"test_e2e_admin.py", "test_e2e_user.py"},
     "--e2e-admin": {"test_e2e_admin.py"},
@@ -43,16 +69,26 @@ E2E_OPTION_TO_FILES = {
 
 @pytest.fixture(scope="session")
 def app():
+    external_config = _configure_external_frontend_environment()
+
     from frontend.__init__ import create_app
 
     app = create_app()
-    app.config.update(
-        {
-            "TESTING": True,
-            "DEBUG": True,
-            "SERVER_NAME": "localhost",
-        }
-    )
+    app_config = {
+        "TESTING": True,
+        "DEBUG": True,
+        "SERVER_NAME": "localhost",
+    }
+    if external_config:
+        external_server_name, external_application_root, external_scheme = external_config
+        app_config.update(
+            {
+                "SERVER_NAME": external_server_name,
+                "APPLICATION_ROOT": external_application_root,
+                "PREFERRED_URL_SCHEME": external_scheme,
+            }
+        )
+    app.config.update(app_config)
 
     yield app
 
@@ -84,7 +120,11 @@ def access_token(app, auth_user):
 
 @pytest.fixture(scope="session")
 def api_header():
-    return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+    external_api_key = os.getenv("TARANIS_E2E_EXTERNAL_API_KEY", "").strip()
+    api_key = external_api_key or os.getenv("API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing API key for e2e tests (set API_KEY or TARANIS_E2E_EXTERNAL_API_KEY)")
+    return {"Authorization": f"Bearer {api_key}", "Content-type": "application/json"}
 
 
 @pytest.fixture
