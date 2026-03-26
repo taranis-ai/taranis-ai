@@ -1071,7 +1071,8 @@ class Story(BaseModel):
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item, commit=False))
-            cls.update_stories(processed_stories)
+            for story in processed_stories:
+                story.update_status()
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
             db.session.commit()
@@ -1094,11 +1095,12 @@ class Story(BaseModel):
         for story in story_lists:
             if story_id := story.get("id"):
                 if existing_story := cls.get(story_id):
-                    if not force and cls.check_internal_changes(existing_story.to_detail_dict()):
+                    existing_story_data = existing_story.to_detail_dict()
+                    if not force and cls.check_internal_changes(existing_story_data):
                         logger.info(f"Internal changes detected in story {existing_story.id}, story conflict raised.")
                         story["conflict"] = True
                     else:
-                        if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story.to_detail_dict()):
+                        if news_items_to_delete := cls.get_news_items_to_delete(story, existing_story_data):
                             story["news_items_to_delete"] = news_items_to_delete
             else:
                 logger.debug(f"Story does not have an ID: {story}")
@@ -1123,16 +1125,22 @@ class Story(BaseModel):
 
     @classmethod
     def create_from_item(cls, news_item: NewsItem, commit: bool = True) -> str | None:
+        change = "internal"
+        if source_story := cls.get(news_item.story_id):
+            if news_item in source_story.news_items:
+                source_story.news_items.remove(news_item)
+
         new_story = Story(
             title=news_item.title,
             created=news_item.published,
             description=news_item.review or news_item.content,
-            news_items=[news_item.id],
+            news_items=[news_item],
+            last_change=change,
         )
         db.session.add(new_story)
         db.session.flush()
 
-        new_story.update_status()
+        new_story.update_status(change=change)
         new_story.record_revision(note="created")
         if commit:
             db.session.commit()

@@ -222,7 +222,8 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     Returns a Playwright Page whose browser context has the JWT cookies set,
     so any navigation is already authenticated.
     """
-    page = taranis_frontend
+    context = taranis_frontend.context
+    page = context.new_page()
     base_url: str = e2e_server.url()
 
     cookies = _cookies_from_response(access_token_response)
@@ -235,7 +236,7 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
         }
         for c in cookies
     )
-    page.context.add_cookies(context_cookies)
+    context.add_cookies(context_cookies)
 
     _dismiss_notifications(page)
 
@@ -243,6 +244,7 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
         yield page
     finally:
         _dismiss_notifications(page)
+        page.close()
 
 
 @pytest.fixture

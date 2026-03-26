@@ -19,7 +19,7 @@ from core.model.revision import ReportRevision
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.story import Story
 from core.model.user import User
-from core.service.news_item_tag import NewsItemTagService
+from core.service.report_story_sync import ReportStorySyncService
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -42,7 +42,7 @@ class ReportItem(BaseModel):
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False
+        "Story", secondary="report_item_story", cascade="save-update, merge", passive_deletes=True, single_parent=False
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
@@ -98,14 +98,6 @@ class ReportItem(BaseModel):
         if report_item := cls.get(item_id):
             return {"report": {"story_ids": [story.id for story in report_item.stories]}}, 200
         return {"error": "Report Item not found"}, 404
-
-    @staticmethod
-    def recompute_story_relevance(stories: list[Story]) -> None:
-        if not stories:
-            return
-        db.session.flush()
-        for story in {story for story in stories if story is not None}:
-            story.recompute_relevance()
 
     @classmethod
     def get_detail_json(cls, id: str) -> dict[str, Any] | None:
@@ -200,6 +192,8 @@ class ReportItem(BaseModel):
             return None
 
         state = inspect(self)
+        if not state:
+            return None
         if state.deleted or state.detached or self in db.session.deleted:
             return None
 
@@ -244,8 +238,11 @@ class ReportItem(BaseModel):
         if (title := cls._clean_title(data.get("title"))) is None:
             return None, ({"error": "Title is required"}, 400)
 
+        report_item_type_id_raw = data.get("report_item_type_id")
+        if report_item_type_id_raw is None:
+            return None, ({"error": "report_item_type_id is required"}, 400)
         try:
-            report_item_type_id = int(data.get("report_item_type_id"))
+            report_item_type_id = int(report_item_type_id_raw)
         except (TypeError, ValueError):
             return None, ({"error": "report_item_type_id must be an integer"}, 400)
 
@@ -322,21 +319,22 @@ class ReportItem(BaseModel):
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
+        if not sanitized_data:
+            return {"error": "Invalid data"}, 400
 
         report_item = cls.from_dict(sanitized_data)
 
-        if not report_item.allowed_with_acl(user, True):
-            return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
-
         if user:
+            if not report_item.allowed_with_acl(user, True):
+                return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
+
             report_item.user_id = user.id
         report_item.add_attributes()
 
-        if stories := report_item.stories:
-            for story in stories:
-                NewsItemTagService.add_report_tag(story, report_item)
         db.session.add(report_item)
         db.session.flush()
+        if stories := list(report_item.stories):
+            ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
         report_item.record_revision(user, note="created")
         db.session.commit()
         return report_item, 200
@@ -448,11 +446,10 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        stories = Story.get_bulk(story_ids)
+        existing_story_ids = {story.id for story in report_item.stories}
+        stories = [story for story in Story.get_bulk(story_ids) if story.id not in existing_story_ids]
         report_item.stories.extend(stories)
-        for story in stories:
-            NewsItemTagService.add_report_tag(story, report_item)
-        cls.recompute_story_relevance(stories)
+        ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
         report_item.record_revision(user, note="add_stories")
         db.session.commit()
 
@@ -466,11 +463,8 @@ class ReportItem(BaseModel):
             return err, status
 
         stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
-        for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, report_item.id)
-
         report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
-        cls.recompute_story_relevance(stories_to_remove)
+        ReportStorySyncService.sync_report_membership(report_item, stories_to_remove, "detach")
         report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
@@ -493,20 +487,17 @@ class ReportItem(BaseModel):
 
         # Add new stories and their tags
         for story in stories_to_add:
-            NewsItemTagService.add_report_tag(story, self)
             self.stories.append(story)
 
         # Remove old stories and their tags
         for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, self.id)
             self.stories.remove(story)
 
-        ReportItem.recompute_story_relevance(stories_to_add + stories_to_remove)
+        ReportStorySyncService.sync_report_membership(self, stories_to_add, "attach")
+        ReportStorySyncService.sync_report_membership(self, stories_to_remove, "detach")
 
     def retag_stories(self):
-        for story in self.stories:
-            NewsItemTagService.remove_report_tag(story, self.id)
-            NewsItemTagService.add_report_tag(story, self)
+        ReportStorySyncService.sync_report_membership(self, self.stories, "retag")
 
     @classmethod
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
@@ -564,13 +555,24 @@ class ReportItem(BaseModel):
             return {"error": "Report is used in a product"}, 409
 
         affected_stories = list(report.stories)
-        for story in affected_stories:
-            NewsItemTagService.remove_report_tag(story, report.id)
+        report.stories = []
+        ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
         db.session.delete(report)
-        db.session.flush()
-        cls.recompute_story_relevance(affected_stories)
         db.session.commit()
         return {"message": f"Successfully deleted report '{report.title}'"}, 200
+
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        reports = list(db.session.execute(db.select(cls)).scalars())
+        for report in reports:
+            affected_stories = list(report.stories)
+            report.stories = []
+            ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
+            db.session.delete(report)
+
+        db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
+        return {"message": f"All {cls.__name__} deleted"}, 200
 
 
 class ReportItemAttribute(BaseModel):
