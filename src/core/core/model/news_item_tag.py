@@ -31,7 +31,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
-        query = db.select(cls.name, cls.tag_type)
+        query = db.select(cls.name, cls.tag_type).where(cls.tag_type.not_ilike("report_%"))
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -49,6 +49,10 @@ class NewsItemTag(BaseModel):
         query = query.offset(offset).limit(limit)
         result = db.session.execute(query).tuples()
         return {name: tag_type for name, tag_type in result}
+
+    @classmethod
+    def get_all_for_collector(cls):
+        return cls.get_filtered(db.select(cls).where(cls.tag_type.not_ilike("report_%")))
 
     @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:

@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 
 from tests.functional.helpers import BaseTest
@@ -84,6 +86,78 @@ class TestAnalyzeApi(BaseTest):
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
         assert response.json["message"] == "Successfully deleted report 'Updated Report Title'"
+
+    def test_create_report_with_initial_stories_updates_story_tags_and_relevance(self, app, cleanup_report_item, stories):
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = "report-with-initial-stories"
+        report_payload["title"] = "Report With Initial Stories"
+        report_payload["stories"] = stories[:2]
+
+        with app.app_context():
+            report, status = ReportItem.add(report_payload)
+            assert status == 200
+            assert report.id == report_payload["id"]
+
+            for story_id in stories[:2]:
+                story = Story.get(story_id)
+                assert story is not None
+                assert any(tag.tag_type == f"report_{report_payload['id']}" for tag in story.tags)
+                assert story.relevance_feedback == 3
+                assert story.relevance == story.relevance_source + 3 + (story.relevance_override or 0)
+
+    def test_delete_all_reports_cleans_story_tags_and_keeps_stories(self, app, cleanup_report_item, stories):
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = "report-delete-all-cleanup"
+        report_payload["title"] = "Report Delete All Cleanup"
+        report_payload["stories"] = stories[:1]
+
+        with app.app_context():
+            report, status = ReportItem.add(report_payload)
+            assert status == 200
+            assert report.id == report_payload["id"]
+
+            story_before_delete = Story.get(stories[0])
+            assert story_before_delete is not None
+            assert story_before_delete.relevance_feedback == 3
+
+            result, delete_status = ReportItem.delete_all()
+            assert delete_status == 200
+            assert result["message"] == "All ReportItem deleted"
+
+            story_after_delete = Story.get(stories[0])
+            assert story_after_delete is not None
+            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story_after_delete.tags)
+            assert story_after_delete.relevance_feedback == 0
+            assert story_after_delete.relevance == story_after_delete.relevance_source + (story_after_delete.relevance_override or 0)
+
+    def test_delete_report_keeps_attached_stories(self, app, cleanup_report_item, stories):
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = "report-delete-keeps-stories"
+        report_payload["title"] = "Report Delete Keeps Stories"
+        report_payload["stories"] = stories[:1]
+
+        with app.app_context():
+            report, status = ReportItem.add(report_payload)
+            assert status == 200
+            assert report.id == report_payload["id"]
+
+            result, delete_status = ReportItem.delete(report.id)
+            assert delete_status == 200
+            assert result["message"] == "Successfully deleted report 'Report Delete Keeps Stories'"
+
+            story = Story.get(stories[0])
+            assert story is not None
+            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story.tags)
+            assert story.relevance_feedback == 0
 
     def test_get_report_item_passes_current_user_for_acl_check(self, client, auth_header, monkeypatch):
         captured_args: dict[str, object] = {}

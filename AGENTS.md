@@ -71,6 +71,8 @@ See .github/workflows for how tests are configured in CI.
 
 **Important Notes:**
 - You must run commands separately in each src directory to ensure all dependencies are installed
+- For `src/core` migration work, first launch core once so it bootstraps the current database state; only after that should you apply migrations
+- If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
 - E2E tests require the application to be running (they start their own test server)
 - Tests are located in each component's `tests/` directory
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass

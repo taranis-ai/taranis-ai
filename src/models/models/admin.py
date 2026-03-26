@@ -225,12 +225,21 @@ class OSINTSource(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
+    rank: int = Field(default=0, ge=0, le=5)
     type: COLLECTOR_TYPES | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
     enabled: bool | None = True
     status: TaskResult | None = None
+
+
+class OSINTSourceUpdateModel(TaranisBaseModel):
+    name: str | None = None
+    description: str | None = None
+    rank: int | None = Field(default=None, ge=0, le=5)
+    parameters: dict[str, str] | None = None
+    icon: str | None = None
 
 
 class OSINTSourceGroup(TaranisBaseModel):

@@ -2,12 +2,12 @@ import contextlib
 import hashlib
 import re
 from datetime import datetime, timezone
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from urllib.parse import quote
 
+import language_tags
 from bs4 import BeautifulSoup
-from pydantic import ValidationInfo, field_validator, model_validator
-from pydantic_extra_types.language_code import LanguageAlpha2
+from pydantic import BeforeValidator, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
 
@@ -29,6 +29,19 @@ def _normalize_datetime(value: str | datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def validate_bcp47(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError("BCP47 language tag must be a string")
+    if not language_tags.tags.check(value):
+        raise ValueError(f"Invalid BCP 47 language tag: {value}")
+    return value
+
+
+BCP47 = Annotated[str | None, BeforeValidator(validate_bcp47)]
+
+
 class NewsItem(TaranisBaseModel):
     _core_endpoint = "/assess/news-items"
 
@@ -46,7 +59,7 @@ class NewsItem(TaranisBaseModel):
     updated: datetime | None = None
     attributes: list[str | dict[str, Any]] | None = None
     story_id: str | None = None
-    language: LanguageAlpha2 | None = None
+    language: BCP47 = None
     last_change: str | None = None
 
     @model_validator(mode="before")
@@ -139,6 +152,7 @@ class Story(TaranisBaseModel):
     user_vote: Literal["like", "dislike", "", None] = None
     summary: str | None = None
     relevance: int | None = None
+    relevance_override: int | None = None
     comments: str | None = None
     in_reports_count: int | None = None
     tags: list[dict[str, Any]] | None = None

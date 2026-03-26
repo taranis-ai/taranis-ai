@@ -16,10 +16,9 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "pydantic",
-    "pydantic-extra-types",
     "pydantic-settings",
     "python-dotenv",
-    "pycountry",
+    "language-tags",
     "requests",
     "beautifulsoup4",
     "lxml"

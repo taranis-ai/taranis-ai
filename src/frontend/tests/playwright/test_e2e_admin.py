@@ -70,7 +70,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Create news item").click()
 
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
-        expect(page.locator("#notification-bar")).to_contain_text("Invalid language alpha2 code")
+        expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
         expect(page.locator("#news-item-form")).to_be_visible()
         self.dismiss_notification_if_visible(page)
 
@@ -300,6 +300,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_label("Name")).to_have_attribute("required", "")
             page.get_by_label("Name").fill(osint_source_name)
             page.get_by_label("Description").fill("Test description of an OSINT source")
+            page.locator('input[name="rank"][value="4"]').check()
             feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
             self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
             expect(feed_url_input).to_have_attribute("required", "")
@@ -312,6 +313,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
+            expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()
+            form.locator('input[name="rank"][value="2"]').check()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
             expect(feed_url_input).to_have_attribute("required", "")
             feed_url_input.fill("http://example.com/updated-feed-url")
@@ -324,6 +327,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
+            expect(form.locator('input[name="rank"][value="2"]')).to_be_checked()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
             form.evaluate("form => { form.noValidate = true; }")
@@ -1106,18 +1110,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(story_conflict_input).to_have_value("20")
             expect(news_conflict_input).to_have_value("21")
 
-        def revert_to_default_values():
-            page.goto(url_for("admin_settings.settings", _external=True))
-            tlp_select.select_option("clear")
-            collector_proxy_input.fill("")
-            expect(collector_interval_input).to_be_visible()
-            collector_interval_input.fill("0 */8 * * *")
-            story_conflict_input.fill("200")
-            news_conflict_input.fill("200")
-            with page.expect_response(settings_update_url) as response_info:
-                settings_submit.click()
-            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
-
         def test_export_all_stories(story_list):
             export_btn = page.get_by_test_id("story-export-button")
             export_all_btn = page.get_by_test_id("story-export-dialog-button")
@@ -1267,6 +1259,18 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
             expect(imported_story).to_be_visible()
 
+        def revert_to_default_values():
+            page.goto(url_for("admin_settings.settings", _external=True))
+            tlp_select.select_option("clear")
+            collector_proxy_input.fill("")
+            expect(collector_interval_input).to_be_visible()
+            collector_interval_input.fill("0 */8 * * *")
+            story_conflict_input.fill("200")
+            news_conflict_input.fill("200")
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
         def test_clear_cache() -> None:
             page.goto(url_for("admin_settings.settings", _external=True))
             page.get_by_role("button", name="Invalidate Cache").click()
@@ -1278,8 +1282,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
         import_stories_from_json()
-        test_clear_cache()
         revert_to_default_values()
+        test_clear_cache()
 
     def test_open_api(self, logged_in_page: Page):
         page = logged_in_page

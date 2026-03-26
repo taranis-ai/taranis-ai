@@ -163,7 +163,7 @@ def setup_test_templates(run_core, access_token):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
@@ -222,7 +222,8 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     Returns a Playwright Page whose browser context has the JWT cookies set,
     so any navigation is already authenticated.
     """
-    page = taranis_frontend
+    context = taranis_frontend.context
+    page = context.new_page()
     base_url: str = e2e_server.url()
 
     cookies = _cookies_from_response(access_token_response)
@@ -235,7 +236,7 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
         }
         for c in cookies
     )
-    page.context.add_cookies(context_cookies)
+    context.add_cookies(context_cookies)
 
     _dismiss_notifications(page)
 
@@ -243,6 +244,7 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
         yield page
     finally:
         _dismiss_notifications(page)
+        page.close()
 
 
 @pytest.fixture
@@ -773,9 +775,7 @@ def fake_source(app, run_core, access_token):
         "id": "99",
         "description": "This is a test source",
         "name": "Test Source",
-        "parameters": [
-            {"FEED_URL": "https://url/feed.xml"},
-        ],
+        "parameters": {"FEED_URL": "https://url/feed.xml"},
         "type": "rss_collector",
     }
 

@@ -395,12 +395,12 @@ class TestOSINTSourceScheduling:
         with app.app_context():
             from core.model.osint_source import OSINTSource
 
-            params = [
-                {"FEED_URL": "https://example.org/feed.xml"},
-                {"USE_GLOBAL_PROXY": "true" if use_global else "false"},
-            ]
+            params = {
+                "FEED_URL": "https://example.org/feed.xml",
+                "USE_GLOBAL_PROXY": "true" if use_global else "false",
+            }
             if per_source_proxy_set:
-                params.append({"PROXY_SERVER": per_proxy})
+                params["PROXY_SERVER"] = per_proxy
 
             source_data = {
                 "id": source_id,
