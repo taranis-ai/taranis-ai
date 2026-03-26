@@ -22,7 +22,7 @@ steps = [
             ), 0)
             + COALESCE(likes, 0)
             - COALESCE(dislikes, 0)
-            + CASE WHEN COALESCE(important, 0) THEN 3 ELSE 0 END
+            + CASE WHEN important IS TRUE THEN 3 ELSE 0 END
             + CASE
                 WHEN EXISTS (
                     SELECT 1
