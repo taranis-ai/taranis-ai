@@ -25,6 +25,7 @@ from tests.playwright.fixtures.test_story_list_enriched import story_list_enrich
 
 FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
 PRODUCTION_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.prod.yml"
+LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
 
 
 def _normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
@@ -56,9 +57,89 @@ def _external_auth_credentials() -> tuple[str, str]:
     return username, password
 
 
+def _external_non_admin_auth_credentials() -> tuple[str, str] | None:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME", "").strip()
+    password = os.getenv("TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD", "").strip()
+
+    if not username and not password:
+        return None
+    if not username or not password:
+        raise RuntimeError(
+            "Set both TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME and TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD or neither."
+        )
+    return username, password
+
+
 def _core_host_from_api_url(core_api_url: str) -> str:
     parsed = urlsplit(core_api_url)
     return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _allow_requests_passthru(url: str | None = None) -> None:
+    responses.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
+    if not url:
+        return
+
+    parsed = urlsplit(url)
+    if parsed.scheme and parsed.netloc:
+        responses.add_passthru(f"{parsed.scheme}://{parsed.netloc}")
+
+
+def _resolve_external_non_admin_role_id(core_api_url: str, headers: dict[str, str]) -> int:
+    response = requests.get(f"{core_api_url}/config/roles?limit=300", headers=headers, timeout=30)
+    response.raise_for_status()
+    roles = response.json().get("items", [])
+
+    user_role = next((role for role in roles if role.get("name", "").strip().lower() == "user"), None)
+    if user_role and user_role.get("id"):
+        return int(user_role["id"])
+
+    fallback_role = next((role for role in roles if role.get("name", "").strip().lower() != "admin"), None)
+    if fallback_role and fallback_role.get("id"):
+        return int(fallback_role["id"])
+
+    raise RuntimeError("Could not resolve a non-admin role from external core")
+
+
+def _resolve_external_organization_id(core_api_url: str, headers: dict[str, str]) -> int:
+    response = requests.get(f"{core_api_url}/config/organizations?limit=1", headers=headers, timeout=30)
+    response.raise_for_status()
+    organizations = response.json().get("items", [])
+    if not organizations or not organizations[0].get("id"):
+        raise RuntimeError("Could not resolve an organization from external core")
+    return int(organizations[0]["id"])
+
+
+def _provision_external_non_admin_user(core_api_url: str, admin_access_token: str) -> tuple[str, str, int]:
+    _allow_requests_passthru(core_api_url)
+    headers = {"Authorization": f"Bearer {admin_access_token}", "Content-type": "application/json"}
+
+    role_id = _resolve_external_non_admin_role_id(core_api_url, headers)
+    organization_id = _resolve_external_organization_id(core_api_url, headers)
+
+    username = f"e2e-non-admin-{uuid.uuid4().hex[:10]}"
+    password = f"e2e-{uuid.uuid4().hex[:16]}"
+    payload = {
+        "username": username,
+        "name": "E2E Non Admin",
+        "password": password,
+        "organization": organization_id,
+        "roles": [role_id],
+    }
+    response = requests.post(f"{core_api_url}/config/users", headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    user_id = response.json().get("id")
+    if not user_id:
+        raise RuntimeError("External core user creation response did not contain 'id'")
+    return username, password, int(user_id)
+
+
+def _delete_external_user(core_api_url: str, admin_access_token: str, user_id: int) -> None:
+    _allow_requests_passthru(core_api_url)
+    headers = {"Authorization": f"Bearer {admin_access_token}"}
+    response = requests.delete(f"{core_api_url}/config/users/{user_id}", headers=headers, timeout=30)
+    if response.status_code not in {200, 204, 404}:
+        response.raise_for_status()
 
 
 class ExternalE2EServer:
@@ -70,6 +151,7 @@ class ExternalE2EServer:
 
 
 def _login_to_core(core_api_url: str, username: str, password: str):
+    _allow_requests_passthru(core_api_url)
     response = requests.post(
         f"{core_api_url}/auth/login",
         json={"username": username, "password": password},
@@ -89,8 +171,7 @@ def _selected_core_runtime_mode() -> str:
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(url)
 
     deadline = time.monotonic() + timeout_seconds
 
@@ -384,14 +465,31 @@ def logged_in_page(taranis_frontend: Page, e2e_server, request):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic, request):
+    external_core_url = _external_core_api_url()
+    created_external_user_id: int | None = None
+    admin_access_token: str | None = None
+
+    if external_core_url:
+        non_admin_auth_credentials = _external_non_admin_auth_credentials()
+        if non_admin_auth_credentials:
+            username, password = non_admin_auth_credentials
+        else:
+            admin_access_token = request.getfixturevalue("access_token")
+            username, password, created_external_user_id = _provision_external_non_admin_user(external_core_url, admin_access_token)
+        token_response = _login_to_core(external_core_url, username, password)
+    else:
+        token_response = access_token_response_basic
+
+    page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
 
     try:
         yield page
     finally:
         _dismiss_notifications(page)
         page.close()
+        if external_core_url and created_external_user_id and admin_access_token:
+            _delete_external_user(external_core_url, admin_access_token, created_external_user_id)
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
@@ -465,14 +563,14 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 422 \(Unprocessable Entity\)",
         ],
     )
 
 
 @pytest.fixture(scope="session")
 def stories_date_descending_important(run_core, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -485,8 +583,7 @@ def stories_date_descending_important(run_core, access_token):
 
 @pytest.fixture(scope="session")
 def stories_relevance_descending(run_core, stories_date_descending, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {"Authorization": f"Bearer {access_token}"}
     stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=relevance", headers=headers).json().get("items", [])
@@ -495,8 +592,7 @@ def stories_relevance_descending(run_core, stories_date_descending, access_token
 
 @pytest.fixture(scope="session")
 def stories_date_descending(run_core, stories_session_wrapper, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {"Authorization": f"Bearer {access_token}"}
 
     story_ids = []
@@ -511,8 +607,7 @@ def stories_date_descending(run_core, stories_session_wrapper, access_token):
 
 @pytest.fixture(scope="session")
 def stories_date_descending_not_important(run_core, stories_session_wrapper, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {"Authorization": f"Bearer {access_token}"}
     story_ids = []
     s = requests.get(f"{run_core}/assess/stories?important=false&limit=50", headers=headers).json()
@@ -561,8 +656,7 @@ def stories(run_core, api_header, fake_source, access_token):
     defined in story_item_list (only keeping relevant keys and nested keys),
     and yields the cleaned list.
     """
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     story_json = os.path.join(dir_path, "test_stories.json")
@@ -718,8 +812,7 @@ def stories(run_core, api_header, fake_source, access_token):
 
 @pytest.fixture(scope="module")
 def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
@@ -749,8 +842,7 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
 
 @pytest.fixture(scope="session")
 def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noqa: F811
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     print("Pre-seeding stories via assess API")
     for story in story_list_enriched:
@@ -762,8 +854,7 @@ def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noq
 
 @pytest.fixture(scope="session")
 def pre_seed_report_stories(story_item_list, run_core, api_header, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     print("Pre-seeding stories via worker API")
 
@@ -797,8 +888,7 @@ ALL_ATTRIBUTE_TYPES = {
 
 def pre_seed_report_type(report_definition, access_token, run_core):
     headers = {"Authorization": f"Bearer {access_token}"}
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
     r.raise_for_status()
@@ -864,8 +954,7 @@ def test_osint_icon_png(testdata_dir):
 
 @pytest.fixture
 def test_batch_osint_sources(run_core, access_token, testdata_dir):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -938,8 +1027,7 @@ def report_item_dict(story_item_list):
 
 @pytest.fixture(scope="session")
 def fake_source(app, run_core, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     source_id = f"e2e-source-{uuid.uuid4().hex[:12]}"
     source_data = {

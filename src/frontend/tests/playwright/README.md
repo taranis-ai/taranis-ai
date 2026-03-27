@@ -23,6 +23,7 @@ For `external` mode set:
 - `TARANIS_E2E_EXTERNAL_CORE_URL` (for example `http://127.0.0.1:8080/api`)
 - `TARANIS_E2E_EXTERNAL_API_KEY` (required when seeding via worker API on external stacks)
 - optional `TARANIS_E2E_EXTERNAL_AUTH_USERNAME` / `TARANIS_E2E_EXTERNAL_AUTH_PASSWORD` (defaults: `admin` / `admin`)
+- optional `TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME` / `TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD` (if omitted, tests provision a temporary non-admin user via API)
 
 You only need Docker/Compose available locally.
 
