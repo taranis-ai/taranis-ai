@@ -54,16 +54,33 @@ Focus:
 
 ## Manual Validation
 
-Start the stack with one supported workflow:
-- `./dev/start_dev.sh`
-- manual service startup without tmux
-- manual tmux workflow from `dev/README.md`
+Run manual cutover checks in both environments below.
 
-Then verify:
+### Local Dev Validation
+
+Assumption:
+- use `./dev/start_dev.sh`
+
+Bootstrap:
+
+```bash
+./dev/start_dev.sh
+```
+
+Expected local processes after startup:
+- support services from `dev/compose.yml`
+- `core`
+- `frontend`
+- `worker`
+- `cron`
+- optional `rq-dashboard`
+
+Verify:
 
 1. Health and readiness
 - `GET /api/health` reports `database`, `seed_data`, `broker`, and `workers` correctly
 - `GET /api/isalive` stays green during startup and restart loops
+- the admin dashboard renders the merged health payload without errors
 
 2. OSINT source scheduling
 - create a scheduled source and confirm an entry appears in `rq:cron:def`
@@ -90,16 +107,69 @@ Then verify:
 - retry after fixing the cause and confirm the next run succeeds
 
 6. Scheduler resilience
-- stop the cron scheduler process only
+- stop only the `cron` process
 - confirm schedule inspection still shows configured jobs
-- confirm execution resumes after restarting the cron scheduler
-- restart workers independently and confirm no duplicate cron executions occur
+- confirm execution resumes after restarting `cron`
+- restart the worker process independently and confirm no duplicate cron executions occur
 
-7. Migration cutover checks
-- stop Celery/RabbitMQ-era services and confirm the application still operates with Redis/RQ only
-- confirm rollback is a code/config rollback, not broker-state migration
+### Server Docker Cutover Validation
 
-## Redis Checks
+Assumption:
+- the target environment is Docker-based
+
+Target runtime services:
+- `ingress`
+- `core`
+- `frontend`
+- `database`
+- `redis`
+- `collector`
+- `workers`
+- `cron`
+
+Pre-cutover checks:
+- capture the current image tags and environment values
+- confirm database backup/restore is available
+- confirm Redis is configured for the new stack
+- identify and stop any legacy Celery/RabbitMQ services before enabling the RQ stack
+
+Bring-up checks:
+
+```bash
+docker compose ps
+docker compose logs --tail 200 core workers collector cron redis
+```
+
+Verify:
+
+1. Container and API health
+- `core`, `collector`, `workers`, `cron`, and `redis` become healthy
+- `GET /api/health` reports `database=up`, `seed_data=up`, `broker=up`, and `workers=up`
+- ingress and frontend reach the core API successfully
+
+2. Scheduling and Redis state
+- create or update one OSINT source and one bot through the running stack
+- confirm Redis inside the deployment contains the matching `rq:cron:def` and `rq:cron:next` entries
+- confirm deletes remove both entries
+
+3. Task processing
+- trigger one collector job and confirm it is processed by `collector`
+- trigger one bot, one presenter, and one publisher job and confirm they are processed by `workers`
+- confirm task results are visible through the API and admin UI
+
+4. Restart and failover behavior
+- restart `cron` only and confirm schedule inspection still works while execution pauses
+- restart `workers` only and confirm queues recover normally
+- confirm only one active cron leader exists after restart
+
+5. Migration cutover behavior
+- verify the stack runs without Celery, APScheduler, or RabbitMQ services
+- verify rollback is code/config rollback, not queued-job migration
+- verify no operational runbook still points to RabbitMQ or Celery commands
+
+### Shared Redis Checks
+
+Use these during both local and server validation.
 
 Useful commands during manual verification:
 
@@ -113,6 +183,14 @@ Expected behavior:
 - configured cron jobs exist in `rq:cron:def`
 - scheduled next-run timestamps exist in `rq:cron:next`
 - updates and deletes emit entries in `rq:cron:events`
+
+If Redis only exists inside Docker, use:
+
+```bash
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" HGETALL rq:cron:def
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" ZRANGE rq:cron:next 0 -1 WITHSCORES
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" XLEN rq:cron:events
+```
 
 ## Exit Criteria
 
