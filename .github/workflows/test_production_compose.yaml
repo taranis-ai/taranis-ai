@@ -21,7 +21,8 @@ jobs:
       - name: Start docker compose for last commit
         working-directory: docker
         env:
-          DEBUG: "false"
+          DEBUG: "true"
+          WORKER_TYPES: '["Presenters","Publishers"]'
         run: |
           cp env.sample .env
           docker compose pull rabbitmq sse database
@@ -61,7 +62,7 @@ jobs:
         working-directory: docker
         env:
           DEBUG: "false"
-        run: docker compose logs core
+        run: docker compose -f compose.yml -f smoke-test.compose.override.yml logs core
 
       - name: Stop docker compose
         if: ${{ always() }}
@@ -69,4 +70,4 @@ jobs:
         env:
           DEBUG: "false"
         run: |
-          docker compose down
+          docker compose -f compose.yml -f smoke-test.compose.override.yml down
