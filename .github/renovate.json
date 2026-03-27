@@ -23,5 +23,8 @@
       "packageNameTemplate": "{{{packageName}}}",
       "versioningTemplate": "npm"
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  }
 }
