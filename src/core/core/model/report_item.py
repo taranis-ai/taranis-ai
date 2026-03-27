@@ -112,27 +112,16 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
-        filter_args = filter_args or {}
-        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        if user:
-            base_query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            base_query = cls.get_filter_query(filter_args)
-        query = base_query
-        if not cls._should_fetch_all(filter_args):
-            query = cls._add_paging_to_query(filter_args, query)
-        query = cls._add_sorting_to_query(filter_args, query)
-        items = cls.get_filtered(query) or []
-        item_list = cls.to_list(items)
-        if filter_args.get("order") == "stories_asc":
-            item_list.sort(key=lambda x: len(x.get("stories", [])))
-        elif filter_args.get("order") == "stories_desc":
-            item_list.sort(key=lambda x: len(x.get("stories", [])), reverse=True)
+        filter_args = dict(filter_args or {})
 
-        if with_count:
-            count = cls.get_filtered_count(base_query)
-            return {"total_count": count, "items": item_list}, 200
-        return {"items": item_list}, 200
+        response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
+        items = response.get("items", [])
+        if filter_args.get("order") == "stories_asc":
+            items.sort(key=lambda item: len(item.get("stories", [])))
+        elif filter_args.get("order") == "stories_desc":
+            items.sort(key=lambda item: len(item.get("stories", [])), reverse=True)
+
+        return response, status_code
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
         return [attribute.to_report_dict() for attribute in self.attributes]
