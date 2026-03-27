@@ -221,14 +221,14 @@ class TestSourcesConfigApi(BaseTest):
             "id": rss_source_id,
             "name": f"Visible Source {unique_suffix}",
             "description": "Collector that should remain visible",
-            "parameters": [{"FEED_URL": "https://example.invalid/feed.xml"}],
+            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
             "type": "rss_collector",
         }
         manual_source = {
             "id": manual_source_id,
             "name": f"Visible Source {unique_suffix}",
             "description": "Collector that should be hidden by default",
-            "parameters": [],
+            "parameters": {},
             "type": "manual_collector",
         }
 
@@ -262,14 +262,14 @@ class TestSourcesConfigApi(BaseTest):
                 "id": failure_source_id,
                 "name": f"Status Ordered Source {unique_suffix}",
                 "description": "Failure source",
-                "parameters": [{"FEED_URL": "https://example.invalid/failure.xml"}],
+                "parameters": {"FEED_URL": "https://example.invalid/failure.xml"},
                 "type": "rss_collector",
             },
             {
                 "id": success_source_id,
                 "name": f"Status Ordered Source {unique_suffix}",
                 "description": "Success source",
-                "parameters": [{"FEED_URL": "https://example.invalid/success.xml"}],
+                "parameters": {"FEED_URL": "https://example.invalid/success.xml"},
                 "type": "rss_collector",
             },
         ]
