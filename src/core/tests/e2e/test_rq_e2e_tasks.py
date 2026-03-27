@@ -6,6 +6,7 @@ import socket
 import subprocess
 import threading
 import time
+import uuid
 from collections.abc import Generator
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -643,25 +644,26 @@ def test_rq_scheduled_wordlist_bot_cron(
 ) -> None:
     token = _login(core_process)
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    story_suffix = uuid.uuid4().hex
 
     # Ensure a story exists with a matching word for the bot to tag.
     story_resp = requests.post(
         f"{core_process}/assess/news-items",
         headers=headers,
         json={
-            "title": "E2E Story with alpha",
+            "title": f"E2E Story with alpha {story_suffix}",
             "source": "e2e",
             "content": "This story contains alpha to be tagged.",
             "review": "",
             "author": "e2e",
-            "link": "http://example.local/story",
+            "link": f"http://example.local/story/{story_suffix}",
             "language": "en",
             "published": "2026-02-09T12:00:00",
             "collected": "2026-02-09T12:00:00",
         },
         timeout=5,
     )
-    story_resp.raise_for_status()
+    assert story_resp.ok, f"Failed to create manual story: status={story_resp.status_code}, body={story_resp.text}"
 
     # Create a word list used by the tagging bot and populate it.
     wordlist_resp = requests.post(
