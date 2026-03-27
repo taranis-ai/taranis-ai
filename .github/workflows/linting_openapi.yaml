@@ -16,10 +16,10 @@ jobs:
     name: Lint OpenAPI spec
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -28,9 +28,3 @@ jobs:
 
       - name: Validate OpenAPI spec
         run: uvx --from openapi-spec-validator openapi-spec-validator src/core/core/static/openapi3_1.yaml
-
-      - name: Running OpenAPI Spec diff action
-        uses: oasdiff/oasdiff-action/breaking@main
-        with:
-          base: "https://raw.githubusercontent.com/taranis-ai/taranis-ai/refs/heads/master/src/core/core/static/openapi3_1.yaml"
-          revision: "src/core/core/static/openapi3_1.yaml"

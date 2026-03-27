@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get tag name
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -34,7 +34,7 @@ jobs:
           git tag -l --format='%(contents)' ${{ env.TAG }} >> ${{ runner.temp }}/release_body.md
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -79,28 +79,28 @@ jobs:
           done
 
       - name: Attest taranis-core
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/taranis-core
           subject-digest: ${{ env.DIGEST_taranis_core }}
           push-to-registry: true
 
       - name: Attest taranis-worker
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/taranis-worker
           subject-digest: ${{ env.DIGEST_taranis_worker }}
           push-to-registry: true
 
       - name: Attest taranis-ingress
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/taranis-ingress
           subject-digest: ${{ env.DIGEST_taranis_ingress }}
           push-to-registry: true
 
       - name: Attest taranis-frontend
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/taranis-frontend
           subject-digest: ${{ env.DIGEST_taranis_frontend }}
@@ -114,7 +114,7 @@ jobs:
           gh run download $run_id -n taranis_core_sbom.json -D ${{ runner.temp }}
 
       - name: Release
-        uses: softprops/action-gh-release@v2.0.6
+        uses: softprops/action-gh-release@v2.6.1
         with:
           generate_release_notes: true
           append_body: true
