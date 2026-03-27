@@ -1,5 +1,7 @@
 # Taranis AI Development setup
 
+Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json).
+
 ## Easy Mode
 
 Clone Repository
