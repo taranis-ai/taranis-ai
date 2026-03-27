@@ -13,9 +13,8 @@ def fake_source(app):
             "id": "99",
             "description": "This is a test source",
             "name": "Test Source",
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
+            "rank": 0,
+            "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
         source_id = source_data["id"]
@@ -26,6 +25,30 @@ def fake_source(app):
         yield source_id
 
         OSINTSource.delete(source_id)
+
+
+@pytest.fixture(scope="class")
+def ranked_source(app):
+    with app.app_context():
+        from core.model.osint_source import OSINTSource
+
+        source_data = {
+            "id": "source-rank-4",
+            "description": "Ranked source",
+            "name": "Ranked Source",
+            "rank": 4,
+            "parameters": {"FEED_URL": "https://ranked.example/feed.xml"},
+            "type": "rss_collector",
+        }
+
+        if existing_source := OSINTSource.get(source_data["id"]):
+            OSINTSource.update(existing_source.id, {"rank": source_data["rank"]})
+        else:
+            OSINTSource.add(source_data)
+
+        yield source_data["id"]
+
+        OSINTSource.delete(source_data["id"])
 
 
 @pytest.fixture(scope="class")
@@ -86,15 +109,62 @@ def cleanup_news_item(fake_source):
     news_item = {
         "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebb",
         "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c87",
-        "title": "Test News Item 13",
+        "title": "<b>Test News Item 13</b>",
         "review": "CVE-2020-1234 - Test Story 1",
         "author": "John Doe",
-        "source": "https://url/13",
-        "link": "https://url/13",
-        "content": "CVE-2020-1234 - Test Story 1",
-        "collected": "2023-08-01T17:01:04.802015",
-        "published": "2023-08-01T17:01:04.801998",
+        "source": "manual submission",
+        "link": "https://url/13 path?q=a b",
+        "content": "<p>CVE-2020-1234 - Test Story 1</p>",
+        "collected": "2023-08-01T17:01:04.802015+02:00",
+        "published": "2023-08-01T17:01:04.801998+02:00",
+        "updated": "2024-01-02T03:04:05+02:00",
         "osint_source_id": fake_source,
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
+@pytest.fixture
+def cleanup_ranked_news_item(ranked_source):
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebc",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c88",
+        "title": "Ranked News Item",
+        "review": "Ranked source story",
+        "author": "Jane Doe",
+        "source": "https://url/ranked",
+        "link": "https://url/ranked",
+        "content": "Ranked source story",
+        "collected": "2023-08-02T17:01:04.802015",
+        "published": "2023-08-02T17:01:04.801998",
+        "osint_source_id": ranked_source,
+    }
+
+    yield news_item
+
+    NewsItem.delete(news_item["id"])
+
+
+@pytest.fixture
+def cleanup_manual_news_item():
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebd",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c89",
+        "title": "Manual News Item",
+        "review": "Manual source story",
+        "author": "Analyst",
+        "source": "manual",
+        "link": "https://url/manual",
+        "content": "Manual source story",
+        "collected": "2023-08-03T17:01:04.802015",
+        "published": "2023-08-03T17:01:04.801998",
+        "osint_source_id": "manual",
     }
 
     yield news_item
@@ -138,6 +208,123 @@ def stories(app, news_items):
         StoryNewsItemAttribute.delete_all()
         NewsItem.delete_all()
         Story.delete_all()
+
+
+@pytest.fixture(scope="class")
+def story_filter_data(app, stories, fake_source, cleanup_report_item):
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.news_item import NewsItem
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+        from core.model.report_item import ReportItem
+        from core.model.story import Story, StoryNewsItemAttribute
+
+        extra_source = OSINTSource(
+            id="story-filter-source-extra",
+            name="Story Filter Extra Source",
+            description="Additional source for story filter tests",
+            type="rss_collector",
+            parameters={"FEED_URL": "https://example.invalid/story-filter-extra.xml"},
+        )
+        source_group = OSINTSourceGroup(
+            id="story-filter-group",
+            name="Story Filter Group",
+            description="Source group for story filter tests",
+        )
+
+        db.session.add_all([extra_source, source_group])
+        source_group.osint_sources.append(OSINTSource.get(fake_source))
+        db.session.commit()
+
+        extra_story_payload = {
+            "title": "Story Filter Extra Source Story",
+            "news_items": [
+                {
+                    "id": "story-filter-news-item-extra",
+                    "title": "Story Filter Extra Source Story",
+                    "content": "Story Filter Extra Source Story Content",
+                    "source": "unit-test",
+                    "link": "https://example.invalid/story-filter-extra",
+                    "osint_source_id": extra_source.id,
+                    "hash": NewsItem.get_hash(
+                        title="Story Filter Extra Source Story",
+                        content="Story Filter Extra Source Story Content",
+                    ),
+                    "collected": "2025-01-01T00:00:00",
+                    "published": "2025-01-01T00:00:00",
+                }
+            ],
+        }
+        result, status = Story.add(extra_story_payload)
+        assert status == 200
+
+        grouped_flagged = Story.get(stories[0])
+        grouped_plain = Story.get(stories[1])
+        manual_important = Story.get(stories[2])
+        source_only = Story.get(result["story_id"])
+        assert grouped_flagged is not None
+        assert grouped_plain is not None
+        assert manual_important is not None
+        assert source_only is not None
+
+        grouped_flagged.read = True
+        grouped_flagged.important = True
+        grouped_flagged.relevance = 10
+
+        grouped_plain.read = False
+        grouped_plain.important = False
+        grouped_plain.relevance = 0
+
+        manual_important.read = False
+        manual_important.important = True
+        manual_important.relevance = 0
+
+        source_only.read = True
+        source_only.important = False
+        source_only.relevance = 5
+        db.session.commit()
+
+        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
+        assert manual_important.set_tags(["filter-gamma"])[1] == 200
+        assert source_only.set_tags(["filter-delta"])[1] == 200
+
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = "story-filter-report-item"
+        report_payload["title"] = "Story Filter Report Item"
+        report_payload["stories"] = [grouped_flagged.id]
+        report_item, status = ReportItem.add(report_payload)
+        assert status == 200
+        assert isinstance(report_item, ReportItem)
+
+        yield {
+            "stories": {
+                "grouped_flagged": grouped_flagged.id,
+                "grouped_plain": grouped_plain.id,
+                "manual_important": manual_important.id,
+                "source_only": source_only.id,
+            },
+            "sources": {
+                "grouped": fake_source,
+                "source_only": extra_source.id,
+            },
+            "groups": {
+                "primary": source_group.id,
+            },
+            "tags": {
+                "alpha": "filter-alpha",
+                "beta": "filter-beta",
+                "gamma": "filter-gamma",
+                "delta": "filter-delta",
+            },
+        }
+
+        ReportItem.delete_all()
+        StoryNewsItemAttribute.delete_all()
+        NewsItem.delete_all()
+        Story.delete_all()
+        OSINTSourceGroup.delete(source_group.id)
+        OSINTSource.delete(extra_source.id)
 
 
 @pytest.fixture(scope="class")
@@ -355,7 +542,6 @@ def full_story(fake_source):
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
     with open(story_json) as f:
         story = json.load(f)
-        story[0].get("news_items")[0].pop("updated")
         story[0].get("news_items")[0]["osint_source_id"] = fake_source
         yield story
 
@@ -371,8 +557,6 @@ def full_story_with_multiple_items_id(fake_source):
     story_json = os.path.join(dir_path, "../test_data/story_list.json")
     with open(story_json) as f:
         story = json.load(f)
-        story[1].get("news_items")[0].pop("updated")
-        story[1].get("news_items")[1].pop("updated")
         story[1].get("news_items")[0]["osint_source_id"] = fake_source
         story[1].get("news_items")[1]["osint_source_id"] = fake_source
 

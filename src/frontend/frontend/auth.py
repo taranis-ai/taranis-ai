@@ -1,11 +1,16 @@
+import contextlib
 from functools import wraps
-from typing import Any
+from typing import Any, Iterable
+from urllib.parse import unquote, urlsplit
 
-from flask import Flask, make_response, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, current_app, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
+from werkzeug.exceptions import MethodNotAllowed, NotFound
+from werkzeug.routing import RequestRedirect
 
 from frontend.cache import add_user_to_cache, get_user_from_cache
 from frontend.config import Config
@@ -21,6 +26,39 @@ def init(app: Flask) -> None:
     jwt.init_app(app)
 
 
+def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
+    permission_set = set(permissions or [])
+    return (
+        "ALL" in permission_set
+        or "ADMIN_OPERATIONS" in permission_set
+        or any(permission.startswith("CONFIG_") for permission in permission_set)
+    )
+
+
+def is_safe_redirect_target(next_target: str | None) -> bool:
+    if not next_target:
+        return False
+
+    decoded_target = unquote(next_target)
+    if any(char in decoded_target for char in ("\x00", "\r", "\n", "\\")):
+        return False
+
+    parsed_target = urlsplit(decoded_target)
+    if parsed_target.scheme or parsed_target.netloc or decoded_target.startswith("//") or not parsed_target.path.startswith("/"):
+        return False
+
+    adapter = current_app.url_map.bind_to_environ(request.environ)
+
+    try:
+        adapter.match(parsed_target.path, method="GET")
+    except RequestRedirect:
+        return True
+    except (NotFound, MethodNotAllowed):
+        return False
+
+    return True
+
+
 def _login_url_with_next() -> str:
     login_url = url_for("base.login")
 
@@ -34,7 +72,7 @@ def _login_url_with_next() -> str:
     if query_string:
         next_target = f"{path}?{query_string}"
 
-    if not next_target or next_target == login_url:
+    if next_target == login_url or not is_safe_redirect_target(next_target):
         return login_url
 
     return url_for("base.login", next=next_target)
@@ -60,6 +98,26 @@ def _unauthorized_response(clear_cookies: bool = False) -> ResponseReturnValue:
     return _clear_jwt_cookies(response) if clear_cookies else response
 
 
+def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
+    try:
+        verify_jwt_in_request()
+    except JWTExtendedException:
+        logger.info("JWT verification failed")
+        return None
+
+    user_name = get_jwt_identity()
+    if not user_name:
+        logger.error("Missing identity in JWT")
+        return None
+
+    user = current_user
+    if not user:
+        logger.error(f"Unable to resolve current user for identity {user_name}")
+        return None
+
+    return user_name, user
+
+
 # def authenticate(credentials: dict[str, str]) -> Response:
 #     return current_authenticator.authenticate(credentials)
 
@@ -68,10 +126,19 @@ def _unauthorized_response(clear_cookies: bool = False) -> ResponseReturnValue:
 #     return current_authenticator.refresh(user)
 
 
-def logout() -> tuple[str, int] | ResponseReturnValue:
-    core_response: ReqResponse = CoreApi().logout()
+def logout() -> tuple[str, int] | Response:
+    error_msg = "Logout failed"
+    try:
+        core_response: ReqResponse = CoreApi().logout()
+    except Exception as exc:
+        # If the core isn't reachable, fall back to the login page without crashing.
+        logger.error(f"Core logout failed: {exc}")
+        return render_template("login/index.html", login_error="Logout failed"), 500
+
     if not core_response.ok:
-        return render_template("login/index.html", login_error=core_response.json().get("error")), core_response.status_code
+        with contextlib.suppress(Exception):
+            error_msg = core_response.json().get("error", error_msg)
+        return render_template("login/index.html", login_error=error_msg), core_response.status_code
 
     response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():
@@ -96,31 +163,45 @@ def auth_required(permissions: list[str] | str | None = None):
             else:
                 permissions_set = {permissions}
 
-            try:
-                verify_jwt_in_request()
-            except Exception:
-                logger.info("JWT verification failed")
+            resolved_user = _resolve_authenticated_user()
+            if not resolved_user:
                 return _unauthorized_response()
 
-            user_name = get_jwt_identity()
-            if not user_name:
-                logger.error(f"Missing identity in JWT: {get_jwt()}")
-                return _unauthorized_response()
-
-            permission_claims = current_user.permissions
+            user_name, user = resolved_user
+            permission_claims = set(user.permissions or [])
 
             # is there at least one match with the permissions required by the call or no permissions required
             if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.error(
                     f"user {user_name} Insufficient permissions in JWT for identity",
                 )
-                return redirect("/forbidden", code=403)
+                abort(403)
 
             return fn(*args, **kwargs)
 
         return wrapper
 
     return auth_required_wrap
+
+
+def admin_required():
+    def admin_required_wrap(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs: dict[str, Any]):
+            resolved_user = _resolve_authenticated_user()
+            if not resolved_user:
+                return _unauthorized_response()
+
+            user_name, user = resolved_user
+            if not user_has_admin_permissions(user.permissions):
+                logger.error(f"user {user_name} is not allowed to access admin routes")
+                abort(403)
+
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return admin_required_wrap
 
 
 def api_key_required(fn):

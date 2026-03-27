@@ -25,13 +25,50 @@ def disable_token_revocation(monkeypatch):
 
 class _FakeRedis:
     def __init__(self):
-        self.deleted_keys: list[str] = []
+        self.hashes = {"rq:cron:def": {"job-123": b'{"cron":"0 * * * *"}'}}
+        self.zsets = {"rq:cron:next": {"job-123": 1234.0}}
+        self.events: list[tuple[str, dict[str, str]]] = []
 
-    def delete(self, key):
-        if key.startswith("rq:cron:"):
-            self.deleted_keys.append(key)
-            return 1
-        return 0
+    def hexists(self, key, field):
+        return field in self.hashes.get(key, {})
+
+    def zscore(self, key, member):
+        return self.zsets.get(key, {}).get(member)
+
+    def pipeline(self):
+        redis = self
+
+        class _Pipeline:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def hset(self, key, field, value):
+                redis.hashes.setdefault(key, {})[field] = value
+                return self
+
+            def hdel(self, key, field):
+                redis.hashes.setdefault(key, {}).pop(field, None)
+                return self
+
+            def zadd(self, key, mapping):
+                redis.zsets.setdefault(key, {}).update(mapping)
+                return self
+
+            def zrem(self, key, member):
+                redis.zsets.setdefault(key, {}).pop(member, None)
+                return self
+
+            def xadd(self, key, values):
+                redis.events.append((key, values))
+                return self
+
+            def execute(self):
+                return True
+
+        return _Pipeline()
 
 
 class _DummyQueue:
@@ -121,7 +158,8 @@ def test_cancel_job_cancels_instance_and_cron(monkeypatch):
 
     assert qm.cancel_job("job-123") is True
     assert last_job and last_job[0].cancelled and last_job[0].deleted
-    assert qm._redis.deleted_keys == ["rq:cron:job-123"]  # type: ignore[attr-defined]
+    assert qm._redis.hashes["rq:cron:def"] == {}  # type: ignore[attr-defined]
+    assert qm._redis.zsets["rq:cron:next"] == {}  # type: ignore[attr-defined]
 
 
 def test_cancel_job_returns_false_when_not_found(monkeypatch):
@@ -131,8 +169,11 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
 
     qm = _make_queue_manager()
+    qm._redis = _FakeRedis()
+    qm._redis.hashes["rq:cron:def"] = {}  # type: ignore[attr-defined]
+    qm._redis.zsets["rq:cron:next"] = {}  # type: ignore[attr-defined]
 
-    assert qm.cancel_job("job-123") is True  # cron entry deletion still returns True
+    assert qm.cancel_job("job-123") is False
 
 
 def test_get_active_jobs_uses_registry(monkeypatch):
@@ -348,10 +389,6 @@ def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypa
 
 
 def test_get_scheduled_jobs_with_many_sources(monkeypatch):
-    class FakeRedisWithCron:
-        def get(self, key):
-            return b"cron-b-1" if key == "rq:cron:leader" else None
-
     def fake_osint_entries():
         return [
             {
@@ -373,7 +410,7 @@ def test_get_scheduled_jobs_with_many_sources(monkeypatch):
     monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
 
     qm = _make_queue_manager()
-    qm._redis = FakeRedisWithCron()
+    qm._redis = object()
 
     schedules, status = qm.get_scheduled_jobs()
 

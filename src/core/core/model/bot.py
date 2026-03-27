@@ -28,13 +28,21 @@ class Bot(BaseModel):
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(
-        self, name: str, type: str | BOT_TYPES, description: str = "", index: int | None = None, parameters=None, id: str | None = None
+        self,
+        name: str,
+        type: str | BOT_TYPES,
+        description: str = "",
+        index: int | None = None,
+        parameters=None,
+        enabled: bool = True,
+        id: str | None = None,
     ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = index or Bot.get_highest_index() + 1
+        self.enabled = self.enabled
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property
@@ -62,6 +70,8 @@ class Bot(BaseModel):
             bot.name = name
 
         bot.description = data.get("description", "")
+        if "enabled" in data:
+            bot.enabled = data.get("enabled", True)
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
@@ -109,6 +119,7 @@ class Bot(BaseModel):
             db.select(cls.id)
             .join(BotParameterValue, cls.id == BotParameterValue.bot_id)
             .join(ParameterValue, BotParameterValue.parameter_value_id == ParameterValue.id)
+            .filter(cls.enabled.is_(True))
             .filter(db.and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
             .order_by(cls.index)
         )

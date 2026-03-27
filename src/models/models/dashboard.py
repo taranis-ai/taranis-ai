@@ -1,10 +1,25 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from models.assess import StoryTag
 from models.base import TaranisBaseModel
+
+
+DashboardHealthState = Literal["up", "down", "n/a"]
+
+
+class DashboardHealthServices(BaseModel):
+    database: DashboardHealthState
+    seed_data: DashboardHealthState = "n/a"
+    broker: DashboardHealthState
+    workers: DashboardHealthState
+
+
+class DashboardHealth(BaseModel):
+    healthy: bool
+    services: DashboardHealthServices
 
 
 class Dashboard(TaranisBaseModel):
@@ -20,6 +35,7 @@ class Dashboard(TaranisBaseModel):
     latest_collected: datetime | None = None
     schedule_length: int | None = None
     conflict_count: int | None = None
+    health_status: DashboardHealth | None = None
     worker_status: dict[str, dict[str, int]] | None = None
 
 

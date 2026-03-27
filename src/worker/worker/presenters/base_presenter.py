@@ -1,6 +1,7 @@
 import datetime
 
 import jinja2
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 from worker.log import logger
 
@@ -21,7 +22,7 @@ class BasePresenter:
             self.print_exception("No template provided")
             raise ValueError("No template provided to BasePresenter.generate()")
 
-        env = jinja2.Environment(
+        env = ImmutableSandboxedEnvironment(
             autoescape=False,
             trim_blocks=True,
             lstrip_blocks=True,

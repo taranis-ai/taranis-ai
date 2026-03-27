@@ -128,6 +128,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
         "sftp_publisher": worker.publishers.SFTPPublisher(),
         "misp_publisher": worker.publishers.MISPPublisher(),
         "s3_publisher": worker.publishers.S3Publisher(),
+        "taxii_publisher": worker.publishers.TAXIIPublisher(),
     }
 
     if pub_type not in publishers:

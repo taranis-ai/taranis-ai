@@ -68,7 +68,7 @@ class DataPersistenceLayer:
         cache_key = f"{object_id}_{self.make_user_key(endpoint)}"
         cache.delete(cache_key)
 
-    def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[Any]:
+    def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_user_key(endpoint, paging_data)
         if cache_object := cache.get(key=cache_key):
             logger.debug(f"Cache hit for {cache_key}")
@@ -77,7 +77,7 @@ class DataPersistenceLayer:
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[Any]:
+    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
         if paging_data is None:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
@@ -89,13 +89,26 @@ class DataPersistenceLayer:
             return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
-    def _cache_and_paginate_objects(self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None):
+    def _cache_and_paginate_objects(
+        self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None
+    ) -> CacheObject[T]:
         items = result.get("items", [])
         exclude_keys = {"items", "total_count", "_links"}
         extra = {key: value for key, value in result.items() if key not in exclude_keys}
         result_object = [object_model(**object) for object in items]
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
+        if not result_object:
+            logger.debug(f"Empty result for {endpoint}")
+            return CacheObject(
+                [],
+                total_count=total_count,
+                limit=paging_data.limit if paging_data and paging_data.limit else 20,
+                page=paging_data.page if paging_data and paging_data.page else 1,
+                order=paging_data.order if paging_data and paging_data.order else "",
+                query_params=paging_data.query_params if paging_data else {},
+                links=links,
+            )
         cache_object = CacheObject(
             result_object,
             total_count=total_count,

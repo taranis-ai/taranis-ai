@@ -12,10 +12,9 @@ def cleanup_sources(app):
         source_data = {
             "id": "42",
             "description": "This is a test source",
-            "name": "Config Test Source",
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
+            "name": "Test Source",
+            "rank": 0,
+            "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
 
@@ -192,7 +191,7 @@ def cleanup_product_types(app):
         product_type_data = {
             "id": 42,
             "type": "pdf_presenter",
-            "parameters": {"TEMPLATE_PATH": "template path"},
+            "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
             "title": "Test Product type",
             "description": "Product type desc",
         }
@@ -267,8 +266,14 @@ def cleanup_attribute(app):
 
 @pytest.fixture(scope="session")
 def cleanup_worker_types(app):
-    with app.app_context():
-        from core.model.worker import Worker
+    import contextlib
 
-        if rss_worker := Worker.filter_by_type("rss_collector"):
-            yield rss_worker.to_dict()
+    with app.app_context():
+        rss_worker_data = None
+        with contextlib.suppress(Exception):
+            from core.model.worker import Worker
+
+            if rss_worker := Worker.filter_by_type("rss_collector"):
+                rss_worker_data = rss_worker.to_dict()
+
+        yield rss_worker_data

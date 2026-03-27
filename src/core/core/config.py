@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
     DISABLE_PPN_COLLECTOR: bool = True
+    MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
+    OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
+    OSINT_SOURCE_ICON_PIXELS: int = 64
+    OSINT_SOURCE_ICON_FORMAT: str = "PNG"
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
@@ -74,6 +78,8 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
         elif self.SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"connect_timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
+
+        self.SQLALCHEMY_ENGINE_OPTIONS.setdefault("pool_pre_ping", True)
 
         update_payload = {
             "pool_size": self.SQLALCHEMY_POOL_SIZE,

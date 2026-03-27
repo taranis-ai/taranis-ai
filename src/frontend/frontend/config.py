@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
     JWT_COOKIE_CSRF_PROTECT: bool = True
     JWT_CSRF_IN_COOKIES: bool = True
+    JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
@@ -32,6 +33,9 @@ class Settings(BaseSettings):
     REQUESTS_TIMEOUT: int = 60
     REQUESTS_TRUST_ENV: bool = True
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
+    MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
+    OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
+    OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp"
 
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"

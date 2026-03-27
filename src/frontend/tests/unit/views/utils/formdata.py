@@ -69,6 +69,7 @@ class FormData(dict):
         """
         keys = set(dict(self).keys())
         keys.discard(None)
+        keys.discard("csrf_token")
         return keys
 
 

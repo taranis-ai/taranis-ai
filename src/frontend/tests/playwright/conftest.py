@@ -3,6 +3,7 @@ import copy
 import os
 import random
 import re
+import shutil
 import subprocess
 import time
 import warnings as pywarnings
@@ -14,7 +15,7 @@ import pytest
 import requests
 import responses
 from flask import json
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
@@ -44,9 +45,17 @@ def docker_compose_file():
 
 
 @pytest.fixture(scope="session")
-def docker_setup():
-    # Ensure stale stack is removed first, then start services and wait for healthchecks.
-    return ["down -v --remove-orphans", "up -d --wait"]
+def docker_compose_command() -> str:
+    if shutil.which("podman-compose"):
+        return "podman-compose"
+    return "docker compose"
+
+
+@pytest.fixture(scope="session")
+def docker_setup(docker_compose_command):
+    # podman-compose does not support --wait; readiness is handled by _wait_for_server_to_be_alive.
+    up_cmd = "up -d" if "podman" in docker_compose_command else "up -d --wait"
+    return ["down -v --remove-orphans", up_cmd]
 
 
 @pytest.fixture(scope="session")
@@ -56,14 +65,19 @@ def docker_cleanup():
 
 @pytest.fixture(scope="session")
 def run_core(docker_services):
+    from frontend.config import Config
+
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
-    core_port = os.getenv("TARANIS_CORE_PORT", "5000")
-    core_url = os.getenv("TARANIS_CORE_URL", f"http://127.0.0.1:{core_port}/api")
+    core_port = docker_services.port_for("core", 8080)
+    core_url = f"http://127.0.0.1:{core_port}/api"
+
+    Config.TARANIS_CORE_HOST = f"http://127.0.0.1:{core_port}"
+    Config.TARANIS_CORE_URL = core_url
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
-        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
+        _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
         yield core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -90,7 +104,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, build_tailwindcss, run_core):
+def e2e_server(run_core, app, live_server, build_tailwindcss):
     live_server.app = app
     live_server.start()
     yield live_server
@@ -149,7 +163,7 @@ def setup_test_templates(run_core, access_token):
             pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
@@ -158,13 +172,31 @@ def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_
     if request.config.getoption("trace"):
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    yield context.new_page()
-    if request.config.getoption("trace"):
-        context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+    page = context.new_page()
+    try:
+        yield page
+    finally:
+        if request.config.getoption("trace"):
+            context.tracing.stop(path="taranis_ai_frontend_trace.zip")
+        page.close()
+        context.close()
 
 
-def _allowed(msg_text: str, allow_patterns: list[str]) -> bool:
-    return any(re.search(p, msg_text) for p in allow_patterns)
+def _allowed(entry: str, allow_patterns: list[str]) -> bool:
+    return any(re.search(pattern, entry) for pattern in allow_patterns)
+
+
+def _dismiss_notifications(page: Page):
+    if page.is_closed():
+        return
+
+    alerts = page.locator("#notification-bar [role='alert']")
+    while alerts.count():
+        try:
+            alerts.first.click(timeout=500)
+            page.wait_for_timeout(100)
+        except Exception:
+            break
 
 
 def _cookies_from_response(resp) -> list[dict]:
@@ -184,16 +216,8 @@ def _cookies_from_response(resp) -> list[dict]:
     return cookies
 
 
-@pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
-    """
-    Returns a Playwright Page whose browser context has the JWT cookies set,
-    so any navigation is already authenticated.
-    """
-    page = taranis_frontend
-    base_url: str = e2e_server.url()
-
-    cookies = _cookies_from_response(access_token_response)
+def _add_auth_cookies(context: BrowserContext, base_url: str, token_response) -> None:
+    cookies = _cookies_from_response(token_response)
     context_cookies = []
     context_cookies.extend(
         {
@@ -203,22 +227,53 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
         }
         for c in cookies
     )
-    page.context.add_cookies(context_cookies)
+    context.add_cookies(context_cookies)
 
-    yield page
+
+def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) -> Page:
+    context = taranis_frontend.context
+    base_url: str = e2e_server.url()
+
+    _add_auth_cookies(context, base_url, token_response)
+
+    page = context.new_page()
+    _dismiss_notifications(page)
+    return page
 
 
 @pytest.fixture
-def forward_console_and_page_errors(request, logged_in_page):
+def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
     """
-    For each test:
-      - collect console messages and page errors
-      - at teardown: fail on configured severities, warn on warnings
+    Returns a Playwright Page whose browser context has the JWT cookies set,
+    so any navigation is already authenticated.
     """
-    page = logged_in_page
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
+
+    try:
+        yield page
+    finally:
+        _dismiss_notifications(page)
+        page.close()
+
+
+@pytest.fixture
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
+    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
+
+    try:
+        yield page
+    finally:
+        _dismiss_notifications(page)
+        page.close()
+
+
+def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
     fail_on = {x.strip() for x in request.config.getoption("--fail-on-console").split(",") if x.strip()}
     warn_on = {x.strip() for x in request.config.getoption("--warn-on-console").split(",") if x.strip()}
-    allow_patterns = request.config.getoption("--console-allow") or []
+    allow_patterns = [
+        *(request.config.getoption("--console-allow") or []),
+        *(extra_allow_patterns or []),
+    ]
 
     errors: list[str] = []
     warns: list[str] = []
@@ -231,7 +286,7 @@ def forward_console_and_page_errors(request, logged_in_page):
         loc_s = f"{loc.get('url', '')}:{loc.get('lineNumber', '?')}:{loc.get('columnNumber', '?')}"
         entry = f"[console.{t}] {loc_s} :: {txt}"
 
-        if _allowed(txt, allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
 
         if t in fail_on:
@@ -241,7 +296,7 @@ def forward_console_and_page_errors(request, logged_in_page):
 
     def on_pageerror(err):
         entry = f"[pageerror] {err}"
-        if _allowed(str(err), allow_patterns):
+        if _allowed(entry, allow_patterns):
             return
         if "pageerror" in fail_on:
             errors.append(entry)
@@ -256,6 +311,7 @@ def forward_console_and_page_errors(request, logged_in_page):
     finally:
         page.remove_listener("console", on_console)
         page.remove_listener("pageerror", on_pageerror)
+        _dismiss_notifications(page)
 
         for w in warns:
             pywarnings.warn(UserWarning(w), stacklevel=0)
@@ -263,6 +319,27 @@ def forward_console_and_page_errors(request, logged_in_page):
         if errors:
             bullet_list = "\n".join(f"  - {e}" for e in errors)
             pytest.fail(f"Console/Page errors detected:\n{bullet_list}")
+
+
+@pytest.fixture
+def forward_console_and_page_errors(request, logged_in_page):
+    """
+    For each test:
+      - collect console messages and page errors
+      - at teardown: fail on configured severities, warn on warnings
+    """
+    yield from _forward_console_and_page_errors(request, logged_in_page)
+
+
+@pytest.fixture
+def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page):
+    yield from _forward_console_and_page_errors(
+        request,
+        non_admin_logged_in_page,
+        extra_allow_patterns=[
+            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+        ],
+    )
 
 
 @pytest.fixture(scope="session")
@@ -506,7 +583,7 @@ def stories(run_core, api_header, fake_source, access_token):
 #     return get_product_to_render
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
@@ -515,11 +592,26 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     }
 
     print("Pre-seeding stories via assess API")
+    story_list = []
+    news_item_ids_created: list[str] = []
     for item in news_items_list:
         r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
-        r.raise_for_status()
+        if not r.ok:
+            try:
+                error_payload = r.json()
+            except ValueError:
+                error_payload = r.text
+            raise AssertionError(
+                f"Failed to pre-seed news item '{item.get('title', '<unknown>')}' with status {r.status_code}: {error_payload}"
+            )
+        response_data = r.json()
+        story_list.append({"story_id": response_data.get("story_id"), **item})
+        news_item_ids_created.extend(response_data.get("news_item_ids", []))
 
-    yield []
+    yield story_list
+
+    for news_item_id in news_item_ids_created:
+        requests.delete(f"{run_core}/assess/news-items/{news_item_id}", headers=headers)
 
 
 @pytest.fixture(scope="session")
@@ -600,7 +692,7 @@ def pre_seed_report_type(report_definition, access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -608,7 +700,7 @@ def pre_seed_report_type_all_attribute_types_optional(access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
+def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2e_server):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -622,28 +714,36 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core):
 
 
 @pytest.fixture(scope="session")
-def test_osint_source():
-    # get absoulute path to testdata/test_osint_source.json
+def testdata_dir():
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_osint_source.json")
+    yield os.path.join(dir_path, "testdata")
+
+
+@pytest.fixture(scope="session")
+def test_osint_source(testdata_dir):
+    yield os.path.join(testdata_dir, "test_osint_source.json")
 
 
 @pytest.fixture
-def test_batch_osint_sources(app, run_core, access_token):
+def test_osint_icon_png(testdata_dir):
+    yield os.path.join(testdata_dir, "icon.png")
+
+
+@pytest.fixture
+def test_batch_osint_sources(run_core, access_token, testdata_dir):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dir_path, "testdata", "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
+    with open(os.path.join(testdata_dir, "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
         source_data = json.load(f)
 
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
         r.raise_for_status()
 
-    yield
+    yield source_data
 
     list_response = requests.get(f"{run_core}/config/osint-sources", headers=headers)
     list_response.raise_for_status()
@@ -658,21 +758,18 @@ def test_batch_osint_sources(app, run_core, access_token):
 
 
 @pytest.fixture(scope="session")
-def test_user():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_to_import.json")
+def test_user(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_to_import.json")
 
 
 @pytest.fixture(scope="session")
-def test_user_list():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_users_list.json")
+def test_user_list(testdata_dir):
+    yield os.path.join(testdata_dir, "test_users_list.json")
 
 
 @pytest.fixture(scope="session")
-def test_wordlist():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    yield os.path.join(dir_path, "testdata", "test_word_list.json")
+def test_wordlist(testdata_dir):
+    yield os.path.join(testdata_dir, "test_word_list.json")
 
 
 def report_item_dict(story_item_list):
@@ -715,9 +812,7 @@ def fake_source(app, run_core, access_token):
         "id": "99",
         "description": "This is a test source",
         "name": "Test Source",
-        "parameters": [
-            {"FEED_URL": "https://url/feed.xml"},
-        ],
+        "parameters": {"FEED_URL": "https://url/feed.xml"},
         "type": "rss_collector",
     }
 

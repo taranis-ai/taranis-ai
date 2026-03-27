@@ -1,13 +1,11 @@
 from flask import Blueprint, Flask, Response, request, send_file
 from flask.views import MethodView
-from sqlalchemy import select
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
-from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
@@ -90,57 +88,11 @@ class Sources(MethodView):
 class CronJobs(MethodView):
     @api_key_required
     def get(self):
-        """Get cron job configurations for the RQ scheduler (worker auth)."""
-        try:
-            cron_jobs = []
-
-            sources = OSINTSource.get_all_for_collector()
-            for source in sources:
-                if cron_schedule := source.get_schedule():
-                    cron_jobs.append(
-                        {
-                            "task": "collector_task",
-                            "queue": "collectors",
-                            "args": [source.id, False],
-                            "cron": cron_schedule,
-                            "task_id": source.task_id,
-                            "name": source.name,
-                        }
-                    )
-
-            stmt = select(Bot).where(Bot.enabled)
-            bots = db.session.execute(stmt).scalars().all()
-            for bot_item in bots:
-                if cron_schedule := bot_item.get_schedule():
-                    cron_jobs.append(
-                        {
-                            "task": "bot_task",
-                            "queue": "bots",
-                            "args": [bot_item.id],
-                            "cron": cron_schedule,
-                            "task_id": bot_item.task_id,
-                            "name": bot_item.name,
-                        }
-                    )
-
-            cron_jobs.append(
-                {
-                    "task": "cleanup_token_blacklist",
-                    "queue": "misc",
-                    "args": [],
-                    "cron": "0 2 * * *",
-                    "task_id": "cleanup_token_blacklist",
-                    "name": "Cleanup Token Blacklist",
-                }
-            )
-
-            return {"cron_jobs": cron_jobs}, 200
-        except Exception:
-            logger.exception("Failed to get cron job configurations")
-            return {"error": "Failed to get cron job configurations"}, 500
+        return queue_manager.queue_manager.get_cron_job_configs()
 
 
 class SourceIcon(MethodView):
+    @api_key_required
     def put(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):

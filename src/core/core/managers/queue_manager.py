@@ -45,6 +45,9 @@ from core.log import logger
 
 
 OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
+CRON_DEFS_KEY = "rq:cron:def"
+CRON_EVENTS_KEY = "rq:cron:events"
+CRON_NEXT_KEY = "rq:cron:next"
 
 
 def _format_duration(delta: timedelta) -> str:
@@ -122,6 +125,15 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         job["is_overdue"] = is_overdue
 
     return jobs
+
+
+def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: float) -> float:
+    if cron:
+        dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
+        return croniter(cron, dt).get_next(datetime).timestamp()
+    if interval is not None:
+        return base_ts + int(interval)
+    raise ValueError("CronSpec must provide either cron or interval")
 
 
 queue_manager: "QueueManager"
@@ -377,12 +389,17 @@ class QueueManager:
         except Exception as e:
             logger.debug(f"No job instance found for {job_id}: {e}")
 
-        # Also remove from cron scheduler (if it's a recurring cron job)
-        # This prevents the job from being rescheduled automatically
         try:
-            # RQ stores cron jobs with prefix "rq:cron:"
-            cron_key = f"rq:cron:{job_id}"
-            if self._redis.delete(cron_key):
+            cron_registered = False
+            if hasattr(self._redis, "hexists"):
+                cron_registered = bool(self._redis.hexists(CRON_DEFS_KEY, job_id))
+            elif hasattr(self._redis, "hget"):
+                cron_registered = self._redis.hget(CRON_DEFS_KEY, job_id) is not None
+
+            if not cron_registered and hasattr(self._redis, "zscore"):
+                cron_registered = self._redis.zscore(CRON_NEXT_KEY, job_id) is not None
+
+            if cron_registered and self.unregister_cron_job(job_id):
                 logger.info(f"Removed cron job registration {job_id}")
                 cancelled = True
             else:
@@ -577,21 +594,12 @@ class QueueManager:
         return entry
 
     def _get_cron_schedule_entries(self) -> list[dict[str, Any]]:
-        """Fetch cron-based schedule entries when at least one scheduler is active."""
+        """Fetch cron-based schedule entries from the current RQ-backed configuration."""
         if not self._redis:
             return []
 
         all_jobs: list[dict[str, Any]] = []
         try:
-            leader_raw = self._redis.get("rq:cron:leader")
-            if not leader_raw:
-                logger.info("No active cron schedulers found")
-                return all_jobs
-
-            leader = leader_raw.decode() if isinstance(leader_raw, bytes) else str(leader_raw)
-            logger.debug(f"Found active cron scheduler leader '{leader}' - fetching schedules from database")
-
-            # Import here to avoid circular dependencies
             from core.model.bot import Bot
             from core.model.osint_source import OSINTSource
 
@@ -690,33 +698,99 @@ class QueueManager:
             return {"error": f"Failed to get scheduled jobs: {str(e)}"}, 500
 
     def register_cron_job(self, spec: CronSpec) -> bool:
-        DEFS = "rq:cron:def"
-        EVENTS = "rq:cron:events"
-
-        if not self._redis:
+        if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot register cron job")
             return False
 
         payload = json.dumps(spec.model_dump(mode="json"))
-        with self._redis.pipeline() as p:
-            p.hset(DEFS, spec.job_id, payload)
-            p.xadd(EVENTS, {"op": "upsert", "job_id": spec.job_id})
-            p.execute()
-            return True
+        next_ts: float | None = None
+        try:
+            next_ts = _compute_next_timestamp(spec.cron, spec.interval, time.time())
+        except Exception as exc:
+            logger.warning(f"Unable to precompute next run for cron job {spec.job_id}: {exc}")
+
+        try:
+            with self._redis.pipeline() as p:
+                p.hset(CRON_DEFS_KEY, spec.job_id, payload)
+                if next_ts is not None:
+                    p.zadd(CRON_NEXT_KEY, {spec.job_id: next_ts})
+                p.xadd(CRON_EVENTS_KEY, {"op": "upsert", "job_id": spec.job_id})
+                p.execute()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to register cron job {spec.job_id}: {e}")
+            self.error = f"Could not reach Redis: {e}"
+            return False
 
     def unregister_cron_job(self, job_id: str) -> bool:
-        DEFS = "rq:cron:def"
-        EVENTS = "rq:cron:events"
-
-        if not self._redis:
+        if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot unregister cron job")
             return False
 
-        with self._redis.pipeline() as p:
-            p.hdel(DEFS, job_id)
-            p.xadd(EVENTS, {"op": "delete", "job_id": job_id})
-            p.execute()
-            return True
+        try:
+            with self._redis.pipeline() as p:
+                p.hdel(CRON_DEFS_KEY, job_id)
+                p.zrem(CRON_NEXT_KEY, job_id)
+                p.xadd(CRON_EVENTS_KEY, {"op": "delete", "job_id": job_id})
+                p.execute()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to unregister cron job {job_id}: {e}")
+            self.error = f"Could not reach Redis: {e}"
+            return False
+
+    def get_cron_job_configs(self) -> tuple[dict[str, list[dict[str, Any]]] | dict[str, str], int]:
+        try:
+            from core.model.bot import Bot
+            from core.model.osint_source import OSINTSource
+
+            cron_jobs: list[dict[str, Any]] = []
+
+            for source in OSINTSource.get_all_for_collector():
+                if not (cron_schedule := source.get_schedule_with_default()):
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "collector_task",
+                        "queue": "collectors",
+                        "args": [source.id, False],
+                        "cron": cron_schedule,
+                        "task_id": source.task_id,
+                        "name": source.name,
+                    }
+                )
+
+            for bot_item in Bot.get_all_for_collector():
+                if not (cron_schedule := bot_item.get_schedule()):
+                    continue
+
+                cron_jobs.append(
+                    {
+                        "task": "bot_task",
+                        "queue": "bots",
+                        "args": [bot_item.id],
+                        "cron": cron_schedule,
+                        "task_id": bot_item.task_id,
+                        "name": bot_item.name,
+                    }
+                )
+
+            cron_jobs.append(
+                {
+                    "task": "cleanup_token_blacklist",
+                    "queue": "misc",
+                    "args": [],
+                    "cron": "0 2 * * *",
+                    "task_id": "cleanup_token_blacklist",
+                    "name": "Cleanup Token Blacklist",
+                }
+            )
+
+            return {"cron_jobs": cron_jobs}, 200
+        except Exception:
+            logger.exception("Failed to get cron job configurations")
+            return {"error": "Failed to get cron job configurations"}, 500
 
     def get_active_jobs(self) -> tuple[dict, int]:
         """Get currently running jobs from StartedJobRegistry"""

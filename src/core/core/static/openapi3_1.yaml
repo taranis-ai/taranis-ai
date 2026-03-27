@@ -24,6 +24,8 @@ servers:
 tags:
   - name: auth
     description: session-related functionality
+  - name: health
+    description: see whether Taranis dependencies are healthy
   - name: isalive
     description: see whether the Taranis instance is alive
   - name: users
@@ -150,6 +152,58 @@ paths:
                   isalive:
                     type: boolean
                     examples: [True]
+  /health:
+    get:
+      tags:
+        - health
+      operationId: health
+      description: see whether the Taranis instance dependencies are healthy
+      security: []
+      responses:
+        "200":
+          description: all required services are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [True]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
+        "503":
+          description: one or more required services are unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    examples: [False]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down, n/a]
+                      broker:
+                        type: string
+                        enum: [up, down, n/a]
+                      workers:
+                        type: string
+                        enum: [up, down, n/a]
   /users:
     get:
       security:
@@ -319,7 +373,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/report_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid input data
         "401":
@@ -371,7 +425,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/modify_item"
+                $ref: "#/components/schemas/report_item_response"
         "400":
           description: invalid request
         "401":
@@ -550,7 +604,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/news_item"
+              $ref: "#/components/schemas/news_item_create"
       responses:
         "200":
           description: the Story IDs and NewsItem IDs of the created news item
@@ -559,7 +613,7 @@ paths:
               schema:
                 type: object
         "400":
-          description: failed to decode the request body
+          description: invalid news item data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -604,7 +658,7 @@ paths:
             type: boolean
         - name: relevant
           in: query
-          description: Filter only relevant news
+          description: Filter stories by derived relevance score
           schema:
             type: boolean
         - name: in_report
@@ -660,7 +714,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/story"
         "400":
-          description: erronous input data
+          description: erroneous input data
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -698,14 +752,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                read:
-                  type: boolean
-                important:
-                  type: boolean
-                vote:
-                  type: boolean
+              $ref: "#/components/schemas/news_item_update"
       responses:
         "200":
           description: the news item was modified
@@ -714,7 +761,34 @@ paths:
               schema:
                 type: object
         "400":
-          description: erronous input data
+          description: erroneous input data
+        "409":
+          description: news item already exists
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: partially modify the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_update"
+      responses:
+        "200":
+          description: the news item was modified
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: erroneous input data
+        "409":
+          description: news item already exists
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -3289,6 +3363,19 @@ components:
               type: array
               items:
                 type: string
+    report_item_response:
+      type: object
+      required:
+        - message
+        - id
+        - report
+      properties:
+        message:
+          type: string
+        id:
+          type: string
+        report:
+          $ref: "#/components/schemas/report_item"
 
     parameter_value:
       type: object
@@ -3439,6 +3526,57 @@ components:
         - title
         - source
         - content
+    news_item_create:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        source:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        collected:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
+        last_change:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_attribute"
+      anyOf:
+        - required: [title]
+        - required: [content]
+    news_item_update:
+      type: object
+      additionalProperties: false
+      properties:
+        language:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        author:
+          type: string
+        content:
+          type: string
 
     news_item_tag:
       type: object
@@ -3467,6 +3605,12 @@ components:
           type: integer
         dislikes:
           type: integer
+        relevance:
+          type: integer
+          description: Derived story relevance total
+        relevance_override:
+          type: integer
+          description: Manual or imported relevance adjustment
         read:
           type: boolean
         important:
@@ -3506,6 +3650,10 @@ components:
           type: string
         description:
           type: string
+        rank:
+          type: integer
+          minimum: 0
+          maximum: 5
         type:
           type: string
         parameters:

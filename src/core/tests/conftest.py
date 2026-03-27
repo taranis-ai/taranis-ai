@@ -66,7 +66,10 @@ def db(app):
 
         yield db
 
-        db.drop_all()
+        # Clean up all data and drop tables at the end of the session
+        with contextlib.suppress(Exception):
+            db.session.remove()
+            db.drop_all()
 
 
 @pytest.fixture
@@ -75,15 +78,23 @@ def session(db):
     original_session = db.session
     connection = db.engine.connect()
     transaction = connection.begin()
-
     test_session = scoped_session(session_factory=sessionmaker(bind=connection))
     db.session = test_session
 
     yield test_session
 
-    transaction.rollback()
+    # Ensure all pending changes are cleared before rollback
+    db.session.expunge_all()
+
+    # Check if transaction is still active before rolling back
+    if transaction.is_active:
+        transaction.rollback()
+
     connection.close()
     test_session.remove()
+    db.session = original_session
+
+    # Restore the original session for cleanup fixtures
     db.session = original_session
 
 
@@ -201,6 +212,41 @@ def auth_bypass(monkeypatch):
         "get_current_user",
         lambda: type("User", (), {"get_permissions": lambda self: {"CONFIG_WORKER_ACCESS"}})(),
     )
+
+
+@pytest.fixture
+def mixed_timezone_story_payload():
+    import uuid
+    from datetime import datetime
+
+    from core.model.news_item import NewsItem
+
+    def _news_item_payload(published: str) -> dict[str, str]:
+        now = datetime.utcnow().replace(microsecond=0).isoformat()
+        title = f"News Item {uuid.uuid4()}"
+        content = f"content-{uuid.uuid4()}"
+        return {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "content": content,
+            "source": "unit-test",
+            "link": "https://example.invalid/story",
+            "osint_source_id": "manual",
+            "hash": NewsItem.get_hash(title=title, content=content),
+            "collected": now,
+            "published": published,
+        }
+
+    return {
+        "expected_created": datetime.fromisoformat("2023-12-31T22:30:00"),
+        "payload": {
+            "title": f"Story {uuid.uuid4()}",
+            "news_items": [
+                _news_item_payload("2024-01-01T00:00:00"),
+                _news_item_payload("2024-01-01T00:30:00+02:00"),
+            ],
+        },
+    }
 
 
 def _is_vscode(config) -> bool:

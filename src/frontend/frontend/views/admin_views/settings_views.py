@@ -51,9 +51,12 @@ class SettingsView(AdminMixin, BaseView):
             if error:
                 notification = render_template("notification/index.html", notification={"message": error, "error": True})
             elif response:
+                DataPersistenceLayer().invalidate_cache(None)
                 notification = render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
         else:
             response = CoreApi().api_post(action_url)
+            if response.ok:
+                DataPersistenceLayer().invalidate_cache(None)
             notification = cls.get_notification_from_response(response)
 
         static_view, static_response = cls.static_view()

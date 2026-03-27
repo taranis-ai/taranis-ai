@@ -23,7 +23,6 @@ def create_app(initial_setup: bool = True, db_setup: bool = False) -> Flask:
 
 def initilize_database(app: Flask):
     db_manager.initialize(app, True)
-    data_manager.initialize(True)
     queue_manager.initialize(app, True)
     queue_manager.queue_manager.post_init()
 

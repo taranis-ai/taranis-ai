@@ -50,7 +50,7 @@ def test_api_key(app):
 def test_flask_secret_key(app):
     with app.app_context():
         secret_key = app.config.get("JWT_SECRET_KEY", None)
-        assert secret_key == "test_key"
+        assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):

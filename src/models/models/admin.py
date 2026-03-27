@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import AnyUrl, Field, SecretStr, field_serializer
+from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
 from models.base import TaranisBaseModel
 from models.types import (
@@ -16,6 +16,40 @@ from models.types import (
     ItemType,
     TLPLevel,
 )
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None or value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+class ExportStoriesQuery(TaranisBaseModel):
+    timefrom: PastDatetime | None = None
+    timeto: PastDatetime | None = None
+    metadata: bool = False
+
+    @field_validator("timefrom", "timeto", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value):
+        if value == "":
+            return None
+        return value
+
+    @field_validator("timefrom", "timeto", mode="after")
+    @classmethod
+    def normalize_utc_naive(cls, value: PastDatetime | None) -> datetime | None:
+        return _normalize_datetime(value)
+
+    @model_validator(mode="after")
+    def set_timeto_default(self):
+        if self.timefrom and (self.timeto is None or self.timeto < self.timefrom):
+            self.timeto = _utcnow()
+        return self
 
 
 class Job(TaranisBaseModel):
@@ -217,12 +251,21 @@ class OSINTSource(TaranisBaseModel):
     id: str | None = None
     name: str
     description: str = ""
+    rank: int = Field(default=0, ge=0, le=5)
     type: COLLECTOR_TYPES | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
 
     icon: str | None = None
     enabled: bool | None = True
     status: TaskResult | None = None
+
+
+class OSINTSourceUpdateModel(TaranisBaseModel):
+    name: str | None = None
+    description: str | None = None
+    rank: int | None = Field(default=None, ge=0, le=5)
+    parameters: dict[str, str] | None = None
+    icon: str | None = None
 
 
 class OSINTSourceGroup(TaranisBaseModel):
@@ -279,6 +322,7 @@ class ReportItemAttribute(TaranisBaseModel):
     description: str | None = None
     index: int | None = None
     required: bool | None = None
+    value: str | None = None
     type: str | None = None
 
 
@@ -343,6 +387,7 @@ class Bot(TaranisBaseModel):
     description: str = ""
     type: BOT_TYPES
     index: int | None = None
+    enabled: bool = True
     parameters: dict[str, str] | None = Field(default_factory=dict)
     status: TaskResult | None = None
 

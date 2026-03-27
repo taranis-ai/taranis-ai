@@ -55,6 +55,12 @@ def test_parse_formdata_with_empty_values():
     assert parse_formdata(formdata) == expected
 
 
+def test_parse_formdata_ignores_csrf_token():
+    formdata = ImmutableMultiDict([("csrf_token", "secret"), ("name", "John")])
+
+    assert parse_formdata(formdata) == {"name": "John"}
+
+
 def test_parse_formdata_with_list_of_dicts():
     formdata = ImmutableMultiDict(
         [

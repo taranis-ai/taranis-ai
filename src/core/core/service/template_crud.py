@@ -1,6 +1,9 @@
 import base64
 
-from core.managers.data_manager import save_template_content
+from core.managers.data_manager import (
+    InvalidPresenterTemplatePathError,
+    save_template_content,
+)
 from core.service.template_validation import validate_template_content
 
 
@@ -25,10 +28,16 @@ def create_or_update_template(template_id, base64_content):
     # Store in file
     try:
         save_template_content(template_id, template_content)
+    except InvalidPresenterTemplatePathError as e:
+        return {"error": str(e)}, 400
     except Exception as e:
         return {"error": f"Failed to save template: {e}"}, 500
 
-    response = {"message": "Template updated or created", "path": template_id, "validation_status": validation_status}
+    response = {
+        "message": "Template updated or created",
+        "path": template_id,
+        "validation_status": validation_status,
+    }
     if not validation_status["is_valid"]:
         response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
     return response, 200

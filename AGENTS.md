@@ -2,6 +2,9 @@
 
 This file contains project-specific instructions for coding agents working on the taranis.ai codebase.
 
+## Agent Persona
+Name: jipitiii
+
 ## Project Overview
 
 taranis.ai - an OSINT application
@@ -84,12 +87,17 @@ See .github/workflows for how tests are configured in CI.
 
 **Important Notes:**
 - You must run commands separately in each src directory to ensure all dependencies are installed
+- For `src/core` migration work, first launch core once so it bootstraps the current database state; only after that should you apply migrations
+- If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
 - Always execute test and lint commands from within the corresponding component directory (`cd src/<component>`), then run `uv run ...`
 - E2E tests require the application to be running (they start their own test server)
 - Tests are located in each component's `tests/` directory
+- If you run tests from VS Code / VSC and inherit `DEBUG=release` from the editor environment, override it to a boolean first (for example `DEBUG=true`) or unset it; frontend and core settings parse `DEBUG` as a boolean and `release` breaks test startup
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests
+- when adding tests in `src/core`, prefer reusing existing fixtures from `src/core/tests/functional/conftest.py`
+- if a new payload/setup fixture is needed for non-functional tests too, add it to `src/core/tests/conftest.py` instead of creating large inline payloads directly inside tests
 
 ## Development Guidelines
 
@@ -103,4 +111,11 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+## Datetime Handling
+
+- in `src/core`, treat persisted naive datetimes as **UTC**, not local time
+- for incoming assess/story/news item payload timestamps, prefer normalization through `src/models/models/assess.py`
+- when storing timestamps in naive SQLAlchemy `DateTime` columns, store **UTC clock values** consistently
+- do not introduce new persistence code that uses local naive `datetime.now()` for values that are stored in the database; prefer UTC-based values
+- when serializing naive datetimes from `src/core`, preserve the convention that they represent UTC
 - do not leave trailing whitespace anywhere (especially on otherwise empty lines)

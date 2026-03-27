@@ -24,6 +24,14 @@
       </div>
       <div class="flex-1"></div>
       {% if is_edit %}
+        {% if report.revision_count and report.revision_count > 0 %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_versions', report_id=report.id) }}" data-testid="report-versions">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Version History ({{ report.revision_count }})
+          </a>
+        {% endif %}
         <a class="btn btn-outline btn-sm"
            href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
            data-testid="report-new-product">New Product from Report</a>
@@ -84,11 +92,16 @@
       <div class="grid grid-cols-12 gap-4">
         <div class="col-span-12 {{ column_class }}">
           <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title) }}</div>
+            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title') }}</div>
             <div class="col-span-12 md:col-span-6">
               <label class="select w-full mb-5">
                 <span class="label">Report Type</span>
-                <select id="report_item_selector" name="report_item_type_id" class="select select-bordered w-full" {% if is_edit %}disabled{% endif %}>
+                <select id="report_item_selector"
+                        name="report_item_type_id"
+                        data-testid="report-type-select"
+                        hx-preserve
+                        class="select select-bordered w-full"
+                        {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
                     <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>

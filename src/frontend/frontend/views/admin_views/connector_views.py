@@ -52,6 +52,7 @@ class ConnectorView(AdminMixin, BaseView):
 
     @classmethod
     def get_connector_parameters_view(cls, connector_id: str, connector_type: str):
+        connector_type = connector_type.lower().strip()
         if not connector_id and not connector_type:
             logger.warning("No connector ID or type provided.")
 

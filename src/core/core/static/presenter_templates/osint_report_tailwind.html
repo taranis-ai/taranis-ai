@@ -1,0 +1,646 @@
+{% set render_options = ((data.parameters.render_options | default("", true)) ~ "") | lower %}
+{% set use_dark_theme = "dark_theme" in render_options %}
+<!doctype html>
+<html lang="en" class="{% if use_dark_theme %}theme-dark{% else %}theme-light{% endif %}">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ data.title | default("OSINT Report", true) | e }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.1"></script>
+    <style>
+      :root {
+        --page-bg: #eef4fb;
+        --body-text: #1e293b;
+        --body-bg:
+          radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 26%),
+          radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 28%),
+          linear-gradient(180deg, #f8fbff 0%, #eff6ff 48%, #e5eef8 100%);
+        --grid-opacity: 0.05;
+        --grid-line: rgba(71, 85, 105, 0.14);
+        --card-border: rgba(148, 163, 184, 0.34);
+        --card-shadow: 0 24px 60px rgba(148, 163, 184, 0.18);
+        --shell-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.88));
+        --section-bg: rgba(255, 255, 255, 0.88);
+        --story-bg: rgba(240, 249, 255, 0.86);
+        --source-bg: rgba(255, 255, 255, 0.92);
+        --metric-bg: rgba(255, 255, 255, 0.82);
+        --eyebrow-color: #0f766e;
+        --link-color: #0f766e;
+        --pill-border: rgba(13, 148, 136, 0.2);
+        --pill-bg: rgba(236, 253, 245, 0.96);
+        --text-strong: #0f172a;
+        --text-100: #1e293b;
+        --text-200: #334155;
+        --text-300: #475569;
+        --text-400: #64748b;
+        --text-500: #94a3b8;
+        --accent-100: #0f766e;
+        --accent-200: #0f766e;
+        --accent-300: #0ea5e9;
+        --danger-text: #b91c1c;
+        --muted-bg-40: rgba(241, 245, 249, 0.96);
+        --muted-bg-30: rgba(248, 250, 252, 0.92);
+        --accent-bg-10: rgba(204, 251, 241, 0.72);
+        --danger-bg-20: rgba(254, 226, 226, 0.9);
+        --border-gray-700: rgba(148, 163, 184, 0.42);
+        --border-gray-800: rgba(203, 213, 225, 0.9);
+        --border-accent: rgba(13, 148, 136, 0.22);
+        --border-danger: rgba(220, 38, 38, 0.2);
+        --print-bg: #ffffff;
+        color-scheme: light;
+      }
+
+      .theme-dark {
+        --page-bg: #020617;
+        --body-text: #e5e7eb;
+        --body-bg:
+          radial-gradient(circle at top left, rgba(45, 212, 191, 0.18), transparent 28%),
+          radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 28%),
+          linear-gradient(180deg, #020617 0%, #08111f 44%, #0b1220 100%);
+        --grid-opacity: 0.08;
+        --grid-line: rgba(148, 163, 184, 0.14);
+        --card-border: rgba(148, 163, 184, 0.18);
+        --card-shadow: 0 24px 60px rgba(2, 8, 23, 0.38);
+        --shell-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.76));
+        --section-bg: rgba(15, 23, 42, 0.78);
+        --story-bg: rgba(8, 47, 73, 0.24);
+        --source-bg: rgba(15, 23, 42, 0.78);
+        --metric-bg: rgba(15, 23, 42, 0.7);
+        --eyebrow-color: #67e8f9;
+        --link-color: #67e8f9;
+        --pill-border: rgba(103, 232, 249, 0.18);
+        --pill-bg: rgba(8, 47, 73, 0.36);
+        --text-strong: #ffffff;
+        --text-100: #f3f4f6;
+        --text-200: #e5e7eb;
+        --text-300: #d1d5db;
+        --text-400: #9ca3af;
+        --text-500: #6b7280;
+        --accent-100: #cffafe;
+        --accent-200: #a5f3fc;
+        --accent-300: #67e8f9;
+        --danger-text: #fecaca;
+        --muted-bg-40: rgba(17, 24, 39, 0.4);
+        --muted-bg-30: rgba(17, 24, 39, 0.3);
+        --accent-bg-10: rgba(8, 47, 73, 0.1);
+        --danger-bg-20: rgba(127, 29, 29, 0.2);
+        --border-gray-700: rgba(55, 65, 81, 1);
+        --border-gray-800: rgba(31, 41, 55, 1);
+        --border-accent: rgba(34, 211, 238, 0.2);
+        --border-danger: rgba(248, 113, 113, 0.2);
+        --print-bg: #0f172a;
+        color-scheme: dark;
+      }
+
+      html {
+        min-height: 100%;
+        background: var(--page-bg);
+      }
+
+      body {
+        margin: 0;
+        color: var(--body-text);
+        font-family: "Fira Sans", "Segoe UI", sans-serif;
+        background: var(--body-bg);
+      }
+
+      .report-canvas {
+        position: relative;
+      }
+
+      .report-canvas::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: var(--grid-opacity);
+        background-image:
+          linear-gradient(var(--grid-line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+
+      .report-shell,
+      .section-card,
+      .story-card,
+      .source-card,
+      .metric-card {
+        border: 1px solid var(--card-border);
+        box-shadow: var(--card-shadow);
+      }
+
+      .report-shell {
+        background: var(--shell-bg);
+      }
+
+      .section-card {
+        background: var(--section-bg);
+      }
+
+      .story-card {
+        background: var(--story-bg);
+      }
+
+      .source-card {
+        background: var(--source-bg);
+      }
+
+      .metric-card {
+        background: var(--metric-bg);
+      }
+
+      .eyebrow {
+        color: var(--eyebrow-color);
+        font-size: 0.72rem;
+        font-family: "Fira Code", monospace;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+      }
+
+      .mono {
+        font-family: "Fira Code", monospace;
+      }
+
+      .pill {
+        border: 1px solid var(--pill-border);
+        background: var(--pill-bg);
+      }
+
+      .preline {
+        white-space: pre-line;
+      }
+
+      .report-index-link:hover {
+        transform: translateX(4px);
+      }
+
+      .story-card,
+      .source-card,
+      .section-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      a {
+        color: var(--link-color);
+      }
+
+      .text-white {
+        color: var(--text-strong) !important;
+      }
+
+      .text-gray-100 {
+        color: var(--text-100) !important;
+      }
+
+      .text-gray-200 {
+        color: var(--text-200) !important;
+      }
+
+      .text-gray-300 {
+        color: var(--text-300) !important;
+      }
+
+      .text-gray-400 {
+        color: var(--text-400) !important;
+      }
+
+      .text-gray-500 {
+        color: var(--text-500) !important;
+      }
+
+      .text-cyan-100,
+      .text-cyan-200 {
+        color: var(--accent-100) !important;
+      }
+
+      .text-cyan-300 {
+        color: var(--accent-300) !important;
+      }
+
+      .text-red-200 {
+        color: var(--danger-text) !important;
+      }
+
+      .bg-gray-900\/40 {
+        background-color: var(--muted-bg-40) !important;
+      }
+
+      .bg-gray-900\/30 {
+        background-color: var(--muted-bg-30) !important;
+      }
+
+      .bg-cyan-900\/10 {
+        background-color: var(--accent-bg-10) !important;
+      }
+
+      .bg-red-900\/20 {
+        background-color: var(--danger-bg-20) !important;
+      }
+
+      .border-gray-700 {
+        border-color: var(--border-gray-700) !important;
+      }
+
+      .border-gray-800 {
+        border-color: var(--border-gray-800) !important;
+      }
+
+      .border-cyan-400\/15,
+      .border-cyan-400\/20 {
+        border-color: var(--border-accent) !important;
+      }
+
+      .border-red-400\/20 {
+        border-color: var(--border-danger) !important;
+      }
+
+      @media print {
+        body {
+          background: var(--print-bg);
+        }
+
+        .report-canvas::before {
+          position: absolute;
+        }
+      }
+    </style>
+  </head>
+  <body class="report-canvas min-h-screen">
+    {% set totals = namespace(stories=0, news_items=0, linked_items=0, tags=0) %}
+    {% set profile = namespace(has_values=false) %}
+
+    {% for report_item in data.report_items %}
+      {% set totals.stories = totals.stories + (report_item.stories | default([], true) | length) %}
+      {% for story in report_item.stories | default([], true) %}
+        {% set totals.news_items = totals.news_items + (story.news_items | default([], true) | length) %}
+        {% set totals.tags = totals.tags + (story.tags | default({}, true) | length) %}
+        {% for news_item in story.news_items | default([], true) %}
+          {% if news_item.link | default("", true) %}
+            {% set totals.linked_items = totals.linked_items + 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    {% endfor %}
+
+    {% for key, value in data.parameters | default({}, true) | dictsort %}
+      {% if key != "TEMPLATE_PATH" and value %}
+        {% set profile.has_values = true %}
+      {% endif %}
+    {% endfor %}
+
+    <main class="relative mx-auto max-w-7xl px-6 py-8 lg:px-10 lg:py-12">
+      <section class="report-shell rounded-3xl p-6 md:p-8 lg:p-10">
+        <div class="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
+          <div class="max-w-3xl">
+            <div class="eyebrow">OSINT Intelligence Report</div>
+            <h1 class="mt-4 text-4xl font-bold leading-tight text-white md:text-5xl">
+              {{ data.title | default("Untitled Product", true) | e }}
+            </h1>
+            <p class="mt-5 max-w-2xl text-base leading-7 text-gray-300 md:text-lg">
+              Generated {{ data.current_date | default("", true) | e }}.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3 text-xs font-medium uppercase tracking-widest text-gray-300">
+              <span class="pill inline-flex items-center rounded-full px-4 py-2">
+                Product ID:
+                <span class="mono ml-2 normal-case tracking-normal text-cyan-200">{{ data.id | default("", true) | e }}</span>
+              </span>
+              <span class="pill inline-flex items-center rounded-full px-4 py-2">
+                Presenter:
+                <span class="ml-2 normal-case tracking-normal text-cyan-200">
+                  {{ data.type | default("unknown", true) | replace("_", " ") | title | e }}
+                </span>
+              </span>
+              <span class="pill inline-flex items-center rounded-full px-4 py-2">
+                Coverage:
+                <span class="ml-2 normal-case tracking-normal text-cyan-200">
+                  {{ data.report_items | length }} report{% if data.report_items | length != 1 %}s{% endif %}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="grid w-full gap-4 sm:grid-cols-2 xl:w-96 xl:grid-cols-1">
+            <div class="metric-card rounded-2xl p-5">
+              <div class="eyebrow">Narratives</div>
+              <div class="mt-3 text-4xl font-bold text-white">{{ totals.stories }}</div>
+            </div>
+            <div class="metric-card rounded-2xl p-5">
+              <div class="eyebrow">Source Articles</div>
+              <div class="mt-3 text-4xl font-bold text-white">{{ totals.news_items }}</div>
+            </div>
+            <div class="metric-card rounded-2xl p-5">
+              <div class="eyebrow">Linked Sources</div>
+              <div class="mt-3 text-4xl font-bold text-white">{{ totals.linked_items }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 grid gap-6 xl:grid-cols-3">
+          <div class="metric-card rounded-2xl p-6 xl:col-span-2">
+            <div class="eyebrow">Snapshot</div>
+            <div class="mt-6 grid gap-3 md:grid-cols-3">
+              <div class="rounded-2xl border border-gray-700 bg-gray-900/40 p-4">
+                <div class="eyebrow">Report Items</div>
+                <div class="mt-2 text-2xl font-semibold text-white">{{ data.report_items | length }}</div>
+              </div>
+              <div class="rounded-2xl border border-gray-700 bg-gray-900/40 p-4">
+                <div class="eyebrow">Tag Signals</div>
+                <div class="mt-2 text-2xl font-semibold text-white">{{ totals.tags }}</div>
+              </div>
+              <div class="rounded-2xl border border-gray-700 bg-gray-900/40 p-4">
+                <div class="eyebrow">Update Date</div>
+                <div class="mt-2 text-lg font-semibold text-white">{{ data.current_date | default("", true) | e }}</div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="metric-card rounded-2xl p-6">
+            <div class="eyebrow">Report Index</div>
+            <div class="mt-4 space-y-2">
+              {% if data.report_items | length == 0 %}
+                <p class="text-sm text-gray-400">No report items.</p>
+              {% else %}
+                {% for report_item in data.report_items %}
+                  <a
+                    href="#report-{{ loop.index }}"
+                    class="report-index-link block rounded-2xl border border-gray-700 bg-gray-900/30 px-4 py-3 text-sm font-medium text-gray-100 transition"
+                  >
+                    <span class="mono mr-3 text-cyan-300">0{{ loop.index }}</span>
+                    {{ report_item.title | default("Untitled report item", true) | e }}
+                  </a>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            {% if profile.has_values %}
+              <div class="mt-6 border-t border-gray-700 pt-6">
+                <div class="eyebrow">Render Profile</div>
+                <dl class="mt-4 space-y-3">
+                  {% for key, value in data.parameters | default({}, true) | dictsort %}
+                    {% if key != "TEMPLATE_PATH" and value %}
+                      <div class="flex items-start justify-between gap-4 text-sm">
+                        <dt class="text-gray-400">{{ key | replace("_", " ") | title | e }}</dt>
+                        <dd class="mono text-right text-cyan-200">{{ value | e }}</dd>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </dl>
+              </div>
+            {% endif %}
+          </aside>
+        </div>
+      </section>
+
+      {% if data.report_items | length == 0 %}
+        <section class="section-card mt-8 rounded-3xl p-8 text-center">
+          <div class="eyebrow">No Data</div>
+          <h2 class="mt-4 text-2xl font-semibold text-white">Nothing to render</h2>
+          <p class="mx-auto mt-3 max-w-2xl text-sm leading-7 text-gray-400">Attach report items to render.</p>
+        </section>
+      {% else %}
+        {% for report_item in data.report_items %}
+          <section id="report-{{ loop.index }}" class="section-card mt-8 rounded-3xl p-6 md:p-8">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div class="max-w-4xl">
+                <div class="eyebrow">Report Item {{ loop.index }}</div>
+                <h2 class="mt-3 text-3xl font-semibold leading-tight text-white">
+                  {{ report_item.title | default("Untitled report item", true) | e }}
+                </h2>
+                <div class="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-widest text-gray-400">
+                  {% if report_item.id | default("", true) %}
+                    <span class="pill rounded-full px-4 py-2">
+                      <span class="text-gray-300">ID</span>
+                      <span class="mono ml-2 normal-case tracking-normal text-cyan-200">{{ report_item.id | e }}</span>
+                    </span>
+                  {% endif %}
+                  {% if report_item.created | default("", true) %}
+                    <span class="pill rounded-full px-4 py-2">
+                      Created
+                      <span class="ml-2 normal-case tracking-normal text-cyan-200">{{ report_item.created | e }}</span>
+                    </span>
+                  {% endif %}
+                  {% if report_item.last_updated | default("", true) %}
+                    <span class="pill rounded-full px-4 py-2">
+                      Updated
+                      <span class="ml-2 normal-case tracking-normal text-cyan-200">{{ report_item.last_updated | e }}</span>
+                    </span>
+                  {% endif %}
+                  <span class="pill rounded-full px-4 py-2">
+                    Status
+                    <span class="ml-2 normal-case tracking-normal text-cyan-200">
+                      {% if report_item.completed | default(false) %}Complete{% else %}In Progress{% endif %}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="metric-card rounded-2xl p-5 lg:w-64">
+                <div class="eyebrow">Stories</div>
+                <div class="mt-3 text-4xl font-bold text-white">
+                  {{ report_item.stories | default([], true) | length }}
+                </div>
+                <p class="mt-2 text-sm leading-6 text-gray-400">Story count</p>
+              </div>
+            </div>
+
+            {% if report_item.attributes | length > 0 %}
+              <div class="mt-8">
+                <div class="eyebrow">Report Metadata</div>
+                <div class="mt-4 grid gap-4 xl:grid-cols-2">
+                  {% for group_name, group_attributes in report_item.attributes.items() %}
+                    <div class="metric-card rounded-2xl p-5">
+                      <h3 class="text-lg font-semibold text-white">
+                        {{ group_name | default("General", true) | e }}
+                      </h3>
+                      <dl class="mt-4 space-y-4">
+                        {% for attribute_name, attribute_value in group_attributes.items() %}
+                          {% if attribute_value %}
+                            <div class="border-b border-gray-800 pb-4 last:border-b-0 last:pb-0">
+                              <dt class="text-xs uppercase tracking-widest text-gray-500">
+                                {{ attribute_name | replace("_", " ") | e }}
+                              </dt>
+                              <dd class="preline mt-2 text-sm leading-7 text-gray-200">
+                                {{ attribute_value | e }}
+                              </dd>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </dl>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            <div class="mt-10">
+              <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <div class="eyebrow">Analytic Narratives</div>
+                  <h3 class="mt-2 text-2xl font-semibold text-white">Story Coverage</h3>
+                </div>
+              </div>
+
+              {% if report_item.stories | default([], true) | length == 0 %}
+                <div class="story-card mt-5 rounded-3xl p-6">
+                  <p class="text-sm leading-7 text-gray-400">No stories attached.</p>
+                </div>
+              {% else %}
+                <div class="mt-5 space-y-6">
+                  {% for story in report_item.stories %}
+                    <article class="story-card rounded-3xl p-6 md:p-8">
+                      <div class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                        <div class="max-w-4xl">
+                          <div class="flex flex-wrap gap-2 text-xs uppercase tracking-widest text-gray-400">
+                            <span class="pill rounded-full px-4 py-2">Story {{ loop.index }}</span>
+                            {% if story.created | default("", true) %}
+                              <span class="pill rounded-full px-4 py-2">
+                                Created
+                                <span class="ml-2 normal-case tracking-normal text-cyan-200">{{ story.created | e }}</span>
+                              </span>
+                            {% endif %}
+                            {% if story.updated | default("", true) %}
+                              <span class="pill rounded-full px-4 py-2">
+                                Updated
+                                <span class="ml-2 normal-case tracking-normal text-cyan-200">{{ story.updated | e }}</span>
+                              </span>
+                            {% endif %}
+                            {% if story.important | default(false) %}
+                              <span class="rounded-full border border-red-400/20 bg-red-900/20 px-4 py-2 text-red-200">
+                                Priority
+                              </span>
+                            {% endif %}
+                          </div>
+
+                          <h4 class="mt-4 text-2xl font-semibold leading-tight text-white">
+                            {{ story.title | default("Untitled story", true) | e }}
+                          </h4>
+                          <p class="preline mt-4 text-sm leading-7 text-gray-300 md:text-base">
+                            {{ story.summary | default(story.description, true) | default("No summary.", true) | e }}
+                          </p>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-3 xl:w-80 xl:grid-cols-1">
+                          <div class="metric-card rounded-2xl p-4">
+                            <div class="eyebrow">Sources</div>
+                            <div class="mt-2 text-2xl font-semibold text-white">
+                              {{ story.news_items | default([], true) | length }}
+                            </div>
+                          </div>
+                          <div class="metric-card rounded-2xl p-4">
+                            <div class="eyebrow">Relevance</div>
+                            <div class="mt-2 text-2xl font-semibold text-white">{{ story.relevance | default(0) }}</div>
+                          </div>
+                          <div class="metric-card rounded-2xl p-4">
+                            <div class="eyebrow">Engagement</div>
+                            <div class="mt-2 text-lg font-semibold text-white">
+                              {{ story.likes | default(0) }} / {{ story.dislikes | default(0) }}
+                            </div>
+                            <p class="mt-1 text-xs uppercase tracking-widest text-gray-500">Likes / Dislikes</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {% if story.attributes is defined and story.attributes %}
+                        <div class="mt-5 flex flex-wrap gap-2">
+                          {% for attribute_name, attribute_data in story.attributes.items() %}
+                            {% if attribute_data.value | default("", true) %}
+                              <span class="rounded-full border border-cyan-400/15 bg-cyan-900/10 px-4 py-2 text-xs uppercase tracking-widest text-cyan-100">
+                                {{ attribute_name | e }}:
+                                <span class="ml-2 normal-case tracking-normal">{{ attribute_data.value | e }}</span>
+                              </span>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+
+                      {% if story.tags is defined and story.tags %}
+                        <div class="mt-4 flex flex-wrap gap-2">
+                          {% for tag_name, tag_data in story.tags.items() %}
+                            <span class="rounded-full border border-gray-700 bg-gray-900/40 px-4 py-2 text-xs uppercase tracking-widest text-gray-200">
+                              #{{ tag_name | e }}
+                            </span>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+
+                      <div class="mt-8">
+                        <div class="eyebrow">Source Material</div>
+                        {% if story.news_items | default([], true) | length == 0 %}
+                          <div class="source-card mt-4 rounded-2xl p-5">
+                            <p class="text-sm leading-7 text-gray-400">No source articles.</p>
+                          </div>
+                        {% else %}
+                          <div class="mt-4 space-y-4">
+                            {% for news_item in story.news_items %}
+                              <article class="source-card rounded-2xl p-5">
+                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                  <div class="max-w-4xl">
+                                    <div class="flex flex-wrap gap-2 text-xs uppercase tracking-widest text-gray-500">
+                                      {% if news_item.source | default("", true) %}
+                                        <span class="pill rounded-full px-3 py-1">{{ news_item.source | e }}</span>
+                                      {% endif %}
+                                      {% if news_item.published | default("", true) %}
+                                        <span class="pill rounded-full px-3 py-1">{{ news_item.published | e }}</span>
+                                      {% endif %}
+                                      {% if news_item.language | default("", true) %}
+                                        <span class="pill rounded-full px-3 py-1">{{ news_item.language | upper | e }}</span>
+                                      {% endif %}
+                                    </div>
+                                    <h5 class="mt-3 text-xl font-semibold text-white">
+                                      {{ news_item.title | default("Untitled source item", true) | e }}
+                                    </h5>
+                                    {% if news_item.author | default("", true) %}
+                                      <p class="mt-2 text-sm text-gray-400">
+                                        Author: {{ news_item.author | e }}
+                                      </p>
+                                    {% endif %}
+                                  </div>
+
+                                  {% if news_item.link | default("", true) %}
+                                    <a
+                                      href="{{ news_item.link | e }}"
+                                      class="inline-flex items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-900/10 px-4 py-2 text-sm font-medium text-cyan-100"
+                                    >
+                                      Open source
+                                    </a>
+                                  {% endif %}
+                                </div>
+
+                                {% if news_item.content | default("", true) %}
+                                  <p class="preline mt-4 text-sm leading-7 text-gray-300">
+                                    {{ news_item.content | e }}
+                                  </p>
+                                {% else %}
+                                  <p class="mt-4 text-sm leading-7 text-gray-500">No excerpt.</p>
+                                {% endif %}
+                              </article>
+                            {% endfor %}
+                          </div>
+                        {% endif %}
+                      </div>
+                    </article>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </section>
+        {% endfor %}
+      {% endif %}
+
+      <footer class="mt-8 pb-6 text-center text-xs uppercase tracking-widest text-gray-500">
+        Generated {{ data.current_date | default("", true) | e }}
+        {% if data.id | default("", true) %}
+          <span class="mono block mt-2 normal-case tracking-normal text-gray-400">{{ data.id | e }}</span>
+        {% endif %}
+      </footer>
+    </main>
+  </body>
+</html>

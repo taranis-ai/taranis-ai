@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import selectinload
 
 from core.config import Config
 from core.log import logger
@@ -26,6 +27,9 @@ def pre_seed():
 
         pre_seed_report_items()
         logger.debug("Report items seeded")
+
+        sync_presenter_templates()
+        logger.debug("Presenter templates seeded")
 
         pre_seed_workers()
         logger.debug("Workers seeded")
@@ -59,18 +63,22 @@ def sync_enums(db_engine: Engine):
 
 
 def pre_seed_update(db_engine: Engine):
-    from core.managers.pre_seed_data import bots, workers
+    from core.managers.pre_seed_data import bots, product_types, report_types, workers
     from core.model.bot import Bot
+    from core.model.product_type import ProductType
+    from core.model.report_item import ReportItemType
     from core.model.settings import Settings
     from core.model.worker import Worker
 
     pre_seed_source_groups()
     pre_seed_manual_source()
+    sync_presenter_templates()
     cleanup_invalid_source_icons()
     migrate_refresh_intervals()
     migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
+    migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
         migrate_search_indexes()
 
@@ -85,6 +93,16 @@ def pre_seed_update(db_engine: Engine):
         if not bot:
             Bot.add(b)
 
+    for r in report_types:
+        rt = ReportItemType.filter_by_title(r["title"])
+        if not rt:
+            ReportItemType.add(r)
+
+    for p in product_types:
+        pt = ProductType.filter_by_title(p["title"])
+        if not pt:
+            ProductType.add(p)
+
     Settings.initialize()
 
 
@@ -97,14 +115,23 @@ def cleanup_invalid_source_icons():
 
     for source in sources:
         icon_bytes = getattr(source, "icon", None)
-        if icon_bytes and not OSINTSource._is_valid_image(icon_bytes):
-            logger.warning(f"Removing invalid icon from OSINT source {source.id}")
-            source.icon = None
-            removed_icons += 1
+        if icon_bytes:
+            try:
+                OSINTSource._probe_icon_image(icon_bytes)
+            except ValueError:
+                logger.warning(f"Removing invalid icon from OSINT source {source.id}")
+                source.icon = None
+                removed_icons += 1
 
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
+
+
+def sync_presenter_templates():
+    from core.managers.data_manager import sync_presenter_templates_to_data
+
+    sync_presenter_templates_to_data()
 
 
 def migrate_search_indexes():
@@ -119,6 +146,76 @@ def cleanup_empty_stories():
 
     empty_stories = StoryService.delete_stories_with_no_items()
     logger.info(f"Deleted {empty_stories} empty stories")
+
+
+def migrate_missing_initial_revisions(batch_size: int = 100):
+    migrated_story_revisions = _migrate_missing_story_revisions(batch_size=batch_size)
+    migrated_report_revisions = _migrate_missing_report_revisions(batch_size=batch_size)
+
+    if migrated_story_revisions:
+        logger.info(f"Backfilled initial revisions for {migrated_story_revisions} stories")
+    if migrated_report_revisions:
+        logger.info(f"Backfilled initial revisions for {migrated_report_revisions} reports")
+
+
+def _migrate_missing_story_revisions(batch_size: int) -> int:
+    from core.managers.db_manager import db
+    from core.model.news_item import NewsItem
+    from core.model.story import Story
+
+    migrated = 0
+
+    while stories := list(
+        db.session.execute(
+            db.select(Story)
+            .options(
+                selectinload(Story.attributes),
+                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.attributes),
+            )
+            .where(Story.revision == -1)
+            .order_by(Story.id)
+            .limit(batch_size)
+        ).scalars()
+    ):
+        for story in stories:
+            story.revision = 0
+            story.record_revision(note="initial")
+        db.session.commit()
+        migrated += len(stories)
+
+    return migrated
+
+
+def _migrate_missing_report_revisions(batch_size: int) -> int:
+    from core.managers.db_manager import db
+    from core.model.news_item import NewsItem
+    from core.model.report_item import ReportItem
+    from core.model.story import Story
+
+    migrated = 0
+
+    while reports := list(
+        db.session.execute(
+            db.select(ReportItem)
+            .options(
+                selectinload(ReportItem.report_item_type),
+                selectinload(ReportItem.attributes),
+                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
+            )
+            .where(ReportItem.revision == -1)
+            .order_by(ReportItem.id)
+            .limit(batch_size)
+        ).scalars()
+    ):
+        for report in reports:
+            report.revision = 0
+            report.record_revision(note="initial")
+        db.session.commit()
+        migrated += len(reports)
+
+    return migrated
 
 
 def migrate_user_profile(user_profile: dict, template: dict) -> dict:
@@ -226,8 +323,9 @@ def pre_seed_manual_source():
                 "id": "manual",
                 "name": "Manual",
                 "description": "Manual source",
+                "rank": 0,
                 "type": "MANUAL_COLLECTOR",
-                "parameters": [],
+                "parameters": {},
             }
         )
 

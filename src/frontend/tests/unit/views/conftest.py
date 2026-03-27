@@ -5,6 +5,18 @@ from unittest.mock import MagicMock
 
 import pytest
 import responses
+from faker import Faker
+from polyfactory.exceptions import ParameterException
+from polyfactory.factories.pydantic_factory import ModelFactory
+from pydantic import BaseModel
+from pydantic.fields import FieldInfo
+from uuid_extensions import uuid7str
+
+from frontend.config import Config
+from frontend.log import logger
+from frontend.views.base_view import BaseView
+
+from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
 
 root_path = Path(__file__).resolve().parents[5] / "src" / "models"
@@ -13,19 +25,7 @@ if root_str in sys.path:
     sys.path.remove(root_str)
 sys.path.insert(0, root_str)
 
-from faker import Faker  # noqa: E402
-from polyfactory.exceptions import ParameterException  # noqa: E402
-from polyfactory.factories.pydantic_factory import ModelFactory  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
-from pydantic.fields import FieldInfo  # noqa: E402
-from uuid_extensions import uuid7str  # noqa: E402
-
-from frontend.config import Config  # noqa: E402
-from frontend.log import logger  # noqa: E402
 from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
-from frontend.views.base_view import BaseView  # noqa: E402
-
-from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation  # noqa: E402
 
 
 @pytest.fixture
@@ -203,6 +203,10 @@ def form_formats_from_models():
             allowed_keys.add(key)
             if field_required:
                 required_keys.add(key)
+
+        if view_name == "OSINT Source":
+            allowed_keys.add("delete_icon")
+            allowed_keys.add("rank")
 
         payloads[view_name] = {
             "allowed": allowed_keys,
@@ -682,6 +686,13 @@ def worker_parameter_data():
                 "id": "nlp_bot",
                 "parameters": [
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "REQUESTS_TIMEOUT",
+                        "name": "REQUESTS_TIMEOUT",
+                        "parent": "parameters",
+                        "rules": ["positive_int"],
+                        "type": "text",
+                    },
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                     {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
@@ -710,6 +721,13 @@ def worker_parameter_data():
                 "parameters": [
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "REQUESTS_TIMEOUT",
+                        "name": "REQUESTS_TIMEOUT",
+                        "parent": "parameters",
+                        "rules": ["positive_int"],
+                        "type": "text",
+                    },
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                     {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
@@ -719,6 +737,13 @@ def worker_parameter_data():
                 "id": "summary_bot",
                 "parameters": [
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "REQUESTS_TIMEOUT",
+                        "name": "REQUESTS_TIMEOUT",
+                        "parent": "parameters",
+                        "rules": ["positive_int"],
+                        "type": "text",
+                    },
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                     {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
@@ -832,6 +857,13 @@ def worker_parameter_data():
                 "id": "sentiment_analysis_bot",
                 "parameters": [
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "REQUESTS_TIMEOUT",
+                        "name": "REQUESTS_TIMEOUT",
+                        "parent": "parameters",
+                        "rules": ["positive_int"],
+                        "type": "text",
+                    },
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
@@ -859,6 +891,13 @@ def worker_parameter_data():
                 "id": "cybersec_classifier_bot",
                 "parameters": [
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
+                    {
+                        "label": "REQUESTS_TIMEOUT",
+                        "name": "REQUESTS_TIMEOUT",
+                        "parent": "parameters",
+                        "rules": ["positive_int"],
+                        "type": "text",
+                    },
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {

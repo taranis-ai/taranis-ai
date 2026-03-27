@@ -6,11 +6,6 @@ from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 
 
-class _FakeRedis:
-    def get(self, key):
-        return b"cron-b-1" if key == "rq:cron:leader" else None
-
-
 def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
     monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
@@ -18,7 +13,7 @@ def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
     queue_manager = QueueManager.__new__(QueueManager)
     queue_manager.error = ""
     queue_manager._queues = {}
-    queue_manager._redis = _FakeRedis()
+    queue_manager._redis = object()
 
     schedules, status = QueueManager.get_scheduled_jobs(queue_manager)
 

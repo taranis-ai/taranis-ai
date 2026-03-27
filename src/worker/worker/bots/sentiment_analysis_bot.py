@@ -21,6 +21,7 @@ class SentimentAnalysisBot(BaseBot):
         self.bot_api = BotApi(
             bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SENTIMENT_ANALYSIS_API_ENDPOINT),
             bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
         )
 
         logger.debug(f"Analyzing sentiment for {len(data)} news items")

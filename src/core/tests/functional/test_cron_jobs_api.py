@@ -105,17 +105,17 @@ class TestCronJobsAPI:
         bot_jobs = [job for job in data["cron_jobs"] if job["task"] == "bot_task" and disabled_id in job["args"]]
         assert len(bot_jobs) == 0
 
-    def test_get_cron_jobs_excludes_sources_without_schedule(self, client, auth_header, osint_source_no_schedule):
-        """Test that OSINT sources without schedules are not included"""
+    def test_get_cron_jobs_includes_sources_with_default_schedule(self, client, auth_header, osint_source_no_schedule):
+        """Test that OSINT sources without an explicit schedule use the default collector schedule"""
         response = client.get(self.base_uri, headers=auth_header)
         assert response.status_code == 200
 
         data = response.get_json()
         source_id = osint_source_no_schedule.id
 
-        # Verify no job exists for the source without schedule
         collector_jobs = [job for job in data["cron_jobs"] if job["task"] == "collector_task" and source_id in str(job["args"])]
-        assert len(collector_jobs) == 0
+        assert len(collector_jobs) == 1
+        assert collector_jobs[0]["cron"]
 
     def test_get_cron_jobs_requires_authentication(self, client):
         """Test that the endpoint requires authentication"""
@@ -156,3 +156,12 @@ class TestWorkerCronJobsAPI:
     def test_get_cron_jobs_requires_authentication(self, client):
         response = client.get(self.base_uri)
         assert response.status_code == 401
+
+    def test_get_cron_jobs_uses_default_schedule_for_collectors(self, client, api_header, osint_source_no_schedule):
+        response = client.get(self.base_uri, headers=api_header)
+        assert response.status_code == 200
+
+        data = response.get_json()
+        collector_jobs = [job for job in data["cron_jobs"] if osint_source_no_schedule.id in str(job["args"])]
+        assert len(collector_jobs) == 1
+        assert collector_jobs[0]["cron"]

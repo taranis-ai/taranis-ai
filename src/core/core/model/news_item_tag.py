@@ -31,7 +31,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
-        query = db.select(cls.name, cls.tag_type)
+        query = db.select(cls.name, cls.tag_type).where(cls.tag_type.not_ilike("report_%"))
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -51,6 +51,10 @@ class NewsItemTag(BaseModel):
         return {name: tag_type for name, tag_type in result}
 
     @classmethod
+    def get_all_for_collector(cls):
+        return cls.get_filtered(db.select(cls).where(cls.tag_type.not_ilike("report_%")))
+
+    @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:
         tags = cls.get_filtered_tags(filter_args)
         return list(tags.keys())
@@ -58,7 +62,6 @@ class NewsItemTag(BaseModel):
     @classmethod
     def remove_by_story(cls, story):
         db.session.execute(db.delete(cls).where(cls.story_id == story.id))
-        db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}

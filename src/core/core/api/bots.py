@@ -39,7 +39,7 @@ class BotUnGroupAction(MethodView):
         newsitem_ids = request.json
         if not newsitem_ids:
             return {"error": "No news items provided"}, 400
-        response, code = story.Story.remove_news_items_from_story(newsitem_ids)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
         return response, code
 

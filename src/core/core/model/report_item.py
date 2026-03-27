@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import false
@@ -13,10 +15,11 @@ from core.managers.db_manager import db
 from core.model.attribute import AttributeEnum, AttributeType
 from core.model.base_model import BaseModel
 from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
+from core.model.revision import ReportRevision
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.story import Story
 from core.model.user import User
-from core.service.news_item_tag import NewsItemTagService
+from core.service.report_story_sync import ReportStorySyncService
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -27,9 +30,10 @@ class ReportItem(BaseModel):
 
     title: Mapped[str] = db.Column(db.String())
 
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
-    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
+    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
+    revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     user: Mapped["User"] = relationship("User")
@@ -38,7 +42,7 @@ class ReportItem(BaseModel):
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="report_item_story", cascade="save-update, merge, delete", passive_deletes=True, single_parent=False
+        "Story", secondary="report_item_story", cascade="save-update, merge", passive_deletes=True, single_parent=False
     )
 
     attributes: Mapped[list["ReportItemAttribute"]] = relationship(
@@ -60,6 +64,7 @@ class ReportItem(BaseModel):
         stories=None,
         attributes=None,
         completed=False,
+        revision: int = 0,
         report_item_cpes=None,
         id=None,
     ):
@@ -68,6 +73,7 @@ class ReportItem(BaseModel):
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
         self.completed = completed
+        self.revision = revision
         self.report_item_cpes = report_item_cpes or []
         if stories is not None:
             self.stories = Story.get_bulk(stories)
@@ -148,6 +154,7 @@ class ReportItem(BaseModel):
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["revision_count"] = self.get_revision_count()
         return data
 
     def to_supported_products_dict(self):
@@ -155,7 +162,7 @@ class ReportItem(BaseModel):
             "id": self.id,
             "title": self.title,
             "type": self.report_item_type.title if self.report_item_type else "",
-            "created": self.created.astimezone().isoformat(),
+            "created": self.serialize_datetime(self.created),
         }
 
     def to_product_dict(self):
@@ -180,6 +187,96 @@ class ReportItem(BaseModel):
         data["stories"] = [story.to_worker_dict() for story in self.stories if story]
         return data
 
+    def record_revision(self, user: User | None = None, note: str | None = None) -> ReportRevision | None:
+        if not self.id:
+            return None
+
+        state = inspect(self)
+        if not state:
+            return None
+        if state.deleted or state.detached or self in db.session.deleted:
+            return None
+
+        created_by_id = user.id if isinstance(user, User) else getattr(user, "id", None)
+        return ReportRevision.create_from_report(self, created_by_id=created_by_id, note=note)
+
+    def get_revision_count(self) -> int:
+        """Get the number of revisions for this report"""
+        return self.revision or 0
+
+    @staticmethod
+    def _clean_title(raw_title: Any) -> str | None:
+        if isinstance(raw_title, str):
+            title = raw_title.strip()
+            if title:
+                return title
+        return None
+
+    @staticmethod
+    def _extract_story_ids(stories: Any) -> list[str] | None:
+        if not isinstance(stories, list):
+            return None
+
+        normalized: list[str] = []
+        for story in stories:
+            if isinstance(story, str):
+                normalized.append(story)
+                continue
+            if isinstance(story, dict):
+                story_id = story.get("id") or story.get("story_id")
+                if isinstance(story_id, str):
+                    normalized.append(story_id)
+                    continue
+            return None
+        return normalized
+
+    @classmethod
+    def _sanitize_create_payload(cls, data: Any) -> tuple[dict[str, Any] | None, tuple[dict[str, Any], int] | None]:
+        if not isinstance(data, dict):
+            return None, ({"error": "Invalid request payload"}, 400)
+
+        if (title := cls._clean_title(data.get("title"))) is None:
+            return None, ({"error": "Title is required"}, 400)
+
+        report_item_type_id_raw = data.get("report_item_type_id")
+        if report_item_type_id_raw is None:
+            return None, ({"error": "report_item_type_id is required"}, 400)
+        try:
+            report_item_type_id = int(report_item_type_id_raw)
+        except (TypeError, ValueError):
+            return None, ({"error": "report_item_type_id must be an integer"}, 400)
+
+        if report_item_type_id <= 0 or not ReportItemType.get(report_item_type_id):
+            return None, ({"error": "Invalid report item type"}, 400)
+
+        sanitized: dict[str, Any] = {
+            "title": title,
+            "report_item_type_id": report_item_type_id,
+        }
+
+        if "completed" in data:
+            completed = data.get("completed")
+            if not isinstance(completed, bool):
+                return None, ({"error": "completed must be a boolean"}, 400)
+            sanitized["completed"] = completed
+
+        if "stories" in data:
+            normalized_stories = cls._extract_story_ids(data.get("stories"))
+            if normalized_stories is None:
+                return None, ({"error": "stories must be a list of story ids"}, 400)
+            sanitized["stories"] = normalized_stories
+
+        if "report_item_cpes" in data:
+            sanitized["report_item_cpes"] = data["report_item_cpes"]
+
+        if raw_id := data.get("id"):
+            if isinstance(raw_id, str) and raw_id.strip():
+                sanitized["id"] = raw_id.strip()
+            else:
+                return None, ({"error": "id must be a non-empty string"}, 400)
+
+        return sanitized, None
+
     def clone_report(self, user: User | None = None) -> "ReportItem":
         attributes = [a.clone_attribute() for a in self.attributes]
 
@@ -193,7 +290,6 @@ class ReportItem(BaseModel):
         if user:
             report.user_id = user.id
         db.session.add(report)
-        db.session.commit()
         return report
 
     @classmethod
@@ -205,7 +301,9 @@ class ReportItem(BaseModel):
         if not report.allowed_with_acl(user, True):
             return {"error": "Permission Denied"}, 403
 
-        new_report = report.clone_report(user)
+        new_report = report.clone_report(user=user)
+        new_report.record_revision(user, note="cloned")
+        db.session.commit()
         return {
             "message": f"Successfully cloned Report '{new_report.title}'",
             "report": new_report.to_detail_dict(),
@@ -217,23 +315,28 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", int]:
-        report_item = cls.from_dict(report_item_data)
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem" | dict[str, Any], int]:
+        sanitized_data, error = cls._sanitize_create_payload(report_item_data)
+        if error:
+            return error[0], error[1]
+        if not sanitized_data:
+            return {"error": "Invalid data"}, 400
 
-        if not report_item.allowed_with_acl(user, True):
-            return report_item, 403
+        report_item = cls.from_dict(sanitized_data)
 
         if user:
+            if not report_item.allowed_with_acl(user, True):
+                return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
+
             report_item.user_id = user.id
         report_item.add_attributes()
 
-        if stories := report_item.stories:
-            for story in stories:
-                NewsItemTagService.add_report_tag(story, report_item)
-
         db.session.add(report_item)
+        db.session.flush()
+        if stories := list(report_item.stories):
+            ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
+        report_item.record_revision(user, note="created")
         db.session.commit()
-
         return report_item, 200
 
     def add_attributes(self):
@@ -343,12 +446,12 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        stories = Story.get_bulk(story_ids)
+        existing_story_ids = {story.id for story in report_item.stories}
+        stories = [story for story in Story.get_bulk(story_ids) if story.id not in existing_story_ids]
         report_item.stories.extend(stories)
+        ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
+        report_item.record_revision(user, note="add_stories")
         db.session.commit()
-
-        for story in stories:
-            NewsItemTagService.add_report_tag(story, report_item)
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
         return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
@@ -360,10 +463,9 @@ class ReportItem(BaseModel):
             return err, status
 
         stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
-        for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, report_item.id)
-
         report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
+        ReportStorySyncService.sync_report_membership(report_item, stories_to_remove, "detach")
+        report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
         return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
@@ -385,18 +487,17 @@ class ReportItem(BaseModel):
 
         # Add new stories and their tags
         for story in stories_to_add:
-            NewsItemTagService.add_report_tag(story, self)
             self.stories.append(story)
 
         # Remove old stories and their tags
         for story in stories_to_remove:
-            NewsItemTagService.remove_report_tag(story, self.id)
             self.stories.remove(story)
 
+        ReportStorySyncService.sync_report_membership(self, stories_to_add, "attach")
+        ReportStorySyncService.sync_report_membership(self, stories_to_remove, "detach")
+
     def retag_stories(self):
-        for story in self.stories:
-            NewsItemTagService.remove_report_tag(story, self.id)
-            NewsItemTagService.add_report_tag(story, self)
+        ReportStorySyncService.sync_report_membership(self, self.stories, "retag")
 
     @classmethod
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
@@ -419,12 +520,16 @@ class ReportItem(BaseModel):
 
         story_ids = data.get("story_ids", data.get("stories"))
         if story_ids is not None:
-            report_item.update_stories(story_ids)
-
-        db.session.commit()
+            normalized_ids = cls._extract_story_ids(story_ids)
+            if normalized_ids is None:
+                return {"error": "stories must be a list of story ids"}, 400
+            report_item.update_stories(normalized_ids)
 
         if retag_stories:
             report_item.retag_stories()
+
+        report_item.record_revision(user, note="update")
+        db.session.commit()
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
@@ -449,9 +554,25 @@ class ReportItem(BaseModel):
         if ProductReportItem.assigned(report_id):
             return {"error": "Report is used in a product"}, 409
 
+        affected_stories = list(report.stories)
+        report.stories = []
+        ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
         db.session.delete(report)
         db.session.commit()
         return {"message": f"Successfully deleted report '{report.title}'"}, 200
+
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        reports = list(db.session.execute(db.select(cls)).scalars())
+        for report in reports:
+            affected_stories = list(report.stories)
+            report.stories = []
+            ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
+            db.session.delete(report)
+
+        db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
+        return {"message": f"All {cls.__name__} deleted"}, 200
 
 
 class ReportItemAttribute(BaseModel):

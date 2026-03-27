@@ -5,7 +5,9 @@ from typing import Any
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
@@ -14,8 +16,8 @@ from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
+    validate_presenter_template_id,
 )
-from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import (
     attribute,
@@ -96,7 +98,7 @@ class ACLEntries(MethodView):
 
 
 class Attributes(MethodView):
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS"])
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, attribute_id: int | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:
@@ -185,6 +187,8 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             return {"message": "Product type created", "id": product.id}, 201
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -195,6 +199,8 @@ class ProductTypes(MethodView):
     def put(self, type_id: int):
         try:
             return product_type.ProductType.update(type_id, request.json, current_user)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         except Exception as e:
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
@@ -289,6 +295,10 @@ class Templates(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
+        try:
+            validate_presenter_template_id(template_path)
+        except ValueError as e:
+            return {"error": str(e)}, 400
         invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
             return {"message": "Template deleted", "path": template_path}, 200
@@ -429,7 +439,7 @@ class Bots(MethodView):
                 logger.debug(f"Successfully updated {updated_bot}")
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e)}, 400
         return {"error": f"Bot with ID: {bot_id} not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
@@ -516,73 +526,7 @@ class SchedulerDashboard(MethodView):
 class CronJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        """Get all cron job configurations for the RQ scheduler.
-
-        Returns a list of cron job configurations including:
-        - OSINT source collectors
-        - Bots
-        - Housekeeping tasks
-
-        Returns:
-            list: List of cron job configurations with task, queue, args, cron schedule, and task_id
-        """
-        try:
-            cron_jobs = []
-
-            # Get OSINT source collectors
-            sources = osint_source.OSINTSource.get_all_for_collector()
-            for source in sources:
-                cron_schedule = source.get_schedule()
-                if not cron_schedule:
-                    continue
-
-                cron_jobs.append(
-                    {
-                        "task": "collector_task",
-                        "queue": "collectors",
-                        "args": [source.id, False],  # manual=False for scheduled jobs
-                        "cron": cron_schedule,
-                        "task_id": source.task_id,
-                        "name": source.name,
-                    }
-                )
-
-            # Get Bot tasks
-            stmt = db.select(bot.Bot).where(bot.Bot.enabled)
-            bots = db.session.execute(stmt).scalars().all()
-            for bot_item in bots:
-                cron_schedule = bot_item.get_schedule()
-                if not cron_schedule:
-                    continue
-
-                cron_jobs.append(
-                    {
-                        "task": "bot_task",
-                        "queue": "bots",
-                        "args": [bot_item.id],
-                        "cron": cron_schedule,
-                        "task_id": bot_item.task_id,
-                        "name": bot_item.name,
-                    }
-                )
-
-            # Add housekeeping cron jobs
-            cron_jobs.append(
-                {
-                    "task": "cleanup_token_blacklist",
-                    "queue": "misc",
-                    "args": [],
-                    "cron": "0 2 * * *",
-                    "task_id": "cleanup_token_blacklist",
-                    "name": "Cleanup Token Blacklist",
-                }
-            )
-
-            return {"cron_jobs": cron_jobs}, 200
-
-        except Exception:
-            logger.exception("Failed to get cron job configurations")
-            return {"error": "Failed to get cron job configurations"}, 500
+        return queue_manager.queue_manager.get_cron_job_configs()
 
 
 class Schedule(MethodView):
@@ -659,6 +603,8 @@ class OSINTSources(MethodView):
         try:
             if source := osint_source.OSINTSource.add(request.json):
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return {"error": "OSINT source could not be created"}, 400
@@ -670,6 +616,8 @@ class OSINTSources(MethodView):
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         except ValueError as e:
             return {"error": str(e)}, 400
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
@@ -743,11 +691,14 @@ class OSINTSourcesExport(MethodView):
 class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        sources = None
-        if file := request.files.get("file"):
-            sources = osint_source.OSINTSource.import_osint_sources(file)
-        if json_data := request.get_json(silent=True):
-            sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        try:
+            sources = None
+            if file := request.files.get("file"):
+                sources = osint_source.OSINTSource.import_osint_sources(file)
+            if json_data := request.get_json(silent=True):
+                sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
+        except ValidationError as exc:
+            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400

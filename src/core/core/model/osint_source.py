@@ -5,14 +5,16 @@ from datetime import datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
-from models.admin import CronSpec
+from models.admin import CronSpec, OSINTSourceUpdateModel
+from models.admin import OSINTSource as OSINTSourceModel
 from models.types import COLLECTOR_TYPES
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, deferred, relationship
 from sqlalchemy.sql import Select
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -37,6 +39,7 @@ class OSINTSource(BaseModel):
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
+    rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters: Mapped[list["ParameterValue"]] = relationship(
@@ -47,17 +50,42 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
+    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
 
-    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, enabled=True, id=None):
-        self.id = id or str(uuid.uuid4())
-        self.name = name
-        self.description = description
-        self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        type: str | COLLECTOR_TYPES,
+        parameters=None,
+        icon=None,
+        enabled=True,
+        id=None,
+        rank: int = 0,
+    ):
+        payload = OSINTSourceModel.model_validate(
+            {
+                "id": id,
+                "name": name,
+                "description": description,
+                "rank": rank,
+                "type": type,
+                "parameters": {} if parameters is None else parameters,
+                "icon": icon,
+                "enabled": enabled,
+            }
+        )
+
+        self.id = payload.id or str(uuid.uuid4())
+        self.name = payload.name
+        self.description = payload.description
+        self.rank = payload.rank
+        self.type = payload.type if payload.type is not None else COLLECTOR_TYPES.MANUAL_COLLECTOR
         self.icon = None
-        if icon is not None:
-            self.icon = self._parse_icon(icon)
-        self.enabled = enabled
-        self.parameters = Worker.parse_parameters(self.type, parameters)
+        if payload.icon is not None:
+            self.icon = self._parse_icon(payload.icon)
+        self.enabled = True if payload.enabled is None else payload.enabled
+        self.parameters = Worker.parse_parameters(self.type, payload.parameters)
 
     @property
     def tlp_level(self) -> TLPLevel:
@@ -74,6 +102,16 @@ class OSINTSource(BaseModel):
     @property
     def task_id(self):
         return f"collect_{self.type}_{self.id}"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
+        data = dict(data)
+        data.pop("enabled", None)
+        return cls.from_payload(OSINTSourceModel.model_validate(data))
+
+    @classmethod
+    def from_payload(cls, payload: OSINTSourceModel) -> "OSINTSource":
+        return cls(**payload.model_dump(exclude={"status"}))
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -167,12 +205,6 @@ class OSINTSource(BaseModel):
             self.icon = None
         db.session.commit()
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["enabled"]
-        [data.pop(key, None) for key in drop_keys if key in data]
-        return cls(**data)
-
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
@@ -212,6 +244,7 @@ class OSINTSource(BaseModel):
             "id": self.id,
             "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
             "name": self.name,
+            "rank": self.rank,
             "type": self.type,
         }
 
@@ -302,16 +335,19 @@ class OSINTSource(BaseModel):
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
-        if name := data.get("name"):
-            osint_source.name = name
-        if description := data.get("description"):
-            osint_source.description = description
-        icon_str = data.get("icon")
-        if icon_str is not None:
-            osint_source.icon = osint_source._parse_icon(icon_str)
-        if parameters := data.get("parameters"):
-            update_parameter = ParameterValue.get_or_create_from_list(parameters)
-            osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
+        validated_update = OSINTSourceUpdateModel.model_validate(data)
+        update_fields = validated_update.model_fields_set
+
+        if "name" in update_fields and validated_update.name is not None:
+            osint_source.name = validated_update.name
+        if "description" in update_fields and validated_update.description is not None:
+            osint_source.description = validated_update.description
+        if "rank" in update_fields and validated_update.rank is not None:
+            osint_source.rank = validated_update.rank
+        if "icon" in update_fields and validated_update.icon is not None:
+            osint_source.icon = osint_source._parse_icon(validated_update.icon)
+        if "parameters" in update_fields and validated_update.parameters is not None:
+            osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -326,25 +362,46 @@ class OSINTSource(BaseModel):
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
             raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
-        if not self._is_valid_image(icon_bytes):
-            raise ValueError("Icon payload is not a valid image file.")
-        return icon_bytes
+        if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
+            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+        return self._normalize_icon_image(icon_bytes)
 
-    @staticmethod
-    def _is_valid_image(icon_bytes: bytes) -> bool:
+    @classmethod
+    def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
+        if cls._looks_like_svg(icon_bytes):
+            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
+
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
-                image.verify()
-                image_format = image.format
-            if not image_format:
-                logger.warning("Image verification succeeded but format is unknown.")
-                return False
-            with Image.open(BytesIO(icon_bytes)) as image:
+                image_format = image.format.upper() if image.format else None
+                if image_format not in cls._ALLOWED_ICON_FORMATS:
+                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
                 image.load()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            logger.warning(f"Pillow verification failed for icon: {exc}")
-            return False
-        return True
+                normalized = ImageOps.exif_transpose(image).convert("RGBA")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            logger.warning(f"Pillow decode failed for icon: {exc}")
+            raise ValueError("Icon payload is not a valid image file.") from exc
+
+        target_size = Config.OSINT_SOURCE_ICON_PIXELS
+        normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+        offset = ((target_size - normalized.width) // 2, (target_size - normalized.height) // 2)
+        canvas.paste(normalized, offset)
+
+        output_format = Config.OSINT_SOURCE_ICON_FORMAT.upper()
+        with BytesIO() as output:
+            canvas.save(output, format=output_format)
+            return output.getvalue()
+
+    @classmethod
+    def _probe_icon_image(cls, icon_bytes: bytes) -> None:
+        cls._normalize_icon_image(icon_bytes)
+
+    @staticmethod
+    def _looks_like_svg(icon_bytes: bytes) -> bool:
+        prefix = icon_bytes[:1024].lstrip().lower()
+        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
@@ -353,6 +410,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        if source_id == "manual":
+            return {"error": "The manual source cannot be deleted"}, 400
+
         if not (source := cls.get(source_id)):
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
@@ -421,6 +481,7 @@ class OSINTSource(BaseModel):
         export_dict = {
             "name": self.name,
             "description": self.description,
+            "rank": self.rank,
             "type": self.type,
             "parameters": self.get_export_parameters(export_args.get("with_secrets", False)),
         }
@@ -443,7 +504,7 @@ class OSINTSource(BaseModel):
 
         id_to_index_map = {osint_source.id: idx for idx, osint_source in enumerate(data, 1)}
         export_data = {
-            "version": 3,
+            "version": 4,
             "sources": [osint_source.to_export_dict(id_to_index_map, export_args) for osint_source in data],
         }
         if export_args.get("with_groups", False):
@@ -453,14 +514,14 @@ class OSINTSource(BaseModel):
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
-    def get_export_parameters(self, with_secrets: bool = False) -> list[dict[str, str]]:
-        parameters = []
+    def get_export_parameters(self, with_secrets: bool = False) -> dict[str, str]:
+        parameters: dict[str, str] = {}
         for parameter in self.parameters:
             if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
-                parameters.append({parameter.parameter: "<REDACTED>"})
+                parameters[parameter.parameter] = "<REDACTED>"
                 continue
             if parameter.value:
-                parameters.append(parameter.to_dict())
+                parameters[parameter.parameter] = parameter.value
         return parameters
 
     @classmethod
@@ -468,16 +529,36 @@ class OSINTSource(BaseModel):
         for source in data:
             source["parameters"] = []
             for parameter in source.pop("parameter_values", []):
-                source["parameters"].append(
-                    {
-                        parameter["parameter"]["key"]: parameter["value"],
-                    }
-                )
+                source["parameters"].append({parameter["parameter"]["key"]: parameter["value"]})
             source["type"] = source.pop("collector")["type"]
         return data
 
     @staticmethod
+    def normalize_rank(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            source["rank"] = source.get("rank", 0)
+        return sources
+
+    @staticmethod
     def normalize_use_feed_content_parameter(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for source in sources:
+            parameters = source.get("parameters")
+            if not isinstance(parameters, dict):
+                continue
+
+            content_location_value = str(parameters.get("CONTENT_LOCATION", ""))
+            has_use_feed_content = "USE_FEED_CONTENT" in parameters
+
+            if not content_location_value and not has_use_feed_content:
+                continue
+
+            target_value = "true" if content_location_value and content_location_value.strip() else "false"
+            parameters["USE_FEED_CONTENT"] = target_value
+
+        return sources
+
+    @staticmethod
+    def normalize_use_feed_content_parameter_legacy(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for source in sources:
             parameters = source.get("parameters")
             if not isinstance(parameters, list):
@@ -505,6 +586,28 @@ class OSINTSource(BaseModel):
                 parameters.append({"USE_FEED_CONTENT": target_value})
 
         return sources
+
+    @staticmethod
+    def convert_legacy_import_parameters(parameters: Any) -> Any:
+        if not isinstance(parameters, list):
+            return parameters
+
+        converted: dict[str, Any] = {}
+        for parameter in parameters:
+            if not isinstance(parameter, dict) or len(parameter) != 1:
+                return parameters
+            key, value = next(iter(parameter.items()))
+            converted[key] = value
+        return converted
+
+    @classmethod
+    def convert_legacy_import_sources(cls, sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        converted_sources = []
+        for source in sources:
+            converted_source = dict(source)
+            converted_source["parameters"] = cls.convert_legacy_import_parameters(source.get("parameters"))
+            converted_sources.append(converted_source)
+        return converted_sources
 
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
@@ -539,15 +642,28 @@ class OSINTSource(BaseModel):
         groups = []
         if json_data["version"] == 1:
             data = cls.parse_version_1(json_data["data"])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
         elif json_data["version"] == 2:
             data = json_data["data"]
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
         elif json_data["version"] == 3:
             data = json_data["sources"]
             groups = json_data.get("groups", [])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter_legacy(data)
+            data = cls.convert_legacy_import_sources(data)
+        elif json_data["version"] == 4:
+            data = json_data["sources"]
+            groups = json_data.get("groups", [])
+            data = cls.normalize_rank(data)
+            data = cls.normalize_use_feed_content_parameter(data)
         else:
             raise ValueError("Unsupported version")
 
-        data = cls.normalize_use_feed_content_parameter(data)
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids

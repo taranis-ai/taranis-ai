@@ -18,7 +18,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
-    "langcodes",
+    "language-tags",
     "requests",
     "beautifulsoup4",
     "lxml"

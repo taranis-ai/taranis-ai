@@ -33,7 +33,7 @@
   {'name': 'read', 'label': 'Read', 'value': read_filter},
   {'name': 'important', 'label': 'Important', 'value': important_filter},
   {'name': 'in_report', 'label': 'In Reports', 'value': in_report_filter},
-  {'name': 'relevant', 'label': 'Impact', 'value': relevant_filter}
+  {'name': 'relevant', 'label': 'Relevance', 'value': relevant_filter}
 ] %}
 
 <script type="text/javascript">
@@ -43,9 +43,9 @@ const classNames = {
   input: ['choices__input', '!bg-base-200'],
   inputCloned: ['choices__input--cloned', '!bg-base-200'],
   list: ['choices__list', '!bg-base-200'],
-  itemSelectable: ['choices__item--selectable', '!bg-primary-300'],
+  itemSelectable: ['choices__item--selectable', 'choices-item-selectable-primary'],
   itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-54'],
-  selectedState: ['is-selected', '!bg-primary'],
+  selectedState: ['is-selected', 'choices-selected-primary'],
 };
 
 const choicesConfig = {

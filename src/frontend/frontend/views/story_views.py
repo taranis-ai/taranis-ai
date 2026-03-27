@@ -1,10 +1,13 @@
 import datetime
+from difflib import SequenceMatcher
+from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
+from markupsafe import Markup, escape
 from models.admin import Connector
 from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
@@ -21,6 +24,70 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
+
+
+_STORY_IMPORT_FIELDS = {
+    "id",
+    "title",
+    "description",
+    "created",
+    "likes",
+    "dislikes",
+    "relevance",
+    "read",
+    "important",
+    "summary",
+    "comments",
+    "revision",
+    "attributes",
+    "tags",
+    "news_items",
+    "last_change",
+}
+
+_NEWS_ITEM_IMPORT_FIELDS = {
+    "id",
+    "title",
+    "source",
+    "content",
+    "osint_source_id",
+    "review",
+    "author",
+    "link",
+    "language",
+    "hash",
+    "attributes",
+    "last_change",
+    "published",
+    "collected",
+    "story_id",
+}
+
+
+def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
+    sanitized_payload = {key: value for key, value in news_item_data.items() if key in _NEWS_ITEM_IMPORT_FIELDS}
+    if story_id:
+        sanitized_payload["story_id"] = story_id
+    return sanitized_payload
+
+
+def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
+    sanitized_payload = {key: value for key, value in story_data.items() if key in _STORY_IMPORT_FIELDS}
+    if news_items := story_data.get("news_items"):
+        sanitized_payload["news_items"] = [
+            _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items
+        ]
+    return sanitized_payload
+
+
+def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any] | list[dict[str, Any]]:
+    if isinstance(json_data, dict) and isinstance(json_data.get("items"), list):
+        json_data = json_data["items"]
+    if isinstance(json_data, list) and all(isinstance(story_data, dict) for story_data in json_data):
+        return [_sanitize_story_import_payload(story_data) for story_data in json_data]
+    if isinstance(json_data, dict):
+        return _sanitize_story_import_payload(json_data)
+    return json_data
 
 
 class StoryView(BaseView):
@@ -438,8 +505,8 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def news_item_view(cls, news_item_id: str = ""):
-        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "" else NewsItem.model_construct(id="")
+    def news_item_view(cls, news_item_id: str = "0"):
+        news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
         return render_template("assess/news_item_create.html", news_item=news_item), 200
 
     @classmethod
@@ -479,6 +546,7 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def create_news_item(cls):
+        logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
             return cls._create_news_item_from_url(url)
 
@@ -487,7 +555,13 @@ class StoryView(BaseView):
 
         item_data = parse_formdata(request.form)
         item_data["collected"] = datetime.datetime.now().isoformat()
-        news_item = NewsItem(**item_data)
+        try:
+            news_item = NewsItem(**item_data)
+        except ValidationError as e:
+            logger.exception(format_pydantic_errors(e, NewsItem))
+            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
         core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
         return cls.news_item_edit_view(core_response)
 
@@ -495,7 +569,14 @@ class StoryView(BaseView):
     @auth_required()
     def update_news_item(cls, news_item_id: str):
         form_data = parse_formdata(request.form)
-        news_item = NewsItem(**form_data)
+        try:
+            news_item = NewsItem(**form_data)
+        except ValidationError as e:
+            logger.exception(format_pydantic_errors(e, NewsItem))
+            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
+            notification_html = render_template("notification/index.html", notification=notification)
+            return make_response(notification_html, 400)
+
         core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
 
         return cls._handle_news_item_response(
@@ -523,6 +604,42 @@ class StoryView(BaseView):
             flash("Failed to create news item from file", "error")
 
         return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id="0"))
+
+    @classmethod
+    @auth_required()
+    def import_stories(cls):
+        if not (upload_file := request.files.get("file")):
+            return make_response(cls.render_response_notification({"error": "No file selected for import."}), 400)
+
+        if upload_file.filename == "":
+            return make_response(cls.render_response_notification({"error": "No file selected for import."}), 400)
+
+        try:
+            json_data = json.loads(upload_file.read())
+            normalized_payload = _normalize_story_import_payload(json_data)
+            core_response = CoreApi().api_post("/assess/import", json_data=normalized_payload)
+        except JSONDecodeError:
+            logger.warning("Failed to decode story import JSON payload.")
+            return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
+        except Exception:
+            logger.exception("Failed to import stories.")
+            return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
+
+        if not getattr(core_response, "ok", False):
+            status_code = getattr(core_response, "status_code", 500) or 500
+            try:
+                notification_html = cls.get_notification_from_response(core_response)
+            except Exception:
+                notification_html = cls.render_response_notification({"error": "Failed to import stories."})
+            return make_response(notification_html, status_code)
+
+        imported_count = len(core_response.json().get("imported_stories", []))
+        flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
+        DataPersistenceLayer().invalidate_cache(None)
+
+        response = make_response("", 204)
+        response.headers["HX-Refresh"] = "true"
+        return response
 
     @classmethod
     def _create_news_item_from_url(cls, url: str):
@@ -686,3 +803,207 @@ class StoryView(BaseView):
             return abort(405)
 
         return self.patch_story(story_id=object_id)
+
+    @staticmethod
+    @auth_required()
+    def versions_view(story_id: str) -> tuple[str, int] | Response:
+        """Display revision history for a story"""
+        if not story_id:
+            return abort(400, description="No story ID provided.")
+
+        # Get story data
+        story = DataPersistenceLayer().get_object(Story, story_id)
+        if not story:
+            return abort(404, description="Story not found.")
+
+        # Get revisions from core API
+        revisions_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions")
+        revisions = revisions_data.get("items", []) if revisions_data else []
+
+        context = {
+            "story": story,
+            "revisions": revisions,
+        }
+
+        return render_template("assess/story_versions.html", **context), 200
+
+    @staticmethod
+    @auth_required()
+    def diff_view(story_id: str, from_rev: int, to_rev: int) -> tuple[str, int] | Response:
+        """Display diff between two story revisions"""
+        if not story_id:
+            return abort(400, description="No story ID provided.")
+
+        # Get story data
+        story = DataPersistenceLayer().get_object(Story, story_id)
+        if not story:
+            return abort(404, description="Story not found.")
+
+        # Get revision data from core API
+        from_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
+        to_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
+
+        if not from_data or not to_data:
+            return abort(404, description="Revision not found.")
+
+        # Calculate diff
+        from_revision_data = from_data.get("data", {})
+        to_revision_data = to_data.get("data", {})
+
+        # Prepare diff data
+        diff_data = {
+            "from_revision": from_data,
+            "to_revision": to_data,
+            "changes": _calculate_story_diff(from_revision_data, to_revision_data),
+        }
+
+        context = {
+            "story": story,
+            "diff": diff_data,
+            "from_rev": from_rev,
+            "to_rev": to_rev,
+        }
+
+        return render_template("assess/story_diff.html", **context), 200
+
+
+def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
+    """Calculate differences between two story data dictionaries"""
+    changes = []
+
+    def _inline_text_diff(old_text: str, new_text: str) -> tuple[Markup, Markup]:
+        old_parts: list[str] = []
+        new_parts: list[str] = []
+        matcher = SequenceMatcher(a=old_text, b=new_text)
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            old_segment = escape(old_text[i1:i2])
+            new_segment = escape(new_text[j1:j2])
+
+            if tag == "equal":
+                old_parts.append(str(old_segment))
+                new_parts.append(str(new_segment))
+                continue
+
+            if tag in {"delete", "replace"} and i1 != i2:
+                old_parts.append(f'<span class="line-through bg-error/20 text-error rounded px-0.5">{old_segment}</span>')
+
+            if tag in {"insert", "replace"} and j1 != j2:
+                new_parts.append(f'<span class="bg-success/20 text-success rounded px-0.5">{new_segment}</span>')
+
+        return Markup("".join(old_parts)), Markup("".join(new_parts))
+
+    def _append_text_change(field: str, old_value: Any, new_value: Any) -> None:
+        if old_value == new_value:
+            return
+
+        change: dict[str, Any] = {
+            "field": field,
+            "old_value": old_value,
+            "new_value": new_value,
+        }
+
+        if isinstance(old_value, str) and isinstance(new_value, str):
+            old_value_diff, new_value_diff = _inline_text_diff(old_value, new_value)
+            change["old_value_diff"] = old_value_diff
+            change["new_value_diff"] = new_value_diff
+            change["inline_diff"] = True
+
+        changes.append(change)
+
+    def _normalized_tag_names(data: dict) -> set[str]:
+        tag_names = set()
+        for tag in data.get("tags") or []:
+            if not isinstance(tag, dict):
+                continue
+            name = tag.get("name")
+            if not isinstance(name, str):
+                continue
+            normalized_name = name.strip()
+            if normalized_name:
+                tag_names.add(normalized_name)
+        return tag_names
+
+    # Compare title
+    _append_text_change("Title", from_data.get("title"), to_data.get("title"))
+
+    # Compare description
+    _append_text_change("Description", from_data.get("description"), to_data.get("description"))
+
+    # Compare summary
+    _append_text_change("Summary", from_data.get("summary"), to_data.get("summary"))
+
+    # Compare comments
+    _append_text_change("Comments", from_data.get("comments"), to_data.get("comments"))
+
+    # Compare tags
+    from_tags = _normalized_tag_names(from_data)
+    to_tags = _normalized_tag_names(to_data)
+
+    added_tags = to_tags - from_tags
+    removed_tags = from_tags - to_tags
+
+    if added_tags:
+        changes.append(
+            {
+                "field": "Tags Added",
+                "old_value": None,
+                "new_value": ", ".join(sorted(added_tags)),
+            }
+        )
+
+    if removed_tags:
+        changes.append(
+            {
+                "field": "Tags Removed",
+                "old_value": ", ".join(sorted(removed_tags)),
+                "new_value": None,
+            }
+        )
+
+    # Compare news items
+    from_news_items = {item.get("id") for item in from_data.get("news_items", [])}
+    to_news_items = {item.get("id") for item in to_data.get("news_items", [])}
+
+    added_items = to_news_items - from_news_items
+    removed_items = from_news_items - to_news_items
+
+    if added_items:
+        item_titles = [item.get("title", item.get("id")) for item in to_data.get("news_items", []) if item.get("id") in added_items]
+        changes.append(
+            {
+                "field": "News Items Added",
+                "old_value": None,
+                "new_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
+            }
+        )
+
+    if removed_items:
+        item_titles = [item.get("title", item.get("id")) for item in from_data.get("news_items", []) if item.get("id") in removed_items]
+        changes.append(
+            {
+                "field": "News Items Removed",
+                "old_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
+                "new_value": None,
+            }
+        )
+
+    # Compare attributes
+    from_attrs = {attr.get("key"): attr.get("value") for attr in from_data.get("attributes", [])}
+    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", [])}
+
+    # Find changed, added, and removed attributes
+    all_keys = set(from_attrs.keys()) | set(to_attrs.keys())
+    for key in sorted(all_keys):
+        from_val = from_attrs.get(key)
+        to_val = to_attrs.get(key)
+        if from_val != to_val:
+            changes.append(
+                {
+                    "field": f"Attribute: {key}",
+                    "old_value": from_val,
+                    "new_value": to_val,
+                }
+            )
+
+    return changes

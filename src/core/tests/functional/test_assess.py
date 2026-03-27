@@ -44,11 +44,45 @@ class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"
 
     def test_post_AddNewsItem(self, client, cleanup_news_item, auth_header):
+        from core.model.news_item import NewsItem
+
         response = self.assert_get_ok(client, "news-items", auth_header)
         assert len(response.get_json()["items"]) == 0, f"No news items should exist, found {response.get_json()['items']}"
 
         response = self.assert_post_ok(client, "news-items", cleanup_news_item, auth_header)
-        assert uuid.UUID(response.get_json()["story_id"], version=4)
+        response_json = response.get_json()
+        assert uuid.UUID(response_json["story_id"], version=4)
+
+        news_item_id = response_json["news_item_ids"][0]
+        item_response = self.assert_get_ok(client, f"news-items/{news_item_id}", auth_header)
+        news_item = item_response.get_json()
+
+        assert news_item["id"] == cleanup_news_item["id"]
+        assert news_item["title"] == "Test News Item 13"
+        assert news_item["content"] == "CVE-2020-1234 - Test Story 1"
+        assert news_item["link"] == "https://url/13%20path?q=a%20b"
+        assert news_item["published"] == "2023-08-01T15:01:04.801998+00:00"
+        assert news_item["collected"] == "2023-08-01T15:01:04.802015+00:00"
+        assert news_item["hash"] == NewsItem.get_hash(title="Test News Item 13", link="https://url/13%20path?q=a%20b")
+        assert news_item["updated"] != cleanup_news_item["updated"]
+
+    def test_add_single_news_item_uses_source_rank_for_story_relevance(self, app, cleanup_ranked_news_item):
+        from core.model.story import Story
+
+        with app.app_context():
+            response, status = Story.add_single_news_item(dict(cleanup_ranked_news_item))
+            assert status == 200
+
+            story = Story.get(response["story_id"])
+            assert story is not None
+            assert story.relevance == 4
+
+    def test_post_AddManualNewsItem_keeps_story_relevance_zero(self, client, cleanup_manual_news_item, auth_header):
+        response = self.assert_post_ok(client, "news-items", cleanup_manual_news_item, auth_header)
+        story_id = response.get_json()["story_id"]
+
+        story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
+        assert story_response.get_json()["relevance"] == 0
 
     def test_get_NewsItems(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, "news-items", auth_header)
@@ -58,6 +92,30 @@ class TestAssessNewsItems(BaseTest):
     def test_get_NewsItem(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
         assert response.get_json()["id"] == cleanup_news_item["id"]
+
+    def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
+        from core.model.news_item import NewsItem
+
+        update_payload = {
+            "title": "<i>Updated News Item</i>",
+            "content": "<div>Updated content</div>",
+            "link": "https://url/updated path?q=c d",
+            "language": "de",
+            "published": "2024-01-01T00:00:00+02:00",
+        }
+
+        response = self.assert_put_ok(client, f"news-items/{cleanup_news_item['id']}", update_payload, auth_header)
+        assert response.get_json()["news_item_id"] == cleanup_news_item["id"]
+
+        item_response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
+        news_item = item_response.get_json()
+
+        assert news_item["title"] == "Updated News Item"
+        assert news_item["content"] == "Updated content"
+        assert news_item["link"] == "https://url/updated%20path?q=c%20d"
+        assert news_item["language"] == "de"
+        assert news_item["published"] == "2023-12-31T22:00:00+00:00"
+        assert news_item["hash"] == NewsItem.get_hash(title="Updated News Item", link="https://url/updated%20path?q=c%20d")
 
     def test_delete_NewsItem(self, client, cleanup_news_item, auth_header):
         response = self.assert_delete_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
@@ -117,6 +175,20 @@ class TestAssessStories(BaseTest):
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
+    def test_get_stories_include_revision_count(self, client, stories, auth_header):
+        response = self.assert_get_ok(client, "stories", auth_header)
+        items = {item["id"]: item for item in response.get_json()["items"]}
+
+        assert "revision_count" in items[stories[0]]
+        assert items[stories[0]]["revision_count"] > 0
+
+        response = client.get("/api/assess/stories?no_count=true", headers=auth_header)
+        assert response.status_code == 200
+        items = {item["id"]: item for item in response.get_json()["items"]}
+
+        assert "revision_count" in items[stories[0]]
+        assert items[stories[0]]["revision_count"] > 0
+
     def test_get_story_tags(self, client, stories, auth_header):
         from core.model.story import Story
 
@@ -158,6 +230,20 @@ class TestAssessStories(BaseTest):
         response = client.get("/api/assess/stories", headers=auth_header)
         total_count = response.get_json()["counts"]["total_count"]
         assert total_count == 2
+
+    def test_story_revision_endpoints_enforce_read_access(self, client, auth_header, monkeypatch):
+        def fake_get_for_api(_story_id: str, _user=None):
+            return {"error": "forbidden"}, 403
+
+        monkeypatch.setattr("core.api.assess.story.Story.get_for_api", fake_get_for_api)
+
+        list_response = client.get("/api/assess/stories/story-1/revisions", headers=auth_header)
+        assert list_response.status_code == 403
+        assert list_response.get_json() == {"error": "forbidden"}
+
+        detail_response = client.get("/api/assess/stories/story-1/revisions/1", headers=auth_header)
+        assert detail_response.status_code == 403
+        assert detail_response.get_json() == {"error": "forbidden"}
 
 
 class TestAssessStoriesGrouping(BaseTest):
@@ -229,7 +315,7 @@ class TestAssessUngroupNewsItem(BaseTest):
         """
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["0a129597-592d-45cb-9a80-3218108b29a0"], auth_header)
-        assert response.get_json()["message"] == "Successfully removed 1 items from their story"
+        assert response.get_json()["message"] == "Successfully ungrouped 1 items from their story"
         assert response.get_json()["new_stories_ids"] not in stories
 
         response = client.get(f"/api/assess/story/{stories[1]}", headers=auth_header)
@@ -268,7 +354,7 @@ class TestAssessUngroupBigStory(BaseTest):
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"], auth_header)
         new_story_id = response.get_json()["new_stories_ids"][0]
-        assert response.get_json()["message"] == "Successfully removed 1 items from their story"
+        assert response.get_json()["message"] == "Successfully ungrouped 1 items from their story"
         assert new_story_id != full_story_id
 
         # db.session.expunge_all() made visible a wrong db.session.commit() order - where the commit came too early - before all changes were made.

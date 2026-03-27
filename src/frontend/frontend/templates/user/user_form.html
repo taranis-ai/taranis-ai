@@ -5,7 +5,15 @@
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
 {% set organizations = organizations | default([]) %}
-{% set user_role_ids = user.roles | map(attribute='id') | list | default([]) %}
+{% set role_ns = namespace(ids=[]) %}
+{% for role in user.roles | default([]) %}
+  {% if role.id is defined %}
+    {% set role_ns.ids = role_ns.ids + [role.id | string] %}
+  {% else %}
+    {% set role_ns.ids = role_ns.ids + [role | string] %}
+  {% endif %}
+{% endfor %}
+{% set user_role_ids = role_ns.ids %}
 
 <script type="text/javascript">
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
@@ -36,7 +44,8 @@
   </div>
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ user_id }}</p>
 
-  <form id="user-form" class="w-3/4 ml-[10%]" {{ form_action }} hx-swap="innerHTML"  hx-target="#form-container" hx-target-error="#form-container">
+  <form id="user-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     {% include "partials/admin_form_error.html" %}
 
     {{ form_input('Username', 'username', user.username, form_error.username, width="w-3/4") }}
@@ -44,10 +53,12 @@
 
     <div x-data="{ showPassword: false }" class="join gap-1 w-3/4">
       <label class="floating-label mb-5 input validator w-full shrink">
-        <span>Password</span>
+        <span>Password
+          {% if create %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+        </span>
         <input id="user-password"
                :type="showPassword ? 'text' : 'password'"
-               placeholder="Password"
+               placeholder="Password{% if create %}*{% endif %}"
                class="input input-md validator {% if form_error.password %}input-error{% endif %}"
                name="password"
                {% if create %}required hx-preserve{% endif %} />
@@ -63,7 +74,7 @@
     <div class="mb-5 w-3/4">
       <select name="roles[]" multiple required id="user-role-select">
         {% for role in roles %}
-          <option value="{{ role.id }}" {% if role.id in user_role_ids %}selected{% endif %}>
+          <option value="{{ role.id }}" {% if role.id | string in user_role_ids %}selected{% endif %}>
             {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
           </option>
         {% endfor %}
