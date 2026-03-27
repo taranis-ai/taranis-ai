@@ -24,12 +24,12 @@ jobs:
       run:
         working-directory: src/models
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           prune-cache: false
@@ -41,7 +41,7 @@ jobs:
         run: uv build
 
       - name: Upload wheel to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: taranis_models
           overwrite: true

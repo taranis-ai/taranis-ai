@@ -658,7 +658,7 @@ paths:
             type: boolean
         - name: relevant
           in: query
-          description: Filter only relevant news
+          description: Filter stories by derived relevance score
           schema:
             type: boolean
         - name: in_report
@@ -3605,6 +3605,12 @@ components:
           type: integer
         dislikes:
           type: integer
+        relevance:
+          type: integer
+          description: Derived story relevance total
+        relevance_override:
+          type: integer
+          description: Manual or imported relevance adjustment
         read:
           type: boolean
         important:
@@ -3644,6 +3650,10 @@ components:
           type: string
         description:
           type: string
+        rank:
+          type: integer
+          minimum: 0
+          maximum: 5
         type:
           type: string
         parameters:

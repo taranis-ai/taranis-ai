@@ -52,7 +52,7 @@ jobs:
             org.opencontainers.image.architecture=${{ matrix.arch }}
 
       - name: Build and push ingress
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         id: build
         with:
           file: docker/Containerfile.ingress
@@ -71,7 +71,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digests-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
@@ -85,7 +85,7 @@ jobs:
       - build_container
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ${{ runner.temp }}/digests
           pattern: digests-*
@@ -125,7 +125,7 @@ jobs:
 
       - name: Generate attestation for merged multiarch image
         if: ${{ env.LATEST }}
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ env.MERGED_DIGEST }}
