@@ -24,7 +24,6 @@ from tests.playwright.fixtures.test_story_list_enriched import story_list_enrich
 
 
 FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
-PRODUCTION_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.prod.yml"
 LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
 
 
@@ -161,15 +160,6 @@ def _login_to_core(core_api_url: str, username: str, password: str):
     return response
 
 
-def _selected_core_runtime_mode() -> str:
-    mode = os.getenv("TARANIS_E2E_CORE_MODE", "").strip().lower()
-    if mode in {"production", "prod"}:
-        return "production"
-    if mode in {"fast", "dev"}:
-        return "fast"
-    return "fast"
-
-
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
     _allow_requests_passthru(url)
 
@@ -189,10 +179,7 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 @pytest.fixture(scope="session")
 def docker_compose_file():
-    runtime_mode = _selected_core_runtime_mode()
-    compose_file = PRODUCTION_CORE_COMPOSE_FILE if runtime_mode == "production" else FAST_CORE_COMPOSE_FILE
-    print(f"Using {runtime_mode} Core runtime for E2E tests: {compose_file.name}")
-    return str(compose_file)
+    return str(FAST_CORE_COMPOSE_FILE)
 
 
 @pytest.fixture(scope="session")
@@ -238,7 +225,7 @@ def run_core(request):
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
-        _wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
+        _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
         yield core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -577,7 +564,6 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
-            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 422 \(Unprocessable Entity\)",
         ],
     )
 
@@ -764,12 +750,6 @@ def stories(run_core, api_header, fake_source, access_token):
     request_responses = []
     for story in cleaned_stories[:36]:
         r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
-        if not r.ok:
-            try:
-                error_payload = r.json()
-            except ValueError:
-                error_payload = r.text
-            raise AssertionError(f"Failed to seed story '{story.get('id')}' via /worker/stories with status {r.status_code}: {error_payload}")
         request_responses.append(r)
 
         # === Story grouping (clustering) logic ===

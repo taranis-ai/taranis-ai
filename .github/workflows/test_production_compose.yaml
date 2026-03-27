@@ -21,7 +21,6 @@ jobs:
       - name: Start docker compose for last commit
         working-directory: docker
         env:
-          DEBUG: "true"
           WORKER_TYPES: '["Presenters","Publishers"]'
         run: |
           cp env.sample .env
@@ -60,14 +59,9 @@ jobs:
       - name: Echo core logs
         if: ${{ failure() }}
         working-directory: docker
-        env:
-          DEBUG: "false"
-        run: docker compose -f compose.yml -f smoke-test.compose.override.yml logs core
+        run: docker compose logs core
 
       - name: Stop docker compose
         if: ${{ always() }}
         working-directory: docker
-        env:
-          DEBUG: "false"
-        run: |
-          docker compose -f compose.yml -f smoke-test.compose.override.yml down
+        run: docker compose down

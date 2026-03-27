@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-PLAYWRIGHT_DIR = os.path.join(base_dir, "playwright")
 env_file = os.path.join(base_dir, ".env")
 current_path = os.getcwd()
 
@@ -51,11 +50,8 @@ def _configure_external_frontend_environment() -> tuple[str, str, str] | None:
         raise RuntimeError(f"TARANIS_E2E_EXTERNAL_BASE_URL must be absolute, got: {base_url}")
 
     application_root = parsed.path.rstrip("/") or "/"
-
-    # Keep local url generation (`url_for(..., _external=True)`) aligned with the external target stack.
     os.environ["APPLICATION_ROOT"] = application_root
     os.environ["JWT_COOKIE_SECURE"] = "False"
-
     return parsed.netloc, application_root, parsed.scheme
 
 
@@ -87,14 +83,6 @@ def _build_authenticated_client(app, access_token):
         value=access_token,
     )
     return client
-
-
-E2E_OPTION_TO_FILES = {
-    "--e2e-ci": {"test_e2e_admin.py", "test_e2e_user.py"},
-    "--e2e-admin": {"test_e2e_admin.py"},
-    "--e2e-user": {"test_e2e_user.py"},
-    "--e2e-user-workflow": {"test_e2e_workflow.py"},
-}
 
 
 @pytest.fixture(scope="session")
@@ -242,9 +230,6 @@ def _is_vscode(config) -> bool:
        -k EXP
        -  was started from from Zed or VSCode
     """
-    # Explicit e2e flags must keep strict collection filtering even in VSCode terminals.
-    if any(config.getoption(option) for option in E2E_OPTION_TO_FILES):
-        return False
 
     k_expr = None
     try:
@@ -261,27 +246,6 @@ def _is_vscode(config) -> bool:
         return True
     # Fallbacks (sometimes present when launched from VS Code)
     return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
-
-
-def _selected_e2e_option(config) -> str | None:
-    return next((option for option in E2E_OPTION_TO_FILES if config.getoption(option)), None)
-
-
-def pytest_ignore_collect(collection_path, config):
-    if _is_vscode(config):
-        return False
-
-    path = os.path.normpath(os.path.abspath(str(collection_path)))
-    is_playwright_path = path == PLAYWRIGHT_DIR or path.startswith(PLAYWRIGHT_DIR + os.sep)
-    selected_option = _selected_e2e_option(config)
-
-    if is_playwright_path:
-        if selected_option is None:
-            return True
-        filename = os.path.basename(path)
-        return filename.startswith("test_") and filename.endswith(".py") and filename not in E2E_OPTION_TO_FILES[selected_option]
-
-    return selected_option is not None and path != base_dir
 
 
 def skip_tests(items, keyword, reason):
@@ -307,16 +271,16 @@ def pytest_collection_modifyitems(config, items):
     }
 
     config.option.headed = True
-    selected_option = _selected_e2e_option(config)
-    if selected_option:
-        keyword, reason = options[selected_option]
-        if selected_option == "--e2e-ci":
-            config.option.trace = True
-            config.option.headed = False
-        skip_tests(items, keyword, reason)
-        return
 
-    skip_all = pytest.mark.skip(reason="need one of --e2e-ci, --e2e-admin, --e2e-user, --e2e-user-workflow to run these tests")
+    for option, (keyword, reason) in options.items():
+        if config.getoption(option):
+            if option == "--e2e-ci":
+                config.option.trace = True
+                config.option.headed = False
+            skip_tests(items, keyword, reason)
+            return
+
+    skip_all = pytest.mark.skip(reason="need --e2e-ci or --e2e-admin option to run these tests")
     for item in items:
         if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)

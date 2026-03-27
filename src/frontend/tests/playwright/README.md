@@ -10,21 +10,8 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
-The E2E harness starts and stops a dedicated Docker Compose stack for the test session.
-
-Core runtime modes:
-- `fast` (default locally): runs Core from a plain Python container with `src/core` mounted, so code changes are picked up without rebuilding.
-- `production` (default in CI): builds Core from `docker/Containerfile.core` and runs it with Postgres and RabbitMQ sidecars.
-- `external`: run tests against an already running stack (for example smoke-test compose).
-
-Use `TARANIS_E2E_CORE_MODE=fast` or `TARANIS_E2E_CORE_MODE=production` to override.
-For `external` mode set:
-- `TARANIS_E2E_EXTERNAL_BASE_URL` (for example `http://127.0.0.1:8080/frontend`)
-- `TARANIS_E2E_EXTERNAL_CORE_URL` (for example `http://127.0.0.1:8080/api`)
-- `TARANIS_E2E_EXTERNAL_API_KEY` (required when seeding via worker API on external stacks)
-- optional `TARANIS_E2E_EXTERNAL_AUTH_USERNAME` / `TARANIS_E2E_EXTERNAL_AUTH_PASSWORD` (defaults: `admin` / `admin`)
-- optional `TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME` / `TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD` (if omitted, tests provision a temporary non-admin user via API)
-
+The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
+Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
 You only need Docker/Compose available locally.
 
 ### Run tests in headful mode
@@ -86,9 +73,7 @@ It takes two arguments:
 
 Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
 
-## Data Storage for E2E
+## DB file for E2E
 
-- In `fast` mode, Core uses an internal SQLite file inside its container for each test session.
-- In `production` mode, Core uses ephemeral Postgres and RabbitMQ containers.
-
+The Core service uses an internal SQLite file inside its container for each test session.
 No manual cleanup is required.
