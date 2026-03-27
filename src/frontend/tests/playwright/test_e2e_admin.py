@@ -491,7 +491,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(all_rows.first).to_be_visible()
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
-            expect(delete_button).to_contain_text("Delete")
+            expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
             self.dismiss_notification_if_visible(page)
