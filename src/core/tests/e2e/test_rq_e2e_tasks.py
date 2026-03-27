@@ -118,13 +118,14 @@ def redis_backend() -> Generator[dict[str, str], None, None]:
 
 
 @pytest.fixture(scope="session")
-def core_process(redis_backend: dict[str, str]) -> Generator[str, None, None]:
+def core_process(redis_backend: dict[str, str], tmp_path_factory: pytest.TempPathFactory) -> Generator[str, None, None]:
+    db_path = tmp_path_factory.mktemp("taranis-e2e-db") / "taranis_ai_e2e.db"
     env = os.environ | {
         "API_KEY": "test_key",
         "JWT_SECRET_KEY": "test_key",
         "REDIS_URL": redis_backend["url"],
         "REDIS_PASSWORD": redis_backend["password"],
-        "SQLALCHEMY_DATABASE_URI": "sqlite:////tmp/taranis_ai_e2e.db",
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
         "PRE_SEED_PASSWORD_ADMIN": "admin",
         "TARANIS_AUTHENTICATOR": "database",
         "DISABLE_SCHEDULER": "true",
@@ -154,7 +155,7 @@ def core_process(redis_backend: dict[str, str]) -> Generator[str, None, None]:
         except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
             proc.kill()
         with contextlib.suppress(Exception):
-            Path("/tmp/taranis_ai_e2e.db").unlink()
+            db_path.unlink()
 
 
 @pytest.fixture(scope="session")
