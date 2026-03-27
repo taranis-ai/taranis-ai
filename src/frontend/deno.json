@@ -2,7 +2,7 @@
   "nodeModulesDir": "auto",
   "imports": {
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.2.2",
-    "alpinejs": "npm:alpinejs@^3.15.8",
+    "alpinejs": "npm:alpinejs@^3.15.9",
     "choices.js": "npm:choices.js@^11.2.1",
     "daisyui": "npm:daisyui@^5.5.19",
     "fuse.js": "npm:fuse.js@^7.1.0",
