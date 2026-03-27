@@ -105,6 +105,7 @@ See .github/workflows for how tests are configured in CI.
 - use specific git add commands for the files you want to commit
 - don't commit how many tests passed (statistics in commit messages are not useful)
 - do not use `pip` for any package installations or management, always use `uv`
+- do not manually merge generated lockfiles such as `uv.lock` or `deno.lock`; regenerate them locally from the manifests/tools and commit the regenerated result
 - do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs
 - run tests before committing code
 - write tests for new features and bug fixes
