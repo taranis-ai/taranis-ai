@@ -5,7 +5,7 @@ from flask import Response, render_template, request
 from flask_jwt_extended import get_jwt_identity
 from models.admin import Organization, Role, User
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -76,7 +76,7 @@ class UserView(AdminMixin, BaseView):
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def export_view(cls):
         user_ids = request.args.getlist("ids")
         core_resp = CoreApi().export_users({"ids": user_ids})

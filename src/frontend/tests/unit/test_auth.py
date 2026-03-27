@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import pytest
 from flask import url_for
 
 import frontend.auth as auth_module
@@ -56,3 +57,33 @@ def test_is_safe_redirect_target_rejects_network_path_variants(app):
         assert not auth_module.is_safe_redirect_target("//evil.example/path")
         assert not auth_module.is_safe_redirect_target("/\\evil.example/path")
         assert not auth_module.is_safe_redirect_target("/%2F%2Fevil.example/path")
+
+
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        (["ALL"], True),
+        (["ADMIN_OPERATIONS"], True),
+        (["CONFIG_USERS"], True),
+        (["ASSESS_ACCESS", "CONFIG_WORD_LISTS"], True),
+        (["ASSESS_ACCESS", "ANALYZE_ACCESS"], False),
+        ([], False),
+        (None, False),
+    ],
+)
+def test_user_has_admin_permissions(permissions, expected):
+    assert auth_module.user_has_admin_permissions(permissions) is expected
+
+
+def test_admin_required_redirects_when_current_user_is_missing(app, monkeypatch):
+    monkeypatch.setattr(auth_module, "verify_jwt_in_request", lambda: None)
+    monkeypatch.setattr(auth_module, "get_jwt_identity", lambda: "admin")
+    monkeypatch.setattr(auth_module, "current_user", None)
+
+    protected_view = auth_module.admin_required()(lambda: "ok")
+
+    with app.test_request_context("/frontend/admin/attributes"):
+        response = protected_view()
+
+    assert response.status_code == 302
+    assert "/login" in response.location

@@ -29,6 +29,33 @@
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', osint_source.name, form_error.name) }}
     {{ form_textarea('Description', 'description', osint_source.description, form_error.description, required=False) }}
+    <fieldset class="fieldset w-full mb-5">
+      <legend class="fieldset-legend">Source Rank</legend>
+      <div class="rating" data-testid="osint-source-rank">
+        <input type="radio"
+               id="rank-0"
+               name="rank"
+               value="0"
+               class="rating-hidden"
+               aria-label="Unrated"
+               {% if osint_source.rank | default(0) == 0 %}checked{% endif %}
+               {% if read_only %}disabled{% endif %} />
+        {% for option in range(1, 6) %}
+          <input type="radio"
+                 id="rank-{{ option }}"
+                 name="rank"
+                 value="{{ option }}"
+                 class="mask mask-star-2 bg-warning"
+                 aria-label="{{ option }} star{% if option != 1 %}s{% endif %}"
+                 {% if osint_source.rank == option %}checked{% endif %}
+                 {% if read_only %}disabled{% endif %} />
+        {% endfor %}
+      </div>
+      <label class="label justify-start gap-2" for="rank-0">
+        <span class="label-text">Unrated</span>
+      </label>
+      {% if read_only %}<input type="hidden" name="rank" value="{{ osint_source.rank | default(0) }}" />{% endif %}
+    </fieldset>
     {% if osint_id != "0" and osint_source.icon %}
       <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5" data-testid="current-osint-icon">
         <legend class="fieldset-legend">Current icon</legend>

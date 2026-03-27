@@ -1,17 +1,17 @@
 from flask import Flask, Blueprint, request
 from flask.views import MethodView
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.views.admin_views.settings_views import SettingsView
 
 
 class SettingsAction(MethodView):
-    @auth_required()
+    @admin_required()
     def get(self, action: str):
         action_url = f"/admin/{action}?{request.query_string.decode()}"
         return SettingsView.settings_action(action_url)
 
-    @auth_required()
+    @admin_required()
     def post(self, action: str):
         action_url = f"/admin/{action}"
         return SettingsView.settings_action(action_url, method="post")

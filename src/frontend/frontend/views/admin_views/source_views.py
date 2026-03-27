@@ -8,7 +8,7 @@ from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
 
-from frontend.auth import auth_required
+from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
@@ -250,7 +250,7 @@ class SourceView(AdminMixin, BaseView):
         return cls._collect_source_view(response)
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def get_osint_source_preview_view(cls, osint_source_id: str):
         task_result = None
         if response := CoreApi().get_osint_source_preview(osint_source_id):
@@ -266,7 +266,7 @@ class SourceView(AdminMixin, BaseView):
         return super().delete_view(object_id)
 
     @classmethod
-    @auth_required()
+    @admin_required()
     def toggle_osint_source_state(cls, osint_source_id: str, new_state: Literal["enabled", "disabled"]) -> tuple[str, int]:
         dpl = DataPersistenceLayer()
 

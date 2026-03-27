@@ -1,10 +1,11 @@
 import re
 from typing import Any
 
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, render_template, url_for
 from flask.json.provider import DefaultJSONProvider
 from flask_htmx import HTMX
 from flask_jwt_extended import current_user, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
 from heroicons.jinja import (
     heroicon_micro,
     heroicon_mini,
@@ -15,6 +16,7 @@ from models.user import UserProfile
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
+from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
 from frontend.views.base_view import BaseView
@@ -22,6 +24,10 @@ from frontend.views.base_view import BaseView
 
 def handle_unauthorized(e):
     return redirect(url_for("base.login"), code=302)
+
+
+def handle_forbidden(e):
+    return render_template("errors/403.html"), 403
 
 
 class TaranisJSONProvider(DefaultJSONProvider):
@@ -102,7 +108,7 @@ def is_user_admin(user: UserProfile) -> bool:
     """
     Checks if the current user has admin privileges.
     """
-    return any(p.startswith("CONFIG_") for p in user.permissions or [])
+    return user_has_admin_permissions(user.permissions)
 
 
 def inject_current_user() -> dict[str, Any]:
@@ -112,7 +118,7 @@ def inject_current_user() -> dict[str, Any]:
     """
     try:
         verify_jwt_in_request(optional=True)
-    except Exception:
+    except JWTExtendedException:
         return {"current_user": None, "is_admin": False}
 
     if current_user:
@@ -126,6 +132,7 @@ def init(app: Flask):
     app.json = app.json_provider_class(app)
     HTMX(app)
     app.register_error_handler(401, handle_unauthorized)
+    app.register_error_handler(403, handle_forbidden)
 
     app.url_map.strict_slashes = False
 
