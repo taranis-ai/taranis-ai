@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "timezone": "Europe/Vienna",
+  "schedule": ["before 5am on Monday"],
+  "prConcurrentLimit": 1,
+  "prHourlyLimit": 0,
+  "enabledManagers": ["github-actions", "pre-commit", "pep621", "regex"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions", "pre-commit", "pep621", "regex"],
+      "groupName": "weekly dependencies update",
+      "groupSlug": "weekly-deps"
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": ["^src/frontend/deno\\.json$"],
+      "matchStrings": [
+        "\"(?<depName>@?[^\"\\s]+)\"\\s*:\\s*\"npm:(?<packageName>[^@]+)@\\^(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "npm",
+      "packageNameTemplate": "{{{packageName}}}",
+      "versioningTemplate": "npm"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  }
+}
