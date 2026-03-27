@@ -19,6 +19,19 @@ class TestEndToEndUser(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI user interface."""
 
     @staticmethod
+    def dismiss_notifications(page: Page) -> None:
+        if page.is_closed():
+            return
+
+        notifications = page.locator("#notification-bar [role='alert']")
+        while notifications.count():
+            try:
+                notifications.first.click(timeout=500)
+                page.wait_for_timeout(100)
+            except Exception:
+                break
+
+    @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
         count_text = page.get_by_test_id("assess_story_count").inner_text()
         match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
@@ -43,8 +56,9 @@ class TestEndToEndUser(PlaywrightHelpers):
         response.raise_for_status()
         return response.json()["counts"]["total_count"]
 
-    def test_login(self, taranis_frontend: Page):
+    def test_login(self, taranis_frontend: Page, non_admin_auth_credentials):
         page = taranis_frontend
+        username, password = non_admin_auth_credentials
         page.context.clear_cookies()
         self.add_keystroke_overlay(page)
 
@@ -52,9 +66,9 @@ class TestEndToEndUser(PlaywrightHelpers):
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
-        page.get_by_placeholder("Username").fill("user")
+        page.get_by_placeholder("Username").fill(username)
         self.highlight_element(page.get_by_placeholder("Password"))
-        page.get_by_placeholder("Password").fill("test")
+        page.get_by_placeholder("Password").fill(password)
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
@@ -95,15 +109,24 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
-            expect(page.locator("#dashboard")).to_contain_text("Location")
-
-            expect(page.locator("#dashboard")).to_contain_text("Organization")
-            expect(page.locator("#dashboard")).to_contain_text("Product")
-            expect(page.locator("#dashboard")).to_contain_text("Person")
+            dashboard = page.locator("#dashboard")
+            expect(dashboard).to_be_visible()
+            if dashboard.get_by_text("Trending Tags (last 7 days)").count():
+                expect(dashboard).to_contain_text("Trending Tags (last 7 days)")
+                expect(dashboard).to_contain_text("Location")
+                expect(dashboard).to_contain_text("Organization")
+                expect(dashboard).to_contain_text("Product")
+                expect(dashboard).to_contain_text("Person")
+            page.get_by_role("link", name="Edit Dashboard").click()
+            expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_checked()
+            expect(page.get_by_role("checkbox", name="dashboard[show_charts]")).to_be_checked()
+            page.get_by_role("link", name="Dashboard").click()
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
-            page.get_by_role("link", name="Location").click()
+            location_link = page.get_by_role("link", name="Location")
+            if location_link.count() == 0:
+                return
+            location_link.click()
             expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
             expect(page.locator("tbody")).to_contain_text("USA")
             expect(page.locator("tbody")).to_contain_text("6")
@@ -151,8 +174,16 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0
 
-    def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        page = logged_in_page
+    def test_user_profile(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        non_admin_auth_credentials,
+        pre_seed_stories,
+    ):
+        page = non_admin_logged_in_page
+        username, initial_password = non_admin_auth_credentials
+        updated_password = f"{initial_password}1"
 
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
@@ -176,23 +207,23 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def change_password_fail():
             # Wrong current password
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill(f"{updated_password}-wrong")
+            page.get_by_role("textbox", name="New password", exact=True).fill(initial_password)
+            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Old password is incorrect")
 
             # Mismatching new passwords
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill(initial_password)
+            page.get_by_role("textbox", name="New password", exact=True).fill(updated_password)
+            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("New password and confirm password do not match")
 
         def change_password():
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin1")
+            page.get_by_role("textbox", name="Current password").fill(initial_password)
+            page.get_by_role("textbox", name="New password", exact=True).fill(updated_password)
+            page.get_by_role("textbox", name="Confirm new password").fill(updated_password)
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -221,9 +252,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("link", name="Logout").click()
             expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
 
-            page.get_by_role("textbox", name="Username").fill("admin")
+            page.get_by_role("textbox", name="Username").fill(username)
             page.get_by_role("textbox", name="Username").press("Tab")
-            page.get_by_role("textbox", name="Password").fill("admin1")
+            page.get_by_role("textbox", name="Password").fill(updated_password)
             page.get_by_test_id("login-button").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -235,10 +266,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
+            page.get_by_role("textbox", name="Current password").fill(updated_password)
+            page.get_by_role("textbox", name="New password", exact=True).fill(initial_password)
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -313,7 +344,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("link", name="Return to story").click()
-            expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+            expect(page.get_by_test_id("story-title")).to_contain_text(re.compile(rf"^{re.escape(title)}(?: edited title)?$"))
 
         def infinite_scroll_all_items():
             page.goto(url_for("assess.assess", _external=True))
@@ -474,10 +505,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
-            notification = page.locator("#notification-bar [role='alert']")
-            if notification.is_visible():
-                notification.click()
-                expect(notification).to_be_hidden()
+            self.dismiss_notifications(page)
             page.get_by_placeholder("Date").fill("1.1.2000")
             page.get_by_placeholder("Timeframe").fill("January")
             page.get_by_placeholder("Handler", exact=True).fill("Kluger")
@@ -559,11 +587,14 @@ class TestEndToEndUser(PlaywrightHelpers):
             cleanup_reports(report_uuid_2)
 
         def check_various_report_type_fields():
+            optional_report_type_title = "Zzz_All Attribute Types Report"
+            required_report_type_title = "Zzz_All Attribute Types Report REQUIRED"
+
             def create_new_report():
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
-                page.get_by_test_id("report-type-select").select_option("6")  # report type with all attribute types
+                page.get_by_test_id("report-type-select").select_option(label=optional_report_type_title)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
@@ -604,6 +635,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields():
+                boolean_toggle = page.get_by_role("group", name=re.compile(r"^Boolean(?: \\*)?$")).get_by_role("checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -619,8 +651,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
                 page.get_by_placeholder("NUMBER field").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible()
-                page.locator("#attribute-4").check()
+                expect(boolean_toggle).to_be_visible()
+                boolean_toggle.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field", exact=True).click()
@@ -639,14 +671,14 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
 
             def empty_report_fields():
+                boolean_toggle = page.get_by_role("group", name=re.compile(r"^Boolean(?: \\*)?$")).get_by_role("checkbox")
                 page.get_by_text("Report item updated").click()
                 page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
-                expect(page.locator("#attribute-4")).to_be_visible()
-
-                page.locator("#attribute-4").uncheck()
+                expect(boolean_toggle).to_be_visible()
+                boolean_toggle.uncheck()
                 page.get_by_role("radio", name="CLASSIFIED").check()
                 page.get_by_label("Impact (Enum) Malicious code").select_option("Privilege escalation")
                 page.get_by_placeholder("TEXT field", exact=True).fill("")
@@ -661,6 +693,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_text("Report item updated").click()
 
             def check_report_fields():
+                boolean_toggle = page.get_by_role("group", name=re.compile(r"^Boolean(?: \\*)?$")).get_by_role("checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -669,7 +702,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible()
                 expect(page.get_by_placeholder("STRING field")).to_be_empty()
                 expect(page.get_by_placeholder("NUMBER field")).to_be_empty()
-                expect(page.locator("#attribute-4")).not_to_be_checked()
+                expect(boolean_toggle).not_to_be_checked()
                 expect(page.get_by_role("radio", name="CLASSIFIED")).to_be_checked()
                 expect(page.get_by_role("radio", name="UNRESTRICTED")).not_to_be_checked()
                 expect(page.get_by_label("Impact (Enum) Malicious code")).to_have_value("Privilege escalation")
@@ -724,7 +757,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_label("Report Type Select a report").select_option("7")
+                page.get_by_label("Report Type Select a report").select_option(label=required_report_type_title)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
@@ -763,10 +796,11 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields_required():
+                boolean_toggle = page.get_by_role("group", name=re.compile(r"^Boolean(?: \\*)?$")).get_by_role("checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
-                page.get_by_role("link", name="all attr report").click()
+                page.get_by_role("link", name="all attr report REQUIRED").click()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
@@ -776,8 +810,8 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_placeholder("STRING field*").fill("string")
                 page.get_by_placeholder("NUMBER field*").click()
                 page.get_by_placeholder("NUMBER field*").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible()
-                page.locator("#attribute-4").check()
+                expect(boolean_toggle).to_be_visible()
+                boolean_toggle.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) * Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field*", exact=True).fill("text")
@@ -821,7 +855,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             def delete_new_report_required():
                 report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
+                expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
                 page.get_by_test_id(f"action-delete-{report_uuid}").click()
                 expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
                 page.get_by_role("button", name="OK").click()

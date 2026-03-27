@@ -167,7 +167,7 @@ def _selected_core_runtime_mode() -> str:
         return "production"
     if mode in {"fast", "dev"}:
         return "fast"
-    return "production" if os.getenv("CI") else "fast"
+    return "fast"
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
@@ -465,18 +465,34 @@ def logged_in_page(taranis_frontend: Page, e2e_server, request):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic, request):
+def non_admin_auth_credentials(request):
     external_core_url = _external_core_api_url()
     created_external_user_id: int | None = None
     admin_access_token: str | None = None
 
     if external_core_url:
-        non_admin_auth_credentials = _external_non_admin_auth_credentials()
-        if non_admin_auth_credentials:
-            username, password = non_admin_auth_credentials
+        external_non_admin_auth = _external_non_admin_auth_credentials()
+        if external_non_admin_auth:
+            username, password = external_non_admin_auth
         else:
             admin_access_token = request.getfixturevalue("access_token")
             username, password, created_external_user_id = _provision_external_non_admin_user(external_core_url, admin_access_token)
+    else:
+        username, password = "user", "test"
+
+    try:
+        yield username, password
+    finally:
+        if external_core_url and created_external_user_id and admin_access_token:
+            _delete_external_user(external_core_url, admin_access_token, created_external_user_id)
+
+
+@pytest.fixture
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic, request):
+    external_core_url = _external_core_api_url()
+
+    if external_core_url:
+        username, password = request.getfixturevalue("non_admin_auth_credentials")
         token_response = _login_to_core(external_core_url, username, password)
     else:
         token_response = access_token_response_basic
@@ -488,8 +504,6 @@ def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_re
     finally:
         _dismiss_notifications(page)
         page.close()
-        if external_core_url and created_external_user_id and admin_access_token:
-            _delete_external_user(external_core_url, admin_access_token, created_external_user_id)
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
@@ -562,7 +576,7 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         request,
         non_admin_logged_in_page,
         extra_allow_patterns=[
-            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
             r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 422 \(Unprocessable Entity\)",
         ],
     )

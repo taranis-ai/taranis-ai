@@ -3,6 +3,7 @@ import json
 from enum import IntEnum
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
@@ -235,7 +236,13 @@ class WordList(BaseModel):
         update_word_list.entries.clear()
         update_word_list.entries = WordListEntry.load_multiple(data)
         logger.debug(f"Updated WordList {update_word_list.name} from {old_entry_length} to {len(update_word_list.entries)} entries")
-        db.session.commit()
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            logger.warning(f"Skipping async WordList refresh for deleted WordList {word_list_id}")
+            return None
 
         return update_word_list
 
