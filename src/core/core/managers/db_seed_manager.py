@@ -16,6 +16,9 @@ def pre_seed():
         pre_seed_source_groups()
         logger.debug("Source groups seeded")
 
+        pre_seed_manual_source()
+        logger.debug("Manual source seeded")
+
         pre_seed_roles()
         logger.debug("Roles seeded")
 
@@ -36,9 +39,6 @@ def pre_seed():
 
         pre_seed_assets()
         logger.debug("Assets seeded")
-
-        pre_seed_manual_source()
-        logger.debug("Manual source seeded")
 
     except Exception:
         logger.exception()
