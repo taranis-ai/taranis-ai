@@ -385,10 +385,7 @@ def _poll_cron_registration(
             return parsed
         time.sleep(0.5)
 
-    raise RuntimeError(
-        f"Cron job {job_id} was not registered in Redis within {timeout_seconds}s. "
-        f"spec={last_raw_spec!r}, next={last_next!r}"
-    )
+    raise RuntimeError(f"Cron job {job_id} was not registered in Redis within {timeout_seconds}s. spec={last_raw_spec!r}, next={last_next!r}")
 
 
 def _poll_cron_expression(
@@ -411,10 +408,7 @@ def _poll_cron_expression(
                 return parsed
         time.sleep(0.5)
 
-    raise RuntimeError(
-        f"Cron spec for {job_id} did not update to {expected_cron!r} within {timeout_seconds}s. "
-        f"last_spec={last_spec!r}"
-    )
+    raise RuntimeError(f"Cron spec for {job_id} did not update to {expected_cron!r} within {timeout_seconds}s. last_spec={last_spec!r}")
 
 
 def _poll_collector_task_result(
@@ -447,8 +441,7 @@ def _poll_collector_task_result(
         failed = redis_conn.zcard("rq:failed:collectors")
         details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
     raise RuntimeError(
-        f"Collector task for source '{source_name}' did not report SUCCESS within {timeout_seconds}s. "
-        f"Last payload: {last_payload}.{details}"
+        f"Collector task for source '{source_name}' did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}.{details}"
     )
 
 
@@ -480,10 +473,7 @@ def _poll_bot_task_result(
         queued = redis_conn.llen("rq:queue:bots")
         failed = redis_conn.zcard("rq:failed:bots")
         details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
-    raise RuntimeError(
-        f"Bot task '{bot_task_name}' did not report SUCCESS within {timeout_seconds}s. "
-        f"Last payload: {last_payload}.{details}"
-    )
+    raise RuntimeError(f"Bot task '{bot_task_name}' did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}.{details}")
 
 
 @pytest.mark.e2e_ci
@@ -552,10 +542,10 @@ def test_rq_scheduled_collector_cron(
         "name": "E2E RSS Source",
         "description": "E2E RSS source for scheduled collector test",
         "type": "RSS_COLLECTOR",
-        "parameters": [
-            {"parameter": "FEED_URL", "value": rss_server, "type": "text", "rules": "required"},
-            {"parameter": "REFRESH_INTERVAL", "value": "*/1 * * * *", "type": "cron_interval"},
-        ],
+        "parameters": {
+            "FEED_URL": rss_server,
+            "REFRESH_INTERVAL": "*/1 * * * *",
+        },
     }
     create_resp = requests.post(
         f"{core_process}/config/osint-sources",
@@ -597,10 +587,10 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
         "name": "E2E Cron Reload Source",
         "description": "E2E source for cron update reload behavior",
         "type": "RSS_COLLECTOR",
-        "parameters": [
-            {"parameter": "FEED_URL", "value": rss_server, "type": "text", "rules": "required"},
-            {"parameter": "REFRESH_INTERVAL", "value": initial_cron, "type": "cron_interval"},
-        ],
+        "parameters": {
+            "FEED_URL": rss_server,
+            "REFRESH_INTERVAL": initial_cron,
+        },
     }
     create_resp = requests.post(
         f"{core_process}/config/osint-sources",
@@ -620,11 +610,7 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     initial_next = redis_conn.zscore("rq:cron:next", job_id)
     assert initial_next is not None
 
-    update_payload = {
-        "parameters": [
-            {"parameter": "REFRESH_INTERVAL", "value": updated_cron, "type": "cron_interval"},
-        ]
-    }
+    update_payload = {"parameters": {"REFRESH_INTERVAL": updated_cron}}
     update_resp = requests.put(
         f"{core_process}/config/osint-sources/{source_id}",
         headers=headers,
@@ -643,9 +629,7 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
         next_after_update = redis_conn.zscore("rq:cron:next", job_id)
 
     assert next_after_update is not None
-    assert next_after_update != initial_next, (
-        "Expected scheduler to immediately recompute rq:cron:next after cron spec update"
-    )
+    assert next_after_update != initial_next, "Expected scheduler to immediately recompute rq:cron:next after cron spec update"
 
 
 @pytest.mark.e2e_ci
@@ -702,9 +686,9 @@ def test_rq_scheduled_wordlist_bot_cron(
         "name": "E2E Wordlist Bot",
         "description": "E2E wordlist bot",
         "type": "WORDLIST_BOT",
-        "parameters": [
-            {"parameter": "REFRESH_INTERVAL", "value": "*/1 * * * *", "type": "cron_interval"},
-        ],
+        "parameters": {
+            "REFRESH_INTERVAL": "*/1 * * * *",
+        },
     }
     bot_create = requests.post(
         f"{core_process}/config/bots",
