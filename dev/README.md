@@ -11,29 +11,91 @@ git clone git@github.com:taranis-ai/taranis-ai.git
 cd taranis-ai
 ```
 
-Copy env.dev to worker and core
+Set up the local hostname and nginx reverse proxy before starting the automated workflow.
+
+### Ubuntu proxy prerequisites
+
+Add the local hostname:
+
+```bash
+echo "127.0.0.1 local.taranis.ai" | sudo tee -a /etc/hosts
+```
+
+Configure nginx. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
+
+```bash
+# Debian based example
+sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+sudo ln -sf /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+sudo nginx -t && sudo systemctl restart nginx
+
+# Red Hat based example
+sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
+sudo nginx -t && sudo systemctl restart nginx
+```
+
+### macOS proxy prerequisites
+
+Install Homebrew and Xcode Command Line Tools first, then add the local hostname:
+
+```bash
+echo "127.0.0.1 local.taranis.ai" | sudo tee -a /etc/hosts
+```
+
+Install Homebrew nginx and place the development config into the included `servers/` directory:
+
+```bash
+brew install nginx
+mkdir -p "$(brew --prefix)/etc/nginx/servers"
+cp dev/nginx.conf "$(brew --prefix)/etc/nginx/servers/local.taranis.ai.conf"
+sudo ./dev/manage_macos_nginx.sh
+```
+
+`./dev/manage_macos_nginx.sh` validates the Homebrew nginx config and either reloads the running nginx master or starts it if it is not running yet.
+
+Copy `env.dev` to the app directories:
 
 ```bash
 cp dev/env.dev src/core/.env
+echo "FLASK_RUN_PORT=5001" >> src/core/.env
 cp dev/env.dev src/worker/.env
+cp dev/env.dev src/frontend/.env
+echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
+
+Start the automated tmux-based development setup:
 
 ```bash
 ./dev/start_dev.sh
 ```
 
+`./dev/start_dev.sh` installs supported local dependencies for Ubuntu or macOS, verifies Docker access, validates the `local.taranis.ai` proxy prerequisites, starts the compose services, and opens the tmux session.
+
 ## Hard Mode
+
+If you do not want to use `./dev/start_dev.sh`, you can either:
+
+* start support services with `docker compose -f dev/compose.yml up -d` and then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals
+* use the manual tmux workflow below
 
 Install pre dependencies:
 
 * git
 * tmux
 * deno
-* build-essential
-* [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
+* nginx
+* libpq
+* [docker](https://docs.docker.com/engine/install/) or another Docker-compatible daemon that provides `docker compose`
 
-If using docker make sure to allow running it as [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
-if using podman make sure to also install `podman-compose` and `podman-docker`
+On Ubuntu also install:
+
+* build-essential
+* libpq-dev
+* clang
+
+If using Docker on Ubuntu, make sure to allow running it as a [non-root user](https://docs.docker.com/engine/install/linux-postinstall/).
+On macOS, make sure your Docker-compatible daemon is already running before you start the app.
+Install the macOS dependencies with Homebrew after running `xcode-select --install`.
 
 Starting from the git root:
 
@@ -41,17 +103,14 @@ Starting from the git root:
 cd $(git rev-parse --show-toplevel)
 ```
 
-Copy env.dev to worker and core
+Copy `env.dev` to the app directories
 
 ```bash
 cp dev/env.dev src/core/.env
+echo "FLASK_RUN_PORT=5001" >> src/core/.env
 cp dev/env.dev src/worker/.env
-```
-
-Copy env.sample to frontend
-
-```bash
-cp src/frontend/env.sample src/frontend/.env
+cp dev/env.dev src/frontend/.env
+echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
 
 Start support services via the dev compose file
@@ -60,19 +119,7 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-Setup nginx.
-Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
-
-```bash
-# Debian based example
-sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
-sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
-sudo nginx -t && sudo systemctl restart nginx
-
-# Red Hat based example
-sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
-sudo nginx -t && sudo systemctl restart nginx
-```
+Set up the local hostname and nginx proxy using the Ubuntu or macOS instructions from Easy Mode before continuing.
 
 Start a tmux session with 3 panes for the 3 processes:
 
