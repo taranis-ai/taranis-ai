@@ -10,6 +10,7 @@ from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
 from core.service.product import ProductService
+from core.service.report_publish_workflow import ReportPublishWorkflowService
 
 
 class ReportTypes(MethodView):
@@ -89,6 +90,12 @@ class ReportItem(MethodView):
         if code == 200:
             sse_manager.report_item_updated(report_item_id)
         return result, code
+
+
+class ReportItemPublishProduct(MethodView):
+    @auth_required(["ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"])
+    def post(self):
+        return ReportPublishWorkflowService.create_and_publish(request.json, current_user)
 
 
 class CloneReportItem(MethodView):
@@ -179,24 +186,22 @@ class ReportItemRevisionData(MethodView):
         if access_status != 200:
             return access_response, access_status
 
-        revision = db.session.execute(
+        if revision := db.session.execute(
             db.select(ReportRevision)
             .filter(ReportRevision.report_item_id == report_item_id)
             .filter(ReportRevision.revision == revision_number)
-        ).scalar_one_or_none()
+        ).scalar_one_or_none():
+            return {
+                "id": revision.id,
+                "revision": revision.revision,
+                "created_at": revision.created_at.isoformat() if revision.created_at else None,
+                "created_by": revision.created_by.username if revision.created_by else None,
+                "created_by_id": revision.created_by_id,
+                "note": revision.note,
+                "data": revision.data,
+            }, 200
 
-        if not revision:
-            return {"error": "Revision not found"}, 404
-
-        return {
-            "id": revision.id,
-            "revision": revision.revision,
-            "created_at": revision.created_at.isoformat() if revision.created_at else None,
-            "created_by": revision.created_by.username if revision.created_by else None,
-            "created_by_id": revision.created_by_id,
-            "note": revision.note,
-            "data": revision.data,
-        }, 200
+        return {"error": "Revision not found"}, 404
 
 
 def initialize(app: Flask):
@@ -204,6 +209,10 @@ def initialize(app: Flask):
 
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
+    analyze_bp.add_url_rule(
+        "/report-items/publish-product",
+        view_func=ReportItemPublishProduct.as_view("report_items_publish_product"),
+    )
     analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
     analyze_bp.add_url_rule("/report/<string:report_item_id>", view_func=ReportItem.as_view("report"))
