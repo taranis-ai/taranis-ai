@@ -27,8 +27,10 @@ def init(app: Flask) -> None:
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
     permission_set = set(permissions or [])
-    return "ALL" in permission_set or "ADMIN_OPERATIONS" in permission_set or any(
-        permission.startswith("CONFIG_") for permission in permission_set
+    return (
+        "ALL" in permission_set
+        or "ADMIN_OPERATIONS" in permission_set
+        or any(permission.startswith("CONFIG_") for permission in permission_set)
     )
 
 
