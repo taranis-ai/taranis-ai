@@ -216,6 +216,10 @@ class QueueManager:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500
 
     def autopublish_product(self, product_id: str, auto_publisher_id: str):
+        if self.error:
+            logger.error("Could not schedule autopublish because rabbitmq is unavailable")
+            return {"error": "Could not reach rabbitmq"}, 500
+
         render_sig = queue_manager.celery.signature(
             "presenter_task", args=[product_id], queue="presenters", task_id=f"presenter_task_{product_id}"
         )
@@ -224,7 +228,14 @@ class QueueManager:
             "publisher_task", args=[product_id, auto_publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}", immutable=True
         )
 
-        chain(render_sig, publish_sig).apply_async()
+        try:
+            chain(render_sig, publish_sig).apply_async()
+        except Exception:
+            logger.exception(f"Could not schedule autopublish for product {product_id}")
+            return {"error": "Could not reach rabbitmq"}, 500
+
+        logger.info(f"Autopublishing Product: {product_id} with publisher: {auto_publisher_id} scheduled")
+        return {"message": f"Autopublishing Product: {product_id} with publisher: {auto_publisher_id} scheduled"}, 200
 
 
 def initialize(app: Flask, initial_setup: bool = True):

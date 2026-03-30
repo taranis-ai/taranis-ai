@@ -381,6 +381,257 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+  /analyze/report-items/publish-product:
+    post:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      operationId: analyze.report_items.publish_product
+      description: |-
+        Create a report and a product in a single request, then schedule an asynchronous render -> publish workflow for that product.
+
+        Workflow behavior:
+        - the report is created from the selected `report_item_type_id`
+        - all report attributes are pre-populated from the report type's attribute definitions and default values
+        - `story_ids` are attached during report creation and must all resolve to existing stories
+        - optional `attribute_overrides` are applied after default generation and must match exactly one generated report field by `group_title` and `title`
+        - the product is always created with `auto_publish=true`
+        - the product is always linked to the newly created report only
+        - the selected product type must explicitly support the selected report type
+        - the publish step is asynchronous; the endpoint only schedules render -> publish and does not wait for the worker result
+
+        Permissions:
+        - requires `ANALYZE_CREATE`
+        - requires `PUBLISH_CREATE`
+        - requires `PUBLISH_PRODUCT`
+
+        Failure behavior:
+        - validation failures reject the request before persistence
+        - if queue scheduling fails after the report and product are committed, the endpoint returns `500` and includes the persisted resources in the response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/report_publish_product_request"
+            examples:
+              minimal_success:
+                summary: Create a report, create a product, and schedule publish
+                value:
+                  report:
+                    title: CERT advisory for ACME VPN
+                    report_item_type_id: 4
+                    story_ids:
+                      - "story-100"
+                      - "story-101"
+                  product:
+                    title: CERT Daily Report - ACME VPN
+                    description: Daily delivery for the ACME VPN advisory
+                    product_type_id: 7
+                    default_publisher: "publisher-preset-42"
+              success_with_overrides:
+                summary: Override generated report fields after default population
+                value:
+                  report:
+                    title: ACME VPN incident brief
+                    report_item_type_id: 4
+                    story_ids:
+                      - "story-100"
+                    attribute_overrides:
+                      - group_title: Workflow Group
+                        title: Executive Summary
+                        value: Analyst supplied summary for the final report
+                  product:
+                    title: ACME VPN HTML briefing
+                    description: HTML export for the ACME VPN incident brief
+                    product_type_id: 7
+                    default_publisher: "publisher-preset-42"
+      responses:
+        "201":
+          description: report and product were created and render -> publish was scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report_publish_product_response"
+              examples:
+                success:
+                  summary: Workflow scheduled successfully
+                  value:
+                    message: Report and product created; publish scheduled
+                    report:
+                      id: "report-123"
+                      title: CERT advisory for ACME VPN
+                      created: "2026-03-30T16:00:00+00:00"
+                      last_updated: "2026-03-30T16:00:00+00:00"
+                      completed: false
+                      revision: 0
+                      user_id: 1
+                      report_item_type_id: 4
+                      revision_count: 0
+                      attributes:
+                        - id: "11"
+                          title: Executive Summary
+                          description: Summary field
+                          index: 0
+                          required: false
+                          type: STRING
+                          group_title: Workflow Group
+                          render_data:
+                            default_value: Default executive summary
+                          value: Default executive summary
+                      grouped_attributes:
+                        - title: Workflow Group
+                          attributes:
+                            - id: "11"
+                              title: Executive Summary
+                              description: Summary field
+                              index: 0
+                              required: false
+                              type: STRING
+                              group_title: Workflow Group
+                              render_data:
+                                default_value: Default executive summary
+                              value: Default executive summary
+                      stories:
+                        - id: "story-100"
+                          title: VPN incident story
+                    product:
+                      id: "product-456"
+                      title: CERT Daily Report - ACME VPN
+                      description: Daily delivery for the ACME VPN advisory
+                      created: "2026-03-30T16:00:00"
+                      last_rendered: null
+                      auto_publish: true
+                      product_type_id: 7
+                      default_publisher: "publisher-preset-42"
+                      type: html_presenter
+                      report_items:
+                        - "report-123"
+                      supported_reports:
+                        - id: "report-123"
+                          title: CERT advisory for ACME VPN
+                          type: CERT Report
+                          created: "2026-03-30T16:00:00+00:00"
+                      render_result: null
+                      mime_type: text/html
+                    publish:
+                      status: scheduled
+                      publisher_id: "publisher-preset-42"
+                      message: "Autopublishing Product: product-456 with publisher: publisher-preset-42 scheduled"
+        "400":
+          description: invalid workflow request or incompatible type combination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                incompatible_product_type:
+                  summary: Product type does not support the report type
+                  value:
+                    error: Selected product type does not support the selected report type
+                ambiguous_override:
+                  summary: Override target matches more than one generated field
+                  value:
+                    error: Attribute override target is ambiguous for group 'Workflow Group' and title 'Executive Summary'
+        "403":
+          description: caller lacks one or more required permissions, or the report type ACL rejects create access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    examples: [forbidden]
+        "404":
+          description: referenced product type or publisher preset was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                publisher_missing:
+                  summary: Publisher preset not found
+                  value:
+                    error: Publisher preset not found
+        "500":
+          description: report and product were created, but render -> publish could not be scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report_publish_product_response"
+              examples:
+                publish_queue_failure:
+                  summary: Persistence succeeded but queue scheduling failed
+                  value:
+                    message: Report and product created; publish scheduling failed
+                    report:
+                      id: "report-123"
+                      title: CERT advisory for ACME VPN
+                      created: "2026-03-30T16:00:00+00:00"
+                      last_updated: "2026-03-30T16:00:00+00:00"
+                      completed: false
+                      revision: 0
+                      user_id: 1
+                      report_item_type_id: 4
+                      revision_count: 0
+                      attributes:
+                        - id: "11"
+                          title: Executive Summary
+                          description: Summary field
+                          index: 0
+                          required: false
+                          type: STRING
+                          group_title: Workflow Group
+                          render_data:
+                            default_value: Default executive summary
+                          value: Analyst supplied summary for the final report
+                      grouped_attributes:
+                        - title: Workflow Group
+                          attributes:
+                            - id: "11"
+                              title: Executive Summary
+                              description: Summary field
+                              index: 0
+                              required: false
+                              type: STRING
+                              group_title: Workflow Group
+                              render_data:
+                                default_value: Default executive summary
+                              value: Analyst supplied summary for the final report
+                      stories:
+                        - id: "story-100"
+                          title: VPN incident story
+                    product:
+                      id: "product-456"
+                      title: CERT Daily Report - ACME VPN
+                      description: Daily delivery for the ACME VPN advisory
+                      created: "2026-03-30T16:00:00"
+                      last_rendered: null
+                      auto_publish: true
+                      product_type_id: 7
+                      default_publisher: "publisher-preset-42"
+                      type: html_presenter
+                      report_items:
+                        - "report-123"
+                      supported_reports:
+                        - id: "report-123"
+                          title: CERT advisory for ACME VPN
+                          type: CERT Report
+                          created: "2026-03-30T16:00:00+00:00"
+                      render_result: null
+                      mime_type: text/html
+                    publish:
+                      status: failed
+                      publisher_id: "publisher-preset-42"
+                      error: Could not reach rabbitmq
+
   /analyze/report-items/{report_item_id}:
     parameters:
       - name: report_item_id
@@ -3376,6 +3627,221 @@ components:
           type: string
         report:
           $ref: "#/components/schemas/report_item"
+
+    report_publish_attribute_override:
+      type: object
+      required:
+        - group_title
+        - title
+        - value
+      properties:
+        group_title:
+          type: string
+          description: Group title of the generated report attribute to override
+        title:
+          type: string
+          description: Attribute title inside the group
+        value:
+          type: string
+          description: Replacement value applied after report defaults are generated
+
+    report_publish_product_request.report:
+      type: object
+      required:
+        - title
+        - report_item_type_id
+        - story_ids
+      properties:
+        title:
+          type: string
+        report_item_type_id:
+          type: integer
+        completed:
+          type: boolean
+          default: false
+        story_ids:
+          type: array
+          items:
+            type: string
+        attribute_overrides:
+          type: array
+          items:
+            $ref: "#/components/schemas/report_publish_attribute_override"
+
+    report_publish_product_request.product:
+      type: object
+      required:
+        - title
+        - product_type_id
+        - default_publisher
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        product_type_id:
+          type: integer
+        default_publisher:
+          type: string
+          description: Publisher preset ID used for the immediate render -> publish scheduling
+
+    report_publish_grouped_attributes:
+      type: object
+      properties:
+        title:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/report_item_attribute"
+
+    report_item_detail.workflow:
+      type: object
+      required:
+        - id
+        - title
+        - report_item_type_id
+        - attributes
+        - grouped_attributes
+        - stories
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        created:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
+        revision:
+          type: integer
+        revision_count:
+          type: integer
+        user_id:
+          type: integer
+        report_item_type_id:
+          type: integer
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/report_item_attribute"
+        grouped_attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/report_publish_grouped_attributes"
+        stories:
+          type: array
+          items:
+            $ref: "#/components/schemas/story"
+
+    product_supported_report.workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        created:
+          type: string
+          format: date-time
+
+    product_detail.workflow:
+      type: object
+      required:
+        - id
+        - title
+        - product_type_id
+        - auto_publish
+        - report_items
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        created:
+          type: string
+          format: date-time
+        last_rendered:
+          type:
+            - string
+            - "null"
+          format: date-time
+        auto_publish:
+          type: boolean
+        product_type_id:
+          type: integer
+        default_publisher:
+          type: string
+        type:
+          type: string
+        report_items:
+          type: array
+          items:
+            type: string
+        supported_reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/product_supported_report.workflow"
+        render_result:
+          type:
+            - string
+            - "null"
+        mime_type:
+          type:
+            - string
+            - "null"
+
+    report_publish_status:
+      type: object
+      required:
+        - status
+        - publisher_id
+      properties:
+        status:
+          type: string
+          enum: [scheduled, failed]
+        publisher_id:
+          type: string
+        message:
+          type: string
+        error:
+          type: string
+
+    report_publish_product_request:
+      type: object
+      required:
+        - report
+        - product
+      properties:
+        report:
+          $ref: "#/components/schemas/report_publish_product_request.report"
+        product:
+          $ref: "#/components/schemas/report_publish_product_request.product"
+
+    report_publish_product_response:
+      type: object
+      required:
+        - message
+        - report
+        - product
+        - publish
+      properties:
+        message:
+          type: string
+        report:
+          $ref: "#/components/schemas/report_item_detail.workflow"
+        product:
+          $ref: "#/components/schemas/product_detail.workflow"
+        publish:
+          $ref: "#/components/schemas/report_publish_status"
 
     parameter_value:
       type: object

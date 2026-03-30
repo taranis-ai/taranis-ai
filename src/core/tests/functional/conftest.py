@@ -373,6 +373,111 @@ def cleanup_product(app):
         Product.delete_all()
 
 
+@pytest.fixture
+def workflow_publish_resources(app):
+    with app.app_context():
+        from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute, AttributeType
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.publisher_preset import PublisherPreset
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        suffix = uuid.uuid4().hex
+
+        summary_attribute = Attribute(
+            name=f"workflow_summary_{suffix}",
+            description="Workflow summary attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default executive summary",
+        )
+        recommendation_attribute = Attribute(
+            name=f"workflow_recommendation_{suffix}",
+            description="Workflow recommendation attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default recommendation",
+        )
+        db.session.add_all([summary_attribute, recommendation_attribute])
+        db.session.flush()
+
+        report_type = ReportItemType(
+            title=f"Workflow Report Type {suffix}",
+            description="Workflow report type for publish endpoint tests",
+            attribute_groups=[
+                {
+                    "index": 0,
+                    "title": "Workflow Group",
+                    "description": "Workflow attributes",
+                    "attribute_group_items": [
+                        {
+                            "index": 0,
+                            "attribute_id": summary_attribute.id,
+                            "title": "Executive Summary",
+                            "description": "Summary field",
+                            "required": False,
+                        },
+                        {
+                            "index": 1,
+                            "attribute_id": recommendation_attribute.id,
+                            "title": "Recommendation",
+                            "description": "Recommendation field",
+                            "required": False,
+                        },
+                    ],
+                }
+            ],
+        )
+        db.session.add(report_type)
+        db.session.flush()
+
+        product_type = ProductType(
+            title=f"Workflow Product Type {suffix}",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="Workflow product type",
+            parameters={"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            report_types=[report_type.id],
+        )
+        publisher_preset = PublisherPreset(
+            id=f"workflow-publisher-{suffix}",
+            name=f"Workflow Publisher {suffix}",
+            description="Workflow publisher preset",
+            type=PUBLISHER_TYPES.FTP_PUBLISHER,
+            parameters={"FTP_URL": "ftp://example.invalid/out"},
+        )
+
+        db.session.add_all([product_type, publisher_preset])
+        db.session.commit()
+
+        yield {
+            "report_type_id": report_type.id,
+            "product_type_id": product_type.id,
+            "publisher_preset_id": publisher_preset.id,
+            "group_title": "Workflow Group",
+            "summary_title": "Executive Summary",
+            "summary_default": "Default executive summary",
+            "recommendation_title": "Recommendation",
+            "recommendation_default": "Default recommendation",
+        }
+
+        Product.delete_all()
+        ReportItem.delete_all()
+
+        if PublisherPreset.get(publisher_preset.id):
+            db.session.delete(PublisherPreset.get(publisher_preset.id))
+        if ProductType.get(product_type.id):
+            db.session.delete(ProductType.get(product_type.id))
+        if ReportItemType.get(report_type.id):
+            db.session.delete(ReportItemType.get(report_type.id))
+        if Attribute.get(summary_attribute.id):
+            db.session.delete(Attribute.get(summary_attribute.id))
+        if Attribute.get(recommendation_attribute.id):
+            db.session.delete(Attribute.get(recommendation_attribute.id))
+        db.session.commit()
+
+
 @pytest.fixture(scope="class")
 def pdf_product(app):
     with app.app_context():
