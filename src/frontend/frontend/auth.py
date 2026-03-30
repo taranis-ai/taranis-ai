@@ -49,13 +49,17 @@ def is_safe_redirect_target(next_target: str | None) -> bool:
     adapter = current_app.url_map.bind_to_environ(request.environ)
 
     try:
-        adapter.match(parsed_target.path, method="GET")
-    except RequestRedirect:
-        return True
+        rule, _ = adapter.match(parsed_target.path, method="GET", return_rule=True)
+    except RequestRedirect as exc:
+        redirected_path = urlsplit(exc.new_url).path
+        try:
+            rule, _ = adapter.match(redirected_path, method="GET", return_rule=True)
+        except (RequestRedirect, NotFound, MethodNotAllowed):
+            return False
     except (NotFound, MethodNotAllowed):
         return False
 
-    return True
+    return rule.endpoint != "base.login"
 
 
 def _login_url_with_next() -> str:
@@ -77,8 +81,14 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _redirect_to_login():
+def _redirect_to_login_with_next():
     return redirect(_login_url_with_next(), code=302)
+
+
+def _redirect_expired_session_to_login():
+    response = make_response(redirect(_login_url_with_next(), code=302))
+    unset_jwt_cookies(response)
+    return response
 
 
 def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
@@ -148,7 +158,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -173,7 +183,7 @@ def admin_required():
         def wrapper(*args, **kwargs: dict[str, Any]):
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):
@@ -237,9 +247,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _redirect_to_login()
+    return _redirect_expired_session_to_login()
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _redirect_to_login()
+    return _redirect_to_login_with_next()
