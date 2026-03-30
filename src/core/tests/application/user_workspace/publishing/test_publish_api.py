@@ -1,7 +1,7 @@
 import base64
 from datetime import datetime
 
-from tests.functional.helpers import BaseTest
+from tests.application.support.api_test_base import BaseTest
 
 
 class TestPublishApi(BaseTest):

@@ -1,6 +1,7 @@
 from unittest.mock import Mock
-from core.model.role import TLPLevel
+
 from core.managers.db_manager import db
+from core.model.role import TLPLevel
 
 
 class TestRBAC:
@@ -52,7 +53,7 @@ class TestRBAC:
         from core.service.role_based_access import RoleBasedAccessService
 
         mock_user = Mock()
-        query = db.select(Story)
+        query = db.select(Story).where(Story.id.in_(stories_with_tlp["story_ids"]))
 
         # User has only TLP level Clear -> should see only the TLP Clear story
         mock_user.get_highest_tlp.return_value = TLPLevel.CLEAR

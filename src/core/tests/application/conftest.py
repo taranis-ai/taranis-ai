@@ -1,7 +1,17 @@
+import json
 import uuid
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
+
+
+_TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "test_data"
+_STORY_LIST_PATH = _TEST_DATA_DIR / "story_list.json"
+
+
+def _load_story_list() -> list[dict]:
+    return json.loads(_STORY_LIST_PATH.read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="class")
@@ -535,37 +545,136 @@ def stories_with_tlp(app, fake_source):
 
 @pytest.fixture(scope="class")
 def full_story(fake_source):
-    import json
-    import os
+    story = _load_story_list()
+    story[0].get("news_items")[0]["osint_source_id"] = fake_source
+    yield story
 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    story_json = os.path.join(dir_path, "../test_data/story_list.json")
-    with open(story_json) as f:
-        story = json.load(f)
-        story[0].get("news_items")[0]["osint_source_id"] = fake_source
-        yield story
+
+@pytest.fixture(scope="class")
+def story_payload_factory(fake_source):
+    from core.model.news_item import NewsItem
+
+    story_templates = _load_story_list()
+
+    def _build(index: int = 1) -> dict:
+        suffix = uuid.uuid4().hex
+        story = deepcopy(story_templates[index])
+        story["id"] = str(uuid.uuid4())
+        story["title"] = f"{story['title']} {suffix}"
+
+        for item_number, news_item in enumerate(story.get("news_items", []), start=1):
+            news_item["id"] = str(uuid.uuid4())
+            news_item["story_id"] = story["id"]
+            news_item["osint_source_id"] = fake_source
+            news_item["title"] = f"{news_item['title']} {suffix}-{item_number}"
+            news_item["link"] = f"https://example.invalid/story/{suffix}/{item_number}"
+            news_item["hash"] = NewsItem.get_hash(
+                title=news_item["title"],
+                link=news_item["link"],
+                content=news_item["content"],
+            )
+
+        return story
+
+    return _build
 
 
 @pytest.fixture(scope="class")
 def full_story_with_multiple_items_id(fake_source):
-    import json
-    import os
-
     from core.model.story import NewsItem, Story, StoryNewsItemAttribute
 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    story_json = os.path.join(dir_path, "../test_data/story_list.json")
-    with open(story_json) as f:
-        story = json.load(f)
-        story[1].get("news_items")[0]["osint_source_id"] = fake_source
-        story[1].get("news_items")[1]["osint_source_id"] = fake_source
+    story = _load_story_list()[1]
+    story["news_items"][0]["osint_source_id"] = fake_source
+    story["news_items"][1]["osint_source_id"] = fake_source
 
-        result = Story.add(story[1])
-        yield result[0].get("story_id"), story[1]
+    result = Story.add(story)
+    yield result[0].get("story_id"), story
 
-        StoryNewsItemAttribute.delete_all()
-        NewsItem.delete_all()
-        Story.delete_all()
+    StoryNewsItemAttribute.delete_all()
+    NewsItem.delete_all()
+    Story.delete_all()
+
+
+@pytest.fixture
+def story_search_story_payload(story_payload_factory):
+    yield story_payload_factory(index=1)
+
+
+@pytest.fixture
+def story_search_story_payloads(story_payload_factory):
+    yield story_payload_factory(index=1), story_payload_factory(index=1)
+
+
+@pytest.fixture
+def seed_story_payload_factory():
+    from tests.application.support.builders import build_news_item_payload, build_story_payload
+
+    def _build() -> dict:
+        return build_story_payload(
+            title_prefix="Seed Story",
+            description="seed story",
+            news_items=[
+                build_news_item_payload(
+                    source_id="manual",
+                    title_prefix="Seed News Item",
+                    content_prefix="content",
+                    source="seed-test",
+                    link="https://example.invalid/seed-test",
+                )
+            ],
+        )
+
+    return _build
+
+
+@pytest.fixture
+def seed_report_payload_factory(sample_report_type):
+    from tests.application.support.builders import build_report_payload
+
+    def _build(**extra_fields) -> dict:
+        return build_report_payload(sample_report_type.id, title_prefix="Seed Report", **extra_fields)
+
+    return _build
+
+
+@pytest.fixture
+def story_relevance_news_item_payload_factory():
+    from tests.application.support.builders import build_news_item_payload
+
+    def _build(source_id: str, title: str | None = None) -> dict:
+        return build_news_item_payload(
+            source_id=source_id,
+            title=title,
+            title_prefix="Story Relevance News Item",
+            source="story-relevance-test",
+        )
+
+    return _build
+
+
+@pytest.fixture
+def story_relevance_story_payload_factory():
+    from tests.application.support.builders import build_story_payload
+
+    def _build(news_items: list[dict], **extra_fields) -> dict:
+        return build_story_payload(
+            news_items=news_items,
+            title_prefix="Story Relevance Story",
+            description="story relevance test",
+            **extra_fields,
+        )
+
+    return _build
+
+
+@pytest.fixture
+def story_relevance_report_payload_factory(sample_report_type):
+    from tests.application.support.builders import build_report_payload
+
+    def _build(**extra_fields) -> dict:
+        return build_report_payload(sample_report_type.id, title_prefix="Story Relevance Report", **extra_fields)
+
+    return _build
 
 
 @pytest.fixture(scope="class")

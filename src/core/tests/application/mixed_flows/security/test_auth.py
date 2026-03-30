@@ -1,5 +1,6 @@
 import os
-from core.managers.auth_manager import auth_required, api_key_required
+
+from core.managers.auth_manager import api_key_required, auth_required
 
 
 @auth_required(permissions=["ADMIN_OPERATIONS"])

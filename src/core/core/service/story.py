@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any, Sequence
 
 from flask import Response, abort, jsonify
-from sqlalchemy import Row, func
+from sqlalchemy import Row, bindparam, func
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
@@ -86,19 +86,39 @@ class StoryService:
         return []
 
     @staticmethod
-    def update_search_vector(force: bool = False) -> int:
-        condition = "" if force else "WHERE s.search_vector = ''::tsvector"
+    def update_search_vector(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
+        if db.engine.dialect.name != "postgresql":
+            return 0
+
+        normalized_story_ids = [story_id for story_id in (story_ids or []) if story_id]
+        if story_ids is not None and not normalized_story_ids:
+            return 0
+
+        conditions: list[str] = []
+        parameters: dict[str, Any] = {}
+
+        if not force:
+            conditions.append("s.search_vector = ''::tsvector")
+        if normalized_story_ids:
+            conditions.append("s.id IN :story_ids")
+            parameters["story_ids"] = normalized_story_ids
 
         query = f"""
             UPDATE story AS s
             SET search_vector = fts_build_story_search_vector(s.id::text)
-            {condition}
+            {"WHERE " + " AND ".join(conditions) if conditions else ""}
             RETURNING s.id
         """
 
-        result = db.session.execute(db.text(query))
+        statement = db.text(query)
+        if normalized_story_ids:
+            statement = statement.bindparams(bindparam("story_ids", expanding=True))
+
+        db.session.flush()
+        result = db.session.execute(statement, parameters)
         updated_ids = result.scalars().all()
-        db.session.commit()
+        if commit:
+            db.session.commit()
 
         return len(updated_ids)
 
