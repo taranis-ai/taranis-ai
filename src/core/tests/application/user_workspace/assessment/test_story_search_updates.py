@@ -43,35 +43,17 @@ def test_story_search_does_not_match_updated_description(client, auth_header, st
 
 
 @pytest.mark.usefixtures("session")
-def test_story_update_rebuilds_search_index_for_searchable_fields(monkeypatch, story_search_story_payload):
+def test_story_update_uses_database_trigger_for_searchable_fields(monkeypatch, story_search_story_payload):
     story = create_story(story_search_story_payload)
     calls: list[dict[str, object]] = []
 
-    def fake_update_search_vector(force: bool = False, story_ids=None, commit: bool = True) -> int:
+    def fake_rebuild_search_vectors(force: bool = False, story_ids=None, commit: bool = True) -> int:
         calls.append({"force": force, "story_ids": list(story_ids or []), "commit": commit})
         return len(story_ids or [])
 
-    monkeypatch.setattr(StoryService, "update_search_vector", staticmethod(fake_update_search_vector))
+    monkeypatch.setattr(StoryService, "rebuild_search_vectors", staticmethod(fake_rebuild_search_vectors))
 
     response, status = Story.update(story.id, {"summary": "updated summary"})
-
-    assert status == 200
-    assert response["id"] == story.id
-    assert calls == [{"force": True, "story_ids": [story.id], "commit": False}]
-
-
-@pytest.mark.usefixtures("session")
-def test_story_update_does_not_rebuild_search_index_for_description(monkeypatch, story_search_story_payload):
-    story = create_story(story_search_story_payload)
-    calls: list[dict[str, object]] = []
-
-    def fake_update_search_vector(force: bool = False, story_ids=None, commit: bool = True) -> int:
-        calls.append({"force": force, "story_ids": list(story_ids or []), "commit": commit})
-        return len(story_ids or [])
-
-    monkeypatch.setattr(StoryService, "update_search_vector", staticmethod(fake_update_search_vector))
-
-    response, status = Story.update(story.id, {"description": "updated description"})
 
     assert status == 200
     assert response["id"] == story.id
@@ -79,26 +61,23 @@ def test_story_update_does_not_rebuild_search_index_for_description(monkeypatch,
 
 
 @pytest.mark.usefixtures("session")
-def test_group_stories_rebuilds_search_indexes_for_all_affected_stories(monkeypatch, story_search_story_payloads):
+def test_group_stories_use_database_triggers_for_search_refresh(monkeypatch, story_search_story_payloads):
     target_story_payload, source_story_payload = story_search_story_payloads
     target_story = create_story(target_story_payload)
     source_story = create_story(source_story_payload)
     calls: list[dict[str, object]] = []
 
-    def fake_update_search_vector(force: bool = False, story_ids=None, commit: bool = True) -> int:
+    def fake_rebuild_search_vectors(force: bool = False, story_ids=None, commit: bool = True) -> int:
         calls.append({"force": force, "story_ids": list(story_ids or []), "commit": commit})
         return len(story_ids or [])
 
-    monkeypatch.setattr(StoryService, "update_search_vector", staticmethod(fake_update_search_vector))
+    monkeypatch.setattr(StoryService, "rebuild_search_vectors", staticmethod(fake_rebuild_search_vectors))
 
     response, status = Story.group_stories([target_story.id, source_story.id])
 
     assert status == 200
     assert response["id"] == target_story.id
-    assert len(calls) == 1
-    assert calls[0]["force"] is True
-    assert calls[0]["commit"] is False
-    assert set(calls[0]["story_ids"]) == {target_story.id, source_story.id}
+    assert calls == []
 
 
 def test_fulltext_search_sql_tracks_story_moves_only_for_searchable_story_fields():

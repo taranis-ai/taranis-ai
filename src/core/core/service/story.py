@@ -86,7 +86,7 @@ class StoryService:
         return []
 
     @staticmethod
-    def _prepare_update_search_vector_args(story_ids: Sequence[str] | None) -> tuple[bool, list[str]]:
+    def _prepare_rebuild_search_vector_args(story_ids: Sequence[str] | None) -> tuple[bool, list[str]]:
         if db.engine.dialect.name != "postgresql":
             return False, []
 
@@ -97,7 +97,7 @@ class StoryService:
         return True, normalized_story_ids
 
     @staticmethod
-    def _build_update_search_vector_statement(force: bool, story_ids: list[str]) -> tuple[Any, dict[str, Any]]:
+    def _build_rebuild_search_vector_statement(force: bool, story_ids: list[str]) -> tuple[Any, dict[str, Any]]:
         conditions: list[str] = []
         parameters: dict[str, Any] = {}
 
@@ -123,12 +123,12 @@ class StoryService:
         return statement, parameters
 
     @staticmethod
-    def update_search_vector(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
-        can_update, normalized_story_ids = StoryService._prepare_update_search_vector_args(story_ids)
+    def rebuild_search_vectors(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
+        can_update, normalized_story_ids = StoryService._prepare_rebuild_search_vector_args(story_ids)
         if not can_update:
             return 0
 
-        statement, parameters = StoryService._build_update_search_vector_statement(force, normalized_story_ids)
+        statement, parameters = StoryService._build_rebuild_search_vector_statement(force, normalized_story_ids)
 
         db.session.flush()
         result = db.session.execute(statement, parameters)

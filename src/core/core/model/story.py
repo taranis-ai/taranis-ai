@@ -715,10 +715,6 @@ class Story(BaseModel):
 
         story.update_timestamps()
         story.recompute_relevance()
-        if any(field in data for field in ("title", "summary")):
-            from core.service.story import StoryService
-
-            StoryService.update_search_vector(force=True, story_ids=[story.id], commit=False)
         story.record_revision(user, note="update")
         db.session.commit()
         return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
@@ -1087,17 +1083,11 @@ class Story(BaseModel):
 
     @classmethod
     def update_stories(cls, stories: set["Story"]):
-        refreshed_story_ids = []
         for story in stories:
             try:
-                story.update_status(refresh_search_index=False)
-                refreshed_story_ids.append(story.id)
+                story.update_status()
             except Exception:
                 logger.exception(f"Update Story: {story.id} Failed")
-        if refreshed_story_ids:
-            from core.service.story import StoryService
-
-            StoryService.update_search_vector(force=True, story_ids=refreshed_story_ids, commit=False)
 
     @classmethod
     def prepare_misp_stories(cls, story_lists: list[dict], force: bool) -> list[dict]:
@@ -1194,17 +1184,13 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self, change: str = "internal", refresh_search_index: bool = True):
+    def update_status(self, change: str = "internal"):
         if self.remove_empty_story():
             return
         self.update_timestamps()
         self.update_status_attributes()
         self.recompute_relevance()
         self.last_change = change
-        if refresh_search_index:
-            from core.service.story import StoryService
-
-            StoryService.update_search_vector(force=True, story_ids=[self.id], commit=False)
 
     def update_status_attributes(self):
         attributes = [
