@@ -14,6 +14,7 @@ from tests.application.support.builders import create_story
 def test_story_search_does_not_match_updated_description(client, auth_header, story_search_story_payload):
     story = create_story(story_search_story_payload)
     search_term = f"updated description {uuid.uuid4().hex}"
+    indexed_search_term = story.title
 
     response, status = Story.update(story.id, {"description": search_term})
 
@@ -29,6 +30,16 @@ def test_story_search_does_not_match_updated_description(client, auth_header, st
     assert search_response.status_code == 200
     payload = search_response.get_json()
     assert story.id not in {item["id"] for item in payload["items"]}
+
+    indexed_search_response = client.get(
+        "/api/assess/stories",
+        headers=auth_header,
+        query_string={"search": indexed_search_term, "limit": 20, "offset": 0},
+    )
+
+    assert indexed_search_response.status_code == 200
+    indexed_payload = indexed_search_response.get_json()
+    assert story.id in {item["id"] for item in indexed_payload["items"]}
 
 
 @pytest.mark.usefixtures("session")

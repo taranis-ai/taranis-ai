@@ -86,33 +86,49 @@ class StoryService:
         return []
 
     @staticmethod
-    def update_search_vector(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
+    def _prepare_update_search_vector_args(story_ids: Sequence[str] | None) -> tuple[bool, list[str]]:
         if db.engine.dialect.name != "postgresql":
-            return 0
+            return False, []
 
         normalized_story_ids = [story_id for story_id in (story_ids or []) if story_id]
         if story_ids is not None and not normalized_story_ids:
-            return 0
+            return False, []
 
+        return True, normalized_story_ids
+
+    @staticmethod
+    def _build_update_search_vector_statement(force: bool, story_ids: list[str]) -> tuple[Any, dict[str, Any]]:
         conditions: list[str] = []
         parameters: dict[str, Any] = {}
 
         if not force:
             conditions.append("s.search_vector = ''::tsvector")
-        if normalized_story_ids:
+        if story_ids:
             conditions.append("s.id IN :story_ids")
-            parameters["story_ids"] = normalized_story_ids
+            parameters["story_ids"] = story_ids
+
+        where_sql = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
         query = f"""
             UPDATE story AS s
             SET search_vector = fts_build_story_search_vector(s.id::text)
-            {"WHERE " + " AND ".join(conditions) if conditions else ""}
+            {where_sql}
             RETURNING s.id
         """
 
         statement = db.text(query)
-        if normalized_story_ids:
+        if story_ids:
             statement = statement.bindparams(bindparam("story_ids", expanding=True))
+
+        return statement, parameters
+
+    @staticmethod
+    def update_search_vector(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
+        can_update, normalized_story_ids = StoryService._prepare_update_search_vector_args(story_ids)
+        if not can_update:
+            return 0
+
+        statement, parameters = StoryService._build_update_search_vector_statement(force, normalized_story_ids)
 
         db.session.flush()
         result = db.session.execute(statement, parameters)
