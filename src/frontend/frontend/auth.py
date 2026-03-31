@@ -4,7 +4,6 @@ from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, make_response, redirect, render_template, request, url_for
-from flask.typing import ResponseReturnValue
 from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
@@ -82,21 +81,14 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _clear_jwt_cookies(response: Response) -> Response:
-    response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
+def _redirect_to_login_with_next():
+    return redirect(_login_url_with_next(), code=302)
+
+
+def _redirect_expired_session_to_login():
+    response = make_response(redirect(_login_url_with_next(), code=302))
     unset_jwt_cookies(response)
     return response
-
-
-def _redirect_to_login_response(clear_cookies: bool = False) -> ResponseReturnValue:
-    login_url = _login_url_with_next()
-
-    if is_htmx_request():
-        response = make_response("", 401, {"HX-Redirect": login_url})
-    else:
-        response = make_response(redirect(login_url, code=302))
-
-    return _clear_jwt_cookies(response) if clear_cookies else response
 
 
 def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
@@ -166,7 +158,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_response()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -191,7 +183,7 @@ def admin_required():
         def wrapper(*args, **kwargs: dict[str, Any]):
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_response()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):
@@ -255,9 +247,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _redirect_to_login_response(clear_cookies=True)
+    return _redirect_expired_session_to_login()
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _redirect_to_login_response(clear_cookies=True)
+    return _redirect_to_login_with_next()
