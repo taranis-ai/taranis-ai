@@ -9,9 +9,7 @@ from core.config import Config
 from core.model.osint_source import OSINTSource
 
 
-def _make_image_bytes(
-    size: tuple[int, int], image_format: str, mode: str = "RGBA", color: tuple[int, ...] | int = (255, 0, 0, 255)
-) -> bytes:
+def _make_image_bytes(size: tuple[int, int], image_format: str, mode: str = "RGBA", color: tuple[int, ...] | int = (255, 0, 0, 255)) -> bytes:
     image = Image.new(mode, size, color)
     if image_format == "JPEG" and image.mode != "RGB":
         image = image.convert("RGB")

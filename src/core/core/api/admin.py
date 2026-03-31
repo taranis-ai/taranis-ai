@@ -46,6 +46,13 @@ class ClearQueues(MethodView):
         return {"message": "All queues cleared"}, 200
 
 
+class RebuildStorySearchVectors(MethodView):
+    @auth_required("ADMIN_OPERATIONS")
+    def post(self):
+        count = StoryService.rebuild_search_vectors()
+        return {"message": f"Rebuilt search vectors for {count} stories", "updated": count}, 200
+
+
 class ExportStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
@@ -84,6 +91,7 @@ class SettingsView(MethodView):
             "ungroup_stories": url_for("admin.ungroup_all_stories"),
             "reset_database": url_for("admin.reset_database"),
             "clear_queues": url_for("admin.clear_queue"),
+            "rebuild_story_search_vectors": url_for("admin.rebuild_story_search_vectors"),
             "export_stories": url_for("admin.export_stories"),
             "update_settings": url_for("admin.settings"),
         }
@@ -111,6 +119,10 @@ def initialize(app: Flask):
     admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
     admin_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
     admin_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
+    admin_bp.add_url_rule(
+        "/rebuild-story-search-vectors",
+        view_func=RebuildStorySearchVectors.as_view("rebuild_story_search_vectors"),
+    )
     admin_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
     admin_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 

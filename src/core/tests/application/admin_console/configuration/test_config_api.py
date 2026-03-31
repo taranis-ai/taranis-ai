@@ -9,7 +9,7 @@ from PIL import Image
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
-from tests.functional.helpers import BaseTest
+from tests.application.support.api_test_base import BaseTest
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"

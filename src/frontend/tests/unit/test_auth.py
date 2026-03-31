@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
-from flask import url_for
+from flask import make_response, url_for
 
 import frontend.auth as auth_module
 
@@ -47,6 +47,12 @@ def test_is_safe_redirect_target_rejects_unknown_relative_path(app):
         assert not auth_module.is_safe_redirect_target("/does-not-exist")
 
 
+def test_is_safe_redirect_target_rejects_login_route(app):
+    with app.test_request_context("/frontend/login"):
+        assert not auth_module.is_safe_redirect_target(url_for("base.login"))
+        assert not auth_module.is_safe_redirect_target(f"{url_for('base.login')}/")
+
+
 def test_is_safe_redirect_target_rejects_external_host(app):
     with app.test_request_context("/frontend/login"):
         assert not auth_module.is_safe_redirect_target("https://evil.example/path")
@@ -80,10 +86,27 @@ def test_admin_required_redirects_when_current_user_is_missing(app, monkeypatch)
     monkeypatch.setattr(auth_module, "get_jwt_identity", lambda: "admin")
     monkeypatch.setattr(auth_module, "current_user", None)
 
-    protected_view = auth_module.admin_required()(lambda: "ok")
+    protected_view = auth_module.admin_required()(lambda: make_response("ok"))
 
     with app.test_request_context("/frontend/admin/attributes"):
         response = protected_view()
 
     assert response.status_code == 302
     assert "/login" in response.location
+
+
+def test_expired_token_callback_redirects_to_login_and_clears_jwt_cookies(app):
+    dashboard_path = None
+    with app.app_context():
+        dashboard_path = url_for("admin.dashboard")
+
+    with app.test_request_context(dashboard_path):
+        response = auth_module.expired_token_callback({}, {})
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert response.location.endswith(url_for("base.login", next=dashboard_path))
+
+    set_cookie_headers = response.headers.getlist("Set-Cookie")
+    assert any(header.startswith("access_token_cookie=;") for header in set_cookie_headers)
+    assert any(header.startswith("refresh_token_cookie=;") for header in set_cookie_headers)
