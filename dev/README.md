@@ -53,6 +53,12 @@ sudo ./dev/manage_macos_nginx.sh
 
 `./dev/manage_macos_nginx.sh` validates the Homebrew nginx config and either reloads the running nginx master or starts it if it is not running yet.
 
+For direct core commands on macOS, use the libpq wrapper so `psycopg` and PostgreSQL tooling can find Homebrew's `libpq`:
+
+```bash
+./dev/run_with_macos_libpq.sh uv run pytest src/core/tests/
+```
+
 Copy `env.dev` to the app directories:
 
 ```bash
