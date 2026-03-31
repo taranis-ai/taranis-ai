@@ -1,7 +1,27 @@
 services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: taranis
+      POSTGRES_USER: taranis
+      POSTGRES_PASSWORD: supersecret
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U taranis -d taranis",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 2s
+
   core:
     image: python:3.13-slim
     working_dir: /app
+    depends_on:
+      database:
+        condition: service_healthy
     command: >-
       sh -lc "python -m pip install --disable-pip-version-check --no-input --quiet uv &&
       uv sync --frozen --python 3.13 --no-install-project --no-install-package taranis-models &&
@@ -12,7 +32,10 @@ services:
       JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
       FLASK_DEBUG: "1"
       DEBUG: "true"
-      SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
+      DB_URL: database
+      DB_DATABASE: taranis
+      DB_USER: taranis
+      DB_PASSWORD: supersecret
       QUEUE_BROKER_URL: memory://localhost
       PRE_SEED_PASSWORD_USER: test
       PRESERVE_CONTEXT_ON_EXCEPTION: "False"

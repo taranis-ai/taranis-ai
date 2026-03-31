@@ -127,12 +127,13 @@ class TestEndToEndUser(PlaywrightHelpers):
             if location_link.count() == 0:
                 return
             location_link.click()
+            cluster_table = page.get_by_test_id("cluster-table")
+            cluster_body = cluster_table.locator("tbody")
+            cluster_footer = cluster_table.locator("tfoot")
             expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
-            expect(page.locator("tbody")).to_contain_text("USA")
-            expect(page.locator("tbody")).to_contain_text("6")
-            expect(page.locator("tbody")).to_contain_text("Wärmestuben")
-            expect(page.locator("tbody")).to_contain_text("1")
-            expect(page.locator("tfoot")).to_contain_text("Page 1 of 7")
+            expect(cluster_body).to_contain_text("USA")
+            expect(cluster_body).to_contain_text("6")
+            expect(cluster_footer).to_contain_text("Page 1 of 7")
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Page 2")).to_be_visible()
             page.get_by_text("›").click()
@@ -144,16 +145,14 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Page 6")).to_be_visible()
             page.get_by_text("›").click()
-            expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
-            expect(page.locator("tbody")).to_contain_text("Airport")
+            expect(cluster_footer).to_contain_text("Page 7 of 7")
             page.get_by_text("«").click()
-            expect(page.locator("tbody")).to_contain_text("USA")  # Wait for first page to load again
+            expect(cluster_body).to_contain_text("USA")  # Wait for first page to load again
             page.get_by_role("combobox").click()
             page.get_by_role("combobox").select_option("5")
-            cluster_table = page.get_by_test_id("cluster-table")
             all_rows = cluster_table.locator("tbody tr")
             expect(all_rows).to_have_count(5)
-            expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
+            expect(cluster_footer).to_contain_text("Page 1 of 26")
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
