@@ -91,10 +91,16 @@ class ConnectorTask(Task):
 
         try:
             if connector is not None:
+                connector_result = connector.execute(connector_data)
+                if not isinstance(connector_result, dict):
+                    raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
+
                 return {
                     "connector_id": connector_id,
                     "connector_type": connector.type,
-                    "result": connector.execute(connector_data),
+                    "action": connector_result.get("action", "mixed"),
+                    "message": connector_result.get("message", ""),
+                    "sync_results": connector_result.get("sync_results", []),
                 }
         except Exception as e:
             logger.exception(f"Error executing connector with id: {connector_id}")

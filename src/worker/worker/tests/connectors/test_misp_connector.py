@@ -125,9 +125,11 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, con
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
     assert result["connector_id"] == "74981521-4ba7-4216-b9ca-ebc00ffec29c"
     assert result["connector_type"] == "MISP_CONNECTOR"
-    assert len(result["result"]) == 1
+    assert result["action"] == "synced"
+    assert result["message"] == "Story synced to MISP"
+    assert len(result["sync_results"]) == 1
 
-    sync_result = result["result"][0]
+    sync_result = result["sync_results"][0]
     assert sync_result["type"] == "misp_sync_story"
     assert sync_result["version"] == 1
     assert sync_result["story_id"] == "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"
@@ -152,24 +154,30 @@ def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
     monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: event)
 
     assert connector.misp_sender(story, misp_event_uuid="existing-event-uuid") == {
-        "type": "misp_sync_story",
-        "version": 1,
-        "story_id": "story-123",
-        "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
-        "news_item_ids_to_mark_external": ["news-1"],
+        "action": "synced",
+        "message": "Story synced to MISP",
+        "sync_result": {
+            "type": "misp_sync_story",
+            "version": 1,
+            "story_id": "story-123",
+            "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
+            "news_item_ids_to_mark_external": ["news-1"],
+        },
     }
 
 
-def test_misp_sender_does_not_return_sync_payload_for_proposals(monkeypatch):
+def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
     from pymisp import MISPShadowAttribute
 
     connector = MispConnector()
 
     monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: [MISPShadowAttribute()])
 
-    assert (
-        connector.misp_sender({"id": "story-123", "news_items": [{"id": "news-1", "last_change": "internal"}]}, "existing-event-uuid") is None
-    )
+    assert connector.misp_sender({"id": "story-123", "news_items": [{"id": "news-1", "last_change": "internal"}]}, "existing-event-uuid") == {
+        "action": "proposed",
+        "message": "1 proposals submitted to MISP",
+        "sync_result": None,
+    }
 
 
 def test_valid_distribution():

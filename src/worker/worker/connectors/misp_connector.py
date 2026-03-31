@@ -1,5 +1,6 @@
 import contextlib
 from datetime import datetime, timezone
+from typing import Any
 
 from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, exceptions
 
@@ -53,19 +54,18 @@ class MispConnector:
             logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
             return 0
 
-    def execute(self, connector_data: dict) -> list[dict[str, str | int | list[str]]]:
+    def execute(self, connector_data: dict) -> dict[str, Any]:
         connector_config = connector_data.get("connector_config")
         stories = connector_data.get("story", [])
         if connector_config is None:
             logger.error("A MISP Connector has not been found")
-            return []
+            return self._build_execution_result([])
         self.parse_parameters(connector_config.get("parameters", ""))
-        sync_results: list[dict[str, str | int | list[str]]] = []
+        story_results: list[dict[str, Any]] = []
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
-            if sync_result := self.misp_sender(story, misp_event_uuid):
-                sync_results.append(sync_result)
-        return sync_results
+            story_results.append(self.misp_sender(story, misp_event_uuid))
+        return self._build_execution_result(story_results)
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
         story_attributes: dict = story.get("attributes", {})
@@ -545,9 +545,9 @@ class MispConnector:
 
         return None
 
-    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> dict[str, str | int | list[str]] | None:
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> dict[str, Any]:
         """
-        Creates or updates the event in MISP and returns a sync payload for core if an event was created or updated.
+        Creates or updates the event in MISP and returns a story-level connector result.
         """
         story_id = story.get("id", "")
         news_item_ids_to_mark_external = self._get_news_item_ids_to_mark_external(story)
@@ -556,13 +556,61 @@ class MispConnector:
             if isinstance(result, MISPEvent):
                 logger.debug(f"Create MISP sync result for story {story_id}")
                 return {
-                    "type": "misp_sync_story",
-                    "version": 1,
-                    "story_id": story_id,
-                    "misp_event_uuid": result.uuid,
-                    "news_item_ids_to_mark_external": news_item_ids_to_mark_external,
+                    "action": "synced",
+                    "message": "Story synced to MISP",
+                    "sync_result": {
+                        "type": "misp_sync_story",
+                        "version": 1,
+                        "story_id": story_id,
+                        "misp_event_uuid": result.uuid,
+                        "news_item_ids_to_mark_external": news_item_ids_to_mark_external,
+                    },
                 }
-        return None
+            if isinstance(result, list) and all(isinstance(item, MISPShadowAttribute) for item in result):
+                return {
+                    "action": "proposed",
+                    "message": f"{len(result)} proposals submitted to MISP",
+                    "sync_result": None,
+                }
+
+        return {
+            "action": "failed",
+            "message": "Story was not synced to MISP",
+            "sync_result": None,
+        }
+
+    def _build_execution_result(self, story_results: list[dict[str, Any]]) -> dict[str, Any]:
+        sync_results = [story_result["sync_result"] for story_result in story_results if story_result.get("sync_result")]
+        synced = sum(1 for story_result in story_results if story_result.get("action") == "synced")
+        proposed = sum(1 for story_result in story_results if story_result.get("action") == "proposed")
+        failed = sum(1 for story_result in story_results if story_result.get("action") == "failed")
+
+        return {
+            "action": self._get_overall_action(synced=synced, proposed=proposed, failed=failed),
+            "message": self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, failed=failed),
+            "sync_results": sync_results,
+        }
+
+    @staticmethod
+    def _get_overall_action(synced: int, proposed: int, failed: int) -> str:
+        if failed and not synced and not proposed:
+            return "failed"
+        if synced and not proposed and not failed:
+            return "synced"
+        if proposed and not synced and not failed:
+            return "proposed"
+        return "mixed"
+
+    @staticmethod
+    def _build_action_message(total: int, synced: int, proposed: int, failed: int) -> str:
+        if total == 1:
+            if synced:
+                return "Story synced to MISP"
+            if proposed:
+                return f"{proposed} proposals submitted to MISP"
+            return "Story was not synced to MISP"
+
+        return f"Processed {total} stories: {synced} synced, {proposed} proposed, {failed} failed"
 
     @staticmethod
     def _get_news_item_ids_to_mark_external(story: dict) -> list[str]:
