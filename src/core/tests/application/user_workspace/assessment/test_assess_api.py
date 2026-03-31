@@ -1,6 +1,6 @@
 import uuid
 
-from tests.functional.helpers import BaseTest
+from tests.application.support.api_test_base import BaseTest
 
 
 class TestAssessApi(BaseTest):
@@ -197,14 +197,14 @@ class TestAssessStories(BaseTest):
         assert nia1
         assert nia2
 
-        tag_prefix = f"assess-test-{stories[0][:8]}"
-        tag_foo = f"{tag_prefix}-foo"
-        tag_bar = f"{tag_prefix}-bar"
-        tag_baz = f"{tag_prefix}-baz"
+        tag_prefix = f"story-tag-{uuid.uuid4().hex}"
+        foo_tag = f"{tag_prefix}-foo"
+        bar_tag = f"{tag_prefix}-bar"
+        baz_tag = f"{tag_prefix}-baz"
 
-        response = nia1.set_tags([tag_foo, tag_bar, tag_baz])
+        response = nia1.set_tags([foo_tag, bar_tag, baz_tag])
         assert response[1] == 200
-        response = nia2.set_tags({tag_foo: {"tag_type": "misc"}, tag_bar: {"tag_type": "misc"}})
+        response = nia2.set_tags({foo_tag: {"tag_type": "misc"}, bar_tag: {"tag_type": "misc"}})
         assert response[1] == 200
         response = nia2.set_tags(
             {f"{tag_prefix}-new": {"tag_type": "misc"}, "falling_back": ["this_is_malformed_format_and_should_be_rejected"]}
@@ -217,7 +217,7 @@ class TestAssessStories(BaseTest):
         assert response.status_code == 200
         response = client.get(f"/api/assess/tags?search={tag_prefix}&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 3
-        response = client.get(f"/api/assess/tags?search={tag_prefix}-fo&min_size=1", headers=auth_header)
+        response = client.get(f"/api/assess/tags?search={foo_tag}&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get(f"/api/assess/tags?search={tag_prefix}&limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1

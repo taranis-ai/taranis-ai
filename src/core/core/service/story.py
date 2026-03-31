@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any, Sequence
 
 from flask import Response, abort, jsonify
-from sqlalchemy import Row, func
+from sqlalchemy import Row, bindparam, func
 
 from core.managers import queue_manager
 from core.managers.db_manager import db
@@ -86,19 +86,55 @@ class StoryService:
         return []
 
     @staticmethod
-    def update_search_vector(force: bool = False) -> int:
-        condition = "" if force else "WHERE s.search_vector = ''::tsvector"
+    def _prepare_rebuild_search_vector_args(story_ids: Sequence[str] | None) -> tuple[bool, list[str]]:
+        if db.engine.dialect.name != "postgresql":
+            return False, []
+
+        normalized_story_ids = [story_id for story_id in (story_ids or []) if story_id]
+        if story_ids is not None and not normalized_story_ids:
+            return False, []
+
+        return True, normalized_story_ids
+
+    @staticmethod
+    def _build_rebuild_search_vector_statement(force: bool, story_ids: list[str]) -> tuple[Any, dict[str, Any]]:
+        conditions: list[str] = []
+        parameters: dict[str, Any] = {}
+
+        if not force:
+            conditions.append("s.search_vector = ''::tsvector")
+        if story_ids:
+            conditions.append("s.id IN :story_ids")
+            parameters["story_ids"] = story_ids
+
+        where_sql = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
         query = f"""
             UPDATE story AS s
             SET search_vector = fts_build_story_search_vector(s.id::text)
-            {condition}
+            {where_sql}
             RETURNING s.id
         """
 
-        result = db.session.execute(db.text(query))
+        statement = db.text(query)
+        if story_ids:
+            statement = statement.bindparams(bindparam("story_ids", expanding=True))
+
+        return statement, parameters
+
+    @staticmethod
+    def rebuild_search_vectors(force: bool = False, story_ids: Sequence[str] | None = None, commit: bool = True) -> int:
+        can_update, normalized_story_ids = StoryService._prepare_rebuild_search_vector_args(story_ids)
+        if not can_update:
+            return 0
+
+        statement, parameters = StoryService._build_rebuild_search_vector_statement(force, normalized_story_ids)
+
+        db.session.flush()
+        result = db.session.execute(statement, parameters)
         updated_ids = result.scalars().all()
-        db.session.commit()
+        if commit:
+            db.session.commit()
 
         return len(updated_ids)
 

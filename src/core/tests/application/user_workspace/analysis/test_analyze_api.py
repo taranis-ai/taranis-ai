@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from tests.functional.helpers import BaseTest
+from tests.application.support.api_test_base import BaseTest
 
 
 class TestAnalyzeApi(BaseTest):

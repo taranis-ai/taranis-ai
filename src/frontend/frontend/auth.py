@@ -50,13 +50,17 @@ def is_safe_redirect_target(next_target: str | None) -> bool:
     adapter = current_app.url_map.bind_to_environ(request.environ)
 
     try:
-        adapter.match(parsed_target.path, method="GET")
-    except RequestRedirect:
-        return True
+        rule, _ = adapter.match(parsed_target.path, method="GET", return_rule=True)
+    except RequestRedirect as exc:
+        redirected_path = urlsplit(exc.new_url).path
+        try:
+            rule, _ = adapter.match(redirected_path, method="GET", return_rule=True)
+        except (RequestRedirect, NotFound, MethodNotAllowed):
+            return False
     except (NotFound, MethodNotAllowed):
         return False
 
-    return True
+    return rule.endpoint != "base.login"
 
 
 def _login_url_with_next() -> str:
@@ -78,23 +82,20 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _redirect_to_login_response() -> ResponseReturnValue:
-    login_url = _login_url_with_next()
-
-    if is_htmx_request():
-        return make_response("", 401, {"HX-Redirect": login_url})
-
-    return make_response(redirect(login_url, code=302))
-
-
-def _clear_jwt_cookies(response):
+def _clear_jwt_cookies(response: Response) -> Response:
     response.delete_cookie(Config.JWT_ACCESS_COOKIE_NAME)
     unset_jwt_cookies(response)
     return response
 
 
-def _unauthorized_response(clear_cookies: bool = False) -> ResponseReturnValue:
-    response = _redirect_to_login_response()
+def _redirect_to_login_response(clear_cookies: bool = False) -> ResponseReturnValue:
+    login_url = _login_url_with_next()
+
+    if is_htmx_request():
+        response = make_response("", 401, {"HX-Redirect": login_url})
+    else:
+        response = make_response(redirect(login_url, code=302))
+
     return _clear_jwt_cookies(response) if clear_cookies else response
 
 
@@ -165,7 +166,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _unauthorized_response()
+                return _redirect_to_login_response()
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -190,7 +191,7 @@ def admin_required():
         def wrapper(*args, **kwargs: dict[str, Any]):
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _unauthorized_response()
+                return _redirect_to_login_response()
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):
@@ -254,9 +255,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _unauthorized_response(clear_cookies=True)
+    return _redirect_to_login_response(clear_cookies=True)
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _unauthorized_response(clear_cookies=True)
+    return _redirect_to_login_response(clear_cookies=True)

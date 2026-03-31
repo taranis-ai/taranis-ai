@@ -1,6 +1,6 @@
 import importlib.util
-import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -288,12 +288,24 @@ class TestWorkerApi:
         assert response.status_code == 400
         assert "error" in response.get_json()
 
-    def test_worker_get_tags(self, client, api_header):
+    def test_worker_get_tags(self, client, api_header, stories):
+        from core.model.news_item_tag import NewsItemTag
+        from core.model.story import Story
+
+        expected_tags = {f"worker-tag-{index}" for index in range(5)}
+        clear_result, clear_status = NewsItemTag.delete_all()
+        assert clear_status == 200, clear_result
+
+        story = Story.get(stories[0])
+        assert story is not None
+        update_result, update_status = story.set_tags(sorted(expected_tags))
+        assert update_status == 200, update_result
+
         response = client.get(f"{self.base_uri}/tags", headers=api_header)
 
         assert response.status_code == 200
         assert isinstance(response.get_json(), dict)
-        assert len(response.get_json()) == 5
+        assert set(response.get_json()) == expected_tags
 
 
 class TestConnector:
@@ -336,7 +348,7 @@ class TestConnector:
         sys.modules["worker.connectors.definitions.misp_objects"] = worker_connectors_misp_objects
         sys.modules["worker.log"] = worker_log
 
-        file_path = os.path.abspath(os.path.join(__file__, "../../../../worker/worker/connectors/base_misp_builder.py"))
+        file_path = Path(__file__).resolve().parents[4] / "worker" / "worker" / "connectors" / "base_misp_builder.py"
 
         spec = importlib.util.spec_from_file_location("base_misp_builder", file_path)
         assert spec is not None and spec.loader is not None

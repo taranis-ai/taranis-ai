@@ -61,10 +61,13 @@ See .github/workflows for how tests are configured in CI.
 **Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
-**Unit Tests:** In each component directory, run (after changing into that directory, e.g. `cd src/frontend`):
+**Application Test Suites:** In each component directory, run (after changing into that directory, e.g. `cd src/frontend`):
 - `uv run pytest` - run all tests for that component
-- `uv run pytest tests/unit/` - run only unit tests
-- `uv run pytest tests/functional/` - run only functional tests
+- `uv run pytest tests/application/` - run the consolidated core application test suite
+- `uv run pytest tests/application/admin_console/` - run admin-facing tests
+- `uv run pytest tests/application/user_workspace/` - run normal user workflows
+- `uv run pytest tests/application/worker_pipeline/` - run worker and bot interfaces
+- `uv run pytest tests/application/mixed_flows/` - run cross-surface and system lifecycle tests
 - `uv run pytest -v` - verbose output
 - `uv run pytest -x` - stop on first failure
 - `uv run pytest -v` - verbose output
@@ -96,8 +99,18 @@ See .github/workflows for how tests are configured in CI.
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests
-- when adding tests in `src/core`, prefer reusing existing fixtures from `src/core/tests/functional/conftest.py`
-- if a new payload/setup fixture is needed for non-functional tests too, add it to `src/core/tests/conftest.py` instead of creating large inline payloads directly inside tests
+- `src/core/tests/application/` is organized by access surface:
+  - `admin_console/` for admin/config/dashboard behavior
+  - `user_workspace/` for assess/analyze/publish workflows
+  - `worker_pipeline/` for worker and bot interfaces
+  - `mixed_flows/` for cross-surface, auth, health, migrations, and integration tests
+  - `support/` for reusable non-fixture test helpers such as API test bases and payload builders
+- when adding tests in `src/core`, prefer reusing existing fixtures from the nearest `conftest.py`
+- if a fixture is broadly useful across the application suite, add it to `src/core/tests/application/conftest.py`
+- if a fixture is specific to one cluster such as admin configuration, keep it in that folder's local `conftest.py`
+- if a new payload/setup fixture is needed outside `tests/application/` as well, add it to `src/core/tests/conftest.py`
+- keep test data in fixtures or `src/core/tests/test_data/`; do not duplicate large inline payloads across test files
+- keep helper functions and builders in dedicated support modules under `src/core/tests/application/support/`, not inside the test files themselves
 
 ## Development Guidelines
 

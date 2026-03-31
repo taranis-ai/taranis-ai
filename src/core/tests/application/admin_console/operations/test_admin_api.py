@@ -1,7 +1,8 @@
 import json
 from datetime import datetime, timedelta, timezone
 
-from tests.functional.helpers import BaseTest
+from core.service.story import StoryService
+from tests.application.support.api_test_base import BaseTest
 
 
 class TestAdminApi(BaseTest):
@@ -32,6 +33,13 @@ class TestAdminApi(BaseTest):
 
         assert response_settings["message"] == "Successfully updated settings"
         assert response_settings["settings"] == test_settings["settings"]
+
+    def test_rebuild_story_search_vectors(self, client, auth_header, monkeypatch):
+        monkeypatch.setattr(StoryService, "rebuild_search_vectors", staticmethod(lambda: 7))
+
+        response = self.assert_post_ok(client, "rebuild-story-search-vectors", {}, auth_header)
+
+        assert response.get_json() == {"message": "Rebuilt search vectors for 7 stories", "updated": 7}
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):

@@ -80,7 +80,7 @@ def pre_seed_update(db_engine: Engine):
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
-        migrate_search_indexes()
+        rebuild_story_search_vectors()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -134,11 +134,11 @@ def sync_presenter_templates():
     sync_presenter_templates_to_data()
 
 
-def migrate_search_indexes():
+def rebuild_story_search_vectors():
     from core.service.story import StoryService
 
-    count = StoryService.update_search_vector()
-    logger.info(f"Updated search indexes for {count} stories")
+    count = StoryService.rebuild_search_vectors()
+    logger.info(f"Rebuilt search vectors for {count} stories")
 
 
 def cleanup_empty_stories():
