@@ -41,6 +41,7 @@ from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Job
 
+from core.config import Config
 from core.log import logger
 
 
@@ -157,20 +158,14 @@ class QueueManager:
         self._redis: Redis | None = None
         self._queues: dict[str, Queue] = {}
         self.error: str = ""
-        self.redis_url = app.config["REDIS_URL"]
+        self.redis_url = Config.REDIS_URL
         self.redis_password: str | None = None
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
+        if redis_password_value := Config.REDIS_PASSWORD:
+            if secret := redis_password_value.get_secret_value():
+                self.redis_password = secret
 
         try:
-            redis_password_value = app.config.get("REDIS_PASSWORD")
-            if not redis_password_value:
-                raise ValueError("REDIS_PASSWORD must be configured")
-
-            secret = redis_password_value.get_secret_value()
-            if not secret or not secret.strip():
-                raise ValueError("REDIS_PASSWORD cannot be blank")
-
-            self.redis_password = secret.strip()
             self.init_app(app)
         except Exception as e:
             logger.error(f"Failed to initialize QueueManager: {e}")
