@@ -5,7 +5,6 @@ from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPOb
 
 from worker.connectors import base_misp_builder
 from worker.connectors.definitions.misp_objects import BaseMispObject
-from worker.core_api import CoreApi
 from worker.log import logger
 
 
@@ -14,7 +13,6 @@ class MispConnector:
         self.type = "MISP_CONNECTOR"
         self.name = "MISP Connector"
         self.description = "Connector for MISP"
-        self.core_api = CoreApi()
 
         self.proxies = None
         self.headers = {}
@@ -55,16 +53,19 @@ class MispConnector:
             logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
             return 0
 
-    def execute(self, connector_data: dict) -> None:
+    def execute(self, connector_data: dict) -> list[dict[str, str | int | list[str]]]:
         connector_config = connector_data.get("connector_config")
         stories = connector_data.get("story", [])
         if connector_config is None:
             logger.error("A MISP Connector has not been found")
-            return None
+            return []
         self.parse_parameters(connector_config.get("parameters", ""))
+        sync_results: list[dict[str, str | int | list[str]]] = []
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
-            self.misp_sender(story, misp_event_uuid)
+            if sync_result := self.misp_sender(story, misp_event_uuid):
+                sync_results.append(sync_result)
+        return sync_results
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
         story_attributes: dict = story.get("attributes", {})
@@ -544,30 +545,25 @@ class MispConnector:
 
         return None
 
-    def misp_sender(self, story: dict, misp_event_uuid: str | None = None):
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> dict[str, str | int | list[str]] | None:
         """
-        Creates or updates the event in MISP, then updates the story's 'misp_event_uuid' in the backend.
+        Creates or updates the event in MISP and returns a sync payload for core if an event was created or updated.
         """
+        story_id = story.get("id", "")
+        news_item_ids_to_mark_external = self._get_news_item_ids_to_mark_external(story)
+
         if result := self.send_event_to_misp(story, misp_event_uuid):
-            # Update the Story with the MISP event UUID
-            # When an update or create event happened, update the Story so the last_change is set to "external". Don't if it was a proposal.
             if isinstance(result, MISPEvent):
-                logger.debug(f"Update the story {story.get('id')} to last_change=external")
-                self._set_last_change_external(story)
-                self.core_api.api_patch(
-                    f"/bots/story/{story.get('id', '')}/attributes",
-                    {"misp_event_uuid": {"key": "misp_event_uuid", "value": f"{result.uuid}"}},
-                )
+                logger.debug(f"Create MISP sync result for story {story_id}")
+                return {
+                    "type": "misp_sync_story",
+                    "version": 1,
+                    "story_id": story_id,
+                    "misp_event_uuid": result.uuid,
+                    "news_item_ids_to_mark_external": news_item_ids_to_mark_external,
+                }
+        return None
 
-    def _set_last_change_external(self, story: dict):
-        story_changes: dict[str, str] = {story.get("id", ""): "external"}
-
-        news_item_changes: dict[str, str] = {
-            item.get("id", ""): "external" for item in story.get("news_items", []) if item.get("last_change") == "internal"
-        }
-
-        payload: dict[str, dict[str, str]] = {
-            "stories": story_changes,
-            "news_items": news_item_changes,
-        }
-        self.core_api.api_put("/worker/misp/last-change", payload)
+    @staticmethod
+    def _get_news_item_ids_to_mark_external(story: dict) -> list[str]:
+        return [item.get("id", "") for item in story.get("news_items", []) if item.get("id") and item.get("last_change") == "internal"]

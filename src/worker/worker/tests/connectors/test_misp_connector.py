@@ -13,8 +13,6 @@ def misp_connector_core_mock(requests_mock, stories):
 
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/misp/last-change", json={})
-    requests_mock.patch(f"{Config.TARANIS_CORE_URL}/bots/story/ed13a0b1-4f5f-4c43-bdf2-820ee0d43448/attributes", json={})
 
 
 @pytest.fixture
@@ -125,8 +123,53 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, con
     result = connector_task.run(connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"])
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
+    assert result["connector_id"] == "74981521-4ba7-4216-b9ca-ebc00ffec29c"
+    assert result["connector_type"] == "MISP_CONNECTOR"
+    assert len(result["result"]) == 1
 
-    assert result is None
+    sync_result = result["result"][0]
+    assert sync_result["type"] == "misp_sync_story"
+    assert sync_result["version"] == 1
+    assert sync_result["story_id"] == "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"
+    assert isinstance(sync_result["misp_event_uuid"], str) and sync_result["misp_event_uuid"]
+    assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
+
+
+def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
+    from pymisp import MISPEvent
+
+    connector = MispConnector()
+    event = MISPEvent()
+    event.uuid = "320d4589-cd71-4722-aa28-ea5530e99830"
+    story = {
+        "id": "story-123",
+        "news_items": [
+            {"id": "news-1", "last_change": "internal"},
+            {"id": "news-2", "last_change": "external"},
+        ],
+    }
+
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: event)
+
+    assert connector.misp_sender(story, misp_event_uuid="existing-event-uuid") == {
+        "type": "misp_sync_story",
+        "version": 1,
+        "story_id": "story-123",
+        "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
+        "news_item_ids_to_mark_external": ["news-1"],
+    }
+
+
+def test_misp_sender_does_not_return_sync_payload_for_proposals(monkeypatch):
+    from pymisp import MISPShadowAttribute
+
+    connector = MispConnector()
+
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: [MISPShadowAttribute()])
+
+    assert (
+        connector.misp_sender({"id": "story-123", "news_items": [{"id": "news-1", "last_change": "internal"}]}, "existing-event-uuid") is None
+    )
 
 
 def test_valid_distribution():
