@@ -518,6 +518,7 @@ paths:
                       status: scheduled
                       publisher_id: "publisher-preset-42"
                       message: "Autopublishing Product: product-456 with publisher: publisher-preset-42 scheduled"
+
         "400":
           description: invalid workflow request or incompatible type combination
           content:
@@ -536,6 +537,8 @@ paths:
                   summary: Override target matches more than one generated field
                   value:
                     error: Attribute override target is ambiguous for group 'Workflow Group' and title 'Executive Summary'
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
         "403":
           description: caller lacks one or more required permissions, or the report type ACL rejects create access
           content:
@@ -566,71 +569,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/report_publish_product_response"
-              examples:
-                publish_queue_failure:
-                  summary: Persistence succeeded but queue scheduling failed
-                  value:
-                    message: Report and product created; publish scheduling failed
-                    report:
-                      id: "report-123"
-                      title: CERT advisory for ACME VPN
-                      created: "2026-03-30T16:00:00+00:00"
-                      last_updated: "2026-03-30T16:00:00+00:00"
-                      completed: false
-                      revision: 0
-                      user_id: 1
-                      report_item_type_id: 4
-                      revision_count: 0
-                      attributes:
-                        - id: "11"
-                          title: Executive Summary
-                          description: Summary field
-                          index: 0
-                          required: false
-                          type: STRING
-                          group_title: Workflow Group
-                          render_data:
-                            default_value: Default executive summary
-                          value: Analyst supplied summary for the final report
-                      grouped_attributes:
-                        - title: Workflow Group
-                          attributes:
-                            - id: "11"
-                              title: Executive Summary
-                              description: Summary field
-                              index: 0
-                              required: false
-                              type: STRING
-                              group_title: Workflow Group
-                              render_data:
-                                default_value: Default executive summary
-                              value: Analyst supplied summary for the final report
-                      stories:
-                        - id: "story-100"
-                          title: VPN incident story
-                    product:
-                      id: "product-456"
-                      title: CERT Daily Report - ACME VPN
-                      description: Daily delivery for the ACME VPN advisory
-                      created: "2026-03-30T16:00:00"
-                      last_rendered: null
-                      auto_publish: true
-                      product_type_id: 7
-                      default_publisher: "publisher-preset-42"
-                      type: html_presenter
-                      report_items:
-                        - "report-123"
-                      supported_reports:
-                        - id: "report-123"
-                          title: CERT advisory for ACME VPN
-                          type: CERT Report
-                          created: "2026-03-30T16:00:00+00:00"
-                      render_result: null
-                      mime_type: text/html
-                    publish:
-                      status: failed
-                      publisher_id: "publisher-preset-42"
-                      error: Could not reach rabbitmq
 
   /analyze/report-items/{report_item_id}:
     parameters:
