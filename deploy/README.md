@@ -16,7 +16,7 @@ Everything is derived from the environment-specific manifests in this repository
 - `kubernetes/05-network-policies.yaml`: k3s-oriented network policies
 - `kubernetes/10-storage.yaml`: `core` PVC with `local-path` default
 - `kubernetes/20-services.yaml`: internal Services
-- `kubernetes/30-deployments.yaml`: app Deployments using upstream images
+- `kubernetes/30-deployments.yaml`: app Deployments using upstream images with `imagePullPolicy: Always` and explicit `restartPolicy: Always`
 - `kubernetes/40-ingress.yaml`: public Ingress placeholder
 - `helm/`: Helm chart for the same resource set
 - `helm/Chart.yaml`: chart metadata
@@ -62,7 +62,7 @@ Use [`kubernetes/`](./kubernetes) if you want plain manifests with no Helm depen
 
 ## Helm
 
-Use [`helm/`](./helm) if you want value-driven rendering or upgrades.
+Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
 
 ```bash
 helm template taranis deploy/helm
@@ -112,5 +112,6 @@ kubectl get endpoints core frontend sse ingress nlp-bot summary-bot story-bot
 
 - These manifests expect a reachable PostgreSQL service and a reachable RabbitMQ service, but they do not create those workloads.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
+- The `core` readiness and liveness probes run every 15 minutes after a 15-second startup delay.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
 - The default ingress manifest is plain HTTP. For raw Kubernetes, add `spec.tls` and a certificate secret. For Helm, configure `ingress.tls` and `ingress.annotations` in values.yaml.

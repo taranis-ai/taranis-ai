@@ -17,6 +17,7 @@ spec:
         app: core
         taranis.io/expose: "true"
     spec:
+      restartPolicy: Always
       containers:
         - name: core
           image: {{ include "taranis.image" .Values.images.core | quote }}
@@ -61,15 +62,15 @@ spec:
             exec:
               command:
                 - taranis-core-healthcheck
-            initialDelaySeconds: 10
-            periodSeconds: 15
+            initialDelaySeconds: 15
+            periodSeconds: 900
             timeoutSeconds: 10
           livenessProbe:
             exec:
               command:
                 - taranis-core-healthcheck
-            initialDelaySeconds: 30
-            periodSeconds: 30
+            initialDelaySeconds: 15
+            periodSeconds: 900
             timeoutSeconds: 10
           volumeMounts:
             - name: core
@@ -99,6 +100,7 @@ spec:
       labels:
         app: frontend
     spec:
+      restartPolicy: Always
       containers:
         - name: frontend
           image: {{ include "taranis.image" .Values.images.frontend | quote }}
@@ -157,6 +159,7 @@ spec:
       labels:
         app: sse-broker
     spec:
+      restartPolicy: Always
       containers:
         - name: sse-broker
           image: {{ include "taranis.image" .Values.images.sse | quote }}
@@ -212,6 +215,7 @@ spec:
         app: ingress
         taranis.io/expose: "true"
     spec:
+      restartPolicy: Always
       containers:
         - name: ingress
           image: {{ include "taranis.image" .Values.images.ingress | quote }}
@@ -256,6 +260,7 @@ spec:
       labels:
         app: collector
     spec:
+      restartPolicy: Always
       containers:
         - name: collector
           image: {{ include "taranis.image" .Values.images.worker | quote }}
@@ -314,6 +319,7 @@ spec:
       labels:
         app: worker
     spec:
+      restartPolicy: Always
       containers:
         - name: worker
           image: {{ include "taranis.image" .Values.images.worker | quote }}
@@ -369,6 +375,7 @@ spec:
       labels:
         app: nlp-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: nlp-bot
           image: {{ include "taranis.image" .Values.images.nlp | quote }}
@@ -432,6 +439,7 @@ spec:
       labels:
         app: summary-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: summary-bot
           image: {{ include "taranis.image" .Values.images.summary | quote }}
@@ -487,6 +495,7 @@ spec:
       labels:
         app: story-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: story-bot
           image: {{ include "taranis.image" .Values.images.story | quote }}

@@ -39,30 +39,27 @@ class SettingsView(AdminMixin, BaseView):
     @classmethod
     def settings_action(cls, action_url, method="download"):
         logger.debug(f"Calling settings action: {action_url}")
-        error = None
 
         if method == "download":
             response = CoreApi().api_download(action_url)
+            if not response.ok:
+                notification = cls.get_notification_from_response(response)
+                static_view, static_response = cls.static_view()
+                notification += static_view
+                return notification, static_response
             return CoreApi().stream_proxy(response, "stories_export.json")
 
-        notification = ""
         if request.form:
             response, error = cls.process_form_data(object_id=0)
-            if error:
-                notification = render_template("notification/index.html", notification={"message": error, "error": True})
-            elif response:
-                DataPersistenceLayer().invalidate_cache(None)
-                notification = render_template("notification/index.html", notification={"message": response.get("message"), "error": False})
+            message = response.get("message") if response else error
+            error_state = bool(error) or (response and not response.ok)
+            notification = render_template("notification/index.html", notification={"message": message, "error": error_state})
         else:
             response = CoreApi().api_post(action_url)
-            if response.ok:
-                DataPersistenceLayer().invalidate_cache(None)
             notification = cls.get_notification_from_response(response)
 
         static_view, static_response = cls.static_view()
-        if static_response == 200:
-            notification += "\n\n\n"
-            notification += static_view
+        notification += static_view
         return notification, static_response
 
     def get(self, **kwargs):
