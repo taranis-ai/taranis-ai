@@ -53,8 +53,7 @@ class SettingsView(AdminMixin, BaseView):
         if request.form:
             response, error = cls.process_form_data(object_id=0)
             message = response.get("message") if response else error
-            error_state = bool(error) or (response and not response.ok)
-            notification = render_template("notification/index.html", notification={"message": message, "error": error_state})
+            notification = render_template("notification/index.html", notification={"message": message, "error": bool(error)})
         else:
             response = CoreApi().api_post(action_url)
             notification = cls.get_notification_from_response(response)
