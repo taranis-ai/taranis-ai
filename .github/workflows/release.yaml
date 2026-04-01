@@ -56,10 +56,11 @@ jobs:
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
 
           for image in "${images[@]}"; do
-            printf 'FROM ghcr.io/%s/%s:latest\nENV GIT_INFO=%s\n' \
-              "${REPOSITORY_OWNER}" "${image}" "${git_info}" \
+            printf "FROM ghcr.io/%s/%s:latest\nARG git_info\nENV GIT_INFO=\${git_info}\n" \
+              "${REPOSITORY_OWNER}" "${image}" \
             | docker buildx build \
               --platform linux/amd64,linux/arm64 \
+              --build-arg "git_info=${git_info}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
               --metadata-file "${{ runner.temp }}/${image}-meta.json" \
