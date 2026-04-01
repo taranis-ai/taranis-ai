@@ -10,12 +10,12 @@
     "npm:@codemirror/merge@^6.12.1": "6.12.1",
     "npm:@codemirror/state@*": "6.6.0",
     "npm:@codemirror/state@^6.6.0": "6.6.0",
-    "npm:@codemirror/view@*": "6.40.0",
-    "npm:@codemirror/view@^6.40.0": "6.40.0",
+    "npm:@codemirror/view@*": "6.41.0",
+    "npm:@codemirror/view@^6.41.0": "6.41.0",
     "npm:@tailwindcss/cli@*": "4.2.2",
     "npm:@tailwindcss/cli@^4.2.2": "4.2.2",
-    "npm:alpinejs@*": "3.15.9",
-    "npm:alpinejs@^3.15.9": "3.15.9",
+    "npm:alpinejs@*": "3.15.10",
+    "npm:alpinejs@^3.15.10": "3.15.10",
     "npm:choices.js@*": "11.2.1",
     "npm:choices.js@^11.2.1": "11.2.1",
     "npm:codemirror@^6.0.2": "6.0.2",
@@ -102,8 +102,8 @@
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.40.0": {
-      "integrity": "sha512-WA0zdU7xfF10+5I3HhUUq3kqOx3KjqmtQ9lqZjfK7jtYk4G72YW9rezcSywpaUMCWOMlq+6E0pO1IWg1TNIhtg==",
+    "@codemirror/view@6.41.0": {
+      "integrity": "sha512-6H/qadXsVuDY219Yljhohglve8xf4B8xJkVOEWfA5uiYKiTFppjqsvsfR5iPA0RbvRBoOyTZpbLIxe9+0UR8xA==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -356,8 +356,8 @@
     "@vue/shared@3.1.5": {
       "integrity": "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="
     },
-    "alpinejs@3.15.9": {
-      "integrity": "sha512-O30m8Tw/aARbLXmeTnISAFgrNm0K71PT7bZy/1NgRqFD36QGb34VJ4a6WBL1iIO/bofN+LkIkKLikUTkfPL2wQ==",
+    "alpinejs@3.15.10": {
+      "integrity": "sha512-WIWpBws5uNQlrqDf791PPbArItCsY4itOMnI3xk9vCwpNgcsa10ek2sBQsLNTdvWq2LOv12A6GZXMUqu5JDJXw==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -548,9 +548,9 @@
       "npm:@codemirror/legacy-modes@^6.5.2",
       "npm:@codemirror/merge@^6.12.1",
       "npm:@codemirror/state@^6.6.0",
-      "npm:@codemirror/view@^6.40.0",
+      "npm:@codemirror/view@^6.41.0",
       "npm:@tailwindcss/cli@^4.2.2",
-      "npm:alpinejs@^3.15.9",
+      "npm:alpinejs@^3.15.10",
       "npm:choices.js@^11.2.1",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.19",

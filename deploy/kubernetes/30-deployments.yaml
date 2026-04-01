@@ -15,6 +15,7 @@ spec:
         app: core
         taranis.io/expose: "true"
     spec:
+      restartPolicy: Always
       containers:
         - name: core
           image: ghcr.io/taranis-ai/taranis-core:latest
@@ -59,15 +60,15 @@ spec:
             exec:
               command:
                 - taranis-core-healthcheck
-            initialDelaySeconds: 10
-            periodSeconds: 15
+            initialDelaySeconds: 15
+            periodSeconds: 900
             timeoutSeconds: 10
           livenessProbe:
             exec:
               command:
                 - taranis-core-healthcheck
-            initialDelaySeconds: 30
-            periodSeconds: 30
+            initialDelaySeconds: 15
+            periodSeconds: 900
             timeoutSeconds: 10
           volumeMounts:
             - name: core
@@ -100,6 +101,7 @@ spec:
       labels:
         app: frontend
     spec:
+      restartPolicy: Always
       containers:
         - name: frontend
           image: ghcr.io/taranis-ai/taranis-frontend:latest
@@ -161,6 +163,7 @@ spec:
       labels:
         app: sse-broker
     spec:
+      restartPolicy: Always
       containers:
         - name: sse-broker
           image: ghcr.io/taranis-ai/sse-broker:latest
@@ -219,6 +222,7 @@ spec:
         app: ingress
         taranis.io/expose: "true"
     spec:
+      restartPolicy: Always
       containers:
         - name: ingress
           image: ghcr.io/taranis-ai/taranis-ingress:latest
@@ -266,6 +270,7 @@ spec:
       labels:
         app: collector
     spec:
+      restartPolicy: Always
       containers:
         - name: collector
           image: ghcr.io/taranis-ai/taranis-worker:latest
@@ -327,6 +332,7 @@ spec:
       labels:
         app: worker
     spec:
+      restartPolicy: Always
       containers:
         - name: worker
           image: ghcr.io/taranis-ai/taranis-worker:latest
@@ -385,6 +391,7 @@ spec:
       labels:
         app: nlp-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: nlp-bot
           image: ghcr.io/taranis-ai/taranis-natural-language-processing:stable
@@ -451,6 +458,7 @@ spec:
       labels:
         app: summary-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: summary-bot
           image: ghcr.io/taranis-ai/taranis-summarize-bot:stable
@@ -509,6 +517,7 @@ spec:
       labels:
         app: story-bot
     spec:
+      restartPolicy: Always
       containers:
         - name: story-bot
           image: ghcr.io/taranis-ai/taranis-story-clustering:stable
