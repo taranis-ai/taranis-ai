@@ -241,6 +241,35 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     assert payload["items"][0]["status"] == "failed"
 
 
+def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
+    removed: list[tuple[str, bool]] = []
+
+    class FakeRegistry:
+        def __init__(self, queue=None):
+            self.queue = queue
+
+        def get_job_ids(self):
+            return ["job-stale"]
+
+        def remove(self, job_id, delete_job=False):
+            removed.append((job_id, delete_job))
+
+    def fake_fetch(job_id, connection=None):
+        raise qm_module.NoSuchJobError(f"No such job: rq:job:{job_id}")
+
+    monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
+
+    qm = _make_queue_manager()
+    qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
+
+    payload, status = qm.get_failed_jobs()
+
+    assert status == 200
+    assert payload == {"items": [], "total_count": 0}
+    assert removed == [("job-stale", False)]
+
+
 def test_osint_schedule_entries_include_metadata(monkeypatch):
     class FakeTask:
         def __init__(self):

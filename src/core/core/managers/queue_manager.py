@@ -851,6 +851,12 @@ class QueueManager:
                                 "status": "failed",
                             }
                         )
+                    except NoSuchJobError:
+                        try:
+                            registry.remove(job_id, delete_job=False)
+                        except Exception as cleanup_error:
+                            logger.debug(f"Failed to remove stale failed job {job_id}: {cleanup_error}")
+                        continue
                     except Exception as e:
                         # Skip jobs that can't be fetched (might have been cleaned up)
                         logger.debug(f"Skipping failed job {job_id}: {e}")
