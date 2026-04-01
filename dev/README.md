@@ -55,21 +55,12 @@ Install pre dependencies:
 * git
 * tmux
 * deno
-* nginx
-* libpq
+* build-essential
 * [docker](https://docs.docker.com/engine/install/) or another Docker-compatible daemon that provides `docker compose`
 
-On Ubuntu also install:
+If using docker make sure to allow running it as a [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
 
-* build-essential
-* libpq-dev
-* clang
-
-If using Docker on Ubuntu, make sure to allow running it as a [non-root user](https://docs.docker.com/engine/install/linux-postinstall/).
-On macOS, make sure your Docker-compatible daemon is already running before you start the app.
-Install the macOS dependencies with Homebrew after running `xcode-select --install`.
-
-From the git root:
+Starting from the git root:
 
 ```bash
 cd $(git rev-parse --show-toplevel)
