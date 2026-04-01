@@ -650,7 +650,8 @@ class QueueManager:
             for queue_name, queue in self._queues.items():
                 registry = ScheduledJobRegistry(queue=queue)
                 job_ids = list(registry.get_job_ids())
-                logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs in registry")
+                if job_ids:
+                    logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs in registry")
 
                 for job_id in job_ids:
                     try:
