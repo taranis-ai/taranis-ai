@@ -8,7 +8,7 @@
     </div>
 
     <!-- Queue Status Cards -->
-    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="every 10s" hx-swap="innerHTML">
       {% include "schedule/queue_cards.html" %}
     </div>
 
@@ -32,7 +32,7 @@
               </svg>
               Scheduled Jobs
             </h2>
-            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
               {% include "schedule/jobs_table.html" %}
             </div>
           </div>
@@ -49,7 +49,7 @@
               </svg>
               Currently Running
             </h2>
-            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="load, every 5s" hx-swap="innerHTML">
+            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
               <p class="text-center py-4">Loading active jobs...</p>
             </div>
           </div>
@@ -66,7 +66,7 @@
               </svg>
               Failed Jobs
             </h2>
-            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="load, every 10s" hx-swap="innerHTML">
+            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
               <p class="text-center py-4">Loading failed jobs...</p>
             </div>
           </div>
@@ -83,7 +83,7 @@
               </svg>
               Execution History
             </h2>
-            <div id="execution-history" hx-get="{{ url_for('admin.scheduler_history') }}" hx-trigger="load" hx-swap="innerHTML">
+            <div id="execution-history">
               {% include "schedule/execution_history.html" %}
             </div>
           </div>
@@ -115,6 +115,13 @@
 
   <script>
     // Tab switching logic
+    const schedulerRefreshTargets = {
+      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000, immediate: false },
+      active: { id: 'active-jobs-table', intervalMs: 5000, immediate: true },
+      failed: { id: 'failed-jobs-table', intervalMs: 10000, immediate: true },
+    };
+    let activeRefreshTimer = null;
+
     const updateTabInUrl = (tabName) => {
       try {
         const url = new URL(window.location.href);
@@ -123,6 +130,42 @@
       } catch (err) {
         console.debug('Failed to update tab query param', err);
       }
+    };
+
+    const stopTabRefreshLoop = () => {
+      if (activeRefreshTimer !== null) {
+        window.clearInterval(activeRefreshTimer);
+        activeRefreshTimer = null;
+      }
+    };
+
+    const triggerSchedulerRefresh = (tabName) => {
+      const config = schedulerRefreshTargets[tabName];
+      if (!config || !window.htmx) {
+        return;
+      }
+
+      const target = document.getElementById(config.id);
+      if (target) {
+        window.htmx.trigger(target, 'scheduler:refresh');
+      }
+    };
+
+    const startTabRefreshLoop = (tabName) => {
+      stopTabRefreshLoop();
+
+      const config = schedulerRefreshTargets[tabName];
+      if (!config) {
+        return;
+      }
+
+      if (config.immediate) {
+        triggerSchedulerRefresh(tabName);
+      }
+
+      activeRefreshTimer = window.setInterval(() => {
+        triggerSchedulerRefresh(tabName);
+      }, config.intervalMs);
     };
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -136,8 +179,12 @@
         document.getElementById(`${tabName}-tab`).classList.remove('hidden');
 
         updateTabInUrl(tabName);
+        startTabRefreshLoop(tabName);
       });
     });
+
+    const initialTab = document.querySelector('.tab.tab-active')?.dataset.tab || 'scheduled';
+    startTabRefreshLoop(initialTab);
 
     window.showJobErrorModal = function(job) {
       const dialog = document.getElementById('job-error-modal');
