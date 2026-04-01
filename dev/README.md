@@ -96,38 +96,80 @@ Start support services via the dev compose file:
 docker compose -f dev/compose.yml up -d
 ```
 
-Create and attach the tmux session:
+Start a tmux session with 3 windows for the 3 processes:
 
 ```bash
+# Start a new session named taranis with the first tab and cd to src/core
 tmux new-session -s taranis -n core -c src/core -d
+
+# Create the second tab and cd to src/frontend
 tmux new-window -t taranis:1 -n frontend -c src/frontend
+
+# Create the third tab and cd to src/worker
 tmux new-window -t taranis:2 -n worker -c src/worker
+
+# Attach to the session
 tmux attach-session -t taranis
 ```
 
-In the `core` window:
+In Core Tab:
 
 ```bash
-./install_and_run_dev.sh
+# If venv isn't setup already
+uv venv
+
+# Activate venv
+source .venv/bin/activate
+
+# Install requirements
+uv sync --upgrade --all-extras
+
+# Run core
+flask run
 ```
 
-In the `frontend` window:
+In Frontend Tab:
 
 ```bash
-./install_and_run_dev.sh
+# If venv isn't setup already
+uv venv
+
+# Activate venv
+source .venv/bin/activate
+
+# Install requirements
+uv sync --upgrade --all-extras
+
+# Run the frontend dev server
+flask run
 ```
 
-In the `worker` window:
+In Worker Tab:
 
 ```bash
-./install_and_run_dev.sh
+# If venv isn't setup already
+uv venv
+
+# Activate venv
+source .venv/bin/activate
+
+# Install requirements
+uv sync --upgrade --all-extras
+
+# Run worker
+celery -A worker worker
 ```
 
-Optional Tailwind watcher:
+In Tailwind Tab:
 
 ```bash
-tmux new-window -t taranis -n tailwind -c src/frontend
-./install_and_run_tailwind.sh
+deno install --allow-scripts
+
+# Watch and rebuild tailwindcss
+deno task tw:watch
+
+# Bundle vendor libraries
+deno task vendor:bundle
 ```
 
 Taranis AI should be reachable on `local.taranis.ai`.
