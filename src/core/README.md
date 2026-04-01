@@ -74,6 +74,8 @@ Run the Flask development server:
 
 This will start the Flask server and run the frontend service at `http://localhost:5000`.
 
+On macOS, `./install_and_run_dev.sh` automatically injects the Homebrew `libpq` paths that `psycopg` needs.
+
 
 ### 3. Test
 
@@ -81,6 +83,12 @@ To run the unit tests just call:
 
 ```bash
 pytest
+```
+
+On macOS, run core commands through the shared wrapper so `psycopg` can find Homebrew `libpq`:
+
+```bash
+../../dev/run_with_macos_libpq.sh uv run pytest
 ```
 
 There are [e2e tests](./tests/playwright/README.md) using Playwright

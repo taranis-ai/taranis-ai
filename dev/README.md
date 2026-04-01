@@ -4,23 +4,49 @@ Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/
 
 ## Easy Mode
 
-Clone Repository
+Clone the repository, then set up the local hostname and nginx reverse proxy before starting the automated workflow.
+
+### Ubuntu proxy prerequisites
 
 ```bash
-git clone git@github.com:taranis-ai/taranis-ai.git
-cd taranis-ai
+echo "127.0.0.1 local.taranis.ai" | sudo tee -a /etc/hosts
 ```
-
-Copy env.dev to worker and core
 
 ```bash
-cp dev/env.dev src/core/.env
-cp dev/env.dev src/worker/.env
+# Debian based example
+sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
+sudo ln -sf /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+sudo nginx -t && sudo systemctl restart nginx
+
+# Red Hat based example
+sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
+sudo nginx -t && sudo systemctl restart nginx
 ```
+
+### macOS proxy prerequisites
+
+Install Homebrew and Xcode Command Line Tools first, then add the local hostname:
+
+```bash
+echo "127.0.0.1 local.taranis.ai" | sudo tee -a /etc/hosts
+```
+
+Install Homebrew nginx and place the development config into the included `servers/` directory:
+
+```bash
+brew install nginx
+mkdir -p "$(brew --prefix)/etc/nginx/servers"
+cp dev/nginx.conf "$(brew --prefix)/etc/nginx/servers/local.taranis.ai.conf"
+sudo ./dev/manage_macos_nginx.sh
+```
+
+Then start everything with:
 
 ```bash
 ./dev/start_dev.sh
 ```
+
+`./dev/start_dev.sh` installs supported local dependencies, creates missing `.env` files, verifies Docker and proxy prerequisites, starts the compose services, and opens the tmux session.
 
 ## Hard Mode
 
@@ -30,10 +56,9 @@ Install pre dependencies:
 * tmux
 * deno
 * build-essential
-* [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
+* [docker](https://docs.docker.com/engine/install/) or another Docker-compatible daemon that provides `docker compose`
 
-If using docker make sure to allow running it as [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
-if using podman make sure to also install `podman-compose` and `podman-docker`
+If using docker make sure to allow running it as a [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
 
 Starting from the git root:
 
@@ -41,23 +66,14 @@ Starting from the git root:
 cd $(git rev-parse --show-toplevel)
 ```
 
-Copy env.dev to worker and core
+Copy `env.dev` to the app directories:
 
 ```bash
 cp dev/env.dev src/core/.env
+echo "FLASK_RUN_PORT=5001" >> src/core/.env
 cp dev/env.dev src/worker/.env
-```
-
-Copy env.sample to frontend
-
-```bash
-cp src/frontend/env.sample src/frontend/.env
-```
-
-Start support services via the dev compose file
-
-```bash
-docker compose -f dev/compose.yml up -d
+cp dev/env.dev src/frontend/.env
+echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
 
 Setup nginx.
@@ -66,7 +82,7 @@ Make sure the paths are correct. Some distributions use a different nginx config
 ```bash
 # Debian based example
 sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
-sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+sudo ln -sf /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
 sudo nginx -t && sudo systemctl restart nginx
 
 # Red Hat based example
@@ -74,7 +90,13 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
-Start a tmux session with 3 panes for the 3 processes:
+Start support services via the dev compose file:
+
+```bash
+docker compose -f dev/compose.yml up -d
+```
+
+Start a tmux session with 3 windows for the 3 processes:
 
 ```bash
 # Start a new session named taranis with the first tab and cd to src/core
@@ -106,6 +128,22 @@ uv sync --upgrade --all-extras
 flask run
 ```
 
+In Frontend Tab:
+
+```bash
+# If venv isn't setup already
+uv venv
+
+# Activate venv
+source .venv/bin/activate
+
+# Install requirements
+uv sync --upgrade --all-extras
+
+# Run the frontend dev server
+flask run
+```
+
 In Worker Tab:
 
 ```bash
@@ -122,8 +160,7 @@ uv sync --upgrade --all-extras
 celery -A worker worker
 ```
 
-In Frontend Tab:
-If `deno` is not available, check the [install guide](https://docs.deno.com/runtime/getting_started/installation/)
+In Tailwind Tab:
 
 ```bash
 deno install --allow-scripts
@@ -133,21 +170,9 @@ deno task tw:watch
 
 # Bundle vendor libraries
 deno task vendor:bundle
-
-# If venv isn't setup already
-uv venv
-
-# Activate venv
-source .venv/bin/activate
-
-# Install requirements
-uv sync --upgrade --all-extras
-
-# Run the frontend dev server
-flask run
 ```
 
-Taranis AI should be reachable on _local.taranis.ai_.
+Taranis AI should be reachable on `local.taranis.ai`.
 
 ## Technology stack
 
