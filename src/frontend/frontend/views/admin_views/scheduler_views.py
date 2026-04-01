@@ -34,6 +34,39 @@ class SchedulerView(AdminMixin, BaseView):
         dashboard_data = CoreApi().api_get("/config/workers/dashboard")
         return dashboard_data if isinstance(dashboard_data, dict) else {}
 
+    @staticmethod
+    def _get_api_items(path: str) -> list[dict[str, Any]]:
+        response = CoreApi().api_get(path)
+        items = response.get("items") if isinstance(response, dict) else None
+        return items if isinstance(items, list) else []
+
+    @staticmethod
+    def _get_scheduled_jobs_data() -> list[dict[str, Any]]:
+        jobs = SchedulerView._get_api_items("/config/schedule")
+        jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
+        return jobs
+
+    @staticmethod
+    def _get_queue_cards_data() -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        queues_data = CoreApi().api_get("/config/workers/tasks")
+        queues = queues_data if isinstance(queues_data, list) else []
+
+        worker_stats_data = CoreApi().api_get("/config/workers/stats")
+        worker_stats = worker_stats_data if isinstance(worker_stats_data, dict) else None
+        return queues, worker_stats
+
+    @staticmethod
+    def _get_active_jobs_data() -> list[dict[str, Any]]:
+        active_jobs = SchedulerView._get_api_items("/config/workers/active")
+        active_jobs.sort(key=lambda job: job.get("started_at") or "")
+        return active_jobs
+
+    @staticmethod
+    def _get_failed_jobs_data() -> list[dict[str, Any]]:
+        failed_jobs = SchedulerView._get_api_items("/config/workers/failed")
+        failed_jobs.sort(key=lambda job: job.get("failed_at") or "", reverse=True)
+        return failed_jobs
+
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
         tab = (request.args.get("tab") or initial_tab or "scheduled").lower()
@@ -102,10 +135,7 @@ class ScheduleJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            dashboard_data = SchedulerView._get_dashboard_data()
-            jobs_data = dashboard_data.get("scheduled_jobs")
-            jobs = jobs_data if isinstance(jobs_data, list) else []
-            jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
+            jobs = SchedulerView._get_scheduled_jobs_data()
             return render_template("schedule/jobs_table.html", jobs=jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return _notification_error(f"Failed to load jobs: {exc}")
@@ -119,13 +149,7 @@ class ScheduleQueuesAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            dashboard_data = SchedulerView._get_dashboard_data()
-            queues_data = dashboard_data.get("queues")
-            queues = queues_data if isinstance(queues_data, list) else []
-
-            worker_stats_data = dashboard_data.get("worker_stats")
-            worker_stats = worker_stats_data if isinstance(worker_stats_data, dict) else None
-
+            queues, worker_stats = SchedulerView._get_queue_cards_data()
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return _notification_error(f"Failed to load queues: {exc}")
@@ -139,10 +163,7 @@ class ScheduleActiveJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="active")
         try:
-            dashboard_data = SchedulerView._get_dashboard_data()
-            active_jobs_data = dashboard_data.get("active_jobs")
-            active_jobs = active_jobs_data if isinstance(active_jobs_data, list) else []
-            active_jobs.sort(key=lambda job: job.get("started_at") or "")
+            active_jobs = SchedulerView._get_active_jobs_data()
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return _notification_error(f"Failed to load active jobs: {exc}")
@@ -156,10 +177,7 @@ class ScheduleFailedJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="failed")
         try:
-            dashboard_data = SchedulerView._get_dashboard_data()
-            failed_jobs_data = dashboard_data.get("failed_jobs")
-            failed_jobs = failed_jobs_data if isinstance(failed_jobs_data, list) else []
-            failed_jobs.sort(key=lambda job: job.get("failed_at") or "", reverse=True)
+            failed_jobs = SchedulerView._get_failed_jobs_data()
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return _notification_error(f"Failed to load failed jobs: {exc}")
