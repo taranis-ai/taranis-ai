@@ -43,6 +43,7 @@ class SettingsView(AdminMixin, BaseView):
         if method == "download":
             response = CoreApi().api_download(action_url)
             if not response.ok:
+                logger.error(f"Failed to download file from {action_url}: {response.status_code} - {response.text}")
                 notification = cls.get_notification_from_response(response)
                 static_view, static_response = cls.static_view()
                 notification += static_view

@@ -382,7 +382,7 @@ class BaseView(MethodView):
     def get_notification_from_response(cls, response: RequestsResponse, oob: bool = True) -> str:
         payload = None
         try:
-            if response and response.content:
+            if response.content:
                 payload = response.json()
         except Exception:
             payload = None
