@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
-from flask import Flask, Response, abort, current_app, make_response, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
@@ -85,6 +85,11 @@ def _redirect_to_login_with_next():
     return redirect(_login_url_with_next(), code=302)
 
 
+def render_login_page(**context: Any) -> str:
+    g.skip_current_user_injection = True
+    return render_template("login/index.html", **context)
+
+
 def _redirect_expired_session_to_login():
     response = make_response(redirect(_login_url_with_next(), code=302))
     unset_jwt_cookies(response)
@@ -126,12 +131,12 @@ def logout() -> tuple[str, int] | Response:
     except Exception as exc:
         # If the core isn't reachable, fall back to the login page without crashing.
         logger.error(f"Core logout failed: {exc}")
-        return render_template("login/index.html", login_error="Logout failed"), 500
+        return render_login_page(login_error="Logout failed"), 500
 
     if not core_response.ok:
         with contextlib.suppress(Exception):
             error_msg = core_response.json().get("error", error_msg)
-        return render_template("login/index.html", login_error=error_msg), core_response.status_code
+        return render_login_page(login_error=error_msg), core_response.status_code
 
     response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():

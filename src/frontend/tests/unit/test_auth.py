@@ -1,9 +1,12 @@
+from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
 from flask import make_response, url_for
+from flask_jwt_extended import create_access_token
 
 import frontend.auth as auth_module
+import frontend.views.auth_views as auth_views_module
 
 
 def test_logout_returns_error_when_core_raises(app, monkeypatch):
@@ -99,14 +102,45 @@ def test_expired_token_callback_redirects_to_login_and_clears_jwt_cookies(app):
     dashboard_path = None
     with app.app_context():
         dashboard_path = url_for("admin.dashboard")
+        login_path = url_for("base.login", next=dashboard_path)
 
     with app.test_request_context(dashboard_path):
         response = auth_module.expired_token_callback({}, {})
 
     assert response.status_code == 302
-    with app.app_context():
-        assert response.location.endswith(url_for("base.login", next=dashboard_path))
+    assert response.location.endswith(login_path)
 
     set_cookie_headers = response.headers.getlist("Set-Cookie")
     assert any(header.startswith("access_token_cookie=;") for header in set_cookie_headers)
     assert any(header.startswith("refresh_token_cookie=;") for header in set_cookie_headers)
+
+
+def test_protected_route_with_expired_cookie_redirects_to_login_with_next(app, auth_user):
+    with app.app_context():
+        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        protected_path = url_for("base.notification")
+        login_path = url_for("base.login", next=protected_path)
+
+    client = app.test_client()
+    client.set_cookie(key="access_token_cookie", value=expired_token)
+    response = client.get(protected_path)
+
+    assert response.status_code == 302
+    assert response.location.endswith(login_path)
+
+
+def test_login_page_renders_with_expired_cookie(app, auth_user, monkeypatch):
+    mock_api = Mock()
+    mock_api.get_login_data.return_value = {"auth_method": "database"}
+    monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
+
+    with app.app_context():
+        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        login_path = url_for("base.login")
+
+    client = app.test_client()
+    client.set_cookie(key="access_token_cookie", value=expired_token)
+    response = client.get(login_path)
+
+    assert response.status_code == 200
+    assert response.headers.get("Location") is None

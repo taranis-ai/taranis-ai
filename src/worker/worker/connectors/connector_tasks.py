@@ -14,7 +14,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def connector_task(connector_id: str, story_ids: list[str]) -> None:
+def connector_task(connector_id: str, story_ids: list[str]) -> dict[str, Any] | None:
     """Push stories to an external connector system.
 
     Args:
@@ -22,7 +22,7 @@ def connector_task(connector_id: str, story_ids: list[str]) -> None:
         story_ids: List of story IDs to send
 
     Returns:
-        None
+        Connector execution result payload, or None if no connector was found
 
     Raises:
         RuntimeError: If connector not found or execution fails
@@ -46,15 +46,24 @@ def connector_task(connector_id: str, story_ids: list[str]) -> None:
     # Execute connector
     try:
         if connector is not None:
-            connector.execute(connector_data)
+            connector_result = connector.execute(connector_data)
+            if not isinstance(connector_result, dict):
+                raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
+
             logger.info(f"Connector with id: {connector_id} executed successfully")
+            return {
+                "connector_id": connector_id,
+                "connector_type": connector.type,
+                "action": connector_result.get("action", "mixed"),
+                "message": connector_result.get("message", ""),
+                "sync_results": connector_result.get("sync_results", []),
+            }
         else:
             logger.warning(f"Connector with id: {connector_id} was not found")
+            return None
     except Exception as e:
         logger.exception(f"Error executing connector with id: {connector_id}")
         raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
-
-    return None
 
 
 def drop_utf16_surrogates(data: str) -> str:
