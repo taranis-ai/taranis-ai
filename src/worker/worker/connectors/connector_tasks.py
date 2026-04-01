@@ -1,11 +1,12 @@
-import re
-from celery import Task
 import json
+import re
 from typing import Any
 
+from celery import Task
+
 from worker.connectors import MispConnector
-from worker.log import logger
 from worker.core_api import CoreApi
+from worker.log import logger
 
 
 class ConnectorTask(Task):
@@ -14,7 +15,6 @@ class ConnectorTask(Task):
     priority = 5
     default_retry_delay = 60
     time_limit = 300
-    ignore_result = True
 
     def __init__(self):
         self.core_api = CoreApi()
@@ -77,7 +77,7 @@ class ConnectorTask(Task):
             raise RuntimeError(f"Story with id {query} not found")
         return stories
 
-    def run(self, connector_id: str, story_ids: list[str]) -> None:
+    def run(self, connector_id: str, story_ids: list[str]) -> dict[str, Any] | None:
         logger.info(f"Running connector with id: {connector_id}")
         connector = None
         try:
@@ -91,7 +91,17 @@ class ConnectorTask(Task):
 
         try:
             if connector is not None:
-                connector.execute(connector_data)
+                connector_result = connector.execute(connector_data)
+                if not isinstance(connector_result, dict):
+                    raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
+
+                return {
+                    "connector_id": connector_id,
+                    "connector_type": connector.type,
+                    "action": connector_result.get("action", "mixed"),
+                    "message": connector_result.get("message", ""),
+                    "sync_results": connector_result.get("sync_results", []),
+                }
         except Exception as e:
             logger.exception(f"Error executing connector with id: {connector_id}")
             raise RuntimeError(f"Error executing connector with id: {connector_id}") from e

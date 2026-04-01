@@ -1,65 +1,22 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-
 import pytest
 
-from core.model.news_item import NewsItem
 from core.model.report_item import ReportItem
 from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
-
-
-def _news_item_payload() -> dict:
-    now = datetime.utcnow().replace(microsecond=0).isoformat()
-    title = f"Seed News Item {uuid.uuid4()}"
-    content = f"content-{uuid.uuid4()}"
-    return {
-        "id": str(uuid.uuid4()),
-        "title": title,
-        "content": content,
-        "source": "seed-test",
-        "link": "https://example.invalid/seed-test",
-        "osint_source_id": "manual",
-        "hash": NewsItem.get_hash(title=title, content=content),
-        "collected": now,
-        "published": now,
-    }
-
-
-def _create_story() -> Story:
-    payload = {
-        "title": f"Seed Story {uuid.uuid4()}",
-        "description": "seed story",
-        "news_items": [_news_item_payload()],
-    }
-    result, status = Story.add(payload)
-    assert status == 200
-    return Story.get(result["story_id"])
-
-
-def _create_report(sample_report_type) -> ReportItem:
-    payload = {
-        "title": f"Seed Report {uuid.uuid4()}",
-        "completed": False,
-        "report_item_type_id": sample_report_type.id,
-        "stories": [],
-    }
-    report, status = ReportItem.add(payload)
-    assert status == 200
-    return ReportItem.get(report.id)
+from tests.application.support.builders import create_report, create_story
 
 
 @pytest.mark.usefixtures("app")
-def test_pre_seed_update_backfills_missing_story_and_report_revisions(session, sample_report_type):
+def test_pre_seed_update_backfills_missing_story_and_report_revisions(session, seed_story_payload_factory, seed_report_payload_factory):
     from core.managers.db_manager import db
     from core.managers.db_seed_manager import pre_seed_update
 
-    legacy_story = _create_story()
-    current_story = _create_story()
-    legacy_report = _create_report(sample_report_type)
-    current_report = _create_report(sample_report_type)
+    legacy_story = create_story(seed_story_payload_factory())
+    current_story = create_story(seed_story_payload_factory())
+    legacy_report = create_report(seed_report_payload_factory())
+    current_report = create_report(seed_report_payload_factory())
 
     db.session.execute(db.delete(StoryRevision).where(StoryRevision.story_id == legacy_story.id))
     db.session.execute(db.text("UPDATE story SET revision = -1 WHERE id = :story_id"), {"story_id": legacy_story.id})

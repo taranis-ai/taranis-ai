@@ -56,18 +56,28 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    parent_story_id text;
+    old_story_id text;
+    new_story_id text;
 BEGIN
-    IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE') THEN
-        parent_story_id := NEW.story_id::text;
+    IF TG_OP = 'INSERT' THEN
+        new_story_id := NEW.story_id::text;
+    ELSIF TG_OP = 'DELETE' THEN
+        old_story_id := OLD.story_id::text;
     ELSE
-        parent_story_id := OLD.story_id::text;
+        old_story_id := OLD.story_id::text;
+        new_story_id := NEW.story_id::text;
     END IF;
 
-    IF parent_story_id IS NOT NULL THEN
+    IF new_story_id IS NOT NULL THEN
         UPDATE story s
         SET search_vector = fts_build_story_search_vector(s.id::text)
-        WHERE s.id::text = parent_story_id;
+        WHERE s.id::text = new_story_id;
+    END IF;
+
+    IF old_story_id IS NOT NULL AND old_story_id IS DISTINCT FROM new_story_id THEN
+        UPDATE story s
+        SET search_vector = fts_build_story_search_vector(s.id::text)
+        WHERE s.id::text = old_story_id;
     END IF;
 
     RETURN NULL;
@@ -76,7 +86,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_newsitem_refresh_parent_story_vector ON news_item;
 CREATE TRIGGER trg_newsitem_refresh_parent_story_vector
-AFTER INSERT OR UPDATE OF title, content OR DELETE
+AFTER INSERT OR UPDATE OF story_id, title, content OR DELETE
 ON news_item
 FOR EACH ROW
 EXECUTE FUNCTION fts_refresh_parent_story_vector();
