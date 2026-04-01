@@ -63,6 +63,23 @@ class TestBotsApi(BaseTest):
         )
         assert response.status_code == 200
 
+    def test_story_attribute_update_is_persisted(self, client, stories, api_header, auth_header):
+        misp_event_uuid = "320d4589-cd71-4722-aa28-ea5530e99830"
+        story_id = stories[1]
+
+        response = client.patch(
+            f"{self.base_uri}/story/{story_id}/attributes",
+            json={"misp_event_uuid": {"key": "misp_event_uuid", "value": misp_event_uuid}},
+            headers=api_header,
+        )
+        assert response.status_code == 200
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+
+        attr_by_key = {attr["key"]: attr["value"] for attr in response.get_json()["attributes"]}
+        assert attr_by_key["misp_event_uuid"] == misp_event_uuid
+
     def test_check_updated_story(self, client, stories, cleanup_story_update_data, auth_header):
         """Check if the update was successful"""
         response = client.get(f"api/assess/story/{stories[0]}", headers=auth_header)
@@ -159,3 +176,189 @@ class TestTaggingBotsResults(BaseTest):
             assert attr_by_key["WORDLIST_BOT"].startswith("bot_id=")
             assert attr_by_key["IOC_BOT"].startswith("bot_id=")
             assert attr_by_key["NLP_BOT"].startswith("bot_id=")
+
+
+class TestConnectorTaskResults(BaseTest):
+    base_uri = "/api/tasks"
+
+    def build_misp_connector_result(self, story_id: str, misp_event_uuid: str, news_item_ids: list[str]) -> dict:
+        return {
+            "task_id": "connector_task_320d4589-cd71-4722-aa28-ea5530e99830",
+            "status": "SUCCESS",
+            "result": {
+                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                "connector_type": "MISP_CONNECTOR",
+                "action": "synced",
+                "message": "Story synced to MISP",
+                "sync_results": [
+                    {
+                        "type": "misp_sync_story",
+                        "version": 1,
+                        "story_id": story_id,
+                        "misp_event_uuid": misp_event_uuid,
+                        "news_item_ids_to_mark_external": news_item_ids,
+                    }
+                ],
+            },
+            "traceback": None,
+            "task": "connector_task",
+        }
+
+    def build_misp_connector_proposal_result(self, story_id: str, misp_event_uuid: str) -> dict:
+        return {
+            "task_id": "connector_task_proposal_320d4589-cd71-4722-aa28-ea5530e99830",
+            "status": "SUCCESS",
+            "result": {
+                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                "connector_type": "MISP_CONNECTOR",
+                "action": "proposed",
+                "message": "1 proposals submitted to MISP",
+                "sync_results": [],
+            },
+            "traceback": None,
+            "task": "connector_task",
+        }
+
+    def test_misp_connector_result_updates_story_through_task_endpoint(self, client, stories, auth_header, api_header):
+        story_id = stories[2]
+        misp_event_uuid = "320d4589-cd71-4722-aa28-ea5530e99830"
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        original_story = response.get_json()
+        news_item_id = original_story["news_items"][0]["id"]
+
+        assert original_story["last_change"] == "internal"
+        assert original_story["news_items"][0]["last_change"] == "internal"
+
+        response = client.post(
+            self.base_uri,
+            json=self.build_misp_connector_result(story_id, misp_event_uuid, [news_item_id]),
+            headers=api_header,
+        )
+        assert response.status_code == 200
+        assert response.get_json()["status"] == "SUCCESS"
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        updated_story = response.get_json()
+
+        attr_by_key = {attr["key"]: attr["value"] for attr in updated_story["attributes"]}
+        assert attr_by_key["misp_event_uuid"] == misp_event_uuid
+        assert updated_story["last_change"] == "external"
+        assert updated_story["news_items"][0]["last_change"] == "external"
+        assert updated_story["revision_count"] == original_story["revision_count"] + 1
+
+    def test_misp_connector_result_is_idempotent(self, client, stories, auth_header, api_header):
+        story_id = stories[2]
+        misp_event_uuid = "83c9901c-a767-4dab-928c-c61e09765f94"
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        story = response.get_json()
+        news_item_id = story["news_items"][0]["id"]
+        payload = self.build_misp_connector_result(story_id, misp_event_uuid, [news_item_id])
+
+        first_response = client.post(self.base_uri, json=payload, headers=api_header)
+        assert first_response.status_code == 200
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        story_after_first_post = response.get_json()
+
+        second_response = client.post(self.base_uri, json=payload, headers=api_header)
+        assert second_response.status_code == 200
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        story_after_second_post = response.get_json()
+
+        attr_by_key = {attr["key"]: attr["value"] for attr in story_after_second_post["attributes"]}
+        assert attr_by_key["misp_event_uuid"] == misp_event_uuid
+        assert story_after_second_post["revision_count"] == story_after_first_post["revision_count"]
+
+    def test_misp_connector_proposal_result_is_stored_with_summary(self, client, stories, auth_header, api_header):
+        story_id = stories[2]
+        task_id = "connector_task_proposal_320d4589-cd71-4722-aa28-ea5530e99830"
+        misp_event_uuid = "83c9901c-a767-4dab-928c-c61e09765f94"
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        original_story = response.get_json()
+
+        response = client.post(
+            self.base_uri,
+            json=self.build_misp_connector_proposal_result(story_id, misp_event_uuid),
+            headers=api_header,
+        )
+        assert response.status_code == 200
+
+        response = client.get(f"/api/tasks/{task_id}", headers=api_header)
+        self.assert_json_ok(response)
+        task_result = response.get_json()["result"]
+
+        assert task_result["action"] == "proposed"
+        assert task_result["message"] == "1 proposals submitted to MISP"
+        assert task_result["sync_results"] == []
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        updated_story = response.get_json()
+
+        assert updated_story["revision_count"] == original_story["revision_count"]
+
+    def test_unknown_connector_result_is_logged_and_ignored(self, client, stories, auth_header, api_header, caplog):
+        import logging
+
+        story_id = stories[0]
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        original_story = response.get_json()
+
+        caplog.set_level(logging.WARNING)
+        response = client.post(
+            self.base_uri,
+            json={
+                "task_id": "connector_task_unknown",
+                "status": "SUCCESS",
+                "result": {
+                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                    "connector_type": "MISP_CONNECTOR",
+                    "action": "mixed",
+                    "message": "Connector finished with mixed results",
+                    "sync_results": [{"type": "unknown_connector_result"}],
+                },
+                "traceback": None,
+                "task": "connector_task",
+            },
+            headers=api_header,
+        )
+        assert response.status_code == 200
+
+        response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+        self.assert_json_ok(response)
+        updated_story = response.get_json()
+
+        assert updated_story["revision_count"] == original_story["revision_count"]
+        assert "Unsupported MISP sync payload type: unknown_connector_result" in caplog.text
+
+    def test_malformed_internal_result_is_rejected(self, app, caplog):
+        import logging
+
+        from core.service.misp_story_sync import apply_misp_sync_story_result
+
+        caplog.set_level(logging.ERROR)
+        with app.app_context():
+            assert (
+                apply_misp_sync_story_result(
+                    {
+                        "type": "misp_sync_story",
+                        "story_id": "story-123",
+                        "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
+                        "news_item_ids_to_mark_external": "news-1",
+                    }
+                )
+                is False
+            )
+
+        assert "news_item_ids_to_mark_external must be a list of non-empty strings" in caplog.text
