@@ -49,20 +49,77 @@ def source_api_mocks(monkeypatch):
 @pytest.fixture
 def scheduler_api_mocks(monkeypatch):
     mock_api = MagicMock()
+    mock_api.requested_paths = []
+
+    payloads = {
+        "/config/workers/dashboard": {
+            "scheduled_jobs": [
+                {
+                    "id": "scheduled-1",
+                    "name": "Scheduled Bot Run",
+                    "queue": "bots",
+                    "type": "cron",
+                    "schedule": "*/15 * * * *",
+                    "next_run_time": "2025-01-01T12:00:00",
+                }
+            ],
+            "scheduled_total_count": 1,
+            "queues": [
+                {"name": "collectors", "messages": 0},
+                {"name": "bots", "messages": 2},
+            ],
+            "worker_stats": {"total_workers": 3, "busy_workers": 1, "idle_workers": 2},
+            "active_jobs": [],
+            "active_total_count": 0,
+            "failed_jobs": [],
+            "failed_total_count": 0,
+        },
+        "/config/schedule": {
+            "items": [
+                {
+                    "id": "scheduled-2",
+                    "name": "Queued Source Sync",
+                    "queue": "collectors",
+                    "type": "cron",
+                    "schedule": "0 * * * *",
+                    "next_run_time": "2025-01-01T13:00:00",
+                }
+            ],
+            "total_count": 1,
+        },
+        "/config/workers/tasks": [
+            {"name": "collectors", "messages": 1},
+            {"name": "bots", "messages": 0},
+        ],
+        "/config/workers/stats": {"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
+        "/config/workers/active": {
+            "items": [
+                {
+                    "id": "active-1",
+                    "name": "Running Bot",
+                    "queue": "bots",
+                    "started_at": "2025-01-01T11:55:00",
+                }
+            ],
+            "total_count": 1,
+        },
+        "/config/workers/failed": {
+            "items": [
+                {
+                    "id": "failed-1",
+                    "name": "Failed Connector",
+                    "queue": "connectors",
+                    "failed_at": "2025-01-01T11:50:00",
+                    "error": "Boom",
+                }
+            ],
+            "total_count": 1,
+        },
+    }
 
     def _api_get(path):
-        if path == "/config/workers/dashboard":
-            return {
-                "scheduled_jobs": [],
-                "scheduled_total_count": 0,
-                "queues": [],
-                "worker_stats": {},
-                "active_jobs": [],
-                "active_total_count": 0,
-                "failed_jobs": [],
-                "failed_total_count": 0,
-            }
-        return None
+        mock_api.requested_paths.append(path)
+        return payloads.get(path)
 
     mock_api.api_get.side_effect = _api_get
     monkeypatch.setattr(scheduler_views, "CoreApi", lambda: mock_api)

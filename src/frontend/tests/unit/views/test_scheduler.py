@@ -38,3 +38,50 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, sched
     assert 'class="tab tab-active" data-tab="scheduled"' in html
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
+
+def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, scheduler_api_mocks):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler")
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    assert 'id="queue-cards"' in html
+    assert 'hx-trigger="every 10s"' in html
+    assert 'id="scheduled-jobs-table"' in html
+    assert 'id="active-jobs-table"' in html
+    assert 'id="failed-jobs-table"' in html
+    assert html.count('hx-trigger="scheduler:refresh"') == 3
+    assert 'id="execution-history">' in html
+    assert 'window.htmx.trigger(target, \'scheduler:refresh\');' in html
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "expected_paths", "expected_text"),
+    [
+        ("admin.scheduler_jobs_table", ["/config/schedule"], "Queued Source Sync"),
+        ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
+        ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
+        ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
+        ("admin.scheduler_history", [], "No execution history available"),
+    ],
+)
+def test_scheduler_htmx_partials_use_granular_endpoints(
+    endpoint,
+    expected_paths,
+    expected_text,
+    authenticated_client,
+    scheduler_api_mocks,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for(endpoint)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert scheduler_api_mocks.requested_paths == expected_paths
+    assert "/config/workers/dashboard" not in scheduler_api_mocks.requested_paths
+    assert expected_text in response.get_data(as_text=True)
