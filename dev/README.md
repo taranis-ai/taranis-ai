@@ -76,16 +76,11 @@ cp dev/env.dev src/frontend/.env
 echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
 
-Add the local hostname:
+Setup nginx.
+Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 
 ```bash
-echo "127.0.0.1 local.taranis.ai" | sudo tee -a /etc/hosts
-```
-
-Configure nginx for your OS:
-
-```bash
-# Ubuntu / Debian based example
+# Debian based example
 sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
 sudo ln -sf /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
 sudo nginx -t && sudo systemctl restart nginx
@@ -93,11 +88,6 @@ sudo nginx -t && sudo systemctl restart nginx
 # Red Hat based example
 sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
-
-# macOS with Homebrew nginx
-mkdir -p "$(brew --prefix)/etc/nginx/servers"
-cp dev/nginx.conf "$(brew --prefix)/etc/nginx/servers/local.taranis.ai.conf"
-sudo ./dev/manage_macos_nginx.sh
 ```
 
 Start support services via the dev compose file:
