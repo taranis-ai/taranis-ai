@@ -81,21 +81,15 @@ def session(db):
     test_session = scoped_session(session_factory=sessionmaker(bind=connection))
     db.session = test_session
 
-    yield test_session
-
-    # Ensure all pending changes are cleared before rollback
-    db.session.expunge_all()
-
-    # Check if transaction is still active before rolling back
-    if transaction.is_active:
-        transaction.rollback()
-
-    connection.close()
-    test_session.remove()
-    db.session = original_session
-
-    # Restore the original session for cleanup fixtures
-    db.session = original_session
+    try:
+        yield test_session
+    finally:
+        test_session.expunge_all()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
+        test_session.remove()
+        db.session = original_session
 
 
 @pytest.fixture(scope="session")

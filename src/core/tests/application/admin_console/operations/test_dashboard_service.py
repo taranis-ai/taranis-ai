@@ -1,4 +1,5 @@
-from core.managers import queue_manager
+from types import SimpleNamespace
+
 from core.service.dashboard import DashboardService
 
 
@@ -9,10 +10,10 @@ def test_get_dashboard_data_includes_health_status(monkeypatch):
     monkeypatch.setattr("core.service.dashboard.ReportItem.count_all", lambda completed: 7 if completed else 1)
     monkeypatch.setattr("core.service.dashboard.NewsItem.latest_collected", lambda: None)
     monkeypatch.setattr(
-        queue_manager,
-        "queue_manager",
-        type("QueueManagerStub", (), {"get_scheduled_jobs": lambda self: ({"total_count": 4}, 200)})(),
-        raising=False,
+        "core.service.dashboard.queue_manager",
+        SimpleNamespace(
+            queue_manager=type("QueueManagerStub", (), {"get_scheduled_jobs": lambda self: ({"total_count": 4}, 200)})()
+        ),
     )
     monkeypatch.setattr("core.service.dashboard.StoryConflict.conflict_store", ["story-conflict"])
     monkeypatch.setattr("core.service.dashboard.NewsItemConflict.conflict_store", ["news-conflict"])
