@@ -1,5 +1,3 @@
-import sys
-from pathlib import Path
 from typing import get_origin
 from unittest.mock import MagicMock
 
@@ -17,13 +15,6 @@ from frontend.log import logger
 from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
-
-
-root_path = Path(__file__).resolve().parents[5] / "src" / "models"
-root_str = str(root_path)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
 
 from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
 
