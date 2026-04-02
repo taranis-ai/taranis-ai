@@ -10,13 +10,14 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from uuid_extensions import uuid7str
 
+from frontend.cache import cache
 from frontend.config import Config
 from frontend.log import logger
 from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
-from frontend.views.admin_views import bot_views, scheduler_views, source_views  # noqa: E402
+from frontend.views.admin_views import source_views  # noqa: E402
 
 
 @pytest.fixture
@@ -38,52 +39,24 @@ def source_api_mocks(monkeypatch):
 
 
 @pytest.fixture
-def scheduler_api_mocks(monkeypatch):
-    mock_api = MagicMock()
-    mock_api.requested_paths = []
-
-    payloads = {
-        "/config/workers/dashboard": {
-            "scheduled_jobs": [
-                {
-                    "id": "scheduled-1",
-                    "name": "Scheduled Bot Run",
-                    "queue": "bots",
-                    "type": "cron",
-                    "schedule": "*/15 * * * *",
-                    "next_run_time": "2025-01-01T12:00:00",
-                }
-            ],
-            "scheduled_total_count": 1,
-            "queues": [
-                {"name": "collectors", "messages": 0},
-                {"name": "bots", "messages": 2},
-            ],
-            "worker_stats": {"total_workers": 3, "busy_workers": 1, "idle_workers": 2},
-            "active_jobs": [],
-            "active_total_count": 0,
-            "failed_jobs": [],
-            "failed_total_count": 0,
-        },
-        "/config/schedule": {
-            "items": [
-                {
-                    "id": "scheduled-2",
-                    "name": "Queued Source Sync",
-                    "queue": "collectors",
-                    "type": "cron",
-                    "schedule": "0 * * * *",
-                    "next_run_time": "2025-01-01T13:00:00",
-                }
-            ],
-            "total_count": 1,
-        },
-        "/config/workers/tasks": [
+def scheduler_api_mocks(responses_mock, mock_core_get_endpoints):
+    for key in list(cache.cache._cache.keys()):
+        if not str(key).startswith("user_cache_"):
+            cache.delete(key)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
+        json=[
             {"name": "collectors", "messages": 1},
             {"name": "bots", "messages": 0},
         ],
-        "/config/workers/stats": {"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
-        "/config/workers/active": {
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/active",
+        json={
             "items": [
                 {
                     "id": "active-1",
@@ -94,7 +67,10 @@ def scheduler_api_mocks(monkeypatch):
             ],
             "total_count": 1,
         },
-        "/config/workers/failed": {
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
+        json={
             "items": [
                 {
                     "id": "failed-1",
@@ -106,41 +82,13 @@ def scheduler_api_mocks(monkeypatch):
             ],
             "total_count": 1,
         },
-    }
+    )
 
-    def _api_get(path):
-        mock_api.requested_paths.append(path)
-        return payloads.get(path)
+    yield responses_mock
 
-    mock_api.api_get.side_effect = _api_get
-    monkeypatch.setattr(scheduler_views, "CoreApi", lambda: mock_api)
-
-    class _TaskResults:
-        extra = {
-            "task_stats": {},
-            "totals": {"successes": 0, "failures": 0, "overall_success_rate": 0},
-        }
-
-        def __len__(self):
-            return 0
-
-    class _DataPersistenceLayer:
-        def get_objects(self, *_, **__):
-            return _TaskResults()
-
-    monkeypatch.setattr(scheduler_views, "DataPersistenceLayer", _DataPersistenceLayer)
-
-    class _Dashboard:
-        worker_status = {}
-
-    class _SourcePersistenceLayer:
-        def get_first(self, *_args, **_kwargs):
-            return _Dashboard()
-
-    monkeypatch.setattr(source_views, "DataPersistenceLayer", _SourcePersistenceLayer)
-    monkeypatch.setattr(bot_views, "DataPersistenceLayer", _SourcePersistenceLayer)
-
-    return mock_api
+    for key in list(cache.cache._cache.keys()):
+        if not str(key).startswith("user_cache_"):
+            cache.delete(key)
 
 
 def get_items_from_factory(view_name, model):

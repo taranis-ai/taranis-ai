@@ -80,12 +80,7 @@ class Bot(BaseModel):
                 bot.index = index
         db.session.commit()
 
-        if bot.enabled and bot.get_schedule():
-            bot.schedule_bot()
-        else:
-            bot.unschedule_bot()
-
-        bot._publish_schedule_cache_invalidation()
+        bot._refresh_schedule_registration()
 
         return bot
 
@@ -234,6 +229,14 @@ class Bot(BaseModel):
         for bot in enabled_with_schedule:
             bot.schedule_bot()
         logger.info(f"Scheduling for {len(enabled_with_schedule)} bots completed")
+
+    def _refresh_schedule_registration(self) -> None:
+        if self.enabled and self.get_schedule():
+            self.schedule_bot()
+        else:
+            self.unschedule_bot()
+
+        self._publish_schedule_cache_invalidation()
 
     def _publish_schedule_cache_invalidation(self):
         """Publish cache invalidation signal for schedule-related frontend views."""

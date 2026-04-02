@@ -1,13 +1,10 @@
-from typing import Any, Type
+from typing import Any
 
 from models.base import TaranisBaseModel
 from pydantic import ValidationError
 
 
-def extract_pydantic_errors(exc: ValidationError, model: Type[Any]) -> list[dict[str, str]]:
-    if isinstance(model, type) and issubclass(model, TaranisBaseModel) and hasattr(model, "extract_validation_errors"):
-        return model.extract_validation_errors(exc)
-
+def _extract_generic_validation_errors(exc: ValidationError, model: type[Any] | Any) -> list[dict[str, str]]:
     return [
         {
             "model": getattr(model, "__name__", str(model)),
@@ -19,11 +16,11 @@ def extract_pydantic_errors(exc: ValidationError, model: Type[Any]) -> list[dict
     ]
 
 
-def format_pydantic_errors(exc: ValidationError, model: Type[Any]) -> str:
-    if isinstance(model, type) and issubclass(model, TaranisBaseModel) and hasattr(model, "format_validation_errors"):
+def format_pydantic_errors(exc: ValidationError, model: type[Any] | Any) -> str:
+    if isinstance(model, type) and issubclass(model, TaranisBaseModel):
         return model.format_validation_errors(exc)
 
-    structured = extract_pydantic_errors(exc, model)
+    structured = _extract_generic_validation_errors(exc, model)
     if not structured:
         return f"Validation failed for model {getattr(model, '__name__', str(model))}, but no error details were extracted."
 

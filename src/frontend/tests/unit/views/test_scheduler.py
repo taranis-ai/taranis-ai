@@ -1,5 +1,11 @@
+from urllib.parse import urlparse
+
 import pytest
 from flask import url_for
+
+
+def _requested_core_paths(responses_mock):
+    return [urlparse(call.request.url).path.removeprefix("/api") for call in responses_mock.calls]
 
 
 @pytest.mark.parametrize(
@@ -61,11 +67,11 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
 @pytest.mark.parametrize(
     ("endpoint", "expected_paths", "expected_text"),
     [
-        ("admin.scheduler_jobs_table", ["/config/schedule"], "Queued Source Sync"),
+        ("admin.scheduler_jobs_table", ["/config/schedule"], "Total: 1 scheduled jobs"),
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
-        ("admin.scheduler_history", [], "No execution history available"),
+        ("admin.scheduler_history", ["/config/task-results"], "Success Rate"),
     ],
 )
 def test_scheduler_htmx_partials_use_granular_endpoints(
@@ -82,6 +88,6 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     response = authenticated_client.get(url, headers=htmx_header)
 
     assert response.status_code == 200
-    assert scheduler_api_mocks.requested_paths == expected_paths
-    assert "/config/workers/dashboard" not in scheduler_api_mocks.requested_paths
+    assert _requested_core_paths(scheduler_api_mocks) == expected_paths
+    assert "/config/workers/dashboard" not in _requested_core_paths(scheduler_api_mocks)
     assert expected_text in response.get_data(as_text=True)
