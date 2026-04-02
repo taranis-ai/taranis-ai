@@ -94,7 +94,7 @@ class DataPersistenceLayer:
     ) -> CacheObject[T]:
         items = result.get("items", [])
         exclude_keys = {"items", "total_count", "_links"}
-        extra = {key: value for key, value in result.items() if key not in exclude_keys}
+        metadata = {key: value for key, value in result.items() if key not in exclude_keys}
         result_object = [object_model(**object) for object in items]
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
@@ -117,7 +117,7 @@ class DataPersistenceLayer:
             order=paging_data.order if paging_data and paging_data.order else "",
             query_params=paging_data.query_params if paging_data else {},
             links=links,
-            extra=extra,
+            metadata=metadata,
         )
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")

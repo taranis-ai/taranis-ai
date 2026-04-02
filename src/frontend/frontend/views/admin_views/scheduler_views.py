@@ -95,9 +95,11 @@ class SchedulerView(AdminMixin, BaseView):
 
             # Get task execution stats
             task_results = DataPersistenceLayer().get_objects(Task)
-            stats_meta = getattr(task_results, "extra", {}) if task_results is not None else {}
-            task_stats = stats_meta.get("task_stats", {})
-            totals = stats_meta.get("totals", {})
+            response_metadata = (
+                getattr(task_results, "metadata", getattr(task_results, "extra", {})) if task_results is not None else {}
+            )
+            task_stats = response_metadata.get("task_stats", {})
+            totals = response_metadata.get("totals", {})
             total_successes = totals.get("successes", 0)
             total_failures = totals.get("failures", 0)
             overall_success_rate = totals.get("overall_success_rate", 0)
@@ -192,9 +194,11 @@ class ScheduleHistoryAPI(MethodView):
             return SchedulerView().get(initial_tab="history")
         try:
             task_results = DataPersistenceLayer().get_objects(Task)
-            stats_meta = getattr(task_results, "extra", {}) if task_results is not None else {}
-            raw_task_stats: dict[str, dict[str, Any]] = stats_meta.get("task_stats", {})
-            totals = stats_meta.get("totals", {})
+            response_metadata = (
+                getattr(task_results, "metadata", getattr(task_results, "extra", {})) if task_results is not None else {}
+            )
+            raw_task_stats: dict[str, dict[str, Any]] = response_metadata.get("task_stats", {})
+            totals = response_metadata.get("totals", {})
             total_successes = totals.get("successes", 0)
             total_failures = totals.get("failures", 0)
             overall_success_rate = totals.get("overall_success_rate", 0)
