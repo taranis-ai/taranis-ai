@@ -12,13 +12,14 @@ def test_get_dashboard_data_includes_health_status(monkeypatch):
         queue_manager,
         "queue_manager",
         type("QueueManagerStub", (), {"get_scheduled_jobs": lambda self: ({"total_count": 4}, 200)})(),
+        raising=False,
     )
     monkeypatch.setattr("core.service.dashboard.StoryConflict.conflict_store", ["story-conflict"])
     monkeypatch.setattr("core.service.dashboard.NewsItemConflict.conflict_store", ["news-conflict"])
     monkeypatch.setattr("core.service.dashboard.Task.get_status_counts_by_task", lambda: {"collector_task": {"total": 8}})
     monkeypatch.setattr(
         "core.service.dashboard.get_health_response",
-        lambda: ({"healthy": False, "services": {"database": "up", "broker": "down", "workers": "down"}}, 503),
+        lambda: ({"healthy": False, "services": {"database": "up", "seed_data": "up", "broker": "down", "workers": "down"}}, 503),
     )
 
     response = DashboardService.get_dashboard_data()
@@ -36,7 +37,7 @@ def test_get_dashboard_data_includes_health_status(monkeypatch):
                 "conflict_count": 2,
                 "health_status": {
                     "healthy": False,
-                    "services": {"database": "up", "broker": "down", "workers": "down"},
+                    "services": {"database": "up", "seed_data": "up", "broker": "down", "workers": "down"},
                 },
                 "worker_status": {"collector_task": {"total": 8}},
             }

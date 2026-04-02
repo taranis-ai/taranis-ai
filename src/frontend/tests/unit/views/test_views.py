@@ -388,6 +388,7 @@ def test_admin_dashboard_renders_health_card(authenticated_client, responses_moc
                         "healthy": False,
                         "services": {
                             "database": "up",
+                            "seed_data": "up",
                             "broker": "down",
                             "workers": "down",
                         },
@@ -454,6 +455,7 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
                         "healthy": True,
                         "services": {
                             "database": "up",
+                            "seed_data": "up",
                             "broker": "up",
                             "workers": "up",
                         },
