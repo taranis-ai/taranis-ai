@@ -36,13 +36,11 @@ Start-up application
 docker compose up -d
 ```
 
-**Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), use the wrapper script instead to avoid configuration conflicts:
+**Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), unset `TARANIS_CORE_URL` for the Docker command to avoid configuration conflicts:
 
 ```bash
-./compose.sh up -d
+env -u TARANIS_CORE_URL docker compose up -d
 ```
-
-The wrapper script automatically unsets development environment variables that shouldn't affect Docker deployments.
 
 Use the application
 
