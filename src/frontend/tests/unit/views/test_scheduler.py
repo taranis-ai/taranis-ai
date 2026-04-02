@@ -55,7 +55,7 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert 'id="failed-jobs-table"' in html
     assert html.count('hx-trigger="scheduler:refresh"') == 3
     assert 'id="execution-history">' in html
-    assert 'window.htmx.trigger(target, \'scheduler:refresh\');' in html
+    assert "window.htmx.trigger(target, 'scheduler:refresh');" in html
 
 
 @pytest.mark.parametrize(
