@@ -22,14 +22,16 @@ services:
       - "${TARANIS_REDIS_PORT:-6379}:6379"
     volumes:
       - "redis_data:/data"
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD-}"
     command:
       [
-        "redis-server",
-        "--appendonly", "yes",
-        "--dir", "/data"
+        "sh",
+        "-c",
+        "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --dir /data; else exec redis-server --appendonly yes --dir /data; fi"
       ]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
       interval: 10s
       start_period: 10s
       timeout: 3s
