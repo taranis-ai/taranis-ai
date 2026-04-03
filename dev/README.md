@@ -60,6 +60,8 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
+This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
+
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 

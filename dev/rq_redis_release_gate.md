@@ -174,9 +174,9 @@ Use these during both local and server validation.
 Useful commands during manual verification:
 
 ```bash
-redis-cli -a "$REDIS_PASSWORD" HGETALL rq:cron:def
-redis-cli -a "$REDIS_PASSWORD" ZRANGE rq:cron:next 0 -1 WITHSCORES
-redis-cli -a "$REDIS_PASSWORD" XLEN rq:cron:events
+redis-cli HGETALL rq:cron:def
+redis-cli ZRANGE rq:cron:next 0 -1 WITHSCORES
+redis-cli XLEN rq:cron:events
 ```
 
 Expected behavior:
@@ -187,10 +187,12 @@ Expected behavior:
 If Redis only exists inside Docker, use:
 
 ```bash
-docker compose exec redis redis-cli -a "$REDIS_PASSWORD" HGETALL rq:cron:def
-docker compose exec redis redis-cli -a "$REDIS_PASSWORD" ZRANGE rq:cron:next 0 -1 WITHSCORES
-docker compose exec redis redis-cli -a "$REDIS_PASSWORD" XLEN rq:cron:events
+docker compose exec redis redis-cli HGETALL rq:cron:def
+docker compose exec redis redis-cli ZRANGE rq:cron:next 0 -1 WITHSCORES
+docker compose exec redis redis-cli XLEN rq:cron:events
 ```
+
+If the target Redis requires authentication, add `-a "$REDIS_PASSWORD"` to those commands.
 
 ## Exit Criteria
 
