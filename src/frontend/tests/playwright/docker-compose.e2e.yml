@@ -13,7 +13,8 @@ services:
       FLASK_DEBUG: "1"
       DEBUG: "true"
       SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
-      QUEUE_BROKER_URL: memory://localhost
+      REDIS_URL: ""
+      REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_USER: test
       PRESERVE_CONTEXT_ON_EXCEPTION: "False"
       DISABLE_SSE: "true"

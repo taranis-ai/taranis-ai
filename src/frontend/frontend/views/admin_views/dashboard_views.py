@@ -82,7 +82,7 @@ class AdminDashboardView(AdminMixin, BaseView):
         if health_status := dashboard.health_status:
             return {"healthy": bool(health_status.healthy), "services": health_status.services.model_dump()}
 
-        return {"healthy": False, "services": {"database": "n/a", "broker": "n/a", "workers": "n/a"}}
+        return {"healthy": False, "services": {"database": "n/a", "seed_data": "n/a", "broker": "n/a", "workers": "n/a"}}
 
     def get(self, **kwargs):
         return self.static_view()

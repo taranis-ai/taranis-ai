@@ -133,7 +133,7 @@ class TestCRUDViews:
 
 
 class TestSourceView:
-    def test_import_post_view(self, authenticated_client):
+    def test_import_post_view(self, authenticated_client, source_api_mocks):
         """
         Test that the import_post_view method correctly extracts the "sources" key
         from the uploaded JSON file.
@@ -144,21 +144,17 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        # Mock the CoreApi().import_sources method
-        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
-            mock_api_instance = MagicMock()
-            mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = MagicMock(ok=True)
+        source_api_mocks.import_sources.return_value = MagicMock(ok=True)
 
-            # Simulate the POST request
-            resp = authenticated_client.post(
-                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
-            )
+        # Simulate the POST request
+        resp = authenticated_client.post(
+            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+        )
 
-            assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
-            assert resp.headers["Location"] == SourceView.get_base_route()
+        assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
+        assert resp.headers["Location"] == SourceView.get_base_route()
 
-            mock_api_instance.import_sources.assert_called_once_with(dummy_export_data)
+        source_api_mocks.import_sources.assert_called_once_with(dummy_export_data)
 
     def test_import_post_view_no_file(self, authenticated_client):
         """
@@ -170,7 +166,7 @@ class TestSourceView:
         html = resp.get_data(as_text=True)
         assert "No file or organization provided" in html
 
-    def test_import_post_view_api_failure(self, authenticated_client):
+    def test_import_post_view_api_failure(self, authenticated_client, source_api_mocks):
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
@@ -179,18 +175,15 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        with patch("frontend.views.admin_views.source_views.CoreApi") as mock_core_api:
-            mock_api_instance = MagicMock()
-            mock_core_api.return_value = mock_api_instance
-            mock_api_instance.import_sources.return_value = None
+        source_api_mocks.import_sources.return_value = None
 
-            resp = authenticated_client.post(
-                SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
-            )
+        resp = authenticated_client.post(
+            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+        )
 
-            assert resp.status_code == 200
-            html = resp.get_data(as_text=True)
-            assert "Failed to import sources" in html
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Failed to import sources" in html
 
     def test_process_form_data_accepts_valid_png_icon(self, app):
         with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
@@ -255,6 +248,25 @@ class TestSourceView:
         assert processed_data["icon"] == ""
         assert "delete_icon" not in processed_data
 
+    def test_process_form_data_delete_icon_wins_over_file_upload(self, app):
+        max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
+        oversized_icon = b"\x00" * (max_bytes + 1)
+
+        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
+            with app.test_request_context(
+                SourceView.get_base_route(),
+                method="POST",
+                data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
+                content_type="multipart/form-data",
+            ):
+                response, error = SourceView.process_form_data(123)
+
+        assert error is None
+        assert response == {"stored": True}
+        mock_store.assert_called_once()
+        processed_data = mock_store.call_args.args[0]
+        assert processed_data["icon"] == ""
+
 
 def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     with app.test_request_context(
@@ -279,93 +291,76 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     assert len(model.attribute_groups[0].attribute_group_items) == 1
     assert model.attribute_groups[0].attribute_group_items[0].title == "Domain"
 
-    def test_process_form_data_delete_icon_wins_over_file_upload(self, app):
-        max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
-        oversized_icon = b"\x00" * (max_bytes + 1)
 
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
-                SourceView.get_base_route(),
-                method="POST",
-                data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
-                content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data(123)
+def test_osint_source_form_shows_current_icon_and_delete_option(app):
+    osint_source = OSINTSource.model_construct(
+        id="source-with-icon",
+        name="Test source",
+        description="",
+        rank=3,
+        type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={},
+        icon=_VALID_PNG_BASE64,
+        enabled=True,
+        status=None,
+    )
 
-        assert error is None
-        assert response == {"stored": True}
-        mock_store.assert_called_once()
-        processed_data = mock_store.call_args.args[0]
-        assert processed_data["icon"] == ""
-
-    def test_osint_source_form_shows_current_icon_and_delete_option(self, app):
-        osint_source = OSINTSource.model_construct(
-            id="source-with-icon",
-            name="Test source",
-            description="",
-            rank=3,
-            type=COLLECTOR_TYPES.RSS_COLLECTOR,
-            parameters={},
-            icon=_VALID_PNG_BASE64,
-            enabled=True,
-            status=None,
+    with app.test_request_context("/"):
+        html = render_template(
+            "osint_source/osint_source_form.html",
+            model_name="osint_source",
+            submit_text="Update OSINT Source",
+            form_action="/frontend/admin/sources/source-with-icon",
+            form_error={},
+            osint_source=osint_source,
+            icon_accept="image/png",
+            collector_types=[],
+            parameters=[],
+            parameter_values={},
         )
 
-        with app.test_request_context("/"):
-            html = render_template(
-                "osint_source/osint_source_form.html",
-                model_name="osint_source",
-                submit_text="Update OSINT Source",
-                form_action="/frontend/admin/sources/source-with-icon",
-                form_error={},
-                osint_source=osint_source,
-                icon_accept="image/png",
-                collector_types=[],
-                parameters=[],
-                parameter_values={},
-            )
+    assert "Current icon" in html
+    assert "An icon is currently uploaded." in html
+    assert 'name="delete_icon"' in html
+    assert 'data-testid="current-osint-icon"' in html
+    assert 'data-testid="osint-source-rank"' in html
+    assert 'value="3"' in html
+    assert 'aria-label="3 stars"' in html
+    assert "checked" in html
 
-        assert "Current icon" in html
-        assert "An icon is currently uploaded." in html
-        assert 'name="delete_icon"' in html
-        assert 'data-testid="current-osint-icon"' in html
-        assert 'data-testid="osint-source-rank"' in html
-        assert 'value="3"' in html
-        assert 'aria-label="3 stars"' in html
-        assert "checked" in html
 
-    def test_osint_source_form_disables_rank_for_manual_source(self, app):
-        osint_source = OSINTSource.model_construct(
-            id="manual",
-            name="Manual",
-            description="",
-            rank=0,
-            type=COLLECTOR_TYPES.MANUAL_COLLECTOR,
-            parameters={},
-            icon=None,
-            enabled=True,
-            status=None,
+def test_osint_source_form_disables_rank_for_manual_source(app):
+    osint_source = OSINTSource.model_construct(
+        id="manual",
+        name="Manual",
+        description="",
+        rank=0,
+        type=COLLECTOR_TYPES.MANUAL_COLLECTOR,
+        parameters={},
+        icon=None,
+        enabled=True,
+        status=None,
+    )
+
+    with app.test_request_context("/"):
+        html = render_template(
+            "osint_source/osint_source_form.html",
+            model_name="osint_source",
+            submit_text="Update OSINT Source",
+            form_action='hx-put="/frontend/admin/sources/manual"',
+            form_error={},
+            osint_source=osint_source,
+            icon_accept="image/png",
+            collector_types=[],
+            parameters=[],
+            parameter_values={},
         )
 
-        with app.test_request_context("/"):
-            html = render_template(
-                "osint_source/osint_source_form.html",
-                model_name="osint_source",
-                submit_text="Update OSINT Source",
-                form_action='hx-put="/frontend/admin/sources/manual"',
-                form_error={},
-                osint_source=osint_source,
-                icon_accept="image/png",
-                collector_types=[],
-                parameters=[],
-                parameter_values={},
-            )
-
-        assert 'data-testid="osint-source-rank"' in html
-        assert 'name="rank" value="0"' in html
-        assert 'aria-label="Unrated"' in html
-        assert html.count('name="rank"') == 7
-        assert html.count("disabled") >= 6
+    assert 'data-testid="osint-source-rank"' in html
+    assert 'name="rank" value="0"' in html
+    assert 'aria-label="Unrated"' in html
+    assert html.count('name="rank"') == 7
+    assert html.count("disabled") >= 6
 
 
 def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock, monkeypatch):
@@ -393,6 +388,7 @@ def test_admin_dashboard_renders_health_card(authenticated_client, responses_moc
                         "healthy": False,
                         "services": {
                             "database": "up",
+                            "seed_data": "up",
                             "broker": "down",
                             "workers": "down",
                         },
@@ -459,6 +455,7 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
                         "healthy": True,
                         "services": {
                             "database": "up",
+                            "seed_data": "up",
                             "broker": "up",
                             "workers": "up",
                         },

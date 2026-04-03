@@ -1,11 +1,12 @@
 from typing import Any
 
-from models.admin import Role, Permission
+from models.admin import Permission, Role
+
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.base_view import BaseView
 from frontend.filters import render_count
 from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class RoleView(AdminMixin, BaseView):

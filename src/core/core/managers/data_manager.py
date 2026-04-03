@@ -16,7 +16,6 @@ class InvalidPresenterTemplatePathError(ValueError):
     def __init__(self, message: str = "Invalid presenter template path") -> None:
         super().__init__(message)
 
-
 def file_hash(file_path: Path) -> str:
     hash_md5 = hashlib.md5(usedforsecurity=False)
     with file_path.open("rb") as f:

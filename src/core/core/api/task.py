@@ -89,7 +89,7 @@ def resolve_task_kind(task_id: str, task_name: str | None) -> str | None:
         return "cleanup_token_blacklist"
     if task_name == "presenter_task" or task_id.startswith("presenter_task"):
         return "presenter_task"
-    if task_name == "collector_task" or task_id.startswith("collect_"):
+    if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
         return "collector_task"
     if task_name == "bot_task" or task_id.startswith("bot"):
         return "bot_task"
@@ -131,6 +131,11 @@ def handle_task_result(task_id: str, task_name: str, result: dict[str, Any] | st
     if task_kind == "bot_task":
         handle_bot_result(result)
         return
+
+
+def handle_task_specific_result(task_id: str, result: dict[str, Any] | str, status: str, task_name: str | None = None) -> None:
+    del status
+    handle_task_result(task_id=task_id, task_name=task_name or "", result=result)
 
 
 def handle_presenter_result(result: dict[str, Any]) -> None:

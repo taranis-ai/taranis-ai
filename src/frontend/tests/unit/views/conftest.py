@@ -1,4 +1,5 @@
 from typing import get_origin
+from unittest.mock import MagicMock
 
 import pytest
 import responses
@@ -15,6 +16,8 @@ from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
+from frontend.views.admin_views import source_views  # noqa: E402
+
 
 @pytest.fixture
 def form_data():
@@ -25,6 +28,13 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
+
+
+@pytest.fixture
+def source_api_mocks(monkeypatch):
+    mock_api = MagicMock()
+    monkeypatch.setattr(source_views, "CoreApi", lambda: mock_api)
+    return mock_api
 
 
 def get_items_from_factory(view_name, model):
@@ -162,6 +172,140 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             status=200,
             content_type="application/json",
         )
+
+    scheduler_expect_object = str(core_payloads.get("Scheduler", {}).get("_expect_object") or "Scheduler Job")
+
+    # Provide scheduler-specific endpoints so the dashboard renders during tests
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/dashboard",
+        json={
+            "scheduled_jobs": [
+                {
+                    "id": "test-scheduler-job",
+                    "name": scheduler_expect_object,
+                    "queue": "collectors",
+                    "type": "cron",
+                    "schedule": "*/15 * * * *",
+                    "next_run_time": "2025-01-01T12:00:00",
+                }
+            ],
+            "scheduled_total_count": 1,
+            "queues": [
+                {"name": "collectors", "messages": 0},
+                {"name": "bots", "messages": 2},
+            ],
+            "worker_stats": {
+                "total_workers": 3,
+                "busy_workers": 1,
+                "idle_workers": 2,
+            },
+            "active_jobs": [],
+            "active_total_count": 0,
+            "failed_jobs": [],
+            "failed_total_count": 0,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        json={
+            "items": [
+                {
+                    "id": "task-1",
+                    "task": "collectors.fetch",
+                    "status": "SUCCESS",
+                    "result": None,
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                },
+                {
+                    "id": "task-2",
+                    "task": "bots.process",
+                    "status": "FAILURE",
+                    "result": {"error": "timeout"},
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                },
+            ],
+            "total_count": 2,
+            "task_stats": {
+                "collectors.fetch": {
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                    "last_run_display": "2024-01-01T00:00:00Z",
+                    "last_success_display": "2024-01-01T00:00:00Z",
+                    "successes": 1,
+                    "failures": 0,
+                    "total": 1,
+                    "success_pct": 100,
+                    "status_badge": {"label": "All Success", "variant": "success"},
+                },
+                "bots.process": {
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                    "last_run_display": "2024-01-02T12:00:00Z",
+                    "last_success_display": "2024-01-02T10:00:00Z",
+                    "successes": 0,
+                    "failures": 1,
+                    "total": 1,
+                    "success_pct": 0,
+                    "status_badge": {"label": "First Failure", "variant": "warning"},
+                },
+            },
+            "totals": {"successes": 1, "failures": 1, "overall_success_rate": 50},
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
+        json=[
+            {"name": "collectors", "messages": 1},
+            {"name": "bots", "messages": 0},
+        ],
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/active",
+        json={
+            "items": [
+                {
+                    "id": "active-1",
+                    "name": "Running Bot",
+                    "queue": "bots",
+                    "started_at": "2025-01-01T11:55:00",
+                }
+            ],
+            "total_count": 1,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
+        json={
+            "items": [
+                {
+                    "id": "failed-1",
+                    "name": "Failed Connector",
+                    "queue": "connectors",
+                    "failed_at": "2025-01-01T11:50:00",
+                    "error": "Boom",
+                }
+            ],
+            "total_count": 1,
+        },
+        status=200,
+        content_type="application/json",
+    )
     yield core_payloads
 
 

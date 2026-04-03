@@ -2,9 +2,10 @@
 
 set -eu
 
-cd $(git rev-parse --show-toplevel)
+cd "$(git rev-parse --show-toplevel)"
 
 source dev/env.dev
+export COMPOSE_PROJECT_NAME TARANIS_REDIS_PORT
 
 # Check if this is executed on ubuntu
 if [ -f /etc/lsb-release ]; then
