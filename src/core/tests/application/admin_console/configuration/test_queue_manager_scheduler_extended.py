@@ -110,7 +110,7 @@ def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
     assert annotated["last_run_relative"].endswith("ago")
 
 
-def test_annotate_jobs_computes_missing_interval(monkeypatch):
+def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
     fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=timezone.utc)
 
     class _FixedDateTime(datetime):
@@ -130,6 +130,7 @@ def test_annotate_jobs_computes_missing_interval(monkeypatch):
     annotated = qm_module._annotate_jobs([job])[0]
 
     assert annotated["status_badge"]["label"] == "Pending first run"
+    assert annotated["is_overdue"] is False
 
 
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
