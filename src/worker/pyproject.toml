@@ -48,7 +48,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.scripts]
-taranis-cron = "worker.cron_scheduler:run_scheduler"
+taranis-cron = "worker.cron_scheduler_main:main"
 taranis-worker = "worker:start_worker"
 
 [project.optional-dependencies]

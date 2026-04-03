@@ -78,7 +78,3 @@ def start_worker():
     # Start worker
     worker = Worker(queues, connection=redis_conn)
     worker.work(with_scheduler=True)
-
-
-if __name__ == "__main__":
-    start_worker()

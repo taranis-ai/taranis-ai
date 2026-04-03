@@ -1,5 +1,4 @@
 import json
-import os
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -7,6 +6,8 @@ from typing import Any
 from croniter import croniter
 from redis import Redis
 from rq import Queue
+
+from worker.log import logger
 
 
 DEFS_KEY = "rq:cron:def"  # HASH: job_id -> JSON spec (written by core QueueManager)
@@ -145,18 +146,9 @@ def run_scheduler(
 
                 next_ts = compute_next(spec, now_ts)
                 redis.zadd(NEXT_KEY, {job_id: next_ts})
-            except Exception as exc:
+            except Exception:
                 # Keep the job alive and retry on next poll cycle.
                 redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})
-                print(f"[cron_scheduler] Failed processing job {job_id}: {exc}", flush=True)
+                logger.exception(f"Failed processing scheduled job {job_id}")
 
         time.sleep(poll_interval_seconds)
-
-
-if __name__ == "__main__":
-    run_scheduler(
-        redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-        node_id=os.getenv("CRON_NODE_ID", "cron-b-1"),
-        poll_interval_seconds=float(os.getenv("CRON_POLL_INTERVAL_SECONDS", "15.0")),
-        redis_password=os.getenv("REDIS_PASSWORD"),
-    )
