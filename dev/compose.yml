@@ -22,12 +22,9 @@ services:
       - "${TARANIS_REDIS_PORT:-6379}:6379"
     volumes:
       - "redis_data:/data"
-    environment:
-      - "REDIS_PASSWORD=${REDIS_PASSWORD:-supersecret}"
     command:
       [
         "redis-server",
-        "--requirepass", "${REDIS_PASSWORD}",
         "--appendonly", "yes",
         "--dir", "/data"
       ]

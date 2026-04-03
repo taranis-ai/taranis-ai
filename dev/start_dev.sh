@@ -4,9 +4,7 @@ set -eu
 
 cd "$(git rev-parse --show-toplevel)"
 
-set -a
 source dev/env.dev
-set +a
 
 # Check if this is executed on ubuntu
 if [ -f /etc/lsb-release ]; then
@@ -31,6 +29,6 @@ if [ ! -f "src/frontend/.env" ]; then
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-docker compose -f dev/compose.yml up -d
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-taranis}" TARANIS_REDIS_PORT="${TARANIS_REDIS_PORT:-6379}" docker compose -f dev/compose.yml up -d
 
 ./dev/start_tmux.sh
