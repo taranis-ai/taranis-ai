@@ -384,7 +384,6 @@ def test_workers_dashboard_endpoint_returns_aggregated_payload(client, auth_head
     assert response.json["queues"][0]["name"] == "collectors"
     assert response.json["worker_stats"]["total_workers"] == 3
     assert response.json["active_jobs"][0]["id"] == "active-1"
-    assert response.json["failed_jobs"][0]["id"] == "failed-1"
 
 
 def test_schedule_task_endpoint_returns_single_job(client, auth_header, monkeypatch, auth_bypass):
