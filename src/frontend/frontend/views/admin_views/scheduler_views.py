@@ -2,7 +2,7 @@ from typing import Any
 
 from flask import render_template, request
 from flask.views import MethodView
-from models.admin import Job
+from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
 from models.task import Task
 
 from frontend.auth import auth_required
@@ -12,10 +12,6 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
-
-
-def _notification_error(message: str, status_code: int = 500) -> tuple[str, int]:
-    return BaseView.render_response_notification({"error": message}), status_code
 
 
 class SchedulerView(AdminMixin, BaseView):
@@ -33,39 +29,6 @@ class SchedulerView(AdminMixin, BaseView):
     def _get_dashboard_data() -> dict[str, Any]:
         dashboard_data = CoreApi().api_get("/config/workers/dashboard")
         return dashboard_data if isinstance(dashboard_data, dict) else {}
-
-    @staticmethod
-    def _get_api_items(path: str) -> list[dict[str, Any]]:
-        response = CoreApi().api_get(path)
-        items = response.get("items") if isinstance(response, dict) else None
-        return items if isinstance(items, list) else []
-
-    @staticmethod
-    def _get_scheduled_jobs_data() -> list[dict[str, Any]]:
-        jobs = SchedulerView._get_api_items("/config/schedule")
-        jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
-        return jobs
-
-    @staticmethod
-    def _get_queue_cards_data() -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-        queues_data = CoreApi().api_get("/config/workers/tasks")
-        queues = queues_data if isinstance(queues_data, list) else []
-
-        worker_stats_data = CoreApi().api_get("/config/workers/stats")
-        worker_stats = worker_stats_data if isinstance(worker_stats_data, dict) else None
-        return queues, worker_stats
-
-    @staticmethod
-    def _get_active_jobs_data() -> list[dict[str, Any]]:
-        active_jobs = SchedulerView._get_api_items("/config/workers/active")
-        active_jobs.sort(key=lambda job: job.get("started_at") or "")
-        return active_jobs
-
-    @staticmethod
-    def _get_failed_jobs_data() -> list[dict[str, Any]]:
-        failed_jobs = SchedulerView._get_api_items("/config/workers/failed")
-        failed_jobs.sort(key=lambda job: job.get("failed_at") or "", reverse=True)
-        return failed_jobs
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
@@ -95,9 +58,7 @@ class SchedulerView(AdminMixin, BaseView):
 
             # Get task execution stats
             task_results = DataPersistenceLayer().get_objects(Task)
-            response_metadata = (
-                getattr(task_results, "metadata", getattr(task_results, "extra", {})) if task_results is not None else {}
-            )
+            response_metadata = DataPersistenceLayer.get_response_metadata(task_results)
             task_stats = response_metadata.get("task_stats", {})
             totals = response_metadata.get("totals", {})
             total_successes = totals.get("successes", 0)
@@ -137,10 +98,11 @@ class ScheduleJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            jobs = SchedulerView._get_scheduled_jobs_data()
+            jobs = DataPersistenceLayer().get_objects(Job)
+            jobs.sort(key=lambda job: (job.next_run_time is None, job.next_run_time or ""))
             return render_template("schedule/jobs_table.html", jobs=jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to load jobs: {exc}")
+            return BaseView.render_response_notification({"error": f"Failed to load jobs: {exc}"}), 500
 
 
 class ScheduleQueuesAPI(MethodView):
@@ -151,10 +113,12 @@ class ScheduleQueuesAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            queues, worker_stats = SchedulerView._get_queue_cards_data()
+            persistence = DataPersistenceLayer()
+            queues = persistence.get_objects(QueueStatus)
+            worker_stats = persistence.get_object(WorkerStats)
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to load queues: {exc}")
+            return BaseView.render_response_notification({"error": f"Failed to load queues: {exc}"}), 500
 
 
 class ScheduleActiveJobsAPI(MethodView):
@@ -165,10 +129,11 @@ class ScheduleActiveJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="active")
         try:
-            active_jobs = SchedulerView._get_active_jobs_data()
+            active_jobs = DataPersistenceLayer().get_objects(ActiveJob)
+            active_jobs.sort(key=lambda job: job.started_at or "")
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to load active jobs: {exc}")
+            return BaseView.render_response_notification({"error": f"Failed to load active jobs: {exc}"}), 500
 
 
 class ScheduleFailedJobsAPI(MethodView):
@@ -179,10 +144,11 @@ class ScheduleFailedJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="failed")
         try:
-            failed_jobs = SchedulerView._get_failed_jobs_data()
+            failed_jobs = DataPersistenceLayer().get_objects(FailedJob)
+            failed_jobs.sort(key=lambda job: job.failed_at or "", reverse=True)
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to load failed jobs: {exc}")
+            return BaseView.render_response_notification({"error": f"Failed to load failed jobs: {exc}"}), 500
 
 
 class ScheduleHistoryAPI(MethodView):
@@ -194,9 +160,7 @@ class ScheduleHistoryAPI(MethodView):
             return SchedulerView().get(initial_tab="history")
         try:
             task_results = DataPersistenceLayer().get_objects(Task)
-            response_metadata = (
-                getattr(task_results, "metadata", getattr(task_results, "extra", {})) if task_results is not None else {}
-            )
+            response_metadata = DataPersistenceLayer.get_response_metadata(task_results)
             raw_task_stats: dict[str, dict[str, Any]] = response_metadata.get("task_stats", {})
             totals = response_metadata.get("totals", {})
             total_successes = totals.get("successes", 0)
@@ -220,7 +184,7 @@ class ScheduleHistoryAPI(MethodView):
                 overall_success_rate=overall_success_rate,
             )
         except Exception as exc:  # pragma: no cover - defensive rendering path
-            return _notification_error(f"Failed to load history: {exc}")
+            return BaseView.render_response_notification({"error": f"Failed to load history: {exc}"}), 500
 
 
 class ScheduleJobDetailsAPI(MethodView):

@@ -78,6 +78,34 @@ class Job(TaranisBaseModel):
     is_overdue: bool | None = None
 
 
+class ActiveJob(Job):
+    _core_endpoint = "/config/workers/active"
+    _model_name = "active_job"
+
+
+class FailedJob(Job):
+    _core_endpoint = "/config/workers/failed"
+    _model_name = "failed_job"
+
+
+class QueueStatus(TaranisBaseModel):
+    _core_endpoint = "/config/workers/tasks"
+    _model_name = "queue_status"
+
+    name: str
+    messages: int = 0
+
+
+class WorkerStats(TaranisBaseModel):
+    _core_endpoint = "/config/workers/stats"
+    _model_name = "worker_stats"
+    _pretty_name = "Worker Stats"
+
+    total_workers: int = 0
+    busy_workers: int = 0
+    idle_workers: int = 0
+
+
 class CronSpec(TaranisBaseModel):
     job_id: str
     func_path: str

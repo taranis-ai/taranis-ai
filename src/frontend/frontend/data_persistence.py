@@ -42,12 +42,29 @@ class DataPersistenceLayer:
         objects = self.get_objects(object_model).items
         return None if len(objects) < 1 else objects[0]
 
-    def get_object(self, object_model: Type[T], object_id: int | str) -> T | None:
+    @staticmethod
+    def get_response_metadata(cache_object: CacheObject | None) -> dict[str, Any]:
+        return cache_object.metadata if cache_object is not None else {}
+
+    @staticmethod
+    def _normalize_collection_payload(result: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
+        if isinstance(result, list):
+            return {"items": result, "total_count": len(result)}
+        return result
+
+    @staticmethod
+    def _extract_response_metadata(result: dict[str, Any]) -> dict[str, Any]:
+        exclude_keys = {"items", "total_count", "_links"}
+        return {key: value for key, value in result.items() if key not in exclude_keys}
+
+    def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
-        cache_key = f"{object_id}_{self.make_user_key(endpoint)}"
+        cache_key = self.make_user_key(endpoint) if object_id is None else f"{object_id}_{self.make_user_key(endpoint)}"
         if cache_object := cache.get(key=cache_key):
             return cache_object
-        if result := self.api.api_get(f"{endpoint}/{object_id}"):
+        path = endpoint if object_id is None else f"{endpoint}/{object_id}"
+        result = self.api.api_get(path)
+        if isinstance(result, dict):
             cache_object = object_model(**result)
             cache.set(key=cache_key, value=cache_object)
             return cache_object
@@ -73,8 +90,9 @@ class DataPersistenceLayer:
         if cache_object := cache.get(key=cache_key):
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
-        if result := self.api.api_get(endpoint, paging_data.query_params if paging_data else None):
-            return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
+        result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
+        if isinstance(result, (dict, list)):
+            return self._cache_and_paginate_objects(self._normalize_collection_payload(result), object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
@@ -85,16 +103,16 @@ class DataPersistenceLayer:
         if cache_object := cache.get(key=cache_key):
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
-        if result := self.api.api_get(endpoint, paging_data.query_params if paging_data else None):
-            return self._cache_and_paginate_objects(result, object_model, endpoint, paging_data)
+        result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
+        if isinstance(result, (dict, list)):
+            return self._cache_and_paginate_objects(self._normalize_collection_payload(result), object_model, endpoint, paging_data)
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def _cache_and_paginate_objects(
         self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None
     ) -> CacheObject[T]:
         items = result.get("items", [])
-        exclude_keys = {"items", "total_count", "_links"}
-        metadata = {key: value for key, value in result.items() if key not in exclude_keys}
+        metadata = self._extract_response_metadata(result)
         result_object = [object_model(**object) for object in items]
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
@@ -108,6 +126,7 @@ class DataPersistenceLayer:
                 order=paging_data.order if paging_data and paging_data.order else "",
                 query_params=paging_data.query_params if paging_data else {},
                 links=links,
+                metadata=metadata,
             )
         cache_object = CacheObject(
             result_object,

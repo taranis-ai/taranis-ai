@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from uuid_extensions import uuid7str
 
-from frontend.cache import cache
 from frontend.config import Config
 from frontend.log import logger
 from frontend.views.base_view import BaseView
@@ -36,59 +35,6 @@ def source_api_mocks(monkeypatch):
     mock_api = MagicMock()
     monkeypatch.setattr(source_views, "CoreApi", lambda: mock_api)
     return mock_api
-
-
-@pytest.fixture
-def scheduler_api_mocks(responses_mock, mock_core_get_endpoints):
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
-        json=[
-            {"name": "collectors", "messages": 1},
-            {"name": "bots", "messages": 0},
-        ],
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
-        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/active",
-        json={
-            "items": [
-                {
-                    "id": "active-1",
-                    "name": "Running Bot",
-                    "queue": "bots",
-                    "started_at": "2025-01-01T11:55:00",
-                }
-            ],
-            "total_count": 1,
-        },
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
-        json={
-            "items": [
-                {
-                    "id": "failed-1",
-                    "name": "Failed Connector",
-                    "queue": "connectors",
-                    "failed_at": "2025-01-01T11:50:00",
-                    "error": "Boom",
-                }
-            ],
-            "total_count": 1,
-        },
-    )
-
-    yield responses_mock
-
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
 
 
 def get_items_from_factory(view_name, model):
@@ -283,6 +229,79 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                 },
             ],
             "total_count": 2,
+            "task_stats": {
+                "collectors.fetch": {
+                    "last_run": "2024-01-01T00:00:00Z",
+                    "last_success": "2024-01-01T00:00:00Z",
+                    "last_run_display": "2024-01-01T00:00:00Z",
+                    "last_success_display": "2024-01-01T00:00:00Z",
+                    "successes": 1,
+                    "failures": 0,
+                    "total": 1,
+                    "success_pct": 100,
+                    "status_badge": {"label": "All Success", "variant": "success"},
+                },
+                "bots.process": {
+                    "last_run": "2024-01-02T12:00:00Z",
+                    "last_success": "2024-01-02T10:00:00Z",
+                    "last_run_display": "2024-01-02T12:00:00Z",
+                    "last_success_display": "2024-01-02T10:00:00Z",
+                    "successes": 0,
+                    "failures": 1,
+                    "total": 1,
+                    "success_pct": 0,
+                    "status_badge": {"label": "First Failure", "variant": "warning"},
+                },
+            },
+            "totals": {"successes": 1, "failures": 1, "overall_success_rate": 50},
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
+        json=[
+            {"name": "collectors", "messages": 1},
+            {"name": "bots", "messages": 0},
+        ],
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/stats",
+        json={"total_workers": 2, "busy_workers": 1, "idle_workers": 1},
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/active",
+        json={
+            "items": [
+                {
+                    "id": "active-1",
+                    "name": "Running Bot",
+                    "queue": "bots",
+                    "started_at": "2025-01-01T11:55:00",
+                }
+            ],
+            "total_count": 1,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/workers/failed",
+        json={
+            "items": [
+                {
+                    "id": "failed-1",
+                    "name": "Failed Connector",
+                    "queue": "connectors",
+                    "failed_at": "2025-01-01T11:50:00",
+                    "error": "Boom",
+                }
+            ],
+            "total_count": 1,
         },
         status=200,
         content_type="application/json",

@@ -3,9 +3,22 @@ from urllib.parse import urlparse
 import pytest
 from flask import url_for
 
+from frontend.cache import cache
+
 
 def _requested_core_paths(responses_mock):
     return [urlparse(call.request.url).path.removeprefix("/api") for call in responses_mock.calls]
+
+
+@pytest.fixture(autouse=True)
+def _clear_scheduler_cache():
+    for key in list(cache.cache._cache.keys()):
+        if not str(key).startswith("user_cache_"):
+            cache.delete(key)
+    yield
+    for key in list(cache.cache._cache.keys()):
+        if not str(key).startswith("user_cache_"):
+            cache.delete(key)
 
 
 @pytest.mark.parametrize(
@@ -18,7 +31,7 @@ def _requested_core_paths(responses_mock):
         ("admin.scheduler_history", "history"),
     ],
 )
-def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, scheduler_api_mocks):
+def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for(endpoint)
 
@@ -32,7 +45,7 @@ def test_scheduler_deep_link_renders_dashboard(endpoint, expected_tab, authentic
     assert f'id="{expected_tab}-tab" class="tab-panel hidden"' not in html
 
 
-def test_scheduler_tab_query_param_overrides_initial(authenticated_client, scheduler_api_mocks):
+def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_active_jobs", tab="scheduled")
 
@@ -45,7 +58,7 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, sched
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
-def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, scheduler_api_mocks):
+def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -79,7 +92,8 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     expected_paths,
     expected_text,
     authenticated_client,
-    scheduler_api_mocks,
+    responses_mock,
+    mock_core_get_endpoints,
     htmx_header,
 ):
     with authenticated_client.application.app_context():
@@ -88,6 +102,6 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     response = authenticated_client.get(url, headers=htmx_header)
 
     assert response.status_code == 200
-    assert _requested_core_paths(scheduler_api_mocks) == expected_paths
-    assert "/config/workers/dashboard" not in _requested_core_paths(scheduler_api_mocks)
+    assert _requested_core_paths(responses_mock) == expected_paths
+    assert "/config/workers/dashboard" not in _requested_core_paths(responses_mock)
     assert expected_text in response.get_data(as_text=True)
