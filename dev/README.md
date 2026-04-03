@@ -61,6 +61,7 @@ docker compose -f dev/compose.yml up -d
 ```
 
 This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
+Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
@@ -203,9 +204,7 @@ Access it at: http://localhost:9181
 **Manual start:**
 ```bash
 cd src/worker
-uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
-uv pip install -e ../models
-uv run --no-sync --frozen rq-dashboard --redis-url redis://localhost:6379
+./install_and_run_rq_dashboard.sh
 ```
 
 ## Technology stack

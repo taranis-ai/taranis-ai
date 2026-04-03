@@ -20,18 +20,14 @@ services:
     image: "redis:8-alpine"
     ports:
       - "${TARANIS_REDIS_PORT:-6379}:6379"
-    volumes:
-      - "redis_data:/data"
-    environment:
-      REDIS_PASSWORD: "${REDIS_PASSWORD-}"
     command:
       [
-        "sh",
-        "-c",
-        "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --dir /data; else exec redis-server --appendonly yes --dir /data; fi"
+        "redis-server",
+        "--appendonly", "yes",
+        "--dir", "/data"
       ]
     healthcheck:
-      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       start_period: 10s
       timeout: 3s
@@ -39,4 +35,3 @@ services:
 
 volumes:
   database_data:
-  redis_data:

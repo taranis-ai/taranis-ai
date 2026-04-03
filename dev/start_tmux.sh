@@ -3,7 +3,6 @@
 set -eu
 
 cd "$(git rev-parse --show-toplevel)"
-source dev/env.dev
 
 # Start a new tmux session
 tmux new-session -s taranis -n core -c src/core -d
@@ -25,7 +24,7 @@ tmux send-keys -t taranis:cron "./install_and_run_cron.sh" C-m
 
 # Create RQ Dashboard tab
 tmux new-window -t taranis:5 -n rq-dashboard -c src/worker
-tmux send-keys -t taranis:rq-dashboard "unset VIRTUAL_ENV && DEBUG=true uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models && uv pip install --python .venv/bin/python -e ../models && DEBUG=true uv run --no-sync --frozen rq-dashboard --redis-url redis://localhost:${TARANIS_REDIS_PORT:-6379}" C-m
+tmux send-keys -t taranis:rq-dashboard "./install_and_run_rq_dashboard.sh" C-m
 
 
 # Attach to the session

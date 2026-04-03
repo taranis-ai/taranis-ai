@@ -67,25 +67,49 @@ def redis_backend() -> Generator[dict[str, str], None, None]:
 
     docker_bin = shutil.which("docker")
     if docker_bin:
-        env = os.environ.copy()
-        env["REDIS_PASSWORD"] = password
-        env["TARANIS_REDIS_PORT"] = str(port)
-        compose_file = REPO_ROOT / "dev" / "compose.yml"
-        subprocess.run(
-            ["docker", "compose", "-f", str(compose_file), "up", "-d", "redis"],
-            check=True,
-            env=env,
-        )
-        _wait_for_redis(port, password)
+        container_name = f"taranis-rq-e2e-{uuid.uuid4().hex[:12]}"
         try:
-            yield {"url": f"redis://localhost:{port}", "password": password}
-        finally:
             subprocess.run(
-                ["docker", "compose", "-f", str(compose_file), "down", "-v", "--remove-orphans"],
+                [
+                    docker_bin,
+                    "run",
+                    "--rm",
+                    "--detach",
+                    "--name",
+                    container_name,
+                    "--publish",
+                    f"{port}:6379",
+                    "redis:8-alpine",
+                    "redis-server",
+                    "--requirepass",
+                    password,
+                    "--save",
+                    "",
+                    "--appendonly",
+                    "no",
+                ],
                 check=True,
-                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
-        return
+            _wait_for_redis(port, password)
+            try:
+                yield {"url": f"redis://localhost:{port}", "password": password}
+            finally:
+                subprocess.run(
+                    [docker_bin, "rm", "--force", container_name],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            return
+        except Exception:
+            subprocess.run(
+                [docker_bin, "rm", "--force", container_name],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
     if redis_server := shutil.which("redis-server"):
         proc = subprocess.Popen(

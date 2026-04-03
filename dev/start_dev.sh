@@ -5,6 +5,7 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 
 source dev/env.dev
+export COMPOSE_PROJECT_NAME TARANIS_REDIS_PORT
 
 # Check if this is executed on ubuntu
 if [ -f /etc/lsb-release ]; then
@@ -29,6 +30,6 @@ if [ ! -f "src/frontend/.env" ]; then
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-taranis}" TARANIS_REDIS_PORT="${TARANIS_REDIS_PORT:-6379}" docker compose -f dev/compose.yml up -d
+docker compose -f dev/compose.yml up -d
 
 ./dev/start_tmux.sh
