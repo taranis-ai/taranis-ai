@@ -75,7 +75,7 @@ lines-after-imports = 2
 branch = true
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "../.."]
 markers = [
     "e2e_ci: marks tests as to run only when calling with --e2e-ci option",
     "e2e_timeout: time in milliseconds to wait for the e2e tests to finish",
