@@ -48,10 +48,11 @@ cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
 ```
 
-Copy env.sample to frontend
+Copy env.dev to frontend and set the frontend Flask port
 
 ```bash
-cp src/frontend/env.sample src/frontend/.env
+cp dev/env.dev src/frontend/.env
+echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
 
 Start support services via the dev compose file
