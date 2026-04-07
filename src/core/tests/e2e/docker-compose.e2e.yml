@@ -1,0 +1,144 @@
+services:
+  core:
+    image: python:3.13-slim
+    working_dir: /app/core
+    command: >-
+      sh -lc "python -m pip install --disable-pip-version-check --no-input --quiet uv &&
+      uv sync --frozen --python 3.13 --no-install-project &&
+      uv pip install --python /tmp/.venv/bin/python --no-deps psycopg-binary &&
+      /tmp/.venv/bin/python -m flask run --no-reload --host 0.0.0.0 --port 8080"
+    environment:
+      API_KEY: test_key
+      JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
+      FLASK_DEBUG: "1"
+      DEBUG: "true"
+      SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
+      REDIS_URL: redis://redis:6379/0
+      PRE_SEED_PASSWORD_ADMIN: admin
+      PRE_SEED_PASSWORD_USER: admin
+      TARANIS_AUTHENTICATOR: database
+      DISABLE_SCHEDULER: "true"
+      DISABLE_SSE: "true"
+      SERVER_NAME: localhost
+      APPLICATION_ROOT: /
+      FLASK_APP: app.py
+      PYTHONPATH: /app/core:/app/models
+      UV_PROJECT_ENVIRONMENT: /tmp/.venv
+      UV_CACHE_DIR: /tmp/.cache/uv
+      UV_LINK_MODE: copy
+    volumes:
+      - "../../../core:/app/core:z"
+      - "../../../models:/app/models:z"
+      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+    ports:
+      - "8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/isalive', timeout=2)\"",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  worker:
+    image: python:3.13-slim
+    working_dir: /app/worker
+    command: ["/tmp/.venv/bin/taranis-worker"]
+    environment:
+      API_KEY: test_key
+      TARANIS_CORE_URL: http://core:8080/api
+      REDIS_URL: redis://redis:6379/0
+      WORKER_TYPES: '["Collectors", "Bots", "Misc"]'
+      DEBUG: "true"
+      PYTHONPATH: /app/worker:/app/models
+      UV_PROJECT_ENVIRONMENT: /tmp/.venv
+      UV_CACHE_DIR: /tmp/.cache/uv
+      UV_LINK_MODE: copy
+    volumes:
+      - "../../../worker:/app/worker:z"
+      - "../../../models:/app/models:z"
+      - "worker-venv:/tmp/.venv"
+      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+    depends_on:
+      core:
+        condition: service_healthy
+      fixtures:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      worker_setup:
+        condition: service_completed_successfully
+
+  worker_setup:
+    image: python:3.13-slim
+    working_dir: /app/worker
+    command: >-
+      sh -lc "python -m pip install --disable-pip-version-check --no-input --quiet uv &&
+      uv sync --frozen --python 3.13"
+    environment:
+      UV_PROJECT_ENVIRONMENT: /tmp/.venv
+      UV_CACHE_DIR: /tmp/.cache/uv
+      UV_LINK_MODE: copy
+    volumes:
+      - "../../../worker:/app/worker:z"
+      - "../../../models:/app/models:z"
+      - "worker-venv:/tmp/.venv"
+      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+
+  cron:
+    image: python:3.13-slim
+    working_dir: /app/worker
+    command: ["/tmp/.venv/bin/taranis-cron"]
+    environment:
+      API_KEY: test_key
+      TARANIS_CORE_URL: http://core:8080/api
+      REDIS_URL: redis://redis:6379/0
+      CRON_POLL_INTERVAL_SECONDS: "1.0"
+      DEBUG: "true"
+      PYTHONPATH: /app/worker:/app/models
+      UV_PROJECT_ENVIRONMENT: /tmp/.venv
+      UV_CACHE_DIR: /tmp/.cache/uv
+      UV_LINK_MODE: copy
+    depends_on:
+      core:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      worker_setup:
+        condition: service_completed_successfully
+    volumes:
+      - "../../../worker:/app/worker:z"
+      - "../../../models:/app/models:z"
+      - "worker-venv:/tmp/.venv"
+      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+
+  fixtures:
+    image: nginx:alpine
+    volumes:
+      - "./testdata:/usr/share/nginx/html:ro,z"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/wordlist.csv"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+
+volumes:
+  worker-venv:

@@ -1,321 +1,11 @@
-import contextlib
 import json
-import os
-import shutil
-import socket
-import subprocess
-import threading
 import time
 import uuid
-from collections.abc import Generator
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import pytest
 import redis
 import requests
 from rq import Queue
-
-
-def _wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float = 0.5) -> None:
-    deadline = time.monotonic() + timeout_seconds
-    last_exc: Exception | None = None
-    while time.monotonic() < deadline:
-        try:
-            resp = requests.get(url, timeout=2)
-            resp.raise_for_status()
-            return
-        except Exception as exc:  # pragma: no cover - used for readiness polling
-            last_exc = exc
-            time.sleep(poll_interval)
-    raise RuntimeError(f"Timed out waiting for {url}: {last_exc}")
-
-
-REPO_ROOT = Path(__file__).resolve().parents[4]
-
-
-def _find_free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-def _wait_for_redis(port: int, password: str, timeout_seconds: int = 15) -> None:
-    deadline = time.monotonic() + timeout_seconds
-    last_exc: Exception | None = None
-    client = redis.Redis(host="127.0.0.1", port=port, password=password)
-    while time.monotonic() < deadline:
-        try:
-            if client.ping():
-                return
-        except Exception as exc:  # pragma: no cover - readiness polling
-            last_exc = exc
-            time.sleep(0.5)
-    raise RuntimeError(f"Timed out waiting for redis on port {port}: {last_exc}")
-
-
-@pytest.fixture(scope="session")
-def redis_backend() -> Generator[dict[str, str], None, None]:
-    env_url = os.getenv("TARANIS_E2E_REDIS_URL")
-    env_password = os.getenv("TARANIS_E2E_REDIS_PASSWORD", "supersecret")
-    if env_url:
-        yield {"url": env_url, "password": env_password}
-        return
-
-    password = "supersecret"
-    port = _find_free_port()
-
-    docker_bin = shutil.which("docker")
-    if docker_bin:
-        container_name = f"taranis-rq-e2e-{uuid.uuid4().hex[:12]}"
-        try:
-            subprocess.run(
-                [
-                    docker_bin,
-                    "run",
-                    "--rm",
-                    "--detach",
-                    "--name",
-                    container_name,
-                    "--publish",
-                    f"{port}:6379",
-                    "redis:8-alpine",
-                    "redis-server",
-                    "--requirepass",
-                    password,
-                    "--save",
-                    "",
-                    "--appendonly",
-                    "no",
-                ],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            _wait_for_redis(port, password)
-            try:
-                yield {"url": f"redis://localhost:{port}", "password": password}
-            finally:
-                subprocess.run(
-                    [docker_bin, "rm", "--force", container_name],
-                    check=False,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            return
-        except Exception:
-            subprocess.run(
-                [docker_bin, "rm", "--force", container_name],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
-    if redis_server := shutil.which("redis-server"):
-        proc = subprocess.Popen(
-            [
-                redis_server,
-                "--port",
-                str(port),
-                "--requirepass",
-                password,
-                "--save",
-                "",
-                "--appendonly",
-                "no",
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        _wait_for_redis(port, password)
-        try:
-            yield {"url": f"redis://localhost:{port}", "password": password}
-        finally:
-            proc.terminate()
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
-                proc.kill()
-        return
-
-    pytest.skip("docker and redis-server not available - skipping redis e2e test")
-
-
-@pytest.fixture(scope="session")
-def core_process(redis_backend: dict[str, str], tmp_path_factory: pytest.TempPathFactory) -> Generator[str, None, None]:
-    db_path = tmp_path_factory.mktemp("taranis-e2e-db") / "taranis_ai_e2e.db"
-    env = os.environ | {
-        "API_KEY": "test_key",
-        "JWT_SECRET_KEY": "test_key",
-        "REDIS_URL": redis_backend["url"],
-        "REDIS_PASSWORD": redis_backend["password"],
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
-        "PRE_SEED_PASSWORD_ADMIN": "admin",
-        "TARANIS_AUTHENTICATOR": "database",
-        "DISABLE_SCHEDULER": "true",
-        "FLASK_APP": "app.py",
-    }
-    port = int(env.get("TARANIS_CORE_PORT", "5010"))
-
-    core_path = str(REPO_ROOT / "src" / "core")
-    env["PYTHONPATH"] = core_path
-    proc = subprocess.Popen(
-        ["flask", "run", "--no-reload", "--port", str(port)],
-        cwd=core_path,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-
-    base_url = f"http://127.0.0.1:{port}/api"
-    try:
-        _wait_for_http_ok(f"{base_url}/isalive")
-        yield base_url
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
-            proc.kill()
-        with contextlib.suppress(Exception):
-            db_path.unlink()
-
-
-@pytest.fixture(scope="session")
-def worker_process(core_process: str, redis_backend: dict[str, str]) -> Generator[None, None, None]:
-    env = os.environ | {
-        "API_KEY": "test_key",
-        "REDIS_URL": redis_backend["url"],
-        "REDIS_PASSWORD": redis_backend["password"],
-        "TARANIS_CORE_URL": core_process,
-    }
-    worker_path = str(REPO_ROOT / "src" / "worker")
-    proc = subprocess.Popen(
-        ["uv", "run", "--no-sync", "--frozen", "--directory", worker_path, "python", "-m", "worker"],
-        cwd=str(REPO_ROOT),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    if proc.poll() is not None:
-        output = proc.stdout.read() if proc.stdout else ""
-        raise RuntimeError(f"Worker exited immediately. Output:\n{output}")
-    try:
-        _wait_for_worker_ready(core_process, timeout_seconds=30)
-    except Exception as exc:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
-            proc.kill()
-        output = proc.stdout.read() if proc.stdout else ""
-        raise RuntimeError(f"Worker failed to become ready: {exc}\nOutput:\n{output}") from exc
-    yield
-
-    if proc.poll() is not None:
-        output = proc.stdout.read() if proc.stdout else ""
-        if proc.returncode not in (0, None):
-            raise RuntimeError(f"Cron scheduler crashed during test run. Output:\n{output}")
-        return
-
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
-        proc.kill()
-
-
-@pytest.fixture(scope="session")
-def cron_process(core_process: str, redis_backend: dict[str, str]) -> Generator[None, None, None]:
-    env = os.environ | {
-        "API_KEY": "test_key",
-        "REDIS_URL": redis_backend["url"],
-        "REDIS_PASSWORD": redis_backend["password"],
-        "TARANIS_CORE_URL": core_process,
-        "CRON_POLL_INTERVAL_SECONDS": "1.0",
-    }
-    worker_path = str(REPO_ROOT / "src" / "worker")
-    proc = subprocess.Popen(
-        ["uv", "run", "--no-sync", "--frozen", "--directory", worker_path, "python", "-m", "worker.cron_scheduler"],
-        cwd=str(REPO_ROOT),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    if proc.poll() is not None:
-        output = proc.stdout.read() if proc.stdout else ""
-        raise RuntimeError(f"Cron scheduler exited immediately. Output:\n{output}")
-
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            output = proc.stdout.read() if proc.stdout else ""
-            raise RuntimeError(f"Cron scheduler exited during startup. Output:\n{output}")
-        if redis_conn.get("rq:cron:leader"):
-            break
-        time.sleep(0.5)
-    else:
-        output = proc.stdout.read() if proc.stdout else ""
-        raise RuntimeError(f"Cron scheduler did not become active. Output:\n{output}")
-    yield
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:  # pragma: no cover - best effort cleanup
-        proc.kill()
-
-
-@pytest.fixture
-def wordlist_server(tmp_path: Path) -> Generator[str, None, None]:
-    data = "value,category\nalpha,include\nbeta,include\n"
-    (tmp_path / "wordlist.csv").write_text(data, encoding="utf-8")
-
-    def handler(*args, **kwargs):
-        return SimpleHTTPRequestHandler(*args, directory=str(tmp_path), **kwargs)
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield f"http://127.0.0.1:{server.server_port}/wordlist.csv"
-    server.shutdown()
-    thread.join(timeout=5)
-
-
-@pytest.fixture
-def rss_server(tmp_path: Path) -> Generator[str, None, None]:
-    item_html = "<html><body><h1>Test Item</h1><p>Hello from item.</p></body></html>"
-    (tmp_path / "item1.html").write_text(item_html, encoding="utf-8")
-
-    def handler(*args, **kwargs):
-        return SimpleHTTPRequestHandler(*args, directory=str(tmp_path), **kwargs)
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    rss_feed = f"""<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Test Feed</title>
-    <link>http://127.0.0.1:{server.server_port}/</link>
-    <description>Test feed for e2e</description>
-    <item>
-      <title>Test Item</title>
-      <link>http://127.0.0.1:{server.server_port}/item1.html</link>
-      <description>Test item description</description>
-      <pubDate>Mon, 09 Feb 2026 12:00:00 GMT</pubDate>
-    </item>
-  </channel>
-</rss>
-"""
-    (tmp_path / "feed.xml").write_text(rss_feed, encoding="utf-8")
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield f"http://127.0.0.1:{server.server_port}/feed.xml"
-    server.shutdown()
-    thread.join(timeout=5)
 
 
 def _login(core_url: str) -> str:
@@ -329,31 +19,6 @@ def _login(core_url: str) -> str:
         return token
     else:
         raise RuntimeError("No access_token in auth response")
-
-
-def _wait_for_worker_ready(core_url: str, timeout_seconds: int = 30) -> None:
-    """
-    Wait until at least one worker instance is reported by /config/workers.
-    Accepts both legacy list responses and newer dict-based responses.
-    """
-    token = _login(core_url)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
-    deadline = time.monotonic() + timeout_seconds
-    last_payload = None
-    while time.monotonic() < deadline:
-        resp = requests.get(f"{core_url}/config/workers", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
-            # Legacy shape: plain list of workers
-            if isinstance(last_payload, list) and last_payload:
-                return
-            # Possible new shape: {"items": [...]}
-            if isinstance(last_payload, dict):
-                items = last_payload.get("items")
-                if isinstance(items, list) and items:
-                    return
-        time.sleep(0.5)
-    raise RuntimeError(f"Timed out waiting for worker to register. Last payload: {last_payload}")
 
 
 def _poll_wordlist_entries(
@@ -398,7 +63,7 @@ def _poll_cron_registration(
     timeout_seconds: int = 15,
 ) -> dict:
     """Wait until a cron spec and its next run timestamp are registered in Redis."""
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     deadline = time.monotonic() + timeout_seconds
     last_raw_spec = None
     last_next = None
@@ -421,7 +86,7 @@ def _poll_cron_expression(
     timeout_seconds: int = 10,
 ) -> dict:
     """Wait until a cron spec is present in Redis with the expected cron expression."""
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     deadline = time.monotonic() + timeout_seconds
     last_spec = None
 
@@ -460,7 +125,7 @@ def _poll_collector_task_result(
         time.sleep(1.0)
     details = ""
     if redis_backend and cron_job_id:
-        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
         next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
         spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
         queued = redis_conn.llen("rq:queue:collectors")
@@ -493,7 +158,7 @@ def _poll_bot_task_result(
         time.sleep(1.0)
     details = ""
     if redis_backend and cron_job_id:
-        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
         next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
         spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
         queued = redis_conn.llen("rq:queue:bots")
@@ -541,7 +206,7 @@ def test_rq_cleanup_token_blacklist(
     token = _login(core_process)
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
 
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     # Use explicit queue name to match worker configuration.
     queue = Queue("misc", connection=redis_conn)
     job_id = f"e2e_cleanup_token_blacklist_{int(time.time())}"
@@ -632,7 +297,7 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     registered_spec = _poll_cron_registration(redis_backend, job_id)
     assert registered_spec.get("cron") == initial_cron
 
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"], decode_responses=False)
+    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     initial_next = redis_conn.zscore("rq:cron:next", job_id)
     assert initial_next is not None
 

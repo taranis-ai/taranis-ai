@@ -58,7 +58,19 @@ taranis-core-healthcheck = "core.healthcheck:main"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "fakeredis", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-flask",
+    "pytest-docker",
+    "fakeredis",
+    "schemathesis < 4",
+    "build",
+    "wheel",
+    "setuptools_scm",
+    "pytest-playwright",
+    "playwright",
+]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -71,7 +83,7 @@ target-version = "py313"
 lines-after-imports = 2
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "../.."]
 markers = [
     "e2e_user: marks tests as to run only when calling with --e2e-user option",
     "e2e_ci: marks tests as to run only when calling with --e2e-ci option",

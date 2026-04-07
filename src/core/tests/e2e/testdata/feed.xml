@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>http://fixtures/</link>
+    <description>Test feed for RQ e2e</description>
+    <item>
+      <title>Test Item</title>
+      <link>http://fixtures/item1.html</link>
+      <description>Test item description</description>
+      <pubDate>Mon, 09 Feb 2026 12:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
