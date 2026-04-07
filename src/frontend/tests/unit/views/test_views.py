@@ -2,7 +2,8 @@ import base64
 import json
 from datetime import datetime
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
 from flask import render_template
@@ -27,6 +28,13 @@ CRUD_ITEMS = [(name, cls) for name, cls in VIEW_ITEMS if not getattr(cls, "_read
 CRUD_IDS = [name for name, _ in CRUD_ITEMS]
 ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admin", False)]
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
+
+
+def _json_request_body(call) -> dict:
+    body = call.request.body
+    if isinstance(body, bytes):
+        body = body.decode("utf-8")
+    return json.loads(body or "{}")
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
@@ -133,7 +141,7 @@ class TestCRUDViews:
 
 
 class TestSourceView:
-    def test_import_post_view(self, authenticated_client, source_api_mocks):
+    def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
         from the uploaded JSON file.
@@ -144,7 +152,12 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        source_api_mocks.import_sources.return_value = MagicMock(ok=True)
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/config/import-osint-sources",
+            json={"message": "Sources imported successfully"},
+            status=200,
+            content_type="application/json",
+        )
 
         # Simulate the POST request
         resp = authenticated_client.post(
@@ -154,7 +167,9 @@ class TestSourceView:
         assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
         assert resp.headers["Location"] == SourceView.get_base_route()
 
-        source_api_mocks.import_sources.assert_called_once_with(dummy_export_data)
+        assert len(responses_mock.calls) == 1
+        assert urlparse(responses_mock.calls[0].request.url).path.removeprefix("/api") == "/config/import-osint-sources"
+        assert _json_request_body(responses_mock.calls[0]) == dummy_export_data
 
     def test_import_post_view_no_file(self, authenticated_client):
         """
@@ -166,7 +181,7 @@ class TestSourceView:
         html = resp.get_data(as_text=True)
         assert "No file or organization provided" in html
 
-    def test_import_post_view_api_failure(self, authenticated_client, source_api_mocks):
+    def test_import_post_view_api_failure(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
@@ -175,7 +190,12 @@ class TestSourceView:
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
 
-        source_api_mocks.import_sources.return_value = None
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/config/import-osint-sources",
+            json={"error": "Failed to import sources"},
+            status=500,
+            content_type="application/json",
+        )
 
         resp = authenticated_client.post(
             SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
@@ -184,6 +204,8 @@ class TestSourceView:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         assert "Failed to import sources" in html
+        assert len(responses_mock.calls) == 1
+        assert _json_request_body(responses_mock.calls[0]) == dummy_export_data
 
     def test_process_form_data_accepts_valid_png_icon(self, app):
         with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:

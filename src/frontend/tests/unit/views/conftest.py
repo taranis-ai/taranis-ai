@@ -1,6 +1,4 @@
 from typing import get_origin
-from unittest.mock import MagicMock
-
 import pytest
 import responses
 from faker import Faker
@@ -16,9 +14,6 @@ from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
-from frontend.views.admin_views import source_views  # noqa: E402
-
-
 @pytest.fixture
 def form_data():
     return html_form_to_dict
@@ -28,14 +23,6 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
-
-
-@pytest.fixture
-def source_api_mocks(monkeypatch):
-    mock_api = MagicMock()
-    monkeypatch.setattr(source_views, "CoreApi", lambda: mock_api)
-    return mock_api
-
 
 def get_items_from_factory(view_name, model):
     factory = ModelFactory.create_factory(model=model)
