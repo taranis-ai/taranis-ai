@@ -1,13 +1,9 @@
-from typing import Any
-
 from flask import render_template, request
 from flask.views import MethodView
-from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
-from models.task import Task
+from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, TaskHistoryResponse, WorkerStats
 
 from frontend.auth import auth_required
 from frontend.config import Config
-from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request
 from frontend.views.admin_views.admin_mixin import AdminMixin
@@ -26,9 +22,8 @@ class SchedulerView(AdminMixin, BaseView):
     allowed_tabs = {"scheduled", "active", "failed", "history"}
 
     @staticmethod
-    def _get_dashboard_data() -> dict[str, Any]:
-        dashboard_data = CoreApi().api_get("/config/workers/dashboard")
-        return dashboard_data if isinstance(dashboard_data, dict) else {}
+    def _get_dashboard_data() -> SchedulerDashboardData | None:
+        return DataPersistenceLayer().get_object(SchedulerDashboardData)
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
@@ -44,39 +39,28 @@ class SchedulerView(AdminMixin, BaseView):
         try:
             selected_tab = self._resolve_tab(initial_tab)
             dashboard_data = self._get_dashboard_data()
+            if dashboard_data is None:
+                raise ValueError("Failed to load scheduler dashboard data")
 
-            jobs_data = dashboard_data.get("scheduled_jobs")
-            jobs = jobs_data if isinstance(jobs_data, list) else []
-            jobs.sort(key=lambda job: (job.get("next_run_time") is None, job.get("next_run_time") or ""))
+            jobs = list(dashboard_data.scheduled_jobs)
+            jobs.sort(key=lambda job: (job.next_run_time is None, job.next_run_time or ""))
 
-            queues = dashboard_data.get("queues", [])
-            if not isinstance(queues, list):
-                queues = []
-
-            worker_stats_data = dashboard_data.get("worker_stats")
-            worker_stats = worker_stats_data if isinstance(worker_stats_data, dict) else None
-
-            # Get task execution stats
-            task_results = DataPersistenceLayer().get_objects(Task)
-            response_metadata = DataPersistenceLayer.get_response_metadata(task_results)
-            task_stats = response_metadata.get("task_stats", {})
-            totals = response_metadata.get("totals", {})
-            total_successes = totals.get("successes", 0)
-            total_failures = totals.get("failures", 0)
-            overall_success_rate = totals.get("overall_success_rate", 0)
+            history = DataPersistenceLayer().get_object(TaskHistoryResponse)
+            if history is None:
+                raise ValueError("Failed to load scheduler execution history")
 
             # Get base context with sidebar and admin layout
             context = self._common_context()
             context.update(
                 {
                     "jobs": jobs,
-                    "queues": queues,
-                    "worker_stats": worker_stats,
-                    "task_results": task_results,
-                    "task_stats": task_stats,
-                    "total_successes": total_successes,
-                    "total_failures": total_failures,
-                    "overall_success_rate": overall_success_rate,
+                    "queues": dashboard_data.queues,
+                    "worker_stats": dashboard_data.worker_stats,
+                    "task_results": history.items,
+                    "task_stats": history.task_stats,
+                    "total_successes": history.totals.successes,
+                    "total_failures": history.totals.failures,
+                    "overall_success_rate": history.totals.overall_success_rate,
                     "initial_tab": selected_tab,
                 }
             )
@@ -159,29 +143,25 @@ class ScheduleHistoryAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="history")
         try:
-            task_results = DataPersistenceLayer().get_objects(Task)
-            response_metadata = DataPersistenceLayer.get_response_metadata(task_results)
-            raw_task_stats: dict[str, dict[str, Any]] = response_metadata.get("task_stats", {})
-            totals = response_metadata.get("totals", {})
-            total_successes = totals.get("successes", 0)
-            total_failures = totals.get("failures", 0)
-            overall_success_rate = totals.get("overall_success_rate", 0)
+            task_history = DataPersistenceLayer().get_object(TaskHistoryResponse)
+            if task_history is None:
+                raise ValueError("Failed to load task history")
 
             task_stats = dict(
                 sorted(
-                    raw_task_stats.items(),
-                    key=lambda item: item[1].get("last_run") or "",
+                    task_history.task_stats.items(),
+                    key=lambda item: item[1].last_run or "",
                     reverse=True,
                 )
             )
 
             return render_template(
                 "schedule/execution_history.html",
-                task_results=task_results,
+                task_results=task_history.items,
                 task_stats=task_stats,
-                total_successes=total_successes,
-                total_failures=total_failures,
-                overall_success_rate=overall_success_rate,
+                total_successes=task_history.totals.successes,
+                total_failures=task_history.totals.failures,
+                overall_success_rate=task_history.totals.overall_success_rate,
             )
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load history: {exc}"}), 500

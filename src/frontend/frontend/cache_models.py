@@ -33,7 +33,6 @@ class CacheObject(list[T], Generic[T]):
         links: dict | None = None,
         query_params: dict | None = None,
         total_count: int | None = None,
-        metadata: dict | None = None,
     ):
         iterable = iterable or []
         super().__init__(iterable)
@@ -43,7 +42,6 @@ class CacheObject(list[T], Generic[T]):
         self._links: dict = links or {}
         self._query_params: dict = query_params or {}
         self._total_count = total_count or len(iterable)
-        self._metadata: dict = metadata or {}
 
     def __getitem__(self, item):  # type: ignore[override]
         result = super().__getitem__(item)
@@ -54,7 +52,6 @@ class CacheObject(list[T], Generic[T]):
                 limit=self.limit,
                 order=self.order,
                 total_count=self._total_count,
-                metadata=self._metadata,
             )
         return result
 
@@ -63,14 +60,6 @@ class CacheObject(list[T], Generic[T]):
         if self and hasattr(self[0], "_cache_timeout"):
             return getattr(self[0], "_cache_timeout")
         return Config.CACHE_DEFAULT_TIMEOUT
-
-    @property
-    def metadata(self) -> dict:
-        return self._metadata
-
-    @property
-    def extra(self) -> dict:
-        return self.metadata
 
     @property
     def current_page(self) -> int:

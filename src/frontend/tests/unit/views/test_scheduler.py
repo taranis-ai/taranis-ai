@@ -77,6 +77,23 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert "window.htmx.trigger(target, 'scheduler:refresh');" in html
 
 
+def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticated_client, responses_mock, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler")
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    requested_paths = _requested_core_paths(responses_mock)
+    assert "/config/workers/dashboard" in requested_paths
+    assert "/config/task-results" in requested_paths
+    assert "/config/schedule" not in requested_paths
+    assert "/config/workers/tasks" not in requested_paths
+    assert "/config/workers/stats" not in requested_paths
+    assert "/config/workers/active" not in requested_paths
+    assert "/config/workers/failed" not in requested_paths
+
+
 @pytest.mark.parametrize(
     ("endpoint", "expected_paths", "expected_text"),
     [

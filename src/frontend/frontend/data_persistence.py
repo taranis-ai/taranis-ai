@@ -43,19 +43,10 @@ class DataPersistenceLayer:
         return None if len(objects) < 1 else objects[0]
 
     @staticmethod
-    def get_response_metadata(cache_object: CacheObject | None) -> dict[str, Any]:
-        return cache_object.metadata if cache_object is not None else {}
-
-    @staticmethod
     def _normalize_collection_payload(result: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(result, list):
             return {"items": result, "total_count": len(result)}
         return result
-
-    @staticmethod
-    def _extract_response_metadata(result: dict[str, Any]) -> dict[str, Any]:
-        exclude_keys = {"items", "total_count", "_links"}
-        return {key: value for key, value in result.items() if key not in exclude_keys}
 
     def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
@@ -112,7 +103,6 @@ class DataPersistenceLayer:
         self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None
     ) -> CacheObject[T]:
         items = result.get("items", [])
-        metadata = self._extract_response_metadata(result)
         result_object = [object_model(**object) for object in items]
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
         links = result.get("_links", {})
@@ -126,7 +116,6 @@ class DataPersistenceLayer:
                 order=paging_data.order if paging_data and paging_data.order else "",
                 query_params=paging_data.query_params if paging_data else {},
                 links=links,
-                metadata=metadata,
             )
         cache_object = CacheObject(
             result_object,
@@ -136,7 +125,6 @@ class DataPersistenceLayer:
             order=paging_data.order if paging_data and paging_data.order else "",
             query_params=paging_data.query_params if paging_data else {},
             links=links,
-            metadata=metadata,
         )
         if not result_object:
             logger.warning(f"Empty result for {endpoint}")

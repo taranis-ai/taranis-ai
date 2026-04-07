@@ -106,6 +106,59 @@ class WorkerStats(TaranisBaseModel):
     idle_workers: int = 0
 
 
+class SchedulerDashboardData(TaranisBaseModel):
+    _core_endpoint = "/config/workers/dashboard"
+    _model_name = "scheduler_dashboard"
+    _pretty_name = "Scheduler Dashboard"
+
+    scheduled_jobs: list[Job] = Field(default_factory=list)
+    scheduled_total_count: int = 0
+    queues: list[QueueStatus] = Field(default_factory=list)
+    worker_stats: WorkerStats | None = None
+    active_jobs: list[ActiveJob] = Field(default_factory=list)
+    active_total_count: int = 0
+    failed_jobs: list[FailedJob] = Field(default_factory=list)
+    failed_total_count: int = 0
+
+
+class TaskHistoryEntry(TaranisBaseModel):
+    id: str
+    task: str | None = None
+    result: Any | None = None
+    status: str | None = None
+    last_run: datetime | None = None
+    last_success: datetime | None = None
+
+
+class TaskHistoryStats(TaranisBaseModel):
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_success_display: str | None = None
+    successes: int = 0
+    failures: int = 0
+    total: int = 0
+    success_pct: int = 0
+    status_badge: dict[str, str] | None = None
+
+
+class TaskHistoryTotals(TaranisBaseModel):
+    successes: int = 0
+    failures: int = 0
+    overall_success_rate: int = 0
+
+
+class TaskHistoryResponse(TaranisBaseModel):
+    _core_endpoint = "/config/task-results"
+    _model_name = "task_history_response"
+    _pretty_name = "Task History Response"
+
+    items: list[TaskHistoryEntry] = Field(default_factory=list)
+    total_count: int = 0
+    task_stats: dict[str, TaskHistoryStats] = Field(default_factory=dict)
+    totals: TaskHistoryTotals = Field(default_factory=TaskHistoryTotals)
+
+
 class CronSpec(TaranisBaseModel):
     job_id: str
     func_path: str
