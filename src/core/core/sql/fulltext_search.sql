@@ -37,8 +37,25 @@ CREATE OR REPLACE FUNCTION fts_update_story_search_vector()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_news_titles text;
+    v_news_contents text;
 BEGIN
-    NEW.search_vector := fts_build_story_search_vector(NEW.id::text);
+    SELECT
+        unaccent(coalesce(string_agg(n.title, ' '), '')),
+        left(unaccent(coalesce(string_agg(left(n.content, 8000), ' '), '')), 200000)
+    INTO
+        v_news_titles,
+        v_news_contents
+    FROM news_item n
+    WHERE n.story_id::text = NEW.id::text;
+
+    NEW.search_vector :=
+        setweight(to_tsvector('simple', unaccent(coalesce(NEW.title, ''))), 'A') ||
+        setweight(to_tsvector('simple', unaccent(coalesce(NEW.summary, ''))), 'B') ||
+        setweight(to_tsvector('simple', coalesce(v_news_titles, '')), 'B') ||
+        setweight(to_tsvector('simple', coalesce(v_news_contents, '')), 'C');
+
     RETURN NEW;
 END;
 $$;
