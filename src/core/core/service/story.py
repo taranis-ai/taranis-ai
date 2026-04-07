@@ -111,7 +111,7 @@ class StoryService:
 
         query = f"""
             UPDATE story AS s
-            SET search_vector = fts_build_story_search_vector(s.id::text)
+            SET search_vector = fts_build_story_search_vector(s.id)
             {where_sql}
             RETURNING s.id
         """
