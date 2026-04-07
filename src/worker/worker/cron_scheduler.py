@@ -22,7 +22,7 @@ TASK_FUNCTION_MAP = {
 
 
 def _decode(value: bytes | str) -> str:
-    return value.decode() if isinstance(value, bytes) else value
+    return value.decode() if isinstance(value, bytes) else str(value)
 
 
 def _normalize_spec(spec: dict[str, Any]) -> dict[str, Any] | None:
@@ -55,15 +55,13 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
 
     for raw_job_id, raw_spec in raw_specs.items():
         job_id = _decode(raw_job_id)
-        parsed = _normalize_spec(json.loads(_decode(raw_spec)))
-        if parsed:
+        if parsed := _normalize_spec(json.loads(_decode(raw_spec))):
             specs[job_id] = parsed
 
     next_ids = {_decode(raw_id) for raw_id in redis.zrange(NEXT_KEY, 0, -1)}
     spec_ids = set(specs.keys())
 
-    stale_ids = next_ids - spec_ids
-    if stale_ids:
+    if stale_ids := next_ids - spec_ids:
         redis.zrem(NEXT_KEY, *stale_ids)
 
     missing_ids = spec_ids - next_ids
