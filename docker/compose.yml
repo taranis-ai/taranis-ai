@@ -64,10 +64,10 @@ services:
       - "core_data:/app/data"
     healthcheck:
       test: ["CMD", "taranis-core-healthcheck"]
-      interval: 30s
+      interval: 15m
       timeout: 10s
       retries: 3
-      start_period: 3s
+      start_period: 15s
     logging:
       driver: "json-file"
       options:
