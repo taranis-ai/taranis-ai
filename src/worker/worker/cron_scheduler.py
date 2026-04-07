@@ -103,7 +103,7 @@ def run_scheduler(
     queues: dict[str, Queue] = {}
 
     while True:
-        # Single active scheduler. Keep this if you run multiple B instances.
+        # Keep a single active cron scheduler even if multiple cron instances overlap.
         if not acquire_leader(redis, node_id) and not renew_leader(redis, node_id):
             time.sleep(poll_interval_seconds)
             continue
