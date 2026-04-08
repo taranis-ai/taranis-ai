@@ -387,7 +387,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.goto(url_for("admin.osint_sources", _external=True))
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            source_row = page.locator("#osint_sources tbody tr").first
+            source_row = page.locator("#osint_sources tbody tr").filter(
+                has=page.locator('input[type="checkbox"].checkbox-sm')
+            ).first
             expect(source_row).to_be_visible()
             source_name = source_row.locator("td").nth(1).inner_text().strip()
             page.get_by_role("textbox", name="Search...").first.fill(source_name)
