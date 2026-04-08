@@ -8,11 +8,12 @@ from pydantic import ValidationError
 from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _normalize_spec, _sync_next_index
 
 
-def test_cron_task_spec_accepts_current_fields():
+def test_cron_task_spec_accepts_interval_schedule():
     spec = CronTaskSpec.model_validate(
         {
             "queue_name": "collectors",
             "func_path": "collector_task",
+            "interval": 30,
             "args": ["source-1", False],
             "kwargs": {"dry_run": True},
             "job_options": {"timeout": 30},
@@ -28,11 +29,12 @@ def test_cron_task_spec_accepts_current_fields():
     assert spec.meta == {"name": "Collector: Source 1"}
 
 
-def test_cron_task_spec_accepts_legacy_fields():
+def test_cron_task_spec_accepts_legacy_cron_fields():
     spec = CronTaskSpec.model_validate(
         {
             "queue": "bots",
             "task": "bot_task",
+            "cron": "*/5 * * * *",
             "args": ["bot-1"],
         }
     )
@@ -50,6 +52,27 @@ def test_cron_task_spec_rejects_missing_required_fields():
         CronTaskSpec.model_validate({"interval": 30})
 
     assert _normalize_spec({"interval": 30}) is None
+
+
+def test_cron_task_spec_rejects_missing_schedule_definition():
+    with pytest.raises(ValidationError, match="exactly one of cron or interval"):
+        CronTaskSpec.model_validate({"queue_name": "misc", "func_path": "cleanup_token_blacklist"})
+
+    assert _normalize_spec({"queue_name": "misc", "func_path": "cleanup_token_blacklist"}) is None
+
+
+def test_cron_task_spec_rejects_multiple_schedule_definitions():
+    payload = {
+        "queue_name": "misc",
+        "func_path": "cleanup_token_blacklist",
+        "cron": "0 2 * * *",
+        "interval": 300,
+    }
+
+    with pytest.raises(ValidationError, match="exactly one of cron or interval"):
+        CronTaskSpec.model_validate(payload)
+
+    assert _normalize_spec(payload) is None
 
 
 def test_sync_next_index_adds_missing_and_removes_stale_ids():
@@ -74,6 +97,28 @@ def test_sync_next_index_adds_missing_and_removes_stale_ids():
     assert redis_conn.zscore(NEXT_KEY, "stale_job") is None
     assert redis_conn.zscore(NEXT_KEY, "job_interval_30") == 1030.0
     assert redis_conn.zscore(NEXT_KEY, "job_interval_45") == 1045.0
+
+
+def test_sync_next_index_skips_invalid_specs_without_crashing():
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    base_ts = 1000.0
+
+    redis_conn.hset(
+        DEFS_KEY,
+        "job_interval_30",
+        json.dumps({"queue_name": "misc", "func_path": "cleanup_token_blacklist", "interval": 30}),
+    )
+    redis_conn.hset(
+        DEFS_KEY,
+        "job_invalid",
+        json.dumps({"queue_name": "misc", "func_path": "cleanup_token_blacklist"}),
+    )
+
+    specs = _sync_next_index(redis_conn, base_ts)
+
+    assert set(specs.keys()) == {"job_interval_30"}
+    assert redis_conn.zscore(NEXT_KEY, "job_interval_30") == 1030.0
+    assert redis_conn.zscore(NEXT_KEY, "job_invalid") is None
 
 
 def test_decode_rejects_awaitable_values():

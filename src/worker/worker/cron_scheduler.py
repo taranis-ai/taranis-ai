@@ -1,3 +1,4 @@
+import os
 import inspect
 import json
 import time
@@ -46,7 +47,8 @@ def _decode(value: bytes | str | Awaitable[bytes | str], operation: str = "Redis
 def _normalize_spec(spec: dict[str, Any]) -> dict[str, Any] | None:
     try:
         return CronTaskSpec.model_validate(spec).model_dump()
-    except ValidationError:
+    except ValidationError as exc:
+        logger.warning(f"Ignoring invalid cron scheduler spec: {exc}")
         return None
 
 
@@ -78,7 +80,11 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
 
     missing_ids = spec_ids - next_ids
     for job_id in missing_ids:
-        next_ts = compute_next(specs[job_id], base_ts)
+        try:
+            next_ts = compute_next(specs[job_id], base_ts)
+        except ValueError as exc:
+            logger.warning(f"Skipping next-run registration for invalid cron scheduler spec {job_id}: {exc}")
+            continue
         redis.zadd(NEXT_KEY, {job_id: next_ts})
 
     return specs
@@ -88,7 +94,10 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     if spec.get("cron"):
         dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
         return croniter(spec["cron"], dt).get_next(datetime).timestamp()
-    return base_ts + int(spec["interval"])
+    interval = spec.get("interval")
+    if interval is not None:
+        return base_ts + int(interval)
+    raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
 
 
 def acquire_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
@@ -167,3 +176,16 @@ def run_scheduler(
                 logger.exception(f"Failed processing scheduled job {job_id}")
 
         time.sleep(poll_interval_seconds)
+
+
+def main() -> None:
+    run_scheduler(
+        redis_url=Config.REDIS_URL,
+        node_id=os.getenv("CRON_NODE_ID", "cron-b-1"),
+        poll_interval_seconds=Config.CRON_POLL_INTERVAL_SECONDS,
+        redis_password=Config.REDIS_PASSWORD,
+    )
+
+
+if __name__ == "__main__":
+    main()
