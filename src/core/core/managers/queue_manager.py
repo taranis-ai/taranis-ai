@@ -28,6 +28,7 @@ When a source/bot schedule is updated:
 3. The scheduler process picks up changes on its next poll cycle
 """
 
+import contextlib
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -49,6 +50,10 @@ OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
 CRON_DEFS_KEY = "rq:cron:def"
 CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
+
+
+def _decode_redis_value(value: bytes | str) -> str:
+    return value.decode() if isinstance(value, bytes) else str(value)
 
 
 def _format_duration(delta: timedelta) -> str:
@@ -196,26 +201,164 @@ class QueueManager:
         self.update_empty_word_lists()
 
     def reschedule_all(self):
-        """Check enabled sources and bots - cron scheduler will pick them up automatically"""
+        """Reconcile Redis cron definitions with the currently enabled sources and bots."""
         if self.error:
             return
         try:
-            from core.model.bot import Bot
-            from core.model.osint_source import OSINTSource
+            managed_specs = self._get_managed_cron_specs()
+            desired_ids = set(managed_specs)
+            current_ids = self._get_registered_cron_job_ids()
+            managed_current_ids = {job_id for job_id in current_ids if job_id.startswith(("osint_source_", "bot_"))}
+            stale_ids = sorted(managed_current_ids - desired_ids)
 
-            # Count enabled sources and bots for logging
-            sources = OSINTSource.get_all_for_collector()
-            enabled_sources = sum(bool(s.enabled and s.get_schedule_with_default()) for s in sources)
+            registered = 0
+            for spec in managed_specs.values():
+                if self.register_cron_job(spec):
+                    registered += 1
 
-            bots = Bot.get_all_for_collector()
-            enabled_bots = sum(bool(b.enabled and b.get_schedule()) for b in bots)
+            purged_jobs = 0
+            purged_tasks = 0
+            if stale_ids:
+                for stale_id in stale_ids:
+                    self.unregister_cron_job(stale_id)
+                purged_jobs, purged_tasks = self.purge_job_artifacts(prefixes=[f"cron_{job_id}_" for job_id in stale_ids])
 
+            source_count = sum(1 for job_id in managed_specs if job_id.startswith("osint_source_"))
+            bot_count = sum(1 for job_id in managed_specs if job_id.startswith("bot_"))
             logger.info(
-                f"Found {enabled_sources} enabled sources and {enabled_bots} enabled bots with schedules. "
-                f"Cron scheduler will automatically pick them up."
+                "Synchronized %s source cron jobs and %s bot cron jobs, removed %s stale registrations, "
+                "purged %s stale Redis jobs and %s task rows.",
+                source_count,
+                bot_count,
+                len(stale_ids),
+                purged_jobs,
+                purged_tasks,
             )
+            logger.debug("Registered %s managed cron definitions", registered)
         except Exception as e:
             logger.error(f"Failed to check sources and bots: {e}")
+
+    def _get_managed_cron_specs(self) -> dict[str, CronSpec]:
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
+
+        specs: dict[str, CronSpec] = {}
+
+        for source in OSINTSource.get_all_for_collector():
+            if not getattr(source, "enabled", True):
+                continue
+            if not source.get_schedule_with_default():
+                continue
+            spec = source.get_cron_spec()
+            specs[spec.job_id] = spec
+
+        for bot in Bot.get_all_for_collector():
+            if not getattr(bot, "enabled", True):
+                continue
+            if not bot.get_schedule():
+                continue
+            spec = bot.get_cron_spec()
+            specs[spec.job_id] = spec
+
+        return specs
+
+    def _get_registered_cron_job_ids(self) -> set[str]:
+        if self.error or not self._redis:
+            return set()
+
+        try:
+            raw_ids = self._redis.hkeys(CRON_DEFS_KEY)
+        except Exception:
+            return set()
+
+        return {_decode_redis_value(raw_id) for raw_id in raw_ids}
+
+    def purge_job_artifacts(
+        self,
+        *,
+        exact_ids: set[str] | None = None,
+        prefixes: list[str] | None = None,
+    ) -> tuple[int, int]:
+        exact_ids = exact_ids or set()
+        prefixes = prefixes or []
+        if not exact_ids and not prefixes:
+            return 0, 0
+
+        return self._purge_rq_jobs(exact_ids=exact_ids, prefixes=prefixes), self._purge_task_rows(
+            exact_ids=exact_ids,
+            prefixes=prefixes,
+        )
+
+    def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
+        if self.error or not self._redis:
+            return 0
+
+        import rq.registry as rq_registry
+
+        def matches(job_id: str) -> bool:
+            return job_id in exact_ids or any(job_id.startswith(prefix) for prefix in prefixes)
+
+        removed_ids: set[str] = set()
+
+        for queue in self._queues.values():
+            queued_ids: list[str] = []
+            with contextlib.suppress(Exception):
+                if hasattr(queue, "get_job_ids"):
+                    queued_ids = list(queue.get_job_ids())
+                elif callable(getattr(queue, "job_ids", None)):
+                    queued_ids = list(queue.job_ids())
+                elif getattr(queue, "job_ids", None) is not None:
+                    queued_ids = list(queue.job_ids)
+
+            for job_id in queued_ids:
+                if not matches(job_id) or job_id in removed_ids:
+                    continue
+                with contextlib.suppress(Exception):
+                    job = Job.fetch(job_id, connection=self._redis)
+                    job.cancel()
+                    job.delete()
+                    removed_ids.add(job_id)
+
+            registry_classes = [rq_registry.FailedJobRegistry, rq_registry.ScheduledJobRegistry]
+            deferred_registry = getattr(rq_registry, "DeferredJobRegistry", None)
+            if deferred_registry is not None:
+                registry_classes.append(deferred_registry)
+
+            for registry_cls in registry_classes:
+                with contextlib.suppress(Exception):
+                    registry = registry_cls(queue=queue)
+                    for job_id in list(registry.get_job_ids()):
+                        if not matches(job_id) or job_id in removed_ids:
+                            continue
+                        try:
+                            registry.remove(job_id, delete_job=True)
+                        except TypeError:
+                            registry.remove(job_id)
+                            with contextlib.suppress(Exception):
+                                Job.fetch(job_id, connection=self._redis).delete()
+                        removed_ids.add(job_id)
+
+        return len(removed_ids)
+
+    def _purge_task_rows(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
+        from sqlalchemy import or_
+
+        from core.managers.db_manager import db
+        from core.model.task import Task as TaskModel
+
+        conditions = [TaskModel.id.in_(exact_ids)] if exact_ids else []
+        conditions.extend(TaskModel.id.like(f"{prefix}%") for prefix in prefixes)
+        if not conditions:
+            return 0
+
+        tasks = list(db.session.execute(db.select(TaskModel).where(or_(*conditions))).scalars())
+        if not tasks:
+            return 0
+
+        for task in tasks:
+            db.session.delete(task)
+        db.session.commit()
+        return len(tasks)
 
     def clear_queues(self):
         """Clear all queues on startup"""

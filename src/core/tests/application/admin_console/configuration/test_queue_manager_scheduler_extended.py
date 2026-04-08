@@ -35,6 +35,9 @@ class _FakeRedis:
     def zscore(self, key, member):
         return self.zsets.get(key, {}).get(member)
 
+    def hkeys(self, key):
+        return list(self.hashes.get(key, {}).keys())
+
     def pipeline(self):
         redis = self
 
@@ -446,3 +449,84 @@ def test_get_scheduled_jobs_with_many_sources(monkeypatch):
     assert status == 200
     # 120 OSINT cron jobs + housekeeping cleanup cron
     assert schedules["total_count"] == 121
+
+
+def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
+    class FakeSpec:
+        def __init__(self, job_id: str, task_name: str, queue_name: str):
+            self.job_id = job_id
+            self.task_name = task_name
+            self.queue_name = queue_name
+            self.cron = "0 * * * *"
+            self.interval = None
+
+        def model_dump(self, mode="json"):
+            del mode
+            return {
+                "job_id": self.job_id,
+                "func_path": self.task_name,
+                "queue_name": self.queue_name,
+                "cron": self.cron,
+                "args": [],
+                "kwargs": {},
+                "job_options": {},
+                "meta": {},
+            }
+
+    class FakeSource:
+        enabled = True
+
+        def __init__(self, source_id: str):
+            self.id = source_id
+
+        def get_schedule_with_default(self):
+            return "0 * * * *"
+
+        def get_cron_spec(self):
+            return FakeSpec(f"osint_source_{self.id}", "collector_task", "collectors")
+
+    class FakeBot:
+        enabled = True
+
+        def __init__(self, bot_id: str):
+            self.id = bot_id
+
+        def get_schedule(self):
+            return "0 * * * *"
+
+        def get_cron_spec(self):
+            return FakeSpec(f"bot_{self.id}", "bot_task", "bots")
+
+    qm = _make_queue_manager()
+    qm._queues = {"collectors": _DummyQueue("collectors"), "bots": _DummyQueue("bots")}  # type: ignore[assignment]
+    qm._redis.hashes["rq:cron:def"] = {  # type: ignore[attr-defined]
+        "osint_source_stale": b'{"cron":"0 * * * *"}',
+        "bot_stale": b'{"cron":"0 * * * *"}',
+        "custom_keep": b'{"cron":"0 * * * *"}',
+    }
+    qm._redis.zsets["rq:cron:next"] = {  # type: ignore[attr-defined]
+        "osint_source_stale": 1234.0,
+        "bot_stale": 1234.0,
+        "custom_keep": 1234.0,
+    }
+
+    purged_calls: list[tuple[set[str], list[str]]] = []
+
+    monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource("live-source")]))
+    monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot("live-bot")]))
+    monkeypatch.setattr(
+        qm,
+        "purge_job_artifacts",
+        lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (3, 2),
+    )
+
+    qm.reschedule_all()
+
+    assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "custom_keep" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert len(purged_calls) == 1
+    assert purged_calls[0][0] == set()
+    assert set(purged_calls[0][1]) == {"cron_osint_source_stale_", "cron_bot_stale_"}
