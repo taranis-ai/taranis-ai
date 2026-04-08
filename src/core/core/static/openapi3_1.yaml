@@ -2989,6 +2989,55 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+  /publish/publisher-presets:
+    get:
+      tags: [publish]
+      operationId: publish.publisher_presets.get
+      description: get publisher presets available to publish users
+      security:
+        - UserAuth: []
+      responses:
+        "200":
+          description: a list of publisher presets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/publisher_preset.presentation"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /publish/publisher-presets/{preset_id}:
+    parameters:
+      - name: preset_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [publish]
+      operationId: publish.publisher_preset.get
+      description: get a publisher preset available to publish users
+      security:
+        - UserAuth: []
+      responses:
+        "200":
+          description: a publisher preset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publisher_preset.presentation"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
 components:
   schemas:
     #requests

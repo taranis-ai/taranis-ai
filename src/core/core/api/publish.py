@@ -5,7 +5,8 @@ from flask_jwt_extended import current_user
 from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.model import product, product_type
+from core.managers.decorators import extract_args
+from core.model import product, product_type, publisher_preset
 from core.service.product import ProductService
 
 
@@ -13,6 +14,15 @@ class ProductTypes(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self):
         return product_type.ProductType.get_all_for_api(None, with_count=False, user=current_user)
+
+
+class PublisherPresets(MethodView):
+    @auth_required("PUBLISH_ACCESS")
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, preset_id: str | None = None, filter_args: dict | None = None):
+        if preset_id:
+            return publisher_preset.PublisherPreset.get_for_api(preset_id)
+        return publisher_preset.PublisherPreset.get_all_for_api(filter_args, with_count=True)
 
 
 class Products(MethodView):
@@ -74,5 +84,7 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/products", view_func=Products.as_view("products"))
     publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"))
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
+    publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
+    publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
     publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))
     app.register_blueprint(publish_bp)

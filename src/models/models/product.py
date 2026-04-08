@@ -5,6 +5,7 @@ from pydantic import Field, ValidationInfo, field_validator
 from requests import Response
 
 from models.base import TaranisBaseModel
+from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 
 
 class WorkerProduct(TaranisBaseModel):
@@ -17,6 +18,35 @@ class WorkerProduct(TaranisBaseModel):
             data=response.content,
             mime_type=response.headers.get("Content-Type", ""),
         )
+
+
+class ProductParameterValue(TaranisBaseModel):
+    TEMPLATE_PATH: str | None = None
+
+
+class ProductType(TaranisBaseModel):
+    _core_endpoint = "/publish/product-types"
+    _model_name = "product_type"
+    _pretty_name = "Product Type"
+
+    id: int | None = None
+    title: str
+    description: str = ""
+    type: PRESENTER_TYPES
+    parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
+    report_types: list[int] = Field(default_factory=list)
+
+
+class PublisherPreset(TaranisBaseModel):
+    _core_endpoint = "/publish/publisher-presets"
+    _model_name = "publisher_preset"
+    _pretty_name = "Publisher Preset"
+
+    id: str | None = None
+    name: str
+    type: PUBLISHER_TYPES
+    description: str | None = ""
+    parameters: dict[str, str] | None = Field(default_factory=dict)
 
 
 class Product(TaranisBaseModel):

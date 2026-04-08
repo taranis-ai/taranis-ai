@@ -34,3 +34,11 @@ class TestPublishApi(BaseTest):
         assert response.data == file_bytes
         assert response.mimetype == "application/pdf"
         assert response.headers.get("Content-Disposition") == f'attachment; filename="{expected_filename}"'
+
+    def test_get_publisher_presets(self, client, auth_header, publish_publisher_preset):
+        response = self.assert_get_ok(client, f"publisher-presets?search={publish_publisher_preset['name']}", auth_header)
+
+        assert response.get_json()["items"][0]["id"] == publish_publisher_preset["id"]
+        assert response.get_json()["items"][0]["name"] == publish_publisher_preset["name"]
+        assert response.get_json()["items"][0]["type"] == publish_publisher_preset["type"]
+        assert response.get_json()["items"][0]["parameters"]["FTP_URL"] == publish_publisher_preset["parameters"]["FTP_URL"]
