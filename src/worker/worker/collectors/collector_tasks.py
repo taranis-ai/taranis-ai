@@ -43,7 +43,7 @@ class Collector:
     def get_source(self, osint_source_id: str) -> dict[str, Any]:
         if source := self.core_api.get_osint_source(osint_source_id):
             return source
-        raise ValueError(f"Source with id {osint_source_id} not found")
+        raise LookupError(f"Source with id {osint_source_id} not found")
 
     def get_collector(self, source: dict[str, Any]) -> BaseCollector:
         if collector_type := source.get("type"):
@@ -51,6 +51,19 @@ class Collector:
                 return collector
             raise ValueError(f"Collector of type {collector_type} not implemented")
         raise ValueError(f"Source {source['id']} has no collector_type")
+
+
+def _finalize_successful_non_run(job, core_api: CoreApi, result_message: str, *, meta_status: str | None = None) -> str:
+    if not job:
+        return result_message
+
+    if meta_status is not None:
+        job.meta["status"] = meta_status
+        job.meta["message"] = result_message
+        job.save_meta()
+
+    _save_task_result(job.id, "collector_task", result_message, "SUCCESS", core_api)
+    return result_message
 
 
 def collector_task(osint_source_id: str, manual: bool = False):
@@ -71,7 +84,13 @@ def collector_task(osint_source_id: str, manual: bool = False):
     core_api = CoreApi()
     collector = Collector()
 
-    source = collector.get_source(osint_source_id)
+    try:
+        source = collector.get_source(osint_source_id)
+    except LookupError as exc:
+        result_message = f"Skipped collector task: {exc}"
+        logger.warning(result_message)
+        return _finalize_successful_non_run(job, core_api, result_message, meta_status="SKIPPED")
+
     collector_impl = collector.get_collector(source)
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector_impl.name} {job.id if job else 'preview'}")
     task_description = (
@@ -90,16 +109,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
-            if job:
-                job.meta["status"] = "NOT_MODIFIED"
-                job.meta["message"] = str(e)
-                job.save_meta()
-
-            # Save task result to database
-            if job:
-                _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
-
-            return result_message
+            return _finalize_successful_non_run(job, core_api, result_message, meta_status="NOT_MODIFIED")
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
