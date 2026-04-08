@@ -1191,7 +1191,7 @@ requires-dist = [
     { name = "setuptools" },
     { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "swagger-ui-py-x" },
-    { name = "taranis-models", specifier = ">=1.3.3.dev5" },
+    { name = "taranis-models", editable = "../models" },
     { name = "uuid7" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]
@@ -1199,8 +1199,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"
-version = "1.3.5.dev9"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../models" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "language-tags" },
@@ -1210,10 +1209,22 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/7c/7ecba62df0f3874f82b31405f3f25fb470e8acc064625e4b3a0a236d6852/taranis_models-1.3.5.dev9.tar.gz", hash = "sha256:aa3cd6c5031d77ca1794f4a44b299f2acf4b364cd858f40217eb633fab14a67b", size = 37993, upload-time = "2026-03-27T12:32:45.523Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/41/518a73b2ed6c426692793a282687f8b201e4d11abf33b3073ad7a63669e3/taranis_models-1.3.5.dev9-py3-none-any.whl", hash = "sha256:90cbc8616b777884a11822cb13db77305210aef8f0979a213c951a8a5ca15db3", size = 16901, upload-time = "2026-03-27T12:32:46.388Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4" },
+    { name = "language-tags" },
+    { name = "lxml" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyright", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "wheel", marker = "extra == 'dev'" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "text-unidecode"

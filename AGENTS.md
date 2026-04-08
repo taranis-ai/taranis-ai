@@ -36,6 +36,13 @@ See [README.md](README.md) for more information.
 - **worker** (`src/worker/`) - Celery workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation
 
+## Frontend/API Boundaries
+
+- user-facing frontend views must not import admin-domain models from `models.admin`
+- admin/config endpoints under `src/core/core/api/config.py` are for admin workflows; do not use them from user-facing views
+- when a user workflow needs product or publish-related reference data, expose it through a user-scoped endpoint in `src/core/core/api/publish.py`
+- declare matching user-facing model classes in `src/models/models/product.py` and import those from frontend publish views
+
 ## Testing
 
 See .github/workflows for how tests are configured in CI.

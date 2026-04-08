@@ -4,7 +4,6 @@ from flask import abort, current_app, flash, make_response, redirect, render_tem
 from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from jinja2 import TemplateNotFound
-from models.admin import WorkerParameter, WorkerParameterValue
 from models.base import TaranisBaseModel
 from pydantic import ValidationError
 from requests import Response as RequestsResponse
@@ -135,13 +134,6 @@ class BaseView(MethodView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
-
-    @classmethod
-    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
-        return match.parameters if match else []
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
